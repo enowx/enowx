@@ -29,7 +29,7 @@ const EnvSession = "ENOWX_SESSION"
 
 // Commands are the command line's commands, for the programs that also
 // do other things with their arguments to tell them apart.
-var Commands = []string{"ls", "list", "sessions", "peek", "status", "spawn", "send", "read", "wait", "kill", "hibernate", "wake", "agents", "projects", "project", "shells", "notes", "features", "creds", "canvas", "review", "sync", "icons", "attach", "pipeline", "pipelines", "note", "automation", "automations", "hooks", "accounts", "rag", "decide", "browser", "traffic", "android", "mcp", "guide", "ports", "run", "api", "notify", "cloud", "team", "help"}
+var Commands = []string{"ls", "list", "sessions", "peek", "status", "spawn", "send", "read", "wait", "kill", "hibernate", "wake", "agents", "projects", "project", "shells", "notes", "features", "creds", "canvas", "review", "sync", "icons", "attach", "pipeline", "pipelines", "note", "automation", "automations", "hooks", "accounts", "configs", "rag", "decide", "browser", "traffic", "android", "mcp", "guide", "ports", "run", "api", "notify", "cloud", "team", "help"}
 
 // Is reports whether args start with one of Commands.
 func Is(args []string) bool { return len(args) > 0 && slices.Contains(Commands, args[0]) }
@@ -42,7 +42,9 @@ const usage = `usage: enowx-app <command> [arguments]
       --agent ID       the agent (enowx agents lists them), default claude
       --agents A,B     several agents given the prompt, each on --branch
                        with its name after it, to compare
-      --account NAME   the agent's account to sign in as (Settings → Agent accounts)
+      --account NAME   the agent's account to sign in as (Settings → Agents)
+      --config NAME    the agent's config to run with (configs lists them), by
+                       default the preferences'; "official" for the agent as installed
       --project DIR    the project, default this session's or this folder
       --branch NAME    a new branch in a worktree of its own
       --on BRANCH      an existing branch instead
@@ -209,6 +211,8 @@ func (r runner) command(args []string) error {
 		return r.hooks(rest)
 	case "accounts":
 		return r.accountsCmd(rest)
+	case "configs":
+		return r.configsCmd(rest)
 	case "rag":
 		return r.ragCmd(rest)
 	case "decide":
@@ -372,6 +376,7 @@ func (r runner) spawn(args []string) error {
 	agentID := fs.String("agent", "claude", "")
 	agents := fs.String("agents", "", "")
 	account := fs.String("account", "", "")
+	config := fs.String("config", "", "")
 	projectDir := fs.String("project", "", "")
 	branch := fs.String("branch", "", "")
 	on := fs.String("on", "", "")
@@ -430,13 +435,22 @@ func (r runner) spawn(args []string) error {
 			return err
 		}
 	}
-	if *account != "" {
+	switch {
+	case *config != "" && (ownName(*config) == "" || strings.EqualFold(*config, "official")):
+		// The agent as installed.
+	case *config != "":
+		c, err := r.config(p.Agent, *config)
+		if err != nil {
+			return err
+		}
+		p.Account = c.ID
+	case *account != "":
 		id, err := r.account(*account)
 		if err != nil {
 			return err
 		}
 		p.Account = id
-	} else {
+	default:
 		p.AccountAuto = true // the preferences' default
 	}
 	if *agents != "" {
