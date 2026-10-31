@@ -34,7 +34,7 @@ The app shows each agent's level when picking GOA's; `enowx goa agents` lists th
 
 No enowX command that runs a program of GOA's choosing works in its session, or in its MCP server: `creds use … -- COMMAND`, `decide trim -- COMMAND`, and `run` of a project command (listing them still works). Those would be a way around its missing tools.
 
-Checked with Claude Code itself, started as GOA: it reported over 100 tools, all of them enowX's (`mcp__enowx__…`), and no Bash, Read, Edit or Write. Asked to write a file, it had no tool to do so, and offered to hand the task to a session.
+Checked with Codex itself, started with GOA's flags: enowX's tools reached it over MCP as `mcp__enowx__…`, as its hooks name them, and its read-only sandbox refused to write a file ("operation not permitted"). Checked with Claude Code itself, started as GOA: it reported over 100 tools, all of them enowX's (`mcp__enowx__…`), and no Bash, Read, Edit or Write. Asked to write a file, it had no tool to do so, and offered to hand the task to a session.
 
 ## Tasks
 
