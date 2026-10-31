@@ -36,7 +36,7 @@ The judge says how hard a prompt is; enowX maps that to the agent's own models (
 
 An agent set to another model API (Settings → Model APIs) gets that API's small model for easy prompts and its main model otherwise. With no answer, or the judge not sure enough, the agent keeps its own model and effort.
 
-The answer is `{agent, difficulty, model, effort, why, switch, config}`: `switch` is what to type in a running session of the agent for that model and effort (its `/model`, `/effort`), and a new session starts on them (`enowx spawn --model M --effort E`, New session's **Use it**). A running session's model never changes on its own. `config` is kept for a session config of the user's to suggest later; it is empty for now.
+The answer is `{agent, difficulty, model, effort, why, switch, config}`: `switch` is what to type in a running session of the agent for that model and effort (its `/model`, `/effort`), and a new session starts on them (`enowx spawn --model M --effort E`, New session's **Use it**). A running session's model never changes on its own. `config` is one of the agent's model API configs ([configs.md](configs.md)), another provider, when it does an easy or medium prompt for less than the agent's own model, by the price table of token tracking ([tokens.md](tokens.md)): its small model for an easy prompt, its main one for a medium one. A hard prompt keeps the agent's own model; with prices unknown, nothing is switched. GOD of Agents starts a worker with that config ([goa.md](goa.md)).
 
 ## Decision models first
 

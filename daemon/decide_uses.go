@@ -65,6 +65,13 @@ func (s *Server) routeFor(p proto.DecideRouteParams) (proto.RouteChoice, error) 
 	}
 	r := decide.RouteFor(id, difficulty, api)
 	out.Model, out.Effort, out.Switch = r.Model, r.Effort, r.Switch(id)
+	if api == nil {
+		// Another provider, when one of the agent's configs does it for less.
+		if c, model, why, ok := s.cheaperConfig(id, difficulty, r.Model); ok {
+			out.Config, out.Model, out.Switch = c.ID, model, nil // a config is chosen at a session's start, or by switching its config
+			out.Why += "; " + why
+		}
+	}
 	s.acted(d, proto.ActedRouted, 0)
 	return out, nil
 }

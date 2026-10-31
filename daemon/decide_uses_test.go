@@ -117,6 +117,26 @@ func TestRouteChatAndFlakyThroughTheDaemon(t *testing.T) {
 	if log := srv.judge.Log(proto.DecideLogParams{Use: proto.DecideRoute}); len(log) != 2 || log[0].Acted != proto.ActedRouted {
 		t.Fatalf("route log %+v", log)
 	}
+	// A config of another provider whose small model costs less: an easy
+	// prompt goes to it; a hard one keeps the agent's own.
+	cfg, err := c.SaveConfig(proto.Account{Agent: "claude", Name: "Cheap", Kind: proto.ConfigKindAPI,
+		API: &proto.ConfigAPI{BaseURL: "https://openrouter.ai/api", Model: "acme/big", SmallModel: "acme/tiny"}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	tok := srv.tok.settings.Get()
+	tok.Prices = append(tok.Prices, proto.TokenPrice{Model: "acme/tiny", Config: cfg.ID, Input: 0.05, Output: 0.2})
+	if _, err := srv.tok.settings.Set(tok); err != nil {
+		t.Fatal(err)
+	}
+	r, err = c.DecideRoute(proto.DecideRouteParams{Agent: "claude", Prompt: "fix the typo in the CHANGELOG"})
+	if err != nil || r.Config != cfg.ID || r.Model != "acme/tiny" || len(r.Switch) != 0 || !strings.Contains(r.Why, "Cheap") {
+		t.Fatalf("easy, a cheaper config: %+v %v", r, err)
+	}
+	r, _ = c.DecideRoute(proto.DecideRouteParams{Agent: "claude", Prompt: "migrate the orders table to the new schema"})
+	if r.Config != "" || r.Model != "claude-opus-5-5" {
+		t.Fatalf("hard keeps the agent's own: %+v", r)
+	}
 
 	chat := func(text string, mention bool) proto.Decision {
 		t.Helper()
