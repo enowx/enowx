@@ -70,6 +70,8 @@ Limits: **once a session**, **at most N times a session**, **apart at least** so
 - **Change the command:** Find (a regular expression) in a tool's command is replaced by Replace (`$1` for a group).
   - Claude Code asks the user about the new command, unless the session skips permissions.
   - Codex takes a changed command only as approved, so a Codex session that asks gets it as a refusal naming the command to run instead.
+- **Ask the judge** (before a tool runs): enowX's judge allows the command without asking the user, leaves it to them, or refuses it ([decide.md](decide.md)).
+- **Trim its long output** (before a tool runs): the command runs through `enowx decide trim`, and a long output reaches the agent cut by the judge to what matters ([decide.md](decide.md)).
 - **Notify:** a sound (done, input, error) and a banner in the apps, saying Message. `{agent}`, `{project}`, `{branch}`, `{event}`, `{prompt}`, `{command}`, `{paths}`, `{commit}`, `{port}`, `{text}` and `{host}` are filled in.
 - **Call a webhook:** POST to URL.
   - Discord's webhooks get Message as `content`, with no mentions, and Slack's as `text`.
@@ -116,7 +118,7 @@ Codex runs a hook only once the user trusted its exact definition, kept as a has
 
 `enowx hooks` lists the hooks with where they are kept, the projects waiting and the proposals. The other forms:
 - `hooks events` lists the events.
-- `hooks add` adds a hook, with flags for every field: `--event`, `--do run|context|refuse|rewrite|notify|webhook|enowx`, `--command`, `--tool`, `--files`, `--once`, `--schedule`, `--scope host|project|session` …
+- `hooks add` adds a hook, with flags for every field: `--event`, `--do run|context|refuse|rewrite|judge|trim|notify|webhook|enowx`, `--command`, `--tool`, `--files`, `--once`, `--schedule`, `--scope host|project|session` …
 - `hooks edit ID` changes only the flags given.
 - `hooks rm|on|off ID` removes a hook, or turns it on or off.
 - `hooks test ID` runs it on a sample event.

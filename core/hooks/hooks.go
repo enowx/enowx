@@ -157,6 +157,10 @@ func Check(h proto.Hook) error {
 			return fmt.Errorf("hooks: no notification sound %q: done, input or error", h.Kind)
 		}
 	case proto.HookActionBlock:
+	case proto.HookActionJudge, proto.HookActionTrim:
+		if h.Event != proto.HookToolBefore {
+			return errors.New("hooks: the judge and trimming act before a tool runs (tool.before)")
+		}
 	default:
 		return fmt.Errorf("hooks: unknown action %q", h.Action)
 	}

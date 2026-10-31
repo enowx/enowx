@@ -125,7 +125,7 @@ func (s *Server) hookRunner(info proto.SessionInfo) hooks.Runner {
 	}
 	return hooks.Runner{Env: env, Clean: true, Bin: s.HookBin, Notify: func(kind, text string) {
 		s.broadcast(proto.EventNotifySound, proto.NotifySoundParams{Kind: kind, Session: info.ID, Text: text})
-	}}
+	}, Judge: func(ev proto.HookEvent) (proto.HookDecision, string) { return s.judgeHook(info, ev) }}
 }
 
 // fireHooks runs the hooks matching event ev of session info, within
@@ -143,6 +143,7 @@ func (s *Server) fireHooks(info proto.SessionInfo, ev proto.HookEvent) proto.Hoo
 	r := s.hookRunner(info)
 	wait := waits(ev)
 	var contexts []string
+	approved := false // by the judge: the user isn't asked
 	for _, h := range matched {
 		if !s.hooks.limits.Take(h, ev, time.Now()) {
 			continue
@@ -163,6 +164,7 @@ func (s *Server) fireHooks(info proto.SessionInfo, ev proto.HookEvent) proto.Hoo
 		if hd.Context != "" {
 			contexts = append(contexts, hd.Context)
 		}
+		approved = approved || hd.Approve
 		if hd.Command != "" && hd.Command != ev.Command {
 			ev.Command, d.Command = hd.Command, hd.Command
 		}
@@ -171,6 +173,7 @@ func (s *Server) fireHooks(info proto.SessionInfo, ev proto.HookEvent) proto.Hoo
 	if d.Command != "" {
 		d = s.rewritten(info, d)
 	}
+	d.Approve = d.Approve || approved && !d.Block
 	return d
 }
 

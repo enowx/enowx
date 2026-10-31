@@ -151,6 +151,7 @@ func (s *Server) quietTurn(id string) {
 	s.fireHooks(info, proto.HookEvent{Event: proto.HookTurnDone, Via: proto.HookOutside})
 	s.turnEnded(info)
 	s.ragSoon(sessionProject(info))
+	go s.judgeState(info) // does it need the user? (when the use is on)
 }
 
 // promptTyped is a prompt the user typed into session id, for agents whose

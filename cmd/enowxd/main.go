@@ -10,6 +10,7 @@
 package main
 
 import (
+	"errors"
 	"fmt"
 	"net"
 	"os"
@@ -63,8 +64,11 @@ func main() {
 		os.Exit(2)
 	}
 	if err != nil {
-		fmt.Fprintln(os.Stderr, "enowxd:", err)
-		os.Exit(1)
+		var exit cli.ExitError
+		if !errors.As(err, &exit) {
+			fmt.Fprintln(os.Stderr, "enowxd:", err)
+		}
+		os.Exit(cli.Exit(err))
 	}
 }
 

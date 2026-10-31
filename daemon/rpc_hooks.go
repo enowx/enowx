@@ -79,7 +79,10 @@ func (s *Server) sessionHook(p proto.SessionHookParams) (proto.HookDecision, err
 		dir = info.Dir
 	}
 	switch ev.Event {
+	case proto.HookToolAfter:
+		s.toolStep(info, ev)
 	case proto.HookPromptStart:
+		s.promptStep(info.ID)
 		if !d.Block {
 			go s.turnStarted(info)
 			if extra := s.ragContext(dir, ev.Prompt); extra != "" {

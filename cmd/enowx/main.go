@@ -9,6 +9,7 @@
 package main
 
 import (
+	"errors"
 	"flag"
 	"fmt"
 	"log"
@@ -47,8 +48,11 @@ func main() {
 	}
 	if cli.Is(os.Args[1:]) {
 		if err := cli.Run(os.Args[1:], os.Stdout); err != nil {
-			fmt.Fprintln(os.Stderr, "enowx:", err)
-			os.Exit(1)
+			var exit cli.ExitError
+			if !errors.As(err, &exit) {
+				fmt.Fprintln(os.Stderr, "enowx:", err)
+			}
+			os.Exit(cli.Exit(err))
 		}
 		return
 	}

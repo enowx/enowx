@@ -27,6 +27,7 @@ event canvas.render
 event canvas.unslop
 event checks.changed
 event cloud.changed
+event decide.made
 event features.changed
 event features.requested
 event hooks.changed
@@ -745,6 +746,55 @@ field DaemonStats.daemon Usage
 field DaemonStats.host HostUsage
 field DaemonStats.sessions []SessionUsage
 field DaemonStats.supported bool
+field DecideAsk.command string
+field DecideAsk.exit int
+field DecideAsk.judge string
+field DecideAsk.output string
+field DecideAsk.project string
+field DecideAsk.screen string
+field DecideAsk.session string
+field DecideAsk.steps []string
+field DecideAsk.use string
+field DecideLogParams.limit int
+field DecideLogParams.session string
+field DecideLogParams.use string
+field DecideMark.id string
+field DecideMark.note string
+field DecideMark.wrong bool
+field DecideProject.policy string
+field DecideProject.provider string
+field DecideSettings.off []string
+field DecideSettings.order []string
+field DecideSettings.own []Judge
+field DecideSettings.policy string
+field DecideSettings.projects map[string]DecideProject
+field DecideSettings.provider string
+field DecideSettings.uses map[string]DecideUse
+field DecideUse.dailyCalls int
+field DecideUse.judge string
+field DecideUse.minConfidence float64
+field DecideUse.on bool
+field Decision.acted string
+field Decision.agent string
+field Decision.confidence float64
+field Decision.cost float64
+field Decision.error string
+field Decision.id string
+field Decision.input string
+field Decision.judge string
+field Decision.ms int64
+field Decision.note string
+field Decision.project string
+field Decision.saved int
+field Decision.session string
+field Decision.text string
+field Decision.time time.Time
+field Decision.tokens int
+field Decision.tried []string
+field Decision.use string
+field Decision.verdict string
+field Decision.why string
+field Decision.wrong bool
 field DesignBrief.firstScreen string
 field DesignBrief.fixed string
 field DesignBrief.peers string
@@ -1088,6 +1138,23 @@ field Issue.title string
 field Issue.url string
 field IssuesParams.project string
 field IssuesParams.search string
+field Judge.agent string
+field Judge.cost float64
+field Judge.cred string
+field Judge.error string
+field Judge.id string
+field Judge.kind string
+field Judge.label string
+field Judge.model string
+field Judge.ms int64
+field Judge.ok bool
+field Judge.own bool
+field Judge.protocol string
+field Judge.provider string
+field Judge.tested time.Time
+field Judge.tokens int
+field Judge.url string
+field JudgeRef.id string
 field KitTemplateData.repo string
 field MCPTest.error string
 field MCPTest.ok bool
@@ -2310,6 +2377,13 @@ method daemon.setSettings
 method daemon.settings
 method daemon.stats
 method daemon.stopAgents
+method decide.ask
+method decide.judges
+method decide.log
+method decide.mark
+method decide.setSettings
+method decide.settings
+method decide.test
 method design.review
 method display.scale
 method env.delete
@@ -2565,6 +2639,13 @@ value AccountAuth=auth
 value AccountCredits=credits
 value AccountLimit=limit
 value AccountOK=ok
+value ActedAlerted=alerted
+value ActedAllowed=allowed
+value ActedNothing=
+value ActedPaused=paused
+value ActedRefused=refused
+value ActedTrimmed=trimmed
+value ActedWaiting=marked waiting
 value ActionBreakpoint=breakpoint
 value ActionFail=fail
 value ActionForward=forward
@@ -2661,6 +2742,14 @@ value CredInvalid=invalid
 value CredRevoked=revoked
 value CredUnchecked=unchecked
 value CredValid=valid
+value DecideAnyProvider=any
+value DecideApprove=approve
+value DecideLocalOnly=local
+value DecideLoop=loop
+value DecideOneProvider=one
+value DecideSameProvider=agent
+value DecideState=state
+value DecideTrim=trim
 value DeletesMirror=mirror
 value DeletesNever=never
 value EnvCanvasChat=ENOWX_CANVAS_CHAT
@@ -2695,9 +2784,11 @@ value FileRenamed=renamed
 value HookActionBlock=block
 value HookActionContext=context
 value HookActionEnowX=enowx
+value HookActionJudge=judge
 value HookActionNotify=notify
 value HookActionRewrite=rewrite
 value HookActionRun=run
+value HookActionTrim=trim
 value HookActionWebhook=webhook
 value HookAnswered=permission.answer
 value HookCommit=git.commit
@@ -2746,6 +2837,9 @@ value ImportObsidian=obsidian
 value ImportOverwrite=overwrite
 value ImportRunning=running
 value ImportSkip=skip
+value JudgeAPI=api
+value JudgeAgent=agent
+value JudgeLocal=local
 value KitAutomation=automation
 value KitPipeline=pipeline
 value KitTemplate=template
@@ -2775,6 +2869,11 @@ value PluginMarketplaceRemove=marketplace remove
 value PluginMarketplaceUpdate=marketplace update
 value PluginUninstall=uninstall
 value PluginUpdate=update
+value ProviderAnthropic=anthropic
+value ProviderGoogle=google
+value ProviderLocal=local
+value ProviderOpenAI=openai
+value ProviderOpenRouter=openrouter
 value RAGBuiltin=builtin
 value RAGCode=code
 value RAGDocs=docs
@@ -2842,6 +2941,17 @@ value VaultRemove=rm
 value VaultSession=session
 value VaultSign=sign
 value VaultTest=test
+value VerdictAllow=allow
+value VerdictAsk=ask
+value VerdictDone=done
+value VerdictFailed=failed
+value VerdictKeep=keep
+value VerdictLooping=looping
+value VerdictProgress=progress
+value VerdictRefuse=refuse
+value VerdictStuck=stuck
+value VerdictTrimmed=trimmed
+value VerdictWaiting=waiting
 value WorkFeature=feature
 value WorkFlow=flow
 value WorkRefresh=refresh

@@ -87,6 +87,10 @@ func (a *App) hookActionFields(c *ui.Context, h *proto.Hook) {
 			widget.Input(c, &h.Replace, "pnpm install").Grow(1).Font(theme.MonoFont)
 		})
 		muted("A regular expression in the command, and what replaces it ($1 for what a group caught). Claude Code asks you about the new command unless the session skips permissions; Codex gets it as the command to run instead.")
+	case proto.HookActionJudge:
+		muted("enowX's judge (Settings → Decisions) allows the command without asking you, leaves it to you, or refuses it, as sure as you set it to be. With no judge, or Approving commands off, nothing changes.")
+	case proto.HookActionTrim:
+		muted("The command runs through enowX: a long output (over 150 lines) reaches the agent cut by the judge to what matters, the whole kept in a file it can read, its exit code unchanged. Set Tool or command to the commands with long output (tests, builds, installs).")
 	case proto.HookActionNotify:
 		hookSelect(c, "Sound", &h.Kind, []string{"done", "input", "error"}, map[string]string{"": "Done sound", "done": "Done sound", "input": "Input sound", "error": "Error sound"})
 		widget.Input(c, &h.Message, "{agent} finished in {project}").FillWidth()
@@ -112,6 +116,8 @@ func hookActionNote(event, action string) string {
 		return "Context reaches the agent only before a prompt or at a session's start."
 	case action == proto.HookActionRewrite && event != proto.HookToolBefore:
 		return "Only a tool about to run has a command to change."
+	case (action == proto.HookActionJudge || action == proto.HookActionTrim) && event != proto.HookToolBefore:
+		return "The judge and trimming act before a tool runs."
 	}
 	return ""
 }

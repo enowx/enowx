@@ -58,6 +58,7 @@ Go 1.27+ is required (MyGo needs it). With an older `go`, set `GOTOOLCHAIN=go1.2
 | `core/projectsync` | Compares two hosts' copies of a project with their last sync, plans and runs what goes each way (see `docs/transfer.md`) | **No** |
 | `core/projectlinks` | A project's ID in its folder, the links between its copies on several hosts, their syncs on their own and its auto push settings (see `docs/transfer.md`) | **No** |
 | `core/autopush` | Commits a project's work to a branch of its own and pushes that branch alone, the user's branch, index and files untouched, secrets refused | **No** |
+| `core/decide` | The judge: a small model asked instead of guessing (a quiet session's state, approving a command, trimming output, a loop), the judges found on a host (agents' one-shot commands, model APIs, local servers), the policy and order they're tried in, the log (see `docs/decide.md`) | **No** |
 | `core/rag` | RAG: a project's files cut into chunks, embedded (Voyage, OpenAI-compatible, TEI) and kept in SQLite or PostgreSQL with pgvector, searched by meaning and words; the host's settings and consent per project, memories (see `docs/rag.md`) | **No** |
 | `core/hooks` | The user's hooks: kept (the host's, synced; a project's `.enowx/hooks.json` once allowed), which match an event, and running them (see `docs/hooks.md`) | **No** |
 | `core/automation` | When automations (an agent's prompt on a schedule) run (see `docs/automations.md`) | **No** |

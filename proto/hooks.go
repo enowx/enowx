@@ -73,10 +73,15 @@ const (
 	HookActionNotify  = "notify"  // a sound and banner in the apps: Kind, Message
 	HookActionWebhook = "webhook" // POST to URL: Message for Discord and Slack, else the event
 	HookActionEnowX   = "enowx"   // run enowX's command with Command's arguments
+	// Before a tool runs, with the judge (docs/decide.md): Judge has it
+	// allow the command, leave it to the user or refuse it; Trim runs it
+	// through enowx decide trim, its long output cut to what matters.
+	HookActionJudge = "judge"
+	HookActionTrim  = "trim"
 )
 
 // HookActions are the actions, in the order they're offered.
-var HookActions = []string{HookActionRun, HookActionContext, HookActionBlock, HookActionRewrite, HookActionNotify, HookActionWebhook, HookActionEnowX}
+var HookActions = []string{HookActionRun, HookActionContext, HookActionBlock, HookActionRewrite, HookActionJudge, HookActionTrim, HookActionNotify, HookActionWebhook, HookActionEnowX}
 
 // HookConditions name a hook's conditions, as Not lists them.
 var HookConditions = []string{"agents", "projects", "hosts", "branches", "tool", "paths", "text"}

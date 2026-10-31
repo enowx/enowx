@@ -84,6 +84,7 @@ func (a *App) view(c *ui.Context) {
 	a.renameDialog(c)
 	a.accountAskDialog(c)
 	a.ragOfferDialog(c)
+	a.decisionDialog(c)
 	a.unslopCompareDialog(c)
 	a.unslopChoiceDialog(c)
 	a.replayDialog(c)

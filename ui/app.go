@@ -169,6 +169,8 @@ type App struct {
 	ragSet             ragSettingsState          // Settings → RAG (rag.go)
 	ragPanel           ragPanelState             // the side panel's Index (rag_panel.go)
 	ragOffer           *proto.RAGRememberParams  // a session's decision offered as a memory
+	decideSet          decideState               // Settings → Decisions (decide.go)
+	decision           *proto.Decision           // the judge stopped an agent or refused its command (decide_uses.go)
 	chatToasts         []*chatToast              // team chat messages, in the corner (teamchatnotify.go)
 	acctAsk            *proto.AccountFallback    // an account at its limit, asking to switch (accounts_switch.go)
 	browserNews        bool                      // the Browser opened a page while the user was at something else
@@ -399,6 +401,7 @@ func (a *App) handleEvent(gen int, ev proto.Event) {
 	a.notifyEvent(ev, a.host.Name)
 	a.hooksEvent(ev)
 	a.ragEvent(ev)
+	a.decideEvent(ev)
 	a.accountEvent(ev)
 	a.cloudEvent(ev)
 	var apply func()

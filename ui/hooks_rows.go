@@ -49,6 +49,8 @@ var hookActionNames = map[string]string{
 	proto.HookActionContext: "Add context",
 	proto.HookActionBlock:   "Refuse",
 	proto.HookActionRewrite: "Change the command",
+	proto.HookActionJudge:   "Ask the judge",
+	proto.HookActionTrim:    "Trim its long output",
 	proto.HookActionNotify:  "Notify",
 	proto.HookActionWebhook: "Call a webhook",
 	proto.HookActionEnowX:   "Run an enowX command",
@@ -68,6 +70,10 @@ func hookSummary(h proto.Hook) string {
 		what = "refuses"
 	case proto.HookActionRewrite:
 		what = "changes /" + h.Find + "/ to " + h.Replace
+	case proto.HookActionJudge:
+		what = "asks the judge"
+	case proto.HookActionTrim:
+		what = "trims long output"
 	case proto.HookActionNotify:
 		what = "notifies"
 	case proto.HookActionWebhook:

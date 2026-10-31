@@ -27,13 +27,20 @@ const ExitBlock = 2
 
 // Runner is what hooks run with: Env added to their commands'
 // environment (or, Clean, all of it), Bin enowX's program
-// (HookActionEnowX), Notify what shows a notification in the apps.
+// (HookActionEnowX, HookActionTrim), Notify what shows a notification in
+// the apps, Judge what asks the judge about a command (HookActionJudge:
+// its decision, and what to log).
 type Runner struct {
 	Env    []string
 	Clean  bool
 	Bin    string
 	Notify func(kind, text string)
+	Judge  func(ev proto.HookEvent) (proto.HookDecision, string)
 }
+
+// trimPrefix starts a command HookActionTrim wrapped: it isn't wrapped
+// twice.
+const trimPrefix = " decide trim -- "
 
 // Run runs hook h on event ev: a refusal or context at once, a command in
 // the event's folder with ev as JSON on its stdin and r's environment. A
@@ -56,6 +63,22 @@ func (r Runner) Run(h proto.Hook, ev proto.HookEvent) (proto.HookRun, proto.Hook
 		re, _ := compile(h.Find)
 		if re != nil && ev.Command != "" && re.MatchString(ev.Command) {
 			d.Command = re.ReplaceAllString(ev.Command, h.Replace)
+			run.Output = d.Command
+		}
+	case proto.HookActionJudge:
+		if r.Judge == nil {
+			run.Output = "no judge on this host"
+			break
+		}
+		d, run.Output = r.Judge(ev)
+		run.Blocked = d.Block
+	case proto.HookActionTrim:
+		if ev.Command != "" && !strings.Contains(ev.Command, trimPrefix) {
+			bin := r.Bin
+			if bin == "" {
+				bin = "enowx"
+			}
+			d.Command = shellQuote(bin) + trimPrefix + shellQuote(ev.Command)
 			run.Output = d.Command
 		}
 	case proto.HookActionNotify:

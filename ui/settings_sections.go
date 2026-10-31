@@ -111,6 +111,8 @@ func (a *App) settingsBody(c *ui.Context) {
 				a.hooksSection(c)
 			case sectionRAG:
 				a.ragSection(c)
+			case sectionDecide:
+				a.decideSection(c)
 			case sectionAccounts:
 				a.accountsSection(c)
 			case sectionAgentAPIs:

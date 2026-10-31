@@ -74,6 +74,10 @@ func Hook(args []string, stdin io.Reader, stdout, stderr io.Writer) int {
 			return 0
 		}
 	}
+	if d.Approve && event == proto.HookToolBefore {
+		fmt.Fprintln(stdout, approveOutput())
+		return 0
+	}
 	if d.Context != "" && (event == proto.HookPromptStart || event == proto.HookSessionStart) {
 		fmt.Fprintln(stdout, d.Context)
 	}
@@ -234,4 +238,15 @@ func rewriteOutput(data []byte, d proto.HookDecision) (string, bool) {
 	}}
 	b, err := json.Marshal(out)
 	return string(b), err == nil
+}
+
+// approveOutput tells an agent to run its tool without asking the user:
+// the judge allowed it.
+func approveOutput() string {
+	b, _ := json.Marshal(map[string]any{"hookSpecificOutput": map[string]any{
+		"hookEventName":            "PreToolUse",
+		"permissionDecision":       "allow",
+		"permissionDecisionReason": "enowX's judge allowed it",
+	}})
+	return string(b)
 }

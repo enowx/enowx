@@ -21,6 +21,7 @@ import (
 
 	"github.com/enowx/enowx/cloud/hostauth"
 	"github.com/enowx/enowx/core/canvas"
+	"github.com/enowx/enowx/core/decide"
 	"github.com/enowx/enowx/core/features"
 	"github.com/enowx/enowx/core/notes"
 	"github.com/enowx/enowx/core/notify"
@@ -89,6 +90,8 @@ type Server struct {
 	ragSettings       *rag.Settings    // RAG's settings and memories, synced (rag.go)
 	rag               *rag.Engine
 	ragRun            ragState
+	judge             *decide.Engine // decisions (decide.go)
+	decideRun         decideState
 	browserUnslops    unslopRuns   // Browsers' pages redesigned, by session (browser_unslop.go)
 	canvasBuilds      buildRuns    // canvases' UI builds under way (canvas_build.go)
 	shares            canvasShares // canvases shared by a link (canvas_share.go)
@@ -186,6 +189,7 @@ func newServer(dir, hookBin string) (*Server, error) {
 	intercept.KnownSecrets(s.lentSecrets)
 	s.loadShell()
 	s.newRAG(dir)
+	s.newDecide(dir)
 	s.credits.Homes = func() []credits.Home { // each account's plan too
 		var out []credits.Home
 		for _, a := range s.accounts.List() {

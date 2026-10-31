@@ -212,6 +212,17 @@ What you add, change or remove is proposed: the user allows it in Settings → H
     "$ENOWX_BIN" accounts priority claude Work default Spare | fallback claude --on|--ask|--off [--to codex] [--return] | log
 `,
 		Tools: []string{"accounts_"}},
+	{ID: "decide", Name: "Decisions", Group: GroupProject,
+		About:   "Agents know enowX's judge (Settings → Decisions): why a command was allowed or refused, a turn stopped as a loop, an output trimmed; and they can trim a long command's output themselves.",
+		Summary: "Decisions: enowX's judge may allow or refuse your commands, stop a loop, trim long output; \"$ENOWX_BIN\" decide log says why.",
+		Guide: `Decisions: enowX's judge may act on what you do, as the user set it (Settings → Decisions):
+- a command refused "by enowX's judge": don't run it another way; tell the user what you wanted and why, and let them run it.
+- your turn stopped because you seemed to loop: say what you tried and ask the user how to go on, rather than trying the same again.
+- an output that ends with "[enowX kept N of M lines …]": the full output is in the file it names; read it when what was kept isn't enough.
+    "$ENOWX_BIN" decide log --last 5            # the latest decisions and why
+    "$ENOWX_BIN" decide trim -- go test ./...    # a long command's output cut to what matters, its exit code kept
+`,
+		Tools: []string{"decide_"}},
 	{ID: "rag", Name: "RAG", Group: GroupProject,
 		About:   "Agents search their project by meaning (code, docs, attached notes, memories) and keep memories in it, once the project is indexed (Settings → RAG).",
 		Summary: "RAG: \"$ENOWX_BIN\" rag search QUERY finds this project's code, docs, notes and memories by meaning; rag remember TEXT keeps a decision.",

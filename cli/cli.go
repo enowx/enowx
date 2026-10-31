@@ -29,7 +29,7 @@ const EnvSession = "ENOWX_SESSION"
 
 // Commands are the command line's commands, for the programs that also
 // do other things with their arguments to tell them apart.
-var Commands = []string{"ls", "list", "sessions", "peek", "status", "spawn", "send", "read", "wait", "kill", "hibernate", "wake", "agents", "projects", "project", "shells", "notes", "features", "creds", "canvas", "review", "sync", "icons", "attach", "pipeline", "pipelines", "note", "automation", "automations", "hooks", "accounts", "rag", "browser", "traffic", "android", "mcp", "guide", "ports", "run", "api", "notify", "cloud", "team", "help"}
+var Commands = []string{"ls", "list", "sessions", "peek", "status", "spawn", "send", "read", "wait", "kill", "hibernate", "wake", "agents", "projects", "project", "shells", "notes", "features", "creds", "canvas", "review", "sync", "icons", "attach", "pipeline", "pipelines", "note", "automation", "automations", "hooks", "accounts", "rag", "decide", "browser", "traffic", "android", "mcp", "guide", "ports", "run", "api", "notify", "cloud", "team", "help"}
 
 // Is reports whether args start with one of Commands.
 func Is(args []string) bool { return len(args) > 0 && slices.Contains(Commands, args[0]) }
@@ -93,6 +93,8 @@ const usage = `usage: enowx-app <command> [arguments]
   automation add [flags] PROMPT    one more: --name, --schedule "weekdays 09:00", --agent,
                                    --project, --branch (a new one each run), --yolo, --disabled
   automation run|enable|disable|remove ID
+  decide [status|test|log|mark|ask|trim -- COMMAND]
+                                   enowX's judge: approving commands, trimming output, loops
   rag [search|remember|memories|forget|status|index]
                                    the project found by meaning (Settings → RAG)
   accounts [list|status|use|priority|fallback|log]
@@ -151,6 +153,10 @@ func Run(args []string, out io.Writer) error {
 	case "guide":
 		fmt.Fprintln(out, sessionGuide(len(args) > 1 && args[1] == "--all"))
 		return nil
+	case "decide":
+		if len(args) > 1 && args[1] == "trim" {
+			return trim(args[2:], out) // the command first, the daemon only if needed
+		}
 	}
 	c, err := Dial()
 	if err != nil {
@@ -205,6 +211,8 @@ func (r runner) command(args []string) error {
 		return r.accountsCmd(rest)
 	case "rag":
 		return r.ragCmd(rest)
+	case "decide":
+		return r.decideCmd(rest)
 	case "agents":
 		return r.agents(rest)
 	case "projects":

@@ -19,7 +19,7 @@ import (
 
 // hooksUsage is how `enowx hooks` is used.
 const hooksUsage = `usage: enowx-app hooks [list [--json] | add FLAGS | edit ID FLAGS | rm ID | on ID | off ID | test ID | log [--last N] | events]
-FLAGS: --event E --do run|context|refuse|rewrite|notify|webhook|enowx --name N
+FLAGS: --event E --do run|context|refuse|rewrite|judge|trim|notify|webhook|enowx --name N
   --command C | --context T | --reason R | --find RE --replace S | --url U --message M [--kind done|input|error]
   --agent A,B --project P --tool RE --files G,H --text RE --branch G --host H --any --not tool,paths
   --once --max N --every SECONDS --hours 09-18 --schedule "weekdays 09:00" --background --timeout SECONDS --off
