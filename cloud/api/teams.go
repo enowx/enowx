@@ -21,6 +21,11 @@ const (
 	PathInvitePeek = "/v1/invites/peek"
 )
 
+// ErrTeamDeleted is the Error a team's former member is answered, with
+// status 404, once its owner deleted it: their hosts drop their copy of
+// its space as for any team they aren't in, and say it was deleted.
+const ErrTeamDeleted = "the team was deleted by its owner"
+
 // Roles, the highest first.
 const (
 	RoleOwner  = "owner"

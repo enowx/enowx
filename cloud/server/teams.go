@@ -15,6 +15,8 @@ import (
 // asker's is not found, one their role doesn't allow is forbidden.
 func (s *Server) answer(w http.ResponseWriter, v any, err error) {
 	switch {
+	case errors.Is(err, store.ErrTeamDeleted):
+		s.fail(w, http.StatusNotFound, api.ErrTeamDeleted)
 	case errors.Is(err, store.ErrNotFound):
 		s.fail(w, http.StatusNotFound, "not found")
 	case errors.Is(err, store.ErrForbidden):
@@ -73,6 +75,9 @@ func (s *Server) deleteTeam(w http.ResponseWriter, r *http.Request) {
 	team := r.PathValue("team")
 	blobs, _ := s.db.TeamBlobs(r.Context(), team)
 	err := s.db.DeleteTeam(r.Context(), team, asker(r).Account.ID)
+	if err == nil {
+		s.present.forget(team)
+	}
 	if err == nil && s.cfg.Blobs != nil {
 		// The team's files go with it.
 		for _, id := range blobs {
