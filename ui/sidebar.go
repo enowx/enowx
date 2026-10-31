@@ -11,6 +11,7 @@ import (
 	"github.com/enowx/enowx/ui/icon"
 	"github.com/enowx/enowx/ui/textfmt"
 	"github.com/enowx/enowx/ui/theme"
+	"github.com/enowx/enowx/ui/tokenview"
 	"github.com/enowx/enowx/ui/widget"
 )
 
@@ -169,6 +170,10 @@ func (a *App) projectMenuItems(c *ui.Context, p proto.ProjectInfo, done func()) 
 		a.openPipeline(p)
 		done()
 	}
+	if a.client != nil && widget.MenuItemTip(c, icon.Gauge, "Token usage", "The tokens and cost of this project's agents", false) {
+		a.openProjectTokens(p.Path)
+		done()
+	}
 	if a.client != nil && widget.MenuItemTip(c, icon.List, "Rules…", "What every session in this project reads first", false) {
 		a.openRules(p)
 		done()
@@ -312,7 +317,10 @@ func (a *App) sessionRow(c *ui.Context, i int, s proto.SessionInfo) {
 				if m := s.Member; m != nil {
 					detail = "@" + nonEmpty(m.GitHub, m.Name) + "'s · " + detail // a team's member's
 				}
-				ui.Text(c, detail).FontSize(11).TextColor(theme.Muted).SingleLine().Shrink(1)
+				line := ui.Text(c, detail).FontSize(11).TextColor(theme.Muted).SingleLine().Shrink(1)
+				if t, ok := a.sessionTokens(s.ID); ok {
+					line.Tooltip(tokenview.SpentTip(t)) // its tokens on hover
+				}
 			})
 		})
 		a.conflictMark(c, s)

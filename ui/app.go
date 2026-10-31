@@ -213,6 +213,7 @@ type App struct {
 	agentLimit *agentsForm // setting the host's limit of agents at once
 	usage      usageview.Meter
 	usageShown bool          // the Resource usage page was shown last frame
+	tok        tokensState   // token usage: the Tokens tab, sessions' badges (tokens.go)
 	blurred    bool          // the window isn't the focused one
 	winCtl     windowControl // what the window buttons act on, when not win (tests)
 	// retrying counts the tries to connect again to retryHost after its
@@ -402,6 +403,7 @@ func (a *App) handleEvent(gen int, ev proto.Event) {
 	a.hooksEvent(ev)
 	a.ragEvent(ev)
 	a.decideEvent(ev)
+	a.tokensEvent(ev)
 	a.accountEvent(ev)
 	a.cloudEvent(ev)
 	var apply func()

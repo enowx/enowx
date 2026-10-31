@@ -49,11 +49,27 @@ func (a *App) usagePage(c *ui.Context) {
 		}
 	})
 	ui.Scroll(c).Grow(1).FillWidth().Children(func() {
-		ui.Column(c).FillWidth().Padding(16).Children(func() {
+		ui.Column(c).FillWidth().Padding(16).Gap(16).Children(func() {
+			tabs := []string{"Memory & CPU", "Tokens"}
+			cur := 0
+			if a.tok.pageTab == usageTabTokens {
+				cur = 1
+			}
+			if i := widget.Segmented(c.Key("usage-tabs"), tabs, cur, nil); i >= 0 {
+				a.tok.pageTab = []string{"", usageTabTokens}[i]
+			}
+			if a.tok.pageTab == usageTabTokens {
+				a.tokensTab(c.Key("tokens"))
+				return
+			}
 			a.usage.Details(c, a.usageHost())
 		})
 	})
 }
+
+// usageTabTokens is the Resource usage page's Tokens tab (token usage,
+// tokens.go); "" its memory and CPU.
+const usageTabTokens = "tokens"
 
 // usageEvery is how often usage is measured: every 2 seconds on the
 // Resource usage page, every 10 for the session list's sizes, every minute

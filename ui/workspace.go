@@ -15,6 +15,7 @@ import (
 	"github.com/enowx/enowx/ui/icon"
 	"github.com/enowx/enowx/ui/textfmt"
 	"github.com/enowx/enowx/ui/theme"
+	"github.com/enowx/enowx/ui/tokenview"
 	"github.com/enowx/enowx/ui/widget"
 )
 
@@ -264,6 +265,9 @@ func (a *App) factStrip(c *ui.Context, s proto.SessionInfo) {
 			fact(text, col)
 		}
 		ui.Spacer(c)
+		if t, ok := a.sessionTokens(s.ID); ok {
+			ui.Text(c.Key("tokens"), tokenview.Spent(t)).FontSize(11.5).TextColor(theme.Muted).SingleLine().Shrink(1).Tooltip(tokenview.SpentTip(t))
+		}
 		if canContinue(s) && widget.GhostButton(c, "Continue").Height(22).Clicked() {
 			a.continueSession(s)
 		}
