@@ -255,6 +255,9 @@ field AppReply.result []byte
 field AppRequest.id string
 field AppRequest.kind string
 field AppRequest.params []byte
+field AppSettings.about map[string]string
+field AppSettings.values map[string]string
+field AppSettingsParams.set map[string]string
 field AttachResult.stream uint32
 field Automation.agent string
 field Automation.branch bool
@@ -685,6 +688,12 @@ field CommitParams.session string
 field Conflict.file string
 field Conflict.lines bool
 field Conflict.sessions []string
+field ControlLogEntry.err string
+field ControlLogEntry.from string
+field ControlLogEntry.host string
+field ControlLogEntry.level string
+field ControlLogEntry.method string
+field ControlLogEntry.time time.Time
 field Conversation.agent string
 field Conversation.branch string
 field Conversation.dir string
@@ -1131,6 +1140,10 @@ field HooksInfo.projects []ProjectHooks
 field HooksInfo.proposals []HookProposal
 field HooksInfo.sessions []SessionHooks
 field HooksInfo.support map[string]map[string]string
+field HostCallParams.from string
+field HostCallParams.host string
+field HostCallParams.method string
+field HostCallParams.params json.RawMessage
 field HostSessions.err string
 field HostSessions.host string
 field HostSessions.hostName string
@@ -1383,6 +1396,9 @@ field ProjectCloneParams.dir string
 field ProjectCloneParams.name string
 field ProjectCloneParams.submodules bool
 field ProjectCloneParams.url string
+field ProjectConfig.copy []string
+field ProjectConfig.path string
+field ProjectConfig.setup string
 field ProjectContext.branch string
 field ProjectContext.cached bool
 field ProjectContext.host string
@@ -1621,6 +1637,14 @@ field RouteChoice.why string
 field RunCommand.command string
 field RunCommand.name string
 field RunCommand.source string
+field SessionAnswerParams.answer string
+field SessionAnswerParams.id string
+field SessionAsk.answers []string
+field SessionAsk.detail string
+field SessionAsk.questions []TranscriptQuestion
+field SessionAsk.reason string
+field SessionAsk.tool string
+field SessionAsk.waiting bool
 field SessionAutoHibernateParams.default bool
 field SessionAutoHibernateParams.id string
 field SessionAutoHibernateParams.never bool
@@ -2344,6 +2368,7 @@ method android.status
 method android.stop
 method app.reply
 method app.serve
+method app.settings
 method automation.list
 method automation.remove
 method automation.run
@@ -2456,6 +2481,8 @@ method hooks.save
 method hooks.saveProject
 method hooks.saveSession
 method hooks.test
+method host.call
+method host.controlLog
 method host.share
 method host.share.set
 method host.visitors
@@ -2509,6 +2536,8 @@ method project.clone.cancel
 method project.clone.prefs
 method project.clone.status
 method project.clones
+method project.config
+method project.config.save
 method project.conflicts
 method project.context
 method project.copy.request
@@ -2554,6 +2583,8 @@ method review.merge
 method review.pr
 method review.push
 method review.status
+method session.answer
+method session.ask
 method session.attach
 method session.autoHibernate
 method session.budget
@@ -2569,6 +2600,7 @@ method session.hibernate
 method session.hibernatePrefs
 method session.hook
 method session.input
+method session.interrupt
 method session.kill
 method session.list
 method session.mode
@@ -2700,6 +2732,9 @@ value AndroidPress=press
 value AndroidSwipe=swipe
 value AndroidTap=tap
 value AndroidType=type
+value AnswerAllow=allow
+value AnswerAlways=always
+value AnswerDeny=deny
 value BranchExisting=existing
 value BranchNew=new
 value BranchNone=

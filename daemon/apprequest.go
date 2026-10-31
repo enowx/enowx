@@ -40,6 +40,9 @@ func (r *appRequests) drop(c *conn) {
 	r.serving = slices.DeleteFunc(r.serving, func(o *conn) bool { return o == c })
 }
 
+// errNoApp is askApp's error with no app attached.
+var errNoApp = errors.New("no enowX app is connected to this host: only the app reaches other hosts, open it")
+
 // askApp has the latest app attached do kind with params, and returns
 // its result, waiting at most timeout.
 func (s *Server) askApp(kind string, params any, timeout time.Duration) (json.RawMessage, error) {
@@ -55,7 +58,7 @@ func (s *Server) askApp(kind string, params any, timeout time.Duration) (json.Ra
 	}
 	r.mu.Unlock()
 	if app == nil {
-		return nil, errors.New("no enowX app is connected to this host: only the app reaches other hosts, open it")
+		return nil, errNoApp
 	}
 	id := make([]byte, 8)
 	_, _ = rand.Read(id)

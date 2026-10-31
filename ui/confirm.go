@@ -8,11 +8,21 @@ import "github.com/egoist/mygo/ui"
 type confirmation struct {
 	title, msg, action string
 	do                 func()
+	cancel             func() // when the user says no; may be nil
 }
 
 // confirm asks title and msg, running do when the user clicks action.
 func (a *App) confirm(title, msg, action string, do func()) {
-	a.confirming = &confirmation{title: title, msg: msg, action: action, do: do}
+	a.confirmOr(title, msg, action, do, nil)
+}
+
+// confirmOr is confirm, running cancel when the user says no, or when
+// another question takes this one's place.
+func (a *App) confirmOr(title, msg, action string, do, cancel func()) {
+	if q := a.confirming; q != nil && q.cancel != nil {
+		q.cancel()
+	}
+	a.confirming = &confirmation{title: title, msg: msg, action: action, do: do, cancel: cancel}
 }
 
 func (a *App) confirmDialog(c *ui.Context) {
@@ -27,8 +37,14 @@ func (a *App) confirmDialog(c *ui.Context) {
 		q.do()
 	case 0, ui.AlertDismissed:
 		a.confirming = nil
+		if q.cancel != nil {
+			q.cancel()
+		}
 	}
-	if !open {
+	if !open && a.confirming == q {
 		a.confirming = nil
+		if q.cancel != nil {
+			q.cancel()
+		}
 	}
 }

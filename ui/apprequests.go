@@ -131,6 +131,10 @@ func (a *App) appRequest(cl *client.Client, id string, req proto.AppRequest) {
 			return
 		}
 		a.peekSession(p, reply)
+	case "host.call":
+		a.hostCallAsked(id, req, reply)
+	case "app.settings":
+		a.appSettingsAsked(req, reply)
 	default:
 		reply(nil, errors.New("this app doesn't know “"+req.Kind+"”: update it"))
 	}

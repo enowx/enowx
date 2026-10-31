@@ -44,6 +44,7 @@ type Server struct {
 	pipes       pipelines
 	autos       automations
 	hooks       *hookEngine // the user's hooks (hooks.go)
+	control     controlLog  // requests made through host.call (hostcontrol.go)
 	// WorktreeRoot is where worktrees are created.
 	WorktreeRoot string
 	// Hash is the SHA-256 of the executable the daemon started from
