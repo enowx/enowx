@@ -215,6 +215,7 @@ type App struct {
 	usage      usageview.Meter
 	usageShown bool          // the Resource usage page was shown last frame
 	tok        tokensState   // token usage: the Tokens tab, sessions' badges (tokens.go)
+	goa        goaApp        // GOD of Agents mode (goa.go)
 	blurred    bool          // the window isn't the focused one
 	winCtl     windowControl // what the window buttons act on, when not win (tests)
 	// retrying counts the tries to connect again to retryHost after its
@@ -407,6 +408,7 @@ func (a *App) handleEvent(gen int, ev proto.Event) {
 	a.tokensEvent(ev)
 	a.accountEvent(ev)
 	a.cloudEvent(ev)
+	a.goaEvent(ev)
 	var apply func()
 	switch ev.Name {
 	case proto.EventSessionUpdated:

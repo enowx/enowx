@@ -16,6 +16,7 @@ const titleBarHeight = 40
 // clear of the window controls.
 func (a *App) titleBar(c *ui.Context) {
 	a.titleBarWith(c, func() {
+		a.goaChip(c)
 		a.updateChip(c)
 		a.chatChip(c)
 		a.memoryChip(c)

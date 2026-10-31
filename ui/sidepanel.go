@@ -47,6 +47,8 @@ var panelTools = []panelTool{
 	{panelChat, "Chat", icon.Chat},
 	{panelTeamProjects, "Projects", icon.Folder},
 	{panelTeamMembers, "Members", icon.Users},
+	{panelSessions, "Sessions", icon.Bot},
+	{panelTasks, "Tasks", icon.List},
 }
 
 // panelGroup is a group of the panel's tools, its first level: picking it
@@ -63,16 +65,20 @@ var panelGroups = []panelGroup{
 	{"preview", "Preview", icon.Browser, []string{panelBrowser, panelPorts, panelAndroid}},
 	{"debug", "Debug", icon.Traffic, []string{panelTraffic, panelActivity}},
 	{"team", "Team", icon.Account, []string{panelChat, panelTeamProjects, panelTeamMembers}}, // while in a team (shownGroups)
+	{"goa", "GOA", icon.Sparkle, []string{panelSessions, panelTasks}},                        // in GOD of Agents mode (goa_panel.go)
 }
 
 // shownGroups are the groups the panel offers: Team while the host is in
-// a team.
+// a team, GOA (first) in GOD of Agents mode.
 func (a *App) shownGroups() []panelGroup {
 	// The spaces as last read (the rail reads them): drawing starts no read.
-	if sl := a.spaceList; a.client != nil && sl != nil && sl.host == a.host.ID && len(sl.list) > 0 {
-		return panelGroups
+	inTeam := a.client != nil && a.spaceList != nil && a.spaceList.host == a.host.ID && len(a.spaceList.list) > 0
+	goaOn := a.goaOn()
+	out := slices.DeleteFunc(slices.Clone(panelGroups), func(g panelGroup) bool { return g.id == "team" && !inTeam || g.id == "goa" })
+	if goaOn {
+		out = append([]panelGroup{panelGroups[len(panelGroups)-1]}, out...)
 	}
-	return slices.DeleteFunc(slices.Clone(panelGroups), func(g panelGroup) bool { return g.id == "team" })
+	return out
 }
 
 // groupOf is the group of tab, a tool or a file (Code's).
@@ -195,6 +201,10 @@ func (a *App) sidePanelView(c *ui.Context) {
 			a.teamProjectsTab(c.Key("team-projects"))
 		case tool == panelTeamMembers:
 			a.teamMembersTab(c.Key("team-members"))
+		case tool == panelSessions:
+			a.sessionsTab(c.Key("goa-sessions")) // every host's (goa_panel.go)
+		case tool == panelTasks:
+			a.tasksTab(c.Key("goa-tasks"))
 		case !ok:
 			panelNote(c, "Select a session to see its tools.")
 		case tool == panelChanges && !a.canReview(s):

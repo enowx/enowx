@@ -32,7 +32,8 @@ import (
 const goaWatchEvery = 5 * time.Second
 
 // goaWatch is a watched GOA session's: the projects as they were when it
-// started, what was flagged. Its goroutine owns it.
+// started (set once under goaState.mu, read-only after), what was flagged
+// (its goroutine's alone).
 type goaWatch struct {
 	stop    chan struct{}
 	base    map[string]projectBase // by project folder

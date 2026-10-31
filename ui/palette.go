@@ -81,6 +81,7 @@ func (a *App) commands() []command {
 		command{"rail", "Expand or collapse sidebar", modKey + "B", icon.Sidebar, func() { a.state.RailWide = !a.state.RailWide }},
 		command{"sessions-panel", "Show or hide the sidebar", modKey + "⇧S", icon.Sidebar, a.toggleSessionsPanel},
 		command{"floating", "Floating control", floatingKey + " · over any app", icon.Floating, a.toggleFloating},
+		command{"goa", "Enter or leave GOD of Agents", "one session controlling every session, on " + a.host.Name, icon.Sparkle, a.toggleGOA},
 	)
 	for _, h := range a.allHosts() {
 		if h.ID == a.host.ID {

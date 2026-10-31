@@ -72,6 +72,8 @@ type appState struct {
 	FloatingReduceMotion bool   `json:"floatingReduceMotion,omitempty"`
 	// HideSessions folds the sidebar away, giving the session the room.
 	HideSessions bool `json:"hideSessions,omitempty"`
+	// GOA shows GOD of Agents mode (goa.go).
+	GOA bool `json:"goa,omitempty"`
 }
 
 // palette is the palette the user picked, with their accent.

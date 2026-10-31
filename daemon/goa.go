@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"sync"
 
@@ -219,5 +220,8 @@ func goaAgents() []proto.GOAAgent {
 		level, why := goa.LevelOf(a.ID)
 		out = append(out, proto.GOAAgent{Agent: a.ID, Name: a.Name, Level: level, Why: why, Installed: a.Installed})
 	}
+	// The strictest first, as the user would pick.
+	rank := map[string]int{proto.GOAEnforced: 0, proto.GOALimited: 1, proto.GOAWatched: 2}
+	slices.SortStableFunc(out, func(x, y proto.GOAAgent) int { return rank[x.Level] - rank[y.Level] })
 	return out
 }

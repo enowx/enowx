@@ -120,3 +120,21 @@ A session controls sessions and settings of any host the app reaches, with the s
 What can't be undone (closing a session, pushing, opening a pull request, merging, discarding a worktree, setting a session variable, removing a project) takes `--yes` on the command line and `yes` in its MCP tool, so that an agent doesn't do it by accident; asked from an agent's session, the user also says yes in the app, which shows what is asked and by which session, whatever host it is on. With no app open, those wait for it: "needs the user's yes in the enowX app". `--yes` and the app's question guard against accidents, not against a program that talks to the daemon's socket itself.
 
 MCP: `session_interrupt`, `session_stop`, `session_continue`, `session_rename`, `session_close`, `session_chat`, `session_ask`, `session_answer`, `session_switch`, `session_changes`, `session_commit`, `session_push`, `session_pr`, `session_merge`, `session_discard`, `host_settings`, `host_env`, `app_settings`, `project_settings`, `control_log` (Settings → Features, Control), each with `host`; `sessions_list`, `session_spawn` (with `project`, `name`, `model`, `effort`), `session_wait`, `session_read`, `session_send`, `session_hibernate`, `session_wake`, `projects_list`, `project_add`, `project_clone`, `project_clone_status`, `project_rules` and `project_rules_set` take `host` too.
+
+## GOD of Agents
+
+GOA's commands ([goa.md](goa.md)): a session handing tasks to others, on any host, with the model and effort the judge picks.
+
+| Command | What it does |
+|---|---|
+| `goa delegate [--session S \| --agent A --project P [--branch B]] [--host H] [--model M] [--effort E] [--config C] [--no-route] [--title T] [--yolo] PROMPT` | Hands a task to a session (`goa.delegate`): an existing one, its model and effort switched first, or a new one opened in P (added as a project). The judge's route picks the model and effort (a step cheaper near a token budget) unless given; prints the task, its model, effort and why. |
+| `goa board [--json]` | The tasks, each with its session and host, model and effort and why, status (working, waiting, done, failed, stopped), result, what it asks and whether that is the user's. |
+| `goa task ID [--status S] [--result TEXT]` | Settles a task, or says where it stands. |
+| `goa remember [--kind task\|delegation\|outcome\|decision\|preference] TEXT` | Keeps it in GOA's own RAG collection, never a project's. |
+| `goa recall QUERY [--project P [--host H]]...` | Searches GOA's collection (by meaning once indexed, else by words), and projects' read-only. |
+| `goa agents` | The agents GOA can run on and how far each holds it: enforced, limited, watched. |
+| `goa flags` | What a watched GOA did itself: programs it ran, files it changed in projects. |
+| `goa start [--agent A]` | Starts GOA on this host (the app's GOD of Agents does the same). |
+
+MCP: `goa_board`, `goa_delegate`, `goa_task`, `goa_remember`, `goa_recall`, `goa_agents` (Settings → Features, GOD of Agents; always on in GOA's session).
+

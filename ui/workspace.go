@@ -63,6 +63,9 @@ func (a *App) workspace(c *ui.Context) {
 	}
 	widget.Bento(ui.Column(c.Key("workspace")).Grow(1).FillHeight().MinWidth(minWorkspaceWidth), theme.Background).
 		Transition(widget.LayoutMotion).Children(func() {
+		if a.goaOn() {
+			a.goaNav(c) // GOD of Agents' way to the pages (goa_view.go)
+		}
 		ui.Column(c.Key(view)).Grow(1).FillWidth().MinHeight(0).Transition(widget.PageMotion).Children(func() { a.workspaceView(c) })
 	})
 }
@@ -106,6 +109,10 @@ func (a *App) workspaceView(c *ui.Context) {
 	}
 	a.page = ""
 	if a.connectionView(c) {
+		return
+	}
+	if a.goaOn() {
+		a.goaMain(c)
 		return
 	}
 	p, ok := a.currentProject()

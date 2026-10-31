@@ -38,6 +38,10 @@ func (a *App) hostCallAsked(from string, req proto.AppRequest, reply func(any, e
 			if done != nil {
 				defer done()
 			}
+			if err := urgentForUser(cl, p); err != nil {
+				reply(nil, err)
+				return
+			}
 			var out json.RawMessage
 			err := cl.Call(p.Method, params, &out)
 			if err != nil {
@@ -100,6 +104,23 @@ func (a *App) controlTarget(p proto.HostCallParams, call func(*client.Client, fu
 	}
 	reply(nil, errors.New("no host “"+p.Host+"” in the app's reach now: "+strings.Join(a.reachableNames(), ", ")))
 	return nil, "", false
+}
+
+// urgentForUser refuses a session's answer to what a GOA worker asks that
+// is the user's (SessionAsk.Urgent), as the worker's host would for a
+// session of its own (docs/goa.md).
+func urgentForUser(cl *client.Client, p proto.HostCallParams) error {
+	if p.Method != proto.MethodSessionAnswer || p.From == "" {
+		return nil
+	}
+	var ref proto.SessionAnswerParams
+	if json.Unmarshal(p.Params, &ref) != nil {
+		return nil
+	}
+	if ask, err := cl.SessionAsk(ref.ID); err == nil && ask.Urgent != "" {
+		return errors.New("goa: this one is the user's to answer (" + ask.Urgent + "): tell them, don't answer it")
+	}
+	return nil
 }
 
 func (a *App) reachableNames() []string {

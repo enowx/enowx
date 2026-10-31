@@ -133,6 +133,16 @@ GOD of Agents (one session controlling every session, on any host; PLAN §10) re
 |---|---|---|---|---|
 | What sessions did through control | `control log` (`control_log`) | | `--host` | ✅ |
 
+## GOA itself
+
+| Feature | Reads | Changes | Other host | |
+|---|---|---|---|---|
+| Handing a task to a session, routed ([goa.md](goa.md)) | | `goa delegate` (`goa_delegate`) | `--host` | ✅ |
+| The task board | `goa board` (`goa_board`) | `goa task` (`goa_task`) | its own host's | ✅ |
+| Its own RAG collection, projects' read-only | `goa recall` (`goa_recall`) | `goa remember` (`goa_remember`) | projects' through the app | ✅ |
+| The agents it runs on, their level | `goa agents` (`goa_agents`) | | this host | ✅ |
+| What a watched GOA did itself | `goa flags` | reverting: the user's, in the app | this host | — the user's |
+
 ## Gaps left, in order of use
 
 1. Checks (`checks.list`, `checks.run`) and review comments: a reviewer GOA would use them.

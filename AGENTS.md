@@ -61,6 +61,7 @@ Go 1.27+ is required (MyGo needs it). With an older `go`, set `GOTOOLCHAIN=go1.2
 | `core/decide` | The judge: a small model asked instead of guessing (a quiet session's state, approving a command, trimming output, a loop), the judges found on a host (agents' one-shot commands, model APIs, local servers), the policy and order they're tried in, the log (see `docs/decide.md`) | **No** |
 | `core/rag` | RAG: a project's files cut into chunks, embedded (Voyage, OpenAI-compatible, TEI) and kept in SQLite or PostgreSQL with pgvector, searched by meaning and words; the host's settings and consent per project, memories (see `docs/rag.md`) | **No** |
 | `core/tokens` | Token usage: the agents' records read by an adapter each, model APIs' answers metered, a call a record kept a file a day, prices, budgets, rollups (see `docs/tokens.md`) | **No** |
+| `core/goa` | GOD of Agents: how far each agent holds it to delegating, which of its tool calls are enowX's, which of its workers' calls are the user's (urgent), its task board on disk (see `docs/goa.md`) | **No** |
 | `core/hooks` | The user's hooks: kept (the host's, synced; a project's `.enowx/hooks.json` once allowed), which match an event, and running them (see `docs/hooks.md`) | **No** |
 | `core/automation` | When automations (an agent's prompt on a schedule) run (see `docs/automations.md`) | **No** |
 | `core/userservice` | Runs the server daemon as a systemd user service, with lingering (see `docs/daemon.md`) | **No** |

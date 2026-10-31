@@ -35,6 +35,8 @@ func (a *App) view(c *ui.Context) {
 		a.titleBar(c)
 		ui.Row(c).Grow(1).FillWidth().MinHeight(0).AlignItems(ui.Stretch).Padding(0, theme.BentoGap).Gap(theme.BentoGap).Children(func() {
 			switch {
+			case a.goaOn():
+				// GOD of Agents: no session list, its strip leads (goa_view.go).
 			case a.navShown():
 				a.navSidebar(c)
 			case !a.sessionsHidden():
@@ -85,6 +87,9 @@ func (a *App) view(c *ui.Context) {
 	a.accountAskDialog(c)
 	a.ragOfferDialog(c)
 	a.decisionDialog(c)
+	a.goaStartDialog(c)
+	a.goaDetailDialog(c)
+	a.goaOverrideDialog(c)
 	a.unslopCompareDialog(c)
 	a.unslopChoiceDialog(c)
 	a.replayDialog(c)
