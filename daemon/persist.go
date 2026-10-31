@@ -270,7 +270,7 @@ func (s *Server) restore() {
 				chat.member = r.Member != nil
 				chat.store = s.agentStore(r.Agent, r.ID, true)
 				chat.config = run
-				l := agentLaunch(preset, r.Skip, "", true, chat)
+				l := agentLaunch(preset, r.Skip, "", hasConversation(preset, r.Convo), chat)
 				l.Resume = r.Convo // its own, not the folder's latest
 				spec.Command = thenShell(preset.Argv(l))
 				spec.Meta.Restart = spec.Command
@@ -374,7 +374,7 @@ func (s *Server) resumeSession(id, convo string) (*session.Session, error) {
 		chat.member = meta.Member != nil
 		chat.store = s.agentStore(meta.Agent, id, true)
 		chat.config = run
-		l := agentLaunch(preset, meta.SkipPermissions, "", true, chat)
+		l := agentLaunch(preset, meta.SkipPermissions, "", hasConversation(preset, convo), chat)
 		l.Resume = convo
 		command = thenShell(preset.Argv(l))
 		if len(preset.Resume) > 0 {
@@ -439,4 +439,14 @@ func (s *Server) agentEnv(meta session.Meta) ([]string, error) {
 		return append(append(preset.Environ(meta.SkipPermissions), acc...), memberEnv(meta.Member, s.accounts.Home(meta.Account))...), nil
 	}
 	return append(append(append(append(append(preset.Environ(meta.SkipPermissions), apiEnv(meta.Agent)...), acc...), notesEnv(meta.NotesFor != "")...), canvasEnv(meta.CanvasFor != "")...), goaEnv(meta)...), nil
+}
+
+// hasConversation says whether an agent of preset, its conversation convo
+// ("" when none is known), has one to go on with. An agent resumed by ID
+// whose session never had one (no prompt sent yet, as a fresh GOD of
+// Agents) starts anew: its "--continue" would find none and exit ("No
+// conversation found to continue"), leaving the session at a shell.
+// Other agents continue their folder's latest, as before.
+func hasConversation(preset agent.Preset, convo string) bool {
+	return convo != "" || len(preset.Resume) == 0 || !transcript.Supports(preset.ID)
 }
