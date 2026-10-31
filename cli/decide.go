@@ -17,7 +17,7 @@ import (
 	"github.com/enowx/enowx/proto"
 )
 
-const decideUsage = `usage: enowx-app decide [status | test [JUDGE] | log [--use USE] [--last N] | mark ID [--right] [--note TEXT] | ask USE --command CMD | trim -- COMMAND]`
+const decideUsage = `usage: enowx-app decide [status | test [JUDGE] | log [--use USE] [--last N] | mark ID [--right] [--note TEXT] | ask USE --command CMD | trim -- COMMAND | route [--agent A] [--project DIR] [--json] PROMPT]`
 
 // ExitError is a command's exit code to pass on (decide trim's): the
 // program exits with it, saying nothing more.
@@ -47,6 +47,9 @@ func (r runner) decideCmd(args []string) error {
 	right := fs.Bool("right", false, "")
 	note := fs.String("note", "", "")
 	command := fs.String("command", "", "")
+	agentID := fs.String("agent", "", "")
+	project := fs.String("project", "", "")
+	asJSON := fs.Bool("json", false, "")
 	sub := args[0]
 	var words []string
 	rest := args[1:]
@@ -133,6 +136,8 @@ func (r runner) decideCmd(args []string) error {
 			fmt.Fprintln(r.out, d.Text)
 		}
 		return nil
+	case "route":
+		return r.decideRoute(proto.DecideRouteParams{Agent: *agentID, Project: *project, Prompt: strings.Join(words, " ")}, *asJSON)
 	}
 	return errors.New(decideUsage)
 }
@@ -256,8 +261,9 @@ var decideTools = []mcpTool{
 	{name: "decide_status", description: "enowX's judge on this host: which uses are on (approving commands, trimming long output, stopping loops, a quiet session's state), the policy, the judges.",
 		args: func(map[string]any) []string { return []string{"status"} }},
 	{name: "decide_log", description: "The judge's latest decisions: verdict, why, what enowX did. Read it when a command was refused or the turn was stopped.",
-		props: map[string]mcpProp{"use": {"string", "Only this use: state, approve, trim, loop"}, "last": {"number", "How many (20)"}},
+		props: map[string]mcpProp{"use": {"string", "Only this use: state, approve, trim, loop, route, context, memory, chat, flaky"}, "last": {"number", "How many (20)"}},
 		args: func(a map[string]any) []string {
 			return withFlag(withFlag([]string{"log"}, a, "use", "use"), a, "last", "last")
 		}},
+	decideRouteTool,
 }

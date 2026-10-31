@@ -611,6 +611,9 @@ field Check.name string
 field CheckRun.command string
 field CheckRun.duration time.Duration
 field CheckRun.exitCode int
+field CheckRun.judged string
+field CheckRun.judgedWhy string
+field CheckRun.judging bool
 field CheckRun.name string
 field CheckRun.output string
 field CheckRun.started time.Time
@@ -747,14 +750,21 @@ field DaemonStats.daemon Usage
 field DaemonStats.host HostUsage
 field DaemonStats.sessions []SessionUsage
 field DaemonStats.supported bool
+field DecideAsk.agent string
 field DecideAsk.command string
 field DecideAsk.exit int
+field DecideAsk.from string
 field DecideAsk.judge string
+field DecideAsk.mention bool
 field DecideAsk.output string
+field DecideAsk.parts []string
+field DecideAsk.place string
 field DecideAsk.project string
+field DecideAsk.prompt string
 field DecideAsk.screen string
 field DecideAsk.session string
 field DecideAsk.steps []string
+field DecideAsk.text string
 field DecideAsk.use string
 field DecideLogParams.limit int
 field DecideLogParams.session string
@@ -764,6 +774,10 @@ field DecideMark.note string
 field DecideMark.wrong bool
 field DecideProject.policy string
 field DecideProject.provider string
+field DecideRouteParams.agent string
+field DecideRouteParams.project string
+field DecideRouteParams.prompt string
+field DecideRouteParams.session string
 field DecideSettings.off []string
 field DecideSettings.order []string
 field DecideSettings.own []Judge
@@ -783,11 +797,13 @@ field Decision.error string
 field Decision.id string
 field Decision.input string
 field Decision.judge string
+field Decision.keep []int
 field Decision.ms int64
 field Decision.note string
 field Decision.project string
 field Decision.saved int
 field Decision.session string
+field Decision.sure bool
 field Decision.text string
 field Decision.time time.Time
 field Decision.tokens int
@@ -1592,6 +1608,16 @@ field ReviewStatus.uncommitted int
 field ReviewStatus.unpushed int
 field ReviewStatus.upstream string
 field ReviewStatus.worktree bool
+field RouteChoice.agent string
+field RouteChoice.confidence float64
+field RouteChoice.config string
+field RouteChoice.decision string
+field RouteChoice.difficulty string
+field RouteChoice.effort string
+field RouteChoice.error string
+field RouteChoice.model string
+field RouteChoice.switch []string
+field RouteChoice.why string
 field RunCommand.command string
 field RunCommand.name string
 field RunCommand.source string
@@ -2386,6 +2412,7 @@ method decide.ask
 method decide.judges
 method decide.log
 method decide.mark
+method decide.route
 method decide.setSettings
 method decide.settings
 method decide.test
@@ -2648,10 +2675,18 @@ value AccountLimit=limit
 value AccountOK=ok
 value ActedAlerted=alerted
 value ActedAllowed=allowed
+value ActedChosen=kept some
+value ActedDropped=dropped
+value ActedFlaky=marked flaky
 value ActedNothing=
+value ActedOffered=offered
 value ActedPaused=paused
+value ActedQuiet=kept quiet
+value ActedReal=marked real
 value ActedRefused=refused
+value ActedRouted=suggested
 value ActedTrimmed=trimmed
+value ActedUrgent=notified urgently
 value ActedWaiting=marked waiting
 value ActionBreakpoint=breakpoint
 value ActionFail=fail
@@ -2751,9 +2786,14 @@ value CredUnchecked=unchecked
 value CredValid=valid
 value DecideAnyProvider=any
 value DecideApprove=approve
+value DecideChat=chat
+value DecideContext=context
+value DecideFlaky=flaky
 value DecideLocalOnly=local
 value DecideLoop=loop
+value DecideMemory=memory
 value DecideOneProvider=one
+value DecideRoute=route
 value DecideSameProvider=agent
 value DecideState=state
 value DecideTrim=trim
@@ -2950,14 +2990,26 @@ value VaultSign=sign
 value VaultTest=test
 value VerdictAllow=allow
 value VerdictAsk=ask
+value VerdictDecision=decision
 value VerdictDone=done
+value VerdictEasy=easy
 value VerdictFailed=failed
+value VerdictFlaky=flaky
+value VerdictHard=hard
 value VerdictKeep=keep
 value VerdictLooping=looping
+value VerdictMedium=medium
+value VerdictNone=none
+value VerdictNormal=normal
+value VerdictNothing=nothing
 value VerdictProgress=progress
+value VerdictQuiet=quiet
+value VerdictReal=real
 value VerdictRefuse=refuse
+value VerdictRelevant=relevant
 value VerdictStuck=stuck
 value VerdictTrimmed=trimmed
+value VerdictUrgent=urgent
 value VerdictWaiting=waiting
 value WorkFeature=feature
 value WorkFlow=flow

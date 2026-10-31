@@ -62,6 +62,9 @@ const (
 var timeouts = map[string]time.Duration{
 	proto.DecideApprove: 25 * time.Second, proto.DecideState: 30 * time.Second,
 	proto.DecideLoop: 40 * time.Second, proto.DecideTrim: 90 * time.Second,
+	// A prompt waits on its context; the rest wait on nobody.
+	proto.DecideRoute: 30 * time.Second, proto.DecideContext: 20 * time.Second,
+	proto.DecideMemory: 60 * time.Second, proto.DecideChat: 30 * time.Second, proto.DecideFlaky: 60 * time.Second,
 }
 
 // NewEngine is the judge of the daemon in dir, by s.
@@ -242,6 +245,7 @@ func (e *Engine) Decide(ctx context.Context, r Request) (proto.Decision, error) 
 			continue
 		}
 		d.Judge, d.Ms, d.Verdict, d.Confidence, d.Why, d.Text = j.ID, a.took.Milliseconds(), v.Verdict, v.Confidence, v.Why, v.Text
+		d.Keep = v.Keep
 		break
 	}
 	if d.Judge == "" {
@@ -315,7 +319,8 @@ func (e *Engine) callsToday(use string) int {
 
 func cacheKey(r Request) string {
 	h := sha256.New()
-	for _, s := range []string{r.Use, r.Agent, r.Project, r.Command, r.Output, r.Screen, strings.Join(r.Steps, "\n"), fmt.Sprint(r.Exit)} {
+	for _, s := range []string{r.Use, r.Agent, r.Project, r.Command, r.Output, r.Screen, strings.Join(r.Steps, "\n"), fmt.Sprint(r.Exit),
+		r.Prompt, strings.Join(r.Parts, "\x00"), r.Text, r.From, r.Place, fmt.Sprint(r.Mention)} {
 		h.Write([]byte(s))
 		h.Write([]byte{0})
 	}

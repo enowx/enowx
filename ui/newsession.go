@@ -22,12 +22,13 @@ type newSessionForm struct {
 	base          string
 	existing      string
 	prompt        string
-	display       bool     // run with a virtual display
-	runSetup      bool     // run the project's worktree setup (.enowx.toml)
-	also          []string // more agents given the prompt, each on its own branch
-	account       string   // the agent's account to sign in as, "" for its own
-	accountPicked bool     // picked by the user, not the preferences' default
-	creds         []string // the vault's credentials it starts with
+	display       bool      // run with a virtual display
+	runSetup      bool      // run the project's worktree setup (.enowx.toml)
+	also          []string  // more agents given the prompt, each on its own branch
+	account       string    // the agent's account to sign in as, "" for its own
+	accountPicked bool      // picked by the user, not the preferences' default
+	creds         []string  // the vault's credentials it starts with
+	route         routeForm // the judge's model for the first prompt (newsession_route.go)
 	// cont is a session of the project to go on with instead, nil for a
 	// new one (newsession_continue.go); convs its agents' past
 	// conversations, to pick from.
@@ -56,6 +57,7 @@ func (a *App) openNewSession(p proto.ProjectInfo) {
 		return
 	}
 	a.loadConversations(cl, p.Path)
+	a.loadRouteOn(cl, p.Path)
 	go func() {
 		// Agents installed outside enowX since the last look show up.
 		if agents, err := cl.Agents(); err == nil {
@@ -124,6 +126,7 @@ func (a *App) startSession() {
 		Account:         f.account,
 		Creds:           f.creds,
 	}
+	f.routeParams(&params)
 	if _, isAgent := agent.Find(f.agent); isAgent {
 		params.Budget = int64(a.state.DefaultBudget) * 60 // Settings' time budget
 	}

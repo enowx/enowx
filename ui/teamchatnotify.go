@@ -30,6 +30,7 @@ const (
 type chatToast struct {
 	msg      proto.ChatMessage
 	mention  bool
+	urgent   string    // why the judge found it urgent, "" when it didn't
 	shown    time.Time // when it showed, or was last hovered
 	replying bool
 	draft    string
@@ -48,10 +49,14 @@ func chatMode(st proto.NotifySettings, team string) string {
 
 // notifyChat tells the user of message m, by their settings: mention
 // says it names them or answers them, which always notifies.
-func (a *App) notifyChat(m proto.ChatMessage, mention bool) {
+func (a *App) notifyChat(m proto.ChatMessage, mention bool) { a.notifyChatAs(m, mention, "") }
+
+// notifyChatAs is notifyChat with why, when the judge found m urgent:
+// it notifies whatever the chat's settings.
+func (a *App) notifyChatAs(m proto.ChatMessage, mention bool, urgent string) {
 	st := a.notifySettings()
 	mode := chatMode(st, m.Team)
-	if !mention && (mode == "off" || mode == "mentions") || time.Since(m.At) > chatToastAge {
+	if !mention && urgent == "" && (mode == "off" || mode == "mentions") || time.Since(m.At) > chatToastAge {
 		return
 	}
 	a.queueSound(proto.NotifyChat)
@@ -63,6 +68,9 @@ func (a *App) notifyChat(m proto.ChatMessage, mention bool) {
 		title := m.Name
 		if mention {
 			title += " mentioned you"
+		}
+		if urgent != "" {
+			title = "Urgent · " + title
 		}
 		n := mygo.NewNotification(mygo.NotificationOptions{ID: "chat:" + m.Team, Title: title, Subtitle: a.spaceName(m.Team), Body: what, Silent: true})
 		gen, msg := a.gen, m
@@ -76,7 +84,7 @@ func (a *App) notifyChat(m proto.ChatMessage, mention bool) {
 		})
 		go func() { _ = n.Show() }()
 	}
-	a.chatToasts = append(a.chatToasts, &chatToast{msg: m, mention: mention, shown: time.Now()})
+	a.chatToasts = append(a.chatToasts, &chatToast{msg: m, mention: mention, urgent: urgent, shown: time.Now()})
 	if over := len(a.chatToasts) - chatToastMax; over > 0 {
 		a.chatToasts = slices.Delete(a.chatToasts, 0, over)
 	}
@@ -113,6 +121,9 @@ func (a *App) chatToastCard(c *ui.Context, t *chatToast, now time.Time) {
 	if t.mention {
 		border = theme.AccentLine
 	}
+	if t.urgent != "" {
+		border = theme.Error
+	}
 	card := widget.Float(ui.Column(c).FillWidth().Padding(12, 12, 12, 12).Gap(8).Radius(theme.RadiusCard).
 		Background(theme.Dialog).Border(1, border)).Transition(widget.OverlayMotion)
 	if card.Hovered() {
@@ -132,6 +143,9 @@ func (a *App) chatToastCard(c *ui.Context, t *chatToast, now time.Time) {
 						if t.mention {
 							where = "mentioned you · " + where
 						}
+						if t.urgent != "" {
+							where = "urgent · " + where
+						}
 						ui.Text(c, where).FontSize(11).TextColor(theme.Muted).SingleLine().Shrink(1)
 					})
 					text := snippet(m.Text)
@@ -139,6 +153,9 @@ func (a *App) chatToastCard(c *ui.Context, t *chatToast, now time.Time) {
 						text = "Sent a picture"
 					}
 					ui.Text(c, text).FontSize(12.5).TextColor(theme.TextSoft).MaxLines(3)
+					if t.urgent != "" {
+						ui.Text(c, "Urgent, the judge says: "+t.urgent).FontSize(11).TextColor(theme.Muted).MaxLines(2)
+					}
 				})
 			})
 			if body.Clicked() {

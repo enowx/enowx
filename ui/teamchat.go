@@ -61,6 +61,9 @@ type hostChats struct {
 	reacting string
 	flash    string
 	flashAt  time.Time
+	// judgeOff is when the host's judge last couldn't weigh a message (its
+	// use chat off, an older daemon): it isn't asked again for a while.
+	judgeOff time.Time
 
 	// The draft's images, the images fetched by ID, and the one opened
 	// large, of message viewingOf (teamchatimages.go).
@@ -169,7 +172,7 @@ func (a *App) teamChatEvent(data json.RawMessage) func() {
 			if m.Account == me || seen {
 				continue
 			}
-			a.notifyChat(m, mentions(m, me) || a.repliesTo(m, me))
+			a.notifyChatJudged(m, mentions(m, me) || a.repliesTo(m, me))
 		}
 	}
 }

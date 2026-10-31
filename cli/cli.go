@@ -93,7 +93,7 @@ const usage = `usage: enowx-app <command> [arguments]
   automation add [flags] PROMPT    one more: --name, --schedule "weekdays 09:00", --agent,
                                    --project, --branch (a new one each run), --yolo, --disabled
   automation run|enable|disable|remove ID
-  decide [status|test|log|mark|ask|trim -- COMMAND]
+  decide [status|test|log|mark|ask|trim -- COMMAND|route PROMPT]
                                    enowX's judge: approving commands, trimming output, loops
   rag [search|remember|memories|forget|status|index]
                                    the project found by meaning (Settings → RAG)
@@ -379,6 +379,8 @@ func (r runner) spawn(args []string) error {
 	name := fs.String("name", "", "")
 	yolo := fs.Bool("yolo", false, "")
 	tab := fs.Bool("tab", false, "")
+	model := fs.String("model", "", "") // as decide route suggests
+	effort := fs.String("effort", "", "")
 	asJSON := fs.Bool("json", false, "")
 	fs.SetOutput(io.Discard)
 	if err := fs.Parse(args); err != nil {
@@ -387,6 +389,7 @@ func (r runner) spawn(args []string) error {
 	p := proto.SessionCreateParams{
 		Agent: *agentID, Name: *name, Prompt: strings.Join(fs.Args(), " "), SkipPermissions: *yolo,
 		BranchMode: proto.BranchNone, Cols: 120, Rows: 36,
+		Model: *model, Effort: *effort,
 	}
 	switch {
 	case *tab:
