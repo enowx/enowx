@@ -156,6 +156,10 @@ var Platforms = []Platform{
 		Env:   map[string]string{"OPENROUTER_API_KEY": "api_key"},
 		Check: &Check{URL: "https://openrouter.ai/api/v1/key", Header: map[string]string{"Authorization": "Bearer {api_key}"}},
 		Link:  "https://openrouter.ai/settings/keys"},
+	{ID: "typesafe", Name: "TypeSafe", Group: "AI APIs", Type: TypeAPIKey, Fields: []Field{fAPIKey},
+		Env:   map[string]string{"TYPESAFE_API_KEY": "api_key"},
+		Check: &Check{URL: "https://api.typesafe.ai/v1/models", Header: map[string]string{"Authorization": "Bearer {api_key}"}},
+		Link:  "https://typesafe.ai"},
 
 	// Other
 	{ID: "ssh", Name: "SSH key", Group: "Other", Type: TypeSSHKey,

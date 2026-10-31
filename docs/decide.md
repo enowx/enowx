@@ -38,6 +38,49 @@ An agent set to another model API (Settings → Model APIs) gets that API's smal
 
 The answer is `{agent, difficulty, model, effort, why, switch, config}`: `switch` is what to type in a running session of the agent for that model and effort (its `/model`, `/effort`), and a new session starts on them (`enowx spawn --model M --effort E`, New session's **Use it**). A running session's model never changes on its own. `config` is kept for a session config of the user's to suggest later; it is empty for now.
 
+## Decision models first
+
+A **decision model** (a "System One" model) is made for this. It takes a state and typed questions:
+- a choice among options;
+- a yes/no (`noul`);
+- a score.
+
+It answers each with probabilities and a confidence, never text. It is fast (tens to hundreds of milliseconds) and cheap (cents per million tokens). enowX asks decision models first, and falls back to a provider's small chat model when none is set up or none answers.
+
+Each use is asked as typed questions:
+- the choice uses (a session's state, approving, a loop, a prompt's difficulty, a chat message, a flaky check) are one choice, whose options are the verdicts and their meanings;
+- RAG context asks one yes/no per search result;
+- a **memory** asks whether there is a decision, and which of the agent's sentences states it;
+- a **trim** asks, of groups of the output's lines, whether the agent needs them, then cuts the kept groups again, down to single lines.
+
+A decision model never writes. The memory and the trim are lines and sentences it **picks**, copied as they are, so it can't invent an error. Its reason is what the picked verdict means, with its probability.
+
+### Providers
+
+| Provider | Models | Address | Key |
+|---|---|---|---|
+| TypeSafe (Jev) | `jev-latest` | `https://api.typesafe.ai/v1/systemone` | vault platform **TypeSafe** |
+| Cloudflare Workers AI (Clef) | `clef-flash`, `clef` | `…/accounts/{account}/ai/run/@cf/cloudflare/{model}` | vault platform **Cloudflare** (token and account ID) |
+| Opper (a gateway: Jev, Clef, Perplexity Decider, Nimble…) | e.g. `cloudflare:global/clef-flash`, `typesafe/jev-1.14.0` | `https://api.opper.ai/v3/compat/v1/systemone` | a vault credential |
+| OpenRouter (System One) | e.g. `typesafe/jev-latest`, `inception/mercury-decide` | the address its docs give | a vault credential |
+| Ollama Cloud | `clef`, `clef-flash`, `nimble` | `https://ollama.com/v1/systemone` | a vault credential |
+| OpenAI Decisions API (its own shape) | `gpt-6-luna` | `https://api.openai.com/v1/decisions` | vault platform **OpenAI** |
+| On the host: Ollama, Kev, SGLang (Clef) | `nimble`, `clef`, `clef-flash`, `tev1`; `kev-latest`; the server's | `http://127.0.0.1:11434`, `:8009`, `:30000` + `/v1/systemone` | none |
+| Your own | any | any System One address (or OpenAI's Decisions shape) | optional |
+
+Found on their own:
+- a TypeSafe, Cloudflare or OpenAI key in the vault;
+- Ollama's decision models (Nimble, Clef, Clef Flash, Tev1, Kev);
+- a Kev or SGLang server on the host.
+
+Settings → Decisions → **Add a judge** → **A decision model** offers each provider above, its address and model filled in, and any other System One address.
+
+Models of other shapes aren't asked directly: Perplexity Decider, Liquid d1, Microsoft-Decision-1, Celeris-1 and Baseten's mammoth-1 and elephant-1. Reach the System One ones through a gateway (Opper, OpenRouter), or add their address once they publish one.
+
+### Policy
+
+A decision model set up for this always judges, whatever the session's agent, unless the policy is **local models only**. That means one you added, Jev, Clef, or one on the host. OpenAI's Decisions API is reached with an OpenAI key that is yours for everything OpenAI, so it stays under the policy like OpenAI's chat models.
+
 ## Judges
 
 The daemon finds what can judge on its host:
@@ -51,6 +94,7 @@ The daemon finds what can judge on its host:
 - **The model API an agent is set to in its own settings** (Settings → Agents, `core/agentapi`): the API judges directly, with the key kept in the agent's settings. While an agent is set to one, its own models aren't offered, and its one-shot command goes to that API too.
 - **Model APIs** whose keys are in the vault: Anthropic, OpenAI, Gemini, OpenRouter. The key is read from the vault when the judge is asked, and never kept in settings.
 - **Local servers:** Ollama (`127.0.0.1:11434`) and LM Studio (`127.0.0.1:1234`), each with its models.
+- **Decision models** (above), asked before the others.
 - **The user's own:** another OpenAI-compatible address, with a model and a vault credential, or a model server elsewhere on the host.
 
 **Test** asks a judge one fixed question it should allow (`git status`) and keeps how it did: right or not, how long it took, and its cost when the service reports one.

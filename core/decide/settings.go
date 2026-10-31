@@ -67,11 +67,14 @@ func (s *Settings) Set(st proto.DecideSettings) error {
 		}
 	}
 	for i, j := range st.Own {
-		if j.Model == "" || j.Kind != proto.JudgeAPI && j.Kind != proto.JudgeLocal {
-			return fmt.Errorf("decide: a judge added is a model API or a local server, with its model")
+		if j.Model == "" || j.Kind != proto.JudgeAPI && j.Kind != proto.JudgeLocal && j.Kind != proto.JudgeDecision {
+			return fmt.Errorf("decide: a judge added is a decision model, a model API or a local server, with its model")
 		}
 		if j.Kind == proto.JudgeLocal && j.URL == "" {
 			return fmt.Errorf("decide: a local judge needs its server's address")
+		}
+		if j.Kind == proto.JudgeDecision && j.URL == "" && systemOneURLs[j.Provider] == "" {
+			return fmt.Errorf("decide: a decision model needs its System One address")
 		}
 		st.Own[i] = ownJudge(j)
 	}

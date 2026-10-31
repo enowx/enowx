@@ -14,6 +14,7 @@ import (
 
 	"github.com/enowx/enowx/client"
 	"github.com/enowx/enowx/core/agent"
+	"github.com/enowx/enowx/core/decide"
 	"github.com/enowx/enowx/daemon"
 	"github.com/enowx/enowx/proto"
 	"github.com/enowx/enowx/ui/theme"
@@ -130,5 +131,29 @@ func TestDecisionsSection(t *testing.T) {
 	tt.Frame()
 	if app.decision != nil || strings.Contains(strings.Join(tt.Texts(), " "), "it seemed to loop") {
 		t.Fatal("the dialog stayed")
+	}
+}
+
+// Adding a decision model: a provider fills in its address and model; a
+// custom address may speak OpenAI's Decisions shape; an address is needed.
+func TestJudgeFormDecisionModel(t *testing.T) {
+	f := judgeForm{kind: proto.JudgeDecision}
+	for _, p := range decide.DecisionPresets {
+		if p.Provider == proto.ProviderCloudflare {
+			f.pick(p)
+		}
+	}
+	f.cred = "cf"
+	j, err := f.judge()
+	if err != "" || j.Model != "clef-flash" || !strings.Contains(j.URL, "{account}") || j.Provider != proto.ProviderCloudflare {
+		t.Fatalf("cloudflare %+v %q", j, err)
+	}
+	f.pick(decide.DecisionPresets[len(decide.DecisionPresets)-1]) // another address
+	if _, err := f.judge(); err == "" {
+		t.Fatal("no address taken")
+	}
+	f.url, f.model, f.openAI = "https://d.example.com/v1/decisions", "m", true
+	if j, err := f.judge(); err != "" || j.Protocol != decide.DecisionOpenAI || j.Provider != "" {
+		t.Fatalf("custom %+v %q", j, err)
 	}
 }

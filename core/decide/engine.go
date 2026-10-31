@@ -29,8 +29,11 @@ var ErrOff = errors.New("decide: this use is off")
 type Engine struct {
 	dir      string
 	settings *Settings
-	// KeyOf is the value of the vault's credential named cred.
+	// KeyOf is the value of the vault's credential named cred; EnvOf its
+	// variables, for a credential of several values (Cloudflare's token and
+	// account ID).
 	KeyOf func(cred string) (string, error)
+	EnvOf func(cred string) (map[string]string, error)
 	// Found is what the host has that can judge, asked as judges are
 	// listed.
 	Found func() Found
@@ -177,6 +180,14 @@ func (e *Engine) ask(ctx context.Context, j proto.Judge, q question, wait time.D
 	ctx, cancel := context.WithTimeout(ctx, wait)
 	defer cancel()
 	start := time.Now()
+	if j.Kind == proto.JudgeDecision {
+		v, a, err := e.askDecision(ctx, j, q)
+		a.took = time.Since(start)
+		if err != nil && ctx.Err() != nil {
+			err = fmt.Errorf("decide: no answer within %s", wait)
+		}
+		return v, a, err
+	}
 	a, err := e.call(ctx, j, systemFor(q), q.prompt)
 	a.took = time.Since(start)
 	if err != nil {
