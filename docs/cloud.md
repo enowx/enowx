@@ -57,6 +57,10 @@ A session in a team's project reads the team's notes and canvases, and a member'
 | Member | edits the team's items, works in its projects, opens sessions on its hosts, watches others' |
 | Viewer | reads the team's items, watches sessions |
 
+## Deleting a team
+
+Its owner alone deletes a team, from its Options in Settings → Cloud → Teams: a dialog says what goes and deletes nothing until the team's name is typed exactly. The cloud deletes all it holds at once (its members, invites, keys and recovery copies, its items, so its chat, notes, canvases, projects list, kit and shared hosts' announcements, and its chat's files), and the owner's host drops its space as the cloud answers. The members' hosts drop theirs at their next sync, as for a team they left: its copy on disk goes (their own notes and canvases stay), a host shared with the team stops being shared (its listener closes when no other team has it) and the team's visitors are let go. For 90 days the cloud keeps who the team's members were, the team's ID and when, nothing else, and answers them `404` with `the team was deleted by its owner` rather than plain not found; their hosts then keep a notice (`space.gone`) until the user saw it, a card in the app's corner saying the team was deleted. Someone never in the team learns nothing of it.
+
 ## Signing in and joining
 
 - **Members** sign in with GitHub, for now: the app starts a device code and opens the cloud's `/device` page with it, the browser signs in with GitHub (the account is made at the first sign-in), shows which device asks, and the member approves it; the app gets its token. The cloud keeps a browser session of its own for 12 hours (a cookie, hashed in the database), not GitHub's token. Registering an account of its own on the cloud comes later, with the cloud's public release; there is no sign-in by email link or code, and no password.
@@ -107,7 +111,7 @@ HTTPS and JSON under `/v1`, a bearer token per device. Like the daemon's protoco
 | `GET /v1/teams` | 0 | the asker's teams, with their role in each |
 | `GET /v1/teams/{team}` | 0 | a team with its members; 404 to anyone not a member |
 | `PATCH /v1/teams/{team}` | 0 | renames it, or lets members copy its items out (`copyOut`); admins |
-| `DELETE /v1/teams/{team}` | 0 | deletes it and all it holds; its owner |
+| `DELETE /v1/teams/{team}` | 0 | deletes it and all it holds; its owner (Deleting a team) |
 | `PATCH /v1/teams/{team}/members/{account}` | 0 | changes a member's role (admins, below owner); the owner hands the team over by making another member owner, and becomes an admin |
 | `DELETE /v1/teams/{team}/members/{account}` | 0 | removes a member (admins), or leaves (the member; the owner hands the team over first); the team's keys sealed to their devices go and its key moves to a new epoch |
 | `POST /v1/teams/{team}/invites` | 0 | invites as admin, member or viewer, valid seven days; its token (`enxi_…`) and link once, to the admin |
