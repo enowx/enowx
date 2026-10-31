@@ -83,17 +83,6 @@ func (s *Server) createSessionFor(p proto.SessionCreateParams, member *proto.Ses
 	if !p.SignIn {
 		chat.store = s.agentStore(p.Agent, id, true)
 	}
-	launch, err := launchFor(p, chat)
-	if err != nil {
-		return nil, err
-	}
-	if p.SignIn {
-		// Signing in has nothing to do with branches: the project folder.
-		p.BranchMode, meta.Prompt = proto.BranchNone, ""
-	}
-	if meta.Name == "" {
-		meta.Name = launch.name
-	}
 	if p.Account == "" && p.AccountAuto && member == nil {
 		p.Account = s.defaultAccount(p.Agent, p.Project)
 		meta.Account = p.Account
@@ -106,11 +95,32 @@ func (s *Server) createSessionFor(p proto.SessionCreateParams, member *proto.Ses
 			p.Creds = append(p.Creds, acc.Cred) // a key: lent as the vault lends
 		}
 	}
-	accountEnv, err := s.accounts.Env(agent.Base(p.Agent), p.Account)
+	if _, isAgent := agent.Find(p.Agent); isAgent && !p.SignIn {
+		// Its config, applied as it starts (configs.go).
+		run, err := s.configRunFor(id, meta)
+		if err != nil {
+			return nil, err
+		}
+		chat.config, meta.Config = run, run.sessionInfo()
+	}
+	launch, err := launchFor(p, chat)
 	if err != nil {
+		s.configForget(id)
 		return nil, err
 	}
-	launch.env = append(launch.env, accountEnv...)
+	if p.SignIn {
+		// Signing in has nothing to do with branches: the project folder.
+		p.BranchMode, meta.Prompt = proto.BranchNone, ""
+	}
+	if meta.Name == "" {
+		meta.Name = launch.name
+	}
+	accountEnv, err := s.accounts.Env(agent.Base(p.Agent), p.Account)
+	if err != nil {
+		s.configForget(id)
+		return nil, err
+	}
+	launch.env = append(append(launch.env, accountEnv...), chat.config.environ()...)
 
 	if p.Parent != "" {
 		// A tab: the parent's folder, whatever it is.
@@ -203,6 +213,7 @@ func (s *Server) createSessionFor(p proto.SessionCreateParams, member *proto.Ses
 	if err != nil {
 		s.displays.stop(spec.ID)
 		s.vaultRelease(spec.ID)
+		s.configForget(spec.ID)
 		return nil, err
 	}
 	s.began(sess, launch.command, launch.typed)
@@ -386,12 +397,14 @@ type chatFor struct {
 	// member: a team's member's session, which gets nothing of the host's
 	// user's model API (agentapi).
 	member bool
+	// config is the session's config's, nil for the official one.
+	config *configRun
 }
 
 // apiEnv is apiEnv(id) for the host's user's sessions, nothing for a
-// member's.
+// member's, nor for a session whose config is a model API of its own.
 func (ch chatFor) apiEnv(id string) []string {
-	if ch.member {
+	if ch.member || ch.config != nil && ch.config.api {
 		return nil
 	}
 	return apiEnv(id)
@@ -441,8 +454,13 @@ func agentLaunch(preset agent.Preset, skip bool, prompt string, cont bool, chat 
 		exe, _ := os.Executable()
 		hooks = append(agent.HookArgs(preset.ID), agent.CanvasArgs(preset.ID, exe, chat.canvas, chat.dirs)...)
 	}
-	if home, err := os.UserHomeDir(); err == nil && !chat.member {
+	if home, err := os.UserHomeDir(); err == nil && !chat.member && (chat.config == nil || !chat.config.api) {
 		hooks = append(hooks, agentapi.LaunchArgs(home, preset.ID)...) // its model API's config
+	}
+	if run := chat.config; run != nil {
+		// Its config's (configs.go): Claude Code's settings go into the
+		// --settings enowX's hooks use.
+		hooks = append(agentapi.WithSettings(hooks, run.settings), run.args...)
 	}
 	return agent.Launch{Prompt: prompt, SkipPermissions: skip, AllowSkip: allow, Continue: cont, SessionDir: chat.store, Hooks: hooks}
 }

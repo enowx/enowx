@@ -31,6 +31,10 @@ type cloudTeams struct {
 	invite  api.Invite
 	copied  widget.CopyFeedback
 	audit   *teamAudit // the Activity tab's log (teamaudit.go)
+	// deleting shows the open team's delete dialog, deleteName the name
+	// typed in it (teamdelete.go).
+	deleting   bool
+	deleteName string
 }
 
 var (
@@ -169,6 +173,7 @@ func (a *App) cloudTeamDialogs(c *ui.Context, cs *cloudSettings) {
 	}
 	if ts.open != "" {
 		a.cloudTeamDialog(c, cs)
+		a.cloudTeamDeleteDialog(c, cs)
 	}
 }
 
@@ -272,7 +277,7 @@ func (a *App) cloudTeamDialog(c *ui.Context, cs *cloudSettings) {
 		}
 	})
 	if !open {
-		ts.open, ts.team, ts.invite = "", api.Team{}, api.Invite{}
+		ts.open, ts.team, ts.invite, ts.deleting = "", api.Team{}, api.Invite{}, false
 	}
 }
 
@@ -454,4 +459,5 @@ func (a *App) cloudTeamSettings(c *ui.Context, cs *cloudSettings) {
 		})
 		ui.Text(c, "Off, the team's items stay in the team: members read and edit them, and nobody takes a copy into their own space.").FontSize(11.5).TextColor(theme.Muted)
 	})
+	a.cloudTeamDeleteSection(c, cs)
 }

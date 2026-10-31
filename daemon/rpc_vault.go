@@ -21,6 +21,7 @@ var vaultHandlers = map[string]handler{
 	proto.MethodVaultPut:   with(func(c *conn, p proto.VaultCopy) (any, error) { return c.srv.vaultPut(p) }),
 	proto.MethodVaultServe: bare(func(c *conn) (any, error) {
 		c.srv.vault.serve(c)
+		go c.srv.migrateAPIs() // a key to keep in the vault can be now
 		return ok, nil
 	}),
 	proto.MethodVaultReply: with(func(c *conn, p proto.VaultReply) (any, error) {

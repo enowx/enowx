@@ -15,6 +15,7 @@ const (
 	MethodDecideAsk         = "decide.ask"         // DecideAsk → Decision
 	MethodDecideLog         = "decide.log"         // DecideLogParams → []Decision, the latest first
 	MethodDecideMark        = "decide.mark"        // DecideMark: a decision the user says was wrong (or right after all)
+	MethodDecideRoute       = "decide.route"       // DecideRouteParams → RouteChoice: a model and effort for a prompt
 	// EventDecision is a decision acted on in a session: the apps show it
 	// where it acted, with its reason and a way back.
 	EventDecision = "decide.made" // Decision
@@ -26,10 +27,15 @@ const (
 	DecideApprove = "approve" // a command an agent is about to run: allow, ask the user, refuse
 	DecideTrim    = "trim"    // a long command output: what the agent needs of it
 	DecideLoop    = "loop"    // an agent's last steps: looping, or getting on
+	DecideRoute   = "route"   // a prompt: how hard, so a model and an effort to match
+	DecideContext = "context" // a project's search results: which bear on a prompt
+	DecideMemory  = "memory"  // what an agent said last: a decision worth keeping
+	DecideChat    = "chat"    // a team chat message: urgent, normal or quiet
+	DecideFlaky   = "flaky"   // a failed check's output: flaky or a real failure
 )
 
 // DecideUses are the uses, in the order they're offered.
-var DecideUses = []string{DecideState, DecideApprove, DecideTrim, DecideLoop}
+var DecideUses = []string{DecideState, DecideApprove, DecideTrim, DecideLoop, DecideRoute, DecideContext, DecideMemory, DecideChat, DecideFlaky}
 
 // Verdicts.
 const (
@@ -44,6 +50,18 @@ const (
 	VerdictKeep     = "keep"
 	VerdictLooping  = "looping"
 	VerdictProgress = "progress"
+	VerdictEasy     = "easy"
+	VerdictMedium   = "medium"
+	VerdictHard     = "hard"
+	VerdictRelevant = "relevant" // some of the results bear on the prompt (Decision.Keep)
+	VerdictNone     = "none"
+	VerdictDecision = "decision" // the answer holds one (Decision.Text, distilled)
+	VerdictNothing  = "nothing"
+	VerdictUrgent   = "urgent"
+	VerdictNormal   = "normal"
+	VerdictQuiet    = "quiet"
+	VerdictFlaky    = "flaky"
+	VerdictReal     = "real"
 )
 
 // Policies: which providers may judge.
@@ -146,6 +164,18 @@ type DecideAsk struct {
 	Exit    int      `json:"exit,omitempty"`
 	Screen  string   `json:"screen,omitempty"`
 	Steps   []string `json:"steps,omitempty"`
+	// Agent is whose prompt Prompt is (route) when no session says; Parts
+	// the search results to weigh against it (context).
+	Agent  string   `json:"agent,omitempty"`
+	Prompt string   `json:"prompt,omitempty"`
+	Parts  []string `json:"parts,omitempty"`
+	// Text is an agent's last answer (memory) or a chat message (chat),
+	// From its author, Place the chat it was said in, Mention that it
+	// names or answers the user.
+	Text    string `json:"text,omitempty"`
+	From    string `json:"from,omitempty"`
+	Place   string `json:"place,omitempty"`
+	Mention bool   `json:"mention,omitempty"`
 	// Judge asks this judge alone ("" the chain), as a test does.
 	Judge string `json:"judge,omitempty"`
 }
@@ -161,8 +191,13 @@ type Decision struct {
 	Verdict    string    `json:"verdict,omitempty"`
 	Confidence float64   `json:"confidence,omitempty"`
 	Why        string    `json:"why,omitempty"`
-	// Text is a trim's output, what the agent reads.
+	// Text is a trim's output, what the agent reads; a memory's decision,
+	// distilled.
 	Text string `json:"text,omitempty"`
+	// Keep are the parts that bear on a prompt (context), numbered from 1.
+	Keep []int `json:"keep,omitempty"`
+	// Sure says enowX acts on it: answered, as sure as its use asks.
+	Sure bool `json:"sure,omitempty"`
 	// Judge answered, in Ms, for Tokens and Cost; Tried are those that
 	// failed first ("id: why"); Error why none answered.
 	Judge  string   `json:"judge,omitempty"`
@@ -189,6 +224,14 @@ const (
 	ActedAlerted = "alerted"
 	ActedTrimmed = "trimmed"
 	ActedPaused  = "paused"
+	ActedRouted  = "suggested"         // a model and effort for a prompt
+	ActedChosen  = "kept some"         // only the search results that bear on the prompt
+	ActedDropped = "dropped"           // no context, or no memory offered
+	ActedOffered = "offered"           // a memory offered, its text distilled
+	ActedUrgent  = "notified urgently" // sound and banner, whatever the chat's settings
+	ActedQuiet   = "kept quiet"        // counted as unread, nothing more
+	ActedFlaky   = "marked flaky"
+	ActedReal    = "marked real"
 	ActedNothing = ""
 )
 
@@ -205,4 +248,35 @@ type DecideMark struct {
 	ID    string `json:"id"`
 	Wrong bool   `json:"wrong"`
 	Note  string `json:"note,omitempty"`
+}
+
+// DecideRouteParams asks which model and effort suit Prompt for Agent (or
+// session Session's agent), in Project.
+type DecideRouteParams struct {
+	Agent   string `json:"agent,omitempty"`
+	Session string `json:"session,omitempty"`
+	Project string `json:"project,omitempty"`
+	Prompt  string `json:"prompt"`
+}
+
+// RouteChoice is a model and effort for a prompt, from how hard the judge
+// says it is. Model or Effort "" keep the agent's own; with no answer
+// (Error), or the judge not sure enough, both are "".
+type RouteChoice struct {
+	Agent      string  `json:"agent"`
+	Difficulty string  `json:"difficulty,omitempty"` // VerdictEasy, VerdictMedium, VerdictHard
+	Model      string  `json:"model,omitempty"`
+	Effort     string  `json:"effort,omitempty"`
+	Why        string  `json:"why,omitempty"`
+	Confidence float64 `json:"confidence,omitempty"`
+	// Config is a session config of the user's to run it with, when one
+	// suits better than the agent's own models ("" for none: not chosen
+	// by the judge yet).
+	Config string `json:"config,omitempty"`
+	// Switch is what to type in a running session of the agent for this
+	// model and effort (its /model, /effort); a new session takes them as
+	// SessionCreateParams.Model and Effort.
+	Switch   []string `json:"switch,omitempty"`
+	Decision string   `json:"decision,omitempty"` // the decision's ID in the log
+	Error    string   `json:"error,omitempty"`
 }

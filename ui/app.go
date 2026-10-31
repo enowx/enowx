@@ -80,6 +80,7 @@ type App struct {
 	cloudSet        *cloudSettings                   // Settings' Cloud section, for the connected host
 	cloudSigningIn  bool                             // the cloud's sign-in dialog shows
 	spaceList       *hostSpaces                      // the connected host's teams' spaces (spaces.go)
+	goneList        *hostSpacesGone                  // the connected host's notices of teams deleted (spacesgone.go)
 	confirming      *confirmation                    // a destructive action asking first (confirm.go)
 	teamProjectList *hostTeamProjects                // the teams' projects (teamprojects.go)
 	spaceMoving     *spaceMoveForm                   // a note or canvas going to another space (spacemove.go)
@@ -522,6 +523,10 @@ func (a *App) handleEvent(gen int, ev proto.Event) {
 		}
 	case proto.EventSpacesChanged:
 		if apply = a.spacesEvent(ev.Data); apply == nil {
+			return
+		}
+	case proto.EventSpacesGone:
+		if apply = a.spacesGoneEvent(ev.Data); apply == nil {
 			return
 		}
 	case proto.EventNoteGroupsChanged:

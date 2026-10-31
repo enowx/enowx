@@ -1,6 +1,7 @@
 package daemon
 
 import (
+	"fmt"
 	"os"
 
 	"github.com/enowx/enowx/core/agent"
@@ -11,6 +12,10 @@ import (
 var agentAPIHandlers = map[string]handler{
 	proto.MethodAgentAPIList: bare(func(c *conn) (any, error) { return agentAPIList() }),
 	proto.MethodAgentAPISet: with(func(c *conn, p proto.AgentAPISetParams) (any, error) {
+		if agentapi.PerSession(p.Agent) {
+			// Its official settings stay as installed: an API is a config.
+			return nil, fmt.Errorf("agentapi: %s takes a model API as a config of its own now, its settings untouched: Settings → Agents, or enowx-app configs add %s --url …", agentName(p.Agent), p.Agent)
+		}
 		home, err := os.UserHomeDir()
 		if err != nil {
 			return nil, err
@@ -80,7 +85,7 @@ func agentAPIList() ([]proto.AgentAPIInfo, error) {
 // agentAPIInfo is agent id's API, its key masked: it never leaves the
 // host whole.
 func agentAPIInfo(home, id string) proto.AgentAPIInfo {
-	info := proto.AgentAPIInfo{Agent: id, Name: id}
+	info := proto.AgentAPIInfo{Agent: id, Name: id, PerSession: agentapi.PerSession(id)}
 	if p, ok := agent.Find(id); ok {
 		info.Name, info.Installed = p.Name, p.Installed()
 	}

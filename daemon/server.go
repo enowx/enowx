@@ -87,6 +87,8 @@ type Server struct {
 	stories           unslopStories    // their steps (canvas_unslop_steps.go)
 	acctWatch         *accountWatch    // accounts' limits and their log (accounts_fallback.go)
 	accountPrefs      *accounts.Prefs  // how agents' accounts are used, synced
+	cfgKeys           configKeys       // sessions' model API keys, to mask (configs.go)
+	migrateAPIsOn     bool             // the user's daemon: model APIs in agents' files become configs (configs_migrate.go)
 	ragSettings       *rag.Settings    // RAG's settings and memories, synced (rag.go)
 	rag               *rag.Engine
 	ragRun            ragState
@@ -195,7 +197,7 @@ func newServer(dir, hookBin string) (*Server, error) {
 	s.credits.Homes = func() []credits.Home { // each account's plan too
 		var out []credits.Home
 		for _, a := range s.accounts.List() {
-			if a.Member == "" && a.Cred == "" {
+			if a.Member == "" && a.Cred == "" && a.Kind != proto.ConfigKindAPI && s.accounts.HasHome(a.ID) {
 				out = append(out, credits.Home{ID: a.ID, Agent: a.Agent, Name: a.Name, Path: s.accounts.Home(a.ID)})
 			}
 		}
@@ -234,6 +236,7 @@ func newServer(dir, hookBin string) (*Server, error) {
 	// A session's checks run with its traffic caught, when it is, so its
 	// project's mocks answer its tests.
 	s.runner.Env = func(session string) []string { return s.trafficEnvFor(session, "") }
+	s.runner.OnFailed = s.judgeCheck // flaky or real, when the use is on
 	s.restore()
 	s.pipes.load(pipelinesFile(dir))
 	s.resumePipelines()
@@ -344,6 +347,7 @@ func (s *Server) deleteSession(id string) error {
 	s.unqueue(id)
 	s.displays.stop(id)
 	s.vaultRelease(id)
+	s.configForget(id)
 	_ = os.RemoveAll(s.uploadDir(id))
 	return nil
 }

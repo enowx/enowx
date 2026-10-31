@@ -78,6 +78,9 @@ type adapter struct {
 	small, noModel bool
 	// args are what its command line gets when it starts, nil for none.
 	args func(home string) []string
+	// env, for an agent taking its API from the environment only, is its
+	// variables for an API.
+	env  func(api API) [][2]string
 	caps Caps
 }
 

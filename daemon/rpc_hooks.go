@@ -85,7 +85,7 @@ func (s *Server) sessionHook(p proto.SessionHookParams) (proto.HookDecision, err
 		s.promptStep(info.ID)
 		if !d.Block {
 			go s.turnStarted(info)
-			if extra := s.ragContext(dir, ev.Prompt); extra != "" {
+			if extra := s.ragContext(info, dir, ev.Prompt); extra != "" {
 				d.Context = strings.TrimSpace(d.Context + "\n\n" + extra)
 			}
 		}

@@ -230,6 +230,9 @@ func (v *View) checkRow(c *ui.Context, o Options, ch proto.Check) {
 		if b.Clicked() && !runOne {
 			v.open[ch.Name] = !open
 		}
+		if ran && r.State == proto.CheckFailed {
+			v.judgedLine(c, o, r)
+		}
 		if open && ran {
 			out := lastLines(r.Output, outputLines)
 			if out == "" {

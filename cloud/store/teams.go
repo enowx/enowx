@@ -26,13 +26,17 @@ const (
 var rank = map[string]int{api.RoleViewer: 1, api.RoleMember: 2, api.RoleAdmin: 3, api.RoleOwner: 4}
 
 // role is accID's role in team teamID, ErrNotFound when not a member: a
-// team is invisible to others.
+// team is invisible to others. A former member of a team deleted is told
+// so (ErrTeamDeleted).
 func role(ctx context.Context, q interface {
 	QueryRowContext(context.Context, string, ...any) *sql.Row
 }, teamID, accID string) (string, error) {
 	var r string
 	err := q.QueryRowContext(ctx, `SELECT role FROM members WHERE team_id = $1 AND account_id = $2`, teamID, accID).Scan(&r)
 	if errors.Is(err, sql.ErrNoRows) {
+		if wasMember(ctx, q, teamID, accID) {
+			return "", ErrTeamDeleted
+		}
 		return "", ErrNotFound
 	}
 	return r, err
@@ -151,16 +155,6 @@ func (s *DB) UpdateTeam(ctx context.Context, teamID, accID string, p api.TeamPar
 			}
 		}
 		return nil
-	})
-}
-
-// DeleteTeam deletes team teamID and all it holds, for its owner.
-func (s *DB) DeleteTeam(ctx context.Context, teamID, accID string) error {
-	return s.asRole(ctx, teamID, accID, api.RoleOwner, func(tx *sql.Tx, _ string) error {
-		if _, err := tx.ExecContext(ctx, `DELETE FROM teams WHERE id = $1`, teamID); err != nil {
-			return err
-		}
-		return audit(ctx, tx, "", accID, "team.deleted", teamID)
 	})
 }
 

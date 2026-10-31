@@ -42,9 +42,9 @@ Go 1.27+ is required (MyGo needs it). With an older `go`, set `GOTOOLCHAIN=go1.2
 | `core/projectctx` | A project's context for agents planning for it (stack, branch, last commit, folders, README) and its files, read-only | **No** |
 | `core/shells` | The shells a host has, for its terminals | **No** |
 | `core/vault` | The user's credential vault: sealed with a key that stays on the device, its platforms, what a session gets of a credential, hosts' imports, the SSH agent and the record of uses (see `docs/vault.md`) | **No** |
-| `core/accounts` | Agents' other accounts on a host, each a home of its own sharing the agent's settings (see `docs/accounts.md`) | **No** |
+| `core/accounts` | Agents' configs (synced): other accounts, each a home of its own sharing the agent's settings, and model APIs; team members' accounts per host (see `docs/configs.md`, `docs/accounts.md`) | **No** |
 | `core/agent` | Agent presets (Claude Code, Codex, …) and how they take a first prompt | **No** |
-| `core/agentapi` | Points agents at a model API of the user's, in each agent's own settings, backed up first (see `docs/agent-api.md`) | **No** |
+| `core/agentapi` | How each agent takes a model API: per session by its environment and flags (a config's), or in its own settings, backed up first, for those that can't (see `docs/configs.md`, `docs/agent-api.md`) | **No** |
 | `core/hosts` | The device's server list (`~/.enowx-app/hosts.json`); passwords live in the keychain, never here | **No** |
 | `core/tailnet` | Devices on the user's tailnet, via the `tailscale` CLI | **No** |
 | `core/envsync` | Copies agents' skills, subagents, commands, memory files, settings and MCP servers between homes (see `docs/sync.md`) | **No** |

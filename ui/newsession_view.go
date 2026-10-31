@@ -71,6 +71,7 @@ func (a *App) newSessionDialog(c *ui.Context) {
 				ui.TextArea(c, &f.prompt).Height(76).Padding(9, 11).Radius(theme.RadiusControl).
 					Background(theme.Sunken).Border(1, theme.BorderStrong).Placeholder("What should the agent do?")
 				a.issueButton(c)
+				a.routeField(c)
 			})
 		}
 		a.formError(c)

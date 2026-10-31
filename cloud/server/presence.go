@@ -66,6 +66,13 @@ func (p *presences) see(team, account string, typing bool, now time.Time) api.Pr
 	return out
 }
 
+// forget drops team's presence, as the team is deleted.
+func (p *presences) forget(team string) {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	delete(p.teams, team)
+}
+
 // presence takes a member's presence and answers the team's; one not a
 // member is told the team isn't there.
 func (s *Server) presence(w http.ResponseWriter, r *http.Request) {

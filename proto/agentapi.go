@@ -68,6 +68,9 @@ type AgentAPIInfo struct {
 	Current   *AgentAPI        `json:"current,omitempty"`
 	Backups   []AgentAPIBackup `json:"backups,omitempty"`
 	Error     string           `json:"error,omitempty"`
+	// PerSession: a config can give it an API per session, its own
+	// settings untouched (proto/config.go); otherwise only Set writes it.
+	PerSession bool `json:"perSession,omitempty"`
 }
 
 // AgentAPIBackup is a backup of an agent's files: Original is the files

@@ -1,22 +1,22 @@
 # Agent accounts
 
-An agent can have other accounts on a host besides the one it signs in with on its own: a work and a personal Claude, say. Each is signed in once, then picked per session, with no new sign-in to switch.
+An agent's other accounts are configs of it ([configs.md](configs.md)), as its model APIs are: a work and a personal Claude, say. Each is signed in once on a host, then picked per session, with no new sign-in to switch. The order, limits and fallback below are across all of an agent's configs, a model API's included.
 
 Claude Code and Codex can have them; they keep their sign-in in a folder a variable names (`CLAUDE_CONFIG_DIR`, `CODEX_HOME`). Claude Agent Teams uses Claude Code's.
 
-- **Settings → Agent accounts**: Add account names one and opens a session signing it in. Remove forgets it, with its sign-in.
-- **New session** picks the account when the agent has others: Default is its own.
-- **Command line**: `enowx-app spawn --account Work …`.
+- **Settings → Agents**: New config → Another account names one and opens a session signing it in. Remove forgets it, with its sign-in on that host. The configs sync to every host; a host where an account wasn't signed in yet signs it in from its menu.
+- **New session** picks the config: Official is the agent's own.
+- **Command line**: `enowx-app spawn --config Work …` (or `--account`).
 
 Each account's home is `~/.enowx-app/accounts/<id>` on the host (`core/accounts`). It links to what is in the agent's own home (`~/.claude`, `~/.codex`): settings, skills, subagents, commands, plugins and conversations are the same whichever account a session uses, so the chat view, history and Settings see them all. Only the sign-in is the account's own (for Claude Code also `.claude.json`, which holds who is signed in, so MCP servers added with `claude mcp add --scope user` are per account). A session keeps its account when continued, after hibernation or a restart.
 
 ## API keys as accounts
 
-**Add API key** makes an account that is a credential of the vault (an Anthropic or OpenAI key, say): it has no home of its own. Sessions on it get the key as the vault lends credentials, its value never shown or logged.
+A config of the kind **API key** is a credential of the vault (an Anthropic or OpenAI key, say): it has no home of its own. Sessions on it get the key as the vault lends credentials, its value never shown or logged.
 
 ## Order, limits and falling back
 
-An agent's accounts are used in an order: the one first in it is the default for new sessions unless another is marked **Use for new sessions**, or a project has its own (`accounts default claude Work --project acme`). An account can be kept to some projects (**Only for some projects…**): it isn't offered, used or fallen back to elsewhere.
+An agent's configs are used in an order (the official one is "" in it): the one first in it is the default for new sessions unless another is marked **Use for new sessions**, or a project has its own (`accounts default claude Work --project acme`). An account can be kept to some projects (**Only for some projects…**): it isn't offered, used or fallen back to elsewhere.
 
 Each account shows its state and what it has left:
 - **What it has left:** the plan and its limits, read from the provider with the account's own sign-in (`core/credits`). A Claude account keeps its sign-in in the keychain item `Claude Code-credentials-` followed by the start of its home's SHA-256, else in its `.credentials.json`; a Codex account in its `auth.json`.
@@ -42,9 +42,9 @@ Switching (`account.switch`) stops the session's program and starts it again as 
 
 A session's menu switches its account by hand. Picking an account takes it as working again, its limit forgotten.
 
-Every start, switch, fallback, return and limit is logged (Settings → Agent accounts → **History**, `account.log`, `~/.enowx-app/account-log.jsonl`): when, which session, which account, why.
+Every start, switch, fallback, return and limit is logged (Settings → Agents → **History**, `account.log`, `~/.enowx-app/account-log.jsonl`): when, which session, which account, why.
 
-The preferences (order, fallback, defaults, projects) are in the synced `settings/account-prefs.json`, by account name, so every host applies them to its own accounts of those names. Sign-ins stay on each host, credentials in the vault. A fallback is also a hook event (`account.fallback`, [hooks.md](hooks.md)).
+The preferences (order, fallback, defaults, projects) are in the synced `settings/account-prefs.json`, by config name, so every host applies them to its configs of those names; renaming a config renames it there. Sign-ins stay on each host, credentials in the vault. A fallback is also a hook event (`account.fallback`, [hooks.md](hooks.md)).
 
 The providers' terms are for the user's own accounts: no sharing one, and no several to get around limits a plan doesn't allow. The section says so, and enowX only switches between the accounts added here.
 

@@ -1,6 +1,7 @@
 package daemon
 
 import (
+	"cmp"
 	"os"
 	"path/filepath"
 	"slices"
@@ -171,6 +172,7 @@ func (s *Server) keepCalls(calls []tokens.Call) []tokens.Call {
 // and account; a call made outside enowX gets the project its folder is
 // in.
 func (s *Server) attribute(c *tokens.Call, sessions []proto.SessionInfo, projects []proto.ProjectInfo) {
+	billed := false // through a model API config of the user's
 	if c.Session == "" && c.Dir != "" {
 		dir := samePath(c.Dir)
 		var best *proto.SessionInfo
@@ -196,14 +198,33 @@ func (s *Server) attribute(c *tokens.Call, sessions []proto.SessionInfo, project
 			if c.Account == "" {
 				c.Account = s.accountName(info.Account)
 			}
+			// Its config: its name, and where its models come from (a
+			// model API's calls are billed, not a plan's).
+			if cfg := info.Config; cfg != nil && c.Config == "" {
+				c.Config = cmp.Or(cfg.Name, cfg.ID)
+				if cfg.Provider != "" {
+					c.Provider = tokenProvider(cfg.Provider, c.Provider)
+					billed = true
+					c.Model = cmp.Or(c.Model, cfg.Model)
+				}
+			}
 		}
 	}
 	if c.Project == "" && c.Dir != "" {
 		c.Project = projectOf(samePath(c.Dir), projects)
 	}
-	if !c.Plan && c.Own == "" && planAgent(c.Agent) && agentAPIOf(agent.Base(c.Agent)) == nil {
+	if !c.Plan && !billed && c.Own == "" && planAgent(c.Agent) && agentAPIOf(agent.Base(c.Agent)) == nil {
 		c.Plan = true
 	}
+}
+
+// tokenProvider is a config's provider as the price table names it, an
+// "other" API's kept as the records said.
+func tokenProvider(config, recorded string) string {
+	if config == "other" {
+		return cmp.Or(recorded, config)
+	}
+	return config
 }
 
 // planAgents are agents usually signed in to a subscription, whose cost

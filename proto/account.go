@@ -48,6 +48,15 @@ type Account struct {
 	// Cred, for an account that is an API key, names the vault's
 	// credential lent to its sessions; it has no home of its own.
 	Cred string `json:"cred,omitempty"`
+	// An account is one of an agent's configs (proto/config.go): Kind
+	// says which, API is a model API config's, the rest any config's.
+	Kind   string     `json:"kind,omitempty"` // ConfigKindAccount ("") or ConfigKindAPI
+	API    *ConfigAPI `json:"api,omitempty"`
+	Effort string     `json:"effort,omitempty"` // the agent's reasoning effort flag's value
+	Env    []string   `json:"env,omitempty"`    // KEY=VALUE added to its sessions
+	Args   []string   `json:"args,omitempty"`   // added to the agent's command line
+	Icon   string     `json:"icon,omitempty"`   // its badge: an icon name (ui/icon)
+	Color  string     `json:"color,omitempty"`  // and a color, #rrggbb
 }
 
 // AccountAddParams name a new account of Agent: a sign-in of its own, or

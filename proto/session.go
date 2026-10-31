@@ -156,6 +156,9 @@ type SessionInfo struct {
 	Group string `json:"group,omitempty"`
 	// Account is the agent's account it runs as, "" for its own.
 	Account string `json:"account,omitempty"`
+	// Config is the agent's config it runs with (Account is its ID), nil
+	// for the official one.
+	Config *SessionConfig `json:"config,omitempty"`
 	// NotesFor is the note whose Notes page agent the session is (an
 	// agent on notes only, out of the session list).
 	NotesFor string `json:"notesFor,omitempty"`

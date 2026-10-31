@@ -1,6 +1,8 @@
 # Model APIs
 
-**Settings → Model APIs** points an agent of the connected host at a model API of the user's: a company gateway, OpenRouter, LiteLLM, a local server. enowX writes the API's address, key and model into the agent's own settings, the way that agent takes them (`core/agentapi`), so its sessions use it, and keeps the files as they were first, to put them back. Agents do the same from the command line (`enowx-app api`) and over MCP (`agent_api_*`).
+A model API of the user's (a company gateway, OpenRouter, LiteLLM, a local server) is a **config** of an agent for the agents that can take one per session: Claude Code, Codex, OpenCode, Gemini CLI, Antigravity, GitHub Copilot, OpenClaude, Aider. Their own settings are never written; a session started on the config gets the API through its environment and command line ([configs.md](configs.md)). `agentapi.set` refuses them, and a model API set in their files before becomes a config.
+
+The other agents below take one only in their own settings. For them, their page in **Settings → Agents** writes the API's address, key and model into the agent's own settings, the way that agent takes them (`core/agentapi`), so its sessions use it, and keeps the files as they were first, to put them back. Agents do the same from the command line (`enowx-app api`) and over MCP (`agent_api_*`). What follows is how each agent takes an API in its files, which is also what a config gives it per session where it can.
 
 ## What each agent gets
 

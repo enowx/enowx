@@ -58,6 +58,7 @@ event session.takeover.answered
 event session.takeover.asked
 event session.updated
 event spaces.changed
+event spaces.gone
 event sync.applied
 event sync.requested
 event sync.status
@@ -75,8 +76,15 @@ event traffic.paused
 event vault.changed
 event vault.request
 field Account.agent string
+field Account.api *ConfigAPI
+field Account.args []string
+field Account.color string
 field Account.cred string
+field Account.effort string
+field Account.env []string
+field Account.icon string
 field Account.id string
+field Account.kind string
 field Account.member string
 field Account.name string
 field AccountAddParams.agent string
@@ -149,6 +157,7 @@ field AgentAPIInfo.installed bool
 field AgentAPIInfo.name string
 field AgentAPIInfo.noModel bool
 field AgentAPIInfo.note string
+field AgentAPIInfo.perSession bool
 field AgentAPIInfo.protocols []string
 field AgentAPIInfo.small bool
 field AgentAPIModel.context int
@@ -617,6 +626,9 @@ field Check.name string
 field CheckRun.command string
 field CheckRun.duration time.Duration
 field CheckRun.exitCode int
+field CheckRun.judged string
+field CheckRun.judgedWhy string
+field CheckRun.judging bool
 field CheckRun.name string
 field CheckRun.output string
 field CheckRun.started time.Time
@@ -685,6 +697,12 @@ field CommandSaveParams.remove bool
 field CommandSaveParams.session string
 field CommitParams.message string
 field CommitParams.session string
+field ConfigAPI.baseURL string
+field ConfigAPI.keyCred string
+field ConfigAPI.model string
+field ConfigAPI.models []AgentAPIModel
+field ConfigAPI.protocol string
+field ConfigAPI.smallModel string
 field Conflict.file string
 field Conflict.lines bool
 field Conflict.sessions []string
@@ -753,14 +771,21 @@ field DaemonStats.daemon Usage
 field DaemonStats.host HostUsage
 field DaemonStats.sessions []SessionUsage
 field DaemonStats.supported bool
+field DecideAsk.agent string
 field DecideAsk.command string
 field DecideAsk.exit int
+field DecideAsk.from string
 field DecideAsk.judge string
+field DecideAsk.mention bool
 field DecideAsk.output string
+field DecideAsk.parts []string
+field DecideAsk.place string
 field DecideAsk.project string
+field DecideAsk.prompt string
 field DecideAsk.screen string
 field DecideAsk.session string
 field DecideAsk.steps []string
+field DecideAsk.text string
 field DecideAsk.use string
 field DecideLogParams.limit int
 field DecideLogParams.session string
@@ -770,6 +795,10 @@ field DecideMark.note string
 field DecideMark.wrong bool
 field DecideProject.policy string
 field DecideProject.provider string
+field DecideRouteParams.agent string
+field DecideRouteParams.project string
+field DecideRouteParams.prompt string
+field DecideRouteParams.session string
 field DecideSettings.off []string
 field DecideSettings.order []string
 field DecideSettings.own []Judge
@@ -789,11 +818,13 @@ field Decision.error string
 field Decision.id string
 field Decision.input string
 field Decision.judge string
+field Decision.keep []int
 field Decision.ms int64
 field Decision.note string
 field Decision.project string
 field Decision.saved int
 field Decision.session string
+field Decision.sure bool
 field Decision.text string
 field Decision.time time.Time
 field Decision.tokens int
@@ -1598,6 +1629,16 @@ field ReviewStatus.uncommitted int
 field ReviewStatus.unpushed int
 field ReviewStatus.upstream string
 field ReviewStatus.worktree bool
+field RouteChoice.agent string
+field RouteChoice.confidence float64
+field RouteChoice.config string
+field RouteChoice.decision string
+field RouteChoice.difficulty string
+field RouteChoice.effort string
+field RouteChoice.error string
+field RouteChoice.model string
+field RouteChoice.switch []string
+field RouteChoice.why string
 field RunCommand.command string
 field RunCommand.name string
 field RunCommand.source string
@@ -1606,6 +1647,14 @@ field SessionAutoHibernateParams.id string
 field SessionAutoHibernateParams.never bool
 field SessionBudgetParams.id string
 field SessionBudgetParams.seconds int64
+field SessionConfig.baseURL string
+field SessionConfig.color string
+field SessionConfig.icon string
+field SessionConfig.id string
+field SessionConfig.kind string
+field SessionConfig.model string
+field SessionConfig.name string
+field SessionConfig.provider string
 field SessionCreateParams.account string
 field SessionCreateParams.accountAuto bool
 field SessionCreateParams.agent string
@@ -1659,6 +1708,7 @@ field SessionInfo.branch string
 field SessionInfo.budget int64
 field SessionInfo.canvasFor string
 field SessionInfo.command []string
+field SessionInfo.config *SessionConfig
 field SessionInfo.created time.Time
 field SessionInfo.creds []string
 field SessionInfo.dir string
@@ -1750,6 +1800,10 @@ field Space.role string
 field Space.syncErr string
 field Space.synced time.Time
 field Space.team string
+field SpaceGone.at time.Time
+field SpaceGone.name string
+field SpaceGone.shared bool
+field SpaceGone.team string
 field SpaceMoveParams.copy bool
 field SpaceMoveParams.id string
 field SpaceMoveParams.team string
@@ -2369,6 +2423,7 @@ method account.info
 method account.list
 method account.log
 method account.remove
+method account.save
 method account.setPrefs
 method account.switch
 method agent.history
@@ -2466,6 +2521,7 @@ method decide.ask
 method decide.judges
 method decide.log
 method decide.mark
+method decide.route
 method decide.setSettings
 method decide.settings
 method decide.test
@@ -2645,6 +2701,8 @@ method sessions.everywhere
 method setup.scan
 method shell.list
 method shell.set
+method space.gone
+method space.gone.seen
 method space.list
 method space.sync
 method sync.conflicts
@@ -2736,10 +2794,18 @@ value AccountLimit=limit
 value AccountOK=ok
 value ActedAlerted=alerted
 value ActedAllowed=allowed
+value ActedChosen=kept some
+value ActedDropped=dropped
+value ActedFlaky=marked flaky
 value ActedNothing=
+value ActedOffered=offered
 value ActedPaused=paused
+value ActedQuiet=kept quiet
+value ActedReal=marked real
 value ActedRefused=refused
+value ActedRouted=suggested
 value ActedTrimmed=trimmed
+value ActedUrgent=notified urgently
 value ActedWaiting=marked waiting
 value ActionBreakpoint=breakpoint
 value ActionFail=fail
@@ -2842,6 +2908,8 @@ value CloudDeviceApp=app
 value CloudDeviceHost=host
 value CommandRecent=recent
 value CommandSaved=saved
+value ConfigKindAPI=api
+value ConfigKindAccount=
 value CredExpired=expired
 value CredInvalid=invalid
 value CredRevoked=revoked
@@ -2849,9 +2917,14 @@ value CredUnchecked=unchecked
 value CredValid=valid
 value DecideAnyProvider=any
 value DecideApprove=approve
+value DecideChat=chat
+value DecideContext=context
+value DecideFlaky=flaky
 value DecideLocalOnly=local
 value DecideLoop=loop
+value DecideMemory=memory
 value DecideOneProvider=one
+value DecideRoute=route
 value DecideSameProvider=agent
 value DecideState=state
 value DecideTrim=trim
@@ -3064,14 +3137,26 @@ value VaultSign=sign
 value VaultTest=test
 value VerdictAllow=allow
 value VerdictAsk=ask
+value VerdictDecision=decision
 value VerdictDone=done
+value VerdictEasy=easy
 value VerdictFailed=failed
+value VerdictFlaky=flaky
+value VerdictHard=hard
 value VerdictKeep=keep
 value VerdictLooping=looping
+value VerdictMedium=medium
+value VerdictNone=none
+value VerdictNormal=normal
+value VerdictNothing=nothing
 value VerdictProgress=progress
+value VerdictQuiet=quiet
+value VerdictReal=real
 value VerdictRefuse=refuse
+value VerdictRelevant=relevant
 value VerdictStuck=stuck
 value VerdictTrimmed=trimmed
+value VerdictUrgent=urgent
 value VerdictWaiting=waiting
 value WorkFeature=feature
 value WorkFlow=flow

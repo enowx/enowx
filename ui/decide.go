@@ -32,7 +32,7 @@ type decideState struct {
 	err     string
 	tab     int
 	testing map[string]bool
-	logUse  int // 0 all, else proto.DecideUses[i-1]
+	logUse  string // "" every use
 	calls   map[string]string
 	adding  judgeForm
 }
@@ -58,6 +58,11 @@ var useInfo = map[string][2]string{
 	proto.DecideApprove: {"Approving commands", "Before an agent's command runs: allowed without asking you, left to you, or refused. Acts through a hook: Ask the judge."},
 	proto.DecideTrim:    {"Trimming long output", "A test's, build's or install's long output reaches the agent cut to what matters, saving its context; the whole stays in a file. Acts through a hook: Trim its long output."},
 	proto.DecideLoop:    {"Stopping loops", "When an agent's commands keep failing alike, the judge reads its last steps; a loop stops its turn and asks you how to go on, before more tokens go."},
+	proto.DecideRoute:   {"A model per prompt", "The judge says how hard a prompt is, and enowX suggests the agent's model and effort to match: the cheapest for easy ones. New session offers it; agents ask with decide route. A running session's model never changes on its own."},
+	proto.DecideContext: {"RAG: context or not", "Before a prompt gets a project's search results (RAG's Context), the judge keeps only those that bear on it, or none."},
+	proto.DecideMemory:  {"RAG: memories to keep", "When a session ends, its last answer is offered as a memory only when the judge finds a decision in it, written as that decision."},
+	proto.DecideChat:    {"Team chat urgency", "The judge reads a team message: urgent ones sound and show a banner even when the chat is set to mentions or off; quiet ones only count as unread. A message naming you is never kept quiet."},
+	proto.DecideFlaky:   {"Flaky or real test failures", "When a check fails, the judge reads its output: flaky (timing, network, order) or real, shown on the check with why; a flaky one offers Run again."},
 }
 
 func (a *App) decideOf() *decideState {
@@ -323,16 +328,15 @@ func (a *App) testJudges(st *decideState, id string) {
 
 // decideLogTab is the latest decisions, to mark wrong.
 func (a *App) decideLogTab(c *ui.Context, st *decideState) {
-	labels := []string{"All"}
+	// A list rather than segments: the uses don't fit in a row.
+	opts, names := append([]string{""}, proto.DecideUses...), map[string]string{"": "Every use"}
 	for _, u := range proto.DecideUses {
-		labels = append(labels, useInfo[u][0])
+		names[u] = useInfo[u][0]
 	}
-	if i := widget.Segmented(c, labels, st.logUse, nil); i >= 0 {
-		st.logUse = i
-	}
+	ui.Row(c).Width(260).Children(func() { hookSelect(c.Key("log-use"), "Use", &st.logUse, opts, names) })
 	n := 0
 	for _, d := range st.log {
-		if st.logUse > 0 && d.Use != proto.DecideUses[st.logUse-1] {
+		if st.logUse != "" && d.Use != st.logUse {
 			continue
 		}
 		n++
@@ -391,9 +395,9 @@ func (a *App) decisionRow(c *ui.Context, st *decideState, d proto.Decision) {
 
 func verdictColor(v string) ui.Color {
 	switch v {
-	case proto.VerdictRefuse, proto.VerdictLooping, proto.VerdictFailed, proto.VerdictStuck:
+	case proto.VerdictRefuse, proto.VerdictLooping, proto.VerdictFailed, proto.VerdictStuck, proto.VerdictUrgent, proto.VerdictReal:
 		return theme.Error
-	case proto.VerdictAsk, proto.VerdictWaiting:
+	case proto.VerdictAsk, proto.VerdictWaiting, proto.VerdictFlaky:
 		return theme.Warning
 	}
 	return theme.Done

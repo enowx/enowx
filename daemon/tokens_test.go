@@ -242,3 +242,17 @@ func TestTokensMeteredFromTraffic(t *testing.T) {
 		t.Fatalf("metered: %+v", s.Total)
 	}
 }
+
+// A call is recorded with its session's config: its name, and a model
+// API's provider, billed rather than a plan's.
+func TestTokensRecordTheSessionsConfig(t *testing.T) {
+	srv := startServer(t)
+	at := time.Now()
+	sessions := []proto.SessionInfo{{ID: "s1", Agent: "claude", Dir: "/work/x", Created: at.Add(-time.Hour),
+		Config: &proto.SessionConfig{ID: "c1", Name: "Work OpenRouter", Provider: "openrouter", Model: "anthropic/claude-sonnet-4.5"}}}
+	c := tokens.Call{ID: "x", Time: at, Agent: "claude", Dir: "/work/x", Input: 10}
+	srv.attribute(&c, sessions, nil)
+	if c.Session != "s1" || c.Config != "Work OpenRouter" || c.Provider != "openrouter" || c.Plan {
+		t.Fatalf("config not recorded: %+v", c)
+	}
+}

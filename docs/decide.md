@@ -12,12 +12,31 @@ Every use is **off** until the user turns it on. When a use is off, no judge ans
 | Approving commands | a hook **Ask the judge** before a tool runs | allow, ask, refuse | allow: the agent runs it without asking the user (Claude Code); refuse: the agent is told why; ask: the agent's own permission prompt |
 | Trimming long output | a hook **Trim its long output** before a tool runs | trimmed (with the lines kept), keep | the agent reads only the lines kept, with a note naming the file that holds the whole output; the exit code is unchanged |
 | Stopping loops | three of an agent's last eight commands failed, two of them the same | looping, progress | looping: presses Escape to stop the agent's turn, and asks the user whether to let it go on |
+| A model per prompt | asked: New session's **Suggest a model for this prompt**, `enowx decide route`, MCP `decide_route` | easy, medium, hard | suggests the agent's model and effort to match (below); nothing changes until the user or the agent asking takes it |
+| RAG: context or not | a prompt starts in a project whose RAG adds context ([rag.md](rag.md)) | relevant (with the parts kept), none | the prompt gets only the parts that bear on it, or none |
+| RAG: memories to keep | a session ends in a project whose RAG offers memories | decision (with the decision, distilled), nothing | decision: the offer's text is the decision; nothing: no offer |
+| Team chat urgency | a team member's message comes in while the chat isn't open | urgent, normal, quiet | urgent: the sound, card and banner even when the chat is set to mentions or off; quiet: only counted unread. A message naming or answering the user is never kept quiet |
+| Flaky or real test failures | a check fails (the side panel's Checks) | flaky, real | shown on the failed check with why; a flaky one offers **Run again** |
 
 **Approving commands and trimming** act through hooks, so the hook's conditions say which commands they cover ([hooks.md](hooks.md)). Settings → Decisions → Uses has **Add the hook…** for each:
 - **Approve:** `tool.before`, action `judge`, Tool `^(Bash|shell|exec_command)$`.
 - **Trim:** `tool.before`, action `trim`, Text matching test, build and install commands. The command then runs as `enowx decide trim -- <command>`. Output up to 150 lines and 12,000 characters passes through as it is; longer output is trimmed by the judge.
 
 A refusal never overrides the user's own hooks: a hook that refuses still refuses, whatever the judge said.
+
+### A model per prompt
+
+The judge says how hard a prompt is; enowX maps that to the agent's own models (`core/decide/route.go`, from the lists in `core/agent/settings.go`):
+
+| Agent | Easy | Medium | Hard |
+|---|---|---|---|
+| Claude Code | Haiku 5.5, low effort | Sonnet 5.5, medium | Opus 5.5, high |
+| Codex | GPT-6-Luna, low | its own model, medium | its own model, high |
+| Another agent with efforts | low | medium | high |
+
+An agent set to another model API (Settings → Model APIs) gets that API's small model for easy prompts and its main model otherwise. With no answer, or the judge not sure enough, the agent keeps its own model and effort.
+
+The answer is `{agent, difficulty, model, effort, why, switch, config}`: `switch` is what to type in a running session of the agent for that model and effort (its `/model`, `/effort`), and a new session starts on them (`enowx spawn --model M --effort E`, New session's **Use it**). A running session's model never changes on its own. `config` is kept for a session config of the user's to suggest later; it is empty for now.
 
 ## Judges
 
@@ -29,7 +48,7 @@ The daemon finds what can judge on its host:
   - Gemini CLI runs `gemini -p`.
 
   Each runs in an empty folder of its own, so it reads no project. Claude Code and Codex are offered with their cheapest models first (Haiku 5.5, then Sonnet 5.5; GPT-6-Luna, then GPT-5.6-Luna).
-- **The model API an agent is set to** (Settings → Model APIs, `core/agentapi`): the API judges directly, with the key kept in the agent's settings. While an agent is set to one, its own models aren't offered, and its one-shot command goes to that API too.
+- **The model API an agent is set to in its own settings** (Settings → Agents, `core/agentapi`): the API judges directly, with the key kept in the agent's settings. While an agent is set to one, its own models aren't offered, and its one-shot command goes to that API too.
 - **Model APIs** whose keys are in the vault: Anthropic, OpenAI, Gemini, OpenRouter. The key is read from the vault when the judge is asked, and never kept in settings.
 - **Local servers:** Ollama (`127.0.0.1:11434`) and LM Studio (`127.0.0.1:1234`), each with its models.
 - **The user's own:** another OpenAI-compatible address, with a model and a vault credential, or a model server elsewhere on the host.
@@ -42,10 +61,12 @@ The daemon finds what can judge on its host:
 
 The policy decides which judges may be asked, for every use:
 
-- **The session's agent's provider** (the default): a Claude Code session is judged by Anthropic's models, a Codex session by OpenAI's, a Gemini CLI session by Google's. An agent set to another model API is judged by that API's provider, taken from its address (OpenRouter, say). An agent enowX doesn't know is judged by local models only.
+- **The session's agent's provider** (the default): a Claude Code session is judged by Anthropic's models, a Codex session by OpenAI's, a Gemini CLI session by Google's. A session on a model API config ([configs.md](configs.md)) is judged by that API's provider, taken from its address (OpenRouter, say), whatever the agent's other sessions run on; an agent set to a model API in its own settings likewise. An agent enowX doesn't know is judged by local models only.
 - **One provider** the user picks.
 - **Any provider.**
 - **Local models only:** nothing leaves the host.
+
+A team chat message belongs to no session or agent: under *the session's agent's provider*, only local models judge it. Pick one provider, or any, for another model to weigh messages.
 
 Local models are always allowed. A project can have its own policy (Settings → Decisions → Uses, for the project open), so a client's project can keep to local models.
 
@@ -82,6 +103,7 @@ The feature `decide` (Settings → Features) tells agents what a refusal by the 
 | `decide mark ID [--right] [--note TEXT]` | | mark a decision wrong (or right) |
 | `decide ask USE --command CMD` | | ask now (state and trim read stdin) |
 | `decide trim -- COMMAND` | | run a command, its long output trimmed, its exit code kept |
+| `decide route [--agent A] [--json] PROMPT` | `decide_route` | a model and effort of the agent for a prompt (this session's agent without `--agent`) |
 
 ## Measured
 

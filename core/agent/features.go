@@ -120,11 +120,16 @@ var Features = []Feature{
 --branch gives it a branch in a worktree of its own, so it doesn't touch your files; without it, it works in this project's folder. Tell the user what you started.
 Done with sessions you spawned? "$ENOWX_BIN" hibernate ID... frees the host's memory and CPU (the user confirms in the app; "wake ID" brings one back on its conversation; --dry-run says what it would stop).`,
 		Tools: []string{"session_spawn", "session_read", "session_send", "session_wait", "sessions_list"}},
-	{ID: "modelapi", Name: "Model APIs", Group: GroupCore,
-		About:   "Point an agent at another model API (a gateway, OpenRouter, a local server).",
-		Summary: "Model APIs: \"$ENOWX_BIN\" api set AGENT --url URL --key-env VAR --model M, api restore AGENT.",
-		Guide:   `Model APIs: when the user asks to point an agent at another model API (a gateway, OpenRouter, a local server), "$ENOWX_BIN" api set AGENT --url URL --key-env VAR --model M writes it into that agent's settings, backed up first; "$ENOWX_BIN" api restore AGENT puts them back.`,
-		Tools:   []string{"agent_api_"}},
+	{ID: "modelapi", Name: "Agent configs", Group: GroupCore,
+		About:   "Agents see their saved configs (another account, a model API such as a gateway, OpenRouter or a local server) and start sessions on one.",
+		Summary: "Configs: \"$ENOWX_BIN\" configs lists each agent's; configs add AGENT NAME --url URL --key-cred CRED --model M saves a model API; spawn --config NAME starts on one.",
+		Guide: `Configs: an agent's configs are what its sessions can run with besides the official one (the agent as installed, never changed): another account, or a model API (a gateway, OpenRouter, a local server) with its models, its key a credential of the vault. A session picks one as it starts; others keep theirs.
+    "$ENOWX_BIN" configs                                   # every agent's configs
+    "$ENOWX_BIN" configs add claude GLM --url https://openrouter.ai/api --key-cred openrouter --model z-ai/glm-5   # when the user asks
+    "$ENOWX_BIN" configs edit claude GLM --model z-ai/glm-5.1 | rm claude GLM
+    "$ENOWX_BIN" spawn --agent claude --config GLM "…"    # a session on it
+Agents that can't take an API per session (enowx-app api lists them) still take one in their own settings: "$ENOWX_BIN" api set AGENT …, backed up first; api restore AGENT puts them back.`,
+		Tools: []string{"agent_api_", "configs_"}},
 	{ID: "clone", Name: "Clone from Git", Group: GroupProject, Default: true,
 		About:   "Clone a repository as a new project, on any host.",
 		Summary: "Projects: \"$ENOWX_BIN\" project clone URL --dir D, project add PATH, project list.",
@@ -221,6 +226,7 @@ What you add, change or remove is proposed: the user allows it in Settings → H
 - an output that ends with "[enowX kept N of M lines …]": the full output is in the file it names; read it when what was kept isn't enough.
     "$ENOWX_BIN" decide log --last 5            # the latest decisions and why
     "$ENOWX_BIN" decide trim -- go test ./...    # a long command's output cut to what matters, its exit code kept
+    "$ENOWX_BIN" decide route --agent codex "PROMPT"   # a model and effort for a session you spawn (spawn --model --effort), when the user turned it on
 `,
 		Tools: []string{"decide_"}},
 	{ID: "rag", Name: "RAG", Group: GroupProject,

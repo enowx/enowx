@@ -321,6 +321,9 @@ func (a *App) sessionRow(c *ui.Context, i int, s proto.SessionInfo) {
 				if t, ok := a.sessionTokens(s.ID); ok {
 					line.Tooltip(tokenview.SpentTip(t)) // its tokens on hover
 				}
+				if cfg := s.Config; cfg != nil {
+					widget.BadgeTag(c, cfg.Name, cfg.Color) // the config it runs with
+				}
 			})
 		})
 		a.conflictMark(c, s)
