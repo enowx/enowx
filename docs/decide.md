@@ -48,7 +48,7 @@ The daemon finds what can judge on its host:
   - Gemini CLI runs `gemini -p`.
 
   Each runs in an empty folder of its own, so it reads no project. Claude Code and Codex are offered with their cheapest models first (Haiku 5.5, then Sonnet 5.5; GPT-6-Luna, then GPT-5.6-Luna).
-- **The model API an agent is set to** (Settings → Model APIs, `core/agentapi`): the API judges directly, with the key kept in the agent's settings. While an agent is set to one, its own models aren't offered, and its one-shot command goes to that API too.
+- **The model API an agent is set to in its own settings** (Settings → Agents, `core/agentapi`): the API judges directly, with the key kept in the agent's settings. While an agent is set to one, its own models aren't offered, and its one-shot command goes to that API too.
 - **Model APIs** whose keys are in the vault: Anthropic, OpenAI, Gemini, OpenRouter. The key is read from the vault when the judge is asked, and never kept in settings.
 - **Local servers:** Ollama (`127.0.0.1:11434`) and LM Studio (`127.0.0.1:1234`), each with its models.
 - **The user's own:** another OpenAI-compatible address, with a model and a vault credential, or a model server elsewhere on the host.
@@ -61,7 +61,7 @@ The daemon finds what can judge on its host:
 
 The policy decides which judges may be asked, for every use:
 
-- **The session's agent's provider** (the default): a Claude Code session is judged by Anthropic's models, a Codex session by OpenAI's, a Gemini CLI session by Google's. An agent set to another model API is judged by that API's provider, taken from its address (OpenRouter, say). An agent enowX doesn't know is judged by local models only.
+- **The session's agent's provider** (the default): a Claude Code session is judged by Anthropic's models, a Codex session by OpenAI's, a Gemini CLI session by Google's. A session on a model API config ([configs.md](configs.md)) is judged by that API's provider, taken from its address (OpenRouter, say), whatever the agent's other sessions run on; an agent set to a model API in its own settings likewise. An agent enowX doesn't know is judged by local models only.
 - **One provider** the user picks.
 - **Any provider.**
 - **Local models only:** nothing leaves the host.

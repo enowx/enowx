@@ -88,6 +88,8 @@ type Meta struct {
 	// started its run on (its name, "" its agent's own), to go back to;
 	// "" when it is on it.
 	AccountFirst string `json:",omitempty"`
+	// Config is the agent's config it runs with (SessionInfo.Config).
+	Config *proto.SessionConfig `json:",omitempty"`
 	// Member is the team's member who started it (SessionInfo.Member).
 	Member *proto.SessionMember
 	// Private keeps it from the host's teams (SessionInfo.Private).
@@ -179,6 +181,7 @@ func (s *Session) Info() proto.SessionInfo {
 		Note:            s.meta.Note,
 		Group:           s.meta.Group,
 		Account:         s.meta.Account,
+		Config:          cloneConfig(s.meta.Config),
 		Member:          s.meta.Member,
 		Private:         s.meta.Private,
 		NotesFor:        s.meta.NotesFor,
@@ -647,4 +650,13 @@ func hibernatedHow(m Meta, exited bool) *proto.HibernateState {
 		return nil
 	}
 	return &proto.HibernateState{Manual: m.HibernatedByHand, Since: m.HibernatedAt}
+}
+
+// cloneConfig is a copy of c, which Info's callers may keep.
+func cloneConfig(c *proto.SessionConfig) *proto.SessionConfig {
+	if c == nil {
+		return nil
+	}
+	x := *c
+	return &x
 }

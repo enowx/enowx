@@ -59,6 +59,7 @@ func envOnly(id string, protocols []string, caps Caps, vars func(api API) [][2]s
 		caps:      caps,
 		files:     []string{envFile(id)},
 		note:      note,
+		env:       vars,
 		read: func(home string) (API, bool, error) {
 			text, err := readEnv(home, id)
 			if err != nil {

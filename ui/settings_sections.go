@@ -33,8 +33,7 @@ const (
 	sectionTerminal    = "Terminal"
 	sectionAutomations = "Automations"
 	sectionHooks       = "Hooks"
-	sectionAccounts    = "Agent accounts"
-	sectionAgentAPIs   = "Model APIs"
+	sectionAgents      = "Agents" // their configs: accounts and model APIs (agents.go)
 	sectionApp         = "App"
 	sectionFloating    = "Floating control"
 	sectionDiagnostics = "Diagnostics"
@@ -113,10 +112,8 @@ func (a *App) settingsBody(c *ui.Context) {
 				a.ragSection(c)
 			case sectionDecide:
 				a.decideSection(c)
-			case sectionAccounts:
-				a.accountsSection(c)
-			case sectionAgentAPIs:
-				a.agentAPISection(c)
+			case sectionAgents:
+				a.agentsSection(c)
 			case sectionApp:
 				a.appSection(c)
 			case sectionFloating:

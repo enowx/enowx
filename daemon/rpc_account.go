@@ -29,4 +29,5 @@ var accountHandlers = map[string]handler{
 	proto.MethodAccountRemove: with(func(c *conn, p proto.AccountRef) (any, error) {
 		return ok, c.srv.accounts.Remove(p.ID)
 	}),
+	proto.MethodAccountSave: with(func(c *conn, p proto.Account) (any, error) { return c.srv.saveConfig(p) }),
 }

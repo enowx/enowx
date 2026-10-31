@@ -15,19 +15,20 @@ import (
 	"github.com/enowx/enowx/ui/widget"
 )
 
-// Settings' Model APIs: each agent of the host pointed at a model API of
-// the user's (core/agentapi), its own settings backed up first and put
-// back on asking.
+// A model API written into an agent's own settings (core/agentapi), for
+// the agents that take one no other way, in Settings → Agents: the
+// settings backed up first and put back on asking. Agents that take one
+// per session have it as a config (agents.go); one set in their files
+// before shows here until it moved to a config.
 
 type agentAPIState struct {
-	host    string
-	list    []proto.AgentAPIInfo
-	loaded  bool
-	busy    bool
-	err     string
-	edit    *agentAPIForm
-	menus   map[string]*widget.ContextMenu
-	showAll bool // the agents not installed too
+	host   string
+	list   []proto.AgentAPIInfo
+	loaded bool
+	busy   bool
+	err    string
+	edit   *agentAPIForm
+	menus  map[string]*widget.ContextMenu
 }
 
 // agentAPIForm is an agent's API being set: its models as typed, the
@@ -113,36 +114,6 @@ func (a *App) agentAPIDo(st *agentAPIState, do func(*client.Client) (proto.Agent
 	}()
 }
 
-func (a *App) agentAPISection(c *ui.Context) {
-	st := a.agentAPIsOf()
-	sectionIntro(c, "Model APIs", "Point an agent on "+a.host.Name+" at a model API of yours: a company gateway, OpenRouter, a local server. enowX writes it into the agent's own settings, the way that agent takes it, after keeping them as they were: Restore puts them back. Agents can do this too (enowx-app api).")
-	switch {
-	case st.err != "":
-		widget.Notice(c, icon.Alert, theme.Error, st.err, "", nil)
-	case !st.loaded:
-		widget.Spinner(c, 14)
-	}
-	var shown, hidden []proto.AgentAPIInfo
-	for _, ag := range st.list {
-		if ag.Installed || ag.Current != nil || len(ag.Backups) > 0 || st.showAll {
-			shown = append(shown, ag)
-		} else {
-			hidden = append(hidden, ag)
-		}
-	}
-	for _, ag := range shown {
-		a.agentAPIRow(c.Key(ag.Agent), st, ag)
-	}
-	if len(hidden) > 0 {
-		ui.Row(c).FillWidth().Children(func() {
-			if widget.GhostButton(c, "Show the "+strconv.Itoa(len(hidden))+" agents not installed").Clicked() {
-				st.showAll = true
-			}
-		})
-	}
-	a.agentAPISheet(c, st)
-}
-
 func (a *App) agentAPIRow(c *ui.Context, st *agentAPIState, ag proto.AgentAPIInfo) {
 	widget.Card(c).FillWidth().Children(func() {
 		ui.Row(c).FillWidth().Gap(10).AlignItems(ui.Center).Children(func() {
@@ -175,7 +146,11 @@ func (a *App) agentAPIRow(c *ui.Context, st *agentAPIState, ag proto.AgentAPIInf
 			if ag.Current != nil {
 				label = "Change…"
 			}
-			if widget.Button(c, widget.Secondary, nil, label, "").Disabled(st.busy).Clicked() {
+			if ag.PerSession && ag.Current != nil {
+				// It moves to a config once the vault took its key.
+				widget.Tag(c, "becomes a config", theme.Warning)
+			}
+			if !ag.PerSession && widget.Button(c, widget.Secondary, nil, label, "").Disabled(st.busy).Clicked() {
 				f := &agentAPIForm{open: true, agent: ag, effort: -1}
 				if cur := ag.Current; cur != nil {
 					f.url, f.small = cur.BaseURL, cur.SmallModel

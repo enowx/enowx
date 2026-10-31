@@ -16,10 +16,10 @@ import (
 	"github.com/enowx/enowx/ui/widget"
 )
 
-// An agent's card in Settings → Agent accounts: its accounts in the order
-// they're used, each its state and what it has left, moved up or down,
-// made the default, kept to some projects; what a limit does; adding a
-// sign-in or an API key.
+// An agent's configs in Settings → Agents: the official one and its own
+// in the order they're used, each its kind, badge, state and what it has
+// left, moved up or down, made the default, kept to some projects,
+// changed, duplicated or removed; what a limit does; a new config.
 
 // accountStatus is account name of agentID's state, as the host told.
 func (st *accountsState) accountStatus(agentID, name string) (proto.AccountStatus, bool) {
@@ -41,20 +41,20 @@ func (a *App) agentAccounts(c *ui.Context, st *accountsState, ag proto.AgentInfo
 		ui.Column(c).FillWidth().Gap(8).Children(func() {
 			ui.Row(c).FillWidth().Gap(10).AlignItems(ui.Center).Children(func() {
 				agentTile(c, ag.ID, 24)
-				ui.Text(c, ag.Name).FontSize(13).Grow(1)
-				if st.naming[ag.ID] == nil && widget.GhostButton(c, "Add account").Clicked() {
-					name := ""
-					st.naming[ag.ID] = &name
-				}
-				if st.keying[ag.ID] == nil && widget.GhostButton(c, "Add API key").Tooltip("An account that is a key kept in the vault, lent to its sessions").Clicked() {
-					st.keying[ag.ID] = &keyForm{}
+				ui.Column(c).Grow(1).MinWidth(0).Gap(1).Children(func() {
+					ui.Text(c, ag.Name).FontSize(13)
+					ui.Text(c, "Configs, in the order sessions use them at a limit").FontSize(11).TextColor(theme.Muted).SingleLine()
+				})
+				if widget.Button(c, widget.Secondary, icon.Plus, "New config", "").Disabled(len(a.configKinds(ag.ID)) == 0).Clicked() {
+					st.edit = a.newConfigForm(ag.ID, proto.Account{})
 				}
 			})
 			for i, name := range order {
 				a.accountLine(c.Key("acc:"+name), st, ag, pr, order, i, name)
 			}
-			a.addAccountForms(c, st, ag)
-			a.fallbackControls(c, st, ag, pr)
+			if len(order) > 1 {
+				a.fallbackControls(c, st, ag, pr)
+			}
 		})
 	})
 }
@@ -74,17 +74,20 @@ func (a *App) accountLine(c *ui.Context, st *accountsState, ag proto.AgentInfo, 
 	ui.Column(c).FillWidth().Gap(4).Padding(6, 8).Radius(theme.RadiusControl).Background(theme.Sunken).Children(func() {
 		ui.Row(c).FillWidth().Gap(8).AlignItems(ui.Center).Children(func() {
 			ui.Text(c, fmt.Sprint(i+1)).Font(theme.MonoFont).FontSize(11).TextColor(theme.Muted).Width(14)
-			label := name
-			detail := "Its own sign-in"
-			switch {
-			case !isOther:
-				label, detail = "Default", "The account "+ag.Name+" is signed in with on its own"
-			case acc.Cred != "":
-				detail = "API key " + acc.Cred + " from the vault"
+			label, detail := name, configDetail(acc)
+			if !isOther {
+				label, detail = "Official", ag.Name+" as installed: its own sign-in and settings, never changed by enowX"
 			}
 			ui.Column(c).Grow(1).MinWidth(0).Gap(1).Children(func() {
 				ui.Row(c).Gap(6).AlignItems(ui.Center).Children(func() {
-					ui.Text(c, label).FontSize(12.5)
+					if acc.Color != "" {
+						widget.BadgeTag(c, label, acc.Color)
+					} else {
+						ui.Text(c, label).FontSize(12.5)
+					}
+					if isOther {
+						widget.Tag(c, configKindLabel(acc), ui.Color{})
+					}
 					if pr.Default == name && (name != "" || pr.Default == "") && len(order) > 1 {
 						widget.Tag(c, "new sessions", theme.Accent)
 					}
@@ -111,6 +114,16 @@ func (a *App) accountLine(c *ui.Context, st *accountsState, ag proto.AgentInfo, 
 				a.saveAccountPrefs(st, ag.ID, pr)
 			}
 			widget.MoreMenu(c, &a.menu, "account:"+ag.ID+":"+name, func(done func()) {
+				if isOther && widget.MenuItem(c, icon.Pencil, "Edit…", false) {
+					st.edit = a.newConfigForm(ag.ID, acc)
+					done()
+				}
+				if isOther && widget.MenuItem(c, icon.Copy, "Duplicate…", false) {
+					dup := acc
+					dup.ID, dup.Name = "", acc.Name+" copy"
+					st.edit = a.newConfigForm(ag.ID, dup)
+					done()
+				}
 				if widget.MenuItem(c, icon.Check, "Use for new sessions", false) {
 					pr.Default = name
 					a.saveAccountPrefs(st, ag.ID, pr)
@@ -121,12 +134,16 @@ func (a *App) accountLine(c *ui.Context, st *accountsState, ag proto.AgentInfo, 
 					st.only[ag.ID+"\x00"+name] = &v
 					done()
 				}
-				if isOther && acc.Cred == "" && widget.MenuItem(c, icon.Account, "Sign in", false) {
+				if isOther && acc.Cred == "" && acc.Kind != proto.ConfigKindAPI && widget.MenuItem(c, icon.Account, "Sign in on "+a.host.Name, false) {
 					a.signInAccount(ag.ID, acc)
 					done()
 				}
 				if isOther && widget.MenuItem(c, icon.Trash, "Remove", true) {
-					a.confirm("Remove the account "+name+"?", "Its sign-in on "+a.host.Name+" goes with it; sessions using it keep running until they end.", "Remove", func() { a.removeAccount(st, acc) })
+					what := "It goes from every host of yours; sessions using it keep running until they end. The official config stays as it is."
+					if acc.Kind == proto.ConfigKindAccount && acc.Cred == "" {
+						what = "Its sign-in on " + a.host.Name + " goes with it, and the config from every host of yours; sessions using it keep running until they end."
+					}
+					a.confirm("Remove the config "+name+"?", what, "Remove", func() { a.removeAccount(st, acc) })
 					done()
 				}
 			})
@@ -191,36 +208,6 @@ func creditLine(cr proto.CreditAccount) string {
 	return strings.Join(parts, " · ")
 }
 
-// addAccountForms add a sign-in, or an API key of the vault's.
-func (a *App) addAccountForms(c *ui.Context, st *accountsState, ag proto.AgentInfo) {
-	if name := st.naming[ag.ID]; name != nil {
-		ui.Row(c).FillWidth().Gap(8).Children(func() {
-			in := widget.Input(c, name, "Work").Grow(1).AutoFocus()
-			if widget.GhostButton(c, "Cancel").Clicked() {
-				delete(st.naming, ag.ID)
-			}
-			ok := strings.TrimSpace(*name) != "" && !st.busy
-			if (widget.PrimaryButton(c, nil, "Add and sign in", "").Disabled(!ok).Clicked() || in.Submitted()) && ok {
-				a.addAccount(st, ag.ID, *name)
-			}
-		})
-	}
-	if k := st.keying[ag.ID]; k != nil {
-		ui.Row(c).FillWidth().Gap(8).Children(func() {
-			widget.Input(c, &k.name, "Team key").Width(160)
-			widget.Input(c, &k.cred, "the vault's credential, e.g. anthropic-work").Grow(1).Font(theme.MonoFont)
-			if widget.GhostButton(c, "Cancel").Clicked() {
-				delete(st.keying, ag.ID)
-			}
-			ok := strings.TrimSpace(k.name) != "" && strings.TrimSpace(k.cred) != "" && !st.busy
-			if widget.PrimaryButton(c, nil, "Add", "").Disabled(!ok).Clicked() && ok {
-				a.addKeyAccount(st, ag.ID, *k)
-			}
-		})
-		ui.Text(c, "Its value stays in the vault: sessions on this account get it as the vault lends credentials, never shown.").FontSize(11).TextColor(theme.Muted)
-	}
-}
-
 // fallbackControls set what an account at its limit does.
 func (a *App) fallbackControls(c *ui.Context, st *accountsState, ag proto.AgentInfo, pr proto.AccountPrefs) {
 	ui.Column(c).FillWidth().Gap(6).Padding(4, 0, 0, 0).Children(func() {
@@ -280,26 +267,6 @@ func (a *App) saveAccountPrefs(st *accountsState, agentID string, pr proto.Accou
 	}()
 }
 
-func (a *App) addKeyAccount(st *accountsState, agentID string, k keyForm) {
-	cl := a.client
-	if cl == nil {
-		return
-	}
-	st.busy = true
-	go func() {
-		_, err := cl.AddKeyAccount(agentID, strings.TrimSpace(k.name), strings.TrimSpace(k.cred))
-		a.onMain(func() {
-			st.busy = false
-			if err != nil {
-				st.err = client.Explain(err)
-				return
-			}
-			delete(st.keying, agentID)
-			a.loadAccounts()
-		})
-	}()
-}
-
 // accountHistory is which account each session used, when, and why.
 func (a *App) accountHistory(c *ui.Context, st *accountsState) {
 	if len(st.log) == 0 {
@@ -319,7 +286,7 @@ func (a *App) accountHistory(c *ui.Context, st *accountsState) {
 			ui.Text(c, e.Event).FontSize(11.5).TextColor(col).Width(64)
 			name := e.Account
 			if name == "" {
-				name = "Default"
+				name = "Official"
 			}
 			ui.Text(c, a.agentName(e.Agent)+" · "+name).FontSize(12).SingleLine().Width(200)
 			ui.Text(c, e.Reason).FontSize(11).TextColor(theme.Muted).SingleLine().Grow(1).Shrink(1)

@@ -125,6 +125,9 @@ func (s *Server) decideFor(info proto.SessionInfo, a proto.DecideAsk) (proto.Dec
 		r.ProjectID = rag.ProjectID(a.Project)
 	}
 	r.Session = info.ID
+	if info.Config != nil {
+		r.Provider = info.Config.Provider // the session's config's, not the agent's
+	}
 	return s.judge.Decide(context.Background(), r)
 }
 
