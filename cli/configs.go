@@ -23,7 +23,7 @@ FLAGS
   --effort E                       the agent's reasoning effort
   --env NAME=VALUE --arg A         added to its sessions' environment, to the agent's command line (repeat them)
   --color #RRGGBB --icon NAME      its badge
-Start a session on one with spawn --config NAME.`
+Start a session on one with spawn --config NAME`
 
 // configsCmd runs `enowx configs …`: agents' configs, which sessions
 // pick as they start (docs/configs.md).
