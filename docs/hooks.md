@@ -72,6 +72,8 @@ Limits: **once a session**, **at most N times a session**, **apart at least** so
   - Codex takes a changed command only as approved, so a Codex session that asks gets it as a refusal naming the command to run instead.
 - **Ask the judge** (before a tool runs): enowX's judge allows the command without asking the user, leaves it to them, or refuses it ([decide.md](decide.md)).
 - **Trim its long output** (before a tool runs): the command runs through `enowx decide trim`, and a long output reaches the agent cut by the judge to what matters ([decide.md](decide.md)).
+
+Both run built in while their use is on in Settings → Decisions, without a hook; a hook of the user's with the same action replaces the built-in one.
 - **Notify:** a sound (done, input, error) and a banner in the apps, saying Message. `{agent}`, `{project}`, `{branch}`, `{event}`, `{prompt}`, `{command}`, `{paths}`, `{commit}`, `{port}`, `{text}` and `{host}` are filled in.
 - **Call a webhook:** POST to URL.
   - Discord's webhooks get Message as `content`, with no mentions, and Slack's as `text`.

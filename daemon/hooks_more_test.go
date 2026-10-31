@@ -28,6 +28,10 @@ func TestHooksChangeAndGuardGit(t *testing.T) {
 		t.Skip("uses sh")
 	}
 	srv, sess := hookServer(t)
+	// The built-in trim would wrap the rewritten command: this is about the user's hooks.
+	if err := srv.judge.Settings().Set(proto.DecideSettings{Uses: map[string]proto.DecideUse{proto.DecideTrim: {}}}); err != nil {
+		t.Fatal(err)
+	}
 	got := filepath.Join(t.TempDir(), "got")
 	if _, err := srv.saveHostHooks([]proto.Hook{
 		{On: true, Event: proto.HookToolBefore, Action: proto.HookActionRewrite, Find: `^npm install`, Replace: "pnpm install"},

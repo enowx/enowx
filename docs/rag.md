@@ -62,6 +62,8 @@ The side panel's **Code** group has an **Index** tool for the selected session's
 - **Offer to keep decisions as memories**: when a session ends, a dialog offers the agent's last answer to edit and save (`rag.offer`). With the judge's use **RAG: memories to keep** on, it offers only an answer holding a decision, written as that decision ([decide.md](decide.md)).
 - **Turn off and delete the index**, which asks first.
 
+The feature `rag` is on by default, and agreeing to index a project turns on both switches above when neither was set.
+
 ## Staying fresh
 
 The daemon indexes a project again:

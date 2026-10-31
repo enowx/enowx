@@ -158,6 +158,11 @@ func (a *App) ragConsentDialog(c *ui.Context, p *ragPanelState) {
 				p.plan = nil
 				set := p.st.Settings
 				set.On, set.Consent, set.Exclude = true, plan.Host, splitList(p.exclude)
+				if !set.Context && !set.Offer {
+					// First turned on: prompts get the parts bearing on them, and
+					// decisions are offered as memories (each can be turned off).
+					set.Context, set.Offer = true, true
+				}
 				a.setRAGProject(p, set, true)
 			}
 		})

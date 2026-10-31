@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/enowx/enowx/core/agent"
+	"github.com/enowx/enowx/core/decide"
 	"github.com/enowx/enowx/core/hooks"
 	"github.com/enowx/enowx/core/session"
 	"github.com/enowx/enowx/proto"
@@ -135,7 +136,7 @@ func (s *Server) hookRunner(info proto.SessionInfo) hooks.Runner {
 // background.
 func (s *Server) fireHooks(info proto.SessionInfo, ev proto.HookEvent) proto.HookDecision {
 	ev = s.eventOf(info, ev)
-	matched := hooks.For(s.hooksFor(info), ev)
+	matched := hooks.For(s.withBuiltins(info, ev, s.hooksFor(info)), ev)
 	var d proto.HookDecision
 	if len(matched) == 0 {
 		return d
@@ -222,4 +223,29 @@ func (s *Server) testHook(t proto.HookTest) (proto.HookRun, error) {
 	run, _ := s.hookRunner(proto.SessionInfo{ID: ev.Session}).Run(t.Hook, ev)
 	s.logHookRun(run)
 	return run, nil
+}
+
+// withBuiltins is session info's hooks for event ev with enowX's own after
+// them: before a tool runs, the judge (approving) and trimming, each while
+// its use is on and the user set no hook of that action, which replaces
+// it.
+func (s *Server) withBuiltins(info proto.SessionInfo, ev proto.HookEvent, list []proto.Hook) []proto.Hook {
+	if ev.Event != proto.HookToolBefore {
+		return list
+	}
+	st := s.judge.Settings().Get()
+	has := func(action string) bool {
+		return slices.ContainsFunc(list, func(h proto.Hook) bool { return h.Action == action && h.Event == proto.HookToolBefore })
+	}
+	out := list
+	// The judge first: it judges the command as the agent wrote it, not
+	// as trimming wraps it. GOA and its workers have theirs (goa.go).
+	goaOwn := info.GOA || info.GOAWorker != "" || s.goa.board.Has(info.ID)
+	if !goaOwn && decide.Use(st, proto.DecideApprove).On && !has(proto.HookActionJudge) {
+		out = append(slices.Clone(out), hooks.BuiltinJudge)
+	}
+	if decide.Use(st, proto.DecideTrim).On && !has(proto.HookActionTrim) {
+		out = append(slices.Clone(out), hooks.BuiltinTrim)
+	}
+	return out
 }

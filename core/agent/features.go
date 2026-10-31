@@ -233,7 +233,7 @@ What you add, change or remove is proposed: the user allows it in Settings → H
     "$ENOWX_BIN" accounts priority claude Work default Spare | fallback claude --on|--ask|--off [--to codex] [--return] | log
 `,
 		Tools: []string{"accounts_"}},
-	{ID: "decide", Name: "Decisions", Group: GroupProject,
+	{ID: "decide", Name: "Decisions", Group: GroupProject, Default: true,
 		About:   "Agents know enowX's judge (Settings → Decisions): why a command was allowed or refused, a turn stopped as a loop, an output trimmed; and they can trim a long command's output themselves.",
 		Summary: "Decisions: enowX's judge may allow or refuse your commands, stop a loop, trim long output; \"$ENOWX_BIN\" decide log says why.",
 		Guide: `Decisions: enowX's judge may act on what you do, as the user set it (Settings → Decisions):
@@ -245,7 +245,7 @@ What you add, change or remove is proposed: the user allows it in Settings → H
     "$ENOWX_BIN" decide route --agent codex "PROMPT"   # a model and effort for a session you spawn (spawn --model --effort), when the user turned it on
 `,
 		Tools: []string{"decide_"}},
-	{ID: "rag", Name: "RAG", Group: GroupProject,
+	{ID: "rag", Name: "RAG", Group: GroupProject, Default: true,
 		About:   "Agents search their project by meaning (code, docs, attached notes, memories) and keep memories in it, once the project is indexed (Settings → RAG).",
 		Summary: "RAG: \"$ENOWX_BIN\" rag search QUERY finds this project's code, docs, notes and memories by meaning; rag remember TEXT keeps a decision.",
 		Guide: `RAG: this project may be indexed by meaning. Before reading widely, or changing code you don't know, search it; then read the files it points at before relying on them, and say which file:line you used.

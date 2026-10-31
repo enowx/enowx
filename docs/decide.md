@@ -2,7 +2,7 @@
 
 The judge is a small, cheap model that enowX asks instead of guessing. It is given one situation and answers with a verdict, how sure it is, and why, in one line. enowX's own code then acts on that answer (`core/decide`, through the host's daemon). A session on a server is judged on that server.
 
-Every use is **on** until the user turns it off (Settings → Decisions → Uses); approving commands and trimming also need their hook. When a use is off, no judge answers, or the judge isn't sure enough, enowX does what it does without the judge. A failure never blocks an agent.
+Every use is **on** until the user turns it off (Settings → Decisions → Uses), as is the `decide` feature. When a use is off, no judge answers, or the judge isn't sure enough, enowX does what it does without the judge. A failure never blocks an agent.
 
 ## Uses
 
@@ -18,7 +18,7 @@ Every use is **on** until the user turns it off (Settings → Decisions → Uses
 | Team chat urgency | a team member's message comes in while the chat isn't open | urgent, normal, quiet | urgent: the sound, card and banner even when the chat is set to mentions or off; quiet: only counted unread. A message naming or answering the user is never kept quiet |
 | Flaky or real test failures | a check fails (the side panel's Checks) | flaky, real | shown on the failed check with why; a flaky one offers **Run again** |
 
-**Approving commands and trimming** act through hooks, so the hook's conditions say which commands they cover ([hooks.md](hooks.md)). Settings → Decisions → Uses has **Add the hook…** for each:
+**Approving commands and trimming** act through hooks ([hooks.md](hooks.md)). While their use is on, enowX adds its own built-in hook for each, with no hook to add (`core/hooks/builtin.go`); a `tool.before` hook of the user's with the same action replaces the built-in one, its conditions then saying which commands are covered. GOD of Agents and its workers are judged by GOA instead ([goa.md](goa.md)). Settings → Decisions → Uses has **Add the hook…** for each, to change what it covers:
 - **Approve:** `tool.before`, action `judge`, Tool `^(Bash|shell|exec_command)$`.
 - **Trim:** `tool.before`, action `trim`, Text matching test, build and install commands. The command then runs as `enowx decide trim -- <command>`. Output up to 150 lines and 12,000 characters passes through as it is; longer output is trimmed by the judge.
 

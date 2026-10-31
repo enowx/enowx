@@ -3,6 +3,7 @@ package ui
 import (
 	"github.com/egoist/mygo/ui"
 
+	"github.com/enowx/enowx/core/hooks"
 	"github.com/enowx/enowx/proto"
 	"github.com/enowx/enowx/ui/icon"
 	"github.com/enowx/enowx/ui/theme"
@@ -21,7 +22,7 @@ var hookTemplates = []struct {
 	{"Have the judge approve commands", proto.Hook{Name: "Judge commands", On: true, Event: proto.HookToolBefore, Action: proto.HookActionJudge,
 		Tool: `^(Bash|shell|exec_command)$`}},
 	{"Trim long test and build output", proto.Hook{Name: "Trim long output", On: true, Event: proto.HookToolBefore, Action: proto.HookActionTrim,
-		Text: `^\s*(npm|pnpm|yarn|bun)\s+(test|run\s+(test|build|lint)|install|ci)\b|^\s*go\s+(test|build|vet)\b|^\s*(make|cargo\s+(build|test)|pytest|mvn|gradle|\./gradlew)\b`}},
+		Text: hooks.TrimCommands}},
 	{"Refuse pushes to main", proto.Hook{Name: "No pushes to main", On: true, Event: proto.HookGitBefore, Action: proto.HookActionBlock,
 		Text: `push\b.*\b(main|master)\b`, Reason: "Push to a branch of its own and open a pull request."}},
 	{"Format the code after a turn", proto.Hook{Name: "Format", On: true, Event: proto.HookFileChanged, Action: proto.HookActionRun, Background: true,

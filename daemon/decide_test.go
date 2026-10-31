@@ -147,3 +147,35 @@ func TestTypedKeysStayOnTheHost(t *testing.T) {
 		t.Fatalf("judges: %s %v", raw, err)
 	}
 }
+
+// With no hook of the user's, enowX's own run before a tool: the judge
+// refuses a dangerous command, and a test's output is trimmed; a hook of
+// the user's of the same action takes the built-in's place.
+func TestBuiltinJudgeAndTrim(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("uses sh")
+	}
+	srv, _ := hookServer(t)
+	if err := srv.judge.Settings().Set(proto.DecideSettings{Policy: proto.DecideLocalOnly,
+		Own: []proto.Judge{{Kind: proto.JudgeLocal, URL: judgeServer(t), Model: "judge"}}}); err != nil {
+		t.Fatal(err)
+	}
+	hook := func(input string) (string, string, int) {
+		var out, errOut bytes.Buffer
+		code := Hook([]string{"--event", proto.HookToolBefore}, strings.NewReader(input), &out, &errOut)
+		return out.String(), errOut.String(), code
+	}
+	if _, reason, code := hook(`{"tool_name":"Bash","tool_input":{"command":"rm -rf ~"}}`); code == 0 || !strings.Contains(reason, "home folder") {
+		t.Fatalf("rm -rf ~ with no hook: %d %q", code, reason)
+	}
+	out, _, _ := hook(`{"tool_name":"Bash","tool_input":{"command":"go test ./..."}}`)
+	if !strings.Contains(out, "decide trim -- 'go test ./...'") {
+		t.Fatalf("go test not trimmed: %q", out)
+	}
+	if _, err := srv.hooks.store.Save([]proto.Hook{{Name: "Mine", On: true, Event: proto.HookToolBefore, Action: proto.HookActionTrim, Text: `^make\b`}}); err != nil {
+		t.Fatal(err)
+	}
+	if out, _, _ := hook(`{"tool_name":"Bash","tool_input":{"command":"go test ./..."}}`); strings.Contains(out, "decide trim") {
+		t.Fatalf("the built-in trim ran beside the user's: %q", out)
+	}
+}
