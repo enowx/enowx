@@ -44,9 +44,6 @@ type ragPanelState struct {
 
 	plan    *proto.RAGPlan // asking to agree
 	exclude string
-	// A team's enowx-rag server the project is searched on instead.
-	team                        bool
-	srvURL, srvProject, srvCred string
 }
 
 func (a *App) ragPanelOf(s proto.SessionInfo) *ragPanelState {
@@ -72,7 +69,6 @@ func (a *App) loadRAGPanel() {
 			}
 			p.loaded, p.st, p.dir, p.mems, p.err = true, st, st.Project, mems, ""
 			p.exclude = strings.Join(st.Settings.Exclude, ", ")
-			p.team, p.srvURL, p.srvProject, p.srvCred = st.Settings.ServerURL != "", st.Settings.ServerURL, st.Settings.ServerProject, st.Settings.ServerCred
 			if err != nil {
 				p.err = client.Explain(err)
 			}
@@ -90,16 +86,10 @@ func (a *App) indexTab(c *ui.Context, s proto.SessionInfo) {
 			case !p.loaded:
 				widget.Spinner(c, 14)
 			case !p.st.Ready:
-				widget.EmptyState(c, icon.Search, "No embedder set", "Pick the embedder a project's text goes to in Settings → Project search, then turn the project on here.", func() {
-					ui.Row(c).Gap(8).Children(func() {
-						if widget.GhostButton(c, "Open Settings").Clicked() {
-							a.page, a.settingsSection = pageSettings, sectionRAG
-						}
-						if widget.GhostButton(c, "Use a team's server…").Clicked() {
-							p.team = true
-							a.planRAG(p)
-						}
-					})
+				widget.EmptyState(c, icon.Search, "No embedder set", "Pick the embedder a project's text goes to in Settings → RAG, then turn the project on here.", func() {
+					if widget.GhostButton(c, "Open Settings").Clicked() {
+						a.page, a.settingsSection = pageSettings, sectionRAG
+					}
 				})
 			case !p.st.Settings.On:
 				a.ragOff(c, p)
@@ -159,44 +149,16 @@ func (a *App) ragConsentDialog(c *ui.Context, p *ragPanelState) {
 		widget.Field(c, "Leave out too (paths or globs, comma-separated)", func() {
 			widget.Input(c, &p.exclude, "fixtures/, *.min.js").FillWidth().Font(theme.MonoFont)
 		})
-		switchRowKey(c, "team", &p.team, "Search a team's enowx-rag server instead", "Its index, built on the server, shared by the team; the token from your vault.")
-		srv := strings.TrimRight(strings.TrimSpace(p.srvURL), "/")
-		changed := p.team && srv != p.st.Settings.ServerURL || !p.team && p.st.Settings.ServerURL != ""
-		if p.team {
-			widget.Field(c, "Server", func() { widget.Input(c, &p.srvURL, "https://rag.team.example").FillWidth().Font(theme.MonoFont) })
-			ui.Row(c).FillWidth().Gap(10).Children(func() {
-				ui.Column(c).Grow(1).Children(func() {
-					widget.Field(c, "Project there", func() { widget.Input(c, &p.srvProject, p.st.ID).FillWidth().Font(theme.MonoFont) })
-				})
-				ui.Column(c).Grow(1).Children(func() {
-					widget.Field(c, "Token, from the vault", func() { a.ragCredSelect(c, "srv", &p.srvCred) })
-				})
-			})
-			changed = changed || p.srvCred != p.st.Settings.ServerCred || strings.TrimSpace(p.srvProject) != p.st.Settings.ServerProject
-		}
 		ui.Row(c).FillWidth().Gap(8).Children(func() {
 			ui.Spacer(c)
 			if widget.GhostButton(c, "Cancel").Clicked() {
 				p.plan = nil
 			}
-			if changed {
-				// Where it goes changed: kept first, then asked again.
-				if widget.PrimaryButton(c, icon.Check, "Use this", "").Disabled(p.team && srv == "").Clicked() {
-					set := p.st.Settings
-					set.ServerURL, set.ServerProject, set.ServerCred = "", "", ""
-					if p.team {
-						set.ServerURL, set.ServerProject, set.ServerCred = srv, strings.TrimSpace(p.srvProject), p.srvCred
-					}
-					p.plan = nil
-					a.setRAGProjectThen(p, set, func() { a.planRAG(p) })
-				}
-				return
-			}
 			if widget.PrimaryButton(c, icon.Check, "Agree and index", "").Clicked() {
 				p.plan = nil
 				set := p.st.Settings
 				set.On, set.Consent, set.Exclude = true, plan.Host, splitList(p.exclude)
-				a.setRAGProject(p, set, set.ServerURL == "")
+				a.setRAGProject(p, set, true)
 			}
 		})
 	})
@@ -215,17 +177,11 @@ func count[T int | int64](n T) string {
 
 // setRAGProject keeps the project's settings, then indexes it when asked.
 func (a *App) setRAGProject(p *ragPanelState, set proto.RAGProject, index bool) {
-	a.setRAGProjectThen(p, set, nil, index)
-}
-
-// setRAGProjectThen keeps the project's settings, indexes it when asked,
-// then runs then.
-func (a *App) setRAGProjectThen(p *ragPanelState, set proto.RAGProject, then func(), index ...bool) {
 	cl, key, dir := a.client, p.key, p.dir
 	p.busy = true
 	go func() {
 		st, err := cl.SetRAGProject(proto.RAGProjectParams{Project: dir, Settings: set})
-		if err == nil && len(index) > 0 && index[0] {
+		if err == nil && index {
 			st, err = cl.RAGIndex(proto.RAGRef{Project: dir})
 		}
 		a.onMain(func() {
@@ -234,13 +190,10 @@ func (a *App) setRAGProjectThen(p *ragPanelState, set proto.RAGProject, then fun
 			}
 			p.busy = false
 			if err != nil {
-				a.status = "Project search: " + client.Explain(err)
+				a.status = "RAG: " + client.Explain(err)
 			}
 			if st.Project != "" {
 				p.st = st
-			}
-			if err == nil && then != nil {
-				then()
 			}
 		})
 	}()
@@ -256,8 +209,6 @@ func (a *App) ragOn(c *ui.Context, s proto.SessionInfo, p *ragPanelState) {
 		})
 		if st.Indexing {
 			widget.Spinner(c, 12)
-		} else if st.Settings.ServerURL != "" {
-			widget.Tag(c, "the team's server", theme.Muted)
 		} else if widget.GhostButton(c, "Reindex").Disabled(p.busy).Clicked() {
 			a.setRAGProject(p, st.Settings, true)
 		}

@@ -15,12 +15,6 @@ import (
 	"strings"
 	"sync"
 
-	ragconfig "github.com/enowdev/enowx-rag/mcp-server/pkg/config"
-	ragcore "github.com/enowdev/enowx-rag/mcp-server/pkg/core"
-	"github.com/enowdev/enowx-rag/mcp-server/pkg/indexer"
-	erag "github.com/enowdev/enowx-rag/mcp-server/pkg/rag"
-	"github.com/enowdev/enowx-rag/mcp-server/pkg/ragbuild"
-
 	"github.com/enowx/enowx/core/git"
 	"github.com/enowx/enowx/core/projectlinks"
 	"github.com/enowx/enowx/proto"
@@ -29,102 +23,163 @@ import (
 // ErrNotReady is an engine with no embedder set: nothing is indexed.
 var ErrNotReady = errors.New("rag: no embedder set: Settings → RAG")
 
-// chunkSize is the characters of a chunk, as enowx-rag cuts them.
-const chunkSize = 1000
-
 // defaultMaxFiles bounds a project's files indexed.
 const defaultMaxFiles = 20000
 
-// Engine is a host's RAG: its provider built from the settings once they
-// change, keys asked of the vault (KeyOf). Safe from any goroutine.
+// maxFileSize is the largest file indexed.
+const maxFileSize = 500 << 10
+
+// Doc is something of a project indexed besides its files: a memory, an
+// attached note.
+type Doc struct {
+	ID     string // "memory:<id>", "note:<id>"
+	Title  string
+	Text   string
+	Source string // proto.RAGMemo, RAGNotes
+}
+
+// Engine is a host's RAG: its embedder and store built from the settings
+// as they change, keys asked of the vault (KeyOf). Safe from any goroutine.
 type Engine struct {
 	dir      string
 	settings *Settings
 	// KeyOf is the value of the vault's credential named cred.
 	KeyOf func(cred string) (string, error)
 
-	mu     sync.Mutex
-	sig    string
-	prov   erag.Provider
-	svc    *ragcore.Service
-	remote *server
+	mu    sync.Mutex
+	sig   string
+	emb   embedder
+	store store
 }
 
 // NewEngine is the RAG of the daemon in dir, by s.
 func NewEngine(dir string, s *Settings) *Engine { return &Engine{dir: dir, settings: s} }
 
-// signature is what the provider is built of: the settings but the
-// projects'.
+// signature is what the embedder and store are built of: the settings but
+// the projects'.
 func signature(st proto.RAGSettings) string {
 	st.Projects = nil
 	data, _ := json.Marshal(st)
 	return string(data)
 }
 
-// ready is the provider and service for the settings now, built again
-// when they changed.
-func (e *Engine) ready(ctx context.Context) (erag.Provider, *ragcore.Service, *server, error) {
+// embedderKey tells one embedder's vectors from another's in a store.
+func embedderKey(st proto.RAGSettings) string {
+	sum := sha256.Sum256([]byte(st.Embedder + "|" + st.Model + "|" + st.BaseURL + "|" + fmt.Sprint(st.Dim)))
+	return hex.EncodeToString(sum[:4])
+}
+
+// indexKey is the project in dir's index in the store: its ID and the
+// embedder's, as vectors of two embedders never compare.
+func indexKey(dir string, st proto.RAGSettings) string {
+	return ProjectID(dir) + "@" + embedderKey(st)
+}
+
+// ready is the embedder and store for the settings now, built again when
+// they changed.
+func (e *Engine) ready(ctx context.Context) (embedder, store, proto.RAGSettings, error) {
 	st := e.settings.Get()
-	if st.Embedder == "" && st.Store != proto.RAGServer {
-		return nil, nil, nil, ErrNotReady
+	switch st.Embedder {
+	case proto.RAGVoyage, proto.RAGOpenAI, proto.RAGTEI:
+	default:
+		return nil, nil, st, ErrNotReady
 	}
 	sig := signature(st)
 	e.mu.Lock()
 	defer e.mu.Unlock()
-	if sig == e.sig && (e.svc != nil || e.remote != nil) {
-		return e.prov, e.svc, e.remote, nil
+	if sig == e.sig && e.store != nil {
+		return e.emb, e.store, st, nil
 	}
-	if e.prov != nil {
-		e.prov.Close()
+	if e.store != nil {
+		e.store.close()
 	}
-	e.prov, e.svc, e.remote, e.sig = nil, nil, nil, ""
-	if st.Store == proto.RAGServer {
-		token := ""
-		if st.ServerCred != "" && e.KeyOf != nil {
-			t, err := e.KeyOf(st.ServerCred)
-			if err != nil {
-				return nil, nil, nil, err
-			}
-			token = t
-		}
-		e.remote, e.sig = &server{url: strings.TrimRight(st.ServerURL, "/"), token: token}, sig
-		return nil, nil, e.remote, nil
-	}
-	prov, err := e.build(ctx, st)
+	e.emb, e.store, e.sig = nil, nil, ""
+	emb, err := e.embedderOf(st)
 	if err != nil {
-		return nil, nil, nil, err
+		return nil, nil, st, err
 	}
-	e.prov, e.svc, e.sig = prov, ragcore.NewService(prov, nil, indexer.NewIndexer(prov, chunkSize)), sig
-	return e.prov, e.svc, nil, nil
+	s, err := e.storeOf(ctx, st)
+	if err != nil {
+		return nil, nil, st, err
+	}
+	e.emb, e.store, e.sig = emb, s, sig
+	return emb, s, st, nil
 }
 
-// forProject is ready's, but a project with a server of its own
-// (RAGProject.ServerURL) gets that server, and the ID it has there.
-func (e *Engine) forProject(ctx context.Context, dir string) (erag.Provider, *ragcore.Service, *server, string, error) {
-	p, id := e.settings.Project(ProjectID(dir)), ProjectID(dir)
-	if p.ServerURL == "" {
-		prov, svc, remote, err := e.ready(ctx)
-		return prov, svc, remote, id, err
+func (e *Engine) embedderOf(st proto.RAGSettings) (embedder, error) {
+	key, err := e.secret(st.KeyCred)
+	if err != nil {
+		return nil, err
 	}
-	srv := &server{url: strings.TrimRight(p.ServerURL, "/")}
-	if p.ServerCred != "" && e.KeyOf != nil {
-		t, err := e.KeyOf(p.ServerCred)
-		if err != nil {
-			return nil, nil, nil, id, err
+	return newEmbedder(st, key)
+}
+
+func (e *Engine) storeOf(ctx context.Context, st proto.RAGSettings) (store, error) {
+	if st.Store == proto.RAGPostgres {
+		if st.PostgresCred == "" {
+			return nil, errors.New("rag: pick the vault's credential with the PostgreSQL URL")
 		}
-		srv.token = t
+		u, err := e.secret(st.PostgresCred)
+		if err != nil {
+			return nil, err
+		}
+		return openPostgres(ctx, u)
 	}
-	return nil, nil, srv, orString(p.ServerProject, id), nil
+	return openSQLite(filepath.Join(e.dir, "rag", "index.db"))
 }
 
-// ProjectHost is where the project in dir's text and searches go, for
-// the user to agree to: its own server's host, else the embedder's.
-func (e *Engine) ProjectHost(dir string) string {
-	if p := e.settings.Project(ProjectID(dir)); p.ServerURL != "" {
-		return hostOf(p.ServerURL, "an enowx-rag server")
+// secret is the vault's credential cred, "" for none.
+func (e *Engine) secret(cred string) (string, error) {
+	if cred == "" {
+		return "", nil
 	}
-	return e.EmbedderHost(e.settings.Get())
+	if e.KeyOf == nil {
+		return "", errors.New("rag: no vault to read " + cred + " from")
+	}
+	return e.KeyOf(cred)
 }
+
+// Test embeds a line with settings st (not kept) and, for PostgreSQL,
+// connects to it; it says the vector's size.
+func (e *Engine) Test(ctx context.Context, st proto.RAGSettings) (int, error) {
+	emb, err := e.embedderOf(st)
+	if err != nil {
+		return 0, err
+	}
+	v, err := emb.embed(ctx, []string{"enowX checks the embedder"}, true)
+	if err != nil {
+		return 0, err
+	}
+	if len(v) == 0 || len(v[0]) == 0 {
+		return 0, errors.New("rag: the embedder gave no vector")
+	}
+	if st.Store == proto.RAGPostgres {
+		s, err := e.storeOf(ctx, st)
+		if err != nil {
+			return len(v[0]), err
+		}
+		s.close()
+	}
+	return len(v[0]), nil
+}
+
+// EmbedderHost is where st's embedder sends text, for the user to agree
+// to: a host, or "this device".
+func (e *Engine) EmbedderHost(st proto.RAGSettings) string {
+	switch st.Embedder {
+	case proto.RAGVoyage:
+		return "api.voyageai.com"
+	case proto.RAGOpenAI:
+		return hostOf(orString(st.BaseURL, "https://api.openai.com/v1"), "api.openai.com")
+	case proto.RAGTEI:
+		return hostOf(st.BaseURL, "a TEI server")
+	}
+	return st.Embedder
+}
+
+// ProjectHost is where the project in dir's text goes, for the user to
+// agree to.
+func (e *Engine) ProjectHost(string) string { return e.EmbedderHost(e.settings.Get()) }
 
 // hostOf is the host of address raw, "this device" for a local one.
 func hostOf(raw, fallback string) string {
@@ -137,244 +192,239 @@ func hostOf(raw, fallback string) string {
 	return fallback
 }
 
-// spec is what st builds: its embedder (its key asked of the vault) and
-// store.
-func (e *Engine) spec(st proto.RAGSettings) (ragbuild.Spec, error) {
-	var spec ragbuild.Spec
-	var cfg *ragconfig.Config
-	if st.Embedder == proto.RAGFromConfig || st.Store == proto.RAGFromConfig {
-		c, err := ragconfig.Resolve()
-		if err != nil {
-			return spec, fmt.Errorf("rag: enowx-rag's settings: %w", err)
-		}
-		cfg = c
-	}
-	key := func() (string, error) {
-		if st.KeyCred == "" {
-			return "", nil
-		}
-		if e.KeyOf == nil {
-			return "", errors.New("rag: no vault to read the key from")
-		}
-		return e.KeyOf(st.KeyCred)
-	}
-	switch st.Embedder {
-	case proto.RAGFromConfig:
-		spec.Embedder, spec.TEIURL = cfg.Embedder, cfg.TEIURL
-		spec.VoyageAPIKey, spec.VoyageModel, spec.VoyageDim = cfg.Voyage.APIKey, cfg.Voyage.Model, cfg.Voyage.Dim
-		spec.OpenAIAPIKey, spec.OpenAIModel, spec.OpenAIBaseURL, spec.OpenAIDim = cfg.OpenAI.APIKey, cfg.OpenAI.Model, cfg.OpenAI.BaseURL, cfg.OpenAI.Dim
-	case proto.RAGVoyage:
-		k, err := key()
-		if err != nil {
-			return spec, err
-		}
-		spec.Embedder, spec.VoyageAPIKey, spec.VoyageModel, spec.VoyageDim = "voyage", k, orString(st.Model, "voyage-4"), orInt(st.Dim, 1024)
-	case proto.RAGOpenAI:
-		k, err := key()
-		if err != nil {
-			return spec, err
-		}
-		spec.Embedder, spec.OpenAIAPIKey, spec.OpenAIModel, spec.OpenAIBaseURL, spec.OpenAIDim = "openai", k, st.Model, st.BaseURL, st.Dim
-	case proto.RAGTEI:
-		spec.Embedder, spec.TEIURL = "tei", st.BaseURL
-	}
-	switch st.Store {
-	case proto.RAGFromConfig:
-		spec.VectorStore, spec.QdrantURL, spec.QdrantAPIKey, spec.ChromaURL, spec.PGVectorDSN = cfg.VectorStore, cfg.QdrantURL, cfg.QdrantAPIKey, cfg.ChromaURL, cfg.PGVectorDSN
-		if cfg.VectorStore == "sqlite" {
-			spec.SQLitePath = cfg.StorePath()
-		}
-	default:
-		// One file per embedder: another's vectors don't compare.
-		sum := sha256.Sum256([]byte(spec.Embedder + "|" + spec.VoyageModel + spec.OpenAIModel + spec.OpenAIBaseURL + spec.TEIURL + fmt.Sprint(spec.VoyageDim, spec.OpenAIDim)))
-		spec.VectorStore, spec.SQLitePath = "sqlite", filepath.Join(e.dir, "rag", "index-"+hex.EncodeToString(sum[:6])+".db")
-	}
-	return spec, nil
-}
-
-func (e *Engine) build(ctx context.Context, st proto.RAGSettings) (erag.Provider, error) {
-	spec, err := e.spec(st)
-	if err != nil {
-		return nil, err
-	}
-	prov, err := ragbuild.BuildProvider(ctx, spec)
-	if err != nil {
-		return nil, fmt.Errorf("rag: %w", err)
-	}
-	return prov, nil
-}
-
-// Test embeds a line with settings st (not kept), and says the vector's
-// size.
-func (e *Engine) Test(ctx context.Context, st proto.RAGSettings) (int, error) {
-	if st.Store == proto.RAGServer {
-		srv := &server{url: strings.TrimRight(st.ServerURL, "/")}
-		if st.ServerCred != "" && e.KeyOf != nil {
-			t, err := e.KeyOf(st.ServerCred)
-			if err != nil {
-				return 0, err
-			}
-			srv.token = t
-		}
-		return 0, srv.ping(ctx)
-	}
-	spec, err := e.spec(st)
-	if err != nil {
-		return 0, err
-	}
-	emb, err := ragbuild.BuildEmbedder(spec)
-	if err != nil {
-		return 0, err
-	}
-	v, err := emb.Embed(ctx, []string{"enowX checks the embedder"})
-	if err != nil {
-		return 0, err
-	}
-	if len(v) == 0 {
-		return 0, errors.New("rag: the embedder gave no vector")
-	}
-	return len(v[0]), nil
-}
-
-// EmbedderHost is where st's embedder sends text, for the user to agree
-// to: a host, or "this device".
-func (e *Engine) EmbedderHost(st proto.RAGSettings) string {
-	spec, err := e.spec(st)
-	if err != nil && st.Embedder != proto.RAGFromConfig {
-		return st.Embedder
-	}
-	host := hostOf
-	switch strings.ToLower(spec.Embedder) {
-	case "voyage":
-		return "api.voyageai.com"
-	case "openai":
-		return host(spec.OpenAIBaseURL, "api.openai.com")
-	case "tei":
-		return host(spec.TEIURL, "a TEI server")
-	}
-	if st.Store == proto.RAGServer {
-		return host(st.ServerURL, "an enowx-rag server")
-	}
-	return st.Embedder
-}
-
-// Index indexes the project in dir as p says, with extra (its notes and
-// memories): its files by enowx-rag's indexer, the extra apart; what
-// changed is embedded again, what went is removed.
-func (e *Engine) Index(ctx context.Context, dir string, p proto.RAGProject, extra []erag.Document) (proto.RAGStatus, error) {
-	prov, _, remote, id, err := e.forProject(ctx, dir)
+// Index brings the project in dir's index up to date as p says, with its
+// docs: a chunk whose text is unchanged keeps its vector (moved with its
+// file), a new one is embedded, one gone is removed.
+func (e *Engine) Index(ctx context.Context, dir string, p proto.RAGProject, docs []Doc) (proto.RAGStatus, error) {
+	emb, s, st, err := e.ready(ctx)
 	if err != nil {
 		return proto.RAGStatus{}, err
 	}
-	if remote != nil {
-		return remote.reindex(ctx, id, dir)
-	}
-	if err := prov.CreateCollection(ctx, id); err != nil {
-		return proto.RAGStatus{}, err
-	}
-	idx := indexer.NewIndexer(prov, chunkSize)
-	idx.Files = func(root string) ([]string, error) {
-		return Files(root, p.Exclude, orInt(p.MaxFiles, defaultMaxFiles)), nil
-	}
-	res, err := idx.IndexProject(ctx, id, dir)
-	if err != nil {
-		return proto.RAGStatus{}, err
-	}
-	out := proto.RAGStatus{Project: dir, ID: id, Added: res.Indexed, Removed: res.Deleted, Skipped: res.Skipped, Files: res.FilesScanned}
-	if res.StaleError != "" {
-		out.Error = res.StaleError
-	}
-	added, removed, err := e.indexExtra(ctx, prov, id, extra)
+	key := indexKey(dir, st)
+	out := proto.RAGStatus{Project: dir, ID: ProjectID(dir)}
+	have, err := s.ids(ctx, key)
 	if err != nil {
 		return out, err
 	}
-	out.Added, out.Removed = out.Added+added, out.Removed+removed
-	if c, ok := prov.(ragcore.ProjectCounter); ok {
-		out.Chunks, _ = c.CountPoints(ctx, id)
+	var all []point
+	for _, f := range Files(dir, p.Exclude, orInt(p.MaxFiles, defaultMaxFiles)) {
+		pts, ok := filePoints(dir, f)
+		if ok {
+			out.Files++
+			all = append(all, pts...)
+		}
 	}
-	if tc, ok := prov.(erag.TokenCounter); ok {
-		out.Tokens = tc.TokensUsed()
+	for _, d := range docs {
+		all = append(all, docPoints(d)...)
 	}
+	var fresh, moved []point
+	keep := map[string]bool{}
+	for _, pt := range all {
+		keep[pt.id] = true
+		was, ok := have[pt.id]
+		switch {
+		case !ok:
+			fresh = append(fresh, pt)
+		case was.start != pt.start || was.end != pt.end || was.symbol != pt.symbol:
+			moved = append(moved, pt) // vec nil: keeps its own
+		default:
+			out.Skipped++
+		}
+	}
+	before := emb.tokens()
+	added, err := embedAll(ctx, emb, s, key, fresh)
+	out.Added, out.Tokens = added, emb.tokens()-before
+	if err != nil {
+		return out, err
+	}
+	if err := s.put(ctx, key, moved); err != nil {
+		return out, err
+	}
+	var gone []string
+	for id := range have {
+		if !keep[id] {
+			gone = append(gone, id)
+		}
+	}
+	if err := s.remove(ctx, key, gone); err != nil {
+		return out, err
+	}
+	out.Removed = len(gone)
+	out.Chunks, _ = s.count(ctx, key)
 	return out, nil
 }
 
-// extraDir tags the points that are notes and memories, apart from files.
-const extraDir = "enowx-extra"
+// embedWorkers are the batches embedded at once: the embedder's latency,
+// not its throughput, bounds a first index.
+const embedWorkers = 4
 
-// indexExtra embeds the docs of extra that changed, and removes those
-// gone.
-func (e *Engine) indexExtra(ctx context.Context, prov erag.Provider, id string, extra []erag.Document) (added, removed int, err error) {
-	have, err := prov.ListPoints(ctx, id, map[string]string{"source_dir": extraDir})
-	if err != nil {
-		return 0, 0, err
+// embedAll embeds pts in batches, a few at once, and keeps each batch as
+// it comes; it says how many were kept.
+func embedAll(ctx context.Context, emb embedder, s store, key string, pts []point) (int, error) {
+	ctx, cancel := context.WithCancel(ctx)
+	defer cancel()
+	batches := make(chan []point)
+	var wg sync.WaitGroup
+	var mu sync.Mutex
+	var first error
+	added := 0
+	fail := func(err error) {
+		mu.Lock()
+		if first == nil {
+			first = err
+			cancel()
+		}
+		mu.Unlock()
 	}
-	hashes := map[string]string{}
-	for _, pt := range have {
-		hashes[pt.DocID] = pt.ContentHash
+	for range embedWorkers {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			for part := range batches {
+				texts := make([]string, len(part))
+				for j, pt := range part {
+					texts[j] = header(pt) + pt.text
+				}
+				vecs, err := emb.embed(ctx, texts, false)
+				if err == nil {
+					for j := range part {
+						part[j].vec = vecs[j]
+					}
+					err = s.put(ctx, key, part)
+				}
+				if err != nil {
+					fail(err)
+					continue
+				}
+				mu.Lock()
+				added += len(part)
+				mu.Unlock()
+			}
+		}()
 	}
-	var docs []erag.Document
-	keep := map[string]bool{}
-	for _, d := range extra {
-		sum := sha256.Sum256([]byte(d.Content))
-		h := hex.EncodeToString(sum[:8])
-		keep[d.ID] = true
-		if hashes[d.ID] == h {
+	for i := 0; i < len(pts) && ctx.Err() == nil; i += 128 {
+		batches <- pts[i:min(len(pts), i+128)]
+	}
+	close(batches)
+	wg.Wait()
+	return added, first
+}
+
+// filePoints are file f of dir's chunks, unless it is no text to index.
+func filePoints(dir, f string) ([]point, bool) {
+	if IsSecret(f) || !textFile(f) {
+		return nil, false
+	}
+	full := filepath.Join(dir, filepath.FromSlash(f))
+	info, err := os.Stat(full)
+	if err != nil || info.IsDir() || info.Size() == 0 || info.Size() > maxFileSize {
+		return nil, false
+	}
+	data, err := os.ReadFile(full)
+	if err != nil || slices.Contains(data, 0) {
+		return nil, false
+	}
+	source := SourceOf(f)
+	var out []point
+	seen := map[string]int{}
+	for _, c := range chunkFile(string(data), f, chunkChars) {
+		if secretText.MatchString(c.text) {
+			continue // a key in the code: never sent to an embedder
+		}
+		out = append(out, point{id: pointID(f, c.text, seen), file: f, start: c.start, end: c.end, symbol: c.symbol, source: source, text: c.text})
+	}
+	return out, true
+}
+
+// docPoints are doc d's chunks.
+func docPoints(d Doc) []point {
+	var out []point
+	seen := map[string]int{}
+	for _, c := range chunkFile(d.Text, d.ID+".md", chunkChars) {
+		if secretText.MatchString(c.text) {
 			continue
 		}
-		meta := map[string]string{"source_dir": extraDir, "content_hash": h}
-		for k, v := range d.Meta {
-			meta[k] = v
+		symbol := c.symbol
+		if symbol == "" {
+			symbol = d.Title
 		}
-		docs = append(docs, erag.Document{ID: d.ID, Content: d.Content, Meta: meta})
+		out = append(out, point{id: pointID(d.ID, c.text, seen), file: d.ID, symbol: symbol, source: d.Source, text: c.text})
 	}
-	for i := 0; i < len(docs); i += 100 {
-		if err := prov.Index(ctx, id, docs[i:min(len(docs), i+100)]); err != nil {
-			return added, 0, err
-		}
-		added += min(len(docs), i+100) - i
+	return out
+}
+
+// pointID is a chunk's ID: where it is from and its text's hash, a count
+// after it for the same text twice.
+func pointID(from, text string, seen map[string]int) string {
+	sum := sha256.Sum256([]byte(text))
+	h := hex.EncodeToString(sum[:8])
+	seen[h]++
+	if n := seen[h]; n > 1 {
+		return fmt.Sprintf("%s#%s-%d", from, h, n)
 	}
-	var gone []string
-	for _, pt := range have {
-		if !keep[pt.DocID] {
-			gone = append(gone, pt.ID)
-		}
+	return from + "#" + h
+}
+
+// header is what a chunk is embedded with ahead of its text: where it is.
+func header(p point) string {
+	switch {
+	case p.start > 0 && p.symbol != "":
+		return fmt.Sprintf("File: %s:%d-%d (%s)\n\n", p.file, p.start, p.end, p.symbol)
+	case p.start > 0:
+		return fmt.Sprintf("File: %s:%d-%d\n\n", p.file, p.start, p.end)
+	case p.source == proto.RAGMemo:
+		return "Memory of this project:\n\n"
 	}
-	if len(gone) > 0 {
-		err = prov.DeletePoints(ctx, id, gone)
-	}
-	return added, len(gone), err
+	return "Note “" + p.symbol + "” attached to this project:\n\n"
 }
 
 // Search finds query in the project in dir: k results (5 when 0), of
-// scope's sources (all when none).
+// scope's sources (all when none), by meaning and by words together.
 func (e *Engine) Search(ctx context.Context, dir, query string, k int, scope []string) ([]proto.RAGHit, error) {
 	if k <= 0 {
 		k = 5
 	}
-	_, svc, remote, id, err := e.forProject(ctx, dir)
+	emb, s, st, err := e.ready(ctx)
 	if err != nil {
 		return nil, err
 	}
-	want := k
+	key := indexKey(dir, st)
+	want := k * 4
 	if len(scope) > 0 {
-		want = k * 4
+		want = k * 12
 	}
-	var results []erag.Result
-	if remote != nil {
-		results, err = remote.search(ctx, id, query, want)
-	} else {
-		results, err = svc.Search(ctx, id, query, ragcore.SearchOpts{K: want, Hybrid: true, Compress: true})
+	q, err := emb.embed(ctx, []string{query}, true)
+	if err != nil {
+		return nil, err
 	}
+	near, err := s.nearest(ctx, key, normalize(q[0]), want)
+	if err != nil {
+		return nil, err
+	}
+	byWords, err := s.keyword(ctx, key, query, want)
+	if err != nil {
+		byWords = nil // a query FTS can't take: meaning alone
+	}
+	ranked := fuse(near, byWords)
+	cos := map[string]float64{}
+	for _, n := range near {
+		cos[n.id] = n.score
+	}
+	ids := make([]string, len(ranked))
+	for i, r := range ranked {
+		ids[i] = r.id
+	}
+	pts, err := s.get(ctx, key, ids)
 	if err != nil {
 		return nil, err
 	}
 	var out []proto.RAGHit
-	for _, r := range results {
-		h := hitOf(r)
-		if len(scope) > 0 && !slices.Contains(scope, h.Source) {
+	for _, r := range ranked {
+		pt, ok := pts[r.id]
+		if !ok || len(scope) > 0 && !slices.Contains(scope, pt.source) {
 			continue
 		}
-		out = append(out, h)
+		out = append(out, hitOf(pt, cos[r.id]))
 		if len(out) == k {
 			break
 		}
@@ -382,33 +432,24 @@ func (e *Engine) Search(ctx context.Context, dir, query string, k int, scope []s
 	return out, nil
 }
 
-// hitOf is result r as a hit: its file and lines, its snippet without
-// the header the indexer put first.
-func hitOf(r erag.Result) proto.RAGHit {
-	h := proto.RAGHit{File: r.Meta["source_file"], Symbol: r.Meta["symbol"], Score: r.Score, Source: r.Meta["source"]}
-	fmt.Sscan(r.Meta["start_line"], &h.Start)
-	fmt.Sscan(r.Meta["end_line"], &h.End)
-	text := r.Content
-	if strings.HasPrefix(text, "File: ") {
-		if _, rest, ok := strings.Cut(text, "\n\n"); ok {
-			text = rest
-		}
-	}
+// hitOf is point p as a result, score its cosine with the query.
+func hitOf(p point, score float64) proto.RAGHit {
+	text := p.text
 	if len(text) > 800 {
 		text = text[:800] + "…"
 	}
-	h.Snippet = text
-	if h.Source == "" {
-		h.Source = SourceOf(h.File)
+	h := proto.RAGHit{File: p.file, Start: p.start, End: p.end, Symbol: p.symbol, Snippet: text, Score: score, Source: p.source}
+	if p.start == 0 {
+		h.File = "" // a memory's or note's
 	}
-	if h.Source == proto.RAGMemo {
-		h.Memory = strings.TrimPrefix(r.Meta["doc_id"], "memory:")
+	if p.source == proto.RAGMemo {
+		h.Memory = strings.TrimPrefix(p.file, "memory:")
 	}
 	return h
 }
 
 // SourceOf is what a project's file is: docs (Markdown, its docs folder,
-// the agents' and the brief's) or code.
+// the brief) or code.
 func SourceOf(file string) string {
 	l := strings.ToLower(file)
 	switch {
@@ -424,28 +465,22 @@ func SourceOf(file string) string {
 // Status is the index of the project in dir: its chunks.
 func (e *Engine) Status(ctx context.Context, dir string) (proto.RAGStatus, error) {
 	out := proto.RAGStatus{Project: dir, ID: ProjectID(dir)}
-	prov, _, remote, id, err := e.forProject(ctx, dir)
+	_, s, st, err := e.ready(ctx)
 	if err != nil {
 		return out, err
 	}
 	out.Ready = true
-	if remote != nil {
-		out.Chunks, _ = remote.count(ctx, id)
-		return out, nil
-	}
-	if c, ok := prov.(ragcore.ProjectCounter); ok {
-		out.Chunks, _ = c.CountPoints(ctx, out.ID)
-	}
+	out.Chunks, _ = s.count(ctx, indexKey(dir, st))
 	return out, nil
 }
 
 // Drop deletes the index of the project in dir.
 func (e *Engine) Drop(ctx context.Context, dir string) error {
-	prov, _, remote, _, err := e.forProject(ctx, dir)
-	if err != nil || remote != nil {
-		return err // a server's index is its own
+	_, s, st, err := e.ready(ctx)
+	if err != nil {
+		return err
 	}
-	return prov.DeleteCollection(ctx, ProjectID(dir))
+	return s.drop(ctx, indexKey(dir, st))
 }
 
 // Files are the files of the project in root to index, relative with
@@ -494,22 +529,19 @@ func Files(root string, exclude []string, max int) []string {
 func (e *Engine) Plan(dir string, p proto.RAGProject) proto.RAGPlan {
 	st := e.settings.Get()
 	out := proto.RAGPlan{Embedder: st.Embedder, Host: e.ProjectHost(dir)}
-	if p.ServerURL != "" {
-		out.Embedder = "the enowx-rag server " + p.ServerURL
-	}
 	secrets, excluded := 0, len(Files(dir, nil, 0))
 	files := Files(dir, p.Exclude, orInt(p.MaxFiles, defaultMaxFiles))
 	excluded -= len(files)
 	var bytes int64
 	for _, f := range files {
-		if indexer.IsSecret(f) {
+		if IsSecret(f) {
 			secrets++
 			continue
 		}
 		if !textFile(f) {
 			continue
 		}
-		if fi, err := os.Stat(filepath.Join(dir, filepath.FromSlash(f))); err == nil && fi.Size() <= 500<<10 {
+		if fi, err := os.Stat(filepath.Join(dir, filepath.FromSlash(f))); err == nil && fi.Size() <= maxFileSize {
 			out.Files++
 			bytes += fi.Size()
 		}
@@ -523,7 +555,7 @@ func (e *Engine) Plan(dir string, p proto.RAGProject) proto.RAGPlan {
 	return out
 }
 
-// textFile says file is one enowx-rag indexes, by its kind.
+// textFile says file is one indexed, by its kind.
 func textFile(file string) bool {
 	switch strings.ToLower(path.Ext(file)) {
 	case ".go", ".ts", ".tsx", ".js", ".jsx", ".py", ".rs", ".java", ".kt", ".swift", ".c", ".cpp", ".h", ".hpp", ".cs", ".rb", ".php",

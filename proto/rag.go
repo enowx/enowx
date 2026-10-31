@@ -3,10 +3,10 @@ package proto
 import "time"
 
 // RAG: a project found by meaning, on any host. The daemon indexes the
-// projects of its host with enowx-rag (its built-in store, or an
-// enowx-rag server), the embedder the user picked, only once the user
-// agreed to send the project's text to it; agents search it and keep
-// memories in it. See docs/rag.md.
+// projects of its host (core/rag) in its built-in SQLite store or the
+// user's PostgreSQL with pgvector, with the embedder the user picked, only
+// once the user agreed to send the project's text to it; agents search it
+// and keep memories in it. See docs/rag.md.
 const (
 	MethodRAGSettings    = "rag.settings"    // → RAGSettings
 	MethodRAGSetSettings = "rag.setSettings" // RAGSettings → RAGSettings
@@ -27,12 +27,13 @@ const (
 
 // Embedders and stores (RAGSettings).
 const (
-	RAGFromConfig = "enowx-rag" // enowx-rag's own settings on the host (~/.enowx-rag/config.yaml)
+	RAGFromConfig = "enowx-rag" // no longer offered: an embedder set so indexes nothing
 	RAGVoyage     = "voyage"
 	RAGOpenAI     = "openai" // any OpenAI-compatible /v1/embeddings (OpenAI, Ollama, OpenRouter…)
 	RAGTEI        = "tei"
-	RAGBuiltin    = "builtin" // the store in the daemon's folder
-	RAGServer     = "server"  // an enowx-rag server (--serve)
+	RAGBuiltin    = "builtin"  // SQLite in the daemon's folder
+	RAGPostgres   = "postgres" // the user's PostgreSQL with pgvector (RAGSettings.PostgresCred)
+	RAGServer     = "server"   // no longer offered: taken as RAGBuiltin
 )
 
 // Sources of what is indexed (RAGHit.Source, RAGSearchParams.Scope).
@@ -53,8 +54,10 @@ type RAGSettings struct {
 	BaseURL  string `json:"baseUrl,omitempty"`
 	KeyCred  string `json:"keyCred,omitempty"`
 	Store    string `json:"store,omitempty"` // RAGBuiltin when ""
-	// ServerURL and ServerCred are an enowx-rag server's address and the
-	// vault's credential with its token.
+	// PostgresCred is the vault's credential holding the connection URL of
+	// the PostgreSQL store (RAGPostgres), its password in it.
+	PostgresCred string `json:"postgresCred,omitempty"`
+	// ServerURL and ServerCred are no longer used.
 	ServerURL  string                `json:"serverUrl,omitempty"`
 	ServerCred string                `json:"serverCred,omitempty"`
 	Projects   map[string]RAGProject `json:"projects,omitempty"`
@@ -70,10 +73,7 @@ type RAGProject struct {
 	MaxFiles int      `json:"maxFiles,omitempty"` // 0: 20000
 	Context  bool     `json:"context,omitempty"`  // add results to a prompt (start-of-prompt hook)
 	Offer    bool     `json:"offer,omitempty"`    // offer a session's decisions as memories
-	// ServerURL has the project searched on an enowx-rag server of its
-	// own, a team's (its index built there), rather than the host's: the
-	// vault's credential ServerCred with its token, ServerProject the
-	// project's ID there (the project's own when "").
+	// ServerURL, ServerCred and ServerProject are no longer used.
 	ServerURL     string `json:"serverUrl,omitempty"`
 	ServerCred    string `json:"serverCred,omitempty"`
 	ServerProject string `json:"serverProject,omitempty"`

@@ -166,7 +166,7 @@ type App struct {
 	localPick          localpicker.Picker        // picks this device's files to add to a session
 	autos              automationsState          // Settings → Automations
 	hooks              hooksState                // Settings → Hooks
-	ragSet             ragSettingsState          // Settings → Project search (rag.go)
+	ragSet             ragSettingsState          // Settings → RAG (rag.go)
 	ragPanel           ragPanelState             // the side panel's Index (rag_panel.go)
 	ragOffer           *proto.RAGRememberParams  // a session's decision offered as a memory
 	chatToasts         []*chatToast              // team chat messages, in the corner (teamchatnotify.go)

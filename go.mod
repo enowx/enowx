@@ -7,7 +7,6 @@ require (
 	github.com/alecthomas/chroma/v2 v2.27.0
 	github.com/andybalholm/brotli v1.2.7
 	github.com/egoist/mygo v0.6.2
-	github.com/enowdev/enowx-rag/mcp-server v0.2.0
 	github.com/gen2brain/webp v0.6.4
 	github.com/jackc/pgx/v5 v5.11.0
 	github.com/kevinburke/ssh_config v1.2.0
@@ -121,7 +120,6 @@ require (
 	golang.org/x/tools v0.52.0 // indirect
 	golang.zx2c4.com/wintun v0.0.0-20230126152724-0fa3db229ce2 // indirect
 	golang.zx2c4.com/wireguard/windows v1.0.1 // indirect
-	gopkg.in/yaml.v3 v3.0.1 // indirect
 	gvisor.dev/gvisor v0.0.0-20260915211658-a6f909f08a72 // indirect
 	honnef.co/go/tools v0.8.1 // indirect
 	modernc.org/libc v1.79.0 // indirect

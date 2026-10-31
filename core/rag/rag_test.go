@@ -12,8 +12,6 @@ import (
 	"strings"
 	"testing"
 
-	erag "github.com/enowdev/enowx-rag/mcp-server/pkg/rag"
-
 	"github.com/enowx/enowx/proto"
 )
 
@@ -53,7 +51,18 @@ func fakeEmbeddings(t *testing.T) string {
 // A project indexed in the built-in store is found by meaning, its hits
 // pointing at file and lines; its notes and memories too, by scope;
 // a change re-embeds only what changed; what is left out isn't indexed.
-func TestIndexAndSearch(t *testing.T) {
+func TestIndexAndSearch(t *testing.T) { indexAndSearch(t, proto.RAGBuiltin) }
+
+// The same in PostgreSQL with pgvector, when ENOWX_RAG_TEST_POSTGRES names
+// one (its URL).
+func TestIndexAndSearchInPostgres(t *testing.T) {
+	if os.Getenv("ENOWX_RAG_TEST_POSTGRES") == "" {
+		t.Skip("ENOWX_RAG_TEST_POSTGRES=postgres://… runs it")
+	}
+	indexAndSearch(t, proto.RAGPostgres)
+}
+
+func indexAndSearch(t *testing.T, store string) {
 	ctx := context.Background()
 	dir := t.TempDir()
 	write := func(name, body string) {
@@ -70,17 +79,18 @@ func TestIndexAndSearch(t *testing.T) {
 	}
 	home := t.TempDir()
 	st := OpenSettings(home)
-	if err := st.Set(proto.RAGSettings{Embedder: proto.RAGOpenAI, Model: "fake", BaseURL: fakeEmbeddings(t), Dim: 128}); err != nil {
+	if err := st.Set(proto.RAGSettings{Embedder: proto.RAGOpenAI, Model: "fake", BaseURL: fakeEmbeddings(t), Dim: 128, Store: store, PostgresCred: "pg"}); err != nil {
 		t.Fatal(err)
 	}
 	e := NewEngine(home, st)
+	e.KeyOf = func(cred string) (string, error) { return os.Getenv("ENOWX_RAG_TEST_POSTGRES"), nil }
 	p := proto.RAGProject{On: true, Exclude: []string{"vendor/**"}}
 	plan := e.Plan(dir, p)
 	if plan.Files != 3 || !strings.Contains(plan.Host, "this device") {
 		t.Fatalf("plan: %+v", plan)
 	}
 	mem, _ := st.Remember(ProjectID(dir), "Invoices are rounded half up, never banker's rounding.", "claude")
-	extra := []erag.Document{{ID: "memory:" + mem.ID, Content: mem.Text, Meta: map[string]string{"source": proto.RAGMemo}}}
+	extra := []Doc{{ID: "memory:" + mem.ID, Text: mem.Text, Source: proto.RAGMemo}}
 	res, err := e.Index(ctx, dir, p, extra)
 	if err != nil {
 		t.Fatal(err)
@@ -109,8 +119,14 @@ func TestIndexAndSearch(t *testing.T) {
 		t.Fatalf("again: %+v %v", again, err)
 	}
 	write("auth/login.go", "package auth\n\n// Login checks a password.\nfunc Login(user, password string) error {\n\treturn nil\n}\n")
-	if changed, _ := e.Index(ctx, dir, p, extra); changed.Added != 1 {
+	if changed, _ := e.Index(ctx, dir, p, extra); changed.Added != 1 || changed.Removed != 1 {
 		t.Fatalf("one file changed: %+v", changed)
+	}
+	// Lines added above a chunk move it, not embed it again.
+	write("billing/invoice.go", "package billing\n\nimport \"fmt\"\n\nvar _ = fmt.Sprint\n\n// Total sums an invoice's lines with tax.\nfunc Total(lines []Line, tax float64) float64 {\n\treturn 0\n}\n")
+	moved, _ := e.Index(ctx, dir, p, extra)
+	if hits, _ := e.Search(ctx, dir, "invoice lines tax total", 1, []string{proto.RAGCode}); len(hits) == 0 || hits[0].File != "billing/invoice.go" || hits[0].Start != 1 {
+		t.Fatalf("after moving: %+v %+v", moved, hits)
 	}
 	if err := e.Drop(ctx, dir); err != nil {
 		t.Fatal(err)
@@ -126,55 +142,5 @@ func TestNotReady(t *testing.T) {
 	e := NewEngine(home, OpenSettings(home))
 	if _, err := e.Index(context.Background(), t.TempDir(), proto.RAGProject{On: true}, nil); err != ErrNotReady {
 		t.Fatalf("err %v", err)
-	}
-}
-
-// A team's project is searched on the team's enowx-rag server, by the ID
-// it has there and the token from the vault, nothing indexed on the host.
-func TestProjectOnATeamServer(t *testing.T) {
-	var asked []string
-	team := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		asked = append(asked, r.Method+" "+r.URL.Path+" "+r.Header.Get("Authorization"))
-		switch r.URL.Path {
-		case "/api/search":
-			var in map[string]any
-			json.NewDecoder(r.Body).Decode(&in)
-			if in["project_id"] != "shop" {
-				http.Error(w, "no such project", http.StatusNotFound)
-				return
-			}
-			json.NewEncoder(w).Encode(map[string]any{"results": []erag.Result{{Content: "func Total() {}", Score: 0.9, Meta: map[string]string{"source_file": "billing/invoice.go", "start_line": "3", "end_line": "5"}}}})
-		case "/api/projects/shop":
-			json.NewEncoder(w).Encode(map[string]int{"count": 42})
-		}
-	}))
-	defer team.Close()
-	dir := t.TempDir()
-	s := OpenSettings(t.TempDir())
-	e := NewEngine(t.TempDir(), s)
-	e.KeyOf = func(cred string) (string, error) { return "tok-" + cred, nil }
-	s.SetProject(ProjectID(dir), proto.RAGProject{On: true, ServerURL: team.URL + "/", ServerProject: "shop", ServerCred: "team-rag"})
-
-	if h := e.ProjectHost(dir); !strings.Contains(h, "this device") {
-		t.Fatalf("host %q", h)
-	}
-	hits, err := e.Search(context.Background(), dir, "invoice total", 3, nil)
-	if err != nil || len(hits) != 1 || hits[0].File != "billing/invoice.go" || hits[0].Start != 3 {
-		t.Fatalf("hits %+v %v", hits, err)
-	}
-	st, err := e.Status(context.Background(), dir)
-	if err != nil || st.Chunks != 42 {
-		t.Fatalf("status %+v %v", st, err)
-	}
-	if err := e.Drop(context.Background(), dir); err != nil {
-		t.Fatal(err)
-	}
-	for _, a := range asked {
-		if !strings.HasSuffix(a, "Bearer tok-team-rag") {
-			t.Fatalf("asked without the token: %q", a)
-		}
-	}
-	if len(asked) != 2 {
-		t.Fatalf("asked %q (dropping a server's index asks nothing)", asked)
 	}
 }

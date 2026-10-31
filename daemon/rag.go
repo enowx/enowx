@@ -8,15 +8,13 @@ import (
 	"sync"
 	"time"
 
-	erag "github.com/enowdev/enowx-rag/mcp-server/pkg/rag"
-
 	"github.com/enowx/enowx/core/git"
 	"github.com/enowx/enowx/core/notes"
 	"github.com/enowx/enowx/core/rag"
 	"github.com/enowx/enowx/proto"
 )
 
-// RAG on this host: its projects indexed with enowx-rag (core/rag), only
+// RAG on this host: its projects indexed by core/rag, only
 // those the user turned on and agreed to send to the embedder; again
 // after a turn or a commit, once no session in the project works; their
 // attached notes and memories with them. Agents search their own
@@ -95,7 +93,7 @@ func (s *Server) ragStatus(dir string) proto.RAGStatus {
 		out, _ = s.rag.Status(context.Background(), dir)
 	}
 	out.Project, out.ID, out.Settings, out.Indexing = dir, id, st.Projects[id], running
-	out.Ready = st.Embedder != "" || st.Store == proto.RAGServer || out.Settings.ServerURL != ""
+	out.Ready = st.Embedder == proto.RAGVoyage || st.Embedder == proto.RAGOpenAI || st.Embedder == proto.RAGTEI
 	out.Embedder = s.rag.ProjectHost(dir)
 	return out
 }
@@ -151,10 +149,10 @@ func (s *Server) ragIndex(dir string) (proto.RAGStatus, error) {
 }
 
 // ragExtra are project dir's memories and attached notes, as documents.
-func (s *Server) ragExtra(dir, id string) []erag.Document {
-	var out []erag.Document
+func (s *Server) ragExtra(dir, id string) []rag.Doc {
+	var out []rag.Doc
 	for _, m := range s.ragSettings.Memories(id) {
-		out = append(out, erag.Document{ID: "memory:" + m.ID, Content: "Memory of this project: " + m.Text, Meta: map[string]string{"source": proto.RAGMemo}})
+		out = append(out, rag.Doc{ID: "memory:" + m.ID, Text: m.Text, Source: proto.RAGMemo})
 	}
 	remote, _ := git.Run(dir, "config", "--get", "remote.origin.url")
 	host := s.daemonID
@@ -171,8 +169,7 @@ func (s *Server) ragExtra(dir, id string) []erag.Document {
 		if err != nil {
 			continue
 		}
-		out = append(out, erag.Document{ID: "note:" + n.ID, Content: "Note “" + n.Title + "” attached to this project:\n\n" + note.Body,
-			Meta: map[string]string{"source": proto.RAGNotes, "note": n.ID, "title": n.Title}})
+		out = append(out, rag.Doc{ID: "note:" + n.ID, Title: n.Title, Text: note.Body, Source: proto.RAGNotes})
 	}
 	return out
 }

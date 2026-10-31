@@ -5,6 +5,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"slices"
 	"strings"
 	"testing"
 	"time"
@@ -37,12 +38,12 @@ var ragEval = []struct{ q, file, grep string }{
 	{"how are Discord rich presence updates sent", "core/discordrpc", "presence"},
 }
 
-// TestEval measures search on this repository with enowx-rag's own
-// settings on this machine (RAG_EVAL=1): recall@5, index time and tokens,
-// and what grep for a word of each question would have had an agent read.
+// TestEval measures search on this repository with Voyage (RAG_EVAL set
+// to its key): recall@5, index time and tokens, and what grep for a word
+// of each question would have had an agent read.
 func TestEval(t *testing.T) {
 	if os.Getenv("RAG_EVAL") == "" {
-		t.Skip("RAG_EVAL=1 runs it against the embedder in ~/.enowx-rag/config.yaml")
+		t.Skip("RAG_EVAL=<a Voyage key> runs it")
 	}
 	root, _ := filepath.Abs("../..")
 	dir := os.Getenv("RAG_EVAL_DIR")
@@ -50,8 +51,14 @@ func TestEval(t *testing.T) {
 		dir = t.TempDir()
 	}
 	s := OpenSettings(dir)
-	s.Set(proto.RAGSettings{Embedder: proto.RAGFromConfig})
+	s.Set(proto.RAGSettings{Embedder: proto.RAGVoyage, Model: os.Getenv("RAG_EVAL_MODEL"), KeyCred: "voyage", Store: os.Getenv("RAG_EVAL_STORE"), PostgresCred: "pg"})
 	e := NewEngine(dir, s)
+	e.KeyOf = func(cred string) (string, error) {
+		if cred == "pg" {
+			return os.Getenv("ENOWX_RAG_TEST_POSTGRES"), nil
+		}
+		return os.Getenv("RAG_EVAL"), nil
+	}
 	ctx := context.Background()
 	start := time.Now()
 	st, err := e.Index(ctx, root, proto.RAGProject{On: true}, nil)
@@ -68,8 +75,11 @@ func TestEval(t *testing.T) {
 	t.Logf("again, nothing changed: +%d -%d, %d tokens, %s", st.Added, st.Removed, st.Tokens, time.Since(start).Round(time.Millisecond))
 
 	found, ragTokens, grepTokens := 0, 0, 0
+	var took []time.Duration
 	for _, c := range ragEval {
+		t0 := time.Now()
 		hits, err := e.Search(ctx, root, c.q, 5, nil)
+		took = append(took, time.Since(t0))
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -93,6 +103,8 @@ func TestEval(t *testing.T) {
 		t.Logf("%-3s %s → %s (grep: %d files)", map[bool]string{true: "ok", false: "--"}[at >= 0], c.q, firstFiles(hits), len(files))
 	}
 	t.Logf("recall@5 %d/%d; tokens read: rag %d, grep's files %d", found, len(ragEval), ragTokens, grepTokens)
+	slices.Sort(took)
+	t.Logf("search, the query's embedding included: p50 %v, p90 %v", took[len(took)/2], took[len(took)*9/10])
 }
 
 func firstFiles(hits []proto.RAGHit) string {

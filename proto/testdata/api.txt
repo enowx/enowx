@@ -1475,6 +1475,7 @@ field RAGSettings.dim int
 field RAGSettings.embedder string
 field RAGSettings.keyCred string
 field RAGSettings.model string
+field RAGSettings.postgresCred string
 field RAGSettings.projects map[string]RAGProject
 field RAGSettings.serverCred string
 field RAGSettings.serverUrl string
@@ -2781,6 +2782,7 @@ value RAGFromConfig=enowx-rag
 value RAGMemo=memory
 value RAGNotes=notes
 value RAGOpenAI=openai
+value RAGPostgres=postgres
 value RAGServer=server
 value RAGTEI=tei
 value RAGVoyage=voyage

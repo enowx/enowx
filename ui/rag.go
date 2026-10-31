@@ -14,11 +14,11 @@ import (
 	"github.com/enowx/enowx/ui/widget"
 )
 
-// Settings → Project search: the connected host's RAG (proto.RAGSettings),
+// Settings → RAG: the connected host's RAG (proto.RAGSettings),
 // the embedder its projects' text goes to and where their index is kept.
 // Each project is turned on, and agreed to, in the side panel's Index.
 
-const sectionRAG = "Project search"
+const sectionRAG = "RAG"
 
 // ragSettingsState is the section's. It belongs to the main thread.
 type ragSettingsState struct {
@@ -34,14 +34,13 @@ type ragSettingsState struct {
 	saved   bool
 }
 
-var ragEmbedders = []string{"", proto.RAGFromConfig, proto.RAGVoyage, proto.RAGOpenAI, proto.RAGTEI}
+var ragEmbedders = []string{"", proto.RAGVoyage, proto.RAGOpenAI, proto.RAGTEI}
 
 var ragEmbedderNames = map[string]string{
-	"":                  "None: nothing is indexed",
-	proto.RAGFromConfig: "enowx-rag's own settings on this host",
-	proto.RAGVoyage:     "Voyage AI",
-	proto.RAGOpenAI:     "OpenAI-compatible (OpenAI, Ollama, OpenRouter…)",
-	proto.RAGTEI:        "Text Embeddings Inference (self-hosted)",
+	"":              "None: nothing is indexed",
+	proto.RAGVoyage: "Voyage AI",
+	proto.RAGOpenAI: "OpenAI-compatible (OpenAI, Ollama, OpenRouter…)",
+	proto.RAGTEI:    "Text Embeddings Inference (self-hosted)",
 }
 
 var ragModelHints = map[string]string{proto.RAGVoyage: "voyage-code-3", proto.RAGOpenAI: "text-embedding-3-small", proto.RAGTEI: "BAAI/bge-small-en-v1.5"}
@@ -79,7 +78,7 @@ func (a *App) loadRAGSettings() {
 
 func (a *App) ragSection(c *ui.Context) {
 	st := a.ragSettingsOf()
-	sectionIntro(c, "Project search", "Agents find a project's code, docs, attached notes and memories by meaning (enowx-rag) rather than by reading it all. A project is indexed only once turned on in its Index tool, after you agree to send its text to the embedder below; secrets and ignored files never are.")
+	sectionIntro(c, "RAG", "Agents find a project's code, docs, attached notes and memories by meaning rather than by reading it all. A project is indexed only once turned on in its Index tool, after you agree to send its text to the embedder below; secrets and ignored files never are.")
 	switch {
 	case st.err != "":
 		widget.Notice(c, icon.Alert, theme.Error, st.err, "", nil)
@@ -93,8 +92,6 @@ func (a *App) ragSection(c *ui.Context) {
 		hookSelect(c, "Embedder", &s.Embedder, ragEmbedders, ragEmbedderNames)
 	})
 	switch s.Embedder {
-	case proto.RAGFromConfig:
-		ui.Text(c, "The embedder and key in ~/.enowx-rag/config.yaml on "+a.host.Name+", as enowx-rag's own tools use them.").FontSize(11.5).TextColor(theme.Muted)
 	case proto.RAGVoyage, proto.RAGOpenAI, proto.RAGTEI:
 		ui.Row(c).FillWidth().Gap(10).Children(func() {
 			ui.Column(c).Grow(1).Children(func() {
@@ -115,21 +112,21 @@ func (a *App) ragSection(c *ui.Context) {
 	}
 	widget.Field(c, "Index kept", func() {
 		cur := 0
-		if s.Store == proto.RAGServer {
+		if s.Store == proto.RAGPostgres {
 			cur = 1
 		}
-		if i := widget.Segmented(c, []string{"On " + a.host.Name, "On an enowx-rag server"}, cur, nil); i >= 0 {
+		if i := widget.Segmented(c, []string{"SQLite on " + a.host.Name, "PostgreSQL (pgvector)"}, cur, nil); i >= 0 {
 			s.Store = proto.RAGBuiltin
 			if i == 1 {
-				s.Store = proto.RAGServer
+				s.Store = proto.RAGPostgres
 			}
 		}
 	})
-	if s.Store == proto.RAGServer {
-		widget.Field(c, "Server", func() { widget.Input(c, &s.ServerURL, "https://rag.example.com").FillWidth().Font(theme.MonoFont) })
-		widget.Field(c, "Token, from the vault", func() { a.ragCredSelect(c, "server", &s.ServerCred) })
+	if s.Store == proto.RAGPostgres {
+		widget.Field(c, "Connection URL, from the vault", func() { a.ragCredSelect(c, "pg", &s.PostgresCred) })
+		ui.Text(c, "A vault credential holding postgres://user:password@host:5432/db. pgvector must be installed there (enowX creates the extension when its user may); enowX keeps its table enowx_rag_points.").FontSize(11.5).TextColor(theme.Muted)
 	} else {
-		ui.Text(c, "One SQLite file per project and embedder, in "+a.host.Name+"'s enowX folder; nothing else to run.").FontSize(11.5).TextColor(theme.Muted)
+		ui.Text(c, "One SQLite file in "+a.host.Name+"'s enowX folder: nothing else to run, fast up to around a hundred thousand parts a project.").FontSize(11.5).TextColor(theme.Muted)
 	}
 	if st.test != "" {
 		col, svg := theme.Error, icon.Alert
@@ -140,7 +137,7 @@ func (a *App) ragSection(c *ui.Context) {
 	}
 	ui.Row(c).FillWidth().Gap(8).Children(func() {
 		ui.Spacer(c)
-		if widget.GhostButton(c, "Test").Disabled(st.testing || s.Embedder == "").Clicked() {
+		if widget.GhostButton(c, "Test").Disabled(st.testing || s.Embedder == "").Clicked() { // the store's connection too
 			a.testRAG(st)
 		}
 		label := "Save"
@@ -173,7 +170,7 @@ func (a *App) ragCredSelect(c *ui.Context, key string, value *string) {
 func (st *ragSettingsState) form() proto.RAGSettings {
 	s := st.set
 	s.Dim, _ = strconv.Atoi(strings.TrimSpace(st.dim))
-	s.Model, s.BaseURL, s.ServerURL = strings.TrimSpace(s.Model), strings.TrimSpace(s.BaseURL), strings.TrimSpace(s.ServerURL)
+	s.Model, s.BaseURL = strings.TrimSpace(s.Model), strings.TrimSpace(s.BaseURL)
 	if s.Model == "" {
 		s.Model = ragModelHints[s.Embedder]
 	}

@@ -1,6 +1,6 @@
-// Package rag finds a project by meaning, with enowx-rag as its engine:
-// the host's projects indexed in a store in the daemon's folder (or
-// enowx-rag's own, or an enowx-rag server), with the embedder the user
+// Package rag finds a project by meaning:
+// the host's projects indexed in SQLite in the daemon's folder (or the
+// user's PostgreSQL with pgvector), with the embedder the user
 // picked, its key from the vault; searched, and keeping memories, for
 // agents and the user. Settings and memories are synced; indexes stay on
 // each host, rebuilt where needed. See docs/rag.md.
@@ -43,8 +43,11 @@ func (s *Settings) Get() proto.RAGSettings {
 	if data, err := os.ReadFile(s.file()); err == nil {
 		_ = json.Unmarshal(data, &out)
 	}
-	if out.Store == "" {
-		out.Store = proto.RAGBuiltin
+	if out.Store != proto.RAGPostgres {
+		out.Store = proto.RAGBuiltin // older settings' "server" too
+	}
+	if out.Embedder == proto.RAGFromConfig {
+		out.Embedder = "" // no longer offered: picked again
 	}
 	return out
 }
@@ -52,12 +55,12 @@ func (s *Settings) Get() proto.RAGSettings {
 // Set keeps the settings.
 func (s *Settings) Set(st proto.RAGSettings) error {
 	switch st.Embedder {
-	case "", proto.RAGFromConfig, proto.RAGVoyage, proto.RAGOpenAI, proto.RAGTEI:
+	case "", proto.RAGVoyage, proto.RAGOpenAI, proto.RAGTEI:
 	default:
 		return fmt.Errorf("rag: no embedder %q", st.Embedder)
 	}
 	switch st.Store {
-	case "", proto.RAGBuiltin, proto.RAGFromConfig, proto.RAGServer:
+	case "", proto.RAGBuiltin, proto.RAGPostgres:
 	default:
 		return fmt.Errorf("rag: no store %q", st.Store)
 	}
