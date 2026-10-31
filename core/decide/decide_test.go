@@ -97,8 +97,14 @@ func TestPolicyAndFallback(t *testing.T) {
 	e := engine(t, Found{LookPath: lookClaude, Local: []string{local}, Creds: []proto.CredentialInfo{{Name: "oa", Platform: "openai"}}})
 	e.Run = fakeClaude("", true) // signed out
 	r := Request{DecideAsk: proto.DecideAsk{Use: proto.DecideApprove, Command: "git status"}, Agent: "claude", ProjectID: "p1"}
+	if !Use(e.settings.Get(), proto.DecideApprove).On {
+		t.Fatal("a use is on until the user turns it off")
+	}
+	off := e.settings.Get()
+	off.Uses[proto.DecideApprove] = proto.DecideUse{On: false}
+	e.settings.Set(off)
 	if _, err := e.Decide(context.Background(), r); !errors.Is(err, ErrOff) {
-		t.Fatalf("off: %v", err)
+		t.Fatalf("turned off: %v", err)
 	}
 	st := e.settings.Get()
 	st.Uses[proto.DecideApprove] = proto.DecideUse{On: true}

@@ -299,3 +299,7 @@ func madeToDecide(j proto.Judge) bool {
 
 // OwnID is the ID judge j gets once the user adds it.
 func OwnID(j proto.Judge) string { return ownJudge(j).ID }
+
+// EnvFindNone, set (by tests), has a host find no judge of its own: no
+// agent, vault key or local server; only the judges added in settings.
+const EnvFindNone = "ENOWX_DECIDE_FIND_NONE"

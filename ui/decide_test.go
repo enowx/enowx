@@ -97,13 +97,24 @@ func TestDecisionsSection(t *testing.T) {
 		t.Fatal(err)
 	}
 	tt.Frame()
+	// Every use is on until turned off: off, then on again.
+	if s, _ := cl.DecideSettings(); !s.Uses[proto.DecideApprove].On {
+		t.Fatal("approving commands is off by default")
+	}
+	if err := tt.Click("Use: Approving commands"); err != nil {
+		t.Fatal(err)
+	}
+	frames(func() bool {
+		s, _ := cl.DecideSettings()
+		return !s.Uses[proto.DecideApprove].On
+	}, "the use turned off")
 	if err := tt.Click("Use: Approving commands"); err != nil {
 		t.Fatal(err)
 	}
 	frames(func() bool {
 		s, _ := cl.DecideSettings()
 		return s.Uses[proto.DecideApprove].On
-	}, "the use turned on")
+	}, "the use turned on again")
 	frames(func() bool { return hasText(tt, "Add the hook…") }, "the hook offered")
 	if os.Getenv("SHOTS") != "" {
 		shot(t, tt, "decisions-uses.png")

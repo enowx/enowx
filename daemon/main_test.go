@@ -5,6 +5,7 @@ import (
 	"os"
 	"testing"
 
+	"github.com/enowx/enowx/core/decide"
 	"github.com/enowx/enowx/internal/testlisten"
 )
 
@@ -19,5 +20,8 @@ func TestMain(m *testing.M) {
 		os.Exit(0)
 	}
 	testlisten.Serve()
+	// No judge of this machine's (its Claude Code, its vault): the judge's
+	// uses are on by default, and tests mustn't ask real models.
+	os.Setenv(decide.EnvFindNone, "1")
 	os.Exit(m.Run())
 }

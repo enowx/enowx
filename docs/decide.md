@@ -2,7 +2,7 @@
 
 The judge is a small, cheap model that enowX asks instead of guessing. It is given one situation and answers with a verdict, how sure it is, and why, in one line. enowX's own code then acts on that answer (`core/decide`, through the host's daemon). A session on a server is judged on that server.
 
-Every use is **off** until the user turns it on. When a use is off, no judge answers, or the judge isn't sure enough, enowX does what it does without the judge. A failure never blocks an agent.
+Every use is **on** until the user turns it off (Settings → Decisions → Uses); approving commands and trimming also need their hook. When a use is off, no judge answers, or the judge isn't sure enough, enowX does what it does without the judge. A failure never blocks an agent.
 
 ## Uses
 

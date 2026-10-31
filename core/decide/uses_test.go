@@ -75,8 +75,11 @@ func TestLaterUses(t *testing.T) {
 		}
 		return d
 	}
+	off := e.settings.Get()
+	off.Uses[proto.DecideRoute] = proto.DecideUse{On: false}
+	e.settings.Set(off)
 	if _, err := e.Decide(context.Background(), Request{DecideAsk: proto.DecideAsk{Use: proto.DecideRoute, Prompt: "fix the typo"}}); err != ErrOff {
-		t.Fatalf("route off: %v", err)
+		t.Fatalf("route turned off: %v", err)
 	}
 	st := e.settings.Get()
 	for _, u := range []string{proto.DecideRoute, proto.DecideContext, proto.DecideMemory, proto.DecideChat, proto.DecideFlaky} {

@@ -125,7 +125,7 @@ func (a *App) saveDecide(st *decideState) {
 
 func (a *App) decideSection(c *ui.Context) {
 	st := a.decideOf()
-	sectionIntro(c, "Decisions", "A small, cheap model, the judge, that enowX asks instead of guessing: whether a quiet session needs you, whether an agent's command may run, what of a long output matters, whether an agent loops. Each use is off until you turn it on; with no answer, enowX does what it does without.")
+	sectionIntro(c, "Decisions", "A small, cheap model, the judge, that enowX asks instead of guessing: whether a quiet session needs you, whether an agent's command may run, what of a long output matters, whether an agent loops. Every use is on until you turn it off (Uses); with no judge, no answer or one not sure enough, enowX does what it does without.")
 	switch {
 	case st.err != "":
 		widget.Notice(c, icon.Alert, theme.Error, st.err, "", nil)

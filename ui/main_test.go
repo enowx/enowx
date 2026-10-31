@@ -4,11 +4,15 @@ import (
 	"os"
 	"testing"
 
+	"github.com/enowx/enowx/core/decide"
 	"github.com/enowx/enowx/internal/testlisten"
 )
 
 func TestMain(m *testing.M) {
 	testlisten.Serve()
+	// No judge of this machine's (its Claude Code, its vault): the judge's
+	// uses are on by default, and tests mustn't ask real models.
+	os.Setenv(decide.EnvFindNone, "1")
 	// Never the user's enowX: its folder, socket and daemon are a
 	// temporary one's (a view connecting to this device's daemon would
 	// otherwise replace the user's with the test binary).

@@ -45,6 +45,11 @@ func (s *Settings) Get() proto.DecideSettings {
 	if out.Uses == nil {
 		out.Uses = map[string]proto.DecideUse{}
 	}
+	for _, use := range proto.DecideUses {
+		if _, ok := out.Uses[use]; !ok {
+			out.Uses[use] = proto.DecideUse{On: true} // on until the user turns it off
+		}
+	}
 	return out
 }
 
@@ -102,7 +107,10 @@ func checkPolicy(policy, provider string) error {
 
 // Use is use's settings, its defaults filled in.
 func Use(st proto.DecideSettings, use string) proto.DecideUse {
-	u := st.Uses[use]
+	u, set := st.Uses[use]
+	if !set {
+		u.On = true // every use is on until the user turns it off
+	}
 	if u.MinConfidence == 0 {
 		u.MinConfidence = 0.75
 		if use == proto.DecideApprove {

@@ -67,6 +67,9 @@ func (s *Server) newDecide(dir string) {
 		return lend.Env, nil
 	}
 	s.judge.Found = func() decide.Found {
+		if os.Getenv(decide.EnvFindNone) != "" {
+			return decide.Found{} // tests: no judge of this machine's
+		}
 		return decide.Found{LookPath: exec.LookPath, Creds: s.vaultIndex().Credentials, Local: decide.LocalServers, LocalDecision: decide.LocalDecisionServers,
 			AgentAPI: func(agentID string) *decide.AgentAPI {
 				api := agentAPIOf(agentID)
