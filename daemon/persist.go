@@ -51,12 +51,14 @@ type record struct {
 	Account  string               `json:"account,omitempty"`
 	Config   *proto.SessionConfig `json:"config,omitempty"`
 	// Member is the team's member who started it (visitors.go).
-	Member   *proto.SessionMember `json:"member,omitempty"`
-	Private  bool                 `json:"private,omitempty"`
-	NotesFor string               `json:"notesFor,omitempty"`
-	Canvas   string               `json:"canvasFor,omitempty"`
-	Features map[string]bool      `json:"features,omitempty"`
-	Creds    []string             `json:"creds,omitempty"`
+	Member    *proto.SessionMember `json:"member,omitempty"`
+	Private   bool                 `json:"private,omitempty"`
+	NotesFor  string               `json:"notesFor,omitempty"`
+	Canvas    string               `json:"canvasFor,omitempty"`
+	GOA       bool                 `json:"goa,omitempty"`
+	GOAWorker string               `json:"goaWorker,omitempty"`
+	Features  map[string]bool      `json:"features,omitempty"`
+	Creds     []string             `json:"creds,omitempty"`
 	// Hibernated sessions stay so: by hand or not, since when.
 	Hibernated       bool      `json:"hibernated,omitempty"`
 	HibernatedByHand bool      `json:"hibernatedByHand,omitempty"`
@@ -130,7 +132,7 @@ func (p *persistence) update(s *session.Session, command []string) {
 		Convo: meta.Conversation, Exited: info.Exited, ExitCode: info.ExitCode, Name: meta.Name, Prompt: info.Prompt,
 		Project: meta.Project, Agent: meta.Agent, Branch: meta.Branch, Worktree: meta.Worktree, Skip: meta.SkipPermissions,
 		Budget: int64(meta.Budget / time.Second), Display: meta.Display > 0, Parent: meta.Parent, Note: meta.Note,
-		Group: meta.Group, Account: meta.Account, Config: meta.Config, Member: meta.Member, Private: meta.Private, NotesFor: meta.NotesFor, Canvas: meta.CanvasFor, Features: meta.Features, Creds: meta.Creds,
+		Group: meta.Group, Account: meta.Account, Config: meta.Config, Member: meta.Member, Private: meta.Private, NotesFor: meta.NotesFor, Canvas: meta.CanvasFor, GOA: meta.GOA, GOAWorker: meta.GOAWorker, Features: meta.Features, Creds: meta.Creds,
 		Hibernated: meta.Hibernated && info.Exited, HibernatedByHand: meta.HibernatedByHand, HibernatedAt: meta.HibernatedAt,
 		NoAutoHibernate: meta.NoAutoHibernate,
 	}
@@ -233,7 +235,7 @@ func (s *Server) restore() {
 			Meta: session.Meta{
 				Name: r.Name, Prompt: r.Prompt, Project: r.Project, Agent: r.Agent, Branch: r.Branch,
 				Worktree: r.Worktree, SkipPermissions: r.Skip, Conversation: r.Convo, Relaunch: r.Relaunch, Restart: r.Restart, Restored: true,
-				Budget: time.Duration(r.Budget) * time.Second, Parent: r.Parent, Note: r.Note, Group: r.Group, Account: r.Account, Config: r.Config, Member: r.Member, Private: r.Private, NotesFor: r.NotesFor, CanvasFor: r.Canvas, Features: r.Features, Creds: r.Creds,
+				Budget: time.Duration(r.Budget) * time.Second, Parent: r.Parent, Note: r.Note, Group: r.Group, Account: r.Account, Config: r.Config, Member: r.Member, Private: r.Private, NotesFor: r.NotesFor, CanvasFor: r.Canvas, GOA: r.GOA, GOAWorker: r.GOAWorker, Features: r.Features, Creds: r.Creds,
 				Hibernated: r.Hibernated, HibernatedByHand: r.HibernatedByHand, HibernatedAt: r.HibernatedAt, NoAutoHibernate: r.NoAutoHibernate,
 			},
 		}
@@ -264,7 +266,7 @@ func (s *Server) restore() {
 			if preset, ok := agent.Find(r.Agent); ok && len(r.Restart) > 0 && len(preset.Continue) > 0 {
 				// The command saved has the hooks and guide of the daemon
 				// that saved it.
-				chat := s.chatOf(r.NotesFor, r.Canvas, s.guideFor(spec.Meta))
+				chat := s.goaChat(s.chatOf(r.NotesFor, r.Canvas, s.guideFor(spec.Meta)), spec.Meta)
 				chat.member = r.Member != nil
 				chat.store = s.agentStore(r.Agent, r.ID, true)
 				chat.config = run
@@ -368,7 +370,7 @@ func (s *Server) resumeSession(id, convo string) (*session.Session, error) {
 		if convo == "" {
 			convo = meta.Conversation
 		}
-		chat := s.chatOf(meta.NotesFor, meta.CanvasFor, s.guideFor(meta))
+		chat := s.goaChat(s.chatOf(meta.NotesFor, meta.CanvasFor, s.guideFor(meta)), meta)
 		chat.member = meta.Member != nil
 		chat.store = s.agentStore(meta.Agent, id, true)
 		chat.config = run
@@ -436,5 +438,5 @@ func (s *Server) agentEnv(meta session.Meta) ([]string, error) {
 	if meta.Member != nil {
 		return append(append(preset.Environ(meta.SkipPermissions), acc...), memberEnv(meta.Member, s.accounts.Home(meta.Account))...), nil
 	}
-	return append(append(append(append(preset.Environ(meta.SkipPermissions), apiEnv(meta.Agent)...), acc...), notesEnv(meta.NotesFor != "")...), canvasEnv(meta.CanvasFor != "")...), nil
+	return append(append(append(append(append(preset.Environ(meta.SkipPermissions), apiEnv(meta.Agent)...), acc...), notesEnv(meta.NotesFor != "")...), canvasEnv(meta.CanvasFor != "")...), goaEnv(meta)...), nil
 }

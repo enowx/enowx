@@ -56,6 +56,18 @@ func RouteFor(id, difficulty string, api *RouteAPI) Route {
 	return r
 }
 
+// Cheaper is the difficulty a step below difficulty, to route to when a
+// token budget is near; easy stays easy.
+func Cheaper(difficulty string) string {
+	switch difficulty {
+	case proto.VerdictHard:
+		return proto.VerdictMedium
+	case proto.VerdictMedium:
+		return proto.VerdictEasy
+	}
+	return difficulty
+}
+
 // Switch is what to type in a running session of agent id to change to r:
 // its model command, its effort command, as it has them.
 func (r Route) Switch(id string) []string {

@@ -61,7 +61,11 @@ func (s *Server) sessionHook(p proto.SessionHookParams) (proto.HookDecision, err
 		}
 		s.permissionAsked(info, tool)
 	}
-	d := s.fireHooks(info, ev)
+	worker, stop := s.goaHook(info, ev) // GOD of Agents' (goa.go)
+	if stop {
+		return worker, nil
+	}
+	d := mergeWorker(s.fireHooks(info, ev), worker)
 	if ev.Event == proto.HookToolBefore && !d.Block {
 		cmd := ev.Command
 		if d.Command != "" {

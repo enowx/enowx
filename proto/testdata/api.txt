@@ -35,6 +35,8 @@ event cloud.changed
 event decide.made
 event features.changed
 event features.requested
+event goa.changed
+event goa.flagged
 event hooks.changed
 event host.visitors
 event note.chat
@@ -1042,6 +1044,73 @@ field FolderRef.path string
 field FoundSkill.description string
 field FoundSkill.name string
 field FoundSkill.path string
+field GOAAgent.agent string
+field GOAAgent.installed bool
+field GOAAgent.level string
+field GOAAgent.name string
+field GOAAgent.why string
+field GOABoard.agent string
+field GOABoard.level string
+field GOABoard.session string
+field GOABoard.tasks []GOATask
+field GOADelegateParams.agent string
+field GOADelegateParams.branch string
+field GOADelegateParams.config string
+field GOADelegateParams.effort string
+field GOADelegateParams.from string
+field GOADelegateParams.host string
+field GOADelegateParams.model string
+field GOADelegateParams.noRoute bool
+field GOADelegateParams.project string
+field GOADelegateParams.prompt string
+field GOADelegateParams.session string
+field GOADelegateParams.skipPermissions bool
+field GOADelegateParams.title string
+field GOAFlag.change string
+field GOAFlag.command string
+field GOAFlag.file string
+field GOAFlag.id string
+field GOAFlag.project string
+field GOAFlag.revertable bool
+field GOAFlag.reverted bool
+field GOAFlag.session string
+field GOAFlag.time time.Time
+field GOAOverrideParams.effort string
+field GOAOverrideParams.id string
+field GOAOverrideParams.model string
+field GOAProject.host string
+field GOAProject.path string
+field GOARecallParams.k int
+field GOARecallParams.projects []GOAProject
+field GOARecallParams.query string
+field GOARecallParams.session string
+field GOARememberParams.kind string
+field GOARememberParams.session string
+field GOARememberParams.text string
+field GOARevertParams.id string
+field GOATask.agent string
+field GOATask.asks string
+field GOATask.config string
+field GOATask.created time.Time
+field GOATask.difficulty string
+field GOATask.effort string
+field GOATask.host string
+field GOATask.id string
+field GOATask.model string
+field GOATask.override bool
+field GOATask.prompt string
+field GOATask.result string
+field GOATask.session string
+field GOATask.status string
+field GOATask.title string
+field GOATask.updated time.Time
+field GOATask.urgent string
+field GOATask.why string
+field GOATaskParams.id string
+field GOATaskParams.result string
+field GOATaskParams.status string
+field GOAWorkerParams.host string
+field GOAWorkerParams.session SessionInfo
 field GridArea.col int
 field GridArea.colSpan int
 field GridArea.name string
@@ -1665,6 +1734,7 @@ field SessionAsk.detail string
 field SessionAsk.questions []TranscriptQuestion
 field SessionAsk.reason string
 field SessionAsk.tool string
+field SessionAsk.urgent string
 field SessionAsk.waiting bool
 field SessionAutoHibernateParams.default bool
 field SessionAutoHibernateParams.id string
@@ -1695,6 +1765,8 @@ field SessionCreateParams.display bool
 field SessionCreateParams.effort string
 field SessionCreateParams.env []string
 field SessionCreateParams.features map[string]bool
+field SessionCreateParams.goa bool
+field SessionCreateParams.goaWorker string
 field SessionCreateParams.group string
 field SessionCreateParams.model string
 field SessionCreateParams.name string
@@ -1740,6 +1812,8 @@ field SessionInfo.display int
 field SessionInfo.displayScale int
 field SessionInfo.exitCode int
 field SessionInfo.exited bool
+field SessionInfo.goa bool
+field SessionInfo.goaWorker string
 field SessionInfo.group string
 field SessionInfo.hibernated bool
 field SessionInfo.hibernatedHow *HibernateState
@@ -2581,6 +2655,16 @@ method file.stat
 method file.upload
 method folder.list
 method folder.make
+method goa.agents
+method goa.board
+method goa.delegate
+method goa.flags
+method goa.override
+method goa.recall
+method goa.remember
+method goa.revert
+method goa.task
+method goa.worker
 method hooks.approve
 method hooks.decide
 method hooks.list
@@ -2967,6 +3051,7 @@ value DeletesMirror=mirror
 value DeletesNever=never
 value EnvCanvasChat=ENOWX_CANVAS_CHAT
 value EnvCommand=command
+value EnvGOA=ENOWX_GOA
 value EnvGit=git
 value EnvMCP=mcp
 value EnvMemory=memory
@@ -2994,6 +3079,19 @@ value FileNewFile=newFile
 value FileNewFolder=newFolder
 value FileRename=rename
 value FileRenamed=renamed
+value GOAEnforced=enforced
+value GOAKindDecision=decision
+value GOAKindDelegation=delegation
+value GOAKindOutcome=outcome
+value GOAKindPreference=preference
+value GOAKindTask=task
+value GOALimited=limited
+value GOATaskDone=done
+value GOATaskFailed=failed
+value GOATaskStopped=stopped
+value GOATaskWaiting=waiting
+value GOATaskWorking=working
+value GOAWatched=watched
 value HookActionBlock=block
 value HookActionContext=context
 value HookActionEnowX=enowx

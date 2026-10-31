@@ -454,6 +454,7 @@ func mcpGroups() []mcpGroup {
 		{teamChatTools, runner.team},
 		{credsTools, runner.creds},
 		{controlTools, runner.command},
+		{goaTools, runner.goaCmd},
 	}
 }
 
@@ -492,6 +493,9 @@ func (r runner) mcp(in io.Reader, out io.Writer) error {
 				})
 			}
 		}
+	}
+	if os.Getenv(proto.EnvGOA) != "" {
+		instructions = agent.GOAGuide + instructions // GOD of Agents' server
 	}
 	if os.Getenv(proto.EnvCanvasChat) != "" {
 		// The Canvas page's agent: its canvases, nothing else.

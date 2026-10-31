@@ -78,6 +78,10 @@ type SessionAsk struct {
 	Questions []TranscriptQuestion `json:"questions,omitempty"`
 	Answers   []string             `json:"answers,omitempty"`
 	Reason    string               `json:"reason,omitempty"`
+	// Urgent says why the user answers this one, not another session:
+	// a GOA worker's call that can't be undone, spends money, publishes,
+	// touches secrets, or the judge isn't sure of (docs/goa.md).
+	Urgent string `json:"urgent,omitempty"`
 }
 
 // SessionAnswerParams answer session ID's agent: one of SessionAsk's

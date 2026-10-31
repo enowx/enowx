@@ -157,6 +157,15 @@ Agents that can't take an API per session (enowx-app api lists them) still take 
 		Tools: []string{"session_interrupt", "session_stop", "session_continue", "session_rename", "session_close", "session_chat",
 			"session_ask", "session_answer", "session_switch", "session_changes", "session_commit", "session_push", "session_pr",
 			"session_merge", "session_discard", "host_settings", "host_env", "app_settings", "project_settings", "control_log"}},
+	{ID: "goa", Name: "GOD of Agents", Group: GroupCore, Lazy: true, Requires: []string{"control"},
+		About:   "GOD of Agents' tools: hand tasks to sessions on any host with a model the judge picks, a board of them, its own RAG collection. Always on in its own session.",
+		Summary: "GOD of Agents: \"$ENOWX_BIN\" goa delegate|board|task|remember|recall (\"$ENOWX_BIN\" help goa).",
+		Guide: `GOD of Agents' tools (its session has them all; another session uses them only when the user asks it to hand work out):
+    "$ENOWX_BIN" goa delegate --agent claude --project P "…"   # a task to a new session, its model and effort routed; --session S for one that runs
+    "$ENOWX_BIN" goa board                                      # the tasks, their sessions, status and results
+    "$ENOWX_BIN" goa task ID --status done --result "…"         # settle one
+    "$ENOWX_BIN" goa remember --kind decision "…" | goa recall "…" [--project P --host H]`,
+		Tools: []string{"goa_"}},
 	{ID: "notes", Name: "Notes", Group: GroupNotes, Default: true, Core: true,
 		About: "The user's notes, which agents read and write.",
 		Guide: `The user's notes: their Notes page in enowX, pages of Markdown on this host. Read or write them when the user asks (a plan to keep, a checklist, what you found):

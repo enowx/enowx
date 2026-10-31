@@ -57,7 +57,13 @@ func (s *Server) routeFor(p proto.DecideRouteParams) (proto.RouteChoice, error) 
 	if a := agentAPIOf(id); a != nil {
 		api = &decide.RouteAPI{Model: a.Model, SmallModel: a.SmallModel}
 	}
-	r := decide.RouteFor(id, d.Verdict, api)
+	difficulty := d.Verdict
+	if cheaper := decide.Cheaper(difficulty); cheaper != difficulty && s.judge.Cheaper != nil && s.judge.Cheaper() {
+		// Near a token budget: a step cheaper (docs/tokens.md).
+		difficulty = cheaper
+		out.Why += " (a token budget is near: one step cheaper, " + cheaper + ")"
+	}
+	r := decide.RouteFor(id, difficulty, api)
 	out.Model, out.Effort, out.Switch = r.Model, r.Effort, r.Switch(id)
 	s.acted(d, proto.ActedRouted, 0)
 	return out, nil

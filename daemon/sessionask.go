@@ -35,7 +35,7 @@ func (s *Server) sessionAsk(id string) (proto.SessionAsk, error) {
 	if info.State != proto.StateWaiting || info.Exited {
 		return proto.SessionAsk{}, nil
 	}
-	out := proto.SessionAsk{Waiting: true}
+	out := proto.SessionAsk{Waiting: true, Urgent: s.goaUrgentOf(id)}
 	t, err := s.transcript(proto.TranscriptParams{ID: id})
 	if err != nil || !t.Supported {
 		out.Reason = "its agent keeps no conversation enowX reads: its screen (read) says what it asks"

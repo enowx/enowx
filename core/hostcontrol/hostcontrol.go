@@ -101,6 +101,7 @@ var methods = map[string]Level{
 	proto.MethodSessionEnvSet:        Confirm, // a secret's value, sent to the host
 	proto.MethodProjectCloneCancel:   Change,
 	proto.MethodHostControlLog:       Read,
+	proto.MethodRAGSearch:            Read, // a project's, read-only (GOA's recall)
 }
 
 // LevelOf is method's level, None when host.call doesn't reach it.

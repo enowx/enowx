@@ -165,6 +165,10 @@ type SessionInfo struct {
 	// CanvasFor is the canvas whose Canvas page agent the session is (an
 	// agent on canvases, out of the session list).
 	CanvasFor string `json:"canvasFor,omitempty"`
+	// GOA: the session is GOD of Agents (SessionCreateParams.GOA).
+	GOA bool `json:"goa,omitempty"`
+	// GOAWorker is the GOA session it works for, "" for none.
+	GOAWorker string `json:"goaWorker,omitempty"`
 	// Creds is the vault's credentials lent to the session: their names.
 	Creds []string `json:"creds,omitempty"`
 	// Hibernated: the daemon stopped its idle agent (DaemonSettings.
@@ -286,6 +290,14 @@ type SessionCreateParams struct {
 	// asks first (TokenBudget.AtLimit BudgetAsk): the user said yes.
 	// Older daemons ignore it.
 	TokenBudgetOK bool `json:"tokenBudgetOK,omitempty"`
+	// GOA starts the agent as GOD of Agents (docs/goa.md): in a folder of
+	// its own, every feature on, held to delegating as far as the agent
+	// allows. Older daemons ignore it.
+	GOA bool `json:"goa,omitempty"`
+	// GOAWorker is the GOA session that gave this one its task: its
+	// permission prompts go to the judge, GOA and, urgent, the user.
+	// Older daemons ignore it.
+	GOAWorker string `json:"goaWorker,omitempty"`
 }
 
 // SessionRef names a session.

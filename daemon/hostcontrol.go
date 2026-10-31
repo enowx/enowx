@@ -95,6 +95,11 @@ func (c *conn) hostCall(p proto.HostCallParams) (result any, err error) {
 	if err != nil {
 		return nil, err
 	}
+	if local {
+		if err = s.goaMayAnswer(p); err != nil {
+			return nil, err // urgent: the user's (goa_workers.go)
+		}
+	}
 	confirm := level == hostcontrol.Confirm && p.From != ""
 	if local && !confirm {
 		return c.handle(proto.Request{Method: p.Method, Params: p.Params})

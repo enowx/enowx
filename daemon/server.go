@@ -96,6 +96,7 @@ type Server struct {
 	judge             *decide.Engine // decisions (decide.go)
 	decideRun         decideState
 	tok               tokenState   // token usage (tokens.go)
+	goa               goaState     // GOD of Agents (goa.go)
 	browserUnslops    unslopRuns   // Browsers' pages redesigned, by session (browser_unslop.go)
 	canvasBuilds      buildRuns    // canvases' UI builds under way (canvas_build.go)
 	shares            canvasShares // canvases shared by a link (canvas_share.go)
@@ -195,6 +196,7 @@ func newServer(dir, hookBin string) (*Server, error) {
 	s.newRAG(dir)
 	s.newDecide(dir)
 	s.newTokens(dir)
+	s.newGOA(dir)
 	s.credits.Homes = func() []credits.Home { // each account's plan too
 		var out []credits.Home
 		for _, a := range s.accounts.List() {
@@ -228,6 +230,7 @@ func newServer(dir, hookBin string) (*Server, error) {
 		s.watchSession(info)      // hooks seen from outside
 		s.watchLimits(info)       // accounts at their limit
 		s.sessionFolderSeen(info) // a team's project, maybe
+		s.goaSeen(info)           // GOD of Agents and its workers
 	}
 	s.sessions.OnPrompt = s.promptTyped // hooks on prompts, seen from outside
 	if err := s.sched.open(settingsFile(dir)); err != nil {

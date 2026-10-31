@@ -1,0 +1,223 @@
+package daemon
+
+import (
+	"encoding/json"
+	"fmt"
+	"os"
+	"path/filepath"
+	"strings"
+	"sync"
+
+	"github.com/enowx/enowx/core/agent"
+	"github.com/enowx/enowx/core/goa"
+	"github.com/enowx/enowx/core/session"
+	"github.com/enowx/enowx/proto"
+)
+
+// GOD of Agents on this host (docs/goa.md): its session runs in a folder
+// of its own with every feature, held to enowX's tools as far as its agent
+// allows (its hooks refuse the rest here; goa_watch.go flags what an agent
+// without either does). Its board follows its workers on every host: this
+// host's through their updates, others' through the app (goa.worker); what
+// changes is typed into GOA once it is idle, so it never polls.
+
+// goaState is what the daemon keeps of GOA. The board is safe on its own;
+// mu guards the rest.
+type goaState struct {
+	board *goa.Board
+
+	mu     sync.Mutex
+	tell   []string          // lines for GOA, typed once it is idle
+	urgent map[string]string // worker session → why the user answers what it asks
+	flags  []proto.GOAFlag
+	watch  map[string]*goaWatch // watched GOA sessions, by ID (goa_watch.go)
+}
+
+func (s *Server) newGOA(dir string) {
+	s.goa = goaState{board: goa.OpenBoard(filepath.Join(dir, "goa-board.json")),
+		urgent: map[string]string{}, watch: map[string]*goaWatch{}}
+}
+
+// goaDir is GOA's own folder, outside every project.
+func (s *Server) goaDir() string { return filepath.Join(filepath.Dir(s.WorktreeRoot), "goa") }
+
+// goaSession is GOA's session on this host: the one running, else the
+// latest.
+func (s *Server) goaSession() (proto.SessionInfo, bool) {
+	var found proto.SessionInfo
+	ok := false
+	for _, sess := range s.sessions.List() {
+		info := sess.Info()
+		if !info.GOA {
+			continue
+		}
+		if !ok || !info.Exited && found.Exited || info.Exited == found.Exited && info.Created.After(found.Created) {
+			found, ok = info, true
+		}
+	}
+	return found, ok
+}
+
+// goaCreate makes p and meta GOA's: its folder, no project or branch,
+// every feature, its permissions asked (enowX's tools need none). One GOA
+// runs on a host at a time.
+func (s *Server) goaCreate(p *proto.SessionCreateParams, meta *session.Meta) (string, error) {
+	if g, ok := s.goaSession(); ok && !g.Exited {
+		return "", fmt.Errorf("goa: GOD of Agents already runs on this host: session %s", g.ID)
+	}
+	if _, ok := agent.Find(p.Agent); !ok {
+		return "", fmt.Errorf("goa: %q isn't an agent GOD of Agents can run on", p.Agent)
+	}
+	dir := s.goaDir()
+	if err := os.MkdirAll(dir, 0o700); err != nil {
+		return "", fmt.Errorf("goa: %w", err)
+	}
+	p.Project, p.Parent, p.BranchMode, p.SkipPermissions, p.GOAWorker = "", "", proto.BranchNone, false, ""
+	p.Features = agent.AllFeatures()
+	meta.Project, meta.GOA, meta.GOAWorker, meta.Features = "", true, "", p.Features
+	if meta.Name == "" {
+		meta.Name = "GOD of Agents"
+	}
+	return dir, nil
+}
+
+// goaChat is chat as GOA's, for a GOA session (meta): its guide first.
+func (s *Server) goaChat(chat chatFor, meta session.Meta) chatFor {
+	if meta.GOA {
+		chat.goa = true
+		chat.guide = agent.GOAGuide + chat.guide
+	}
+	return chat
+}
+
+// goaEnv is what a GOA session (meta) gets in its environment.
+func goaEnv(meta session.Meta) []string {
+	if !meta.GOA {
+		return nil
+	}
+	return agent.GOAEnv(agent.Base(meta.Agent))
+}
+
+// goaHook is GOA's say on event ev of session info, before the user's
+// hooks: GOA's tools other than enowX's are refused (stop); a worker's
+// call is judged (goa_workers.go), its decision merged after the hooks.
+func (s *Server) goaHook(info proto.SessionInfo, ev proto.HookEvent) (d proto.HookDecision, stop bool) {
+	if ev.Event != proto.HookToolBefore {
+		return d, false
+	}
+	if info.GOA {
+		if ok, why := goa.Allowed(ev.Tool, ev.Command, s.HookBin); !ok {
+			s.logger().Info("goa: a tool refused", "session", info.ID, "tool", ev.Tool)
+			return proto.HookDecision{Block: true, Reason: why}, true
+		}
+		return d, false
+	}
+	if info.GOAWorker != "" || s.goa.board.Has(info.ID) {
+		return s.goaWorkerTool(info, ev), false
+	}
+	return d, false
+}
+
+// mergeWorker is the hooks' decision d with a worker's judged one w: a
+// refusal of either stands; the judge's yes lets it run unasked.
+func mergeWorker(d, w proto.HookDecision) proto.HookDecision {
+	switch {
+	case d.Block:
+		return d
+	case w.Block:
+		return w
+	}
+	d.Approve = d.Approve || w.Approve
+	return d
+}
+
+// goaBoard is the board as the app shows it.
+func (s *Server) goaBoard() proto.GOABoard {
+	b := proto.GOABoard{Tasks: s.goa.board.List()}
+	if g, ok := s.goaSession(); ok {
+		b.Session, b.Agent = g.ID, agent.Base(g.Agent)
+		b.Level, _ = goa.LevelOf(b.Agent)
+	}
+	return b
+}
+
+// goaChanged tells the apps the board changed.
+func (s *Server) goaChanged() { s.broadcast(proto.EventGOABoard, s.goaBoard()) }
+
+// goaSeen follows session info for GOA: GOA idle gets what waits for it;
+// a worker's change goes on the board.
+func (s *Server) goaSeen(info proto.SessionInfo) {
+	if info.GOA {
+		if !info.Exited && info.State != proto.StateWorking {
+			go s.goaFlush(info.ID)
+		}
+		s.goaWatchSeen(info)
+		return
+	}
+	if info.State == proto.StateDone || info.Exited {
+		s.goaClearUrgent(info.ID) // its turn is over (its next tool clears it too)
+	}
+	if s.goa.board.Has(info.ID) {
+		go s.goaWorkerChanged(info)
+	}
+}
+
+// goaTell has line typed into GOA once it is idle.
+func (s *Server) goaTell(line string) {
+	g, ok := s.goaSession()
+	if !ok || g.Exited {
+		return
+	}
+	s.goa.mu.Lock()
+	s.goa.tell = append(s.goa.tell, line)
+	s.goa.mu.Unlock()
+	if g.State != proto.StateWorking {
+		s.goaFlush(g.ID)
+	}
+}
+
+// goaFlush types what waits for GOA (session id) as one message.
+func (s *Server) goaFlush(id string) {
+	s.goa.mu.Lock()
+	lines := s.goa.tell
+	s.goa.tell = nil
+	s.goa.mu.Unlock()
+	if len(lines) == 0 {
+		return
+	}
+	text := strings.Join(lines, "\n")
+	if err := s.input(proto.SessionInputParams{ID: id, Text: text, Paste: true, Enter: true}); err != nil {
+		s.logger().Warn("goa: could not tell GOA", "session", id, "err", err)
+	}
+}
+
+// goaCall calls method on host ("" this one) as GOA (from) would: through
+// host.call, so control's checks, the user's yes and its log apply.
+func (s *Server) goaCall(from, host, method string, params, out any) error {
+	raw, err := json.Marshal(params)
+	if err != nil {
+		return err
+	}
+	res, err := (&conn{srv: s}).hostCall(proto.HostCallParams{Host: host, Method: method, Params: raw, From: from})
+	if err != nil || out == nil {
+		return err
+	}
+	data, err := json.Marshal(res)
+	if err != nil {
+		return err
+	}
+	return json.Unmarshal(data, out)
+}
+
+// goaAgents are the agents installed here and how far each holds GOA.
+func goaAgents() []proto.GOAAgent {
+	var out []proto.GOAAgent
+	for _, a := range agent.List() {
+		if a.ID == agent.Shell || a.ID == agent.Custom {
+			continue
+		}
+		level, why := goa.LevelOf(a.ID)
+		out = append(out, proto.GOAAgent{Agent: a.ID, Name: a.Name, Level: level, Why: why, Installed: a.Installed})
+	}
+	return out
+}

@@ -72,13 +72,22 @@ func (s *Server) createSessionFor(p proto.SessionCreateParams, member *proto.Ses
 			meta.Name = "Canvas"
 		}
 	}
+	meta.GOAWorker = p.GOAWorker
+	if p.GOA {
+		// GOD of Agents: a folder of its own, outside every project (goa.go).
+		goaDir, err := s.goaCreate(&p, &meta)
+		if err != nil {
+			return nil, err
+		}
+		dir = goaDir
+	}
 	// Settle what to run before creating a worktree it would leave behind.
 	id := session.NewID()
 	guide := s.guideFor(meta)
-	if meta.Project == "" && p.NotesFor == "" && p.CanvasFor == "" {
+	if meta.Project == "" && p.NotesFor == "" && p.CanvasFor == "" && !p.GOA {
 		guide += s.projectGuide(dir) // a folder of no project's, a team's maybe
 	}
-	chat := s.chatOf(p.NotesFor, p.CanvasFor, guide)
+	chat := s.goaChat(s.chatOf(p.NotesFor, p.CanvasFor, guide), meta)
 	chat.member = member != nil
 	if !p.SignIn {
 		chat.store = s.agentStore(p.Agent, id, true)
@@ -330,6 +339,10 @@ func launchFor(p proto.SessionCreateParams, chat chatFor) (launch, error) {
 		return launch{}, fmt.Errorf("%s refuses to skip permission prompts as root; reconnect and let enowX run as a regular user (Manage hosts → Ask user again), or turn off Skip permission prompts", preset.Name)
 	}
 	switch {
+	case chat.goa:
+		if note := agent.GOANote(preset.ID, chat.guide); note != "" && prompt != "" {
+			prompt = note + "\n\n" + prompt
+		}
 	case chat.notes != "":
 		if note := agent.NotesNote(preset.ID, chat.notes); note != "" && prompt != "" {
 			prompt = note + "\n\n" + prompt
@@ -350,7 +363,7 @@ func launchFor(p proto.SessionCreateParams, chat chatFor) (launch, error) {
 	}
 	l := launch{
 		command:  thenShell(preset.Argv(first)),
-		env:      append(append(append(preset.Environ(skip), chat.apiEnv(preset.ID)...), notesEnv(chat.notes != "")...), canvasEnv(chat.canvas != "")...),
+		env:      append(append(append(append(preset.Environ(skip), chat.apiEnv(preset.ID)...), notesEnv(chat.notes != "")...), canvasEnv(chat.canvas != "")...), chat.goaEnv(preset.ID)...),
 		restart:  thenShell(preset.Argv(agentLaunch(preset, skip, "", true, chat))),
 		relaunch: len(preset.Continue) > 0,
 		skip:     skip,
@@ -399,6 +412,17 @@ type chatFor struct {
 	member bool
 	// config is the session's config's, nil for the official one.
 	config *configRun
+	// goa: GOD of Agents' (goa.go), guide its own.
+	goa bool
+}
+
+// goaEnv is what GOA's agent id gets in its environment, nothing for
+// another session.
+func (ch chatFor) goaEnv(id string) []string {
+	if !ch.goa {
+		return nil
+	}
+	return agent.GOAEnv(agent.Base(id))
 }
 
 // apiEnv is apiEnv(id) for the host's user's sessions, nothing for a
@@ -433,8 +457,9 @@ func agentLaunch(preset agent.Preset, skip bool, prompt string, cont bool, chat 
 	// Skipping stays a mode to switch to from the chat, except as root,
 	// where the agent would refuse to start with it.
 	allow := !(preset.RefusesRootSkip && os.Geteuid() == 0)
-	if home, err := os.UserHomeDir(); err == nil {
-		// Agents whose command line takes no guide read it from their home.
+	if home, err := os.UserHomeDir(); err == nil && !chat.goa {
+		// Agents whose command line takes no guide read it from their home
+		// (GOA's own is a file its first prompt names: agent.GOANote).
 		if err := agent.PlaceGuideText(preset.ID, home, guide); err != nil {
 			slog.Warn("could not give the agent its guide", "agent", preset.ID, "err", err)
 		}
@@ -447,6 +472,9 @@ func agentLaunch(preset agent.Preset, skip bool, prompt string, cont bool, chat 
 		}
 	}
 	switch {
+	case chat.goa:
+		exe, _ := os.Executable()
+		hooks = append(agent.HookArgs(preset.ID), agent.GOAArgs(preset.ID, exe, guide)...)
 	case chat.notes != "":
 		exe, _ := os.Executable()
 		hooks = append(agent.HookArgs(preset.ID), agent.NotesArgs(preset.ID, exe, chat.notes)...)

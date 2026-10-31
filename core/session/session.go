@@ -99,6 +99,10 @@ type Meta struct {
 	// CanvasFor is the canvas whose Canvas page agent it is
 	// (SessionInfo.CanvasFor).
 	CanvasFor string
+	// GOA: it is GOD of Agents (SessionInfo.GOA); GOAWorker, the GOA it
+	// works for (SessionInfo.GOAWorker).
+	GOA       bool   `json:",omitempty"`
+	GOAWorker string `json:",omitempty"`
 	// Features are its own feature switches (proto.FeatureSetParams).
 	Features map[string]bool
 	// Creds is the vault's credentials lent to it (SessionInfo.Creds).
@@ -186,6 +190,8 @@ func (s *Session) Info() proto.SessionInfo {
 		Private:         s.meta.Private,
 		NotesFor:        s.meta.NotesFor,
 		CanvasFor:       s.meta.CanvasFor,
+		GOA:             s.meta.GOA,
+		GOAWorker:       s.meta.GOAWorker,
 		Creds:           slices.Clone(s.meta.Creds),
 		Hibernated:      s.meta.Hibernated && s.exited,
 		HibernatedHow:   hibernatedHow(s.meta, s.exited),

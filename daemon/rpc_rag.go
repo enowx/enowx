@@ -29,7 +29,7 @@ var ragHandlers = map[string]handler{
 		return out, nil
 	}),
 	proto.MethodRAGStatus: with(func(c *conn, p proto.RAGRef) (any, error) {
-		dir, err := c.srv.ragDir(p)
+		dir, err := c.srv.ragRead(p)
 		if err != nil {
 			return nil, err
 		}
@@ -51,7 +51,7 @@ var ragHandlers = map[string]handler{
 		return c.srv.rag.Plan(dir, c.srv.ragSettings.Project(rag.ProjectID(dir))), nil
 	}),
 	proto.MethodRAGSearch: with(func(c *conn, p proto.RAGSearchParams) (any, error) {
-		dir, err := c.srv.ragDir(p.RAGRef)
+		dir, err := c.srv.ragRead(p.RAGRef)
 		if err != nil {
 			return nil, err
 		}
@@ -79,7 +79,7 @@ var ragHandlers = map[string]handler{
 		return m, err
 	}),
 	proto.MethodRAGMemories: with(func(c *conn, p proto.RAGRef) (any, error) {
-		dir, err := c.srv.ragDir(p)
+		dir, err := c.srv.ragRead(p)
 		if err != nil {
 			return nil, err
 		}
