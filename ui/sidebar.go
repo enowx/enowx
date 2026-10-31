@@ -313,6 +313,9 @@ func (a *App) sessionRow(c *ui.Context, i int, s proto.SessionInfo) {
 					detail = "@" + nonEmpty(m.GitHub, m.Name) + "'s · " + detail // a team's member's
 				}
 				ui.Text(c, detail).FontSize(11).TextColor(theme.Muted).SingleLine().Shrink(1)
+				if cfg := s.Config; cfg != nil {
+					widget.BadgeTag(c, cfg.Name, cfg.Color) // the config it runs with
+				}
 			})
 		})
 		a.conflictMark(c, s)

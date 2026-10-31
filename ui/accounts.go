@@ -1,21 +1,21 @@
 package ui
 
 import (
+	"slices"
+
 	"github.com/egoist/mygo/ui"
 
 	"github.com/enowx/enowx/client"
-	"github.com/enowx/enowx/core/accounts"
 	"github.com/enowx/enowx/core/agent"
 	"github.com/enowx/enowx/proto"
-	"github.com/enowx/enowx/ui/icon"
-	"github.com/enowx/enowx/ui/theme"
 	"github.com/enowx/enowx/ui/widget"
 )
 
-// Settings → Agent accounts: an agent's other accounts on the connected
-// host (proto.Account), each signed in once and picked per session.
+// An agent's configs on the connected host (proto/config.go): its other
+// accounts and model APIs, picked per session; Settings → Agents shows
+// them (agents.go), New session picks one.
 
-// accountsState is the section's. It belongs to the main thread.
+// accountsState is Settings → Agents'. It belongs to the main thread.
 type accountsState struct {
 	host   string
 	asked  bool
@@ -23,21 +23,17 @@ type accountsState struct {
 	list   []proto.Account
 	info   proto.AccountsInfo // states, what they have left, preferences
 	log    []proto.AccountLogEntry
-	tab    int // 0 the accounts, 1 the history
+	tab    int    // 0 the configs, 1 the history
+	agent  string // the agent whose page shows
 	err    string
-	naming map[string]*string // agent → the name of the account being added
-	keying map[string]*keyForm
 	only   map[string]*string // account ID → its projects, being set
+	edit   *configForm        // a config being made or changed
 	busy   bool
 }
 
-// keyForm adds an account that is an API key: its name and the vault's
-// credential.
-type keyForm struct{ name, cred string }
-
 func (a *App) accountsOf() *accountsState {
 	if a.accts.host != a.host.ID || !a.accts.asked {
-		a.accts = accountsState{host: a.host.ID, asked: true, naming: map[string]*string{}, keying: map[string]*keyForm{}, only: map[string]*string{}}
+		a.accts = accountsState{host: a.host.ID, asked: true, only: map[string]*string{}}
 		a.loadAccounts()
 	}
 	return &a.accts
@@ -67,77 +63,16 @@ func (a *App) loadAccounts() {
 	}()
 }
 
-// accountAgents are the installed agents that can have accounts.
-func (a *App) accountAgents() []proto.AgentInfo {
-	var out []proto.AgentInfo
-	for _, ag := range a.agents {
-		if ag.Installed && agent.Base(ag.ID) == ag.ID && accounts.Supported(ag.ID) {
-			out = append(out, ag)
-		}
-	}
-	return out
-}
-
-// accountsOfAgent are agent's other accounts (agent may be a variant, as
-// Claude Agent Teams, of the agent they sign in).
+// accountsOfAgent are agent's configs but its official one (agent may be
+// a variant, as Claude Agent Teams, of the agent they are of).
 func (st *accountsState) accountsOfAgent(id string) []proto.Account {
 	var out []proto.Account
 	for _, acc := range st.list {
-		if acc.Agent == agent.Base(id) {
+		if acc.Agent == agent.Base(id) && acc.Member == "" {
 			out = append(out, acc)
 		}
 	}
 	return out
-}
-
-func (a *App) accountsSection(c *ui.Context) {
-	st := a.accountsOf()
-	sectionIntro(c, "Agent accounts", "Other accounts of an agent on "+a.host.Name+", each signed in once (or an API key from the vault), used in the order you set: a session at one's usage limit can go on as the next. They share the agent's settings, skills and conversations; only the sign-in differs.")
-	ui.Row(c).FillWidth().Children(func() {
-		if i := widget.Segmented(c, []string{"Accounts", "History"}, st.tab, nil); i >= 0 && i != st.tab {
-			st.tab = i
-			a.loadAccounts()
-		}
-	})
-	switch {
-	case st.err != "":
-		widget.Notice(c, icon.Alert, theme.Error, st.err, "", nil)
-	case !st.loaded:
-		widget.Spinner(c, 14)
-	}
-	if st.tab == 1 {
-		a.accountHistory(c, st)
-		return
-	}
-	agents := a.accountAgents()
-	if st.loaded && len(agents) == 0 {
-		ui.Text(c, "Claude Code and Codex can have other accounts; neither is installed on "+a.host.Name+".").FontSize(12).TextColor(theme.Muted)
-	}
-	for _, ag := range agents {
-		a.agentAccounts(c.Key(ag.ID), st, ag)
-	}
-}
-
-// addAccount keeps a new account of agent and starts signing it in.
-func (a *App) addAccount(st *accountsState, agentID, name string) {
-	cl := a.client
-	if cl == nil {
-		return
-	}
-	st.busy = true
-	go func() {
-		acc, err := cl.AddAccount(agentID, name)
-		a.onMain(func() {
-			st.busy = false
-			if err != nil {
-				st.err = client.Explain(err)
-				return
-			}
-			delete(st.naming, agentID)
-			a.loadAccounts()
-			a.signInAccount(agentID, acc)
-		})
-	}()
 }
 
 // signInAccount starts a session signing agent in as acc.
@@ -179,8 +114,8 @@ func (a *App) removeAccount(st *accountsState, acc proto.Account) {
 	}()
 }
 
-// accountField picks the account the new session's agent signs in as,
-// when it has others.
+// accountField picks the config the new session's agent runs with:
+// Official, or one of its own (picked by the preferences until changed).
 func (a *App) accountField(c *ui.Context) {
 	f := &a.newSession
 	list := a.accountsOf().accountsOfAgent(f.agent)
@@ -188,11 +123,14 @@ func (a *App) accountField(c *ui.Context) {
 		f.account = ""
 		return
 	}
+	if f.account != "" && !slices.ContainsFunc(list, func(acc proto.Account) bool { return acc.ID == f.account }) {
+		f.accountPicked = false // picked for another agent
+	}
 	if !f.accountPicked {
 		f.account = a.defaultAccountFor(f.agent, f.project.Path) // by the preferences, until picked
 	}
-	widget.Field(c, "Account", func() {
-		labels := []string{"Default"}
+	widget.Field(c, "Config", func() {
+		labels := []string{"Official"}
 		cur := 0
 		for i, acc := range list {
 			labels = append(labels, acc.Name)
@@ -200,11 +138,35 @@ func (a *App) accountField(c *ui.Context) {
 				cur = i + 1
 			}
 		}
-		if i := widget.Segmented(c, labels, cur, nil); i >= 0 {
-			f.account = ""
-			if i > 0 {
-				f.account = list[i-1].ID
+		if len(labels) <= 4 {
+			if i := widget.Segmented(c, labels, cur, nil); i >= 0 {
+				f.account, f.accountPicked = "", true
+				if i > 0 {
+					f.account = list[i-1].ID
+				}
 			}
+			return
+		}
+		options, names := []string{""}, map[string]string{"": "Official: the agent as installed"}
+		for _, acc := range list {
+			options = append(options, acc.ID)
+			names[acc.ID] = acc.Name + " · " + configKindLabel(acc)
+		}
+		v := f.account
+		hookSelect(c.Key("config"), "Config", &v, options, names)
+		if v != f.account {
+			f.account, f.accountPicked = v, true
 		}
 	})
+}
+
+// configKindLabel says what config c is, in a few words.
+func configKindLabel(c proto.Account) string {
+	switch {
+	case c.Kind == proto.ConfigKindAPI:
+		return "model API"
+	case c.Cred != "":
+		return "API key"
+	}
+	return "account"
 }

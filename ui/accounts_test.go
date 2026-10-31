@@ -6,6 +6,7 @@ import (
 	"net"
 	"os"
 	"path/filepath"
+	"slices"
 	"testing"
 	"time"
 
@@ -17,8 +18,8 @@ import (
 	"github.com/enowx/enowx/ui/theme"
 )
 
-// Settings → Agent accounts adds an account and starts signing it in;
-// New session then offers it.
+// Settings → Agents adds a config that is another account and starts
+// signing it in.
 func TestAddAnAgentAccount(t *testing.T) {
 	t.Setenv("HOME", t.TempDir())
 	bin := t.TempDir()
@@ -43,7 +44,7 @@ func TestAddAnAgentAccount(t *testing.T) {
 	app.onMain = func(fn func()) { posted <- fn }
 	app.client, app.agents = cl, agent.List()
 	tt := ui.NewTester(func(c *ui.Context) {
-		ui.Column(c).Width(760).Height(900).Background(theme.Background).Children(func() { app.accountsSection(c) })
+		ui.Column(c).Width(760).Height(900).Background(theme.Background).Children(func() { app.agentsSection(c) })
 	}, 760, 900)
 	frames := func(until func() bool, what string) {
 		deadline := time.Now().Add(10 * time.Second)
@@ -61,13 +62,14 @@ func TestAddAnAgentAccount(t *testing.T) {
 	}
 	tt.Frame()
 	frames(func() bool { return app.accts.loaded }, "the accounts")
-	if err := tt.Click("Add account"); err != nil {
+	if err := tt.Click("New config"); err != nil {
 		t.Fatalf("%v: %q", err, tt.Texts())
 	}
 	tt.Frame()
-	*app.accts.naming["claude"] = "Work"
+	f := app.accts.edit
+	f.kind, f.name = slices.Index(f.kinds, kindAccount), "Work"
 	tt.Frame()
-	if err := tt.Click("Add and sign in"); err != nil {
+	if err := tt.Click("Save"); err != nil {
 		t.Fatal(err)
 	}
 	frames(func() bool { return len(app.accts.list) == 1 && len(app.sessions) == 1 }, "the account and its sign-in")
@@ -76,7 +78,7 @@ func TestAddAnAgentAccount(t *testing.T) {
 	if s := app.sessions[0]; s.Account != app.accts.list[0].ID || s.Agent != "claude" {
 		t.Fatalf("sign-in session %+v", s)
 	}
-	if !tt.HasText("Work") || !tt.HasText("Default") {
+	if !tt.HasText("Work") || !tt.HasText("Official") {
 		t.Fatalf("listed: %q", tt.Texts())
 	}
 	if got := app.accts.accountsOfAgent("claude-agent-teams"); len(got) != 1 {
