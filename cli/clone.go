@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"io"
 	"os"
-	"path/filepath"
 	"time"
 
 	"github.com/enowx/enowx/proto"
@@ -24,6 +23,9 @@ const projectUsage = `usage: enowx-app project COMMAND
   read P FILE [--host H]           a project's file, of any host, read-only
   rules [P] [--set TEXT|-] [--editors members|admins]
                                    a project's rules, which every session in it reads first
+  settings [P] [--copy A,B] [--setup SCRIPT]
+                                   its .enowx.toml: what new worktrees get, and their setup
+list, add, clone, status, cancel, rules and settings take --host H: another host's, its paths whole
 ` + projectLinksUsage
 
 // project lists, adds and clones the host's projects.
@@ -39,6 +41,8 @@ func (r runner) projectCmd(args []string) error {
 		return r.projectContext(cmd, rest)
 	case "rules":
 		return r.projectRules(rest)
+	case "settings":
+		return r.projectSettings(rest)
 	}
 	fs := flag.NewFlagSet(cmd, flag.ContinueOnError)
 	fs.SetOutput(io.Discard)
@@ -63,8 +67,7 @@ func (r runner) projectCmd(args []string) error {
 		if arg == "" {
 			return errors.New("usage: enowx-app project add PATH")
 		}
-		path, _ := filepath.Abs(arg)
-		info, err := r.c.AddProject(path)
+		info, err := r.c.AddProject(r.hostPath(arg))
 		if err != nil {
 			return err
 		}

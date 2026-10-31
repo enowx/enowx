@@ -145,6 +145,13 @@ Done with sessions you spawned? "$ENOWX_BIN" hibernate ID... frees the host's me
 		Summary: "Other sessions, only when the user asks: \"$ENOWX_BIN\" sessions, \"$ENOWX_BIN\" peek SESSION --host H.",
 		Guide:   `Other sessions: only when the user asks (to copy a feature from another project, say), read another enowX session, never on your own. "$ENOWX_BIN" sessions lists the sessions of every host the app reaches; "$ENOWX_BIN" peek SESSION --host H shows its last messages (--last N) and its project's folder; then "$ENOWX_BIN" project context P --host H and project read P FILE --host H show its code, read-only.`,
 		Tools:   []string{"sessions_everywhere", "session_peek"}},
+	{ID: "control", Name: "Control (sessions & settings, any host)", Group: GroupCore, Lazy: true,
+		About:   "Agents control sessions on any host the app reaches (interrupt, stop, answer, switch model, review and merge, close) and change the app's, hosts' and projects' settings.",
+		Summary: "Control of sessions and settings on any host: \"$ENOWX_BIN\" help control.",
+		Guide:   ControlGuide,
+		Tools: []string{"session_interrupt", "session_stop", "session_continue", "session_rename", "session_close", "session_chat",
+			"session_ask", "session_answer", "session_switch", "session_changes", "session_commit", "session_push", "session_pr",
+			"session_merge", "session_discard", "host_settings", "host_env", "app_settings", "project_settings", "control_log"}},
 	{ID: "notes", Name: "Notes", Group: GroupNotes, Default: true, Core: true,
 		About: "The user's notes, which agents read and write.",
 		Guide: `The user's notes: their Notes page in enowX, pages of Markdown on this host. Read or write them when the user asks (a plan to keep, a checklist, what you found):

@@ -64,6 +64,12 @@ func (r runner) peek(args []string) error {
 	if err != nil {
 		return err
 	}
+	r.printPeek(p)
+	return nil
+}
+
+// printPeek prints a session's last messages and where its project is.
+func (r runner) printPeek(p proto.SessionPeek) {
 	s := p.Session
 	fmt.Fprintf(r.out, "# %s (%s) on %s\n", nonEmpty(s.Name, s.ID), s.Agent, p.HostName)
 	fmt.Fprintf(r.out, "folder: %s\n", s.Dir)
@@ -75,7 +81,7 @@ func (r runner) peek(args []string) error {
 	}
 	if p.Reason != "" {
 		fmt.Fprintf(r.out, "\nNo conversation: %s\n", p.Reason)
-		return nil
+		return
 	}
 	if p.Earlier > 0 {
 		fmt.Fprintf(r.out, "\n(%d earlier messages: --last N reads more)\n", p.Earlier)
@@ -83,7 +89,6 @@ func (r runner) peek(args []string) error {
 	for _, m := range p.Messages {
 		fmt.Fprintf(r.out, "\n[%s]\n%s\n", m.Role, strings.TrimSpace(m.Text))
 	}
-	return nil
 }
 
 func nonEmpty(a, b string) string {

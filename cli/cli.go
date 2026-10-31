@@ -29,7 +29,8 @@ const EnvSession = "ENOWX_SESSION"
 
 // Commands are the command line's commands, for the programs that also
 // do other things with their arguments to tell them apart.
-var Commands = []string{"ls", "list", "sessions", "peek", "status", "spawn", "send", "read", "wait", "kill", "hibernate", "wake", "agents", "projects", "project", "shells", "notes", "features", "creds", "canvas", "review", "sync", "icons", "attach", "pipeline", "pipelines", "note", "automation", "automations", "hooks", "accounts", "rag", "decide", "browser", "traffic", "android", "mcp", "guide", "ports", "run", "api", "notify", "cloud", "team", "help"}
+var Commands = []string{"ls", "list", "sessions", "peek", "status", "spawn", "send", "read", "wait", "kill", "hibernate", "wake", "agents", "projects", "project", "shells", "notes", "features", "creds", "canvas", "review", "sync", "icons", "attach", "pipeline", "pipelines", "note", "automation", "automations", "hooks", "accounts", "rag", "decide", "browser", "traffic", "android", "mcp", "guide", "ports", "run", "api", "notify", "cloud", "team", "help",
+	"interrupt", "stop", "continue", "rename", "close", "chat", "answer", "switch", "changes", "settings", "control"}
 
 // Is reports whether args start with one of Commands.
 func Is(args []string) bool { return len(args) > 0 && slices.Contains(Commands, args[0]) }
@@ -55,7 +56,16 @@ const usage = `usage: enowx-app <command> [arguments]
   read SESSION                     print what a session's screen shows
   wait SESSION [--timeout 30m]     wait until its agent is done or asks
   note SESSION [TEXT...]           what the session is at, shown in the app ("" clears)
-  kill SESSION                     end a session
+  close SESSION --yes              end a session (kill is the same); a tab needs no --yes
+  interrupt|stop|continue SESSION  stop what its agent does; end its agent, session kept; start it again
+  rename SESSION NAME | chat SESSION | answer SESSION [allow|always|deny|N]
+  switch SESSION [--model M] [--effort E] [--mode M] [--account A]
+  changes SESSION [status|diff|commit|push|pr|merge|discard]
+                                   its changes and what to do with them (changes help)
+  settings [set|env|app]           the host's settings and the app's (settings help)
+  control log                      what sessions did through control (control help)
+  --host H                         on the session commands, ls, spawn, projects, project
+                                   list|add|clone|rules|settings and settings: host H, through the app
   hibernate SESSION... [--idle] [--when-done] [--force] [--dry-run]
                                    stop sessions' agents to free the host, to wake later on
                                    their conversation; --auto off|on keeps one from (or lets
@@ -169,8 +179,13 @@ func Run(args []string, out io.Writer) error {
 // command runs one of the commands that need the daemon, args its name
 // first.
 func (r runner) command(args []string) error {
+	if host, rest, ok := hostFlag(args); ok && r.host == "" {
+		return r.onHost(host, rest) // control.go
+	}
 	cmd, rest := args[0], args[1:]
 	switch cmd {
+	case "interrupt", "stop", "continue", "rename", "close", "chat", "answer", "switch", "changes", "settings", "control":
+		return r.controlCommand(cmd, rest)
 	case "ls", "list":
 		return r.list(rest)
 	case "sessions":
@@ -188,7 +203,7 @@ func (r runner) command(args []string) error {
 	case "wait":
 		return r.wait(rest)
 	case "kill":
-		return r.kill(rest)
+		return r.closeSession(rest)
 	case "hibernate":
 		return r.hibernate(rest)
 	case "wake":
@@ -282,6 +297,8 @@ func Dial() (*client.Client, error) {
 type runner struct {
 	c   *client.Client
 	out io.Writer
+	// host is the host --host named, which c reaches; "" this one.
+	host string
 }
 
 // session finds the session ref names: "self", an ID, its start, or a name.
@@ -392,6 +409,11 @@ func (r runner) spawn(args []string) error {
 		Model: *model, Effort: *effort,
 	}
 	switch {
+	case r.host != "": // another host: its folder, as given
+		if *tab || *projectDir == "" {
+			return errors.New("spawn --host: give --project, the project's folder on that host (no --tab)")
+		}
+		p.Project = *projectDir
 	case *tab:
 		self, err := r.session("self")
 		if err != nil {
@@ -578,17 +600,6 @@ func (r runner) note(args []string) error {
 		return err
 	}
 	return r.c.SetNote(s.ID, strings.Join(args[1:], " "))
-}
-
-func (r runner) kill(args []string) error {
-	if len(args) != 1 {
-		return errors.New("usage: enowx-app kill SESSION")
-	}
-	s, err := r.session(args[0])
-	if err != nil {
-		return err
-	}
-	return r.c.KillSession(s.ID)
 }
 
 func (r runner) agents(args []string) error {

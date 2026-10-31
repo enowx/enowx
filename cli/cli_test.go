@@ -125,7 +125,7 @@ func TestCommandLineDrivesTheDaemon(t *testing.T) {
 		t.Fatalf("fan-out's sessions in ls:\n%s", out)
 	}
 	for _, fid := range ids {
-		run("kill", fid)
+		run("close", fid, "--yes")
 	}
 	run("send", id, "and the docs")
 	deadline := time.Now().Add(10 * time.Second)
@@ -159,7 +159,12 @@ func TestCommandLineDrivesTheDaemon(t *testing.T) {
 	if !strings.Contains(run("agents"), "claude") {
 		t.Fatal("agents doesn't list the claude on PATH")
 	}
-	run("kill", id)
+	noYes := exec.Command(bin, "kill", id)
+	noYes.Env = env
+	if out, err := noYes.CombinedOutput(); err == nil || !strings.Contains(string(out), "--yes") {
+		t.Fatalf("kill without --yes: %v\n%s", err, out)
+	}
+	run("kill", id, "--yes")
 	if out := run("ls"); strings.Contains(out, id) {
 		t.Fatalf("killed, still listed:\n%s", out)
 	}

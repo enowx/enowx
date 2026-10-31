@@ -28,7 +28,7 @@ func (r runner) projectRules(args []string) error {
 	if arg == "" || arg == "." {
 		arg, _ = os.Getwd()
 	}
-	path, _ := filepath.Abs(arg)
+	path := r.hostPath(arg)
 	if !isSet(fs, "set") && *editors == "" {
 		rules, err := r.c.ProjectRules(path)
 		if err != nil {
