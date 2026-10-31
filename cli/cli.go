@@ -29,7 +29,7 @@ const EnvSession = "ENOWX_SESSION"
 
 // Commands are the command line's commands, for the programs that also
 // do other things with their arguments to tell them apart.
-var Commands = []string{"ls", "list", "sessions", "peek", "status", "spawn", "send", "read", "wait", "kill", "hibernate", "wake", "agents", "projects", "project", "shells", "notes", "features", "creds", "canvas", "review", "sync", "icons", "attach", "pipeline", "pipelines", "note", "automation", "automations", "hooks", "accounts", "rag", "decide", "browser", "traffic", "android", "mcp", "guide", "ports", "run", "api", "notify", "cloud", "team", "help"}
+var Commands = []string{"ls", "list", "sessions", "peek", "status", "spawn", "send", "read", "wait", "kill", "hibernate", "wake", "agents", "projects", "project", "shells", "notes", "features", "creds", "canvas", "review", "sync", "icons", "attach", "pipeline", "pipelines", "note", "automation", "automations", "hooks", "accounts", "rag", "decide", "usage", "browser", "traffic", "android", "mcp", "guide", "ports", "run", "api", "notify", "cloud", "team", "help"}
 
 // Is reports whether args start with one of Commands.
 func Is(args []string) bool { return len(args) > 0 && slices.Contains(Commands, args[0]) }
@@ -97,6 +97,9 @@ const usage = `usage: enowx-app <command> [arguments]
                                    enowX's judge: approving commands, trimming output, loops
   rag [search|remember|memories|forget|status|index]
                                    the project found by meaning (Settings → RAG)
+  usage [--by agent|model|project|session|config|host] [--since 7d] [--host H]
+                                   tokens agents used, with costs and budgets; usage session [S],
+                                   usage budgets, usage coverage (each agent's layer)
   accounts [list|status|use|priority|fallback|log]
                                    agents' accounts: their limits, the order they're used in,
                                    falling back at a limit, a session's switched
@@ -213,6 +216,8 @@ func (r runner) command(args []string) error {
 		return r.ragCmd(rest)
 	case "decide":
 		return r.decideCmd(rest)
+	case "usage":
+		return r.usageCmd(rest)
 	case "agents":
 		return r.agents(rest)
 	case "projects":
