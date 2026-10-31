@@ -159,9 +159,10 @@ func onAnyHost(prefix []string, tools []mcpTool, except ...string) []mcpTool {
 			props["name"] = mcpProp{"string", "The session's name"}
 			props["model"] = mcpProp{"string", "The model to start on"}
 			props["effort"] = mcpProp{"string", "The reasoning effort to start with"}
+			spawn := t.args
 			args = func(a map[string]any) []string {
-				orig := t.args(a)
-				head, prompt := orig[:len(orig)-1], orig[len(orig)-1]
+				orig := spawn(a)
+				head, prompt := slices.Clone(orig[:len(orig)-1]), orig[len(orig)-1]
 				for _, k := range []string{"project", "name", "model", "effort"} {
 					head = withFlag(head, a, k, k)
 				}

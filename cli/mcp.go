@@ -338,10 +338,11 @@ var sessionTools = []mcpTool{
 		args: func(map[string]any) []string { return []string{"ls"} }},
 	{name: "session_spawn", description: "Start another coding agent in a session of its own, which the user sees in enowX; prints its ID.",
 		props: map[string]mcpProp{"prompt": {"string", "Its task"}, "agent": {"string", "claude, codex, gemini, opencode… (default claude)"},
-			"branch": {"string", "A new branch in a worktree of its own, so it doesn't touch this session's files"}, "yolo": {"boolean", "Skip its permission prompts"}},
+			"branch": {"string", "A new branch in a worktree of its own, so it doesn't touch this session's files"}, "yolo": {"boolean", "Skip its permission prompts"},
+			"config": {"string", "The agent's config to run with (configs_list), official for the agent as installed; default the user's"}},
 		required: []string{"prompt"},
 		args: func(a map[string]any) []string {
-			return append(withFlag(withFlag(withFlag([]string{"spawn"}, a, "agent", "agent"), a, "branch", "branch"), a, "yolo", "yolo"), str(a, "prompt"))
+			return append(withFlag(withFlag(withFlag(withFlag([]string{"spawn"}, a, "agent", "agent"), a, "branch", "branch"), a, "yolo", "yolo"), a, "config", "config"), str(a, "prompt"))
 		}},
 	{name: "session_wait", description: "Wait until a session's agent is done or asks something.",
 		props: map[string]mcpProp{"id": {"string", "The session"}, "timeout": {"string", "How long at most, as 10m (default 30m)"}}, required: []string{"id"},
@@ -371,7 +372,7 @@ var moreTools = []mcpTool{
 		args: func(a map[string]any) []string { return []string{"run", str(a, "command")} }},
 	{name: "agent_api_list", description: "The agents on this host that can use a model API of the user's (a gateway, OpenRouter, a local server), what each is set to (keys masked), and the backups of their settings.",
 		args: func(map[string]any) []string { return []string{"api"} }},
-	{name: "agent_api_set", description: "Point an agent at a model API the user gave: its address, key and model, written into the agent's own settings, which are backed up first. Sessions of it started afterwards use it.",
+	{name: "agent_api_set", description: "Point an agent that takes a model API only in its own settings at one the user gave (others, as Claude Code and Codex, take it as a config: configs_add): its address, key and model, written into the agent's settings, which are backed up first. Sessions of it started afterwards use it.",
 		props: map[string]mcpProp{"agent": {"string", "The agent's id: claude, codex, opencode… (agent_api_list says what each takes)"}, "url": {"string", "The API's base URL"},
 			"key": {"string", "Its API key"}, "models": {"array", "Its models, the first the default, each ID[,vision][,context=TOKENS][,output=TOKENS][,effort=E] as the agent takes them"},
 			"small_model": {"string", "A model for quick work, where the agent has one"}, "effort": {"string", "The reasoning effort for every model, where the agent takes one for all"},
@@ -440,6 +441,7 @@ func mcpGroups() []mcpGroup {
 		{notifyTools, runner.notify},
 		{hookTools, runner.hooks},
 		{accountTools, runner.accountsCmd},
+		{configTools, runner.configsCmd},
 		{ragTools, runner.ragCmd},
 		{decideTools, runner.decideCmd},
 		{attachTools, runner.notes},

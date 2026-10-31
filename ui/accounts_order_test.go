@@ -47,7 +47,7 @@ func TestAccountsOrderAndAsk(t *testing.T) {
 	tt := ui.NewTester(func(c *ui.Context) {
 		c.SetTheme(theme.Window())
 		ui.Column(c).Width(820).Height(900).Background(theme.Background).TextColor(theme.Text).Children(func() {
-			app.accountsSection(c)
+			app.agentsSection(c)
 			app.accountAskDialog(c)
 		})
 	}, 820, 900)

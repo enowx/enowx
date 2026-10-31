@@ -2,6 +2,7 @@ package daemon
 
 import (
 	"fmt"
+	"slices"
 	"strings"
 	"time"
 
@@ -50,6 +51,13 @@ func (s *Server) switchAgent(p proto.AccountSwitchParams) (proto.SessionInfo, er
 	}
 	chat := s.chatOf("", "", s.guideFor(meta))
 	chat.store = s.agentStore(preset.ID, info.ID, true)
+	next := meta
+	next.Agent, next.Account = preset.ID, acc
+	run, err := s.configRunFor(info.ID, next) // the other agent's default config
+	if err != nil {
+		return proto.SessionInfo{}, err
+	}
+	chat.config = run
 	l, err := launchFor(proto.SessionCreateParams{Agent: preset.ID, Prompt: prompt, SkipPermissions: meta.SkipPermissions}, chat)
 	if err != nil {
 		return proto.SessionInfo{}, err
@@ -60,21 +68,21 @@ func (s *Server) switchAgent(p proto.AccountSwitchParams) (proto.SessionInfo, er
 		}
 		reapSession(info.ID)
 	}
-	meta.Agent, meta.Account, meta.AccountFirst, meta.Conversation = preset.ID, acc, "", ""
+	meta.Agent, meta.Account, meta.AccountFirst, meta.Conversation, meta.Config = preset.ID, acc, "", "", run.sessionInfo()
 	meta.Restart, meta.Relaunch, meta.SkipPermissions = l.restart, l.relaunch, l.skip
 	env, err := s.agentEnv(meta)
 	if err != nil {
 		return proto.SessionInfo{}, err
 	}
 	spec := session.Spec{ID: info.ID, Dir: info.Dir, Created: info.Created, History: sess.History(),
-		Env: append(append(append(s.hostEnvFor(meta.Member), env...), l.env...), s.vaultEnvFor(info.ID, meta.Project, meta.Creds)...), Command: l.command, Meta: meta}
-	next, err := s.sessions.Replace(spec)
+		Env: append(append(append(append(s.hostEnvFor(meta.Member), env...), l.env...), s.vaultEnvFor(info.ID, meta.Project, meta.Creds)...), run.environ()...), Command: l.command, Meta: meta}
+	started, err := s.sessions.Replace(spec)
 	if err != nil {
 		return proto.SessionInfo{}, err
 	}
-	s.began(next, l.command, l.typed)
+	s.began(started, l.command, l.typed)
 	s.recordAccount(proto.AccountLogEntry{Session: info.ID, Agent: agent.Base(preset.ID), Account: s.accountName(acc), Event: "switch", Reason: p.Reason + " (from " + from + ")"})
-	return next.Info(), nil
+	return started.Info(), nil
 }
 
 // handoffPrompt is what an agent taking over sess from agent from is told: the
@@ -179,12 +187,24 @@ func (s *Server) accountsInfo() proto.AccountsInfo {
 		}
 		out.Accounts = append(out.Accounts, st)
 	}
+	// The official config of each agent with others, and of those that
+	// can have accounts.
+	list := s.accounts.List()
+	officials := []string{}
 	for _, id := range []string{"claude", "codex"} {
 		if p, ok := agent.Find(id); ok && p.Installed() {
-			add(proto.Account{Agent: id, Name: ""}, true)
+			officials = append(officials, id)
 		}
 	}
-	for _, a := range s.accounts.List() {
+	for _, a := range list {
+		if a.Member == "" && !slices.Contains(officials, a.Agent) {
+			officials = append(officials, a.Agent)
+		}
+	}
+	for _, id := range officials {
+		add(proto.Account{Agent: id, Name: ""}, true)
+	}
+	for _, a := range list {
 		if a.Member == "" {
 			add(a, false)
 		}

@@ -102,7 +102,7 @@ func TestCommandsReachAnotherHost(t *testing.T) {
 	t.Setenv(EnvSession, "")
 
 	project := t.TempDir()
-	if _, err := run("spawn", "--host", infoB.ID, "--agent", "shell", "--name", "worker", "--project", project); err != nil {
+	if _, err := run("spawn", "--host", infoB.ID, "--agent", "shell", "--config", "official", "--model", "m", "--effort", "high", "--name", "worker", "--project", project); err != nil {
 		t.Fatal(err)
 	}
 	id := strings.TrimSpace(out.String())
@@ -167,6 +167,19 @@ func TestCommandsReachAnotherHost(t *testing.T) {
 	}
 	if got, err := run("control", "log"); err != nil || !strings.Contains(got, "session.kill") || !strings.Contains(got, "said no") {
 		t.Fatalf("the log: %q %v", got, err)
+	}
+}
+
+// session_spawn on another host passes its config, model and effort as
+// flags before the prompt, and the host for runner.command to take.
+func TestSpawnToolOnAnotherHost(t *testing.T) {
+	args := toolNamed(t, "session_spawn").args(map[string]any{"prompt": "fix it", "config": "work", "model": "opus", "effort": "high",
+		"project": "/srv/app", "host": "vps"})
+	host, rest, ok := hostFlag(args)
+	got := strings.Join(rest, " ")
+	if !ok || host != "vps" || !strings.HasSuffix(got, " fix it") || !strings.Contains(got, "--config work") ||
+		!strings.Contains(got, "--model opus") || !strings.Contains(got, "--effort high") || !strings.Contains(got, "--project /srv/app") {
+		t.Fatalf("%q on %q", got, host)
 	}
 }
 

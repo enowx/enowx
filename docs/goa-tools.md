@@ -12,6 +12,8 @@ GOD of Agents (one session controlling every session, on any host; PLAN §10) re
 | Sessions of a host | `ls`, `status` (`sessions_list`) | | `--host` | ✅ |
 | Sessions of every host | `sessions` (`sessions_everywhere`) | | all hosts | ✅ |
 | Start a session (agent, project, branch mode, prompt, model, effort, account, skip permissions) | | `spawn` (`session_spawn`) | `--host` (with `--project`) | ✅ |
+| An agent's configs (custom sessions: provider, model, account) | `configs` (`configs_list`) | `configs …`, `spawn --config` (`session_spawn` config) | `--host` (spawn) | ✅ |
+| The model and effort a prompt needs (the judge) | `decide route` (`decide_route`) | `spawn --model --effort`, `switch --model --effort` | `--host` (spawn, switch) | ✅ |
 | One prompt to several agents (fan-out) | | `spawn --agents` | `--host` | ✅ |
 | Send a prompt or keys | | `send` (`session_send`) | `--host` | ✅ |
 | Its screen | `read` (`session_read`) | | `--host` | ✅ |

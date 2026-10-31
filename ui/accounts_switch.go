@@ -51,7 +51,7 @@ func (a *App) accountEvent(ev proto.Event) {
 
 func accountTitle(name string) string {
 	if name == "" {
-		return "the default account"
+		return "the official config"
 	}
 	return name
 }
@@ -113,11 +113,11 @@ func (a *App) switchSessionAccount(id, account, agentID string, goOn bool) {
 		info, err := cl.SwitchAccount(proto.AccountSwitchParams{Session: id, Account: account, Agent: agentID, Continue: goOn})
 		a.onMain(func() {
 			if err != nil {
-				a.status = "Couldn't switch the account: " + client.Explain(err)
+				a.status = "Couldn't switch the config: " + client.Explain(err)
 				return
 			}
 			a.upsert(info)
-			a.notify(a.sessionLabel(id) + " switched its account at " + time.Now().Format("15:04"))
+			a.notify(a.sessionLabel(id) + " switched its config at " + time.Now().Format("15:04"))
 		})
 	}()
 }
@@ -130,7 +130,7 @@ func (a *App) switchAccountItems(c *ui.Context, s proto.SessionInfo, done func()
 	if len(others) == 0 || s.Parent != "" {
 		return
 	}
-	if s.Account != "" && widget.MenuItemTip(c, icon.Account, "Switch to the default account", "Its conversation picked up as the agent's own sign-in", false) {
+	if s.Account != "" && widget.MenuItemTip(c, icon.Account, "Switch to the official config", "Its conversation picked up as the agent as installed", false) {
 		a.switchSessionAccount(s.ID, "", "", false)
 		done()
 	}
@@ -138,7 +138,7 @@ func (a *App) switchAccountItems(c *ui.Context, s proto.SessionInfo, done func()
 		if acc.ID == s.Account {
 			continue
 		}
-		if widget.MenuItemTip(c.Key("switch:"+acc.ID), icon.Account, "Switch to "+acc.Name, "Its conversation picked up as "+acc.Name, false) {
+		if widget.MenuItemTip(c.Key("switch:"+acc.ID), icon.Account, "Switch to "+acc.Name, "Its conversation picked up on the config "+acc.Name+" ("+configKindLabel(acc)+")", false) {
 			a.switchSessionAccount(s.ID, acc.ID, "", false)
 			done()
 		}

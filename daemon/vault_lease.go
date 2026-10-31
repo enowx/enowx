@@ -272,7 +272,7 @@ func (s *Server) lentSecrets() []string {
 	for _, l := range s.vault.leases {
 		out = append(out, l.secrets...)
 	}
-	return out
+	return append(out, s.cfgKeys.all()...) // configs' keys (configs.go)
 }
 
 // maskLent masks in text every value lent to a session now: what another

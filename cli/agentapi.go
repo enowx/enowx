@@ -36,6 +36,9 @@ func (r runner) api(args []string) error {
 		fmt.Fprintln(w, "AGENT\tAPI\tMODEL\tKEY\tINSTALLED")
 		for _, a := range list {
 			api, model, key := "its own", "", ""
+			if a.PerSession {
+				api = "its own (configs give it others)"
+			}
 			if c := a.Current; c != nil {
 				api, model, key = c.BaseURL, c.Model, c.APIKey
 			}

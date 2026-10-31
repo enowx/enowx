@@ -69,8 +69,15 @@ event traffic.paused
 event vault.changed
 event vault.request
 field Account.agent string
+field Account.api *ConfigAPI
+field Account.args []string
+field Account.color string
 field Account.cred string
+field Account.effort string
+field Account.env []string
+field Account.icon string
 field Account.id string
+field Account.kind string
 field Account.member string
 field Account.name string
 field AccountAddParams.agent string
@@ -143,6 +150,7 @@ field AgentAPIInfo.installed bool
 field AgentAPIInfo.name string
 field AgentAPIInfo.noModel bool
 field AgentAPIInfo.note string
+field AgentAPIInfo.perSession bool
 field AgentAPIInfo.protocols []string
 field AgentAPIInfo.small bool
 field AgentAPIModel.context int
@@ -685,6 +693,12 @@ field CommandSaveParams.remove bool
 field CommandSaveParams.session string
 field CommitParams.message string
 field CommitParams.session string
+field ConfigAPI.baseURL string
+field ConfigAPI.keyCred string
+field ConfigAPI.model string
+field ConfigAPI.models []AgentAPIModel
+field ConfigAPI.protocol string
+field ConfigAPI.smallModel string
 field Conflict.file string
 field Conflict.lines bool
 field Conflict.sessions []string
@@ -1650,6 +1664,14 @@ field SessionAutoHibernateParams.id string
 field SessionAutoHibernateParams.never bool
 field SessionBudgetParams.id string
 field SessionBudgetParams.seconds int64
+field SessionConfig.baseURL string
+field SessionConfig.color string
+field SessionConfig.icon string
+field SessionConfig.id string
+field SessionConfig.kind string
+field SessionConfig.model string
+field SessionConfig.name string
+field SessionConfig.provider string
 field SessionCreateParams.account string
 field SessionCreateParams.accountAuto bool
 field SessionCreateParams.agent string
@@ -1702,6 +1724,7 @@ field SessionInfo.branch string
 field SessionInfo.budget int64
 field SessionInfo.canvasFor string
 field SessionInfo.command []string
+field SessionInfo.config *SessionConfig
 field SessionInfo.created time.Time
 field SessionInfo.creds []string
 field SessionInfo.dir string
@@ -2339,6 +2362,7 @@ method account.info
 method account.list
 method account.log
 method account.remove
+method account.save
 method account.setPrefs
 method account.switch
 method agent.history
@@ -2814,6 +2838,8 @@ value CloudDeviceApp=app
 value CloudDeviceHost=host
 value CommandRecent=recent
 value CommandSaved=saved
+value ConfigKindAPI=api
+value ConfigKindAccount=
 value CredExpired=expired
 value CredInvalid=invalid
 value CredRevoked=revoked
