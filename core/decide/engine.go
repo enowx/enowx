@@ -54,8 +54,10 @@ type Engine struct {
 	tests   map[string]proto.Judge // the last test of each, by ID
 	failed  map[string]time.Time   // judges that failed lately, left out a while
 	cache   map[string]proto.Decision
-	log     []proto.Decision
-	busy    chan struct{} // judges asked at once
+	// accounts are Cloudflare accounts by credential, asked once.
+	accounts map[string]string
+	log      []proto.Decision
+	busy     chan struct{} // judges asked at once
 }
 
 // Limits.
@@ -80,7 +82,7 @@ var timeouts = map[string]time.Duration{
 // NewEngine is the judge of the daemon in dir, by s.
 func NewEngine(dir string, s *Settings) *Engine {
 	e := &Engine{dir: dir, settings: s, tests: map[string]proto.Judge{}, failed: map[string]time.Time{},
-		cache: map[string]proto.Decision{}, busy: make(chan struct{}, atOnce)}
+		cache: map[string]proto.Decision{}, accounts: map[string]string{}, busy: make(chan struct{}, atOnce)}
 	if data, err := os.ReadFile(e.testsFile()); err == nil {
 		_ = json.Unmarshal(data, &e.tests)
 	}

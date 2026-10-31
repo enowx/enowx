@@ -87,9 +87,7 @@ func TestDecisionModelChoice(t *testing.T) {
 // its answer unwrapped; a trim keeps the lines the model picks, copied.
 func TestCloudflareTrim(t *testing.T) {
 	srv, asked := soServer(t, true, func(id string, q map[string]any, state map[string]any) map[string]any {
-		var n int
-		json.Unmarshal([]byte(strings.TrimPrefix(id, "g")), &n)
-		text := state["groups"].([]any)[n].(string)
+		text := q["instructions"].(map[string]any)["lines"].(string)
 		if strings.Contains(text, "FAIL") || strings.Contains(text, "want 11") {
 			return map[string]any{"type": "noul", "noul": 0.95}
 		}
@@ -205,5 +203,35 @@ func TestDecisionFirstThenFallback(t *testing.T) {
 	d, _ := e.Decide(context.Background(), Request{DecideAsk: proto.DecideAsk{Use: proto.DecideApprove, Command: "git status"}, Agent: "claude"})
 	if d.Verdict != proto.VerdictAllow || !strings.HasPrefix(d.Judge, "local:") || len(d.Tried) != 1 || !strings.Contains(d.Tried[0], "nimble") {
 		t.Fatalf("fallback %+v", d)
+	}
+}
+
+// A Cloudflare credential without its account ID: the account its token
+// reaches is asked of Cloudflare once.
+func TestCloudflareAccountFromToken(t *testing.T) {
+	lists := 0
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/accounts" {
+			lists++
+			json.NewEncoder(w).Encode(map[string]any{"result": []map[string]string{{"id": "acct9"}}})
+			return
+		}
+		if r.URL.Path != "/accounts/acct9/ai/run/@cf/cloudflare/clef-flash" {
+			http.Error(w, r.URL.Path, http.StatusNotFound)
+			return
+		}
+		json.NewEncoder(w).Encode(map[string]any{"result": map[string]any{"answers": map[string]any{"verdict": choiceOf(proto.VerdictAllow, 0.9)}, "usage": map[string]int{"input_tokens": 10}}})
+	}))
+	defer srv.Close()
+	e := decisionEngine(t, proto.Judge{Kind: proto.JudgeDecision, Provider: proto.ProviderCloudflare, URL: srv.URL + "/accounts/{account}/ai/run/@cf/cloudflare/{model}", Cred: "cf", Model: "clef-flash"})
+	e.EnvOf = func(string) (map[string]string, error) { return map[string]string{"CLOUDFLARE_API_TOKEN": "tok"}, nil }
+	for _, cmd := range []string{"git status", "go test ./..."} {
+		d, err := e.Decide(context.Background(), Request{DecideAsk: proto.DecideAsk{Use: proto.DecideApprove, Command: cmd}})
+		if err != nil || d.Verdict != proto.VerdictAllow {
+			t.Fatalf("%s: %+v %v", cmd, d, err)
+		}
+	}
+	if lists != 1 {
+		t.Fatalf("accounts asked %d times", lists)
 	}
 }

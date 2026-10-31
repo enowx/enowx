@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"net/http"
 	"strings"
 
 	"github.com/enowx/enowx/proto"
@@ -146,9 +147,12 @@ func (e *Engine) decideContext(ctx context.Context, j proto.Judge, a proto.Decid
 	cut := make([]string, len(parts))
 	for i, p := range parts {
 		cut[i] = head(p, maxPart)
-		qs[fmt.Sprint("part", i)] = soQuestion{Type: "noul", Instructions: fmt.Sprintf("Would `parts[%d]` help a coding agent with `prompt`, rather than only fill its context?", i)}
+		qs[fmt.Sprint("part", i)] = soQuestion{Type: "noul", Instructions: map[string]string{
+			"question": "Would this part of the project help a coding agent with `prompt`, rather than only fill its context?",
+			"part":     cut[i],
+		}}
 	}
-	answers, ans, err := e.systemOne(ctx, j, map[string]any{"prompt": head(a.Prompt, maxPrompt), "parts": cut}, qs)
+	answers, ans, err := e.systemOne(ctx, j, map[string]any{"prompt": head(a.Prompt, maxPrompt)}, qs)
 	if err != nil {
 		return verdict{}, ans, err
 	}
@@ -247,7 +251,6 @@ func (e *Engine) decideTrim(ctx context.Context, j proto.Judge, a proto.DecideAs
 	sure, asked := 0.0, 0
 	for round := 0; round < trimRounds && len(keep) > 0; round++ {
 		groups := groupsOf(keep, maxQuestions)
-		texts := make([]string, len(groups))
 		qs := map[string]soQuestion{}
 		for g, idx := range groups {
 			var b strings.Builder
@@ -255,10 +258,14 @@ func (e *Engine) decideTrim(ctx context.Context, j proto.Judge, a proto.DecideAs
 				b.WriteString(lines[i])
 				b.WriteByte('\n')
 			}
-			texts[g] = b.String()
-			qs[fmt.Sprint("g", g)] = soQuestion{Type: "noul", Instructions: fmt.Sprintf("Does the agent that ran `command` need `groups[%d]` to go on: an error or failure with its file, line and message, the summary or counts, a warning that matters? Progress, passing tests, downloads and repeated lines it doesn't need.", g)}
+			qs[fmt.Sprint("g", g)] = soQuestion{Type: "noul",
+				Instructions: map[string]string{
+					"question": "Do these lines of the output of `command` hold something the agent needs to go on: an error or a failure (with its file, line or message), the final summary or counts, or a warning that matters?",
+					"lines":    b.String(),
+				},
+				Criteria: map[string]string{"true": "An error, a failure, a failing test, the result summary or a warning that matters is in these lines.", "false": "Only progress, passing tests, downloads, setup or repeated lines."}}
 		}
-		answers, ans, err := e.systemOne(ctx, j, map[string]any{"command": head(a.Command, maxCommand), "exit": a.Exit, "groups": texts}, qs)
+		answers, ans, err := e.systemOne(ctx, j, map[string]any{"command": head(a.Command, maxCommand), "exit": a.Exit}, qs)
 		total.tokens, total.cost = total.tokens+ans.tokens, total.cost+ans.cost
 		if err != nil {
 			return verdict{}, total, err
@@ -271,6 +278,13 @@ func (e *Engine) decideTrim(ctx context.Context, j proto.Judge, a proto.DecideAs
 			if p >= 0.5 {
 				next = append(next, idx...)
 			}
+		}
+		if len(next) == 0 {
+			if round == 0 {
+				// Nothing needed, as it judged: the agent gets it whole.
+				return verdict{Verdict: proto.VerdictKeep, Confidence: sure / float64(max(asked, 1)), Why: "it kept no part: the output passes on whole"}, total, nil
+			}
+			break // a finer cut kept nothing: what the coarser one kept stays
 		}
 		keep = next
 		if maxLen(groups) <= 1 {
@@ -331,7 +345,7 @@ func clamp(f float64) float64 { return min(max(f, 0), 1) }
 
 // systemOne asks decision model j questions about state.
 func (e *Engine) systemOne(ctx context.Context, j proto.Judge, state any, qs map[string]soQuestion) (map[string]soAnswer, answer, error) {
-	url, key, err := e.decisionAddress(j)
+	url, key, err := e.decisionAddress(ctx, j)
 	if err != nil {
 		return nil, answer{}, err
 	}
@@ -382,7 +396,7 @@ func answered(answers map[string]soAnswer, qs map[string]soQuestion) error {
 
 // decisionAddress is where decision model j is asked and its key, from
 // its vault credential: Cloudflare's account ID with it.
-func (e *Engine) decisionAddress(j proto.Judge) (string, string, error) {
+func (e *Engine) decisionAddress(ctx context.Context, j proto.Judge) (string, string, error) {
 	url := j.URL
 	if url == "" {
 		url = systemOneURLs[j.Provider]
@@ -412,7 +426,11 @@ func (e *Engine) decisionAddress(j proto.Judge) (string, string, error) {
 	if strings.Contains(url, "{account}") {
 		account := env["CLOUDFLARE_ACCOUNT_ID"]
 		if account == "" {
-			return "", "", fmt.Errorf("decide: the credential %s has no Cloudflare account ID", j.Cred)
+			a, err := e.cloudflareAccount(ctx, url, j.Cred, key)
+			if err != nil {
+				return "", "", err
+			}
+			account = a
 		}
 		url = strings.ReplaceAll(url, "{account}", account)
 	}
@@ -479,4 +497,42 @@ func openAIDecisions(ctx context.Context, url, key, model string, state any, qs 
 		}
 	}
 	return out, answer{tokens: r.Usage.In + r.Usage.Out}, nil
+}
+
+// cloudflareAccount is the account the Cloudflare token of credential
+// cred reaches, asked of Cloudflare once (a credential needn't keep it):
+// its first account, as Workers AI needs one in its address.
+func (e *Engine) cloudflareAccount(ctx context.Context, url, cred, token string) (string, error) {
+	e.mu.Lock()
+	account := e.accounts[cred]
+	e.mu.Unlock()
+	if account != "" {
+		return account, nil
+	}
+	base, _, ok := strings.Cut(url, "/accounts/{account}")
+	if !ok {
+		return "", fmt.Errorf("decide: the credential %s has no Cloudflare account ID", cred)
+	}
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, base+"/accounts?per_page=5", nil)
+	if err != nil {
+		return "", err
+	}
+	req.Header.Set("Authorization", "Bearer "+token)
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		return "", fmt.Errorf("decide: Cloudflare's accounts: %w", err)
+	}
+	defer resp.Body.Close()
+	var r struct {
+		Result []struct {
+			ID string `json:"id"`
+		} `json:"result"`
+	}
+	if resp.StatusCode != http.StatusOK || json.NewDecoder(resp.Body).Decode(&r) != nil || len(r.Result) == 0 {
+		return "", fmt.Errorf("decide: the credential %s has no Cloudflare account ID, and its token lists no account (%s)", cred, resp.Status)
+	}
+	e.mu.Lock()
+	e.accounts[cred] = r.Result[0].ID
+	e.mu.Unlock()
+	return r.Result[0].ID, nil
 }

@@ -83,7 +83,23 @@ func TestEval(t *testing.T) {
 	}
 	dir := t.TempDir()
 	e := NewEngine(dir, OpenSettings(dir))
-	e.Found = func() Found { return Found{LookPath: exec.LookPath} }
+	e.Found = func() Found {
+		f := Found{LookPath: exec.LookPath}
+		// DECIDE_EVAL_CRED=name:platform adds a vault credential, its values
+		// in this process's environment (enowx creds use NAME -- …).
+		if c := os.Getenv("DECIDE_EVAL_CRED"); c != "" {
+			name, platform, _ := strings.Cut(c, ":")
+			f.Creds = append(f.Creds, proto.CredentialInfo{Name: name, Platform: platform})
+		}
+		return f
+	}
+	e.EnvOf = func(string) (map[string]string, error) {
+		env := map[string]string{}
+		for _, k := range []string{"CLOUDFLARE_API_TOKEN", "CLOUDFLARE_ACCOUNT_ID", "TYPESAFE_API_KEY", "OPENAI_API_KEY"} {
+			env[k] = os.Getenv(k)
+		}
+		return env, nil
+	}
 	judges := []string{"agent:claude:claude-haiku-5-5", "agent:codex:gpt-6-luna"}
 	if j := os.Getenv("DECIDE_EVAL_JUDGES"); j != "" {
 		judges = strings.Split(j, ",")

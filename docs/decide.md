@@ -158,4 +158,13 @@ Measured on this Mac with `DECIDE_EVAL=1 go test ./core/decide -run TestEval`: 2
 | Claude Code · Haiku 5.5 | 23/23 | 3.2 s | $0.0033 for all 24 calls | 220 characters (1.4%), both failures kept |
 | Codex · GPT-6-Luna | 23/23 | 4.0 s | its plan (about 17,000 tokens a call: Codex's own instructions) | 220 characters (1.4%), both failures kept |
 
+Decision models, measured the same way on Cloudflare Workers AI. The vault's Cloudflare credential had no account ID, so the account was found from its token:
+
+| Judge | Right | p50 | Cost of all 24 calls | Trim |
+|---|---|---|---|---|
+| Clef (`clef`) | 23/23 | 0.45 s | $0.0015 | 228 characters (1.5%), both failures kept, in 2 rounds |
+| Clef Flash (`clef-flash`) | 23/23 | 0.88 s | $0.0002 | the same |
+
+A decision model is asked in under a second, where a chat model takes three to four. An approval then costs the command little; a chat model as the judge adds a few seconds.
+
 An approval adds a few seconds before each command it covers, so the hook's conditions should cover the commands worth it. The cache answers a repeated command at once.
