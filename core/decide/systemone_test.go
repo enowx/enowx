@@ -7,6 +7,7 @@ import (
 	"net/http/httptest"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/enowx/enowx/proto"
 )
@@ -266,5 +267,27 @@ func TestNeuralwatt(t *testing.T) {
 	d, err := e.Decide(context.Background(), Request{DecideAsk: proto.DecideAsk{Use: proto.DecideApprove, Command: "go test ./..."}, Agent: "codex"})
 	if err != nil || d.Verdict != proto.VerdictAllow || (*asked)[0]["model"] != "clef-flash" || d.Cost == 0 {
 		t.Fatalf("decision %+v %v", d, err)
+	}
+}
+
+// A decision model's key in a credential of another platform (a generic
+// API key) is asked of the vault once; a vault still waiting on the user
+// stops the judge with why, rather than spinning.
+func TestDecisionKeyFromTheVault(t *testing.T) {
+	srv, asked := soServer(t, false, func(string, map[string]any, map[string]any) map[string]any { return choiceOf(proto.VerdictAllow, 0.9) })
+	e := decisionEngine(t, proto.Judge{Kind: proto.JudgeDecision, Provider: proto.ProviderNeuralwatt, URL: srv.URL + "/v1/systemone", Cred: "neuralwatt", Model: "clef-flash"})
+	lends := 0
+	e.EnvOf = func(string) (map[string]string, error) { lends++; return map[string]string{"NEURALWATT": "tok"}, nil }
+	e.KeyOf = func(string) (string, error) { t.Fatal("the vault asked twice"); return "", nil }
+	if d, err := e.Decide(context.Background(), Request{DecideAsk: proto.DecideAsk{Use: proto.DecideApprove, Command: "ls"}}); err != nil || d.Verdict != proto.VerdictAllow || lends != 1 || len(*asked) != 1 {
+		t.Fatalf("decision %+v %v, lent %d times", d, err, lends)
+	}
+	e.EnvOf = func(string) (map[string]string, error) { time.Sleep(time.Hour); return nil, nil }
+	ctx, cancel := context.WithTimeout(context.Background(), 200*time.Millisecond)
+	defer cancel()
+	start := time.Now()
+	d, _ := e.Decide(ctx, Request{DecideAsk: proto.DecideAsk{Use: proto.DecideApprove, Command: "pwd"}})
+	if time.Since(start) > 5*time.Second || len(d.Tried) != 1 || !strings.Contains(d.Tried[0], "allow neuralwatt in the enowX app") {
+		t.Fatalf("waited %v: %+v", time.Since(start), d)
 	}
 }

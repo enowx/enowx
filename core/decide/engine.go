@@ -185,7 +185,7 @@ func (e *Engine) ask(ctx context.Context, j proto.Judge, q question, wait time.D
 	if j.Kind == proto.JudgeDecision {
 		v, a, err := e.askDecision(ctx, j, q)
 		a.took = time.Since(start)
-		if err != nil && ctx.Err() != nil {
+		if err != nil && ctx.Err() != nil && !errors.Is(err, errVaultWait) {
 			err = fmt.Errorf("decide: no answer within %s", wait)
 		}
 		return v, a, err
@@ -193,7 +193,7 @@ func (e *Engine) ask(ctx context.Context, j proto.Judge, q question, wait time.D
 	a, err := e.call(ctx, j, systemFor(q), q.prompt)
 	a.took = time.Since(start)
 	if err != nil {
-		if ctx.Err() != nil {
+		if ctx.Err() != nil && !errors.Is(err, errVaultWait) {
 			err = fmt.Errorf("decide: no answer within %s", wait)
 		}
 		return verdict{}, a, err

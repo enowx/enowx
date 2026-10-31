@@ -363,6 +363,9 @@ func (e *Engine) systemOne(ctx context.Context, j proto.Judge, state any, qs map
 	body := map[string]any{"model": j.Model, "state": state, "questions": qs}
 	var raw json.RawMessage
 	if err := postJSON(ctx, url, map[string]string{"Authorization": "Bearer " + key}, body, &raw); err != nil {
+		if j.Provider == proto.ProviderNeuralwatt && strings.Contains(err.Error(), "404") {
+			return nil, answer{}, fmt.Errorf("decide: Neuralwatt hasn't enabled %s for this key: it is a preview, request access at portal.neuralwatt.com (Models → %s): %w", j.Model, j.Model, err)
+		}
 		return nil, answer{}, err
 	}
 	var r struct {
@@ -407,7 +410,7 @@ func (e *Engine) decisionAddress(ctx context.Context, j proto.Judge) (string, st
 	}
 	env := map[string]string{}
 	if e.EnvOf != nil && j.Cred != "" {
-		got, err := e.EnvOf(j.Cred)
+		got, err := e.lent(ctx, j.Cred)
 		if err != nil {
 			return "", "", err
 		}
@@ -422,7 +425,10 @@ func (e *Engine) decisionAddress(ctx context.Context, j proto.Judge) (string, st
 	case proto.ProviderNeuralwatt:
 		key = env["NEURALWATT_API_KEY"]
 	}
-	if key == "" && j.Cred != "" {
+	if key == "" {
+		key = keyIn(env) // a credential of another platform (a generic API key): its value
+	}
+	if key == "" && j.Cred != "" && e.EnvOf == nil {
 		k, err := e.key(j.Cred)
 		if err != nil {
 			return "", "", err
@@ -541,4 +547,47 @@ func (e *Engine) cloudflareAccount(ctx context.Context, url, cred, token string)
 	e.accounts[cred] = r.Result[0].ID
 	e.mu.Unlock()
 	return r.Result[0].ID, nil
+}
+
+// errVaultWait is a judge that ran out of time waiting on the vault.
+var errVaultWait = errors.New("decide: the vault hasn't lent the key yet")
+
+// lent is the variables of credential cred, as the vault lends them, or
+// why not within ctx: the vault waits for the user to allow a credential's
+// first use on a host, and a judge shouldn't spin past its time on it.
+func (e *Engine) lent(ctx context.Context, cred string) (map[string]string, error) {
+	type got struct {
+		env map[string]string
+		err error
+	}
+	ch := make(chan got, 1)
+	go func() {
+		env, err := e.EnvOf(cred)
+		ch <- got{env, err}
+	}()
+	select {
+	case g := <-ch:
+		return g.env, g.err
+	case <-ctx.Done():
+		return nil, fmt.Errorf("%w: allow %s in the enowX app (a dialog asks the first time a credential is used on a host), then test again", errVaultWait, cred)
+	}
+}
+
+// keyIn is the key among a credential's variables: one named as a key or
+// token, else its only value.
+func keyIn(env map[string]string) string {
+	var only []string
+	for k, v := range env {
+		if v == "" || strings.HasSuffix(k, "_ACCOUNT_ID") {
+			continue
+		}
+		if strings.HasSuffix(k, "_KEY") || strings.HasSuffix(k, "_TOKEN") {
+			return v
+		}
+		only = append(only, v)
+	}
+	if len(only) == 1 {
+		return only[0]
+	}
+	return ""
 }

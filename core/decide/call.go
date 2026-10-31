@@ -41,7 +41,7 @@ func (e *Engine) call(ctx context.Context, j proto.Judge, system, user string) (
 	case proto.JudgeAgent:
 		return e.callAgent(ctx, j, system+"\n\n"+user)
 	case proto.JudgeAPI:
-		key, err := e.key(j.Cred)
+		key, err := e.keyWithin(ctx, j.Cred)
 		if err != nil {
 			return answer{}, err
 		}
@@ -57,6 +57,22 @@ func (e *Engine) call(ctx context.Context, j proto.Judge, system, user string) (
 		return callOpenAI(ctx, j.URL, "", j.Model, system, user)
 	}
 	return answer{}, fmt.Errorf("decide: no judge kind %q", j.Kind)
+}
+
+// keyWithin is credential cred's key, read once from the vault, or why
+// not within ctx.
+func (e *Engine) keyWithin(ctx context.Context, cred string) (string, error) {
+	if e.EnvOf == nil || strings.HasPrefix(cred, "agentapi:") { // an agent's own API's key isn't the vault's
+		return e.key(cred)
+	}
+	env, err := e.lent(ctx, cred)
+	if err != nil {
+		return "", err
+	}
+	if k := keyIn(env); k != "" {
+		return k, nil
+	}
+	return "", fmt.Errorf("decide: the credential %s holds no key", cred)
 }
 
 func (e *Engine) key(cred string) (string, error) {
