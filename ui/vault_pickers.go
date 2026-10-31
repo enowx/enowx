@@ -19,6 +19,7 @@ var vaultAPIURLs = map[string]string{
 	"openai":     "https://api.openai.com/v1",
 	"gemini":     "https://generativelanguage.googleapis.com/v1beta",
 	"openrouter": "https://openrouter.ai/api/v1",
+	"neuralwatt": "https://api.neuralwatt.com/v1",
 }
 
 // vaultAPIKeys offers the vault's AI API keys for an agent's model API:

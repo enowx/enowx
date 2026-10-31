@@ -59,6 +59,7 @@ A decision model never writes. The memory and the trim are lines and sentences i
 
 | Provider | Models | Address | Key |
 |---|---|---|---|
+| Neuralwatt (Clef Flash, preview: request access first) | `clef-flash`, and any its catalog marks as a decision model | `https://api.neuralwatt.com/v1/systemone` | vault platform **Neuralwatt** (`NEURALWATT_API_KEY`) |
 | TypeSafe (Jev) | `jev-latest` | `https://api.typesafe.ai/v1/systemone` | vault platform **TypeSafe** |
 | Cloudflare Workers AI (Clef) | `clef-flash`, `clef` | `…/accounts/{account}/ai/run/@cf/cloudflare/{model}` | vault platform **Cloudflare** (token and account ID) |
 | Opper (a gateway: Jev, Clef, Perplexity Decider, Nimble…) | e.g. `cloudflare:global/clef-flash`, `typesafe/jev-1.14.0` | `https://api.opper.ai/v3/compat/v1/systemone` | a vault credential |
@@ -69,7 +70,7 @@ A decision model never writes. The memory and the trim are lines and sentences i
 | Your own | any | any System One address (or OpenAI's Decisions shape) | optional |
 
 Found on their own:
-- a TypeSafe, Cloudflare or OpenAI key in the vault;
+- a Neuralwatt, TypeSafe, Cloudflare or OpenAI key in the vault: Neuralwatt's decision models are read from its public catalog (`capabilities.task` "decision"), and its `qwen3.6-35b-fast` is the chat model fallback;
 - Ollama's decision models (Nimble, Clef, Clef Flash, Tev1, Kev);
 - a Kev or SGLang server on the host.
 
@@ -79,7 +80,7 @@ Models of other shapes aren't asked directly: Perplexity Decider, Liquid d1, Mic
 
 ### Policy
 
-A decision model set up for this always judges, whatever the session's agent, unless the policy is **local models only**. That means one you added, Jev, Clef, or one on the host. OpenAI's Decisions API is reached with an OpenAI key that is yours for everything OpenAI, so it stays under the policy like OpenAI's chat models.
+A decision model set up for this always judges, whatever the session's agent, unless the policy is **local models only**. That means one you added, Jev, Clef, Neuralwatt's, or one on the host. OpenAI's Decisions API is reached with an OpenAI key that is yours for everything OpenAI, so it stays under the policy like OpenAI's chat models.
 
 ## Judges
 

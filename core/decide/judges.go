@@ -31,11 +31,13 @@ var apiModels = map[string]string{
 	proto.ProviderOpenAI:     "gpt-6-luna",
 	proto.ProviderGoogle:     "gemini-flash-latest",
 	proto.ProviderOpenRouter: "anthropic/claude-haiku-5-5",
+	proto.ProviderNeuralwatt: "qwen3.6-35b-fast", // its reasoning off: a quick JSON answer
 }
 
 // vaultProviders are the vault's platforms whose keys reach a model API.
 var vaultProviders = map[string]string{
 	"anthropic": proto.ProviderAnthropic, "openai": proto.ProviderOpenAI, "gemini": proto.ProviderGoogle, "openrouter": proto.ProviderOpenRouter,
+	"neuralwatt": proto.ProviderNeuralwatt,
 }
 
 // LocalServers are where model servers on the host listen: Ollama's, LM
@@ -95,6 +97,8 @@ func ProviderOfURL(raw string) string {
 		return proto.ProviderOpenAI
 	case strings.HasSuffix(h, "googleapis.com"):
 		return proto.ProviderGoogle
+	case strings.HasSuffix(h, "neuralwatt.com"):
+		return proto.ProviderNeuralwatt
 	case strings.HasSuffix(h, "openrouter.ai"):
 		return proto.ProviderOpenRouter
 	}
@@ -220,7 +224,7 @@ func ownJudge(j proto.Judge) proto.Judge {
 	j.Own = true
 	switch j.Kind {
 	case proto.JudgeDecision:
-		if j.Provider == "" || strings.HasPrefix(j.URL, "http://127.0.0.1") || strings.HasPrefix(j.URL, "http://localhost") {
+		if j.Provider == "" { // a custom address: known by it
 			j.Provider = ProviderOfURL(j.URL)
 		}
 		j.ID = "decision:" + j.Cred + "@" + j.URL + ":" + j.Model
@@ -286,8 +290,9 @@ func allowed(j proto.Judge, policy, provider, agentP string) bool {
 
 // madeToDecide says whether judge j is a decision model set up for this:
 // one the user added, or a service that only decides (TypeSafe's Jev,
-// Cloudflare's Clef). OpenAI's Decisions, reached with a key that is the
+// Cloudflare's Clef, Neuralwatt's, whose key the user keeps for this).
+// OpenAI's Decisions, reached with a key that is the
 // user's for everything OpenAI, stays under the policy like OpenAI's chat.
 func madeToDecide(j proto.Judge) bool {
-	return j.Kind == proto.JudgeDecision && (j.Own || j.Provider == proto.ProviderTypeSafe || j.Provider == proto.ProviderCloudflare)
+	return j.Kind == proto.JudgeDecision && (j.Own || j.Provider == proto.ProviderTypeSafe || j.Provider == proto.ProviderCloudflare || j.Provider == proto.ProviderNeuralwatt)
 }

@@ -24,6 +24,7 @@ var decisionVault = map[string]struct {
 	"typesafe":   {proto.ProviderTypeSafe, "", []string{"jev-latest"}},
 	"cloudflare": {proto.ProviderCloudflare, "", []string{"clef-flash", "clef"}},
 	"openai":     {proto.ProviderOpenAI, DecisionOpenAI, []string{"gpt-6-luna"}},
+	"neuralwatt": {proto.ProviderNeuralwatt, "", []string{"clef-flash"}}, // its catalog may list more (NeuralwattDecisionModels)
 }
 
 // decisionNames are the names local servers give decision models (Ollama's
@@ -37,6 +38,7 @@ var LocalDecisionServers = []string{"http://127.0.0.1:11434", "http://127.0.0.1:
 // DecisionPresets are the providers offered when adding a decision model,
 // with their System One address ("" the user's own) and model ids.
 var DecisionPresets = []proto.Judge{
+	{Provider: proto.ProviderNeuralwatt, Label: "Neuralwatt (Clef Flash)", URL: "https://api.neuralwatt.com/v1/systemone", Model: "clef-flash"},
 	{Provider: proto.ProviderTypeSafe, Label: "TypeSafe (Jev)", URL: "https://api.typesafe.ai/v1/systemone", Model: "jev-latest"},
 	{Provider: proto.ProviderCloudflare, Label: "Cloudflare Workers AI (Clef)", URL: "https://api.cloudflare.com/client/v4/accounts/{account}/ai/run/@cf/cloudflare/{model}", Model: "clef-flash"},
 	{Provider: "opper", Label: "Opper (Jev, Clef, Decider, Nimble…)", URL: "https://api.opper.ai/v3/compat/v1/systemone", Model: "cloudflare:global/clef-flash"},
@@ -55,7 +57,13 @@ func detectDecision(ctx context.Context, f Found) []proto.Judge {
 		if !ok {
 			continue
 		}
-		for _, m := range d.models {
+		models := d.models
+		if d.provider == proto.ProviderNeuralwatt {
+			if listed := neuralwattDecisionModels(ctx); len(listed) > 0 {
+				models = listed
+			}
+		}
+		for _, m := range models {
 			out = append(out, proto.Judge{ID: "decision:" + c.Name + ":" + m, Kind: proto.JudgeDecision, Provider: d.provider, Cred: c.Name,
 				Model: m, Protocol: d.protocol, Label: m + " · decision model · " + c.Name})
 		}
@@ -118,4 +126,43 @@ func localDecisionModels(ctx context.Context, addr string) []string {
 		return out
 	}
 	return nil
+}
+
+// neuralwattCatalog is Neuralwatt's public model list.
+var neuralwattCatalog = "https://api.neuralwatt.com/v1/models"
+
+// neuralwattDecisionModels are the decision models Neuralwatt's public
+// catalog lists (capabilities.task "decision"), none when it can't be read.
+func neuralwattDecisionModels(ctx context.Context) []string {
+	ctx, cancel := context.WithTimeout(ctx, 2*time.Second)
+	defer cancel()
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, neuralwattCatalog, nil)
+	if err != nil {
+		return nil
+	}
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		return nil
+	}
+	defer resp.Body.Close()
+	var list struct {
+		Data []struct {
+			ID       string `json:"id"`
+			Metadata struct {
+				Capabilities struct {
+					Task string `json:"task"`
+				} `json:"capabilities"`
+			} `json:"metadata"`
+		} `json:"data"`
+	}
+	if resp.StatusCode != http.StatusOK || json.NewDecoder(resp.Body).Decode(&list) != nil {
+		return nil
+	}
+	var out []string
+	for _, m := range list.Data {
+		if m.Metadata.Capabilities.Task == "decision" {
+			out = append(out, m.ID)
+		}
+	}
+	return out
 }

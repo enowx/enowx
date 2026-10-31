@@ -156,6 +156,11 @@ var Platforms = []Platform{
 		Env:   map[string]string{"OPENROUTER_API_KEY": "api_key"},
 		Check: &Check{URL: "https://openrouter.ai/api/v1/key", Header: map[string]string{"Authorization": "Bearer {api_key}"}},
 		Link:  "https://openrouter.ai/settings/keys"},
+	// Neuralwatt's model list answers without a key too, so there is no
+	// check a key could fail.
+	{ID: "neuralwatt", Name: "Neuralwatt", Group: "AI APIs", Type: TypeAPIKey, Fields: []Field{fAPIKey},
+		Env:  map[string]string{"NEURALWATT_API_KEY": "api_key"},
+		Link: "https://portal.neuralwatt.com"},
 	{ID: "typesafe", Name: "TypeSafe", Group: "AI APIs", Type: TypeAPIKey, Fields: []Field{fAPIKey},
 		Env:   map[string]string{"TYPESAFE_API_KEY": "api_key"},
 		Check: &Check{URL: "https://api.typesafe.ai/v1/models", Header: map[string]string{"Authorization": "Bearer {api_key}"}},

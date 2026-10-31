@@ -24,15 +24,19 @@ var systemOneURLs = map[string]string{
 	proto.ProviderTypeSafe:   "https://api.typesafe.ai/v1/systemone",
 	proto.ProviderCloudflare: "https://api.cloudflare.com/client/v4/accounts/{account}/ai/run/@cf/cloudflare/{model}",
 	proto.ProviderOpenAI:     "https://api.openai.com/v1/decisions",
+	proto.ProviderNeuralwatt: "https://api.neuralwatt.com/v1/systemone",
 }
 
 // DecisionOpenAI is the protocol of OpenAI's Decisions API (Judge.Protocol
 // of a decision model; "" is System One's).
 const DecisionOpenAI = "openai"
 
-// decisionPrices are US dollars per million input tokens, where the
-// provider publishes them; output tokens are free.
-var decisionPrices = map[string]float64{"clef": 0.24, "clef-flash": 0.038}
+// decisionPrices are US dollars per million input tokens, by provider and
+// model, where the provider publishes them; output tokens are free.
+var decisionPrices = map[string]float64{
+	proto.ProviderCloudflare + "/clef": 0.24, proto.ProviderCloudflare + "/clef-flash": 0.038,
+	proto.ProviderNeuralwatt + "/clef-flash": 0.18,
+}
 
 // soQuestion is a System One question.
 type soQuestion struct {
@@ -380,7 +384,7 @@ func (e *Engine) systemOne(ctx context.Context, j proto.Judge, state any, qs map
 	if err := answered(r.Answers, qs); err != nil {
 		return nil, answer{}, err
 	}
-	a := answer{tokens: r.Usage.In + r.Usage.Out, cost: float64(r.Usage.In) * decisionPrices[j.Model] / 1e6}
+	a := answer{tokens: r.Usage.In + r.Usage.Out, cost: float64(r.Usage.In) * decisionPrices[j.Provider+"/"+j.Model] / 1e6}
 	return r.Answers, a, nil
 }
 
@@ -415,6 +419,8 @@ func (e *Engine) decisionAddress(ctx context.Context, j proto.Judge) (string, st
 		key = env["CLOUDFLARE_API_TOKEN"]
 	case proto.ProviderOpenAI:
 		key = env["OPENAI_API_KEY"]
+	case proto.ProviderNeuralwatt:
+		key = env["NEURALWATT_API_KEY"]
 	}
 	if key == "" && j.Cred != "" {
 		k, err := e.key(j.Cred)

@@ -92,6 +92,7 @@ const (
 	ProviderLocal      = "local"
 	ProviderTypeSafe   = "typesafe"
 	ProviderCloudflare = "cloudflare"
+	ProviderNeuralwatt = "neuralwatt"
 )
 
 // Judge is a model that can judge: how it is reached, and how it did when

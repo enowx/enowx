@@ -49,10 +49,10 @@ var policies = []string{proto.DecideSameProvider, proto.DecideOneProvider, proto
 var providerNames = map[string]string{
 	proto.ProviderAnthropic: "Anthropic", proto.ProviderOpenAI: "OpenAI", proto.ProviderGoogle: "Google",
 	proto.ProviderOpenRouter: "OpenRouter", proto.ProviderLocal: "Local",
-	proto.ProviderTypeSafe: "TypeSafe", proto.ProviderCloudflare: "Cloudflare", "other": "Other",
+	proto.ProviderTypeSafe: "TypeSafe", proto.ProviderNeuralwatt: "Neuralwatt", proto.ProviderCloudflare: "Cloudflare", "other": "Other",
 }
 
-var providers = []string{proto.ProviderAnthropic, proto.ProviderOpenAI, proto.ProviderGoogle, proto.ProviderOpenRouter}
+var providers = []string{proto.ProviderAnthropic, proto.ProviderOpenAI, proto.ProviderGoogle, proto.ProviderOpenRouter, proto.ProviderNeuralwatt}
 
 var useInfo = map[string][2]string{
 	proto.DecideState:   {"A quiet session's state", "When an agent without hooks of its own goes quiet, the judge reads its screen: one that asks you something is marked waiting, with the input sound; one stuck or failed gets the error sound."},

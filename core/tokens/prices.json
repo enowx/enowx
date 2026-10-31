@@ -46,5 +46,15 @@
   {"provider": "moonshot", "model": "kimi-k2*", "input": 0.6, "cacheWrite": 0.6, "cacheRead": 0.15, "output": 2.5},
   {"provider": "zhipu", "model": "glm-4.6*", "input": 0.6, "cacheWrite": 0.6, "cacheRead": 0.11, "output": 2.2},
 
-  {"provider": "local", "model": "*", "input": 0, "cacheWrite": 0, "cacheRead": 0, "output": 0}
+  {"provider": "local", "model": "*", "input": 0, "cacheWrite": 0, "cacheRead": 0, "output": 0},
+  {"provider": "neuralwatt", "model": "clef-flash", "input": 0.18, "cacheWrite": 0, "cacheRead": 0, "output": 0},
+  {"provider": "neuralwatt", "model": "deepseek-v4-flash*", "input": 0.14, "cacheWrite": 0, "cacheRead": 0, "output": 0.28},
+  {"provider": "neuralwatt", "model": "deepseek-v4.1-flash*", "input": 0.15, "cacheWrite": 0, "cacheRead": 0, "output": 0.60},
+  {"provider": "neuralwatt", "model": "gemma-4-31b*", "input": 0.14, "cacheWrite": 0, "cacheRead": 0, "output": 0.42},
+  {"provider": "neuralwatt", "model": "glm-5.3-flash*", "input": 0.15, "cacheWrite": 0, "cacheRead": 0, "output": 0.50},
+  {"provider": "neuralwatt", "model": "glm-5.3*", "input": 1.45, "cacheWrite": 0, "cacheRead": 0, "output": 4.50},
+  {"provider": "neuralwatt", "model": "kimi-k3*", "input": 3, "cacheWrite": 0, "cacheRead": 0.30, "output": 15},
+  {"provider": "neuralwatt", "model": "mimo-v2.6-pro*", "input": 0.87, "cacheWrite": 0, "cacheRead": 0, "output": 1.74},
+  {"provider": "neuralwatt", "model": "qwen-3.8-27b*", "input": 0.45, "cacheWrite": 0, "cacheRead": 0, "output": 3.20},
+  {"provider": "neuralwatt", "model": "qwen3.6-35b*", "input": 0.29, "cacheWrite": 0, "cacheRead": 0, "output": 1.15}
 ]

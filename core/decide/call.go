@@ -32,6 +32,7 @@ var providerURLs = map[string]string{
 	proto.ProviderOpenAI:     "https://api.openai.com/v1",
 	proto.ProviderGoogle:     "https://generativelanguage.googleapis.com/v1beta/openai",
 	proto.ProviderOpenRouter: "https://openrouter.ai/api/v1",
+	proto.ProviderNeuralwatt: "https://api.neuralwatt.com/v1",
 }
 
 // call asks judge j, the instructions in system, the question in user.

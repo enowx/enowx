@@ -235,3 +235,36 @@ func TestCloudflareAccountFromToken(t *testing.T) {
 		t.Fatalf("accounts asked %d times", lists)
 	}
 }
+
+// Neuralwatt: its decision models found in its public catalog
+// (capabilities.task "decision"), asked over System One with
+// NEURALWATT_API_KEY, judging for any agent; its chat model the fallback.
+func TestNeuralwatt(t *testing.T) {
+	catalog := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		json.NewEncoder(w).Encode(map[string]any{"data": []any{
+			map[string]any{"id": "clef-flash", "metadata": map[string]any{"capabilities": map[string]any{"task": "decision"}}},
+			map[string]any{"id": "deepseek-v4-flash", "metadata": map[string]any{"capabilities": map[string]any{"tools": true}}},
+		}})
+	}))
+	defer catalog.Close()
+	was := neuralwattCatalog
+	neuralwattCatalog = catalog.URL
+	defer func() { neuralwattCatalog = was }()
+	var ids []string
+	for _, j := range Ordered(proto.DecideSettings{}, Detect(context.Background(), Found{Creds: []proto.CredentialInfo{{Name: "nw", Platform: "neuralwatt"}}})) {
+		ids = append(ids, j.ID)
+		if j.Kind == proto.JudgeDecision && !allowed(j, proto.DecideSameProvider, "", proto.ProviderAnthropic) {
+			t.Fatalf("Neuralwatt's decision model not allowed for a Claude Code session")
+		}
+	}
+	if strings.Join(ids, " ") != "decision:nw:clef-flash api:nw:qwen3.6-35b-fast" {
+		t.Fatalf("judges %q", ids)
+	}
+	srv, asked := soServer(t, false, func(string, map[string]any, map[string]any) map[string]any { return choiceOf(proto.VerdictAllow, 0.9) })
+	e := decisionEngine(t, proto.Judge{Kind: proto.JudgeDecision, Provider: proto.ProviderNeuralwatt, URL: srv.URL + "/v1/systemone", Cred: "nw", Model: "clef-flash"})
+	e.EnvOf = func(string) (map[string]string, error) { return map[string]string{"NEURALWATT_API_KEY": "tok"}, nil }
+	d, err := e.Decide(context.Background(), Request{DecideAsk: proto.DecideAsk{Use: proto.DecideApprove, Command: "go test ./..."}, Agent: "codex"})
+	if err != nil || d.Verdict != proto.VerdictAllow || (*asked)[0]["model"] != "clef-flash" || d.Cost == 0 {
+		t.Fatalf("decision %+v %v", d, err)
+	}
+}

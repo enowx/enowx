@@ -3185,6 +3185,7 @@ value ProviderAnthropic=anthropic
 value ProviderCloudflare=cloudflare
 value ProviderGoogle=google
 value ProviderLocal=local
+value ProviderNeuralwatt=neuralwatt
 value ProviderOpenAI=openai
 value ProviderOpenRouter=openrouter
 value ProviderTypeSafe=typesafe
