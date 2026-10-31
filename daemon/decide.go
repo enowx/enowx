@@ -59,8 +59,15 @@ func (s *Server) newDecide(dir string) {
 		}
 		return fromVault(cred)
 	}
+	s.judge.EnvOf = func(cred string) (map[string]string, error) {
+		lend, err := s.vaultAsk(proto.VaultAsk{Action: proto.VaultEnv, Name: cred, Command: "enowX decisions: a decision model's key"})
+		if err != nil {
+			return nil, err
+		}
+		return lend.Env, nil
+	}
 	s.judge.Found = func() decide.Found {
-		return decide.Found{LookPath: exec.LookPath, Creds: s.vaultIndex().Credentials, Local: decide.LocalServers,
+		return decide.Found{LookPath: exec.LookPath, Creds: s.vaultIndex().Credentials, Local: decide.LocalServers, LocalDecision: decide.LocalDecisionServers,
 			AgentAPI: func(agentID string) *decide.AgentAPI {
 				api := agentAPIOf(agentID)
 				if api == nil {

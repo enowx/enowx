@@ -61,6 +61,8 @@ type Found struct {
 	LookPath func(string) (string, error)
 	Creds    []proto.CredentialInfo
 	Local    []string
+	// LocalDecision are decision model servers' addresses to try.
+	LocalDecision []string
 	// AgentAPI is the model API agent is set to instead of its own
 	// (core/agentapi), nil for its own: its one-shot command goes there
 	// too, and the API judges directly (its key read as AgentAPICred).
@@ -113,7 +115,7 @@ func (f Found) EffectiveProvider(agent string) string {
 // Detect lists the judges found: agents installed (their sign-in is
 // tested, not assumed), the vault's model API keys, local servers' models.
 func Detect(ctx context.Context, f Found) []proto.Judge {
-	var out []proto.Judge
+	out := detectDecision(ctx, f) // first: made for this
 	for _, a := range agentJudges {
 		if f.LookPath == nil {
 			break
@@ -217,6 +219,11 @@ func localModels(ctx context.Context, addr string) []string {
 func ownJudge(j proto.Judge) proto.Judge {
 	j.Own = true
 	switch j.Kind {
+	case proto.JudgeDecision:
+		if j.Provider == "" || strings.HasPrefix(j.URL, "http://127.0.0.1") || strings.HasPrefix(j.URL, "http://localhost") {
+			j.Provider = ProviderOfURL(j.URL)
+		}
+		j.ID = "decision:" + j.Cred + "@" + j.URL + ":" + j.Model
 	case proto.JudgeLocal:
 		j.Provider = proto.ProviderLocal
 		j.ID = "local:" + j.URL + ":" + j.Model
@@ -242,7 +249,18 @@ func Ordered(st proto.DecideSettings, judges []proto.Judge) []proto.Judge {
 		}
 		return len(st.Order)
 	}
-	slices.SortStableFunc(out, func(a, b proto.Judge) int { return rank(a.ID) - rank(b.ID) })
+	decisionFirst := func(j proto.Judge) int {
+		if j.Kind == proto.JudgeDecision {
+			return 0
+		}
+		return 1
+	}
+	slices.SortStableFunc(out, func(a, b proto.Judge) int {
+		if d := rank(a.ID) - rank(b.ID); d != 0 {
+			return d
+		}
+		return decisionFirst(a) - decisionFirst(b) // made for this: asked first unless ordered
+	})
 	return out
 }
 
@@ -251,6 +269,9 @@ func Ordered(st proto.DecideSettings, judges []proto.Judge) []proto.Judge {
 func allowed(j proto.Judge, policy, provider, agentP string) bool {
 	if j.Provider == proto.ProviderLocal {
 		return true // nothing leaves the host
+	}
+	if madeToDecide(j) && policy != proto.DecideLocalOnly {
+		return true // a decision model the user set up judges for every agent
 	}
 	switch policy {
 	case proto.DecideAnyProvider:
@@ -261,4 +282,12 @@ func allowed(j proto.Judge, policy, provider, agentP string) bool {
 		return false
 	}
 	return agentP != "" && j.Provider == agentP // the session's agent's own
+}
+
+// madeToDecide says whether judge j is a decision model set up for this:
+// one the user added, or a service that only decides (TypeSafe's Jev,
+// Cloudflare's Clef). OpenAI's Decisions, reached with a key that is the
+// user's for everything OpenAI, stays under the policy like OpenAI's chat.
+func madeToDecide(j proto.Judge) bool {
+	return j.Kind == proto.JudgeDecision && (j.Own || j.Provider == proto.ProviderTypeSafe || j.Provider == proto.ProviderCloudflare)
 }

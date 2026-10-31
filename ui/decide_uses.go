@@ -151,67 +151,6 @@ func (a *App) projectPolicy(c *ui.Context, st *decideState, p proto.ProjectInfo)
 	})
 }
 
-// judgeForm adds a judge of the user's: a model API (its key from the
-// vault) or a model server on the host.
-type judgeForm struct {
-	open                    bool
-	kind, provider          string
-	url, cred, model, label string
-	err                     string
-}
-
-func (a *App) judgeFormSheet(c *ui.Context, st *decideState) {
-	f := &st.adding
-	if !f.open {
-		return
-	}
-	widget.FormSheet(c, &f.open, 520, "Add a judge", "A small, fast model answers best: Haiku, a mini or flash model, or a 7–8B local one.", func() {
-		if f.err != "" {
-			widget.Notice(c, icon.Alert, theme.Error, f.err, "", nil)
-		}
-		cur := 0
-		if f.kind == proto.JudgeAPI {
-			cur = 1
-		}
-		if i := widget.Segmented(c, []string{"A model server on " + a.host.Name, "A model API"}, cur, nil); i >= 0 {
-			f.kind = proto.JudgeLocal
-			if i == 1 {
-				f.kind = proto.JudgeAPI
-				if f.provider == "" {
-					f.provider = proto.ProviderOpenAI
-				}
-			}
-		}
-		if f.kind == proto.JudgeAPI {
-			widget.Field(c, "Provider", func() {
-				hookSelect(c.Key("provider"), "Provider", &f.provider, providers, providerNames)
-			})
-			widget.Field(c, "Key, from the vault", func() { a.ragCredSelect(c, "judge-key", &f.cred) })
-			widget.Field(c, "Address (OpenAI-compatible; empty for the provider's own)", func() {
-				widget.Input(c, &f.url, "https://api.example.com/v1").FillWidth().Font(theme.MonoFont)
-			})
-		} else {
-			widget.Field(c, "Address (OpenAI-compatible)", func() {
-				widget.Input(c, &f.url, "http://127.0.0.1:11434/v1").FillWidth().Font(theme.MonoFont)
-			})
-		}
-		widget.Field(c, "Model", func() { widget.Input(c, &f.model, "qwen3:8b").FillWidth().Font(theme.MonoFont) })
-		widget.Field(c, "Name (optional)", func() { widget.Input(c, &f.label, "").FillWidth() })
-	}, func() {
-		if widget.GhostButton(c, "Cancel").Clicked() {
-			f.open = false
-		}
-		if widget.PrimaryButton(c, icon.Plus, "Add", "").Disabled(strings.TrimSpace(f.model) == "").Clicked() {
-			j := proto.Judge{Kind: f.kind, Provider: f.provider, URL: strings.TrimSpace(f.url), Cred: f.cred, Model: strings.TrimSpace(f.model), Label: strings.TrimSpace(f.label)}
-			if j.Kind == proto.JudgeAPI && j.Cred == "" && j.URL == "" {
-				f.err = "Pick the vault's credential with the API's key."
-				return
-			}
-			a.addJudge(st, j)
-		}
-	})
-}
-
 func (a *App) addJudge(st *decideState, j proto.Judge) {
 	cl, set := a.client, st.set
 	set.Own = append(set.Own, j)

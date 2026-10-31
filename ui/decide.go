@@ -49,6 +49,7 @@ var policies = []string{proto.DecideSameProvider, proto.DecideOneProvider, proto
 var providerNames = map[string]string{
 	proto.ProviderAnthropic: "Anthropic", proto.ProviderOpenAI: "OpenAI", proto.ProviderGoogle: "Google",
 	proto.ProviderOpenRouter: "OpenRouter", proto.ProviderLocal: "Local",
+	proto.ProviderTypeSafe: "TypeSafe", proto.ProviderCloudflare: "Cloudflare", "other": "Other",
 }
 
 var providers = []string{proto.ProviderAnthropic, proto.ProviderOpenAI, proto.ProviderGoogle, proto.ProviderOpenRouter}
@@ -273,6 +274,15 @@ func judgeSpeed(j proto.Judge) string {
 // judgeHow is how judge j is reached, in words.
 func judgeHow(j proto.Judge) string {
 	switch j.Kind {
+	case proto.JudgeDecision:
+		where := j.URL
+		if where == "" {
+			where = providerNames[j.Provider] + "'s System One"
+		}
+		if j.Cred != "" {
+			return "Decision model · key " + j.Cred + " from the vault · " + where
+		}
+		return "Decision model · " + where
 	case proto.JudgeAgent:
 		return "Through " + j.Agent + "'s own sign-in, its tools and project left out"
 	case proto.JudgeLocal:

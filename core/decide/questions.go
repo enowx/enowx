@@ -26,6 +26,8 @@ type question struct {
 	// an answer whose fields don't fit its verdict.
 	extra string
 	check func(v verdict) error
+	// ask is the situation, for a decision model's typed questions.
+	ask proto.DecideAsk
 }
 
 // Limits of what a judge is given, in characters.
@@ -37,6 +39,12 @@ const (
 )
 
 func questionOf(a proto.DecideAsk, agentName string) (question, error) {
+	q, err := questionFor(a, agentName)
+	q.ask = a // a decision model is asked from the situation itself
+	return q, err
+}
+
+func questionFor(a proto.DecideAsk, agentName string) (question, error) {
 	if agentName == "" {
 		agentName = "a coding agent"
 	}

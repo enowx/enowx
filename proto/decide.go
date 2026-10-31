@@ -77,6 +77,10 @@ const (
 	JudgeAgent = "agent" // an agent's one-shot command (claude -p, codex exec), its own sign-in
 	JudgeAPI   = "api"   // a model API, its key a vault credential
 	JudgeLocal = "local" // a model server on the host (Ollama, LM Studio)
+	// JudgeDecision is a decision model (TypeSafe's Jev, Cloudflare's
+	// Clef): typed questions answered with probabilities over the System
+	// One API, asked before any other judge.
+	JudgeDecision = "decision"
 )
 
 // Providers of judges.
@@ -86,6 +90,8 @@ const (
 	ProviderGoogle     = "google"
 	ProviderOpenRouter = "openrouter"
 	ProviderLocal      = "local"
+	ProviderTypeSafe   = "typesafe"
+	ProviderCloudflare = "cloudflare"
 )
 
 // Judge is a model that can judge: how it is reached, and how it did when
@@ -104,7 +110,8 @@ type Judge struct {
 	URL   string `json:"url,omitempty"`
 	Model string `json:"model"`
 	// Protocol is how its API is spoken: "anthropic" (Messages) or ""
-	// (OpenAI-compatible chat completions; Anthropic's own API aside).
+	// (OpenAI-compatible chat completions; Anthropic's own API aside); for
+	// a decision model, "" (System One) or "openai" (OpenAI's Decisions).
 	Protocol string `json:"protocol,omitempty"`
 	Label    string `json:"label"`
 	Own      bool   `json:"own,omitempty"`
