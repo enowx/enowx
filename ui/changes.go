@@ -37,7 +37,9 @@ func (a *App) sessionViews(s proto.SessionInfo) []string {
 	if canChat(s) {
 		views = append(views, viewChat)
 	}
-	if webViewAvailable() {
+	// GOA's session reaches its browser from GOD of Agents' strip, not
+	// twice from its header too.
+	if webViewAvailable() && !(a.goaOn() && s.ID == a.goa.board.Session) {
 		views = append(views, viewBrowser)
 	}
 	return append(views, viewTraffic)

@@ -6,6 +6,7 @@ import (
 	"net"
 	"os"
 	"path/filepath"
+	"slices"
 	"testing"
 	"time"
 
@@ -111,6 +112,9 @@ func TestGOAMode(t *testing.T) {
 		t.Fatalf("Browser from the strip: page %q view %q", app.page, app.currentView(g))
 	}
 	shot(t, tt, "goa-browser.png")
+	if slices.Contains(app.sessionViews(g), viewBrowser) {
+		t.Fatalf("Browser twice: in the strip and in GOA's header (%q)", app.sessionViews(g))
+	}
 	app.goaShow("")
 	tt.Frame()
 	if app.currentView(g) != viewChat {
