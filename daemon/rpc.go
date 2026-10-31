@@ -55,6 +55,7 @@ var handlers = merge(
 	visitorHandlers,
 	hostShareHandlers,
 	teamChatHandlers,
+	spacesGoneHandlers,
 )
 
 // slowMethods answer from a goroutine of their own, so that the

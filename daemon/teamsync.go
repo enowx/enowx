@@ -149,9 +149,13 @@ func (s *Server) syncSpaceWith(team string, push bool) (proto.Space, error) {
 	ts := &teamSync{srv: s, c: c, team: team, role: sp.Role, root: filepath.Join(s.teamsDir(), team), device: st.DeviceID, push: push}
 	err = ts.run(ctx)
 	if cloudclient.IsStatus(err, http.StatusNotFound) {
-		// Not a member any more: the team's copy goes, the user's own stays.
-		os.RemoveAll(ts.root)
-		s.spacesChanged()
+		// Not a member any more, or the team deleted: the team's copy goes
+		// (teamgone.go), the user's own stays.
+		deleted := teamDeleted(err)
+		s.dropSpace(sp, deleted)
+		if deleted {
+			return sp, errors.New("cloud: " + sp.Name + " was deleted by its owner: its space is gone from this host")
+		}
 		return sp, errors.New("cloud: no longer a member of " + sp.Name + ": its space is gone from this host")
 	}
 	s.teamSync.ended(team, err)

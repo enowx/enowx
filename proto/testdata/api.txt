@@ -53,6 +53,7 @@ event session.takeover.answered
 event session.takeover.asked
 event session.updated
 event spaces.changed
+event spaces.gone
 event sync.applied
 event sync.requested
 event sync.status
@@ -1742,6 +1743,10 @@ field Space.role string
 field Space.syncErr string
 field Space.synced time.Time
 field Space.team string
+field SpaceGone.at time.Time
+field SpaceGone.name string
+field SpaceGone.shared bool
+field SpaceGone.team string
 field SpaceMoveParams.copy bool
 field SpaceMoveParams.id string
 field SpaceMoveParams.team string
@@ -2560,6 +2565,8 @@ method sessions.everywhere
 method setup.scan
 method shell.list
 method shell.set
+method space.gone
+method space.gone.seen
 method space.list
 method space.sync
 method sync.conflicts

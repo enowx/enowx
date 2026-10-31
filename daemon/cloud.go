@@ -248,8 +248,14 @@ func (s *Server) cloudRequest(p proto.CloudRequest) (proto.CloudResponse, error)
 }
 
 // learnFrom keeps the teams an answer of the cloud names, made or listed,
-// as spaces of the host's account.
+// as spaces of the host's account, and drops the space of one deleted.
 func (s *Server) learnFrom(account, method, path string, body []byte) {
+	if method == "DELETE" {
+		if team := deletedTeamPath(path); team != "" {
+			s.dropDeletedHere(team)
+		}
+		return
+	}
 	if path != api.PathTeams {
 		return
 	}
