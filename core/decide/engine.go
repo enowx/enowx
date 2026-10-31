@@ -186,6 +186,9 @@ type Request struct {
 	Agent     string // the session's agent, for the policy and how it is named
 	AgentName string
 	ProjectID string
+	// Provider is where the session's agent's models come from by its
+	// config (proto.SessionConfig.Provider); "" for the agent's own setting.
+	Provider string
 }
 
 // agentProvider is where r's agent's models come from, as the host has it
@@ -271,7 +274,10 @@ func (e *Engine) chain(ctx context.Context, st proto.DecideSettings, u proto.Dec
 	if p, ok := st.Projects[r.ProjectID]; ok && p.Policy != "" {
 		policy, provider = p.Policy, p.Provider
 	}
-	agentP := e.agentProvider(r.Agent)
+	agentP := r.Provider
+	if agentP == "" {
+		agentP = e.agentProvider(r.Agent)
+	}
 	var out []proto.Judge
 	e.mu.Lock()
 	failed := maps(e.failed)

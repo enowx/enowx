@@ -20,3 +20,10 @@ func (c *Client) AddAccount(agent, name string) (proto.Account, error) {
 func (c *Client) RemoveAccount(id string) error {
 	return c.Call(proto.MethodAccountRemove, proto.AccountRef{ID: id}, nil)
 }
+
+// SaveConfig adds an agent's config (its ID empty) or changes one.
+func (c *Client) SaveConfig(cfg proto.Account) (proto.Account, error) {
+	var out proto.Account
+	err := c.Call(proto.MethodAccountSave, cfg, &out)
+	return out, err
+}

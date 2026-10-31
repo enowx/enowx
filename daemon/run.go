@@ -51,6 +51,8 @@ func Run() error {
 		srv.Hash = fileHash(exe)
 	}
 	srv.resumeShares()
+	srv.migrateAPIsOn = true
+	go srv.migrateAPIs() // model APIs set in agents' files become configs
 	log.Info("enowxd listening", "socket", path, "version", Version, "pid", os.Getpid())
 
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)

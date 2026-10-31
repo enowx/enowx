@@ -27,28 +27,29 @@ const (
 
 // record is a session as saved on disk.
 type record struct {
-	ID       string    `json:"id"`
-	Created  time.Time `json:"created"`
-	Dir      string    `json:"dir"`
-	Command  []string  `json:"command,omitempty"`
-	Relaunch bool      `json:"relaunch,omitempty"`
-	Restart  []string  `json:"restart,omitempty"`      // nil with Relaunch: the login shell
-	Convo    string    `json:"conversation,omitempty"` // Meta.Conversation
-	Exited   bool      `json:"exited,omitempty"`
-	Note     string    `json:"note,omitempty"`
-	ExitCode int       `json:"exitCode,omitempty"`
-	Name     string    `json:"name,omitempty"`
-	Prompt   string    `json:"prompt,omitempty"`
-	Project  string    `json:"project,omitempty"`
-	Agent    string    `json:"agent,omitempty"`
-	Branch   string    `json:"branch,omitempty"`
-	Worktree bool      `json:"worktree,omitempty"`
-	Skip     bool      `json:"skipPermissions,omitempty"`
-	Budget   int64     `json:"budget,omitempty"` // seconds
-	Display  bool      `json:"display,omitempty"`
-	Parent   string    `json:"parent,omitempty"`
-	Group    string    `json:"group,omitempty"`
-	Account  string    `json:"account,omitempty"`
+	ID       string               `json:"id"`
+	Created  time.Time            `json:"created"`
+	Dir      string               `json:"dir"`
+	Command  []string             `json:"command,omitempty"`
+	Relaunch bool                 `json:"relaunch,omitempty"`
+	Restart  []string             `json:"restart,omitempty"`      // nil with Relaunch: the login shell
+	Convo    string               `json:"conversation,omitempty"` // Meta.Conversation
+	Exited   bool                 `json:"exited,omitempty"`
+	Note     string               `json:"note,omitempty"`
+	ExitCode int                  `json:"exitCode,omitempty"`
+	Name     string               `json:"name,omitempty"`
+	Prompt   string               `json:"prompt,omitempty"`
+	Project  string               `json:"project,omitempty"`
+	Agent    string               `json:"agent,omitempty"`
+	Branch   string               `json:"branch,omitempty"`
+	Worktree bool                 `json:"worktree,omitempty"`
+	Skip     bool                 `json:"skipPermissions,omitempty"`
+	Budget   int64                `json:"budget,omitempty"` // seconds
+	Display  bool                 `json:"display,omitempty"`
+	Parent   string               `json:"parent,omitempty"`
+	Group    string               `json:"group,omitempty"`
+	Account  string               `json:"account,omitempty"`
+	Config   *proto.SessionConfig `json:"config,omitempty"`
 	// Member is the team's member who started it (visitors.go).
 	Member   *proto.SessionMember `json:"member,omitempty"`
 	Private  bool                 `json:"private,omitempty"`
@@ -129,7 +130,7 @@ func (p *persistence) update(s *session.Session, command []string) {
 		Convo: meta.Conversation, Exited: info.Exited, ExitCode: info.ExitCode, Name: meta.Name, Prompt: info.Prompt,
 		Project: meta.Project, Agent: meta.Agent, Branch: meta.Branch, Worktree: meta.Worktree, Skip: meta.SkipPermissions,
 		Budget: int64(meta.Budget / time.Second), Display: meta.Display > 0, Parent: meta.Parent, Note: meta.Note,
-		Group: meta.Group, Account: meta.Account, Member: meta.Member, Private: meta.Private, NotesFor: meta.NotesFor, Canvas: meta.CanvasFor, Features: meta.Features, Creds: meta.Creds,
+		Group: meta.Group, Account: meta.Account, Config: meta.Config, Member: meta.Member, Private: meta.Private, NotesFor: meta.NotesFor, Canvas: meta.CanvasFor, Features: meta.Features, Creds: meta.Creds,
 		Hibernated: meta.Hibernated && info.Exited, HibernatedByHand: meta.HibernatedByHand, HibernatedAt: meta.HibernatedAt,
 		NoAutoHibernate: meta.NoAutoHibernate,
 	}
@@ -232,7 +233,7 @@ func (s *Server) restore() {
 			Meta: session.Meta{
 				Name: r.Name, Prompt: r.Prompt, Project: r.Project, Agent: r.Agent, Branch: r.Branch,
 				Worktree: r.Worktree, SkipPermissions: r.Skip, Conversation: r.Convo, Relaunch: r.Relaunch, Restart: r.Restart, Restored: true,
-				Budget: time.Duration(r.Budget) * time.Second, Parent: r.Parent, Note: r.Note, Group: r.Group, Account: r.Account, Member: r.Member, Private: r.Private, NotesFor: r.NotesFor, CanvasFor: r.Canvas, Features: r.Features, Creds: r.Creds,
+				Budget: time.Duration(r.Budget) * time.Second, Parent: r.Parent, Note: r.Note, Group: r.Group, Account: r.Account, Config: r.Config, Member: r.Member, Private: r.Private, NotesFor: r.NotesFor, CanvasFor: r.Canvas, Features: r.Features, Creds: r.Creds,
 				Hibernated: r.Hibernated, HibernatedByHand: r.HibernatedByHand, HibernatedAt: r.HibernatedAt, NoAutoHibernate: r.NoAutoHibernate,
 			},
 		}
@@ -243,7 +244,14 @@ func (s *Server) restore() {
 			if !r.Exited {
 				spec.ExitCode = -1 // stopped with the daemon, not relaunched
 			}
+		} else if run, err := s.configRunFor(r.ID, spec.Meta); err != nil {
+			// Its config's key can't be read yet (no app to lend it): it
+			// waits, stopped, to be continued, rather than start as another.
+			s.logger().Warn("could not restore a session's config", "id", r.ID, "err", err)
+			spec.Exited, spec.ExitCode, spec.Command = true, -1, r.Command
 		} else {
+			spec.Meta.Config = run.sessionInfo()
+			spec.Env = append(spec.Env, run.environ()...)
 			spec.Command = r.Restart
 			if r.Member == nil {
 				spec.Env = append(spec.Env, s.vaultEnvFor(r.ID, r.Project, r.Creds)...)
@@ -259,6 +267,7 @@ func (s *Server) restore() {
 				chat := s.chatOf(r.NotesFor, r.Canvas, s.guideFor(spec.Meta))
 				chat.member = r.Member != nil
 				chat.store = s.agentStore(r.Agent, r.ID, true)
+				chat.config = run
 				l := agentLaunch(preset, r.Skip, "", true, chat)
 				l.Resume = r.Convo // its own, not the folder's latest
 				spec.Command = thenShell(preset.Argv(l))
@@ -345,6 +354,11 @@ func (s *Server) resumeSession(id, convo string) (*session.Session, error) {
 		return nil, errors.New("this session's command can't be continued: start it again in a new session")
 	}
 	command := meta.Restart
+	run, err := s.configRunFor(id, meta) // its config, as it starts again
+	if err != nil {
+		return nil, err
+	}
+	meta.Config = run.sessionInfo()
 	if preset, ok := agent.Find(meta.Agent); ok && len(preset.Continue) > 0 {
 		// The one asked for, else the one it was on: the folder's latest
 		// may be another session's.
@@ -357,6 +371,7 @@ func (s *Server) resumeSession(id, convo string) (*session.Session, error) {
 		chat := s.chatOf(meta.NotesFor, meta.CanvasFor, s.guideFor(meta))
 		chat.member = meta.Member != nil
 		chat.store = s.agentStore(meta.Agent, id, true)
+		chat.config = run
 		l := agentLaunch(preset, meta.SkipPermissions, "", true, chat)
 		l.Resume = convo
 		command = thenShell(preset.Argv(l))
@@ -369,6 +384,7 @@ func (s *Server) resumeSession(id, convo string) (*session.Session, error) {
 	if err != nil {
 		return nil, err
 	}
+	env = append(env, run.environ()...)
 	spec := session.Spec{ID: id, Dir: info.Dir, Created: info.Created, History: sess.History(),
 		Env: append(append(s.hostEnvFor(meta.Member), env...), s.trafficEnvFor(meta.Parent, id)...), Command: command, Meta: meta}
 	if meta.Member == nil {
