@@ -27,6 +27,9 @@ type Runner struct {
 	// Env is what a session's checks run with besides the daemon's own
 	// environment (its traffic caught, say); nil for nothing.
 	Env func(session string) []string
+	// OnFailed is called, without locks held, with a check's run that just
+	// failed (the judge may say whether it is flaky); nil for nothing.
+	OnFailed func(session string, run proto.CheckRun)
 
 	mu   sync.Mutex
 	runs map[string]*sessionRuns
@@ -137,6 +140,11 @@ func (r *Runner) Run(session, dir string, checks []proto.Check) {
 				}
 			})
 			r.changed(session)
+			if r.OnFailed != nil {
+				if run, ok := r.find(session, gen, c.Name); ok && run.State == proto.CheckFailed {
+					r.OnFailed(session, run)
+				}
+			}
 		}
 		// Those that never started were stopped.
 		r.mu.Lock()
@@ -164,6 +172,33 @@ func (r *Runner) set(session string, gen int, name string, fn func(*proto.CheckR
 	if i := slices.IndexFunc(sr.list, func(run proto.CheckRun) bool { return run.Name == name }); i >= 0 {
 		fn(&sr.list[i])
 	}
+}
+
+// find is check name's run of session, unless a newer run took over.
+func (r *Runner) find(session string, gen int, name string) (proto.CheckRun, bool) {
+	var out proto.CheckRun
+	found := false
+	r.set(session, gen, name, func(run *proto.CheckRun) { out, found = *run, true })
+	return out, found
+}
+
+// Update changes check name's run of session that started at started, if
+// it is still the last; it says whether it was.
+func (r *Runner) Update(session, name string, started time.Time, fn func(*proto.CheckRun)) bool {
+	r.mu.Lock()
+	sr := r.runs[session]
+	i := -1
+	if sr != nil {
+		i = slices.IndexFunc(sr.list, func(run proto.CheckRun) bool { return run.Name == name && run.Started.Equal(started) })
+	}
+	if i >= 0 {
+		fn(&sr.list[i])
+	}
+	r.mu.Unlock()
+	if i >= 0 {
+		r.changed(session)
+	}
+	return i >= 0
 }
 
 func (r *Runner) changed(session string) {

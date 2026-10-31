@@ -35,11 +35,20 @@ var decideHandlers = map[string]handler{
 			}
 			info = sess.Info()
 		}
-		if p.Use == proto.DecideTrim {
+		switch p.Use {
+		case proto.DecideTrim:
 			return c.srv.trimOutput(info, p)
+		case proto.DecideChat:
+			return c.srv.chatUrgency(info, p)
 		}
-		return c.srv.decideFor(info, p)
+		if info.Agent == "" {
+			info.Agent = p.Agent
+		}
+		d, err := c.srv.decideFor(info, p)
+		d.Sure = err == nil && c.srv.sure(d)
+		return d, err
 	}),
-	proto.MethodDecideLog:  with(func(c *conn, p proto.DecideLogParams) (any, error) { return c.srv.judge.Log(p), nil }),
-	proto.MethodDecideMark: with(func(c *conn, p proto.DecideMark) (any, error) { return ok, c.srv.judge.Mark(p) }),
+	proto.MethodDecideRoute: with(func(c *conn, p proto.DecideRouteParams) (any, error) { return c.srv.routeFor(p) }),
+	proto.MethodDecideLog:   with(func(c *conn, p proto.DecideLogParams) (any, error) { return c.srv.judge.Log(p), nil }),
+	proto.MethodDecideMark:  with(func(c *conn, p proto.DecideMark) (any, error) { return ok, c.srv.judge.Mark(p) }),
 }

@@ -198,8 +198,9 @@ func (s *Server) ragSoon(dir string) {
 }
 
 // ragContext is what a prompt in project dir gets from its index, when
-// the project asks for it: the parts most like the prompt.
-func (s *Server) ragContext(dir, prompt string) string {
+// the project asks for it: the parts most like the prompt, those that bear
+// on it when the judge is asked (session info's, use context).
+func (s *Server) ragContext(info proto.SessionInfo, dir, prompt string) string {
 	p := s.ragSettings.Project(rag.ProjectID(dir))
 	if !p.On || !p.Context || strings.TrimSpace(prompt) == "" {
 		return ""
@@ -210,26 +211,39 @@ func (s *Server) ragContext(dir, prompt string) string {
 	if err != nil || len(hits) == 0 {
 		return ""
 	}
+	parts := make([]string, len(hits))
+	for i, h := range hits {
+		parts[i] = hitPart(h)
+	}
+	if hits = s.pickContext(info, prompt, hits, parts); len(hits) == 0 {
+		return ""
+	}
 	var b strings.Builder
 	b.WriteString("Parts of this project that may bear on the prompt (enowX RAG; read the files before relying on them):\n")
 	for _, h := range hits {
-		where := h.File
-		if h.Start > 0 {
-			where += fmt.Sprintf(":%d-%d", h.Start, h.End)
-		}
-		if h.Symbol != "" {
-			where += " (" + h.Symbol + ")"
-		}
-		if where == "" {
-			where = h.Source
-		}
-		part := "\n" + where + "\n" + h.Snippet + "\n"
+		part := hitPart(h)
 		if b.Len()+len(part) > ragContextMax {
 			break
 		}
 		b.WriteString(part)
 	}
 	return b.String()
+}
+
+// hitPart is a search result as a prompt's context shows it: where, then
+// its text.
+func hitPart(h proto.RAGHit) string {
+	where := h.File
+	if h.Start > 0 {
+		where += fmt.Sprintf(":%d-%d", h.Start, h.End)
+	}
+	if h.Symbol != "" {
+		where += " (" + h.Symbol + ")"
+	}
+	if where == "" {
+		where = h.Source
+	}
+	return "\n" + where + "\n" + h.Snippet + "\n"
 }
 
 // ragOffer offers to keep what session info's agent said last as a
@@ -253,6 +267,10 @@ func (s *Server) ragOffer(info proto.SessionInfo) {
 		}
 	}
 	if last == "" {
+		return
+	}
+	last, ok := s.memoryOf(info, last) // the decision it holds, when the judge is asked
+	if !ok {
 		return
 	}
 	if len(last) > 1200 {

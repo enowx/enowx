@@ -41,3 +41,19 @@ func (c *Client) DecideLog(p proto.DecideLogParams) ([]proto.Decision, error) {
 func (c *Client) MarkDecision(m proto.DecideMark) error {
 	return c.Call(proto.MethodDecideMark, m, nil)
 }
+
+// AskDecision asks the host's judge a's question; an error when its use is
+// off there.
+func (c *Client) AskDecision(a proto.DecideAsk) (proto.Decision, error) {
+	var out proto.Decision
+	err := c.Call(proto.MethodDecideAsk, a, &out)
+	return out, err
+}
+
+// DecideRoute is a model and effort for p's prompt, as the judge weighs
+// how hard it is.
+func (c *Client) DecideRoute(p proto.DecideRouteParams) (proto.RouteChoice, error) {
+	var out proto.RouteChoice
+	err := c.Call(proto.MethodDecideRoute, p, &out)
+	return out, err
+}

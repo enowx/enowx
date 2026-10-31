@@ -221,6 +221,7 @@ What you add, change or remove is proposed: the user allows it in Settings → H
 - an output that ends with "[enowX kept N of M lines …]": the full output is in the file it names; read it when what was kept isn't enough.
     "$ENOWX_BIN" decide log --last 5            # the latest decisions and why
     "$ENOWX_BIN" decide trim -- go test ./...    # a long command's output cut to what matters, its exit code kept
+    "$ENOWX_BIN" decide route --agent codex "PROMPT"   # a model and effort for a session you spawn (spawn --model --effort), when the user turned it on
 `,
 		Tools: []string{"decide_"}},
 	{ID: "rag", Name: "RAG", Group: GroupProject,

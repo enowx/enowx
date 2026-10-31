@@ -21,6 +21,11 @@ type question struct {
 	verdicts []string
 	text     bool // the answer carries "text" too (a trim's)
 	prompt   string
+	// extra are the answer's fields besides verdict, confidence and why,
+	// as the judge is shown them (`, "keep": [<numbers>]`); check refuses
+	// an answer whose fields don't fit its verdict.
+	extra string
+	check func(v verdict) error
 }
 
 // Limits of what a judge is given, in characters.
@@ -81,6 +86,9 @@ Command (it exited with %d):
 %s
 </steps>`, agentName, tail(strings.Join(a.Steps, "\n"), maxSteps))}, nil
 	}
+	if q, ok := laterQuestion(a, agentName); ok {
+		return q, nil
+	}
 	return question{}, fmt.Errorf("decide: no use %q", a.Use)
 }
 
@@ -89,6 +97,9 @@ func systemFor(q question) string {
 	extra := ""
 	if q.text {
 		extra = `, "text": "<the lines kept>"`
+	}
+	if q.extra != "" {
+		extra = q.extra
 	}
 	return fmt.Sprintf(system, extra) + "\nVerdicts: " + strings.Join(q.verdicts, ", ") + "."
 }
@@ -100,6 +111,7 @@ type verdict struct {
 	Confidence float64 `json:"confidence"`
 	Why        string  `json:"why"`
 	Text       string  `json:"text"`
+	Keep       []int   `json:"keep"`
 }
 
 func parse(q question, text string) (verdict, error) {
@@ -120,6 +132,11 @@ func parse(q question, text string) (verdict, error) {
 	v.Confidence = min(max(v.Confidence, 0), 1)
 	if q.text && v.Verdict == proto.VerdictTrimmed && strings.TrimSpace(v.Text) == "" {
 		return verdict{}, errors.New("decide: a trim with nothing kept")
+	}
+	if q.check != nil {
+		if err := q.check(v); err != nil {
+			return verdict{}, err
+		}
 	}
 	return v, nil
 }

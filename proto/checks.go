@@ -48,6 +48,11 @@ type CheckRun struct {
 	Started  time.Time     `json:"started,omitzero"`
 	Duration time.Duration `json:"duration,omitempty"`
 	Output   string        `json:"output,omitempty"` // its end, when long
+	// Judged is the judge's word on a failure, VerdictFlaky or VerdictReal
+	// (docs/decide.md), JudgedWhy its reason; Judging while it reads.
+	Judged    string `json:"judged,omitempty"`
+	JudgedWhy string `json:"judgedWhy,omitempty"`
+	Judging   bool   `json:"judging,omitempty"`
 }
 
 // ChecksRunParams runs the checks named, or all of them.
