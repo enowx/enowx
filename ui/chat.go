@@ -12,6 +12,7 @@ import (
 	"github.com/enowx/enowx/core/agent"
 	"github.com/enowx/enowx/proto"
 	"github.com/enowx/enowx/ui/chatview"
+	"github.com/enowx/enowx/ui/tokenview"
 )
 
 // The chats of sessions shown as a chat (see package chatview), and which
@@ -71,6 +72,10 @@ func (a *App) chatViewSending(c *ui.Context, s proto.SessionInfo, shown func() b
 	if send == nil {
 		send = func(text string, files []string) { a.sendWithFiles(s.ID, text, files) }
 	}
+	spent, spentTip := "", ""
+	if t, ok := a.sessionTokens(s.ID); ok {
+		spent, spentTip = tokenview.Spent(t), tokenview.SpentTip(t)
+	}
 	ch := a.chatOf(s.ID)
 	if cl := a.client; cl != nil {
 		gen := a.gen
@@ -98,6 +103,8 @@ func (a *App) chatViewSending(c *ui.Context, s proto.SessionInfo, shown func() b
 		Ended:       s.Exited,
 		ShowUser:    tw.showUser,
 		FirstPrompt: s.Prompt,
+		Spent:       spent,
+		SpentTip:    spentTip,
 		Waiting:     s.State == proto.StateWaiting,
 		Answer:      func(keys string) { a.answerAgent(s, keys) },
 		ShowTerminal: func() {

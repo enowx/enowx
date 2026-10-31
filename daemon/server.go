@@ -95,6 +95,7 @@ type Server struct {
 	ragRun            ragState
 	judge             *decide.Engine // decisions (decide.go)
 	decideRun         decideState
+	tok               tokenState   // token usage (tokens.go)
 	browserUnslops    unslopRuns   // Browsers' pages redesigned, by session (browser_unslop.go)
 	canvasBuilds      buildRuns    // canvases' UI builds under way (canvas_build.go)
 	shares            canvasShares // canvases shared by a link (canvas_share.go)
@@ -193,6 +194,7 @@ func newServer(dir, hookBin string) (*Server, error) {
 	s.loadShell()
 	s.newRAG(dir)
 	s.newDecide(dir)
+	s.newTokens(dir)
 	s.credits.Homes = func() []credits.Home { // each account's plan too
 		var out []credits.Home
 		for _, a := range s.accounts.List() {
@@ -213,6 +215,9 @@ func newServer(dir, hookBin string) (*Server, error) {
 			s.exitsLogged.Delete(info.ID)
 		}
 		s.sched.poke()
+		if info.State == proto.StateDone || info.Exited {
+			s.pokeTokens() // a turn ended: its tokens are recorded
+		}
 		if info.NotesFor != "" && (info.State == proto.StateDone || info.Exited) {
 			go s.keepNoteChat(info.NotesFor, info.ID) // a turn ended: kept with the note
 		}
@@ -251,6 +256,7 @@ func newServer(dir, hookBin string) (*Server, error) {
 	go s.watchLimitsLoop(s.done)
 	go s.runAutopushes(s.done)
 	go s.sweepNoteAssets(s.done)
+	go s.runTokens(s.done)
 	return s, nil
 }
 

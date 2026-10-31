@@ -39,6 +39,9 @@ func (s *Server) createSession(p proto.SessionCreateParams) (*session.Session, e
 func (s *Server) createSessionFor(p proto.SessionCreateParams, member *proto.SessionMember) (*session.Session, error) {
 	meta := session.Meta{Member: member, Name: strings.TrimSpace(p.Name), Prompt: p.Prompt, Project: p.Project, Agent: p.Agent, Group: p.Group, Account: p.Account, NotesFor: p.NotesFor, CanvasFor: p.CanvasFor, Features: p.Features,
 		NoAutoHibernate: s.hibernatePrefs().NeverByDefault}
+	if err := s.tokenGate(p, p.Project); err != nil {
+		return nil, err // a token budget at its limit (tokens_layers.go)
+	}
 	setup := "" // the project's worktree setup, to run in a tab once started
 	dir := p.Dir
 	if p.NotesFor != "" {
@@ -194,6 +197,11 @@ func (s *Server) createSessionFor(p proto.SessionCreateParams, member *proto.Ses
 		// The vault's credentials it asked for, and its helpers.
 		env, names := s.vaultSessionEnv(spec.ID, meta.Project, meta.Parent, p.Creds)
 		spec.Env, spec.Meta.Creds = append(spec.Env, env...), names
+	}
+	// An agent that keeps no record of its tokens is metered through
+	// the interceptor, when the user tracks that way (tokens_layers.go).
+	if p.NotesFor == "" && p.CanvasFor == "" && !p.SignIn && member == nil && meta.Parent == "" {
+		spec.Env = append(spec.Env, s.tokenTrafficEnv(spec.ID, p.Agent, meta.Project, meta.Name)...)
 	}
 	if member != nil {
 		spec.Env = memberEnviron(spec.Env)

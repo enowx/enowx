@@ -1,0 +1,2 @@
+{"ts":"2026-10-26T11:00:00.000Z","pid":1,"sid":"gk-1","msg":"shell.turn.started","ctx":{}}
+{"ts":"2026-10-26T11:00:04.000Z","pid":1,"sid":"gk-1","msg":"shell.turn.inference_done","ctx":{"loop_index":0,"prompt_tokens":6000,"cached_prompt_tokens":4000,"completion_tokens":300,"reasoning_tokens":100}}

@@ -246,6 +246,16 @@ What you add, change or remove is proposed: the user allows it in Settings → H
 A prompt may come with parts of the project already found ("Parts of this project that may bear on the prompt"): treat them as leads, not answers.
 `,
 		Tools: []string{"rag_"}},
+	{ID: "usage", Name: "Token usage", Group: GroupCore, Default: true, Lazy: true,
+		About:   "Agents (and GOA) see the tokens the host's agents use: per session, agent, model, project and host, with costs and budgets (Resource usage → Tokens).",
+		Summary: "Token usage: \"$ENOWX_BIN\" usage --by agent --since 7d says what agents spend; usage session self, this session's.",
+		Guide: `Token usage: enowX tracks the tokens agents use on this host (when the user turned it on), with costs and the user's budgets.
+    "$ENOWX_BIN" usage --by model --since 7d     # totals and per day; --by agent|model|project|session|config|host
+    "$ENOWX_BIN" usage session self              # this session's so far, by model
+    "$ENOWX_BIN" usage budgets                   # each budget and how much of it is used
+Near a budget (80% or more), prefer cheaper models and fewer, smaller agents; at 100% the user may have new sessions ask first or stop.
+`,
+		Tools: []string{"usage_"}},
 	{ID: "status", Name: "Session status line", Group: GroupCore, Default: true,
 		About:   "Agents say where they are in a line under their session.",
 		Summary: "Say where you are at milestones: \"$ENOWX_BIN\" note self \"…\".",

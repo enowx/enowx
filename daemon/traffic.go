@@ -84,7 +84,10 @@ func (s *Server) startTraffic(t *traffic) error {
 	if err := os.MkdirAll(store.Dir, 0o700); err != nil {
 		store.Dir = ""
 	}
-	store.OnChange = func(sum proto.TrafficSummary) { s.queueTraffic(sum) }
+	store.OnChange = func(sum proto.TrafficSummary) {
+		s.queueTraffic(sum)
+		s.meterExchange(sum) // an agent's tokens (tokens_layers.go)
+	}
 	t.targets, t.rules, t.pending = map[string]*trafficTarget{}, map[string]*intercept.Rules{}, map[int64]proto.TrafficSummary{}
 	t.proxy = &intercept.Proxy{
 		CA: ca, Store: store,

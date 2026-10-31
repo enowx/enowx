@@ -135,6 +135,7 @@ func (s *Server) ragIndex(dir string) (proto.RAGStatus, error) {
 	go func() {
 		s.broadcast(proto.EventRAGProgress, s.ragStatus(dir))
 		res, err := s.rag.Index(context.Background(), dir, p, s.ragExtra(dir, id))
+		s.ragTokens(dir, res.Tokens)
 		res.Indexed, res.Phase = time.Now(), "done"
 		if err != nil {
 			res.Error = err.Error()

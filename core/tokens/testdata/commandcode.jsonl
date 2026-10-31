@@ -1,0 +1,2 @@
+{"type":"message","id":"cc1","timestamp":"2026-10-26T09:00:00.000Z","message":{"role":"user"}}
+{"type":"message","id":"cc2","timestamp":"2026-10-26T09:00:03.000Z","message":{"role":"assistant"},"usage":{"inputTokens":80,"outputTokens":60,"cacheReadTokens":2000,"cacheWriteTokens":100,"costUsd":0.004},"model":"anthropic/claude-haiku-5-5"}

@@ -1,0 +1,6 @@
+{"sessionId":"gem-1","projectHash":"abc","startTime":"2026-10-24T10:00:00.000Z","lastUpdated":"2026-10-24T10:00:09.000Z","kind":"main"}
+{"id":"u1","timestamp":"2026-10-24T10:00:01.000Z","type":"user","content":[{"text":"hi"}]}
+{"id":"g1","timestamp":"2026-10-24T10:00:03.000Z","type":"gemini","content":[],"model":"gemini-2.5-pro"}
+{"id":"g1","timestamp":"2026-10-24T10:00:05.000Z","type":"gemini","content":[{"text":"hello"}],"model":"gemini-2.5-pro","tokens":{"input":12000,"output":300,"cached":8000,"thoughts":120,"tool":0,"total":12420}}
+{"id":"g1","timestamp":"2026-10-24T10:00:06.000Z","type":"gemini","content":[{"text":"hello"}],"model":"gemini-2.5-pro","tokens":{"input":12000,"output":300,"cached":8000,"thoughts":120,"tool":0,"total":12420}}
+{"$set":{"lastUpdated":"2026-10-24T10:00:09.000Z"}}

@@ -1,0 +1,2 @@
+{"uuid":"q0","parentUuid":null,"sessionId":"qw-1","timestamp":"2026-10-24T11:00:00.000Z","type":"user","cwd":"/work/qw","message":{"role":"user","parts":[{"text":"hi"}]}}
+{"uuid":"q1","parentUuid":"q0","sessionId":"qw-1","timestamp":"2026-10-24T11:00:02.000Z","type":"assistant","cwd":"/work/qw","model":"qwen3-coder-plus","message":{"role":"model"},"usageMetadata":{"promptTokenCount":9000,"candidatesTokenCount":200,"cachedContentTokenCount":6000,"thoughtsTokenCount":0,"totalTokenCount":9200}}

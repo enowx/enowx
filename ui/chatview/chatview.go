@@ -344,6 +344,9 @@ type Options struct {
 	// ShowUser, when set, is how the user's messages read: what the app
 	// added to them (where the user is) left out.
 	ShowUser func(text string) string
+	// Spent is the session's tokens and cost so far, shown beside its
+	// context; SpentTip says them in full.
+	Spent, SpentTip string
 	// FirstPrompt is the message the session started with, shown as the
 	// user's until the agent records the conversation.
 	FirstPrompt string

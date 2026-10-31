@@ -11,6 +11,11 @@ embed RAGForgetParams RAGRef
 embed RAGRememberParams RAGRef
 embed RAGSearchParams RAGRef
 embed SessionUsage Usage
+embed TokenBudgetState TokenBudget
+embed TokenDay TokenCounts
+embed TokenDayRow TokenCounts
+embed TokenGroup TokenCounts
+embed TokenSessionTotal TokenCounts
 embed TrafficExchange TrafficSummary
 embed VaultRequest VaultAsk
 event account.fallback
@@ -62,6 +67,8 @@ event team.chat.gone
 event team.hosts.changed
 event team.kit.changed
 event team.projects.changed
+event tokens.budget
+event tokens.changed
 event traffic.attached
 event traffic.capture
 event traffic.exchange
@@ -1701,6 +1708,7 @@ field SessionCreateParams.runSetup bool
 field SessionCreateParams.shell string
 field SessionCreateParams.signIn bool
 field SessionCreateParams.skipPermissions bool
+field SessionCreateParams.tokenBudgetOK bool
 field SessionEnvVar.name string
 field SessionEnvVar.value string
 field SessionHibernateParams.dryRun bool
@@ -1944,6 +1952,83 @@ field TeamProjectCopy.project bool
 field TeamProjectCopy.session string
 field TeamProjectRef.id string
 field TeamProjectRef.team string
+field TokenBudget.atLimit string
+field TokenBudget.cost float64
+field TokenBudget.id string
+field TokenBudget.period string
+field TokenBudget.scope string
+field TokenBudget.target string
+field TokenBudget.tokens int64
+field TokenBudgetState.fraction float64
+field TokenBudgetState.level int
+field TokenBudgetState.since time.Time
+field TokenBudgetState.used TokenCounts
+field TokenCounts.cacheRead int64
+field TokenCounts.cacheWrite int64
+field TokenCounts.calls int
+field TokenCounts.cost float64
+field TokenCounts.equivalent float64
+field TokenCounts.input int64
+field TokenCounts.output int64
+field TokenCounts.reasoning int64
+field TokenCounts.unpriced int
+field TokenCoverage.agent string
+field TokenCoverage.checked bool
+field TokenCoverage.layer string
+field TokenCoverage.name string
+field TokenCoverage.records string
+field TokenCoverage.where string
+field TokenDay.day string
+field TokenDayRow.agent string
+field TokenDayRow.config string
+field TokenDayRow.day string
+field TokenDayRow.model string
+field TokenDayRow.own string
+field TokenDayRow.project string
+field TokenGroup.key string
+field TokenGroup.label string
+field TokenPrice.cacheRead float64
+field TokenPrice.cacheWrite float64
+field TokenPrice.config string
+field TokenPrice.input float64
+field TokenPrice.model string
+field TokenPrice.output float64
+field TokenPrice.provider string
+field TokenPrice.shipped bool
+field TokenSessionTotal.session string
+field TokensBackfill.since time.Time
+field TokensBackfillResult.calls int
+field TokensBackfillResult.files int
+field TokensChanged.sessions []TokenSessionTotal
+field TokensHostDays.host string
+field TokensHostDays.name string
+field TokensHostDays.rows []TokenDayRow
+field TokensHostDays.updated time.Time
+field TokensQuery.agent string
+field TokensQuery.by string
+field TokensQuery.config string
+field TokensQuery.model string
+field TokensQuery.project string
+field TokensQuery.session string
+field TokensQuery.since time.Time
+field TokensQuery.until time.Time
+field TokensSettings.backfillDays int
+field TokensSettings.budgets []TokenBudget
+field TokensSettings.on bool
+field TokensSettings.prices []TokenPrice
+field TokensSettings.screen bool
+field TokensSettings.traffic bool
+field TokensSummary.budgets []TokenBudgetState
+field TokensSummary.days []TokenDay
+field TokensSummary.groups []TokenGroup
+field TokensSummary.host string
+field TokensSummary.hostId string
+field TokensSummary.on bool
+field TokensSummary.own TokenCounts
+field TokensSummary.ownGroups []TokenGroup
+field TokensSummary.since time.Time
+field TokensSummary.total TokenCounts
+field TokensSummary.until time.Time
 field TrafficAction.body string
 field TrafficAction.bodyFile string
 field TrafficAction.break string
@@ -2680,6 +2765,16 @@ method team.kit.save
 method team.project.add
 method team.project.remove
 method team.projects
+method tokens.backfill
+method tokens.budgets
+method tokens.coverage
+method tokens.hosts
+method tokens.prices
+method tokens.session
+method tokens.sessions
+method tokens.setSettings
+method tokens.settings
+method tokens.summary
 method traffic.attach
 method traffic.attached
 method traffic.body
@@ -2773,6 +2868,16 @@ value BrowserReload=reload
 value BrowserScreenshot=screenshot
 value BrowserSnapshot=snapshot
 value BrowserWidth=width
+value BudgetAgent=agent
+value BudgetAll=all
+value BudgetAsk=ask
+value BudgetConfig=config
+value BudgetDay=day
+value BudgetMonth=month
+value BudgetNotify=notify
+value BudgetProject=project
+value BudgetStop=stop
+value BudgetWeek=week
 value BuildBrief=brief
 value BuildBuilding=building
 value BuildChange=change
@@ -3022,6 +3127,22 @@ value TargetSession=session
 value TargetShell=shell
 value TargetTerminal=terminal
 value TargetWebView=webview
+value TokenBudgetAsks=token budget reached, ask first:
+value TokenBudgetStops=token budget reached:
+value TokenLayerNone=none
+value TokenLayerRecords=records
+value TokenLayerScreen=screen
+value TokenLayerTraffic=traffic
+value TokensByAccount=account
+value TokensByAgent=agent
+value TokensByConfig=config
+value TokensByHost=host
+value TokensByLayer=layer
+value TokensByModel=model
+value TokensByProject=project
+value TokensBySession=session
+value TokensOwnJudge=judge
+value TokensOwnRAG=rag
 value TrafficDone=done
 value TrafficFailed=error
 value TrafficGRPC=grpc

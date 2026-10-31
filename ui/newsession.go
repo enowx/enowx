@@ -179,6 +179,14 @@ func (a *App) createFromForm(cl *client.Client, params proto.SessionCreateParams
 		info, err := cl.CreateSession(params)
 		a.onMain(func() {
 			f.busy = false
+			if budgetAsks(err) && !params.TokenBudgetOK {
+				// A token budget at its limit asks first (tokens.go).
+				a.confirm("Token budget reached", strings.TrimPrefix(err.Error(), proto.MethodSessionCreate+": ")+". Start this session anyway?", "Start anyway", func() {
+					params.TokenBudgetOK = true
+					a.createFromForm(cl, params)
+				})
+				return
+			}
 			if err != nil {
 				f.err = strings.TrimPrefix(err.Error(), proto.MethodSessionCreate+": ")
 				return

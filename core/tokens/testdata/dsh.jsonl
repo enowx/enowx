@@ -1,0 +1,2 @@
+{"type":"session","id":"dsh-1","timestamp":"2026-10-26T10:00:00.000Z","data":{"cwd":"/work/dsh"}}
+{"type":"assistant/message","id":"d1","timestamp":"2026-10-26T10:00:03.000Z","data":{"message":{"source":{"model":"deepseek-chat"}},"usage":{"inputTokens":7000,"outputTokens":250,"cacheReadTokens":5000}}}

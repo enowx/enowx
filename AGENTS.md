@@ -60,6 +60,7 @@ Go 1.27+ is required (MyGo needs it). With an older `go`, set `GOTOOLCHAIN=go1.2
 | `core/autopush` | Commits a project's work to a branch of its own and pushes that branch alone, the user's branch, index and files untouched, secrets refused | **No** |
 | `core/decide` | The judge: a small model asked instead of guessing (a quiet session's state, approving a command, trimming output, a loop), the judges found on a host (agents' one-shot commands, model APIs, local servers), the policy and order they're tried in, the log (see `docs/decide.md`) | **No** |
 | `core/rag` | RAG: a project's files cut into chunks, embedded (Voyage, OpenAI-compatible, TEI) and kept in SQLite or PostgreSQL with pgvector, searched by meaning and words; the host's settings and consent per project, memories (see `docs/rag.md`) | **No** |
+| `core/tokens` | Token usage: the agents' records read by an adapter each, model APIs' answers metered, a call a record kept a file a day, prices, budgets, rollups (see `docs/tokens.md`) | **No** |
 | `core/hooks` | The user's hooks: kept (the host's, synced; a project's `.enowx/hooks.json` once allowed), which match an event, and running them (see `docs/hooks.md`) | **No** |
 | `core/automation` | When automations (an agent's prompt on a schedule) run (see `docs/automations.md`) | **No** |
 | `core/userservice` | Runs the server daemon as a systemd user service, with lingering (see `docs/daemon.md`) | **No** |
@@ -86,6 +87,7 @@ Go 1.27+ is required (MyGo needs it). With an older `go`, set `GOTOOLCHAIN=go1.2
 | `ui/textfmt` | How values read in the UI: sizes, plurals, paths | **No** |
 | `ui/localpicker` | Picks files and folders of this device, for adding them to a session's folder | Yes |
 | `ui/chatview`, `ui/activityview`, `ui/appwindow`, `ui/libraryview`, `ui/browserview`, `ui/checkview`, `ui/diffview`, `ui/fileview`, `ui/portview`, `ui/trafficview`, `ui/androidview`, `ui/notesview`, `ui/canvasview`, `ui/vaultview`, `ui/usageview`, `ui/folderpicker`, `ui/syncview` | Self-contained views; they get what they need from `ui` through options and callbacks, never import it | Yes |
+| `ui/tokenview` | The Tokens tab of Resource usage: every host's token use, budgets, prices, coverage; self-contained like the views above | Yes |
 
 Keep MyGo out of packages marked **No**. If MyGo ever has to be replaced, only `ui/`, `cmd/enowx` and the terminal emulation in `core/session` should change.
 

@@ -282,6 +282,10 @@ type SessionCreateParams struct {
 	Env     []string `json:"env,omitempty"`
 	Cols    int      `json:"cols,omitempty"`
 	Rows    int      `json:"rows,omitempty"`
+	// TokenBudgetOK starts an agent although a token budget at its limit
+	// asks first (TokenBudget.AtLimit BudgetAsk): the user said yes.
+	// Older daemons ignore it.
+	TokenBudgetOK bool `json:"tokenBudgetOK,omitempty"`
 }
 
 // SessionRef names a session.

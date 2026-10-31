@@ -1,0 +1,5 @@
+[
+  {"id":"cm1","role":"user","ts":1792900000000,"content":"hi"},
+  {"id":"cm2","role":"assistant","ts":1792900003000,"modelInfo":{"id":"claude-sonnet-5-5","provider":"anthropic"},"metrics":{"inputTokens":40,"outputTokens":200,"cacheReadTokens":15000,"cacheWriteTokens":1000,"cost":0.0123}},
+  {"id":"cm3","role":"assistant","ts":1792900009000,"modelInfo":{"id":"gpt-5.1","provider":"openai"},"metrics":{"inputTokens":5000,"outputTokens":100,"cacheReadTokens":4000,"cacheWriteTokens":0,"cost":0.002}}
+]

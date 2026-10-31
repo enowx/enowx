@@ -179,6 +179,9 @@ func (ch *Chat) box(c *ui.Context, o Options) {
 			}
 			ch.settings(c, o)
 			ui.Spacer(c)
+			if o.Spent != "" && !ch.compact {
+				ui.Text(c.Key("spent"), o.Spent).FontSize(11).TextColor(theme.Muted).SingleLine().Shrink(1).Tooltip(o.SpentTip)
+			}
 			ch.contextMeter(c)
 			if o.Working && strings.TrimSpace(ch.input) == "" && len(ch.attachments) == 0 {
 				if roundButton(c, icon.Stop, "Interrupt (Esc)", false).Clicked() && o.Interrupt != nil {

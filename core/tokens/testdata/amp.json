@@ -1,0 +1,3 @@
+{"id":"T-abc","messages":[],"usageLedger":{"events":[
+  {"id":"ev1","timestamp":"2026-10-25T09:00:00.000Z","model":"claude-sonnet-5-5","credits":3,"toMessageId":"m1","tokens":{"input":100,"output":50,"cacheReadInputTokens":7000,"cacheCreationInputTokens":300}}
+]}}

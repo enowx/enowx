@@ -1,0 +1,3 @@
+{"cwd":"/work/kiro","session_state":{"conversation_id":"kiro-1","conversation_metadata":{"user_turn_metadatas":[
+  {"input_token_count":2000,"output_token_count":300,"cache_read_input_token_count":1000,"cache_write_input_token_count":0,"metering_usage":[{"value":0.4,"unit":"credit"}],"message_ids":["k1","k2"],"end_timestamp":"2026-10-25T11:00:00.000Z"}
+]},"rts_model_state":{"model_info":{"model_id":"claude-sonnet-4.5"}}}}
