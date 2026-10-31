@@ -172,6 +172,9 @@ func (r runner) credsPlatforms(q string) error {
 // credsUse runs a command with credentials' variables, masking their
 // values in what it prints.
 func (r runner) credsUse(session string, args []string) error {
+	if err := goaRefuses("creds use"); err != nil {
+		return err
+	}
 	i := slices.Index(args, "--")
 	if i < 0 || i == len(args)-1 {
 		return errors.New("usage: enowx-app creds use [NAME...] -- COMMAND [ARG...]")

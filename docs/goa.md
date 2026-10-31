@@ -32,6 +32,10 @@ GOA's mode shows the host the app shows; the app tells that host of GOA's worker
 
 The app shows each agent's level when picking GOA's; `enowx goa agents` lists them.
 
+No enowX command that runs a program of GOA's choosing works in its session, or in its MCP server: `creds use … -- COMMAND`, `decide trim -- COMMAND`, and `run` of a project command (listing them still works). Those would be a way around its missing tools.
+
+Checked with Claude Code itself, started as GOA: it reported over 100 tools, all of them enowX's (`mcp__enowx__…`), and no Bash, Read, Edit or Write. Asked to write a file, it had no tool to do so, and offered to hand the task to a session.
+
 ## Tasks
 
 `enowx goa delegate` (MCP `goa_delegate`, `goa.delegate`) hands a task over:

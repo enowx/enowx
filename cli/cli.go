@@ -688,3 +688,14 @@ func sessionGuide(all bool) string {
 	}
 	return g.Guide
 }
+
+// goaRefuses refuses, in GOD of Agents' session (and its MCP server), a
+// command that runs a program of its choosing (what: the command): GOA
+// hands work to sessions and never does it itself, so it gets no way
+// around its missing tools.
+func goaRefuses(what string) error {
+	if os.Getenv(proto.EnvGOA) == "" {
+		return nil
+	}
+	return errors.New("GOD of Agents doesn't run commands itself (" + what + "): hand the work to a session (goa delegate)")
+}

@@ -199,6 +199,9 @@ const (
 // judge keeps of it, the whole saved to a file named after it. It exits as
 // command did; with no judge, nothing is lost.
 func trim(args []string, out io.Writer) error {
+	if err := goaRefuses("decide trim"); err != nil {
+		return err
+	}
 	if len(args) > 0 && args[0] == "--" {
 		args = args[1:]
 	}

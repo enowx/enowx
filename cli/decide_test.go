@@ -26,3 +26,20 @@ func TestTrimKeepsOutputAndExit(t *testing.T) {
 		t.Fatalf("long, no judge: %d lines %v", strings.Count(out.String(), "\n"), err)
 	}
 }
+
+// In GOD of Agents' session, what runs a program of its choosing is
+// refused: a credential's command, a trimmed command, a project command.
+func TestGOARunsNoCommand(t *testing.T) {
+	t.Setenv("ENOWX_GOA", "1")
+	t.Setenv("ENOWX_HOME", t.TempDir())
+	var out bytes.Buffer
+	if err := trim([]string{"--", "echo hi"}, &out); err == nil || out.Len() > 0 {
+		t.Fatalf("trim ran: %q %v", out.String(), err)
+	}
+	if err := (runner{out: &out}).credsUse("", []string{"github", "--", "echo", "hi"}); err == nil || !strings.Contains(err.Error(), "GOD of Agents") {
+		t.Fatalf("creds use: %v", err)
+	}
+	if err := (runner{out: &out}).run([]string{"dev"}); err == nil || !strings.Contains(err.Error(), "GOD of Agents") {
+		t.Fatalf("run: %v", err)
+	}
+}

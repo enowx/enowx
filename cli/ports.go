@@ -3,6 +3,7 @@ package cli
 import (
 	"errors"
 	"fmt"
+	"slices"
 	"strconv"
 	"strings"
 	"text/tabwriter"
@@ -50,6 +51,11 @@ func (r runner) ports(args []string) error {
 }
 
 func (r runner) run(args []string) error {
+	if slices.ContainsFunc(args, func(a string) bool { return !strings.HasPrefix(a, "-") }) {
+		if err := goaRefuses("run"); err != nil { // listing them stays allowed
+			return err
+		}
+	}
 	fs := flagSet("run")
 	session := fs.String("session", "self", "")
 	save := fs.String("save", "", "")
