@@ -83,6 +83,15 @@ func TestDecisionsSection(t *testing.T) {
 	if os.Getenv("SHOTS") != "" {
 		shot(t, tt, "decisions-judges.png")
 	}
+	if os.Getenv("SHOTS") != "" {
+		st.adding = judgeForm{open: true, kind: proto.JudgeDecision}
+		for range 3 {
+			tt.Frame()
+		}
+		shot(t, tt, "decisions-add-judge.png")
+		st.adding = judgeForm{}
+		tt.Frame()
+	}
 
 	if err := tt.Click("Uses"); err != nil {
 		t.Fatal(err)

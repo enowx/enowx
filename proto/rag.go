@@ -19,6 +19,7 @@ const (
 	MethodRAGRemember    = "rag.remember"    // RAGRememberParams → RAGMemory
 	MethodRAGMemories    = "rag.memories"    // RAGRef → []RAGMemory
 	MethodRAGForget      = "rag.forget"      // RAGForgetParams
+	MethodRAGSetKey      = "rag.setKey"      // RAGKey: the embedder's key or the PostgreSQL URL typed in the app, kept on the host alone
 	// EventRAGProgress carries a RAGStatus as a project's index goes.
 	EventRAGProgress = "rag.progress"
 	// EventRAGOffer offers to keep what a session decided as a memory.
@@ -57,6 +58,10 @@ type RAGSettings struct {
 	// PostgresCred is the vault's credential holding the connection URL of
 	// the PostgreSQL store (RAGPostgres), its password in it.
 	PostgresCred string `json:"postgresCred,omitempty"`
+	// HasKey and HasPostgres say the embedder's key and the PostgreSQL URL
+	// are set on the host, typed in the app (their values never leave it).
+	HasKey      bool `json:"hasKey,omitempty"`
+	HasPostgres bool `json:"hasPostgres,omitempty"`
 	// ServerURL and ServerCred are no longer used.
 	ServerURL  string                `json:"serverUrl,omitempty"`
 	ServerCred string                `json:"serverCred,omitempty"`
@@ -169,4 +174,17 @@ type RAGForgetParams struct {
 type RAGTestResult struct {
 	Dim   int    `json:"dim,omitempty"`
 	Error string `json:"error,omitempty"`
+}
+
+// What a RAGKey sets.
+const (
+	RAGKeyEmbedder = "embedder"
+	RAGKeyPostgres = "postgres"
+)
+
+// RAGKey sets Which (RAGKeyEmbedder, RAGKeyPostgres) to Value on the host
+// ("" removes it).
+type RAGKey struct {
+	Which string `json:"which"`
+	Value string `json:"value"`
 }

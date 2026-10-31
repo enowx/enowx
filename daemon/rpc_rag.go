@@ -10,13 +10,20 @@ import (
 
 // ragHandlers are RAG's methods (daemon/rag.go).
 var ragHandlers = map[string]handler{
-	proto.MethodRAGSettings: bare(func(c *conn) (any, error) { return c.srv.ragSettings.Get(), nil }),
+	proto.MethodRAGSettings: bare(func(c *conn) (any, error) { return c.srv.rag.WithKeys(c.srv.ragSettings.Get()), nil }),
 	proto.MethodRAGSetSettings: with(func(c *conn, p proto.RAGSettings) (any, error) {
 		p.Projects = c.srv.ragSettings.Get().Projects // set one by one
+		p.HasKey, p.HasPostgres = false, false        // the host's own, never kept in settings
 		if err := c.srv.ragSettings.Set(p); err != nil {
 			return nil, err
 		}
-		return c.srv.ragSettings.Get(), nil
+		return c.srv.rag.WithKeys(c.srv.ragSettings.Get()), nil
+	}),
+	proto.MethodRAGSetKey: with(func(c *conn, p proto.RAGKey) (any, error) {
+		if err := c.srv.rag.SetKey(p.Which, p.Value); err != nil {
+			return nil, err
+		}
+		return c.srv.rag.WithKeys(c.srv.ragSettings.Get()), nil
 	}),
 	proto.MethodRAGTest: with(func(c *conn, p proto.RAGSettings) (any, error) {
 		ctx, cancel := context.WithTimeout(context.Background(), 45*time.Second)

@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"slices"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/egoist/mygo/ui"
@@ -35,6 +36,9 @@ type decideState struct {
 	logUse  string // "" every use
 	calls   map[string]string
 	adding  judgeForm
+	// keying is the judge whose key is being typed, keyInput the key.
+	keying   *proto.Judge
+	keyInput string
 }
 
 var policyNames = map[string]string{
@@ -160,6 +164,7 @@ func (a *App) decideSection(c *ui.Context) {
 		a.decideLogTab(c, st)
 	}
 	a.judgeFormSheet(c, st)
+	a.judgeKeySheet(c, st)
 }
 
 // judgesTab is who may judge, and the judges in the order tried.
@@ -200,6 +205,9 @@ func (a *App) judgeRow(c *ui.Context, st *decideState, i int, j proto.Judge) {
 				ui.Row(c).Gap(6).AlignItems(ui.Center).Children(func() {
 					ui.Text(c, j.Label).FontSize(12.5).SingleLine()
 					widget.Tag(c, providerNames[j.Provider], theme.Muted)
+					if j.HasKey {
+						widget.Tag(c, "key set here", theme.Muted)
+					}
 					if !underPolicy(st.set, j) {
 						widget.Tag(c, "not under this policy", theme.Warning)
 					}
@@ -224,6 +232,10 @@ func (a *App) judgeRow(c *ui.Context, st *decideState, i int, j proto.Judge) {
 			}
 			if widget.IconButton(c.Key("down"), icon.ChevronDown, "Ask it later", false).Disabled(i == len(st.judges)-1).Clicked() && i < len(st.judges)-1 {
 				a.moveJudge(st, i, i+1)
+			}
+			if needsKey(j) && widget.IconButton(c.Key("key"), icon.Key, "Its key", j.HasKey).Clicked() {
+				jj := j
+				st.keying, st.keyInput = &jj, ""
 			}
 			if widget.GhostButton(c.Key("test"), "Test").Disabled(st.testing[j.ID]).Clicked() {
 				a.testJudges(st, j.ID)
@@ -444,4 +456,65 @@ func weekSaved(log []proto.Decision) (tokens, loops int) {
 		}
 	}
 	return tokens, loops
+}
+
+// needsKey says whether judge j asks a service for a key: not an agent's
+// own sign-in, not a server on the host.
+func needsKey(j proto.Judge) bool {
+	return j.Kind != proto.JudgeAgent && j.Kind != proto.JudgeLocal && j.Provider != proto.ProviderLocal
+}
+
+// judgeKeySheet takes a judge's key, typed here: kept on the host alone,
+// used before its vault credential.
+func (a *App) judgeKeySheet(c *ui.Context, st *decideState) {
+	j := st.keying
+	if j == nil {
+		return
+	}
+	open := true
+	about := "Kept on " + a.host.Name + " alone, readable by its user only, never synced or shown again; used before any vault credential."
+	widget.FormSheet(c, &open, 480, "Key for "+j.Label, about, func() {
+		widget.Input(c.Key("judge-key-input"), &st.keyInput, "sk-…").FillWidth().Password().AutoFocus()
+		if j.HasKey {
+			ui.Text(c, "A key is set here; a new one replaces it.").FontSize(11.5).TextColor(theme.Muted)
+		}
+	}, func() {
+		if j.HasKey && widget.DangerButton(c, "Remove the key").Clicked() {
+			id := j.ID
+			a.confirm("Remove "+j.Label+"'s key?", "The judge falls back to its vault credential, if it has one, else it can't be asked.", "Remove", func() {
+				a.saveJudgeKey(st, id, "")
+			})
+			st.keying = nil
+		}
+		if widget.PrimaryButton(c, icon.Check, "Save and test", "").Disabled(strings.TrimSpace(st.keyInput) == "").Clicked() {
+			a.saveJudgeKey(st, j.ID, st.keyInput)
+			st.keying = nil
+		}
+	})
+	if !open {
+		st.keying = nil
+	}
+}
+
+// saveJudgeKey keeps judge id's key on the host ("" removes it), then
+// tests the judge with it.
+func (a *App) saveJudgeKey(st *decideState, id, key string) {
+	cl := a.client
+	go func() {
+		err := cl.SetJudgeKey(id, strings.TrimSpace(key))
+		a.onMain(func() {
+			if err != nil {
+				a.status = "Key: " + client.Explain(err)
+				return
+			}
+			for i := range st.judges {
+				if st.judges[i].ID == id {
+					st.judges[i].HasKey = key != ""
+				}
+			}
+			if key != "" {
+				a.testJudges(st, id)
+			}
+		})
+	}()
 }

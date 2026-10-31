@@ -57,3 +57,8 @@ func (c *Client) DecideRoute(p proto.DecideRouteParams) (proto.RouteChoice, erro
 	err := c.Call(proto.MethodDecideRoute, p, &out)
 	return out, err
 }
+
+// SetJudgeKey keeps a judge's key on the host ("" removes it).
+func (c *Client) SetJudgeKey(id, key string) error {
+	return c.Call(proto.MethodDecideSetKey, proto.JudgeKey{ID: id, Key: key}, nil)
+}

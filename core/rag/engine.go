@@ -16,6 +16,7 @@ import (
 	"sync"
 
 	"github.com/enowx/enowx/core/git"
+	"github.com/enowx/enowx/core/hostkeys"
 	"github.com/enowx/enowx/core/projectlinks"
 	"github.com/enowx/enowx/proto"
 )
@@ -45,6 +46,9 @@ type Engine struct {
 	settings *Settings
 	// KeyOf is the value of the vault's credential named cred.
 	KeyOf func(cred string) (string, error)
+	// keys are the embedder's key and the PostgreSQL URL typed in the app,
+	// on this host alone; used before the vault's credentials.
+	keys *hostkeys.Store
 
 	mu    sync.Mutex
 	sig   string
@@ -53,7 +57,31 @@ type Engine struct {
 }
 
 // NewEngine is the RAG of the daemon in dir, by s.
-func NewEngine(dir string, s *Settings) *Engine { return &Engine{dir: dir, settings: s} }
+func NewEngine(dir string, s *Settings) *Engine {
+	return &Engine{dir: dir, settings: s, keys: hostkeys.Open(filepath.Join(dir, "rag-keys.json"))}
+}
+
+// SetKey keeps the embedder's key or the PostgreSQL URL (which:
+// proto.RAGKeyEmbedder, RAGKeyPostgres) typed in the app, on this host
+// alone ("" removes it); the next use builds them again.
+func (e *Engine) SetKey(which, value string) error {
+	if which != proto.RAGKeyEmbedder && which != proto.RAGKeyPostgres {
+		return fmt.Errorf("rag: no key %q", which)
+	}
+	if err := e.keys.Set(which, strings.TrimSpace(value)); err != nil {
+		return err
+	}
+	e.mu.Lock()
+	e.sig = ""
+	e.mu.Unlock()
+	return nil
+}
+
+// WithKeys is st as the app may see it: whether keys are set here.
+func (e *Engine) WithKeys(st proto.RAGSettings) proto.RAGSettings {
+	st.HasKey, st.HasPostgres = e.keys.Has(proto.RAGKeyEmbedder), e.keys.Has(proto.RAGKeyPostgres)
+	return st
+}
 
 // signature is what the embedder and store are built of: the settings but
 // the projects'.
@@ -107,21 +135,28 @@ func (e *Engine) ready(ctx context.Context) (embedder, store, proto.RAGSettings,
 }
 
 func (e *Engine) embedderOf(st proto.RAGSettings) (embedder, error) {
-	key, err := e.secret(st.KeyCred)
-	if err != nil {
-		return nil, err
+	key := e.keys.Get(proto.RAGKeyEmbedder)
+	if key == "" {
+		k, err := e.secret(st.KeyCred)
+		if err != nil {
+			return nil, err
+		}
+		key = k
 	}
 	return newEmbedder(st, key)
 }
 
 func (e *Engine) storeOf(ctx context.Context, st proto.RAGSettings) (store, error) {
 	if st.Store == proto.RAGPostgres {
-		if st.PostgresCred == "" {
-			return nil, errors.New("rag: pick the vault's credential with the PostgreSQL URL")
+		u := e.keys.Get(proto.RAGKeyPostgres)
+		if u == "" && st.PostgresCred == "" {
+			return nil, errors.New("rag: give the PostgreSQL URL, or the vault's credential holding it")
 		}
-		u, err := e.secret(st.PostgresCred)
-		if err != nil {
-			return nil, err
+		if u == "" {
+			var err error
+			if u, err = e.secret(st.PostgresCred); err != nil {
+				return nil, err
+			}
 		}
 		return openPostgres(ctx, u)
 	}

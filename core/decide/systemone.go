@@ -409,7 +409,8 @@ func (e *Engine) decisionAddress(ctx context.Context, j proto.Judge) (string, st
 		url = systemOneURLs[j.Provider]
 	}
 	env := map[string]string{}
-	if e.EnvOf != nil && j.Cred != "" {
+	typed := e.keys.Get(j.ID)
+	if typed == "" && e.EnvOf != nil && j.Cred != "" {
 		got, err := e.lent(ctx, j.Cred)
 		if err != nil {
 			return "", "", err
@@ -427,6 +428,9 @@ func (e *Engine) decisionAddress(ctx context.Context, j proto.Judge) (string, st
 	}
 	if key == "" {
 		key = keyIn(env) // a credential of another platform (a generic API key): its value
+	}
+	if typed != "" {
+		key = typed
 	}
 	if key == "" && j.Cred != "" && e.EnvOf == nil {
 		k, err := e.key(j.Cred)

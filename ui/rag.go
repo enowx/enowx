@@ -32,6 +32,11 @@ type ragSettingsState struct {
 	test    string
 	testOK  bool
 	saved   bool
+	// key and pg are the embedder's key and the PostgreSQL URL typed here
+	// (kept on the host alone), unless keyVault / pgVault: a vault
+	// credential instead.
+	key, pg           string
+	keyVault, pgVault bool
 }
 
 var ragEmbedders = []string{"", proto.RAGVoyage, proto.RAGOpenAI, proto.RAGTEI}
@@ -72,6 +77,8 @@ func (a *App) loadRAGSettings() {
 			if set.Dim > 0 {
 				st.dim = strconv.Itoa(set.Dim)
 			}
+			st.keyVault = set.KeyCred != "" && !set.HasKey
+			st.pgVault = set.PostgresCred != "" && !set.HasPostgres
 		})
 	}()
 }
@@ -108,7 +115,11 @@ func (a *App) ragSection(c *ui.Context) {
 			}
 			widget.Field(c, "Address", func() { widget.Input(c, &s.BaseURL, hint).FillWidth().Font(theme.MonoFont) })
 		}
-		widget.Field(c, "Key, from the vault", func() { a.ragCredSelect(c, "key", &s.KeyCred) })
+		hint := "pa-… / sk-…"
+		if s.HasKey {
+			hint = "set on " + a.host.Name + ": type to replace"
+		}
+		a.keyFields(c, "rag-key", &st.key, &s.KeyCred, &st.keyVault, hint)
 	}
 	widget.Field(c, "Index kept", func() {
 		cur := 0
@@ -123,7 +134,11 @@ func (a *App) ragSection(c *ui.Context) {
 		}
 	})
 	if s.Store == proto.RAGPostgres {
-		widget.Field(c, "Connection URL, from the vault", func() { a.ragCredSelect(c, "pg", &s.PostgresCred) })
+		hint := "postgres://user:password@host:5432/db"
+		if s.HasPostgres {
+			hint = "set on " + a.host.Name + ": type to replace"
+		}
+		a.keyFields(c, "rag-pg", &st.pg, &s.PostgresCred, &st.pgVault, hint)
 		ui.Text(c, "A vault credential holding postgres://user:password@host:5432/db. pgvector must be installed there (enowX creates the extension when its user may); enowX keeps its table enowx_rag_points.").FontSize(11.5).TextColor(theme.Muted)
 	} else {
 		ui.Text(c, "One SQLite file in "+a.host.Name+"'s enowX folder: nothing else to run, fast up to around a hundred thousand parts a project.").FontSize(11.5).TextColor(theme.Muted)
@@ -174,15 +189,30 @@ func (st *ragSettingsState) form() proto.RAGSettings {
 	if s.Model == "" {
 		s.Model = ragModelHints[s.Embedder]
 	}
+	if !st.keyVault {
+		s.KeyCred = "" // the key typed here
+	}
+	if !st.pgVault {
+		s.PostgresCred = ""
+	}
 	return s
 }
 
 func (a *App) testRAG(st *ragSettingsState) {
-	cl, set := a.client, st.form()
+	cl, set, keys := a.client, st.form(), st.keysToSave()
 	st.testing, st.test = true, "Testing…"
 	st.testOK = true
 	go func() {
-		res, err := cl.RAGTest(set)
+		var err error
+		for _, k := range keys { // a key typed is kept first: the test uses it
+			if _, err = cl.SetRAGKey(k.Which, k.Value); err != nil {
+				break
+			}
+		}
+		res := proto.RAGTestResult{}
+		if err == nil {
+			res, err = cl.RAGTest(set)
+		}
 		a.onMain(func() {
 			st.testing = false
 			switch {
@@ -198,15 +228,24 @@ func (a *App) testRAG(st *ragSettingsState) {
 }
 
 func (a *App) saveRAGSettings(st *ragSettingsState) {
-	cl, set := a.client, st.form()
+	cl, set, keys := a.client, st.form(), st.keysToSave()
 	go func() {
-		out, err := cl.SetRAGSettings(set)
+		var err error
+		for _, k := range keys {
+			if _, err = cl.SetRAGKey(k.Which, k.Value); err != nil {
+				break
+			}
+		}
+		out := set
+		if err == nil {
+			out, err = cl.SetRAGSettings(set)
+		}
 		a.onMain(func() {
 			if err != nil {
 				st.test, st.testOK = client.Explain(err), false
 				return
 			}
-			st.set, st.saved = out, true
+			st.set, st.saved, st.key, st.pg = out, true, "", ""
 			a.ragPanel.key = "" // read the project's anew: its embedder may have changed
 		})
 	}()
@@ -281,4 +320,22 @@ func (a *App) rememberRAG(p proto.RAGRememberParams) {
 			}
 		})
 	}()
+}
+
+// keysToSave are the keys to keep on the host as the form has them: one
+// typed here, or none any more where the vault's credential is picked.
+func (st *ragSettingsState) keysToSave() []proto.RAGKey {
+	var out []proto.RAGKey
+	for _, k := range []struct {
+		which, typed string
+		vault, has   bool
+	}{{proto.RAGKeyEmbedder, st.key, st.keyVault, st.set.HasKey}, {proto.RAGKeyPostgres, st.pg, st.pgVault, st.set.HasPostgres}} {
+		switch {
+		case k.vault && k.has:
+			out = append(out, proto.RAGKey{Which: k.which}) // the vault's from now on
+		case !k.vault && strings.TrimSpace(k.typed) != "":
+			out = append(out, proto.RAGKey{Which: k.which, Value: strings.TrimSpace(k.typed)})
+		}
+	}
+	return out
 }

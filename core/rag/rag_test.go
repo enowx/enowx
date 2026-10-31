@@ -144,3 +144,33 @@ func TestNotReady(t *testing.T) {
 		t.Fatalf("err %v", err)
 	}
 }
+
+// The embedder's key typed in the app is used, the vault never asked; the
+// settings say a key is set, never what it is.
+func TestTypedEmbedderKey(t *testing.T) {
+	var auth string
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		auth = r.Header.Get("Authorization")
+		json.NewEncoder(w).Encode(map[string]any{"data": []any{map[string]any{"embedding": []float32{1, 0, 0}, "index": 0}}})
+	}))
+	defer srv.Close()
+	home := t.TempDir()
+	st := OpenSettings(home)
+	e := NewEngine(home, st)
+	e.KeyOf = func(string) (string, error) { t.Fatal("the vault was asked"); return "", nil }
+	set := proto.RAGSettings{Embedder: proto.RAGOpenAI, Model: "m", BaseURL: srv.URL + "/v1"}
+	if err := e.SetKey(proto.RAGKeyEmbedder, "sk-typed"); err != nil {
+		t.Fatal(err)
+	}
+	if dim, err := e.Test(context.Background(), set); err != nil || dim != 3 || auth != "Bearer sk-typed" {
+		t.Fatalf("test %d %v, auth %q", dim, err, auth)
+	}
+	st.Set(set)
+	if w := e.WithKeys(st.Get()); !w.HasKey || w.HasPostgres {
+		t.Fatalf("settings %+v", w)
+	}
+	data, _ := os.ReadFile(filepath.Join(home, "settings", "rag.json"))
+	if strings.Contains(string(data), "sk-typed") {
+		t.Fatal("the key is in the synced settings")
+	}
+}

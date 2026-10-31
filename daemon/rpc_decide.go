@@ -48,7 +48,8 @@ var decideHandlers = map[string]handler{
 		d.Sure = err == nil && c.srv.sure(d)
 		return d, err
 	}),
-	proto.MethodDecideRoute: with(func(c *conn, p proto.DecideRouteParams) (any, error) { return c.srv.routeFor(p) }),
-	proto.MethodDecideLog:   with(func(c *conn, p proto.DecideLogParams) (any, error) { return c.srv.judge.Log(p), nil }),
-	proto.MethodDecideMark:  with(func(c *conn, p proto.DecideMark) (any, error) { return ok, c.srv.judge.Mark(p) }),
+	proto.MethodDecideRoute:  with(func(c *conn, p proto.DecideRouteParams) (any, error) { return c.srv.routeFor(p) }),
+	proto.MethodDecideLog:    with(func(c *conn, p proto.DecideLogParams) (any, error) { return c.srv.judge.Log(p), nil }),
+	proto.MethodDecideMark:   with(func(c *conn, p proto.DecideMark) (any, error) { return ok, c.srv.judge.Mark(p) }),
+	proto.MethodDecideSetKey: with(func(c *conn, p proto.JudgeKey) (any, error) { return ok, c.srv.judge.SetKey(p.ID, p.Key) }),
 }

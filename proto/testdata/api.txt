@@ -1262,6 +1262,7 @@ field Judge.agent string
 field Judge.cost float64
 field Judge.cred string
 field Judge.error string
+field Judge.hasKey bool
 field Judge.id string
 field Judge.kind string
 field Judge.label string
@@ -1274,6 +1275,8 @@ field Judge.provider string
 field Judge.tested time.Time
 field Judge.tokens int
 field Judge.url string
+field JudgeKey.id string
+field JudgeKey.key string
 field JudgeRef.id string
 field KitTemplateData.repo string
 field MCPTest.error string
@@ -1634,6 +1637,8 @@ field RAGHit.snippet string
 field RAGHit.source string
 field RAGHit.start int
 field RAGHit.symbol string
+field RAGKey.value string
+field RAGKey.which string
 field RAGMemory.by string
 field RAGMemory.id string
 field RAGMemory.text string
@@ -1663,6 +1668,8 @@ field RAGSearchParams.scope []string
 field RAGSettings.baseUrl string
 field RAGSettings.dim int
 field RAGSettings.embedder string
+field RAGSettings.hasKey bool
+field RAGSettings.hasPostgres bool
 field RAGSettings.keyCred string
 field RAGSettings.model string
 field RAGSettings.postgresCred string
@@ -2621,6 +2628,7 @@ method decide.judges
 method decide.log
 method decide.mark
 method decide.route
+method decide.setKey
 method decide.setSettings
 method decide.settings
 method decide.test
@@ -2764,6 +2772,7 @@ method rag.memories
 method rag.plan
 method rag.remember
 method rag.search
+method rag.setKey
 method rag.setProject
 method rag.setSettings
 method rag.settings
@@ -3193,6 +3202,8 @@ value RAGBuiltin=builtin
 value RAGCode=code
 value RAGDocs=docs
 value RAGFromConfig=enowx-rag
+value RAGKeyEmbedder=embedder
+value RAGKeyPostgres=postgres
 value RAGMemo=memory
 value RAGNotes=notes
 value RAGOpenAI=openai

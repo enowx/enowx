@@ -79,3 +79,11 @@ func (c *Client) RAGMemories(ref proto.RAGRef) ([]proto.RAGMemory, error) {
 func (c *Client) RAGForget(p proto.RAGForgetParams) error {
 	return c.Call(proto.MethodRAGForget, p, nil)
 }
+
+// SetRAGKey keeps the embedder's key or the PostgreSQL URL on the host
+// ("" removes it), and says the settings as they are then.
+func (c *Client) SetRAGKey(which, value string) (proto.RAGSettings, error) {
+	var out proto.RAGSettings
+	err := c.Call(proto.MethodRAGSetKey, proto.RAGKey{Which: which, Value: value}, &out)
+	return out, err
+}

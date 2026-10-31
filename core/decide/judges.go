@@ -296,3 +296,6 @@ func allowed(j proto.Judge, policy, provider, agentP string) bool {
 func madeToDecide(j proto.Judge) bool {
 	return j.Kind == proto.JudgeDecision && (j.Own || j.Provider == proto.ProviderTypeSafe || j.Provider == proto.ProviderCloudflare || j.Provider == proto.ProviderNeuralwatt)
 }
+
+// OwnID is the ID judge j gets once the user adds it.
+func OwnID(j proto.Judge) string { return ownJudge(j).ID }

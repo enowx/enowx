@@ -21,7 +21,11 @@ type judgeForm struct {
 	url, cred, model, label string
 	preset                  string // a decision model's provider (decide.DecisionPresets' Label)
 	openAI                  bool   // a custom decision address speaks OpenAI's Decisions, not System One
-	err                     string
+	// key is the key typed here (kept on the host alone), unless fromVault:
+	// a vault credential (cred) instead.
+	key       string
+	fromVault bool
+	err       string
 }
 
 var judgeKinds = []string{proto.JudgeDecision, proto.JudgeLocal, proto.JudgeAPI}
@@ -50,7 +54,7 @@ func (a *App) judgeFormSheet(c *ui.Context, st *decideState) {
 			widget.Field(c, "Provider", func() {
 				hookSelect(c.Key("provider"), "Provider", &f.provider, providers, providerNames)
 			})
-			widget.Field(c, "Key, from the vault", func() { a.ragCredSelect(c, "judge-key", &f.cred) })
+			a.keyFields(c, "judge-key", &f.key, &f.cred, &f.fromVault, "sk-…")
 			widget.Field(c, "Address (OpenAI-compatible; empty for the provider's own)", func() {
 				widget.Input(c, &f.url, "https://api.example.com/v1").FillWidth().Font(theme.MonoFont)
 			})
@@ -63,9 +67,6 @@ func (a *App) judgeFormSheet(c *ui.Context, st *decideState) {
 		}
 		widget.Field(c, "Name (optional)", func() { widget.Input(c, &f.label, "").FillWidth() })
 	}, func() {
-		if widget.GhostButton(c, "Cancel").Clicked() {
-			f.open = false
-		}
 		if widget.PrimaryButton(c, icon.Plus, "Add", "").Disabled(strings.TrimSpace(f.model) == "").Clicked() {
 			if j, err := f.judge(); err != "" {
 				f.err = err
@@ -110,7 +111,7 @@ func (a *App) decisionFields(c *ui.Context, f *judgeForm) {
 		switchRowKey(c, "openai-shape", &f.openAI, "Speaks OpenAI's Decisions API", "Its input and questions list, not System One's state and questions map.")
 	}
 	if !local {
-		widget.Field(c, "Key, from the vault", func() { a.ragCredSelect(c, "decision-key", &f.cred) })
+		a.keyFields(c, "decision-key", &f.key, &f.cred, &f.fromVault, "sk-…")
 	}
 	widget.Field(c, "Model", func() { widget.Input(c, &f.model, "jev-latest").FillWidth().Font(theme.MonoFont) })
 }
@@ -123,10 +124,13 @@ func (f *judgeForm) pick(p proto.Judge) {
 // judge is the judge the form adds, or why not.
 func (f *judgeForm) judge() (proto.Judge, string) {
 	j := proto.Judge{Kind: f.kind, Provider: f.provider, URL: strings.TrimSpace(f.url), Cred: f.cred, Model: strings.TrimSpace(f.model), Label: strings.TrimSpace(f.label)}
+	if !f.fromVault {
+		j.Cred = ""
+	}
 	switch f.kind {
 	case proto.JudgeAPI:
-		if j.Cred == "" && j.URL == "" {
-			return j, "Pick the vault's credential with the API's key."
+		if j.Cred == "" && strings.TrimSpace(f.key) == "" && j.URL == "" {
+			return j, "Type the API's key, or pick the vault's credential holding it."
 		}
 	case proto.JudgeDecision:
 		if f.openAI {
@@ -149,4 +153,25 @@ func indexOf(list []string, s string) int {
 		}
 	}
 	return -1
+}
+
+// keyFields are where a key comes from: typed here (kept on the host
+// alone, never shown again) or a vault credential, which other hosts can
+// use too.
+func (a *App) keyFields(c *ui.Context, key string, typed, cred *string, fromVault *bool, hint string) {
+	cur := 0
+	if *fromVault {
+		cur = 1
+	}
+	widget.Field(c, "Key", func() {
+		if i := widget.Segmented(c.Key(key+"-from"), []string{"Typed here", "From the vault"}, cur, nil); i >= 0 {
+			*fromVault = i == 1
+		}
+		if *fromVault {
+			a.ragCredSelect(c, key, cred)
+			return
+		}
+		widget.Input(c.Key(key), typed, hint).FillWidth().Password()
+		ui.Text(c, "Kept on "+a.host.Name+" alone, readable by its user only; never synced or shown again.").FontSize(11).TextColor(theme.Muted)
+	})
 }

@@ -18,6 +18,7 @@ import (
 	"time"
 
 	"github.com/enowx/enowx/core/envsync"
+	"github.com/enowx/enowx/core/hostkeys"
 	"github.com/enowx/enowx/proto"
 )
 
@@ -56,8 +57,10 @@ type Engine struct {
 	cache   map[string]proto.Decision
 	// accounts are Cloudflare accounts by credential, asked once.
 	accounts map[string]string
-	log      []proto.Decision
-	busy     chan struct{} // judges asked at once
+	// keys are judges' keys typed in the app, by judge ID, on this host.
+	keys *hostkeys.Store
+	log  []proto.Decision
+	busy chan struct{} // judges asked at once
 }
 
 // Limits.
@@ -82,7 +85,7 @@ var timeouts = map[string]time.Duration{
 // NewEngine is the judge of the daemon in dir, by s.
 func NewEngine(dir string, s *Settings) *Engine {
 	e := &Engine{dir: dir, settings: s, tests: map[string]proto.Judge{}, failed: map[string]time.Time{},
-		cache: map[string]proto.Decision{}, accounts: map[string]string{}, busy: make(chan struct{}, atOnce)}
+		cache: map[string]proto.Decision{}, accounts: map[string]string{}, keys: hostkeys.Open(filepath.Join(dir, "decide-keys.json")), busy: make(chan struct{}, atOnce)}
 	if data, err := os.ReadFile(e.testsFile()); err == nil {
 		_ = json.Unmarshal(data, &e.tests)
 	}
@@ -114,6 +117,7 @@ func (e *Engine) Judges(ctx context.Context) []proto.Judge {
 	e.mu.Lock()
 	all := append(slices.Clone(e.found), st.Own...)
 	for i, j := range all {
+		all[i].HasKey = e.keys.Has(j.ID)
 		if t, ok := e.tests[j.ID]; ok {
 			all[i].Tested, all[i].OK, all[i].Error, all[i].Ms, all[i].Tokens, all[i].Cost = t.Tested, t.OK, t.Error, t.Ms, t.Tokens, t.Cost
 		}
@@ -443,4 +447,16 @@ func newID() string {
 	var b [6]byte
 	_, _ = rand.Read(b[:])
 	return hex.EncodeToString(b[:])
+}
+
+// SetKey keeps judge id's key, typed in the app, on this host alone (""
+// removes it); it is used before any vault credential.
+func (e *Engine) SetKey(id, key string) error {
+	if id == "" {
+		return errors.New("decide: which judge's key?")
+	}
+	e.mu.Lock()
+	delete(e.failed, id)
+	e.mu.Unlock()
+	return e.keys.Set(id, strings.TrimSpace(key))
 }

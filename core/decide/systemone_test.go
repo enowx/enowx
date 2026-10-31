@@ -291,3 +291,22 @@ func TestDecisionKeyFromTheVault(t *testing.T) {
 		t.Fatalf("waited %v: %+v", time.Since(start), d)
 	}
 }
+
+// A key typed in the app is used, the vault never asked.
+func TestTypedJudgeKey(t *testing.T) {
+	srv, _ := soServer(t, false, func(string, map[string]any, map[string]any) map[string]any { return choiceOf(proto.VerdictAllow, 0.9) })
+	j := proto.Judge{Kind: proto.JudgeDecision, Provider: proto.ProviderNeuralwatt, URL: srv.URL + "/v1/systemone", Model: "clef-flash"}
+	e := decisionEngine(t, j)
+	e.EnvOf = func(string) (map[string]string, error) { t.Fatal("the vault was asked"); return nil, nil }
+	e.KeyOf = func(string) (string, error) { t.Fatal("the vault was asked"); return "", nil }
+	if err := e.SetKey(OwnID(j), "tok"); err != nil {
+		t.Fatal(err)
+	}
+	d, err := e.Decide(context.Background(), Request{DecideAsk: proto.DecideAsk{Use: proto.DecideApprove, Command: "ls"}})
+	if err != nil || d.Verdict != proto.VerdictAllow {
+		t.Fatalf("decision %+v %v", d, err)
+	}
+	if js := e.Judges(context.Background()); len(js) != 1 || !js[0].HasKey {
+		t.Fatalf("judges %+v", js)
+	}
+}

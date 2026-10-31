@@ -41,9 +41,13 @@ func (e *Engine) call(ctx context.Context, j proto.Judge, system, user string) (
 	case proto.JudgeAgent:
 		return e.callAgent(ctx, j, system+"\n\n"+user)
 	case proto.JudgeAPI:
-		key, err := e.keyWithin(ctx, j.Cred)
-		if err != nil {
-			return answer{}, err
+		key := e.keys.Get(j.ID)
+		if key == "" {
+			k, err := e.keyWithin(ctx, j.Cred)
+			if err != nil {
+				return answer{}, err
+			}
+			key = k
 		}
 		if j.Protocol == "anthropic" || j.Provider == proto.ProviderAnthropic && j.URL == "" {
 			return callAnthropic(ctx, j.URL, key, j.Model, system, user)

@@ -15,6 +15,7 @@ const (
 	MethodDecideAsk         = "decide.ask"         // DecideAsk → Decision
 	MethodDecideLog         = "decide.log"         // DecideLogParams → []Decision, the latest first
 	MethodDecideMark        = "decide.mark"        // DecideMark: a decision the user says was wrong (or right after all)
+	MethodDecideSetKey      = "decide.setKey"      // JudgeKey: a judge's key typed in the app, kept on the host alone
 	MethodDecideRoute       = "decide.route"       // DecideRouteParams → RouteChoice: a model and effort for a prompt
 	// EventDecision is a decision acted on in a session: the apps show it
 	// where it acted, with its reason and a way back.
@@ -116,6 +117,9 @@ type Judge struct {
 	Protocol string `json:"protocol,omitempty"`
 	Label    string `json:"label"`
 	Own      bool   `json:"own,omitempty"`
+	// HasKey says a key typed in the app is set for it on the host (its
+	// value never leaves the host).
+	HasKey bool `json:"hasKey,omitempty"`
 	// The last test: when, whether it answered as asked, why not, how long
 	// it took, what it cost.
 	Tested time.Time `json:"tested,omitzero"`
@@ -287,4 +291,11 @@ type RouteChoice struct {
 	Switch   []string `json:"switch,omitempty"`
 	Decision string   `json:"decision,omitempty"` // the decision's ID in the log
 	Error    string   `json:"error,omitempty"`
+}
+
+// JudgeKey sets judge ID's key on the host ("" removes it): typed in the
+// app instead of a vault credential, kept on that host alone.
+type JudgeKey struct {
+	ID  string `json:"id"`
+	Key string `json:"key"`
 }

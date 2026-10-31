@@ -9,6 +9,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/enowx/enowx/core/decide"
 	"github.com/enowx/enowx/proto"
 )
 
@@ -112,5 +113,37 @@ func TestDecisionsThroughTheDaemon(t *testing.T) {
 	}
 	if acted["approve:refuse"] != proto.ActedRefused || acted["approve:allow"] != proto.ActedAllowed || acted["state:waiting"] != proto.ActedWaiting {
 		t.Fatalf("log %v", acted)
+	}
+}
+
+// Keys typed in the app reach the host's daemon and stay there: the
+// settings it answers say a key is set, never what it is.
+func TestTypedKeysStayOnTheHost(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("uses sh")
+	}
+	hookServer(t)
+	c, err := dialDaemon()
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer c.Close()
+	set, err := c.SetRAGKey(proto.RAGKeyEmbedder, "sk-secret-123")
+	if err != nil || !set.HasKey {
+		t.Fatalf("rag key: %+v %v", set, err)
+	}
+	var raw json.RawMessage
+	if err := c.Call(proto.MethodRAGSettings, nil, &raw); err != nil || strings.Contains(string(raw), "sk-secret-123") {
+		t.Fatalf("the key left the host: %s %v", raw, err)
+	}
+	j := proto.Judge{Kind: proto.JudgeDecision, Provider: proto.ProviderNeuralwatt, URL: "https://api.neuralwatt.com/v1/systemone", Model: "clef-flash"}
+	if _, err := c.SetDecideSettings(proto.DecideSettings{Own: []proto.Judge{j}}); err != nil {
+		t.Fatal(err)
+	}
+	if err := c.SetJudgeKey(decide.OwnID(j), "sk-judge-456"); err != nil {
+		t.Fatal(err)
+	}
+	if err := c.Call(proto.MethodDecideJudges, nil, &raw); err != nil || strings.Contains(string(raw), "sk-judge-456") || !strings.Contains(string(raw), `"hasKey":true`) {
+		t.Fatalf("judges: %s %v", raw, err)
 	}
 }

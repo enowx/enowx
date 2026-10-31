@@ -9,6 +9,7 @@ import (
 	"github.com/egoist/mygo/ui"
 
 	"github.com/enowx/enowx/client"
+	"github.com/enowx/enowx/core/decide"
 	"github.com/enowx/enowx/core/projectlinks"
 	"github.com/enowx/enowx/proto"
 	"github.com/enowx/enowx/ui/icon"
@@ -152,10 +153,16 @@ func (a *App) projectPolicy(c *ui.Context, st *decideState, p proto.ProjectInfo)
 }
 
 func (a *App) addJudge(st *decideState, j proto.Judge) {
-	cl, set := a.client, st.set
+	cl, set, key := a.client, st.set, ""
+	if !st.adding.fromVault {
+		key = strings.TrimSpace(st.adding.key)
+	}
 	set.Own = append(set.Own, j)
 	go func() {
 		out, err := cl.SetDecideSettings(set)
+		if err == nil && key != "" {
+			err = cl.SetJudgeKey(decide.OwnID(j), key)
+		}
 		judges, _ := cl.DecideJudges()
 		a.onMain(func() {
 			if err != nil {
