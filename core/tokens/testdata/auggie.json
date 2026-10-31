@@ -1,0 +1,7 @@
+{"sessionId":"aug-1","chatHistory":[
+  {"completed":true,"finishedAt":"2026-10-25T10:00:05.000Z","sequenceId":1,"exchange":{"model_id":"claude-sonnet-5-5","request_id":"req-a1","response_nodes":[
+    {"token_usage":{"input_tokens":0,"output_tokens":0}},
+    {"token_usage":{"input_tokens":30,"output_tokens":120,"cache_read_input_tokens":8000,"cache_creation_input_tokens":500}}
+  ]}},
+  {"completed":false,"sequenceId":2,"exchange":{"model_id":"claude-sonnet-5-5","request_id":"req-a2","response_nodes":[{"token_usage":{"input_tokens":9,"output_tokens":9}}]}}
+]}

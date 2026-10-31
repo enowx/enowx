@@ -1,6 +1,7 @@
 package decide
 
 import (
+	"cmp"
 	"context"
 	"crypto/rand"
 	"crypto/sha256"
@@ -37,6 +38,12 @@ type Engine struct {
 	Run func(ctx context.Context, dir, bin string, args []string) ([]byte, error)
 	// Mask hides the secrets the host knows in what is logged.
 	Mask func(string) string
+	// OnRecord learns of each decision kept or changed (its tokens are
+	// enowX's own use, docs/tokens.md); called without the lock held.
+	OnRecord func(proto.Decision)
+	// Cheaper reports that a token budget is near: the cheapest judges
+	// are asked first.
+	Cheaper func() bool
 
 	mu      sync.Mutex
 	found   []proto.Judge
@@ -285,6 +292,9 @@ func (e *Engine) chain(ctx context.Context, st proto.DecideSettings, u proto.Dec
 		}
 		out = append(out, j)
 	}
+	if e.Cheaper != nil && e.Cheaper() {
+		slices.SortStableFunc(out, func(a, b proto.Judge) int { return cmp.Compare(a.Cost, b.Cost) })
+	}
 	return out
 }
 
@@ -352,6 +362,9 @@ func (e *Engine) Record(d proto.Decision) {
 	data, _ := json.Marshal(e.log)
 	e.mu.Unlock()
 	_ = envsync.WriteFileAtomic(e.logFile(), data, 0o600)
+	if e.OnRecord != nil {
+		e.OnRecord(d)
+	}
 }
 
 // Acted records what came of decision id.

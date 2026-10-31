@@ -1,0 +1,2 @@
+{"seq":1,"timestamp":"2026-10-26T08:00:00.000Z","event":{"type":"turn_started"}}
+{"seq":2,"timestamp":"2026-10-26T08:00:04.000Z","event":{"type":"completion_succeeded","result":{"model":"devstral-medium","usage":{"input_tokens":5000,"output_tokens":200,"total_tokens":5200,"cached_input_tokens":3000,"cache_write_tokens":0,"reasoning_tokens":40}}}}

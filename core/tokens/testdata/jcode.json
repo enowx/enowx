@@ -1,0 +1,4 @@
+{"id":"jc-1","provider_key":"anthropic","model":"claude-opus-5-5","working_dir":"/work/jc","messages":[
+  {"id":"j1","role":"user","timestamp":"2026-10-25T12:00:00.000Z"},
+  {"id":"j2","role":"assistant","timestamp":"2026-10-25T12:00:04.000Z","token_usage":{"input_tokens":15,"output_tokens":90,"cache_read_input_tokens":6000,"cache_creation_input_tokens":400,"reasoning_output_tokens":30}}
+]}

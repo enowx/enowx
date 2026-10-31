@@ -1,0 +1,1 @@
+{"type":"assistant","isSidechain":true,"uuid":"b1","timestamp":"2026-10-20T10:00:30.000Z","cwd":"/work/app","sessionId":"s-claude-1","message":{"id":"msg_SUB","model":"claude-haiku-5-5","role":"assistant","content":[{"type":"text","text":"found it"}],"usage":{"input_tokens":3000,"cache_creation_input_tokens":0,"cache_read_input_tokens":0,"output_tokens":50}}}

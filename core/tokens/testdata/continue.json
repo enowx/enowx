@@ -1,0 +1,5 @@
+{"sessionId":"cn-1","title":"Fix","workspaceDirectory":"/work/cn","chatModelTitle":"gpt-4.1","history":[
+  {"message":{"role":"user","content":"fix"}},
+  {"message":{"role":"assistant","content":"ok","usage":{"promptTokens":3000,"completionTokens":150,"promptTokensDetails":{"cachedTokens":2048}}}},
+  {"message":{"role":"assistant","content":"done","usage":{"promptTokens":20,"completionTokens":80,"promptTokensDetails":{"cachedTokens":5000,"cacheWriteTokens":100}}}}
+],"usage":{"totalCost":0.01}}

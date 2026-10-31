@@ -1,0 +1,1 @@
+{"id":"prt_legacy1","sessionID":"ses_old","messageID":"msg_legacy1","type":"step-finish","tokens":{"input":900,"output":200,"reasoning":50,"cache":{"write":100,"read":3000}},"cost":0.0123}
