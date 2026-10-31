@@ -134,13 +134,25 @@ func (a *App) leaveGOA() {
 	}
 }
 
-// toggleGOA enters GOA mode, or leaves it.
+// toggleGOA enters GOA mode, or leaves it once the user confirms.
 func (a *App) toggleGOA() {
 	if a.goaOn() {
-		a.leaveGOA()
+		a.confirmLeaveGOA(nil)
 		return
 	}
 	a.enterGOA()
+}
+
+// confirmLeaveGOA leaves GOA mode once the user confirms, then runs then
+// (nil for nothing): leaving takes the user away from the one session
+// they drive, so it asks first, as every action out of a mode does.
+func (a *App) confirmLeaveGOA(then func()) {
+	a.confirm("Leave GOD of Agents?", "You go back to the projects and their sessions. GOD of Agents keeps running, with its tasks and workers; the title bar's chip brings you back.", "Leave the mode", func() {
+		a.leaveGOA()
+		if then != nil {
+			then()
+		}
+	})
 }
 
 // goaSession is GOA's session in the list, if there.

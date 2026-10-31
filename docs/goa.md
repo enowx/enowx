@@ -14,6 +14,8 @@ The title bar's **GOD of Agents** chip (or ⌘K, "Enter or leave GOD of Agents")
 
 GOA's mode shows the host the app shows; the app tells that host of GOA's workers on other hosts as they change (`goa.worker`), as only it sees them. With the app closed, GOA keeps controlling its own host; other hosts wait until the app is back.
 
+Leaving the mode asks first, whichever way: the title bar's chip, **Leave**, the palette, or **Open the session** in Tasks. GOD of Agents keeps running either way.
+
 ## Its session
 
 `session.create` with `goa: true` (the app's start, or `enowx goa start --agent A`): one GOA per host at a time.

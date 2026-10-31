@@ -107,6 +107,10 @@ func TestGOAMode(t *testing.T) {
 		t.Fatalf("back to GOA: page %q", app.page)
 	}
 	click("Leave")
+	if !app.goaOn() || app.confirming == nil {
+		t.Fatal("left GOA mode without asking first")
+	}
+	click("Leave the mode")
 	if app.goaOn() || app.state.GOA {
 		t.Fatal("still in GOA mode")
 	}

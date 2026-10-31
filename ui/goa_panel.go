@@ -151,8 +151,7 @@ func (a *App) goaDetailDialog(c *ui.Context) {
 		if d.host == a.host.ID || d.host == a.host.Name {
 			if widget.PrimaryButton(c, nil, "Open the session", "Leaves GOD of Agents and shows it").Clicked() {
 				d.open = false
-				a.leaveGOA()
-				a.selectSession(s)
+				a.confirmLeaveGOA(func() { a.selectSession(s) })
 			}
 		}
 	})

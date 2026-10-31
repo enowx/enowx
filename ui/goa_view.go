@@ -68,7 +68,7 @@ func (a *App) goaNav(c *ui.Context) {
 			widget.Tag(c, strconv.Itoa(n)+" "+textfmt.Plural(n, "task needs you", "tasks need you"), theme.Warning)
 		}
 		if widget.GhostButton(c, "Leave").Tooltip("Back to the projects and their sessions; GOD of Agents keeps running").Clicked() {
-			a.leaveGOA()
+			a.confirmLeaveGOA(nil)
 		}
 	})
 }
