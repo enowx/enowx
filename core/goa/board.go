@@ -148,6 +148,26 @@ func Settled(status string) bool {
 	return status == proto.GOATaskDone || status == proto.GOATaskFailed || status == proto.GOATaskStopped
 }
 
+// WorkerStatus is a task's status as its session info says, "" for no
+// change (a hibernated session comes back).
+func WorkerStatus(info proto.SessionInfo) string {
+	switch {
+	case info.Exited && info.Hibernated:
+		return ""
+	case info.Exited && info.ExitCode != 0:
+		return proto.GOATaskFailed
+	case info.Exited:
+		return proto.GOATaskStopped
+	case info.State == proto.StateWaiting:
+		return proto.GOATaskWaiting
+	case info.State == proto.StateDone:
+		return proto.GOATaskDone
+	case info.State == proto.StateWorking:
+		return proto.GOATaskWorking
+	}
+	return ""
+}
+
 func find(tasks []proto.GOATask, id string) (int, error) {
 	id = strings.TrimSpace(id)
 	if id == "" {
