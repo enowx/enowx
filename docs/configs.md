@@ -28,7 +28,7 @@ A model API's key is read from the vault as the session starts (the app holding 
 | Claude Code (and Agent Teams) | `ANTHROPIC_BASE_URL`, `ANTHROPIC_AUTH_TOKEN` (the key), `ANTHROPIC_MODEL`, `ANTHROPIC_DEFAULT_HAIKU_MODEL`, `CLAUDE_CODE_MAX_CONTEXT_TOKENS`, `CLAUDE_CODE_MAX_OUTPUT_TOKENS` in its environment; the same but the key, the model picker's options and each model's effort in the `--settings` enowX's hooks already pass (flag settings win over the user's own) |
 | Codex | `-c` overrides: `model_provider="enowx"`, `model_providers.enowx.*` (`base_url`, `env_key`, `wire_api = "responses"`), `model`, `model_reasoning_effort`, `model_context_window`, a profile `enowx-<model>` for each other model; the key in `ENOWX_CODEX_API_KEY` |
 | OpenCode | `OPENCODE_CONFIG`: a config of the session's own merged over the user's, its provider `enowx` with `apiKey: {env:ENOWX_OPENCODE_API_KEY}`, the key in that variable |
-| Gemini CLI, Antigravity | `GOOGLE_GEMINI_BASE_URL`, `GEMINI_API_KEY`, `GEMINI_DEFAULT_AUTH_TYPE=gemini-api-key`, `GEMINI_MODEL` and `--model` (Gemini CLI) |
+| Gemini CLI, Antigravity | `GOOGLE_GEMINI_BASE_URL`, `GEMINI_API_KEY`, `GEMINI_CLI_AUTH_OVERRIDE=gemini-api-key` (the key's sign-in for this run, the user's settings untouched), `GEMINI_MODEL` and `--model` (Gemini CLI) |
 | GitHub Copilot | `COPILOT_PROVIDER_*`, `COPILOT_MODEL` |
 | OpenClaude | `CLAUDE_CODE_USE_OPENAI`, `OPENAI_*`, or `ANTHROPIC_*` |
 | Aider | `OPENAI_API_BASE`, `OPENAI_API_KEY`; `--model openai/<model>`, `--weak-model`, `--reasoning-effort`, `--model-metadata-file` (a file of the session's own) for its limits |
@@ -45,3 +45,11 @@ The other agents [agent-api.md](agent-api.md) lists (Kilo Code, Qwen Code, Droid
 
 - Accounts kept in `accounts.json` become configs of the account kind, their homes where they were; a team member's account on a host they visit stays that host's own.
 - A model API set in an agent's own files (before configs) becomes a config named "Model API" once its key is kept in the vault: the daemon asks the app (the user confirms) when it starts and whenever an app connects. The config becomes the agent's default for new sessions, so they go on as before, and the agent's files are put back as the user had them (the first backup enowX kept), byte for byte, when nothing else changed them since; otherwise only what enowX added is taken out, the user's later changes kept. Until then the API keeps working from the files.
+
+## Checked
+
+- **Claude Code and Codex:** tested with stand-in programs that record the variables and arguments each session gets (`daemon/configs_test.go`).
+- **OpenCode:** run for real, `OPENCODE_REAL=1 go test ./core/agentapi -run OpenCode`. A session config's `OPENCODE_CONFIG` made it call the config's API, with the key from its environment and the model named; the key wasn't written to the file.
+- **Gemini CLI:** checked against its source. `GEMINI_CLI_AUTH_OVERRIDE`, `GOOGLE_GEMINI_BASE_URL`, `GEMINI_API_KEY`, `GEMINI_MODEL` and `--model` are what it reads.
+- **Aider:** checked against its docs. `OPENAI_API_BASE`, `OPENAI_API_KEY`, `--model openai/<model>` and `--model-metadata-file` (a JSON keyed by `provider/model`).
+

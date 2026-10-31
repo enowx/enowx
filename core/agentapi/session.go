@@ -221,10 +221,13 @@ func envSession(a adapter) sessionFunc {
 }
 
 // geminiSession: the variables Gemini CLI reads its key and address
-// from, signing in with the key, and the model on its command line.
+// from, signing in with the key for this run alone (GEMINI_CLI_AUTH_OVERRIDE
+// replaces the user's selectedType; without it the base URL would pick its
+// "gateway" auth, and an interactive start asks), and the model on its
+// command line.
 func geminiSession(api API, _ string) (Launch, error) {
 	l := Launch{Env: kv([2]string{"GOOGLE_GEMINI_BASE_URL", api.BaseURL}, [2]string{"GEMINI_API_KEY", api.APIKey},
-		[2]string{"GEMINI_DEFAULT_AUTH_TYPE", "gemini-api-key"}, [2]string{"GEMINI_MODEL", api.Model})}
+		[2]string{"GEMINI_CLI_AUTH_OVERRIDE", "gemini-api-key"}, [2]string{"GEMINI_MODEL", api.Model})}
 	if api.Model != "" {
 		l.Args = []string{"--model", api.Model}
 	}
