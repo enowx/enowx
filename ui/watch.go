@@ -173,6 +173,7 @@ func (a *App) poll(w *hostWatch, cl *client.Client) {
 		a.onMain(func() {
 			w.status = hostStatus{state: hostOnline, latency: latency, usage: stats.Host, sessions: sessions, projects: projects, checked: time.Now()}
 			w.cl, w.info = cl, info
+			a.goaCatchUp(w.host.Name, sessions)
 		})
 		select {
 		case <-w.stop:

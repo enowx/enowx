@@ -150,7 +150,7 @@ func (s *Server) goaSessionOn(from, host, id string) (proto.SessionInfo, error) 
 // what it needs to act on: a task done (its result), waiting (what it
 // asks, and whose it is to answer), failed or stopped.
 func (s *Server) goaWorkerChanged(info proto.SessionInfo) {
-	status := workerStatus(info)
+	status := goa.WorkerStatus(info)
 	if status == "" {
 		return
 	}
@@ -196,26 +196,6 @@ func (s *Server) goaWorkerChanged(info proto.SessionInfo) {
 	if len(changed) > 0 {
 		s.goaChanged()
 	}
-}
-
-// workerStatus is a task's status as its session info says, "" for no
-// change (a hibernated session comes back).
-func workerStatus(info proto.SessionInfo) string {
-	switch {
-	case info.Exited && info.Hibernated:
-		return ""
-	case info.Exited && info.ExitCode != 0:
-		return proto.GOATaskFailed
-	case info.Exited:
-		return proto.GOATaskStopped
-	case info.State == proto.StateWaiting:
-		return proto.GOATaskWaiting
-	case info.State == proto.StateDone:
-		return proto.GOATaskDone
-	case info.State == proto.StateWorking:
-		return proto.GOATaskWorking
-	}
-	return ""
 }
 
 // goaResult is what task t's session said last, or its screen's end.

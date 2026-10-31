@@ -95,6 +95,22 @@ func (a *App) goaRelay(host string, info proto.SessionInfo) {
 	go func() { _ = cl.Call(proto.MethodGOAWorker, proto.GOAWorkerParams{Host: host, Session: info}, nil) }()
 }
 
+// goaCatchUp relays, of host's sessions as a poll read them, the workers
+// whose open task the board shows otherwise: changes the app missed while
+// closed or not connected there, or before it had the board. A settled
+// task is left alone, GOA's word on it standing.
+func (a *App) goaCatchUp(host string, sessions []proto.SessionInfo) {
+	for _, s := range sessions {
+		t := a.goaTaskOf(s.ID)
+		if t == nil || goaSettled(*t) {
+			continue
+		}
+		if st := goa.WorkerStatus(s); st != "" && st != t.Status {
+			a.goaRelay(host, s)
+		}
+	}
+}
+
 // goaTaskOf is session id's latest task on the board, nil for none.
 func (a *App) goaTaskOf(id string) *proto.GOATask {
 	tasks := a.goa.board.Tasks

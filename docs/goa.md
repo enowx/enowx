@@ -12,7 +12,7 @@ The title bar's **GOD of Agents** chip (or ⌘K, "Enter or leave GOD of Agents")
   - **Sessions**: every session on every host the app reaches, its state and the task GOA gave it; a session that waits on the user says so. Clicking one shows its task, and opens it (leaving the mode) when it is on the host shown.
   - **Tasks**: the board, newest first: each task's session and host, the model and effort its prompt runs on and why, its status and result, what it asks. **Change model** sets another model and effort: switched in its session at once (its `/model`, `/effort`) and kept on the board as chosen by the user; GOA is told. Below, what a watched GOA did itself, files to revert (the user confirms).
 
-GOA's mode shows the host the app shows; the app tells that host of GOA's workers on other hosts as they change (`goa.worker`), as only it sees them. With the app closed, GOA keeps controlling its own host; other hosts wait until the app is back.
+GOA's mode shows the host the app shows; the app tells that host of GOA's workers on other hosts as they change (`goa.worker`), as only it sees them. With the app closed, GOA keeps controlling its own host; other hosts wait until the app is back, whose first look at each host tells GOA's host what its workers there did meanwhile (and every look after, for a change it missed).
 
 ## Its session
 
