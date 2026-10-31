@@ -96,6 +96,27 @@ func TestGOAMode(t *testing.T) {
 	frames("the task on the board", func() bool { return tt.HasText("Fix the totals") && tt.HasText("its own · its own") })
 	shot(t, tt, "goa-mode.png")
 
+	// GOA opens on its chat, its agent having one; the strip's Browser shows
+	// its browser in the main view, GOD of Agents its chat again.
+	g, _ := app.goaSession()
+	if app.currentView(g) != viewChat {
+		t.Fatalf("GOA opened on %q, not its chat", app.currentView(g))
+	}
+	app.goaShow(goaBrowser)
+	for range 10 {
+		tt.Advance(100 * time.Millisecond) // the strip's colours ease over
+		tt.Frame()
+	}
+	if app.page != "" || app.currentView(g) != viewBrowser {
+		t.Fatalf("Browser from the strip: page %q view %q", app.page, app.currentView(g))
+	}
+	shot(t, tt, "goa-browser.png")
+	app.goaShow("")
+	tt.Frame()
+	if app.currentView(g) != viewChat {
+		t.Fatalf("back to GOA: view %q", app.currentView(g))
+	}
+
 	// The strip reaches the pages, and back.
 	click("Notes")
 	if app.page != pageNotes || !app.goaOn() {

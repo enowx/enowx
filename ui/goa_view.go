@@ -13,10 +13,15 @@ import (
 	"github.com/enowx/enowx/ui/widget"
 )
 
+// goaBrowser stands for GOA session's browser in the strip: not a page,
+// the session shown on its Browser view.
+const goaBrowser = "goa-browser"
+
 // goaPages are what GOA mode's strip reaches, in its order: GOA itself
 // (""), then the pages the session list's rail would.
 var goaPages = []struct{ page, label string }{
 	{"", "GOD of Agents"},
+	{goaBrowser, "Browser"},
 	{pageNotes, "Notes"},
 	{pageCanvas, "Canvas"},
 	{pageUsage, "Usage"},
@@ -59,9 +64,13 @@ func (a *App) goaNav(c *ui.Context) {
 		for i, p := range goaPages {
 			labels[i] = p.label
 		}
-		current := slices.IndexFunc(goaPages, func(p struct{ page, label string }) bool { return p.page == a.page })
+		shown := a.page
+		if s, ok := a.goaSession(); ok && shown == "" && a.state.BrowserViews[s.ID] {
+			shown = goaBrowser
+		}
+		current := slices.IndexFunc(goaPages, func(p struct{ page, label string }) bool { return p.page == shown })
 		if i := widget.Segmented(c.Key("goa-pages"), labels, current, nil); i >= 0 {
-			a.page = goaPages[i].page
+			a.goaShow(goaPages[i].page)
 		}
 		ui.Spacer(c)
 		if n := a.goaNeedsYou(); n > 0 {
@@ -71,6 +80,28 @@ func (a *App) goaNav(c *ui.Context) {
 			a.confirmLeaveGOA(nil)
 		}
 	})
+}
+
+// goaShow shows what the strip's item page stands for: a page, GOA's
+// session on its Browser view, or GOA's session on its chat (or terminal).
+func (a *App) goaShow(page string) {
+	s, ok := a.goaSession()
+	switch {
+	case page == goaBrowser && ok:
+		a.page = ""
+		a.showView(s, viewBrowser)
+	case page == "" && ok:
+		a.page = ""
+		if a.state.BrowserViews[s.ID] {
+			view := viewTerminal
+			if canChat(s) {
+				view = viewChat
+			}
+			a.showView(s, view)
+		}
+	default:
+		a.page = page
+	}
 }
 
 // goaNeedsYou counts tasks whose session waits on the user.
@@ -93,6 +124,13 @@ func (a *App) goaMain(c *ui.Context) {
 		return
 	}
 	a.selected, a.maximized = s.ID, ""
+	if a.goa.chatSet != s.ID {
+		// GOA is talked to: its chat first, where its agent has one.
+		a.goa.chatSet = s.ID
+		if canChat(s) && a.currentView(s) == viewTerminal {
+			a.showView(s, viewChat)
+		}
+	}
 	a.focusView(c, proto.ProjectInfo{Name: "its own folder", Path: s.Dir}, s)
 }
 

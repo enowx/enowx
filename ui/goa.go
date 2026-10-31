@@ -26,6 +26,9 @@ type goaApp struct {
 	override *goaOverrideForm
 	detail   *goaDetail // a session's details, from the Sessions tool
 	err      string
+	// chatSet is the GOA session last opened on its chat, once: the user's
+	// own choice of view is kept after.
+	chatSet string
 }
 
 // goaOn says the app shows GOA mode: asked for, and GOA known on the host.
