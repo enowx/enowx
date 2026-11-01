@@ -17,6 +17,7 @@ var Presets = []Preset{
 		AllowSkip:       []string{"--allow-dangerously-skip-permissions"},
 		Continue:        []string{"--continue"},
 		Resume:          []string{"--resume"},
+		Fork:            []string{"--resume", "%s", "--fork-session"},
 		RefusesRootSkip: true,
 		Interrupt:       "\x1b",
 		// Its permission dialog takes an option's number, Esc for no.
@@ -30,6 +31,7 @@ var Presets = []Preset{
 		SkipPermissions: []string{"--dangerously-bypass-approvals-and-sandbox"},
 		Continue:        []string{"resume", "--last"},
 		Resume:          []string{"resume"},
+		Fork:            []string{"fork", "%s"},
 		Interrupt:       "\x1b",
 		SignIn:          []string{"codex", "login", "--device-auth"},
 		Install:         "curl -fsSL https://chatgpt.com/codex/install.sh | sh",

@@ -106,6 +106,7 @@ A session controls sessions and settings of any host the app reaches, with the s
 |---|---|
 | `interrupt SESSION` | Stops what its agent is doing with the agent's own key (Escape, else Ctrl+C) (`session.interrupt`). |
 | `stop SESSION` | Ends its agent now, even mid-work, keeping the session (`hibernate --force`); `continue` brings it back on its conversation. |
+| `fork SESSION [PROMPT...]` | A new session from a compacted copy of its conversation, named after it, in the same folder and branch; the old one keeps its whole history (`session.fork`). Claude Code and Codex. MCP `session_fork`. |
 | `continue SESSION` | Starts an ended session's program again (`session.continue`), or wakes a hibernated one. |
 | `rename SESSION NAME` | Renames it (`session.rename`). |
 | `close SESSION --yes` | Ends it, its tabs and what runs in them (`session.kill`); `kill` is the same. A tab of a session needs no `--yes`. |

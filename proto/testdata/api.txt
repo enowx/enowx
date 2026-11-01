@@ -1791,6 +1791,7 @@ field SessionCreateParams.display bool
 field SessionCreateParams.effort string
 field SessionCreateParams.env []string
 field SessionCreateParams.features map[string]bool
+field SessionCreateParams.fork bool
 field SessionCreateParams.goa bool
 field SessionCreateParams.goaWorker string
 field SessionCreateParams.group string
@@ -1809,6 +1810,8 @@ field SessionCreateParams.skipPermissions bool
 field SessionCreateParams.tokenBudgetOK bool
 field SessionEnvVar.name string
 field SessionEnvVar.value string
+field SessionForkParams.id string
+field SessionForkParams.prompt string
 field SessionHibernateParams.dryRun bool
 field SessionHibernateParams.force bool
 field SessionHibernateParams.from string
@@ -2821,6 +2824,7 @@ method session.detach
 method session.display
 method session.displayStop
 method session.fanOut
+method session.fork
 method session.hibernate
 method session.hibernatePrefs
 method session.hook

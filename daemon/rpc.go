@@ -70,7 +70,7 @@ var slowMethods = slow(methodsOf(reviewHandlers, tokenHandlers, cloudHandlers, s
 	proto.MethodSessionRewind, proto.MethodAgentHistory, proto.MethodAutomationRun,
 	proto.MethodSessionFanOut, proto.MethodBrowserAct, proto.MethodFeaturesRequest, proto.MethodNoteChat, proto.MethodNoteChatLog, proto.MethodCanvasRender,
 	proto.MethodProjectCopyRequest, proto.MethodProjectSyncRequest, proto.MethodAutopushNow, proto.MethodAutopushSet, proto.MethodProjectKeepCopy, proto.MethodProjectFileRead,
-	proto.MethodSessionCreate, proto.MethodSessionContinue,
+	proto.MethodSessionCreate, proto.MethodSessionContinue, proto.MethodSessionFork,
 	proto.MethodVaultAsk, proto.MethodVaultAttach, proto.MethodVaultScan, proto.MethodHostKeysToVault,
 	// An unslop asks the app it came from to read its page, and makes sessions.
 	proto.MethodBrowserUnslop, proto.MethodBrowserUnslopShots, proto.MethodCanvasUnslop, proto.MethodCanvasBuild, proto.MethodCanvasMatch)

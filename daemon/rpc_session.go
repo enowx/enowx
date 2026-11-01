@@ -90,6 +90,7 @@ var sessionHandlers = map[string]handler{
 		c.srv.displays.scale.Store(int32(min(max(p.Scale, 1), 4)))
 		return ok, nil
 	}),
+	proto.MethodSessionFork: with(func(c *conn, p proto.SessionForkParams) (any, error) { return c.srv.forkSession(p) }),
 	proto.MethodSessionContinue: with(func(c *conn, p proto.SessionRef) (any, error) {
 		sess, err := c.srv.continueSession(p.ID)
 		if err != nil {

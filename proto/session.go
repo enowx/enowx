@@ -228,6 +228,9 @@ type SessionCreateParams struct {
 	// Resume goes on with the agent's conversation of this ID
 	// (Conversation.ID) instead of starting one; older daemons ignore it.
 	Resume string `json:"resume,omitempty"`
+	// Fork, with Resume, starts from a copy of that conversation, the
+	// original left as it is (session.fork); older daemons ignore it.
+	Fork bool `json:"fork,omitempty"`
 	// RunSetup runs the project's worktree setup (ProjectDetail.Setup) in
 	// a tab of the session, when it gets a new worktree.
 	RunSetup bool `json:"runSetup,omitempty"`
@@ -323,4 +326,16 @@ type ResizeParams struct {
 	Rows       int    `json:"rows"`
 	CellWidth  int    `json:"cellWidth,omitempty"`
 	CellHeight int    `json:"cellHeight,omitempty"`
+}
+
+// MethodSessionFork starts a new session from a compacted copy of a session's
+// conversation, the old one kept whole: SessionForkParams → SessionInfo, the
+// new session's, once compacted. Slow.
+const MethodSessionFork = "session.fork"
+
+// SessionForkParams names the session to fork; Prompt, if any, is typed in the
+// new one once its context is compacted.
+type SessionForkParams struct {
+	ID     string `json:"id"`
+	Prompt string `json:"prompt,omitempty"`
 }

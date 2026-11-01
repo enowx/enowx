@@ -60,6 +60,10 @@ type Preset struct {
 	// a session copied from another host goes on with its own, even when
 	// others ran in the same folder since. Empty: Continue serves.
 	Resume []string
+	// Fork starts the agent on a copy of the conversation whose id takes
+	// the "%s", the original left as it is. Empty: it can't, and enowX
+	// doesn't fork its sessions.
+	Fork []string
 	// SessionDir keeps the agent's conversations in the folder that follows
 	// it: each session's own, so sessions in one folder don't take each
 	// other's when continued.
@@ -134,6 +138,9 @@ type Launch struct {
 	// Resume continues the conversation of this id, where the agent can
 	// (Preset.Resume); else the last one, as Continue.
 	Resume string
+	// Fork, with Resume, goes on from a copy of that conversation
+	// (Preset.Fork).
+	Fork bool
 	// SessionDir is the folder the agent keeps the session's conversations
 	// in, where it can (Preset.SessionDir).
 	SessionDir string
@@ -145,6 +152,13 @@ type Launch struct {
 func (p Preset) Argv(l Launch) []string {
 	argv := append([]string{p.Program()}, p.Args...)
 	switch {
+	case l.Resume != "" && l.Fork && len(p.Fork) > 0:
+		for _, a := range p.Fork {
+			if a == "%s" {
+				a = l.Resume
+			}
+			argv = append(argv, a)
+		}
 	case l.Resume != "" && len(p.Resume) > 0:
 		argv = append(append(argv, p.Resume...), l.Resume)
 	case l.Continue || l.Resume != "":
@@ -222,4 +236,30 @@ func List() []proto.AgentInfo {
 		proto.AgentInfo{ID: Shell, Name: "Shell", Installed: true},
 		proto.AgentInfo{ID: Custom, Name: "Custom command", Installed: true},
 	)
+}
+
+// CompactFailed says what an agent's screen says of a /compact that failed,
+// "" for nothing of the sort. Compacting's success is read from its
+// conversation (transcript.Compacted).
+func CompactFailed(screen string) string {
+	low := strings.ToLower(screen)
+	for _, say := range []string{"error during compaction", "compaction failed", "failed to compact", "not enough messages to compact"} {
+		if strings.Contains(low, say) {
+			return say
+		}
+	}
+	return ""
+}
+
+// ShowsPrompt says an agent's screen is at its prompt, where a line typed is
+// a message and not an answer to a question it asks. It knows the agents whose
+// sessions fork (Preset.Fork).
+func ShowsPrompt(id, screen string) bool {
+	switch Base(id) {
+	case "claude":
+		return strings.Contains(screen, "❯") && !strings.Contains(screen, "Do you want") && !strings.Contains(screen, "Esc to cancel")
+	case "codex":
+		return strings.Contains(screen, "Ask Codex") || strings.Contains(screen, "for shortcuts")
+	}
+	return false
 }

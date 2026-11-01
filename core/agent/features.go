@@ -155,7 +155,7 @@ Agents that can't take an API per session (enowx-app api lists them) still take 
 		About:   "Agents control sessions on any host the app reaches (interrupt, stop, answer, switch model, review and merge, close) and change the app's, hosts' and projects' settings.",
 		Summary: "Control of sessions and settings on any host: \"$ENOWX_BIN\" help control.",
 		Guide:   ControlGuide,
-		Tools: []string{"session_interrupt", "session_stop", "session_continue", "session_rename", "session_close", "session_chat",
+		Tools: []string{"session_interrupt", "session_stop", "session_continue", "session_fork", "session_rename", "session_close", "session_chat",
 			"session_ask", "session_answer", "session_switch", "session_changes", "session_commit", "session_push", "session_pr",
 			"session_merge", "session_discard", "host_settings", "host_env", "app_settings", "project_settings", "control_log"}},
 	{ID: "goa", Name: "GOD of Agents", Group: GroupCore, Lazy: true, Requires: []string{"control"},

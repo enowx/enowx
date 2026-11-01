@@ -50,41 +50,67 @@ func (s *Server) goaReady(p proto.GOADelegateParams, info proto.SessionInfo) (bo
 	return true, s.goaWaitReady(p, info.ID)
 }
 
-// goaWaitReady waits for session id to show its agent back and quiet, as a
-// first prompt waits (promptQuiet, promptTimeout). A resumed session shows
-// its old screen at once, so it counts from the screen changing; a screen
-// that never changes or settles still gets the prompt when that wait ends,
-// rather than losing it. It fails when the session ends or stays queued.
+// goaWaitReady waits for session id on p's host to be ready: through control
+// on another host, at once here, where it keeps polls out of the control log.
 func (s *Server) goaWaitReady(p proto.GOADelegateParams, id string) error {
+	if s.thisHost(p.Host) {
+		return s.waitSessionReady(id)
+	}
+	return waitReady(id, func() (proto.SessionInfo, string, error) {
+		var list []proto.SessionInfo
+		if err := s.goaCall(p.From, p.Host, proto.MethodSessionList, nil, &list); err != nil {
+			return proto.SessionInfo{}, "", err
+		}
+		i := slices.IndexFunc(list, func(x proto.SessionInfo) bool { return x.ID == id })
+		if i < 0 {
+			return proto.SessionInfo{}, "", fmt.Errorf("goa: session %s is gone", id)
+		}
+		var screen proto.SessionScreen
+		if !list[i].Exited && !list[i].Queued {
+			if err := s.goaCall(p.From, p.Host, proto.MethodSessionScreen, proto.SessionRef{ID: id}, &screen); err != nil {
+				return proto.SessionInfo{}, "", err
+			}
+		}
+		return list[i], screen.Text, nil
+	})
+}
+
+// waitSessionReady is waitReady for a session of this host.
+func (s *Server) waitSessionReady(id string) error {
+	return waitReady(id, func() (proto.SessionInfo, string, error) {
+		sess, err := s.sessions.Get(id)
+		if err != nil {
+			return proto.SessionInfo{}, "", err
+		}
+		return sess.Info(), s.maskLent(sess.Terminal().Text()), nil
+	})
+}
+
+// waitReady waits for session id, as peek reads it, to show its agent back and
+// quiet, as a first prompt waits (promptQuiet, promptTimeout). A resumed
+// session shows its old screen at once, so it counts from the screen changing;
+// a screen that never changes or settles still gets the prompt when that wait
+// ends, rather than losing it. It fails when the session ends or stays queued.
+func waitReady(id string, peek func() (proto.SessionInfo, string, error)) error {
 	start := time.Now()
 	first, last, quietSince, changed := "", "", start, false
 	for n := 0; ; n++ {
-		var list []proto.SessionInfo
-		if err := s.goaCall(p.From, p.Host, proto.MethodSessionList, nil, &list); err != nil {
+		info, text, err := peek()
+		if err != nil {
 			return err
 		}
-		i := slices.IndexFunc(list, func(x proto.SessionInfo) bool { return x.ID == id })
-		switch {
-		case i < 0:
-			return fmt.Errorf("goa: session %s is gone", id)
-		case list[i].Exited:
-			return fmt.Errorf("goa: session %s ended as it came back (exit %d): read it with: read %s", id, list[i].ExitCode, id)
+		if info.Exited {
+			return fmt.Errorf("goa: session %s ended as it came back (exit %d): read it with: read %s", id, info.ExitCode, id)
 		}
-		queued := list[i].Queued
-		if !queued {
-			var screen proto.SessionScreen
-			if err := s.goaCall(p.From, p.Host, proto.MethodSessionScreen, proto.SessionRef{ID: id}, &screen); err != nil {
-				return err
-			}
+		if !info.Queued {
 			if n == 0 {
-				first = screen.Text
+				first = text
 			}
-			if screen.Text != last {
-				last, quietSince = screen.Text, time.Now()
+			if text != last {
+				last, quietSince = text, time.Now()
 			}
-			changed = changed || screen.Text != first
-			asked := agent.TrustAsked(screen.Text)
-			if !asked && strings.TrimSpace(last) != "" {
+			changed = changed || text != first
+			if !agent.TrustAsked(text) && strings.TrimSpace(last) != "" {
 				if changed && time.Since(quietSince) >= promptQuiet || time.Since(start) >= promptTimeout {
 					return nil
 				}
@@ -92,7 +118,7 @@ func (s *Server) goaWaitReady(p proto.GOADelegateParams, id string) error {
 		}
 		if time.Since(start) >= goaWakeTime {
 			what := "didn't come back"
-			if queued {
+			if info.Queued {
 				what = "still waits for fewer agents to work"
 			}
 			return fmt.Errorf("goa: session %s %s after %s", id, what, goaWakeTime)

@@ -77,6 +77,7 @@ var methods = map[string]Level{
 	proto.MethodSessionRename:        Change,
 	proto.MethodSessionNote:          Change,
 	proto.MethodSessionContinue:      Change,
+	proto.MethodSessionFork:          Change,
 	proto.MethodSessionHibernate:     Change,
 	proto.MethodSessionWake:          Change,
 	proto.MethodSessionAutoHibernate: Change,

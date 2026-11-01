@@ -359,7 +359,7 @@ func launchFor(p proto.SessionCreateParams, chat chatFor) (launch, error) {
 	first := agentLaunch(preset, skip, prompt, false, chat)
 	first.Hooks = append(first.Hooks, agent.LaunchArgs(preset.ID, p.Model, p.Effort)...)
 	if p.Resume != "" {
-		first.Resume = p.Resume
+		first.Resume, first.Fork = p.Resume, p.Fork
 	}
 	l := launch{
 		command:  thenShell(preset.Argv(first)),

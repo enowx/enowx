@@ -1,6 +1,9 @@
 package transcript
 
 import (
+	"bufio"
+	"bytes"
+	"encoding/json"
 	"os"
 	"path/filepath"
 	"slices"
@@ -89,4 +92,65 @@ func claudeFound(home, dir string) []Found {
 		out[i] = Found{Path: f, Changed: ModTime(f)}
 	}
 	return out
+}
+
+// ForkID is the id agent forks the conversation at path by, "" when it has
+// none to give: the one it resumes by, or Codex's own.
+func ForkID(agent, path string) string {
+	if path == "" {
+		return ""
+	}
+	if agent == "codex" {
+		return codexID(path)
+	}
+	return ConversationID(agent, path)
+}
+
+// Compacted says the conversation at path holds a compaction, as Claude Code
+// and Codex record one.
+func Compacted(agent, path string) bool {
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return false
+	}
+	lines := bytes.Split(data, []byte("\n"))
+	for _, line := range lines {
+		if !bytes.Contains(line, []byte("ompact")) {
+			continue
+		}
+		var rec struct {
+			Type    string `json:"type"`
+			Summary bool   `json:"isCompactSummary"`
+		}
+		if json.Unmarshal(line, &rec) != nil {
+			continue
+		}
+		if rec.Summary || agent == "codex" && rec.Type == "compacted" {
+			return true
+		}
+	}
+	return false
+}
+
+// codexID is the session id in a rollout's first lines.
+func codexID(path string) string {
+	f, err := os.Open(path)
+	if err != nil {
+		return ""
+	}
+	defer f.Close()
+	sc := bufio.NewScanner(f)
+	sc.Buffer(make([]byte, 64<<10), 4<<20)
+	for i := 0; i < 5 && sc.Scan(); i++ {
+		var rec struct {
+			Type    string `json:"type"`
+			Payload struct {
+				ID string `json:"id"`
+			} `json:"payload"`
+		}
+		if json.Unmarshal(sc.Bytes(), &rec) == nil && rec.Type == "session_meta" {
+			return rec.Payload.ID
+		}
+	}
+	return ""
 }

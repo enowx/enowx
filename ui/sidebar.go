@@ -7,6 +7,7 @@ import (
 
 	"github.com/egoist/mygo/ui"
 
+	"github.com/enowx/enowx/core/agent"
 	"github.com/enowx/enowx/proto"
 	"github.com/enowx/enowx/ui/icon"
 	"github.com/enowx/enowx/ui/textfmt"
@@ -378,6 +379,10 @@ func (a *App) sessionMenuItems(c *ui.Context, s proto.SessionInfo, done func()) 
 			go func() { _ = cl.SetSessionPrivate(id, private) }()
 			done()
 		}
+	}
+	if _, isAgent := agent.Find(s.Agent); isAgent && s.Agent != agent.Shell && s.Parent == "" && !s.GOA && widget.MenuItem(c, icon.Split, "Fork…", false) {
+		a.askFork(s)
+		done()
 	}
 	label := "Maximize"
 	if a.maximized != "" {

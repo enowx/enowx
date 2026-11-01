@@ -26,6 +26,8 @@ const controlUsage = `usage: enowx-app COMMAND SESSION ... [--host H]
   stop SESSION                     end its agent now, even mid-work, keeping the session
                                    (hibernate --force; wake or continue brings it back)
   continue SESSION                 start an ended or hibernated session's agent again, on its conversation
+  fork SESSION [PROMPT...]         a new session from a compacted copy of its conversation, in the same
+                                   folder and branch, the old one kept whole (Claude Code, Codex)
   rename SESSION NAME              rename it
   close SESSION --yes              end it and its tabs (kill is the same); from an agent the user confirms
   chat SESSION [--last N]          its last messages, as its agent recorded them
@@ -43,7 +45,7 @@ other hosts need the enowX app open. With it, paths are that host's: give them w
 // hostCommands take --host: their calls go to that host. (peek and
 // project context/read have a --host of their own, features a scope.)
 var hostCommands = []string{"ls", "list", "status", "spawn", "send", "read", "wait", "kill", "close", "hibernate", "wake",
-	"agents", "projects", "interrupt", "stop", "continue", "rename", "chat", "answer", "switch", "changes", "settings", "control"}
+	"agents", "projects", "interrupt", "stop", "continue", "fork", "rename", "chat", "answer", "switch", "changes", "settings", "control"}
 
 // hostFlag takes --host H (or --host=H) out of args, before a "--", for a
 // command that goes to a host.
@@ -90,6 +92,8 @@ func (r runner) controlCommand(cmd string, args []string) error {
 		return r.stop(args)
 	case "continue":
 		return r.continueSession(args)
+	case "fork":
+		return r.fork(args)
 	case "rename":
 		return r.rename(args)
 	case "close":
@@ -204,6 +208,25 @@ func (r runner) stop(args []string) error {
 		return fmt.Errorf("stop: %s", why)
 	}
 	fmt.Fprintf(r.out, "Stopped %s: \"continue %s\" brings it back on its conversation.\n", s.ID, s.ID)
+	return nil
+}
+
+// fork starts a new session from a compacted copy of a session's
+// conversation, which keeps its own whole.
+func (r runner) fork(args []string) error {
+	const usage = "usage: enowx-app fork SESSION [PROMPT...] [--host H]"
+	if len(args) < 1 {
+		return errors.New(usage)
+	}
+	s, err := r.session(args[0])
+	if err != nil {
+		return err
+	}
+	var info proto.SessionInfo
+	if err := r.c.Call(proto.MethodSessionFork, proto.SessionForkParams{ID: s.ID, Prompt: strings.Join(args[1:], " ")}, &info); err != nil {
+		return err
+	}
+	fmt.Fprintf(r.out, "Forked %s as %s (%s): its context is compacted, %s keeps its whole conversation. Both work in %s: they can overwrite each other's changes.\n", s.ID, info.ID, info.Name, s.ID, info.Dir)
 	return nil
 }
 

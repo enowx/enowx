@@ -21,6 +21,7 @@ GOD of Agents (one session controlling every session, on any host; PLAN §10) re
 | Wait for it | `wait` (`session_wait`) | | `--host` | ✅ |
 | Interrupt it (Escape) | | `interrupt` (`session_interrupt`) | `--host` | ✅ |
 | Stop it, continue it | | `stop`, `continue` (`session_stop`, `session_continue`) | `--host` | ✅ |
+| Fork it (a compacted copy goes on in a new session) | | `fork` (`session_fork`) | `--host` | ✅ Claude Code and Codex |
 | Hibernate, wake, never hibernate on its own | | `hibernate`, `wake`, `hibernate --auto` (`session_hibernate`, `session_wake`) | `--host` | ✅ |
 | Rename it | | `rename` (`session_rename`) | `--host` | ✅ |
 | Its note (status line) | `ls` | `note` (`session_note`) | this host | ◐ another session's note on another host: not offered (a session writes its own) |
