@@ -168,7 +168,7 @@ func (a *App) goaSessionLine(host string, s proto.SessionInfo) (string, ui.Color
 	case t != nil:
 		return t.Title + " · " + t.Status, theme.TextSoft
 	}
-	return host + " · " + statusOf(s).label, theme.TextSoft
+	return host + " · " + goaSentence(statusOf(s).label), theme.TextSoft
 }
 
 func (a *App) goaSessionButton(c *ui.Context, host string, s proto.SessionInfo) {
@@ -320,9 +320,17 @@ func (a *App) goaTaskRow(c *ui.Context, t proto.GOATask) {
 	})
 }
 
+// goaSentence starts a word of state as a line of its own starts.
+func goaSentence(s string) string {
+	if s == "" {
+		return ""
+	}
+	return strings.ToUpper(s[:1]) + s[1:]
+}
+
 // goaTaskState is a task's state: its dot and word.
 func goaTaskState(c *ui.Context, t proto.GOATask) {
-	label := nonEmpty(strings.ToUpper(t.Status[:min(1, len(t.Status))])+t.Status[min(1, len(t.Status)):], "Unknown")
+	label := goaSentence(t.Status)
 	if t.Urgent != "" && t.Status == proto.GOATaskWaiting {
 		label = "Waiting on you"
 	}
@@ -423,7 +431,7 @@ func (a *App) goaFlagsList(c *ui.Context) {
 		f := a.goa.flags[i]
 		title, detail := "Ran "+f.Command, textfmt.Age(f.Time, time.Now())
 		if f.File != "" {
-			title, detail = f.File, strings.ToUpper(f.Change[:1])+f.Change[1:]+" in "+filepath.Base(f.Project)+" · "+detail
+			title, detail = f.File, goaSentence(f.Change)+" in "+filepath.Base(f.Project)+" · "+detail
 		}
 		goaRowFace(ui.Row(c.Key("goa-f:" + f.ID))).Children(func() {
 			ui.Column(c).Grow(1).MinWidth(0).Children(func() {
@@ -448,6 +456,7 @@ type goaOverrideForm struct {
 	open          bool
 	task          proto.GOATask
 	model, effort string
+	typed         bool // a model the agent doesn't list, typed
 }
 
 func (a *App) openGOAOverride(t proto.GOATask) {
@@ -465,38 +474,20 @@ func (a *App) goaOverrideDialog(c *ui.Context) {
 	}
 	set := agent.SettingsOf(f.task.Agent)
 	save := false
-	why := "The judge's pick: " + orOwn(f.task.Model) + " · " + orOwn(f.task.Effort) + ". " + f.task.Why
-	widget.FormSheet(c, &f.open, 480, "Model for “"+f.task.Title+"”", why, func() {
+	about := "The judge's pick: " + orOwn(f.task.Model) + " · " + orOwn(f.task.Effort) + ". " + f.task.Why
+	widget.FormSheet(c, &f.open, 480, "Model for this task", strings.TrimSpace(about), func() {
 		widget.Field(c, "Model", func() {
+			if len(set.Models) > 0 && !f.typed {
+				goaChoice(c.Key("model"), "Model", &f.model, set.Models, func() { f.typed = true })
+				return
+			}
 			widget.Input(c, &f.model, orOwn(f.task.Model)).FillWidth()
-			ui.Row(c).FillWidth().Gap(4).Wrap().Children(func() {
-				for _, m := range set.Models {
-					if m.ID == "default" {
-						continue
-					}
-					if widget.Button(c.Key("m:"+m.ID), widget.Secondary, nil, m.Label, "").Clicked() {
-						f.model = m.ID
-					}
-				}
-			})
 		})
 		if len(set.Efforts) > 0 {
-			widget.Field(c, "Effort", func() {
-				var labels []string
-				current := -1
-				for i, e := range set.Efforts {
-					labels = append(labels, e.ID)
-					if e.ID == f.effort {
-						current = i
-					}
-				}
-				if i := widget.Segmented(c.Key("effort"), labels, current, nil); i >= 0 {
-					f.effort = labels[i]
-				}
-			})
+			widget.Field(c, "Effort", func() { goaChoice(c.Key("effort"), "Effort", &f.effort, set.Efforts, nil) })
 		}
 	}, func() {
-		if widget.PrimaryButton(c, nil, "Switch", "").Tooltip("Switches its session now and keeps it on the board").Clicked() {
+		if widget.PrimaryButton(c, nil, "Change", "").Tooltip("Switches its session now and keeps it on the board").Clicked() {
 			save = true
 		}
 	})
@@ -506,6 +497,48 @@ func (a *App) goaOverrideDialog(c *ui.Context) {
 	f.open = false
 	var out proto.GOATask
 	a.goaCall(proto.MethodGOAOverride, proto.GOAOverrideParams{ID: f.task.ID, Model: strings.TrimSpace(f.model), Effort: f.effort}, &out, nil)
+}
+
+// goaChoice is a drop-down of an agent's models or efforts; other, when set,
+// is an item for typing one it doesn't list. Its "" is the agent's own.
+func goaChoice(c *ui.Context, label string, value *string, choices []agent.Choice, other func()) {
+	const typeOne = "\x00other"
+	sel := ui.SelectBase(c, value)
+	shown := orOwn(*value)
+	if m, ok := agent.FindChoice(choices, *value); ok {
+		shown = m.Label
+	}
+	widget.Trigger(sel.Trigger, sel.Open()).Label(label).Children(func() {
+		ui.Row(c).Grow(1).MinWidth(0).Children(func() { widget.Running(c, shown, widget.RunStyle{}) })
+		ui.Icon(c, icon.ChevronDown).FontSize(12).TextColor(theme.TextSoft)
+	})
+	sel.Popup(func(panel ui.Element) {
+		widget.Popup(panel.Margin(theme.S1, 0, 0, 0).MinWidth(220).MaxHeight(280))
+		ui.Scroll(c).FillWidth().Children(func() {
+			item := func(id, name string) {
+				it := sel.Item(id)
+				widget.PopupItem(it, it.Highlighted()).Children(func() {
+					ui.Text(c, name).FontSize(theme.TextUI).Grow(1).SingleLine()
+					if id == *value {
+						ui.Icon(c, icon.Check).FontSize(13).TextColor(theme.Accent)
+					}
+				})
+			}
+			item("", "Its own")
+			for _, m := range choices {
+				if m.ID != "default" && m.ID != "" {
+					item(m.ID, nonEmpty(m.Label, m.ID))
+				}
+			}
+			if other != nil {
+				item(typeOne, "Another…")
+			}
+		})
+	})
+	if *value == typeOne {
+		*value = ""
+		other()
+	}
 }
 
 // orOwn says what is asked of a task: "" keeps the agent's own.

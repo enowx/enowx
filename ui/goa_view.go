@@ -2,7 +2,6 @@ package ui
 
 import (
 	"strconv"
-	"strings"
 
 	"github.com/egoist/mygo/ui"
 
@@ -197,8 +196,7 @@ func (a *App) goaStartDialog(c *ui.Context) {
 // delegating; it reports a click.
 func goaAgentRow(c *ui.Context, ag proto.GOAAgent, on bool) bool {
 	row := widget.ListItem(c, ui.Color{}, ag.Name, ag.Why, on, func() {
-		level := strings.ToUpper(ag.Level[:min(1, len(ag.Level))]) + ag.Level[min(1, len(ag.Level)):]
-		widget.Legend(c, goaLevelColor(ag.Level), level)
+		widget.Legend(c, goaLevelColor(ag.Level), goaSentence(ag.Level))
 	})
 	return row.Clicked()
 }
