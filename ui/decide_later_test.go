@@ -67,6 +67,11 @@ func laterApp(t *testing.T) (*App, chan func()) {
 	posted := make(chan func(), 64)
 	app.onMain = func(fn func()) { posted <- fn }
 	app.client, app.agents = cl, agent.List()
+	// As if on this machine: without them (CI) New session offers to install
+	// the agent, not a first prompt.
+	for i := range app.agents {
+		app.agents[i].Installed = true
+	}
 	return app, posted
 }
 
