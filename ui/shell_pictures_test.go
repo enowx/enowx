@@ -71,6 +71,15 @@ func TestShellMenusAndStates(t *testing.T) {
 	a.sessions, a.projects = sessions, projects
 	a.project = projects[0].Path
 	a.selectSession(sessions[0])
+	// Two sessions side by side.
+	second, err := h.cl.CreateSession(proto.SessionCreateParams{Agent: "shell", Project: projects[0].Path, Name: "a second shell with a rather long name to see it run in its pane"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	a.upsert(second)
+	step("split", func() error { a.setSplit(true); return nil }, "Side by side · 2 sessions", "Auto")
+	a.setSplit(false)
+	step("split-closed", func() error { return nil })
 	// A session in a viewer, the switch unlit, and back.
 	step("banner", func() error {
 		s := sessions[0]

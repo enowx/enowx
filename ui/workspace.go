@@ -118,7 +118,7 @@ func (a *App) workspaceView(c *ui.Context) {
 	}
 	p, ok := a.currentProject()
 	if !ok {
-		a.viewHeader(c, func() { widget.Breadcrumb(c, a.host.Name, "Start") })
+		widget.PageHeader(c, "Start", a.host.Name, nil)
 		a.emptyState(c, "Open a folder to start", "Each folder is a project. Sessions run in it or in their own git worktrees.", "Open folder", a.openFolder)
 		return
 	}
@@ -128,13 +128,13 @@ func (a *App) workspaceView(c *ui.Context) {
 	}
 	if len(sessions) > 0 && a.selected == "" && a.emptyProject == p.Path {
 		// A session an agent started here doesn't take the user there.
-		a.viewHeader(c, func() { widget.Breadcrumb(c, a.host.Name, p.Name) })
+		widget.PageHeader(c, p.Name, a.host.Name, nil)
 		a.emptyState(c, "Pick a session of "+p.Name, "It has sessions now: they're in the list.", "New session", func() { a.openNewSession(p) })
 		return
 	}
 	if len(sessions) == 0 {
 		a.emptyProject = p.Path
-		a.viewHeader(c, func() { widget.Breadcrumb(c, a.host.Name, p.Name) })
+		widget.PageHeader(c, p.Name, a.host.Name, nil)
 		a.emptyState(c, "No sessions in "+p.Name, "Start an agent or a shell. On a git project it can get its own branch and worktree.", "New session", func() { a.openNewSession(p) })
 		return
 	}
@@ -334,7 +334,9 @@ func (a *App) splitView(c *ui.Context, p proto.ProjectInfo, all []proto.SessionI
 	l := a.layout()
 	a.viewHeader(c, func() {
 		ui.Row(c).Grow(1).MinWidth(0).Children(func() {
-			widget.Breadcrumb(c, a.host.Name, p.Name, fmt.Sprintf("Split · %d sessions", len(sessions)))
+			widget.Running(c, p.Name, widget.RunStyle{Size: theme.TextTitle, Weight: 600, Always: true})
+			ui.Box(c).Width(theme.S3).Shrink(0)
+			widget.Running(c.Key("facts"), fmt.Sprintf("Side by side · %d sessions", len(sessions)), widget.RunStyle{Color: theme.TextSoft})
 		})
 		if left := len(all) - len(sessions); left > 0 &&
 			widget.Button(c, widget.Secondary, nil, fmt.Sprintf("Show %d more", left), "").Clicked() {
