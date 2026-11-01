@@ -28,12 +28,19 @@ A model API's key is read from the vault as the session starts (the app holding 
 | Claude Code (and Agent Teams) | `ANTHROPIC_BASE_URL`, `ANTHROPIC_AUTH_TOKEN` (the key), `ANTHROPIC_MODEL`, `ANTHROPIC_DEFAULT_HAIKU_MODEL`, `CLAUDE_CODE_MAX_CONTEXT_TOKENS`, `CLAUDE_CODE_MAX_OUTPUT_TOKENS` in its environment; the same but the key, the model picker's options and each model's effort in the `--settings` enowX's hooks already pass (flag settings win over the user's own) |
 | Codex | `-c` overrides: `model_provider="enowx"`, `model_providers.enowx.*` (`base_url`, `env_key`, `wire_api = "responses"`), `model`, `model_reasoning_effort`, `model_context_window`, a profile `enowx-<model>` for each other model; the key in `ENOWX_CODEX_API_KEY` |
 | OpenCode | `OPENCODE_CONFIG`: a config of the session's own merged over the user's, its provider `enowx` with `apiKey: {env:ENOWX_OPENCODE_API_KEY}`, the key in that variable |
-| Gemini CLI, Antigravity | `GOOGLE_GEMINI_BASE_URL`, `GEMINI_API_KEY`, `GEMINI_CLI_AUTH_OVERRIDE=gemini-api-key` (the key's sign-in for this run, the user's settings untouched), `GEMINI_MODEL` and `--model` (Gemini CLI) |
-| GitHub Copilot | `COPILOT_PROVIDER_*`, `COPILOT_MODEL` |
+| Gemini CLI | `GOOGLE_GEMINI_BASE_URL` (https, unless it's localhost, 127.0.0.1 or [::1]: a config is refused otherwise, as the CLI would), `GEMINI_API_KEY`, `GEMINI_CLI_AUTH_OVERRIDE=gemini-api-key` (the key's sign-in for this run, the user's settings untouched), `GEMINI_MODEL` and `--model` |
+| Antigravity | `GOOGLE_GEMINI_BASE_URL`, `GEMINI_API_KEY`; `--model`, optional |
+| GitHub Copilot | `COPILOT_PROVIDER_*`, `COPILOT_MODEL`; `COPILOT_PROVIDERS_CONFIG` to an empty file of the session's own, as the user's `providers.json` wins over those variables when it lists anything |
 | OpenClaude | `CLAUDE_CODE_USE_OPENAI`, `OPENAI_*`, or `ANTHROPIC_*` |
 | Aider | `OPENAI_API_BASE`, `OPENAI_API_KEY`; `--model openai/<model>`, `--weak-model`, `--reasoning-effort`, `--model-metadata-file` (a file of the session's own) for its limits |
+| Kilo Code | `KILO_CONFIG_CONTENT`: a config merged over the user's and a project's, its provider `enowx` with `apiKey: {env:ENOWX_KILO_API_KEY}`, the key in that variable |
+| Qwen Code | `OPENAI_API_KEY`, `OPENAI_BASE_URL`, `OPENAI_MODEL`, or `ANTHROPIC_*`; `--auth-type` and `--model`, which win over the user's settings |
+| Goose | `GOOSE_PROVIDER`, `GOOSE_MODEL`, `GOOSE_PROVIDER__TYPE`, `GOOSE_PROVIDER__HOST`, `GOOSE_PROVIDER__API_KEY`; `OPENAI_BASE_URL` and `OPENAI_API_KEY`, or `ANTHROPIC_HOST` and `ANTHROPIC_API_KEY`; `GOOSE_CONTEXT_LIMIT`, `GOOSE_MAX_TOKENS` |
+| Kimi | `KIMI_MODEL_NAME`, `KIMI_MODEL_API_KEY`, `KIMI_MODEL_BASE_URL`, `KIMI_MODEL_PROVIDER_TYPE`, `KIMI_MODEL_MAX_CONTEXT_SIZE`, `KIMI_MODEL_CAPABILITIES` |
+| Continue | `--config` to a file of the session's own, with `apiKey: ${{ secrets.ENOWX_CONTINUE_API_KEY }}`, the key in that variable |
+| Crush | `CRUSH_GLOBAL_CONFIG` and `CRUSH_GLOBAL_DATA` to folders of the session's own, its `crush.json` with `api_key: $ENOWX_CRUSH_API_KEY`, the key in that variable. Those sessions don't read the user's own `crush.json` |
 
-The other agents [agent-api.md](agent-api.md) lists (Kilo Code, Qwen Code, Droid, Goose, Kimi, Mistral Vibe, Continue, Pi) take a model API only in their own settings: their page in Settings → Agents still sets one there, backed up first, as before.
+The other agents [agent-api.md](agent-api.md) lists (Droid, Mistral Vibe, Pi) take a model API only in their own settings: their page in Settings → Agents still sets one there, backed up first, as before.
 
 ## What reads a session's config
 
@@ -52,17 +59,19 @@ The other agents [agent-api.md](agent-api.md) lists (Kilo Code, Qwen Code, Droid
 - **OpenCode:** run for real, `OPENCODE_REAL=1 go test ./core/agentapi -run OpenCode`. A session config's `OPENCODE_CONFIG` made it call the config's API, with the key from its environment and the model named; the key wasn't written to the file.
 - **Gemini CLI:** checked against its source. `GEMINI_CLI_AUTH_OVERRIDE`, `GOOGLE_GEMINI_BASE_URL`, `GEMINI_API_KEY`, `GEMINI_MODEL` and `--model` are what it reads.
 - **Aider:** checked against its docs. `OPENAI_API_BASE`, `OPENAI_API_KEY`, `--model openai/<model>` and `--model-metadata-file` (a JSON keyed by `provider/model`).
+- **Kilo Code, Qwen Code, Goose, Kimi, Continue, Crush, GitHub Copilot's providers file:** read from their docs and source, none run: tested only for what a session gets, the key in no file or argument (`core/agentapi/session_routes_test.go`). Each needs a real run before it's relied on.
+- **Antigravity:** `--model` is in `agy --help`. Whether it takes a model named by your API wasn't run.
 
 ## Every agent
 
-What each agent's CLI or docs offered on 2026-11-01, beside what enowX drives (`core/accounts/ways.go`, the list Settings → Agents, `configs` and `agent_api_list` read; a test fails when a new agent isn't in it). **Checked** is `run` (here), `help` (its `--help`, not run with a config) or `docs` (read, not run). "Could" is a route its docs offer that enowX doesn't drive yet.
+What each agent's CLI or docs offered on 2026-11-01 or 02, beside what enowX drives (`core/accounts/ways.go`, the list Settings → Agents, `configs` and `agent_api_list` read; a test fails when a new agent isn't in it). **Checked** is `run` (here), `help` (its `--help`, not run with a config) or `docs` (read, not run). "Could" is a route its docs offer that enowX doesn't drive yet.
 
 | Agent | Takes | Checked | Why not more |
 |---|---|---|---|
 | Claude Code | another account, a model API per session, an API key | run |  |
 | Codex | another account, a model API per session, an API key | run |  |
 | OpenCode | a model API per session, an API key | run | No separate account: it has no documented folder for one sign-in alone. |
-| Gemini CLI | a model API per session, an API key | docs | GEMINI_CLI_HOME could give another account; enowX doesn't drive it yet. |
+| Gemini CLI | a model API per session, an API key | docs | GEMINI_CLI_HOME could give another account; enowX doesn't drive it yet. Its API's address is https unless it's on localhost. |
 | Kiro CLI | an API key | help | It uses its own models and documents no address for your API. KIRO_HOME could give another account; enowX doesn't drive it yet. |
 | Claude Agent Teams | no config | help | Its sessions are Claude Code's, so they use Claude Code's configs. |
 | OpenClaude | a model API per session, an API key | docs | OPENCLAUDE_CONFIG_DIR could give another account; enowX doesn't drive it yet. |
@@ -82,29 +91,29 @@ What each agent's CLI or docs offered on 2026-11-01, beside what enowX drives (`
 | Prime Agent | an API key | docs | Only a models.json takes a model API, at a place its docs don't name. |
 | Antigravity | a model API per session, an API key | help | No separate account is documented. |
 | Aider | a model API per session, an API key | docs | No account: it has no sign-in to separate, only API keys. |
-| Goose | a model API in its own settings, an API key | docs | GOOSE_PATH_ROOT and GOOSE_PROVIDER__* could run per session; enowX writes its settings for now. |
+| Goose | a model API per session, an API key | docs | GOOSE_PATH_ROOT could give another account; enowX doesn't drive it yet. Its variables take one model, with no effort documented. |
 | Amp | an API key | docs | Its Custom URL connection is made in its own command, and isn't documented to go per session. |
-| Kilo Code | a model API in its own settings, an API key | docs | KILO_CONFIG could run per session; enowX writes its settings for now. |
-| Crush | an API key | docs | CRUSH_GLOBAL_CONFIG could run per session; enowX doesn't write it yet. |
+| Kilo Code | a model API per session, an API key | docs | KILO_CONFIG_DIR and its data folder could give another account; enowX doesn't drive them yet. |
+| Crush | a model API per session, an API key | docs | A config's sessions read its settings alone, not your own crush.json: CRUSH_GLOBAL_CONFIG replaces that file rather than adding to it. A model picked in a project's .crush folder can still win. |
 | Auggie | no config | docs | It uses Augment's models and documents no address or key for your API. |
-| Autohand Code | an API key | docs | AUTOHAND_AI_BASE_URL could run per session; enowX doesn't drive it yet. |
+| Autohand Code | an API key | docs | AUTOHAND_AI_BASE_URL is for Autohand's own provider and models, with its sign-in. Another provider's key is a plain value of its config file, which enowX doesn't write a key to. |
 | Cline | an API key | docs | cline auth takes the key on its command line, which enowX doesn't do. |
 | Codebuff | an API key | docs | Its user docs don't cover a model API of your own. |
 | Freebuff | no config | help | It runs free on its own models, with no option for your own API or key. |
 | Command Code | an API key | help | providers.json takes a model API, and no per-session way is documented; enowX doesn't write it yet. |
-| Continue | a model API in its own settings, an API key | docs | --config could run per session; enowX writes its settings for now. |
+| Continue | a model API per session, an API key | docs | Another account wasn't checked: it needs a real sign-in to test. |
 | Cursor | an API key | help | It runs through Cursor's backend: the only provider of your own documented is AWS Bedrock. |
 | Droid | a model API in its own settings, an API key | help | Its --settings isn't documented to carry a model; enowX writes its settings. |
-| Kimi | a model API in its own settings, an API key | docs | KIMI_MODEL_* could run per session, and its current settings are in ~/.kimi-code: to be checked with Kimi installed. |
+| Kimi | a model API per session, an API key | docs | KIMI_CODE_HOME could give another account; enowX doesn't drive it yet. KIMI_MODEL_* takes one model, by OpenAI's or Anthropic's API, and needs a key. |
 | Mistral Vibe | a model API in its own settings, an API key | docs | VIBE_HOME moves all of its settings; enowX writes them for now. |
-| Qwen Code | a model API in its own settings, an API key | docs | OPENAI_* could run per session; enowX writes its settings for now. |
+| Qwen Code | a model API per session, an API key | docs | Its variables take one model, by OpenAI's chat API or Anthropic's: the Responses API, several models and their limits are only in its settings. |
 | Rovo Dev | no config | docs | It uses Atlassian's models and credits, and documents no API of your own. |
 | Hermes | an API key | docs | HERMES_HOME could give another account and config.yaml a model API; enowX drives neither yet. |
 | Devin | no config | docs | Only Devin's own models are documented, air-gapped builds aside. |
-| OpenClaw | an API key | docs | OPENCLAW_CONFIG_PATH could run per session; enowX doesn't write it yet. |
+| OpenClaw | an API key | docs | OPENCLAW_CONFIG_PATH replaces its whole config, and its terminal normally talks to a Gateway that reads its own, so a session's variables wouldn't reach the model. |
 | CodeBuddy | an API key | run | CODEBUDDY_BASE_URL and its key do work per session, but run here it wrote the key into its own logs, so enowX doesn't send it that way. |
-| Jcode | an API key | docs | JCODE_OPENAI_API_BASE could run per session; enowX doesn't drive it yet. |
+| Jcode | an API key | docs | JCODE_OPENAI_API_BASE and OPENAI_API_KEY exist, but its sessions share one server: they don't reach a server already running, and one a session starts keeps the key after it ends. Its own sign-in also wins over OPENAI_API_KEY. |
 
 Run for real on this Mac: OpenCode and CodeBuddy against a local stand-in API. CodeBuddy took its address and key from the environment and answered through it, but wrote the key into its own logs, so enowX doesn't send it that way. OMP refused a model outside its `models.yml`.
 
-Not checked: x.ai's and DeepSeek Harness's own sites couldn't be read, so Grok and DeepSeek Harness rest on third parties' docs. Kimi's adapter writes `~/.kimi/config.toml` while its current docs name `~/.kimi-code/config.toml`; GitHub Copilot's `providers.json` wins over the variables enowX sets; Codex's `--profile` now layers a file, which may not select `-c profiles.*`. These wait for those agents to be installed here.
+Not checked: x.ai's and DeepSeek Harness's own sites couldn't be read, so Grok and DeepSeek Harness rest on third parties' docs. GitHub's docs imply an empty `providers.json` leaves its variables working, without saying so. Goose's docs name `GOOSE_PROVIDER__*`, which weren't found in the source of its OpenAI and Anthropic providers, so a session gets those providers' own variables too. Codex's `--profile` now layers a file, which may not select `-c profiles.*`. These wait for those agents to be installed here.

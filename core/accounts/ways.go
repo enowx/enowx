@@ -43,14 +43,14 @@ func (w Way) Says() string {
 	return strings.Join(ways, ", ")
 }
 
-// agentWays are what each agent's CLI or docs said on 2026-11-01, beside what
+// agentWays are what each agent's CLI or docs said on 2026-11-01 or 02, beside what
 // enowX drives (kinds, agentapi): a test fails when a preset is missing here.
 var agentWays = map[string]Way{
 	"claude":             {Key: true, Checked: "run"},
 	"claude-agent-teams": {Base: "claude", Why: "Its sessions are Claude Code's, so they use Claude Code's configs.", Checked: "help"},
 	"codex":              {Key: true, Checked: "run"},
 	"opencode":           {Key: true, Why: "No separate account: it has no documented folder for one sign-in alone.", Checked: "run"},
-	"gemini":             {Key: true, Why: "GEMINI_CLI_HOME could give another account; enowX doesn't drive it yet.", Checked: "docs"},
+	"gemini":             {Key: true, Why: "GEMINI_CLI_HOME could give another account; enowX doesn't drive it yet. Its API's address is https unless it's on localhost.", Checked: "docs"},
 	"kiro":               {Key: true, Why: "It uses its own models and documents no address for your API. KIRO_HOME could give another account; enowX doesn't drive it yet.", Checked: "help"},
 	"openclaude":         {Key: true, Why: "OPENCLAUDE_CONFIG_DIR could give another account; enowX doesn't drive it yet.", Checked: "docs"},
 	"grok":               {Key: true, Why: "Its model API is in ~/.grok/config.toml, from a third party's docs: x.ai's couldn't be read. enowX doesn't write it.", Checked: "docs"},
@@ -74,7 +74,7 @@ var agentWays = map[string]Way{
 	"kilo":               {Key: true, Why: "KILO_CONFIG_DIR and its data folder could give another account; enowX doesn't drive them yet.", Checked: "docs"},
 	"crush":              {Key: true, Why: "A config's sessions read its settings alone, not your own crush.json: CRUSH_GLOBAL_CONFIG replaces that file rather than adding to it. A model picked in a project's .crush folder can still win.", Checked: "docs"},
 	"aug":                {Why: "It uses Augment's models and documents no address or key for your API.", Checked: "docs"},
-	"autohand":           {Key: true, Why: "AUTOHAND_AI_BASE_URL could run per session; enowX doesn't drive it yet.", Checked: "docs"},
+	"autohand":           {Key: true, Why: "AUTOHAND_AI_BASE_URL is for Autohand's own provider and models, with its sign-in. Another provider's key is a plain value of its config file, which enowX doesn't write a key to.", Checked: "docs"},
 	"cline":              {Key: true, Why: "cline auth takes the key on its command line, which enowX doesn't do.", Checked: "docs"},
 	"codebuff":           {Key: true, Why: "Its user docs don't cover a model API of your own.", Checked: "docs"},
 	"freebuff":           {Why: "It runs free on its own models, with no option for your own API or key.", Checked: "help"},
@@ -88,9 +88,9 @@ var agentWays = map[string]Way{
 	"rovo":               {Why: "It uses Atlassian's models and credits, and documents no API of your own.", Checked: "docs"},
 	"hermes":             {Key: true, Why: "HERMES_HOME could give another account and config.yaml a model API; enowX drives neither yet.", Checked: "docs"},
 	"devin":              {Why: "Only Devin's own models are documented, air-gapped builds aside.", Checked: "docs"},
-	"openclaw":           {Key: true, Why: "OPENCLAW_CONFIG_PATH could run per session; enowX doesn't write it yet.", Checked: "docs"},
+	"openclaw":           {Key: true, Why: "OPENCLAW_CONFIG_PATH replaces its whole config, and its terminal normally talks to a Gateway that reads its own, so a session's variables wouldn't reach the model.", Checked: "docs"},
 	"codebuddy":          {Key: true, Why: "CODEBUDDY_BASE_URL and its key do work per session, but run here it wrote the key into its own logs, so enowX doesn't send it that way.", Checked: "run"},
-	"jcode":              {Key: true, Why: "JCODE_OPENAI_API_BASE could run per session; enowX doesn't drive it yet.", Checked: "docs"},
+	"jcode":              {Key: true, Why: "JCODE_OPENAI_API_BASE and OPENAI_API_KEY exist, but its sessions share one server: they don't reach a server already running, and one a session starts keeps the key after it ends. Its own sign-in also wins over OPENAI_API_KEY.", Checked: "docs"},
 }
 
 // WayOf is how agent id takes a config, what enowX drives filled in.
