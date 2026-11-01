@@ -42,3 +42,14 @@ func claudeKeychainItem(ctx context.Context, service string) [][]byte {
 	}
 	return [][]byte{bytes.TrimSpace(item)}
 }
+
+// skipped says keychain item service is an account's home's, read apart.
+func skipped(ctx context.Context, service string) bool {
+	homes, _ := ctx.Value(skipKey{}).([]Home)
+	for _, h := range homes {
+		if h.Agent == "claude" && claudeService(h.Path) == service {
+			return true
+		}
+	}
+	return false
+}
