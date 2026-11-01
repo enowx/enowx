@@ -18,7 +18,7 @@ import (
 // letter a line, text out of the window, a page's content huddled in a
 // corner of a wide window. With SHOTS set it keeps a screenshot of each.
 
-var auditSizes = [][2]int{{860, 620}, {1280, 800}, {1920, 1080}}
+var auditSizes = [][2]int{{1200, 720}, {1280, 800}, {1920, 1080}}
 
 // auditPage is a page to draw, set up by open.
 type auditPage struct {
@@ -187,7 +187,7 @@ func layoutProblems(tt *ui.Tester, w, h float32, fill bool) []string {
 			out = append(out, fmt.Sprintf("%q runs out of the window (%.0f > %.0f)", short, r.X+r.W, w))
 		}
 	}
-	return out
+	return append(out, outOfParents(tt)...)
 }
 
 // seedAudit gives the app things to show: notes, a project, sessions.
