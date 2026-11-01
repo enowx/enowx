@@ -19,7 +19,9 @@ import (
 
 const goaUsage = `usage: enowx-app goa COMMAND
   skill [NAME]                     GOA's built-in guides: setup (every setting), features (every feature)
-  board [--json]                   the tasks, the session each went to, status and result
+  doc [NAME] [--section HEADING]   enowX's docs, in the program: their list, or one of them
+      --search WORDS   which docs and sections hold these words
+  board [--json]                  the tasks, the session each went to, status and result
   delegate [flags] PROMPT          hand a task to the project's session, queued if it's busy; a new one only if it has none
       --session S      an existing session (else a new one:)
       --project DIR    its project: the project's idle or stopped session takes it, else a new one
@@ -59,6 +61,8 @@ func (r runner) goaCmd(args []string) error {
 		}
 		fmt.Fprint(r.out, text)
 		return nil
+	case "doc":
+		return r.goaDoc(rest)
 	case "board":
 		return r.goaBoard(rest)
 	case "delegate":

@@ -44,7 +44,12 @@ A host is added and connected in the app, by **the user** (Hosts): there's no co
     "$ENOWX_BIN" hooks                       # hooks add proposes one, for the user to allow
     "$ENOWX_BIN" notify status | set --on --volume 60 --quiet 22:00-07:00
     "$ENOWX_BIN" goa rules                   # your rules; only add to them
-    "$ENOWX_BIN" settings                    # New session's defaults and other app settings, where the app is open
+    "$ENOWX_BIN" settings                    # the host's settings, and the app's where the app is open
+    "$ENOWX_BIN" settings app set theme-mode dark   # also theme, accent, terminal-font, terminal-font-size, default-agent, editor
+
+## The cloud and teams
+    "$ENOWX_BIN" cloud status | login        # **the user** approves the sign-in's code
+    "$ENOWX_BIN" team list | members TEAM | invite TEAM | role TEAM MEMBER ROLE
 
 ## What you can't change: send the user there
-Appearance and themes; the floating control; terminal fonts; adding, connecting or removing a host; Discord; the keyboard shortcuts; the cloud's sign-in; a team's members. Say where it is in the app, and that you can't do it.
+Adding, connecting or removing a host; creating a server; signing in to another agent account; token usage's switch, budgets and prices; keeping the app in the tray and looking for updates; the floating control; Discord; the keyboard shortcuts. Say where it is in the app, and that you can't do it. The whole list: "$ENOWX_BIN" goa doc goa-tools --section "What GOA can't do yet".

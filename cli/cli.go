@@ -174,6 +174,10 @@ func Run(args []string, out io.Writer) error {
 		if len(args) > 1 && args[1] == "trim" {
 			return trim(args[2:], out) // the command first, the daemon only if needed
 		}
+	case "goa":
+		if len(args) > 1 && args[1] == "doc" {
+			return runner{out: out}.goaDoc(args[2:])
+		}
 	}
 	c, err := Dial()
 	if err != nil {

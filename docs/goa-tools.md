@@ -82,7 +82,7 @@ This follows the agent's mode; it isn't a boundary against the agent. A command 
 | Copies on other hosts, their syncs, auto push | `project links\|origin\|history\|conflicts` | `project copy\|sync\|autopush` (`project_copy`, `project_sync`, `project_autopush`) | all hosts | ✅ |
 | Notes attached to it | `notes --project` (`notes_for_project`) | `notes attach\|detach` | own | ✅ |
 | Its hooks (`.enowx/hooks.json`) | `hooks list` | `hooks add\|edit\|rm` (proposed, the user allows) | this host | ✅ |
-| RAG: consent, index | `rag status` (`rag_status`) | `rag index` | this host | ◐ consent and RAG's settings: the app's Settings → RAG only |
+| RAG: consent, index | `rag status` (`rag_status`) | `rag index`, `rag project on agreed\|off` | this host | ✅ on another host: not yet |
 | Moving or packing a project with its sessions | | | | ✗ `transfer.*`, the app's |
 
 ## The host's settings
@@ -99,8 +99,9 @@ This follows the agent's mode; it isn't a boundary against the agent. A command 
 | Model APIs | `api` (`agent_api_list`) | `api set\|clear\|restore` (`agent_api_set`, …) | this host | ✅ |
 | Hooks | `hooks list\|log\|events` (`hooks_*`) | `hooks add\|edit\|rm\|on\|off` (proposed, the user allows) | this host | ✅ |
 | Automations | `automations` | `automation …` | this host | ✅ |
-| Decisions (the judge): policy, judges, uses | `decide status\|log` (`decide_status`, `decide_log`) | `decide mark` | this host | ◐ the policy and judges: Settings → Decisions only |
-| RAG: on, server, consent | `rag status` | | this host | ✗ Settings → RAG only |
+| Decisions (the judge): policy, judges, uses | `decide status\|log\|settings` (`decide_status`, `decide_log`) | `decide mark\|use` | this host | ◐ adding a judge and its key: Settings → Decisions only |
+| RAG: on, server, consent | `rag status\|settings\|plan` | `rag set`, `rag project on agreed\|off` | this host | ◐ typed keys: Settings → RAG only |
+| Token usage: its switch, budgets, prices | `usage`, `usage budgets\|coverage` (`usage_summary`, `usage_session`) | | this host, `--host` to read | ◐ changing them: Settings only |
 | Agents' library (skills, MCP servers, subagents, commands, settings) | | | | ✗ `env.*` has no command (Settings → Agents' library, Sync page) |
 | The daemon: log, restart | | | | ✗ `daemon.log` has no command; restarting stays the user's |
 | Credentials (the vault) | `creds list\|audit` (`creds_list`, `creds_audit`), never a value | `creds add\|rm\|login` (the user confirms) | this host | ✅ (by design, a value is never read) |
@@ -163,13 +164,41 @@ This follows the agent's mode; it isn't a boundary against the agent. A command 
 
 ## Built-in skills
 
-`goa skill` (`goa_skill`) prints guides that ship in the program, on every host and for any agent, which GOA's prompt points at: `setup`, doing every setting with the user and stopping for what needs them, and `features`, every feature from the registry (`core/agent.Features`), so it can't fall behind. A test checks every command they and the prompt name exists. Decisions' and RAG's settings are now reachable: `rag settings`, `rag set`, `rag project on agreed|off`, `rag plan`, `decide settings`, `decide use`, on this host; keys stay typed in the app or named from the vault.
+`goa skill` (`goa_skill`) prints guides that ship in the program, on every host and for any agent, which GOA's prompt points at: `setup`, doing every setting with the user and stopping for what needs them, and `features`, every feature from the registry (`core/agent.Features`), so it can't fall behind. A test checks every command they and the prompt name exists. Decisions' and RAG's settings are reachable: `rag settings`, `rag set`, `rag project on agreed|off`, `rag plan`, `decide settings`, `decide use`, on this host; keys stay typed in the app or named from the vault.
 
-## Gaps left, in order of use
+`goa doc` (`goa_doc`) prints these docs, which ship in the program too (package `docs`, every top-level doc but the roadmap, `PLAN.md`), so a host with no repository has them: the list with a line on each, one doc, a `--section`, or `--search WORDS`. It is what GOA answers questions about a feature from, rather than the code.
 
-1. Checks (`checks.list`, `checks.run`) and review comments: a reviewer GOA would use them.
-3. The agents' library (`env.*`): skills and MCP servers copied between homes.
-4. A session's budget, privacy, slash commands; pipelines cancelled; projects arranged and removed on another host.
-5. The daemon's log; setup and VPS creation; resource usage.
+## What GOA can't do yet
 
-Still only in the app, which `goa skill setup` says: adding, connecting and removing a host, Appearance, the floating control, terminal fonts, Discord, the keyboard shortcuts, the cloud's sign-in and a team's members.
+Everything below GOA says it can't do, and where the user finds it; it doesn't work around it. In order of use.
+
+| What | Where it is today | Follow-up |
+|---|---|---|
+| A session's checks: find and run tests, linters, build | Side panel, `checks.list`, `checks.run` | `checks` command and MCP tools; until then, delegate running them |
+| Review comments on a session's diff | The Git tab | Command to add and send them; until then, `send` the comments as a prompt |
+| Adding, connecting, removing a host | Hosts page; the list is `hosts.json`, the password in the keychain | App command through `host.call`, a password never in the arguments |
+| Removing a project; arranging projects on another host | Project's menu (`project.remove` through `host.call` only); `projects group\|move` here only | `project remove --yes`; `--host` on `projects` |
+| Agents' library: skills, MCP servers, subagents, commands, agents' settings | Settings → Agents' library, Sync environment (`env.*`) | `env list\|show\|copy` |
+| Signing in to another agent account, removing one | Settings → Agents (a sign-in in a terminal) | Command that opens the sign-in for the user; `accounts rm` |
+| Adding a judge, and typed keys for judges, RAG and PostgreSQL | Settings → Decisions, Settings → RAG | `decide add` taking a vault credential's name; a typed key stays the app's |
+| RAG's and Decisions' settings on another host | This host's commands only | `--host` on `rag` and `decide` |
+| Token usage: its switch, budgets, prices | Settings (`tokens.setSettings`, `tokens.prices`) | `usage set`, `usage budget`, `usage price` |
+| A session's time budget | The chat, New session (`session.budget`); the default is `settings app set time-budget` | `switch --budget` |
+| A session kept private from the host's teams | Its menu (`session.private`) | `switch --private` |
+| Rewinding to a past message | The chat (`session.rewind`) | `rewind ID N`, for Claude Code and Codex |
+| Listing a session's slash commands | The chat (`session.commands`); `send "/…"` types one | `commands ID` |
+| The model and effort a session runs on, read directly | The chat's header; `chat` shows them | A line in `status` |
+| Permission prompts on agents other than Claude Code | `answer` knows Claude Code's keys only; read the screen and `send` | Keys per agent in its adapter |
+| Tabs, ports and the Run menu of another host's session | `ports`, `run` here only | `--host` on both |
+| Cancelling or removing a pipeline | A project's pipelines, ⋯ menu | `pipeline cancel\|rm` |
+| Moving or packing a project with its sessions | Copy to host… (`transfer.*`); `project copy` copies the files | `project copy --sessions` |
+| Starting a session from a GitHub issue | New session (`project.issues`) | `spawn --issue N` |
+| Setting a server up like this device | Set up… (`setup.scan`) | `setup scan\|plan`, running in a session |
+| Creating a server at a provider | Hosts → Create a server… (the provider's token) | `vps create`, the token named from the vault |
+| The daemon's log | Settings (`daemon.log`) | `daemon log`, masked |
+| Resource usage of a host | The rail's Resource usage (`daemon.stats`) | `stats` |
+| Keeping the app in the tray, looking for updates | Settings → App | Fields in `app.settings` |
+
+**Stays the user's, with no follow-up:** restarting a daemon; the vault's master password, adding a key and typing one (never in the chat or a command); agreeing to a project's files going to an embedder (`rag project on agreed` records what they said); the rules for GOA (`goa rules` reads them); taking over a teammate's session; reverting what a watched GOA did.
+
+**The app's own look and feel, with no command planned:** the floating control, Discord, the sidebar, the keyboard shortcuts. Theme, accent and terminal font are commands: `settings app set`, with the app open.
