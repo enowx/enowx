@@ -298,6 +298,85 @@ func configsOf(t *testing.T, c *client.Client, agentID string) []proto.Account {
 	return slices.DeleteFunc(list, func(a proto.Account) bool { return a.Agent != agentID })
 }
 
+// A session on a model API config at its usage limit goes on as the next
+// config's, and shows that config's model: both what it is set to and, from
+// its transcript, what it answers on.
+func TestFallbackShowsTheNextConfigsModel(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("uses sh")
+	}
+	home := t.TempDir()
+	t.Setenv("HOME", home)
+	t.Setenv("CLAUDE_CONFIG_DIR", "")
+	srv := startServer(t)
+	c := connect(t, srv, nil)
+	keyVault(t, srv, "gateway", "fake-gw-key-5")
+	config := func(name, model string) proto.Account {
+		cfg, err := c.SaveConfig(proto.Account{Agent: "claude", Name: name, Kind: proto.ConfigKindAPI,
+			API: &proto.ConfigAPI{BaseURL: "https://" + name + ".example.com", KeyCred: "gateway", Models: []proto.AgentAPIModel{{ID: model}}}})
+		if err != nil {
+			t.Fatal(err)
+		}
+		return cfg
+	}
+	first, second, third := config("first", "model-first"), config("second", "model-second"), config("third", "model-third")
+	bin := t.TempDir()
+	// On the second it replays the first's limit as Claude Code does, wrapped
+	// otherwise, and hits its own limit when told to.
+	script := `#!/bin/sh
+dir="$HOME/.claude/projects/$(pwd | sed 's/[^A-Za-z0-9]/-/g')"
+mkdir -p "$dir"
+echo "{\"type\":\"assistant\",\"message\":{\"role\":\"assistant\",\"model\":\"$ANTHROPIC_MODEL\",\"content\":[{\"type\":\"text\",\"text\":\"ok\"}]}}" >> "$dir/s.jsonl"
+[ "$ANTHROPIC_MODEL" = model-first ] && echo 'Claude usage limit reached. Your limit will reset at 3pm'
+[ "$ANTHROPIC_MODEL" = model-second ] && printf 'Claude usage limit reached. Your\n  limit will reset at 3pm\n'
+while read -r line; do case "$line" in *spend-it*) echo 'Claude usage limit reached. Your limit will reset at 3pm';; esac; done
+`
+	if err := os.WriteFile(filepath.Join(bin, "claude"), []byte(script), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv("PATH", bin+string(os.PathListSeparator)+os.Getenv("PATH"))
+	if _, err := srv.setAccountPrefs(proto.AccountPrefsParams{Agent: "claude", Prefs: proto.AccountPrefs{Order: []string{first.Name, second.Name, third.Name}, Fallback: proto.FallbackAuto}}); err != nil {
+		t.Fatal(err)
+	}
+	info, err := c.CreateSession(proto.SessionCreateParams{Agent: "claude", Account: first.ID, Dir: t.TempDir(), Cols: 120, Rows: 20})
+	if err != nil {
+		t.Fatal(err)
+	}
+	shown := func() proto.SessionInfo {
+		sess, err := srv.sessions.Get(info.ID)
+		if err != nil {
+			t.Fatal(err)
+		}
+		return sess.Info()
+	}
+	waitShown := func(cfg proto.Account, model string) {
+		t.Helper()
+		for deadline := time.Now().Add(40 * time.Second); ; time.Sleep(100 * time.Millisecond) {
+			got := shown()
+			if got.Config != nil && got.Config.Name == cfg.Name && got.Config.Model == model && got.Model == model {
+				return
+			}
+			if time.Now().After(deadline) {
+				t.Fatalf("session shows model %q, config %+v", got.Model, got.Config)
+			}
+		}
+	}
+	waitShown(second, "model-second")
+	// The limit it replayed isn't the second's: it stays there, told to go on.
+	time.Sleep(3 * limitLook)
+	if got := shown(); got.Config == nil || got.Config.Name != second.Name {
+		t.Fatalf("a replayed limit moved it on: %+v", got.Config)
+	}
+	if _, spent := srv.acctWatch.spent("claude", second.Name, time.Now()); spent {
+		t.Fatal("the second is ruled out without having hit a limit")
+	}
+	// Its own limit, in the same words, does.
+	if err := c.Input(info.ID, "spend-it", false, true); err != nil {
+		t.Fatal(err)
+	}
+	waitShown(third, "model-third")
+}
+
 // A session on the official config at its usage limit goes on as the
 // next config in the order, a model API's, its conversation resumed.
 func TestSessionFallsBackToAnAPIConfig(t *testing.T) {

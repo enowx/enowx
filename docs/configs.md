@@ -26,7 +26,7 @@ A model API's key is read from the vault as the session starts (the app holding 
 | Agent | How it takes a model API per session |
 |---|---|
 | Claude Code (and Agent Teams) | `ANTHROPIC_BASE_URL`, `ANTHROPIC_AUTH_TOKEN` (the key), `ANTHROPIC_MODEL`, `ANTHROPIC_DEFAULT_HAIKU_MODEL`, `CLAUDE_CODE_MAX_CONTEXT_TOKENS`, `CLAUDE_CODE_MAX_OUTPUT_TOKENS` in its environment; the same but the key, the model picker's options and each model's effort in the `--settings` enowX's hooks already pass (flag settings win over the user's own) |
-| Codex | `-c` overrides: `model_provider="enowx"`, `model_providers.enowx.*` (`base_url`, `env_key`, `wire_api = "responses"`), `model`, `model_reasoning_effort`, `model_context_window`, a profile `enowx-<model>` for each other model; the key in `ENOWX_CODEX_API_KEY` |
+| Codex | `-c` overrides: `model_provider="enowx"`, `model_providers.enowx.*` (`base_url`, `env_key`, `wire_api = "responses"`), `model`, `model_reasoning_effort`, `model_context_window`, `features.shell_snapshot=false` (its snapshots hold the environment, the key among it), a profile `enowx-<model>` for each other model; the key in `ENOWX_CODEX_API_KEY` |
 | OpenCode | `OPENCODE_CONFIG`: a config of the session's own merged over the user's, its provider `enowx` with `apiKey: {env:ENOWX_OPENCODE_API_KEY}`, the key in that variable |
 | Gemini CLI | `GOOGLE_GEMINI_BASE_URL` (https, unless it's localhost, 127.0.0.1 or [::1]: a config is refused otherwise, as the CLI would), `GEMINI_API_KEY`, `GEMINI_CLI_AUTH_OVERRIDE=gemini-api-key` (the key's sign-in for this run, the user's settings untouched), `GEMINI_MODEL` and `--model` |
 | Antigravity | `GOOGLE_GEMINI_BASE_URL`, `GEMINI_API_KEY`; `--model`, optional |
@@ -55,7 +55,7 @@ The other agents [agent-api.md](agent-api.md) lists (Droid, Mistral Vibe, Pi) ta
 
 ## Checked
 
-- **Claude Code and Codex:** tested with stand-in programs that record the variables and arguments each session gets (`daemon/configs_test.go`).
+- **Claude Code and Codex:** tested with stand-in programs that record the variables and arguments each session gets (`daemon/configs_test.go`), and run for real on a throwaway daemon against a stand-in API (`daemon/configs_real_test.go`, `ENOWX_CONFIGS_REAL_HOME`): the session and its task show the model, the key is in no file or command line, and at a limit the API answered, each went on with the next config. Claude Code shows the model the API answered with; Codex the one it asked for.
 - **OpenCode:** run for real, `OPENCODE_REAL=1 go test ./core/agentapi -run OpenCode`. A session config's `OPENCODE_CONFIG` made it call the config's API, with the key from its environment and the model named; the key wasn't written to the file.
 - **Gemini CLI:** checked against its source. `GEMINI_CLI_AUTH_OVERRIDE`, `GOOGLE_GEMINI_BASE_URL`, `GEMINI_API_KEY`, `GEMINI_MODEL` and `--model` are what it reads.
 - **Aider:** checked against its docs. `OPENAI_API_BASE`, `OPENAI_API_KEY`, `--model openai/<model>` and `--model-metadata-file` (a JSON keyed by `provider/model`).

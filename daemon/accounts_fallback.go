@@ -41,12 +41,15 @@ type accountWatch struct {
 	limits  map[string]limitRecord // by agent + "\x00" + account name
 	looked  map[string]time.Time   // sessions, when last read
 	handled map[string]string      // sessions, the line last acted on
-	log     []proto.AccountLogEntry
+	// settling and replayed: see accounts_replay.go.
+	settling map[string]bool
+	replayed map[string]int
+	log      []proto.AccountLogEntry
 }
 
 func newAccountWatch(dir string) *accountWatch {
 	w := &accountWatch{file: filepath.Join(dir, "account-limits.json"), limits: map[string]limitRecord{},
-		looked: map[string]time.Time{}, handled: map[string]string{}}
+		looked: map[string]time.Time{}, handled: map[string]string{}, settling: map[string]bool{}, replayed: map[string]int{}}
 	if data, err := os.ReadFile(w.file); err == nil {
 		_ = json.Unmarshal(data, &w.limits)
 	}
@@ -201,7 +204,11 @@ func (s *Server) watchLimits(info proto.SessionInfo) {
 	if err != nil {
 		return
 	}
-	l, ok := accounts.Classify(sess.Terminal().Text(), now)
+	text, ok := w.fresh(info.ID, sess.Terminal().Text())
+	if !ok {
+		return
+	}
+	l, ok := accounts.Classify(text, now)
 	if !ok {
 		return
 	}
@@ -331,16 +338,20 @@ func (s *Server) switchAccount(p proto.AccountSwitchParams) (proto.SessionInfo, 
 	if strings.TrimPrefix(meta.AccountFirst, "=") == acc.Name && strings.HasPrefix(meta.AccountFirst, "=") {
 		meta.AccountFirst = "" // back on the first
 	}
+	s.acctWatch.restarting(p.Session)
 	if !info.Exited {
 		if _, err := s.sessions.Replace(stoppedSpec(sess, meta)); err != nil {
+			s.acctWatch.settled(p.Session, sess.Terminal().Text())
 			return proto.SessionInfo{}, err
 		}
 		reapSession(info.ID)
 	} else if _, err := s.sessions.Replace(stoppedSpec(sess, meta)); err != nil {
+		s.acctWatch.settled(p.Session, sess.Terminal().Text())
 		return proto.SessionInfo{}, err
 	}
 	next, err := s.resumeSession(p.Session, "")
 	if err != nil {
+		s.acctWatch.settled(p.Session, sess.Terminal().Text())
 		return proto.SessionInfo{}, err
 	}
 	event := "switch"
@@ -350,13 +361,16 @@ func (s *Server) switchAccount(p proto.AccountSwitchParams) (proto.SessionInfo, 
 		event = "back"
 	}
 	s.recordAccount(proto.AccountLogEntry{Session: p.Session, Agent: base, Account: acc.Name, Event: event, Reason: p.Reason})
+	prompt := ""
 	if p.Continue {
-		go s.tellToGoOn(next.ID(), "Go on with what you were doing: the account you ran on hit its limit, and you are now on another.")
+		prompt = "Go on with what you were doing: the account you ran on hit its limit, and you are now on another."
 	}
+	go s.tellToGoOn(next.ID(), prompt)
 	return next.Info(), nil
 }
 
-// tellToGoOn types prompt into session id once its agent shows its input.
+// tellToGoOn waits for session id's agent to show its input, then has its
+// screen counted (accounts_replay.go) and prompt, if any, typed.
 func (s *Server) tellToGoOn(id, prompt string) {
 	deadline := time.Now().Add(promptTimeout)
 	quietSince := time.Time{}
@@ -364,10 +378,12 @@ func (s *Server) tellToGoOn(id, prompt string) {
 		time.Sleep(250 * time.Millisecond)
 		sess, err := s.sessions.Get(id)
 		if err != nil {
+			s.acctWatch.settled(id, "")
 			return
 		}
 		info := sess.Info()
 		if info.Exited {
+			s.acctWatch.settled(id, sess.Terminal().Text())
 			return
 		}
 		if info.Active {
@@ -381,5 +397,13 @@ func (s *Server) tellToGoOn(id, prompt string) {
 			break
 		}
 	}
-	_ = s.input(proto.SessionInputParams{ID: id, Text: prompt, Paste: true, Enter: true})
+	sess, err := s.sessions.Get(id)
+	if err != nil {
+		s.acctWatch.settled(id, "")
+		return
+	}
+	s.acctWatch.settled(id, sess.Terminal().Text())
+	if prompt != "" {
+		_ = s.input(proto.SessionInputParams{ID: id, Text: prompt, Paste: true, Enter: true})
+	}
 }

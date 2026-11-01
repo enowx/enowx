@@ -63,6 +63,43 @@ func Classify(screen string, now time.Time) (Limit, bool) {
 	return Limit{}, false
 }
 
+// LimitLines counts the lines of screen saying an agent hit a limit.
+func LimitLines(screen string) int {
+	n := 0
+	for line := range strings.SplitSeq(screen, "\n") {
+		if readsAsLimit(line) {
+			n++
+		}
+	}
+	return n
+}
+
+// WithoutLimitLines is screen with its first n lines saying so taken out.
+func WithoutLimitLines(screen string, n int) string {
+	if n <= 0 {
+		return screen
+	}
+	lines := strings.Split(screen, "\n")
+	kept := lines[:0]
+	for _, line := range lines {
+		if n > 0 && readsAsLimit(line) {
+			n--
+			continue
+		}
+		kept = append(kept, line)
+	}
+	return strings.Join(kept, "\n")
+}
+
+func readsAsLimit(line string) bool {
+	for _, s := range limitSigns {
+		if s.re.MatchString(line) {
+			return true
+		}
+	}
+	return false
+}
+
 // resetTime is when text says a limit resets: at a clock time (the next
 // one), or in so long; zero when it doesn't say.
 func resetTime(text string, now time.Time) time.Time {
