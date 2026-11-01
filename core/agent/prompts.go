@@ -56,15 +56,23 @@ func PromptShown(screen string) (ScreenPrompt, bool) {
 	return ScreenPrompt{}, false
 }
 
+// promptEdges are what boxes draw around a line.
+const promptEdges = " │|┃"
+
 // askedAbove is the question a matched line belongs to: itself, or, for a choice
 // under a question, that question.
 func askedAbove(lines []string, i int) string {
 	for j := i; j >= 0 && j >= i-4; j-- {
-		if strings.HasSuffix(strings.Trim(lines[j], " │|"), "?") {
-			return lines[j]
+		if strings.HasSuffix(strings.Trim(lines[j], promptEdges), "?") {
+			return strings.Trim(lines[j], promptEdges)
 		}
 	}
-	return lines[i]
+	line := strings.Trim(lines[i], promptEdges)
+	// Choices alone say nothing: what they're about is above them.
+	if i > 0 && strings.Contains(strings.ToLower(line), "allow once") {
+		return strings.Trim(lines[i-1], promptEdges) + ": " + line
+	}
+	return line
 }
 
 // StalledPrompt is the fallback for prompts nobody listed: a screen that hasn't

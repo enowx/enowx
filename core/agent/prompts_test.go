@@ -1,6 +1,9 @@
 package agent
 
-import "testing"
+import (
+	"strings"
+	"testing"
+)
 
 // What stops an agent is read from its screen; what merely runs is not.
 func TestPromptShown(t *testing.T) {
@@ -22,6 +25,9 @@ func TestPromptShown(t *testing.T) {
 		if _, ok := PromptShown(screen); !ok {
 			t.Errorf("not seen: %q", screen)
 		}
+	}
+	if p, _ := PromptShown("  ┃  $ touch asked\n  ┃   Allow once   Allow always   Reject\n"); !strings.HasPrefix(p.Text, "$ touch asked: Allow once") {
+		t.Fatalf("what it's about: %q", p.Text)
 	}
 	for _, screen := range []string{"$ ls\na.txt\n$ ", "Compiling…\n  esc to interrupt", ""} {
 		if p, ok := PromptShown(screen); ok {
