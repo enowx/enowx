@@ -5,8 +5,8 @@ import (
 	"path/filepath"
 	"runtime"
 	"strings"
-	"time"
 	"testing"
+	"time"
 
 	"github.com/enowx/enowx/client"
 	"github.com/enowx/enowx/core/transcript"
