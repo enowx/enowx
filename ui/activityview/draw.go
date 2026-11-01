@@ -2,7 +2,7 @@ package activityview
 
 import (
 	"fmt"
-	"path"
+	"slices"
 	"strconv"
 	"strings"
 	"time"
@@ -16,37 +16,37 @@ import (
 	"github.com/enowx/enowx/ui/widget"
 )
 
-// Draw shows the summary, the files edited, then the turns, newest first.
+// Draw shows the totals, the files edited, then the turns, newest first.
 func (v *View) Draw(c *ui.Context, o Options) {
 	v.follow(o)
-	ui.Column(c).Grow(1).FillWidth().MinHeight(0).Children(func() {
+	ui.Column(c).Grow(1).FillWidth().MinHeight(0).Padding(0, theme.S3, theme.S3, theme.S3).Gap(theme.S2).Children(func() {
 		switch {
 		case v.err != "":
 			note(c, v.err, theme.Error)
 			return
 		case !v.loaded:
-			note(c, "Reading the conversation…", theme.Muted)
+			note(c, "Reading the conversation…", theme.TextSoft)
 			return
 		case !v.supported:
-			note(c, v.reason, theme.Muted)
+			note(c, v.reason, theme.TextSoft)
 			return
 		case len(v.turns) == 0:
-			note(c, "Nothing yet: the agent's work shows here as it goes.", theme.Muted)
+			note(c, "Nothing yet: the agent's work shows here as it goes.", theme.TextSoft)
 			return
 		}
-		v.summary(c, o)
+		v.summary(c)
 		ui.Scroll(c).Grow(1).FillWidth().MinHeight(0).Children(func() {
-			ui.Column(c).FillWidth().Padding(4, 0, 12, 0).Children(func() {
+			ui.Column(c).FillWidth().Gap(2).Children(func() {
 				if len(v.files) > 0 {
-					section(c, "FILES EDITED", len(v.files))
+					section(c, "Files edited", len(v.files))
 					for _, f := range v.files {
 						v.fileRow(c.Key("file:"+f.path), o, f)
 					}
 				}
-				section(c, "TURNS", len(v.turns))
+				section(c, "Turns", len(v.turns))
 				working := isWorking(o.Session)
 				for i := len(v.turns) - 1; i >= 0; i-- {
-					v.turnRow(c.Key(strconv.Itoa(v.turns[i].start)), v.turns[i], working && i == len(v.turns)-1, o.Session.Dir)
+					v.turnRow(c.Key(strconv.Itoa(v.turns[i].start)), o, v.turns[i], working && i == len(v.turns)-1)
 				}
 			})
 		})
@@ -54,15 +54,15 @@ func (v *View) Draw(c *ui.Context, o Options) {
 }
 
 func note(c *ui.Context, text string, col ui.Color) {
-	ui.Column(c).Grow(1).FillWidth().Center().Padding(24).Children(func() {
+	ui.Column(c).Grow(1).FillWidth().Center().Padding(theme.S5).Children(func() {
 		ui.Text(c, text).FontSize(theme.TextUI).TextColor(col).TextAlign(ui.Center)
 	})
 }
 
 func section(c *ui.Context, label string, n int) {
-	ui.Row(c).FillWidth().Height(30).PaddingX(14).Gap(6).Margin(6, 0, 0, 0).Children(func() {
-		ui.Text(c, label).FontSize(theme.TextLabel).TextColor(theme.Muted).SingleLine()
-		ui.Text(c, strconv.Itoa(n)).FontSize(theme.TextLabel).TextColor(theme.Idle).SingleLine()
+	ui.Row(c.Key("section:"+label)).FillWidth().Height(28).Shrink(0).PaddingX(theme.S3).Gap(theme.S1).Children(func() {
+		ui.Text(c, label).FontSize(theme.TextLabel).FontWeight(500).TextColor(theme.TextSoft).SingleLine()
+		ui.Text(c, strconv.Itoa(n)).FontSize(theme.TextLabel).TextColor(theme.TextSoft).SingleLine()
 	})
 }
 
@@ -77,78 +77,92 @@ func isWorking(s proto.SessionInfo) bool {
 	return s.Active
 }
 
-// summary is a line of totals.
-func (v *View) summary(c *ui.Context, o Options) {
+// summary is the totals, a column each; failed ones stand out when there are any.
+func (v *View) summary(c *ui.Context) {
 	tools, failed, edits := v.totals()
-	ui.Row(c).Height(42).Shrink(0).FillWidth().Padding(0, 14).Gap(14).
-		BorderWidth(0, 0, 1, 0).BorderColor(theme.Border).Children(func() {
-		ui.Icon(c, icon.List).FontSize(13).TextColor(theme.Accent)
-		stat := func(n int, one, many string, col ui.Color) {
-			ui.Text(c, fmt.Sprintf("%d %s", n, textfmt.Plural(n, one, many))).FontSize(theme.TextLabel).TextColor(col).SingleLine().Shrink(1)
+	ui.Row(c.Key("totals")).FillWidth().Shrink(0).Gap(theme.S1).Children(func() {
+		stat := func(label string, n int, col ui.Color) {
+			ui.Column(c.Key(label)).Grow(1).Basis(0).MinWidth(0).Gap(theme.S1).Children(func() {
+				widget.Running(c, label, widget.RunStyle{Color: theme.TextSoft})
+				ui.Text(c, strconv.Itoa(n)).FontSize(theme.TextUI).FontWeight(500).TextColor(col).SingleLine()
+			})
 		}
-		stat(len(v.turns), "turn", "turns", theme.Text)
-		stat(tools, "tool call", "tool calls", theme.TextSoft)
-		stat(edits, "edit", "edits", theme.TextSoft)
+		failedCol := theme.Text
 		if failed > 0 {
-			stat(failed, "failed", "failed", theme.Error)
+			failedCol = theme.Error
 		}
+		stat("Turns", len(v.turns), theme.Text)
+		stat("Tool calls", tools, theme.Text)
+		stat("Edits", edits, theme.Text)
+		stat("Failed", failed, failedCol)
 	})
 }
 
-// fileRow is a file the agent edited; clicking it shows it in Files.
-func (v *View) fileRow(c *ui.Context, o Options, f edited) {
-	b := ui.ButtonBase(c).FillWidth().Height(26).PaddingX(14).Gap(8).Justify(ui.Start).Cursor(ui.CursorPointer).Label(f.path)
+// rowFace is the look of a row that can be clicked: tinted under the pointer.
+func rowFace(b ui.Element) {
+	bg := theme.Fade(theme.Selected, 0)
 	if b.Hovered() {
-		b.Background(theme.Hover)
+		bg = theme.Hover
+	}
+	b.Background(widget.QuickTint(b, "bg", bg))
+}
+
+// fileRow is a file the agent edited, in the folder or not; clicking one in the
+// folder shows it in a tab.
+func (v *View) fileRow(c *ui.Context, o Options, f edited) {
+	b := ui.ButtonBase(c).FillWidth().MinHeight(28).PaddingX(theme.S3).Gap(theme.S2).Radius(theme.RadiusCard).Justify(ui.Start).Label(f.path)
+	absolute := strings.HasPrefix(f.path, "/")
+	if !absolute {
+		b.Cursor(ui.CursorPointer)
+		rowFace(b)
 	}
 	b.Children(func() {
-		ui.Icon(c, icon.Pencil).FontSize(11).TextColor(theme.Muted)
-		dir, name := path.Split(f.path)
+		ui.Icon(c, icon.Pencil).FontSize(14).TextColor(theme.TextSoft)
 		ui.Row(c).Grow(1).MinWidth(0).Children(func() {
-			if dir != "" {
-				ui.Text(c, dir).Font(theme.MonoFont).FontSize(theme.TextLabel).TextColor(theme.Muted).SingleLine().Shrink(1)
-			}
-			ui.Text(c, name).Font(theme.MonoFont).FontSize(theme.TextLabel).SingleLine().Shrink(0)
+			widget.Running(c, f.path, widget.RunStyle{Mono: true})
 		})
-		if f.added > 0 {
-			ui.Text(c, "+"+strconv.Itoa(f.added)).Font(theme.MonoFont).FontSize(theme.TextLabel).TextColor(theme.Done).SingleLine().Shrink(0)
-		}
-		if f.removed > 0 {
-			ui.Text(c, "−"+strconv.Itoa(f.removed)).Font(theme.MonoFont).FontSize(theme.TextLabel).TextColor(theme.Error).SingleLine().Shrink(0)
-		}
+		counts(c, f.added, f.removed)
 	})
-	if b.Clicked() && o.OpenFile != nil && !strings.HasPrefix(f.path, "/") {
+	if b.Clicked() && o.OpenFile != nil && !absolute {
 		o.OpenFile(f.path)
 	}
 }
 
-// turnRow is a turn: its prompt, when and how long, and what it ran,
-// unfolding to each tool call.
-func (v *View) turnRow(c *ui.Context, t turn, running bool, dir string) {
+// counts are the lines added and removed, as +n −n.
+func counts(c *ui.Context, added, removed int) {
+	if added > 0 {
+		ui.Text(c, "+"+strconv.Itoa(added)).FontSize(theme.TextLabel).TextColor(theme.Add).SingleLine().Shrink(0)
+	}
+	if removed > 0 {
+		ui.Text(c, "−"+strconv.Itoa(removed)).FontSize(theme.TextLabel).TextColor(theme.Del).SingleLine().Shrink(0)
+	}
+}
+
+// turnRow is a turn: its prompt, when and how long, and what it ran, which run
+// when too long, unfolding to each tool call.
+func (v *View) turnRow(c *ui.Context, o Options, t turn, running bool) {
 	open := v.open[t.start]
-	ui.Column(c).FillWidth().BorderWidth(0, 0, 1, 0).BorderColor(theme.Border).Children(func() {
-		b := ui.ButtonBase(c).FillWidth().Padding(8, 14).Gap(8).Justify(ui.Start).AlignItems(ui.Start).Cursor(ui.CursorPointer).
-			Label(textfmt.FirstLine(t.prompt, 80))
-		if b.Hovered() {
-			b.Background(theme.Hover)
-		}
+	prompt := textfmt.FirstLine(t.prompt, 120)
+	if prompt == "" {
+		prompt = "(no prompt)"
+	}
+	ui.Column(c).FillWidth().Children(func() {
+		b := ui.ButtonBase(c).FillWidth().MinHeight(36).Padding(theme.S1, theme.S3).Gap(theme.S2).Radius(theme.RadiusCard).Justify(ui.Start).
+			Cursor(ui.CursorPointer).Label(textfmt.FirstLine(t.prompt, 80))
+		rowFace(b)
 		b.Children(func() {
-			chev := icon.ChevronRight
-			if open {
-				chev = icon.ChevronDown
-			}
-			ui.Icon(c, chev).FontSize(11).TextColor(theme.Muted).Margin(3, 0, 0, 0)
-			ui.Column(c).Grow(1).MinWidth(0).Gap(3).Children(func() {
-				prompt := textfmt.FirstLine(t.prompt, 120)
-				if prompt == "" {
-					prompt = "(no prompt)"
-				}
-				ui.Text(c, prompt).FontSize(theme.TextUI).TextColor(theme.Text).SingleLine().Shrink(1)
-				ui.Text(c, v.turnFacts(t, running)).FontSize(theme.TextLabel).TextColor(theme.Muted).SingleLine().Shrink(1)
+			ui.Column(c).Grow(1).MinWidth(0).Children(func() {
+				widget.Running(c, prompt, widget.RunStyle{})
+				widget.Running(c.Key("facts"), v.turnFacts(t, running), widget.RunStyle{Size: theme.TextLabel, Color: theme.TextSoft})
 			})
 			if running {
 				widget.Spinner(c, 12)
 			}
+			chev := icon.ChevronRight
+			if open {
+				chev = icon.ChevronDown
+			}
+			ui.Icon(c, chev).FontSize(12).TextColor(theme.TextSoft)
 		})
 		if b.Clicked() {
 			if open {
@@ -158,12 +172,12 @@ func (v *View) turnRow(c *ui.Context, t turn, running bool, dir string) {
 			}
 		}
 		if open {
-			ui.Column(c).FillWidth().Padding(0, 14, 8, 33).Gap(2).Children(func() {
+			ui.Column(c).FillWidth().Padding(theme.S1, theme.S3, theme.S2, theme.S3).Children(func() {
 				if len(t.tools) == 0 {
-					ui.Text(c, "No tools: it answered.").FontSize(theme.TextLabel).TextColor(theme.Muted)
+					ui.Text(c, "No tools: it answered.").FontSize(theme.TextLabel).TextColor(theme.TextSoft)
 				}
 				for i, e := range t.tools {
-					toolRow(c.Key(i), e, dir)
+					toolRow(c.Key(i), o, e)
 				}
 			})
 		}
@@ -193,22 +207,49 @@ func (v *View) turnFacts(t turn, running bool) string {
 	return strings.Join(parts, " · ")
 }
 
-// toolRow is a tool call: its kind, what it worked on (a path in the
-// session's folder written from there), how it went.
-func toolRow(c *ui.Context, e proto.TranscriptEntry, dir string) {
-	col := theme.TextSoft
+// toolRow is a tool call: its kind and what it worked on (a path in the
+// session's folder written from there), which runs when too long, and how it
+// went. What it read opens as a file and what it edited as its changes.
+func toolRow(c *ui.Context, o Options, e proto.TranscriptEntry) {
+	col := theme.Text
 	if e.Failed {
 		col = theme.Error
 	}
-	ui.Row(c).FillWidth().Height(22).Gap(8).Children(func() {
-		ui.Icon(c, toolIcon(e.Text)).FontSize(11).TextColor(theme.Muted)
-		ui.Text(c, e.Text).FontSize(theme.TextLabel).TextColor(col).SingleLine().Shrink(0)
-		ui.Text(c, textfmt.FirstLine(relative(dir, e.Detail), 140)).Font(theme.MonoFont).FontSize(theme.TextLabel).TextColor(theme.Muted).SingleLine().Shrink(1)
-		ui.Spacer(c)
-		if e.Added > 0 || e.Removed > 0 {
-			ui.Text(c, fmt.Sprintf("+%d −%d", e.Added, e.Removed)).Font(theme.MonoFont).FontSize(theme.TextLabel).TextColor(theme.Muted).SingleLine().Shrink(0)
-		}
+	detail := textfmt.FirstLine(relative(o.Session.Dir, e.Detail), 140)
+	open := openOf(o, e, detail)
+	b := ui.ButtonBase(c).FillWidth().Height(24).Gap(theme.S2).Radius(theme.RadiusSmall).Justify(ui.Start).Label(e.Text + " " + detail)
+	if open != nil {
+		b.Cursor(ui.CursorPointer)
+		rowFace(b)
+	}
+	b.Children(func() {
+		ui.Icon(c, toolIcon(e.Text)).FontSize(14).TextColor(theme.TextSoft)
+		ui.Text(c, e.Text).FontSize(theme.TextUI).TextColor(col).SingleLine().Shrink(0)
+		ui.Row(c).Grow(1).MinWidth(0).Children(func() {
+			widget.Running(c, detail, widget.RunStyle{Mono: true, Color: col})
+		})
+		counts(c, e.Added, e.Removed)
 	})
+	if open != nil && b.Clicked() {
+		open()
+	}
+}
+
+// openOf is what clicking a tool call opens, nil for nothing: a file of the
+// session's folder it read or edited, not one it failed on.
+func openOf(o Options, e proto.TranscriptEntry, p string) func() {
+	if p == "" || strings.HasPrefix(p, "/") || e.Failed {
+		return nil
+	}
+	switch {
+	case slices.Contains(editTools, e.Text) && o.OpenDiff != nil:
+		return func() { o.OpenDiff(p) }
+	case slices.Contains(editTools, e.Text) || e.Text == "Read" || e.Text == "NotebookRead":
+		if o.OpenFile != nil {
+			return func() { o.OpenFile(p) }
+		}
+	}
+	return nil
 }
 
 // toolIcon is the icon of a tool, by what it does.

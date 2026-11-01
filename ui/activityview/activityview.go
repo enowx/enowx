@@ -31,6 +31,8 @@ type Options struct {
 	Wanted func() bool
 	// OpenFile shows a file of the session's folder, by its path in it.
 	OpenFile func(path string)
+	// OpenDiff shows what changed in such a file.
+	OpenDiff func(path string)
 }
 
 // View is one session's activity. It belongs to the main thread; its
