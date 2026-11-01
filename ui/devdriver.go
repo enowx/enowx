@@ -115,6 +115,8 @@ func (a *App) devStep(tt *ui.Tester, step string) error {
 			a.centerOf(s.ID).front = ""
 			a.showView(s, arg)
 		}
+	case "goa":
+		a.state.GOA = arg == "on"
 	case "theme":
 		a.state.Theme = arg
 		a.applyTheme()
