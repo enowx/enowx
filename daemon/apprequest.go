@@ -46,9 +46,15 @@ var errNoApp = errors.New("no enowX app is connected to this host: only the app 
 // askApp has the latest app attached do kind with params, and returns
 // its result, waiting at most timeout.
 func (s *Server) askApp(kind string, params any, timeout time.Duration) (json.RawMessage, error) {
+	rep, err := s.askAppReply(kind, params, timeout)
+	return rep.Result, err
+}
+
+// askAppReply is askApp with the app's whole reply.
+func (s *Server) askAppReply(kind string, params any, timeout time.Duration) (proto.AppReply, error) {
 	raw, err := json.Marshal(params)
 	if err != nil {
-		return nil, err
+		return proto.AppReply{}, err
 	}
 	r := &s.appReqs
 	r.mu.Lock()
@@ -58,7 +64,7 @@ func (s *Server) askApp(kind string, params any, timeout time.Duration) (json.Ra
 	}
 	r.mu.Unlock()
 	if app == nil {
-		return nil, errNoApp
+		return proto.AppReply{}, errNoApp
 	}
 	id := make([]byte, 8)
 	_, _ = rand.Read(id)
@@ -76,14 +82,14 @@ func (s *Server) askApp(kind string, params any, timeout time.Duration) (json.Ra
 	select {
 	case rep := <-ch:
 		if rep.Error != "" {
-			return nil, errors.New(rep.Error)
+			return rep, errors.New(rep.Error)
 		}
-		return rep.Result, nil
+		return rep, nil
 	case <-time.After(timeout):
 		r.mu.Lock()
 		delete(r.pending, req.ID)
 		r.mu.Unlock()
-		return nil, errors.New("the app didn't answer in time")
+		return proto.AppReply{}, errors.New("the app didn't answer in time")
 	}
 }
 

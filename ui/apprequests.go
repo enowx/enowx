@@ -77,8 +77,9 @@ func (a *App) pushChanged(st proto.AutopushStatus) {
 // appRequest does what an agent on the host of cl (daemon id) asked
 // across hosts, and answers it.
 func (a *App) appRequest(cl *client.Client, id string, req proto.AppRequest) {
+	bypassed := false // set before what answers is started
 	reply := func(result any, err error) {
-		rep := proto.AppReply{ID: req.ID}
+		rep := proto.AppReply{ID: req.ID, Bypassed: bypassed}
 		if err != nil {
 			rep.Error = client.Explain(err)
 		} else {
@@ -132,7 +133,7 @@ func (a *App) appRequest(cl *client.Client, id string, req proto.AppRequest) {
 		}
 		a.peekSession(p, reply)
 	case "host.call":
-		a.hostCallAsked(id, req, reply)
+		a.hostCallAsked(id, req, reply, func() { bypassed = true })
 	case "app.settings":
 		a.appSettingsAsked(req, reply)
 	default:

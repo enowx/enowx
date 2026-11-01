@@ -5,6 +5,7 @@ import (
 	"errors"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"sync/atomic"
 	"testing"
@@ -19,7 +20,8 @@ import (
 // standInApp attaches to srv as the app does and answers its host.call
 // requests the way the app's relay does (ui/hostcontrol.go): checked,
 // asked of the user (yes says what they answer) for what an agent can't
-// undo, then done on the host named, among hosts.
+// undo unless its daemon says it runs without asking, then done on the
+// host named, among hosts.
 func standInApp(t *testing.T, srv *Server, hosts map[string]*client.Client, yes func(proto.HostCallParams) bool) {
 	t.Helper()
 	var app *client.Client
@@ -31,6 +33,7 @@ func standInApp(t *testing.T, srv *Server, hosts map[string]*client.Client, yes 
 		_ = json.Unmarshal(ev.Data, &req)
 		go func() {
 			rep := proto.AppReply{ID: req.ID}
+			var bypassed bool
 			res, err := func() (json.RawMessage, error) {
 				var p proto.HostCallParams
 				if err := json.Unmarshal(req.Params, &p); err != nil {
@@ -44,7 +47,11 @@ func standInApp(t *testing.T, srv *Server, hosts map[string]*client.Client, yes 
 				if cl == nil {
 					return nil, errors.New("no host " + p.Host)
 				}
-				if level == hostcontrol.Confirm && p.From != "" && !yes(p) {
+				switch {
+				case level != hostcontrol.Confirm || p.From == "":
+				case p.Bypass != "":
+					bypassed = true
+				case !yes(p):
 					return nil, errors.New("the user said no")
 				}
 				var out json.RawMessage
@@ -58,7 +65,7 @@ func standInApp(t *testing.T, srv *Server, hosts map[string]*client.Client, yes 
 			if err != nil {
 				rep.Error = err.Error()
 			}
-			rep.Result = res
+			rep.Result, rep.Bypassed = res, bypassed
 			_ = app.ReplyToApp(rep)
 		}()
 	})
@@ -253,5 +260,160 @@ func TestControlMethodsHaveHandlers(t *testing.T) {
 		if _, ok := handlers[m]; !ok {
 			t.Errorf("control reaches %s, which has no handler", m)
 		}
+	}
+}
+
+// What an agent can't undo runs unasked only while its hooks say it runs
+// without asking, recently, whatever the session itself sends; anything
+// else asks, which with no app open says it needs the app. What runs
+// unasked is in the log, saying so.
+func TestAgentInBypassIsNotAsked(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("uses sh")
+	}
+	fakeAgent(t)
+	srv, _ := hookServer(t)
+	c := connect(t, srv, nil)
+	asker, err := srv.sessions.Create(session.Spec{Command: []string{"cat"}, Dir: t.TempDir(), Cols: 80, Rows: 24, Meta: session.Meta{Agent: "claude"}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv(session.EnvSession, asker.ID())
+	report := func(mode string) {
+		t.Helper()
+		hookOf(`{"tool_name":"Bash","tool_input":{"command":"true"},"permission_mode":"`+mode+`"}`, "--event", proto.HookToolBefore)
+	}
+	target := func() string {
+		t.Helper()
+		sess, err := srv.sessions.Create(sessionSpec(t, "cat"))
+		if err != nil {
+			t.Fatal(err)
+		}
+		return sess.ID()
+	}
+	kill := func(id string, extra string) error {
+		params, _ := json.Marshal(proto.SessionRef{ID: id})
+		return c.Call(proto.MethodHostCall, proto.HostCallParams{Method: proto.MethodSessionKill, Params: params, From: asker.ID(), Bypass: extra}, nil)
+	}
+	asks := func(what string, err error) {
+		t.Helper()
+		if err == nil || !strings.Contains(err.Error(), "needs the user's yes") {
+			t.Fatalf("%s wasn't asked: %v", what, err)
+		}
+	}
+	// Nothing reported, whatever the session says of itself.
+	asks("no report", kill(target(), ""))
+	asks("a flag from the session", kill(target(), agentModeBypass))
+	report("default")
+	asks("the default mode", kill(target(), agentModeBypass))
+	report("auto")
+	asks("auto mode", kill(target(), ""))
+
+	report(agentModeBypass)
+	gone := target()
+	if err := kill(gone, ""); err != nil {
+		t.Fatalf("in bypass: %v", err)
+	}
+	if _, err := srv.sessions.Get(gone); err == nil {
+		t.Fatal("still there")
+	}
+	log, _ := c.ControlLog()
+	if last := log[len(log)-1]; last.Bypass != agentModeBypass || last.From != asker.ID() || last.Err != "" {
+		t.Fatalf("the log: %+v", last)
+	}
+	// Shift+tab out of it, as its next tool call reports.
+	report("acceptEdits")
+	asks("after leaving bypass", kill(target(), ""))
+	if log, _ := c.ControlLog(); log[len(log)-1].Bypass != "" {
+		t.Fatalf("an asked one logged as bypass: %+v", log[len(log)-1])
+	}
+	// A report too old says nothing of now.
+	srv.agentModes.note(asker.ID(), agentModeBypass, time.Now().Add(-agentModeFresh-time.Second))
+	asks("an old report", kill(target(), ""))
+	// A visitor's connection, naming the owner's session in bypass.
+	report(agentModeBypass)
+	params, _ := json.Marshal(proto.SessionRef{ID: target()})
+	_, err = (&conn{srv: srv, remote: true}).hostCall(proto.HostCallParams{Method: proto.MethodSessionKill, Params: params, From: asker.ID()})
+	asks("a visitor", err)
+	// A teammate's session on this host, and an agent with no hooks to say.
+	for what, meta := range map[string]session.Meta{
+		"a teammate's session":   {Agent: "claude", Member: &proto.SessionMember{Name: "Rina"}},
+		"an agent with no hooks": {Agent: "aider"},
+	} {
+		other, err := srv.sessions.Create(session.Spec{Command: []string{"cat"}, Dir: t.TempDir(), Cols: 80, Rows: 24, Meta: meta})
+		if err != nil {
+			t.Fatal(err)
+		}
+		srv.agentModes.note(other.ID(), agentModeBypass, time.Now())
+		if mode := srv.sessionBypasses(other.ID()); mode != "" {
+			t.Errorf("%s counted as in bypass: %q", what, mode)
+		}
+	}
+	// A new process says its own.
+	report(agentModeBypass)
+	srv.began(asker, nil, "")
+	asks("a restarted agent", kill(target(), ""))
+
+	// Hibernating, the same way, each logged.
+	info, err := c.CreateSession(proto.SessionCreateParams{Agent: "claude", Dir: t.TempDir(), Cols: 80, Rows: 10})
+	if err != nil {
+		t.Fatal(err)
+	}
+	hibernate := proto.SessionHibernateParams{IDs: []string{info.ID}, From: asker.ID(), Force: true}
+	if _, err := c.HibernateSessions(hibernate); err == nil {
+		t.Fatal("hibernated unasked out of bypass")
+	}
+	report(agentModeBypass)
+	res, err := c.HibernateSessions(hibernate)
+	if err != nil || len(res.Hibernated) != 1 {
+		t.Fatalf("hibernating in bypass: %+v %v", res, err)
+	}
+	log, _ = c.ControlLog()
+	if last := log[len(log)-1]; last.Method != proto.MethodSessionHibernate || last.Bypass != agentModeBypass {
+		t.Fatalf("hibernating's log: %+v", last)
+	}
+}
+
+// On another of the user's hosts, the app is told the mode and does it
+// unasked; the asking host logs it, and that the app did so.
+func TestAgentInBypassOnAnotherHost(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("uses sh")
+	}
+	a, _ := hookServer(t)
+	b := startServer(t)
+	ca := connect(t, a, nil)
+	asker, err := a.sessions.Create(session.Spec{Command: []string{"cat"}, Dir: t.TempDir(), Cols: 80, Rows: 24, Meta: session.Meta{Agent: "codex"}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv(session.EnvSession, asker.ID())
+	var asked atomic.Int32
+	standInApp(t, a, map[string]*client.Client{b.daemonID: connect(t, b, nil)}, func(proto.HostCallParams) bool {
+		asked.Add(1)
+		return false
+	})
+	kill := func() (string, error) {
+		sess, err := b.sessions.Create(sessionSpec(t, "cat"))
+		if err != nil {
+			t.Fatal(err)
+		}
+		params, _ := json.Marshal(proto.SessionRef{ID: sess.ID()})
+		return sess.ID(), ca.Call(proto.MethodHostCall, proto.HostCallParams{Host: b.daemonID, Method: proto.MethodSessionKill, Params: params, From: asker.ID(), Bypass: agentModeBypass}, nil)
+	}
+	if _, err := kill(); err == nil || !strings.Contains(err.Error(), "said no") || asked.Load() != 1 {
+		t.Fatalf("out of bypass, asked %d times: %v", asked.Load(), err)
+	}
+	hookOf(`{"tool_name":"shell","tool_input":{"command":"true"},"permission_mode":"bypassPermissions"}`, "--event", proto.HookToolBefore)
+	id, err := kill()
+	if err != nil || asked.Load() != 1 {
+		t.Fatalf("in bypass, asked %d times: %v", asked.Load(), err)
+	}
+	if _, err := b.sessions.Get(id); err == nil {
+		t.Fatal("not closed on the other host")
+	}
+	log, _ := ca.ControlLog()
+	if last := log[len(log)-1]; last.Bypass != agentModeBypass || last.Host != b.daemonID {
+		t.Fatalf("the log: %+v", last)
 	}
 }

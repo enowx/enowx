@@ -2,6 +2,7 @@ package daemon
 
 import (
 	"strings"
+	"time"
 
 	"github.com/enowx/enowx/proto"
 )
@@ -52,6 +53,9 @@ func (s *Server) sessionHook(p proto.SessionHookParams) (proto.HookDecision, err
 		return proto.HookDecision{}, nil // the app's own agents
 	}
 	ev := p.Event
+	if ev.PermissionMode != "" {
+		s.agentModes.note(info.ID, ev.PermissionMode, time.Now())
+	}
 	ev.Via = proto.HookInAgent
 	s.permissionAnswer(info, ev)
 	if ev.Event == proto.HookPermission {

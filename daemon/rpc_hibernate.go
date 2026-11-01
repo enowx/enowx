@@ -4,7 +4,11 @@ import "github.com/enowx/enowx/proto"
 
 var hibernateHandlers = map[string]handler{
 	proto.MethodSessionHibernate: with(func(c *conn, p proto.SessionHibernateParams) (any, error) {
-		return c.srv.hibernateSessions(p)
+		mode := ""
+		if !c.remote {
+			mode = c.srv.sessionBypasses(p.From)
+		}
+		return c.srv.hibernateSessions(p, mode)
 	}),
 	proto.MethodSessionWake: with(func(c *conn, p proto.SessionRef) (any, error) {
 		sess, err := c.srv.continueSession(p.ID)

@@ -81,8 +81,9 @@ func (c *conn) hostCall(p proto.HostCallParams) (result any, err error) {
 	s := c.srv
 	level, err := hostcontrol.Check(p.Method, "")
 	local := s.thisHost(p.Host)
+	unasked := "" // the mode it was done without asking the user in
 	defer func() {
-		e := proto.ControlLogEntry{Time: time.Now(), From: p.From, Method: p.Method, Level: level.String()}
+		e := proto.ControlLogEntry{Time: time.Now(), From: p.From, Method: p.Method, Level: level.String(), Bypass: unasked}
 		if !local {
 			e.Host = p.Host
 		}
@@ -101,7 +102,17 @@ func (c *conn) hostCall(p proto.HostCallParams) (result any, err error) {
 		}
 	}
 	confirm := level == hostcontrol.Confirm && p.From != ""
+	// What this daemon knows, never what the session sent; a visitor's
+	// connection doesn't speak for a session of the owner's.
+	p.Bypass = ""
+	if !c.remote {
+		p.Bypass = s.sessionBypasses(p.From)
+	}
 	if local && !confirm {
+		return c.handle(proto.Request{Method: p.Method, Params: p.Params})
+	}
+	if local && p.Bypass != "" {
+		unasked = p.Bypass
 		return c.handle(proto.Request{Method: p.Method, Params: p.Params})
 	}
 	timeout := controlTimeout
@@ -111,7 +122,10 @@ func (c *conn) hostCall(p proto.HostCallParams) (result any, err error) {
 	if local {
 		p.Host = s.daemonID // the app asks the user, then does it here
 	}
-	raw, err := s.askApp("host.call", p, timeout)
+	rep, err := s.askAppReply("host.call", p, timeout)
+	if rep.Bypassed {
+		unasked = p.Bypass
+	}
 	switch {
 	case errors.Is(err, errNoApp) && local:
 		return nil, fmt.Errorf("%s from a session needs the user's yes in the enowX app, and none is connected to this host: open it", p.Method)
@@ -120,7 +134,7 @@ func (c *conn) hostCall(p proto.HostCallParams) (result any, err error) {
 	case err != nil:
 		return nil, err
 	}
-	return json.RawMessage(raw), nil
+	return json.RawMessage(rep.Result), nil
 }
 
 // projectOf is the project of this host at path.

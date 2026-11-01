@@ -115,9 +115,10 @@ func agentEvent(event string, data []byte) proto.HookEvent {
 		Response json.RawMessage `json:"tool_response"`
 		Error    string          `json:"error"`
 		Cwd      string          `json:"cwd"`
+		Mode     string          `json:"permission_mode"`
 	}
 	_ = json.Unmarshal(data, &in)
-	ev := proto.HookEvent{Event: event, Prompt: in.Prompt, Tool: in.Tool, Failed: in.Event == "PostToolUseFailure" || in.Error != ""}
+	ev := proto.HookEvent{Event: event, Prompt: in.Prompt, Tool: in.Tool, PermissionMode: in.Mode, Failed: in.Event == "PostToolUseFailure" || in.Error != ""}
 	var input map[string]any
 	if json.Unmarshal(in.Input, &input) == nil {
 		for _, k := range []string{"command", "cmd"} {

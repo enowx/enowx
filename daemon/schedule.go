@@ -229,6 +229,7 @@ func (s *Server) startQueued() {
 // began records a session whose program started: for a restart, and for
 // the scheduler, and types its first prompt once it is ready.
 func (s *Server) began(sess *session.Session, command []string, typed string) {
+	s.agentModes.forget(sess.ID()) // a new process says its own
 	s.persist.update(sess, command)
 	_, isAgent := agent.Find(sess.Info().Agent)
 	if isAgent {

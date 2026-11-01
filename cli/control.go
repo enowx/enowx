@@ -18,7 +18,8 @@ import (
 // Control of sessions on any host (docs/cli.md, "Control"): the same
 // commands with --host H reach host H's daemon through this host's and the
 // app (host.call); without it, this host. What can't be undone takes
-// --yes, and from an agent the user says yes in the app too.
+// --yes, and from an agent the user says yes in the app too, unless its
+// hooks report it runs without asking (docs/goa-tools.md).
 
 const controlUsage = `usage: enowx-app COMMAND SESSION ... [--host H]
   interrupt SESSION                stop what its agent is doing (its Escape or Ctrl+C)
@@ -392,6 +393,9 @@ func (r runner) controlCmd(args []string) error {
 		res := "ok"
 		if e.Err != "" {
 			res = e.Err
+		}
+		if e.Bypass != "" {
+			res += " (not asked: the agent is in " + e.Bypass + ")"
 		}
 		fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%s\t%s\n", e.Time.Format("01-02 15:04:05"), orDash(e.From), nonEmpty(e.Host, "here"), e.Method, e.Level, res)
 	}

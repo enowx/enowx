@@ -62,6 +62,8 @@ On the worker's host, before each tool call of a GOA worker (its agent's hooks):
 3. Edits inside the worker's own folder are its work: allowed.
 4. What is left asks as usual, and GOA, told, answers it (`answer ID allow|deny --host H`).
 
+What can't be undone, asked by GOA or a worker in bypass mode, runs without the app's dialog on the user's own hosts, and is logged ([goa-tools.md](goa-tools.md#when-the-user-is-asked)); a worker's urgent prompt stays the user's whatever GOA's mode.
+
 ## Its RAG collection
 
 GOA's collection is its folder's (`rag.ProjectID` of GOA's folder), apart from every project's. `goa remember --kind task|delegation|outcome|decision|preference TEXT` (and `rag remember` from GOA's session) keep there, never in a project. `goa recall QUERY` searches it by meaning once the user turns RAG on for it, else by words, nothing sent anywhere. `--project P [--host H]` searches a project's collection too, read-only: GOA is the one session that may read a project not its own (`rag.search` from it names any project of its host; another host's goes through the app, `rag.search` being a read of control). It can't write to one.

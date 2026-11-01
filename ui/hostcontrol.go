@@ -14,11 +14,13 @@ import (
 // daemon/hostcontrol.go): the app, the only one reaching other hosts,
 // checks what is asked against what the user may do there (all on their
 // own hosts; on a teammate's shared host, what their role allows, which
-// that host checks again), asks the user first for what can't be undone,
-// and does it with its connection to the host.
+// that host checks again), asks the user first for what can't be undone
+// unless the asking agent runs without asking on the user's own hosts, and
+// does it with its connection to the host.
 
-// hostCallAsked does what an agent on the host of daemon from asked.
-func (a *App) hostCallAsked(from string, req proto.AppRequest, reply func(any, error)) {
+// hostCallAsked does what an agent on the host of daemon from asked;
+// bypassed marks it done without asking the user.
+func (a *App) hostCallAsked(from string, req proto.AppRequest, reply func(any, error), bypassed func()) {
 	var p proto.HostCallParams
 	if err := json.Unmarshal(req.Params, &p); err != nil {
 		reply(nil, err)
@@ -50,33 +52,56 @@ func (a *App) hostCallAsked(from string, req proto.AppRequest, reply func(any, e
 			reply(out, err)
 		}()
 	}
-	run, hostName, ok := a.controlTarget(p, call, reply)
+	run, hostName, shared, ok := a.controlTarget(p, call, reply)
 	if !ok {
 		return
 	}
-	if level != hostcontrol.Confirm || p.From == "" {
+	hibernate := agentHibernates(p)
+	if (level != hostcontrol.Confirm && !hibernate) || p.From == "" {
 		run()
 		return
 	}
 	asker, askerHost := p.From, ""
-	if h, ok := a.reach(from); ok {
+	h, ownAsker := a.reach(from)
+	if ownAsker {
 		askerHost = " on " + h.host.Name
+	}
+	// A teammate's shared host always asks: the asker's mode is about the
+	// user's own machines, not their teammate's.
+	if p.Bypass != "" && ownAsker && !shared {
+		bypassed()
+		run()
+		return
 	}
 	if s, ok := a.sessionByID(p.From); ok {
 		asker = a.sessionName(s)
 	}
+	after := " It can't be undone."
+	if hibernate {
+		after = " It can be continued later."
+	}
 	a.confirmOr("Let a session do this?",
-		"The agent of “"+asker+"”"+askerHost+" asks to "+controlWhat(p)+" on "+hostName+". It can't be undone.",
+		"The agent of “"+asker+"”"+askerHost+" asks to "+controlWhat(p)+" on "+hostName+"."+after,
 		"Allow", run, func() { reply(nil, errors.New("the user said no")) })
 }
 
+// agentHibernates says p has an agent stop sessions' agents on another
+// host, which that host can't ask about: the session is none of its own.
+func agentHibernates(p proto.HostCallParams) bool {
+	if p.Method != proto.MethodSessionHibernate || p.From == "" {
+		return false
+	}
+	var args proto.SessionHibernateParams
+	return json.Unmarshal(p.Params, &args) == nil && !args.DryRun
+}
+
 // controlTarget finds the host p names: one of the user's the app is
-// connected to, or a teammate's shared host, visited with the user's
-// role. run does p there; ok is false when it answered why it can't.
-func (a *App) controlTarget(p proto.HostCallParams, call func(*client.Client, func()), reply func(any, error)) (run func(), name string, ok bool) {
+// connected to, or a teammate's shared host (shared), visited with the
+// user's role. run does p there; ok is false when it answered why it can't.
+func (a *App) controlTarget(p proto.HostCallParams, call func(*client.Client, func()), reply func(any, error)) (run func(), name string, shared, ok bool) {
 	for _, h := range a.reachable() {
 		if h.info.ID == p.Host || h.host.ID == p.Host || strings.EqualFold(h.host.Name, p.Host) {
-			return func() { call(h.cl, nil) }, h.host.Name, true
+			return func() { call(h.cl, nil) }, h.host.Name, false, true
 		}
 	}
 	if th := a.teamHostList; th != nil && a.client != nil {
@@ -99,11 +124,11 @@ func (a *App) controlTarget(p proto.HostCallParams, call func(*client.Client, fu
 					}
 					call(vc, func() { vc.Close() })
 				}()
-			}, h.Name + " (" + h.Owner + "'s, shared)", true
+			}, h.Name + " (" + h.Owner + "'s, shared)", true, true
 		}
 	}
 	reply(nil, errors.New("no host “"+p.Host+"” in the app's reach now: "+strings.Join(a.reachableNames(), ", ")))
-	return nil, "", false
+	return nil, "", false, false
 }
 
 // urgentForUser refuses a session's answer to what a GOA worker asks that
@@ -136,6 +161,7 @@ func controlWhat(p proto.HostCallParams) string {
 	var args struct {
 		ID, Session, Path, Name, Base string
 		DeleteBranch                  bool
+		IDs                           []string
 	}
 	_ = json.Unmarshal(p.Params, &args)
 	sess := args.ID
@@ -158,6 +184,11 @@ func controlWhat(p proto.HostCallParams) string {
 		return "discard session " + sess + "'s worktree"
 	case proto.MethodProjectRemove:
 		return "remove the project " + args.Path + " from the list"
+	case proto.MethodSessionHibernate:
+		if len(args.IDs) == 0 {
+			return "stop the idle sessions' agents"
+		}
+		return "stop the agent of session " + strings.Join(args.IDs, ", ")
 	case proto.MethodSessionEnvSet:
 		return "set the variable " + args.Name + " for every session"
 	}

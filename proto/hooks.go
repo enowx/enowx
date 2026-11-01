@@ -186,6 +186,9 @@ type HookEvent struct {
 	Kind    string `json:"kind,omitempty"`
 	Text    string `json:"text,omitempty"`
 	Host    string `json:"host,omitempty"`
+	// PermissionMode is the permission mode the agent's hook reports it in
+	// (permission_mode: Claude Code's, Codex's), "" when it says none.
+	PermissionMode string `json:"permissionMode,omitempty"`
 	// Via is how it was seen (HookInAgent, HookOutside).
 	Via  string    `json:"via,omitempty"`
 	Time time.Time `json:"time"`

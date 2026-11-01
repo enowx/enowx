@@ -13,4 +13,4 @@ const ControlGuide = `Control: the session commands reach any host the user's en
     "$ENOWX_BIN" close ID --yes                         # ends it for good
     "$ENOWX_BIN" settings [set KEY VALUE|env|app [set KEY VALUE]]   # the host's settings, the app's
     "$ENOWX_BIN" project settings P | project rules P   # a project's .enowx.toml and rules
---yes only when the user asked for it: closing, pushing, opening a pull request, merging and discarding can't be undone, and from a session the user also says yes in the app. A credential's value is never readable.`
+--yes only when the user asked for it: closing, pushing, opening a pull request, merging and discarding can't be undone, and from a session the user also says yes in the app, unless your agent is in bypass mode on the user's own hosts, where it runs at once and is logged: so --yes is still only for what they asked. A credential's value is never readable.`

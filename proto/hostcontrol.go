@@ -47,6 +47,10 @@ type HostCallParams struct {
 	Method string          `json:"method"`
 	Params json.RawMessage `json:"params,omitempty"`
 	From   string          `json:"from,omitempty"`
+	// Bypass is set by the asking daemon alone, what a session sends being
+	// overwritten: the permission mode From's agent runs without asking
+	// in, for the app to skip the user's yes on the user's own hosts.
+	Bypass string `json:"bypass,omitempty"`
 }
 
 // ControlLogEntry is a request made through host.call: when, from which
@@ -58,6 +62,9 @@ type ControlLogEntry struct {
 	Method string    `json:"method"`
 	Level  string    `json:"level"`
 	Err    string    `json:"err,omitempty"`
+	// Bypass is the permission mode From's agent ran in when this was done
+	// without asking the user, "" when it was asked or didn't need to be.
+	Bypass string `json:"bypass,omitempty"`
 }
 
 // Answers to a session's agent asking to use a tool.

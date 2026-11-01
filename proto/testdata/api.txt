@@ -266,6 +266,7 @@ field AndroidStatus.emulator bool
 field AndroidStatus.java string
 field AndroidStatus.problem string
 field AndroidStatus.sdk string
+field AppReply.bypassed bool
 field AppReply.error string
 field AppReply.id string
 field AppReply.result []byte
@@ -711,6 +712,7 @@ field ConfigAPI.smallModel string
 field Conflict.file string
 field Conflict.lines bool
 field Conflict.sessions []string
+field ControlLogEntry.bypass string
 field ControlLogEntry.err string
 field ControlLogEntry.from string
 field ControlLogEntry.host string
@@ -1191,6 +1193,7 @@ field HookEvent.kind string
 field HookEvent.message string
 field HookEvent.op string
 field HookEvent.paths []string
+field HookEvent.permissionMode string
 field HookEvent.port int
 field HookEvent.project string
 field HookEvent.prompt string
@@ -1231,6 +1234,7 @@ field HooksInfo.projects []ProjectHooks
 field HooksInfo.proposals []HookProposal
 field HooksInfo.sessions []SessionHooks
 field HooksInfo.support map[string]map[string]string
+field HostCallParams.bypass string
 field HostCallParams.from string
 field HostCallParams.host string
 field HostCallParams.method string

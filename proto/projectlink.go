@@ -225,6 +225,9 @@ type AppReply struct {
 	ID     string `json:"id"`
 	Result []byte `json:"result,omitempty"`
 	Error  string `json:"error,omitempty"`
+	// Bypassed: a host.call whose HostCallParams.Bypass the app honored,
+	// doing it without asking the user.
+	Bypassed bool `json:"bypassed,omitempty"`
 }
 
 // ProjectKeepCopyParams copies file Path of the project at Project beside

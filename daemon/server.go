@@ -45,6 +45,7 @@ type Server struct {
 	autos       automations
 	hooks       *hookEngine // the user's hooks (hooks.go)
 	control     controlLog  // requests made through host.call (hostcontrol.go)
+	agentModes  agentModes  // what agents' hooks last said of their permission mode (agentmode.go)
 	// WorktreeRoot is where worktrees are created.
 	WorktreeRoot string
 	// Hash is the SHA-256 of the executable the daemon started from

@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/enowx/enowx/core/agent"
+	"github.com/enowx/enowx/core/hostcontrol"
 	"github.com/enowx/enowx/core/procstat"
 	"github.com/enowx/enowx/core/session"
 	"github.com/enowx/enowx/proto"
@@ -90,8 +91,10 @@ func (s *Server) setAutoHibernate(p proto.SessionAutoHibernateParams) error {
 }
 
 // hibernateSessions hibernates what p asks, as far as it can without
-// losing work unless asked to.
-func (s *Server) hibernateSessions(p proto.SessionHibernateParams) (proto.SessionHibernateResult, error) {
+// losing work unless asked to. An agent asking has the user say yes first,
+// unless bypass is the permission mode it runs without asking in
+// (sessionBypasses).
+func (s *Server) hibernateSessions(p proto.SessionHibernateParams, bypass string) (proto.SessionHibernateResult, error) {
 	out := proto.SessionHibernateResult{Plans: []proto.HibernatePlan{}}
 	if _, err := s.sessions.Get(p.From); p.From != "" && err != nil {
 		p.From = "" // not an agent here: the user's own terminal
@@ -132,14 +135,19 @@ func (s *Server) hibernateSessions(p proto.SessionHibernateParams) (proto.Sessio
 		return out, nil
 	}
 	if p.From != "" && slices.ContainsFunc(out.Plans, func(pl proto.HibernatePlan) bool { return pl.Blocked == "" }) {
-		// An agent asks: the user says.
-		raw, err := s.askApp("session.hibernate", p, 5*time.Minute)
-		if err != nil {
-			return out, fmt.Errorf("hibernate: %w", err)
-		}
-		var yes bool
-		if json.Unmarshal(raw, &yes) != nil || !yes {
-			return out, errors.New("hibernate: the user said no")
+		if bypass != "" {
+			s.control.add(proto.ControlLogEntry{Time: time.Now(), From: p.From, Method: proto.MethodSessionHibernate,
+				Level: hostcontrol.LevelOf(proto.MethodSessionHibernate).String(), Bypass: bypass})
+		} else {
+			// An agent asks: the user says.
+			raw, err := s.askApp("session.hibernate", p, 5*time.Minute)
+			if err != nil {
+				return out, fmt.Errorf("hibernate: %w", err)
+			}
+			var yes bool
+			if json.Unmarshal(raw, &yes) != nil || !yes {
+				return out, errors.New("hibernate: the user said no")
+			}
 		}
 	}
 	for _, plan := range out.Plans {
