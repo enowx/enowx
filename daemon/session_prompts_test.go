@@ -154,3 +154,26 @@ func TestSignInWithNoCommand(t *testing.T) {
 		t.Fatal("an agent with no sign-in and no accounts was started to sign in")
 	}
 }
+
+// GOD of Agents reaches any project's RAG, to set it up; another session only
+// its own.
+func TestGOAReachesAnyProjectsRAG(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("uses cat")
+	}
+	srv := startServer(t)
+	g, err := srv.sessions.Create(session.Spec{Command: []string{"cat"}, Dir: t.TempDir(), Meta: session.Meta{GOA: true, Agent: "claude"}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	w, err := srv.sessions.Create(session.Spec{Command: []string{"cat"}, Dir: t.TempDir(), Meta: session.Meta{Agent: "claude", Project: "/code/a"}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if dir, err := srv.ragDir(proto.RAGRef{Session: g.ID(), Project: "/code/b"}); err != nil || dir != "/code/b" {
+		t.Fatalf("GOA: %q %v", dir, err)
+	}
+	if _, err := srv.ragDir(proto.RAGRef{Session: w.ID(), Project: "/code/b"}); err == nil {
+		t.Fatal("a worker reached another project")
+	}
+}
