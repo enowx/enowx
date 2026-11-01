@@ -266,6 +266,27 @@ func TestGOAMode(t *testing.T) {
 		t.Fatalf("the rules kept: %+v %v", rules, err)
 	}
 
+	// Beside them, the host's limits: what isn't a time stays in the dialog.
+	click("Stall limits")
+	frames("the limits dialog", func() bool {
+		return app.goa.stall != nil && app.goa.stall.loaded && tt.HasText("When a task counts as stalled")
+	})
+	if f := app.goa.stall; f.blank != "1m" || f.idle != "2m" || f.stuck != "10m" {
+		t.Fatalf("the limits read: %+v", f)
+	}
+	shot(t, tt, "goa-stall.png")
+	app.goa.stall.idle = "soon"
+	click("Save")
+	frames("what's wrong said", func() bool { return tt.HasText(`"soon" isn't a time: write 90s, 10m or 1h`) })
+	app.goa.stall.idle = "90s"
+	app.goa.stall.stuck = ""
+	click("Save")
+	frames("the limits saved", func() bool { return app.goa.stall == nil })
+	var stall proto.GOAStall
+	if err := cl.Call(proto.MethodGOAStall, nil, &stall); err != nil || stall != (proto.GOAStall{Blank: 60, Idle: 90, Stuck: 600}) {
+		t.Fatalf("the limits kept: %+v %v", stall, err)
+	}
+
 	click("Leave")
 	if !app.goaOn() || app.confirming == nil {
 		t.Fatal("left GOA mode without asking first")

@@ -192,6 +192,11 @@ func (a *App) sessionDefaults(c *ui.Context) {
 			a.askAgentLimit()
 		}
 	})
+	widget.Row(c, "Stalled tasks on "+a.host.Name, "", "How long a task of GOD of Agents may not move before it is told", func() {
+		if widget.GhostButton(c.Key("goa-stall-limits"), "Change…").Clicked() {
+			a.openGOAStall()
+		}
+	})
 	widget.Field(c, "Hibernate idle agents on "+a.host.Name, func() {
 		ui.Text(c, "An agent done with its turn and left idle this long is stopped to free its memory; its session stays, and it comes back on its conversation when shown. Claude Code, Codex and other agents enowX can continue.").
 			FontSize(11.5).TextColor(theme.Muted)

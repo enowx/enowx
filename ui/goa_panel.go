@@ -254,7 +254,7 @@ func (a *App) tasksTab(c *ui.Context) {
 // goaStatusColor is a task's status as a color.
 func goaStatusColor(t proto.GOATask) ui.Color {
 	switch {
-	case t.Urgent != "" && t.Status == proto.GOATaskWaiting:
+	case t.Urgent != "" && t.Status == proto.GOATaskWaiting, t.Status == proto.GOATaskStalled:
 		return theme.Warning
 	case t.Status == proto.GOATaskWorking:
 		return theme.Working
