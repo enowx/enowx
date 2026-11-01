@@ -26,6 +26,7 @@ Each version's section is also what the app's update dialog shows.
   - A daemon dying could leave a terminal stuck that hung every new shell on the Mac until it was cleared.
   - A decision use has no daily limit by default: `approve` stopped answering at 300 calls.
   - A session that dies says why, and isn't restarted in a tight loop.
+  - A session in a folder behind a symlink showed no model or chat for Claude Code and Codex.
   - The missing confirmations and other bugs an inventory of the app found.
 
 ### Not tested for real yet

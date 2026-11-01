@@ -209,12 +209,20 @@ func sessionSpec(t *testing.T, cmd ...string) session.Spec {
 // An agent's interrupt reaches its program as its user's key would; a
 // session waiting on nothing has nothing to answer.
 func TestInterruptAndAnswerFromOutside(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("uses sh")
+	}
 	srv := startServer(t)
 	c := connect(t, srv, nil)
-	info, err := c.CreateSession(proto.SessionCreateParams{Command: []string{"cat"}, Dir: t.TempDir(), Cols: 80, Rows: 20})
+	info, err := c.CreateSession(proto.SessionCreateParams{Command: []string{"sh", "-c", "echo ready; exec cat"}, Dir: t.TempDir(), Cols: 80, Rows: 20})
 	if err != nil {
 		t.Fatal(err)
 	}
+	// A key sent before the program has the terminal interrupts nothing.
+	waitFor(t, "the program runs", func() bool {
+		s, err := srv.sessions.Get(info.ID)
+		return err == nil && strings.Contains(s.Terminal().Text(), "ready")
+	})
 	ask, err := c.SessionAsk(info.ID)
 	if err != nil || ask.Waiting {
 		t.Fatalf("ask: %+v %v", ask, err)

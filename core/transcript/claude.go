@@ -7,6 +7,7 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"slices"
 	"strings"
 	"time"
 
@@ -31,16 +32,20 @@ func ClaudeHome(home string) string {
 // dir, newest first.
 func ClaudeFiles(home, dir string) []string {
 	root := filepath.Join(ClaudeHome(home), "projects")
+	dirs := namesOfDir(dir)
 	var folders []string
-	if f := filepath.Join(root, ClaudeFolder(dir)); isDir(f) {
-		folders = append(folders, f)
-	} else {
+	for _, d := range dirs {
+		if f := filepath.Join(root, ClaudeFolder(d)); isDir(f) {
+			folders = append(folders, f)
+		}
+	}
+	if len(folders) == 0 {
 		// The folder name is derived from the path; when it isn't where
 		// expected, find the folder whose records ran in dir.
 		entries, _ := os.ReadDir(root)
 		for _, e := range entries {
 			f := filepath.Join(root, e.Name())
-			if e.IsDir() && claudeFolderRunsIn(f, dir) {
+			if e.IsDir() && claudeFolderRunsIn(f, dirs) {
 				folders = append(folders, f)
 			}
 		}
@@ -82,7 +87,7 @@ var notNameChar = regexp.MustCompile(`[^A-Za-z0-9]`)
 // the conversations it has in dir.
 func ClaudeFolder(dir string) string { return notNameChar.ReplaceAllString(dir, "-") }
 
-func claudeFolderRunsIn(folder, dir string) bool {
+func claudeFolderRunsIn(folder string, dirs []string) bool {
 	entries, _ := os.ReadDir(folder)
 	for _, e := range entries {
 		if filepath.Ext(e.Name()) != ".jsonl" {
@@ -100,12 +105,21 @@ func claudeFolderRunsIn(folder, dir string) bool {
 			}
 			if json.Unmarshal(sc.Bytes(), &rec) == nil && rec.Cwd != "" {
 				f.Close()
-				return rec.Cwd == dir
+				return slices.Contains(dirs, rec.Cwd)
 			}
 		}
 		f.Close()
 	}
 	return false
+}
+
+// namesOfDir is dir and, behind a symlink, its real path: agents record the
+// real one, whatever path the session was started in.
+func namesOfDir(dir string) []string {
+	if real, err := filepath.EvalSymlinks(dir); err == nil && real != dir {
+		return []string{dir, real}
+	}
+	return []string{dir}
 }
 
 func isDir(p string) bool {

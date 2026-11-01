@@ -3,6 +3,7 @@ package transcript
 import (
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 
@@ -87,6 +88,38 @@ func TestClaudeFilesFindsFoldersByTheirRecords(t *testing.T) {
 	}
 	if got := ClaudeFiles(home, "/srv/other"); len(got) != 0 {
 		t.Fatalf("files for another folder = %v", got)
+	}
+}
+
+// A session started through a symlink is found: agents name the folder after
+// the real path.
+func TestClaudeFilesFollowASymlinkedDir(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("symlinks need privileges")
+	}
+	home, base := t.TempDir(), t.TempDir()
+	base, err := filepath.EvalSymlinks(base)
+	if err != nil {
+		t.Fatal(err)
+	}
+	real, link := filepath.Join(base, "real"), filepath.Join(base, "link")
+	if err := os.Mkdir(real, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Symlink(real, link); err != nil {
+		t.Fatal(err)
+	}
+	folder := filepath.Join(home, ".claude", "projects", ClaudeFolder(real))
+	if err := os.MkdirAll(folder, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	file := filepath.Join(folder, "a.jsonl")
+	if err := os.WriteFile(file, []byte("{}\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv("CLAUDE_CONFIG_DIR", "")
+	if got := ClaudeFiles(home, link); len(got) != 1 || got[0] != file {
+		t.Fatalf("found %v", got)
 	}
 }
 

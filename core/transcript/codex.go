@@ -52,12 +52,13 @@ func CodexFiles(home, dir string) []Found {
 		return nil
 	})
 	slices.SortFunc(all, func(a, b Found) int { return b.Changed.Compare(a.Changed) })
+	dirs := namesOfDir(dir)
 	var out []Found
 	for i, f := range all {
 		if i == codexLookAt {
 			break
 		}
-		if codexCwd(f.Path) == dir {
+		if slices.Contains(dirs, codexCwd(f.Path)) {
 			out = append(out, f)
 		}
 	}
