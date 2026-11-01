@@ -6,7 +6,6 @@ import (
 	"image/png"
 	"os"
 	"path/filepath"
-	"strconv"
 	"strings"
 	"time"
 
@@ -50,65 +49,85 @@ func (a *App) startDevDriver() {
 	}()
 }
 
-// runDevRequest takes the steps, then writes the picture and what it shows.
+// runDevRequest takes the steps, one at a time so that what they load arrives
+// between them, then writes the picture and what it shows.
 func (a *App) runDevRequest(req devRequest) {
 	w, h := req.Size[0], req.Size[1]
 	if w == 0 {
 		w, h = 1440, 900
 	}
 	tt := ui.NewTester(func(c *ui.Context) { a.view(c) }, w, h)
-	settle := func(d time.Duration) {
-		for t := time.Duration(0); t < d; t += 100 * time.Millisecond {
+	var log []string
+	frames := func() {
+		for range 8 {
 			tt.Advance(100 * time.Millisecond)
 			tt.Frame()
 		}
 	}
-	settle(500 * time.Millisecond)
-	var log []string
-	for _, step := range req.Steps {
-		verb, arg, _ := strings.Cut(step, ":")
-		var err error
-		switch verb {
-		case "click":
-			err = tt.Click(arg)
-		case "right":
-			err = tt.RightClick(arg)
-		case "type":
-			tt.Type(arg)
-		case "wait":
-			ms, _ := strconv.Atoi(arg)
-			time.Sleep(time.Duration(ms) * time.Millisecond)
-		case "page":
-			a.page = arg
-		case "mode":
-			a.state.SessionsByProject = arg == "project"
-		case "fold":
-			a.state.RailWide = arg != "on"
-		case "panel":
-			if arg == "" {
-				a.state.Panel.Open = false
-			} else {
-				a.openPanel(arg)
-			}
-		case "section":
-			a.page, a.settingsSection = pageSettings, arg
-		case "session":
-			for _, s := range a.sessions {
-				if a.sessionName(s) == arg {
-					a.selectSession(s)
-				}
-			}
-		case "move":
-			if r, ok := tt.Find(arg); ok {
-				tt.Move(r.X+r.W/2, r.Y+r.H/2)
-			}
+	var next func(i int)
+	next = func(i int) {
+		frames()
+		if i == len(req.Steps) {
+			a.finishDevRequest(req, tt, log)
+			return
 		}
-		if err != nil {
-			log = append(log, step+": "+err.Error())
+		if err := a.devStep(tt, req.Steps[i]); err != nil {
+			log = append(log, req.Steps[i]+": "+err.Error())
 		}
-		settle(600 * time.Millisecond)
+		time.AfterFunc(900*time.Millisecond, func() { a.onMain(func() { next(i + 1) }) })
 	}
-	settle(600 * time.Millisecond)
+	frames()
+	time.AfterFunc(900*time.Millisecond, func() { a.onMain(func() { next(0) }) })
+}
+
+// devStep takes one step.
+func (a *App) devStep(tt *ui.Tester, step string) error {
+	verb, arg, _ := strings.Cut(step, ":")
+	switch verb {
+	case "click":
+		return tt.Click(arg)
+	case "right":
+		return tt.RightClick(arg)
+	case "type":
+		tt.Type(arg)
+	case "page":
+		a.page = arg
+	case "mode":
+		a.state.SessionsByProject = arg == "project"
+	case "fold":
+		a.state.RailWide = arg != "on"
+	case "panel":
+		if arg == "" {
+			a.state.Panel.Open = false
+		} else {
+			a.openPanel(arg)
+		}
+	case "section":
+		a.page, a.settingsSection = pageSettings, arg
+	case "session":
+		for _, s := range a.sessions {
+			if a.sessionName(s) == arg {
+				a.selectSession(s)
+			}
+		}
+	case "view":
+		if s, ok := a.selectedSession(); ok {
+			a.centerOf(s.ID).front = ""
+			a.showView(s, arg)
+		}
+	case "theme":
+		a.state.Theme = arg
+		a.applyTheme()
+	case "move":
+		if r, ok := tt.Find(arg); ok {
+			tt.Move(r.X+r.W/2, r.Y+r.H/2)
+		}
+	}
+	return nil
+}
+
+// finishDevRequest writes the picture and what it shows.
+func (a *App) finishDevRequest(req devRequest, tt *ui.Tester, log []string) {
 	result := strings.Join(append(log, tt.Texts()...), "\n")
 	f, err := os.Create(req.Out)
 	if err == nil {

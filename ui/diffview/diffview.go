@@ -70,8 +70,8 @@ type View struct {
 	file        string       // the path of the file open
 	split       bool         // rows lay it out side by side
 	splitWanted bool         // the user reads changes side by side
-	comments []Comment    // review comments not sent yet
-	draft    *draft       // the comment being written
+	comments    []Comment    // review comments not sent yet
+	draft       *draft       // the comment being written
 
 	baseMenuState widget.ContextMenu
 	moreMenu      widget.ContextMenu
