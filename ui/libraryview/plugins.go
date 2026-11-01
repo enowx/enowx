@@ -21,6 +21,7 @@ const kindPlugins = "plugins"
 type pluginState struct {
 	list    proto.ClaudePlugins
 	loaded  bool
+	read    bool   // list is what the host said
 	running string // the action under way, as said to the user
 	output  string // what the CLI said last
 	failed  bool
@@ -42,7 +43,7 @@ func (v *View) loadPlugins(o Options) {
 				v.plugins.output, v.plugins.failed = client.Explain(err), true
 				return
 			}
-			v.plugins.list = list
+			v.plugins.list, v.plugins.read = list, true
 		})
 	}()
 }
@@ -69,92 +70,121 @@ func (v *View) runPlugin(o Options, action, arg, doing string) {
 	}()
 }
 
-// pluginsPanel shows the plugins, or the marketplaces, in the list's and
-// the detail's room.
+// pluginsPanel shows the plugins, or the marketplaces, and what the CLI said
+// last, which share the height.
 func (v *View) pluginsPanel(c *ui.Context, o Options) {
 	ps := &v.plugins
-	if !ps.loaded {
-		ps.loaded = true // asked once; a reply sets it again
-		v.loadPlugins(o)
-	}
-	ui.Column(c).FillWidth().Padding(14, 20, 10, 20).Gap(10).BorderWidth(0, 0, 1, 0).BorderColor(theme.Border).Children(func() {
-		ui.Row(c).FillWidth().Gap(10).Children(func() {
-			tabs := []string{fmt.Sprintf("Installed · %d", len(ps.list.Plugins)), fmt.Sprintf("Marketplaces · %d", len(ps.list.Marketplaces))}
-			cur := 0
-			if ps.markets {
-				cur = 1
-			}
-			if i := widget.Segmented(c.Key("tabs"), tabs, cur, nil); i >= 0 {
-				ps.markets = i == 1
-			}
-			ui.Spacer(c)
-			if widget.IconButton(c, icon.Sync, "Read again", false).Clicked() {
-				v.loadPlugins(o)
-			}
-		})
-		// What to add goes on top, where it is found.
-		ui.Row(c).FillWidth().Gap(6).Children(func() {
-			if ps.markets {
-				add := widget.Input(c, &ps.market, "owner/repo, or a URL").FillWidth().Font(theme.MonoFont).Submitted()
-				if (widget.Button(c, widget.Secondary, icon.Plus, "Add marketplace", "").Clicked() || add) && strings.TrimSpace(ps.market) != "" {
-					v.runPlugin(o, proto.PluginMarketplaceAdd, ps.market, "Adding "+ps.market)
-					ps.market = ""
-				}
-				return
-			}
-			add := widget.Input(c, &ps.install, "plugin@marketplace").FillWidth().Font(theme.MonoFont).Submitted()
-			if (widget.Button(c, widget.Secondary, icon.Plus, "Install", "").Clicked() || add) && strings.TrimSpace(ps.install) != "" {
-				v.runPlugin(o, proto.PluginInstall, ps.install, "Installing "+ps.install)
-				ps.install = ""
-			}
-		})
-		switch {
-		case ps.running != "":
-			ui.Row(c).Gap(8).Children(func() {
-				widget.Spinner(c, 14)
-				ui.Text(c, ps.running+"…").FontSize(theme.TextLabel).TextColor(theme.Muted)
-			})
-		case ps.output != "":
-			col := theme.Muted
-			if ps.failed {
-				col = theme.Error
-			}
-			ui.Text(c, ps.output).Font(theme.MonoFont).FontSize(theme.TextLabel).TextColor(col).MaxLines(3)
-		case !ps.list.CLI && len(ps.list.Plugins) > 0:
-			ui.Text(c, "Claude Code isn't on "+o.Host+"'s PATH: plugins show, but can't be changed.").FontSize(theme.TextLabel).TextColor(theme.Warning)
+	ui.Row(c.Key("tools")).FillWidth().Shrink(0).Gap(theme.S3).Children(func() {
+		tabs := []string{fmt.Sprintf("Plugins (%d)", len(ps.list.Plugins)), fmt.Sprintf("Marketplaces (%d)", len(ps.list.Marketplaces))}
+		cur := 0
+		if ps.markets {
+			cur = 1
+		}
+		if i := widget.Segmented(c.Key("tabs"), tabs, cur, nil); i >= 0 {
+			ps.markets = i == 1
+		}
+		ui.Spacer(c)
+		if widget.Button(c, widget.Secondary, icon.Sync, "Refresh", "").Clicked() {
+			v.loadPlugins(o)
 		}
 	})
-	ui.Scroll(c).Grow(1).FillWidth().Children(func() {
-		ui.Column(c).FillWidth().Padding(8, 12).Gap(2).Children(func() {
+	// What to add goes on top, where it is found.
+	ui.Row(c.Key("add")).FillWidth().Shrink(0).Gap(theme.S2).Children(func() {
+		if ps.markets {
+			add := widget.Input(c, &ps.market, "owner/repo or a URL").Grow(1).Basis(0).MinWidth(0).Font(theme.MonoFont).Submitted()
+			if (widget.Button(c, widget.Secondary, icon.Plus, "Add", "").Clicked() || add) && strings.TrimSpace(ps.market) != "" {
+				v.runPlugin(o, proto.PluginMarketplaceAdd, ps.market, "Adding "+ps.market)
+				ps.market = ""
+			}
+			return
+		}
+		add := widget.Input(c, &ps.install, "name@marketplace").Grow(1).Basis(0).MinWidth(0).Font(theme.MonoFont).Submitted()
+		if (widget.Button(c, widget.Secondary, icon.Plus, "Install", "").Clicked() || add) && strings.TrimSpace(ps.install) != "" {
+			v.runPlugin(o, proto.PluginInstall, ps.install, "Installing "+ps.install)
+			ps.install = ""
+		}
+	})
+	switch {
+	case ps.running != "":
+		ui.Row(c.Key("running")).FillWidth().Shrink(0).Gap(theme.S2).Children(func() {
+			widget.Spinner(c, 14)
+			ui.Row(c).Grow(1).Basis(0).MinWidth(0).Children(func() {
+				widget.Running(c, ps.running+"…", widget.RunStyle{Color: theme.TextSoft})
+			})
+		})
+	case !ps.list.CLI && len(ps.list.Plugins) > 0:
+		widget.Banner(c, theme.Warning, "Claude Code isn't on "+o.Host+"'s PATH: plugins show, but can't be changed.", nil)
+	}
+	ui.Scroll(c.Key("plugin-cards")).Grow(1).Basis(0).FillWidth().MinHeight(0).Children(func() {
+		widget.Cols(c, 2).Children(func() {
 			if ps.markets {
 				for _, m := range ps.list.Marketplaces {
-					widget.Row(c.Key("m:"+m.Name), m.Name, m.Source, "", func() {
-						widget.MoreMenu(c, &v.menu, "market:"+m.Name, func(done func()) {
-							if widget.MenuItem(c, icon.Sync, "Update", false) {
-								v.runPlugin(o, proto.PluginMarketplaceUpdate, m.Name, "Updating "+m.Name)
-								done()
-							}
-							if widget.MenuItem(c, icon.Trash, "Remove", true) {
-								v.runPlugin(o, proto.PluginMarketplaceRemove, m.Name, "Removing "+m.Name)
-								done()
-							}
-						})
-					})
+					v.marketCard(c.Key("m:"+m.Name), o, m)
 				}
 				return
 			}
-			if len(ps.list.Plugins) == 0 {
-				ui.Text(c, "None yet: install one from a marketplace.").FontSize(theme.TextLabel).TextColor(theme.Muted).Padding(8)
-			}
 			for _, p := range ps.list.Plugins {
-				v.pluginRow(c.Key(p.ID), o, p)
+				v.pluginCard(c.Key(p.ID), o, p)
+			}
+		})
+		if ps.markets && ps.read && len(ps.list.Marketplaces) == 0 {
+			ui.Text(c.Key("none"), "None yet: add one.").FontSize(theme.TextUI).TextColor(theme.TextSoft)
+		}
+		if !ps.markets && ps.read && len(ps.list.Plugins) == 0 {
+			ui.Text(c.Key("none"), "None yet: install one from a marketplace.").FontSize(theme.TextUI).TextColor(theme.TextSoft)
+		}
+	})
+	if ps.output != "" {
+		col := widget.CodeText
+		if ps.failed {
+			col = theme.Error
+		}
+		codeFill(c, "plugin-output", func() { codeLine(c, ps.output, col) })
+	}
+}
+
+// pluginCardBody is a card of the grid: its head, a line about it, and its
+// menu at the bottom.
+func pluginCardBody(c *ui.Context, head func(), about string, menu func()) {
+	widget.Card(c).Children(func() {
+		ui.Row(c).FillWidth().Shrink(0).Gap(theme.S2).Children(head)
+		if about != "" {
+			ui.Text(c, about).FontSize(theme.TextUI).TextColor(theme.TextSoft).FillWidth().MinWidth(0).MaxLines(2)
+		}
+		ui.Spacer(c)
+		ui.Row(c).FillWidth().Shrink(0).Justify(ui.End).Children(menu)
+	})
+}
+
+func (v *View) marketCard(c *ui.Context, o Options, m proto.ClaudeMarketplace) {
+	pluginCardBody(c, func() {
+		ui.Row(c).Grow(1).Basis(0).MinWidth(0).Children(func() {
+			widget.Running(c, m.Name, widget.RunStyle{Size: theme.TextRead, Weight: 600})
+		})
+	}, m.Source, func() {
+		widget.MoreMenu(c, &v.menu, "market:"+m.Name, func(done func()) {
+			if widget.MenuItem(c, icon.Sync, "Update", false) {
+				v.runPlugin(o, proto.PluginMarketplaceUpdate, m.Name, "Updating "+m.Name)
+				done()
+			}
+			if widget.MenuItem(c, icon.Trash, "Remove", true) {
+				v.runPlugin(o, proto.PluginMarketplaceRemove, m.Name, "Removing "+m.Name)
+				done()
 			}
 		})
 	})
 }
 
-func (v *View) pluginRow(c *ui.Context, o Options, p proto.ClaudePlugin) {
-	widget.Row(c, p.Name, p.Marketplace+" · "+p.Version, p.Description, func() {
+func (v *View) pluginCard(c *ui.Context, o Options, p proto.ClaudePlugin) {
+	pluginCardBody(c, func() {
+		ui.Row(c).Grow(1).Basis(0).MinWidth(0).Gap(theme.S2).Children(func() {
+			ui.Row(c).MinWidth(0).Shrink(1).Children(func() {
+				widget.Running(c, p.Name, widget.RunStyle{Size: theme.TextRead, Weight: 600})
+			})
+			ui.Row(c).MinWidth(0).Shrink(100).Children(func() {
+				widget.Running(c.Key("from"), p.Version+" · "+p.Marketplace, widget.RunStyle{Color: theme.TextSoft})
+			})
+		})
 		on := p.Enabled
 		if widget.Switch(c, &on, "Enabled") {
 			action, doing := proto.PluginDisable, "Disabling "+p.Name
@@ -163,6 +193,7 @@ func (v *View) pluginRow(c *ui.Context, o Options, p proto.ClaudePlugin) {
 			}
 			v.runPlugin(o, action, p.ID, doing)
 		}
+	}, p.Description, func() {
 		widget.MoreMenu(c, &v.menu, "plugin:"+p.ID, func(done func()) {
 			if widget.MenuItem(c, icon.Sync, "Update", false) {
 				v.runPlugin(o, proto.PluginUpdate, p.ID, "Updating "+p.Name)

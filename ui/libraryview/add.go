@@ -6,7 +6,6 @@ import (
 	"io/fs"
 	"os"
 	"path/filepath"
-	"slices"
 	"strings"
 
 	"github.com/egoist/mygo"
@@ -15,7 +14,6 @@ import (
 	"github.com/enowx/enowx/client"
 	"github.com/enowx/enowx/core/envsync"
 	"github.com/enowx/enowx/proto"
-	"github.com/enowx/enowx/ui/icon"
 	"github.com/enowx/enowx/ui/theme"
 	"github.com/enowx/enowx/ui/widget"
 )
@@ -39,13 +37,7 @@ func newMCPForm() *mcpForm { return &mcpForm{open: true, agent: "claude"} }
 
 // agentPicker picks one of agents.
 func agentPicker(c *ui.Context, agents []string, current *string) {
-	labels := make([]string, len(agents))
-	for i, a := range agents {
-		labels[i] = agentName(a)
-	}
-	if i := widget.Segmented(c, labels, slices.Index(agents, *current), nil); i >= 0 {
-		*current = agents[i]
-	}
+	pickOne(c, "For", 480, agents, agentName, current)
 }
 
 func (v *View) mcpDialog(c *ui.Context, o Options) {
@@ -58,22 +50,19 @@ func (v *View) mcpDialog(c *ui.Context, o Options) {
 		return
 	}
 	submit := false
-	widget.Dialog(c, &f.open, 540, 14, func() {
-		widget.DialogHeader(c, "Add an MCP server on "+o.Host, "Written into the agent's own config, as it keeps its servers; the file is backed up first.", false)
+	widget.FormSheet(c, &f.open, 540, "Add an MCP server on "+o.Host, "Written into the agent's own config, as it keeps its servers; the file is backed up first.", func() {
 		widget.Field(c, "For", func() { agentPicker(c, envsync.AgentsIn(proto.EnvMCP, envsync.User), &f.agent) })
-		widget.Field(c, "Name", func() { submit = widget.Input(c, &f.name, "docs").FillWidth().Submitted() || submit })
-		widget.Field(c, "It", func() {
-			cur := 0
-			if f.byURL {
-				cur = 1
-			}
-			if i := widget.Segmented(c, []string{"Runs a command", "Serves at a URL"}, cur, nil); i >= 0 {
-				f.byURL = i == 1
-			}
-		})
+		widget.Field(c, "Name", func() { submit = widget.Input(c, &f.name, "sentry").FillWidth().Submitted() || submit })
+		cur := 0
+		if f.byURL {
+			cur = 1
+		}
+		if i := widget.Segmented(c, []string{"Runs a command", "Serves at a URL"}, cur, nil); i >= 0 {
+			f.byURL = i == 1
+		}
 		if f.byURL {
 			widget.Field(c, "URL", func() {
-				submit = widget.Input(c, &f.url, "https://mcp.example.com/mcp").FillWidth().Font(theme.MonoFont).Submitted() || submit
+				submit = widget.Input(c, &f.url, "https://mcp.example.com/sse").FillWidth().Font(theme.MonoFont).Submitted() || submit
 			})
 		} else {
 			widget.Field(c, "Command", func() {
@@ -81,20 +70,17 @@ func (v *View) mcpDialog(c *ui.Context, o Options) {
 			})
 		}
 		widget.Field(c, "Environment (optional)", func() {
-			ui.TextAreaBase(c, &f.env).FillWidth().MinHeight(56).Padding(8, 10).Radius(theme.RadiusControl).
-				Background(theme.Sunken).Font(theme.MonoFont).FontSize(theme.TextLabel).Placeholder("API_KEY=…  one per line").Label("Environment")
+			area := ui.TextAreaBase(c, &f.env).FillWidth().MinHeight(56).MaxHeight(140).Padding(theme.S2, theme.S3).Radius(theme.RadiusSmall).
+				Font(theme.MonoFont).FontSize(theme.TextUI).Placeholder("API_KEY=…  one per line").Label("Environment")
+			widget.Well(area, area.Focused())
 		})
 		if f.err != "" {
-			ui.Text(c, f.err).FontSize(theme.TextLabel).TextColor(theme.Error)
+			ui.Text(c, f.err).FontSize(theme.TextUI).TextColor(theme.Error)
 		}
-		widget.DialogFooter(c, "", func() {
-			if widget.GhostButton(c, "Cancel").Clicked() {
-				f.open = false
-			}
-			if widget.PrimaryButton(c, icon.Plus, "Add", "").Clicked() {
-				submit = true
-			}
-		})
+	}, func() {
+		if widget.PrimaryButton(c, nil, "Add", "").Clicked() {
+			submit = true
+		}
 	})
 	if !submit {
 		return
@@ -171,8 +157,7 @@ func (v *View) skillDialog(c *ui.Context, o Options) {
 		v.skill = nil
 		return
 	}
-	widget.Dialog(c, &f.open, 560, 14, func() {
-		widget.DialogHeader(c, "Add a skill on "+o.Host, "A skill is a folder holding a SKILL.md.", false)
+	widget.FormSheet(c, &f.open, 540, "Add a skill on "+o.Host, "A skill is a folder holding a SKILL.md.", func() {
 		widget.Field(c, "For", func() { agentPicker(c, envsync.AgentsIn(proto.EnvSkill, envsync.User), &f.agent) })
 		widget.Field(c, "From", func() {
 			cur := 0
@@ -185,36 +170,32 @@ func (v *View) skillDialog(c *ui.Context, o Options) {
 		})
 		if f.fromRepo {
 			v.repoSkills(c, o, f)
+		} else {
+			ui.Text(c, "The folder is picked next, in the system dialog.").FontSize(theme.TextUI).TextColor(theme.TextSoft)
 		}
 		if f.err != "" {
-			ui.Text(c, f.err).FontSize(theme.TextLabel).TextColor(theme.Error)
+			ui.Text(c, f.err).FontSize(theme.TextUI).TextColor(theme.Error)
 		}
-		widget.DialogFooter(c, "", func() {
-			if widget.GhostButton(c, "Cancel").Clicked() {
-				f.open = false
+	}, func() {
+		if !f.fromRepo {
+			if widget.PrimaryButton(c, nil, "Add", "").Clicked() {
+				go v.pickSkill(o, f)
 			}
-			switch {
-			case !f.fromRepo:
-				if widget.PrimaryButton(c, icon.FolderPlus, "Pick the folder…", "").Clicked() {
-					go v.pickSkill(o, f)
-				}
-			case f.fetch == nil:
-				b := widget.PrimaryButton(c, icon.Search, "Look", "").Disabled(f.fetching || strings.TrimSpace(f.url) == "")
-				if b.Clicked() && !f.fetching {
-					v.fetchSkills(o, f)
-				}
-			default:
-				n := 0
-				for _, on := range f.picked {
-					if on {
-						n++
-					}
-				}
-				if widget.PrimaryButton(c, icon.Plus, fmt.Sprintf("Install %d", n), "").Disabled(n == 0).Clicked() && n > 0 {
-					v.installSkills(o, f)
-				}
+			return
+		}
+		n := 0
+		for _, on := range f.picked {
+			if on {
+				n++
 			}
-		})
+		}
+		label := "Add"
+		if f.fetch != nil {
+			label = fmt.Sprintf("Add %d", n)
+		}
+		if widget.PrimaryButton(c, nil, label, "").Disabled(n == 0 || f.fetching).Clicked() && n > 0 && !f.fetching {
+			v.installSkills(o, f)
+		}
 	})
 }
 
@@ -280,34 +261,35 @@ func readSkill(dir string) ([]proto.EnvFile, error) {
 // repoSkills asks for a repository, and offers the skills found in it.
 func (v *View) repoSkills(c *ui.Context, o Options, f *skillForm) {
 	widget.Field(c, "Repository", func() {
-		if widget.Input(c, &f.url, "https://github.com/anthropics/skills  (or …/tree/main/<folder>)").FillWidth().Font(theme.MonoFont).Changed() {
-			f.fetch = nil
+		if widget.Input(c, &f.url, "github.com/owner/skills").FillWidth().Font(theme.MonoFont).Tooltip("https://github.com/anthropics/skills, or …/tree/main/<folder>").Changed() {
+			f.fetch, f.picked = nil, nil
 		}
 	})
-	switch {
-	case f.fetching:
-		ui.Row(c).Gap(8).Children(func() {
+	ui.Row(c).FillWidth().Gap(theme.S2).Justify(ui.End).Children(func() {
+		if f.fetching {
 			widget.Spinner(c, 14)
-			ui.Text(c, "Cloning it on "+o.Host+"…").FontSize(theme.TextLabel).TextColor(theme.Muted)
-		})
-	case f.fetch != nil:
-		ui.Column(c).FillWidth().Gap(4).MaxHeight(260).Children(func() {
-			ui.Scroll(c).FillWidth().Children(func() {
-				ui.Column(c).FillWidth().Gap(4).AlignItems(ui.Start).Children(func() {
-					for _, sk := range f.fetch.Skills {
-						on := f.picked[sk.Path]
-						label := sk.Name
-						if sk.Description != "" {
-							label += " · " + sk.Description
-						}
-						if widget.Checkbox(c.Key(sk.Path), &on, label) {
-							f.picked[sk.Path] = on
-						}
-					}
-				})
+			ui.Row(c).Grow(1).Basis(0).MinWidth(0).Children(func() {
+				widget.Running(c, "Cloning it on "+o.Host+"…", widget.RunStyle{Color: theme.TextSoft})
 			})
-		})
+		}
+		b := widget.Button(c, widget.Secondary, nil, "Look for skills", "").Disabled(f.fetching || strings.TrimSpace(f.url) == "")
+		if b.Clicked() && !f.fetching && strings.TrimSpace(f.url) != "" {
+			v.fetchSkills(o, f)
+		}
+	})
+	if f.fetch == nil || f.fetching {
+		return
 	}
+	ui.Scroll(c).FillWidth().Shrink(0).MaxHeight(260).Children(func() {
+		ui.Column(c).FillWidth().Gap(theme.S1).Children(func() {
+			for _, sk := range f.fetch.Skills {
+				on := f.picked[sk.Path]
+				if widget.ToggleRow(c.Key(sk.Path), sk.Name, sk.Description, &on) {
+					f.picked[sk.Path] = on
+				}
+			}
+		})
+	})
 }
 
 // fetchSkills clones the repository on the host and lists its skills.
