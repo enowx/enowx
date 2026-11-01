@@ -47,7 +47,7 @@ func TestCanvasComponentPickedAndNoted(t *testing.T) {
 	h.tt.Press(d.X+40, d.Y+40)
 	h.tt.Release(d.X+40, d.Y+40)
 	h.tt.Frame()
-	h.settle("the bar", func() bool { return h.tt.HasText("#hero") })
+	h.settle("the bar", func() bool { _, ok := h.tt.Find("About #hero"); return ok })
 	if !h.tt.HasText("Redesign") {
 		t.Fatalf("no redesign: %q", h.tt.Texts())
 	}
@@ -61,7 +61,7 @@ func TestCanvasComponentPickedAndNoted(t *testing.T) {
 		return len(list) == 1 && list[0].Element == "hero" && list[0].Text == "make the headline bigger"
 	})
 	h.tt.Key(0, ui.KeyEscape)
-	h.settle("the bar gone", func() bool { return !h.tt.HasText("#hero") })
+	h.settle("the bar gone", func() bool { _, ok := h.tt.Find("About #hero"); return !ok })
 }
 
 // While an agent works on another design the user stays on theirs, wherever

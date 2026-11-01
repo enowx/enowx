@@ -271,9 +271,14 @@ func TestCanvasMadeAndEditedByTheUser(t *testing.T) {
 	}
 	h.settle("the dialog", func() bool { return h.tt.HasText("New canvas") })
 	h.tt.Type("Retro")
+	if err := h.tt.Click("Mockup"); err != nil { // the Kind field's value
+		t.Fatal(err)
+	}
+	h.settle("the kinds", func() bool { return h.tt.HasText("Board") })
 	if err := h.tt.Click("Board"); err != nil {
 		t.Fatal(err)
 	}
+	h.tt.Frame()
 	if err := h.tt.Click("Create canvas"); err != nil {
 		t.Fatal(err)
 	}

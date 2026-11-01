@@ -207,7 +207,10 @@ func layoutProblems(tt *ui.Tester, w, h float32, fill bool) []string {
 		// Or a text squeezed to a word or two a line.
 		lines := r.H / 15
 		perLine := float32(len([]rune(text))) / max(lines, 1)
-		if longest >= 5 && r.W < float32(longest)*4.5 && r.H > 26 || lines >= 3 && perLine < 9 && len(words) > 1 && r.W < 120 {
+		// Short enough for one line at this width, it can't have wrapped: the
+		// label of a taller control, perhaps cut by what scrolls it.
+		oneLine := float32(len([]rune(text)))*7 < r.W
+		if !oneLine && (longest >= 5 && r.W < float32(longest)*4.5 && r.H > 26 || lines >= 3 && perLine < 9 && len(words) > 1 && r.W < 120) {
 			out = append(out, fmt.Sprintf("%q squeezed to %.0f wide, %.0f tall", short, r.W, r.H))
 		}
 		if r.X+r.W > w+2 && r.X < w {

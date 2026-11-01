@@ -73,7 +73,7 @@ func (v *View) designNav(c *ui.Context, o Options, cv proto.Canvas) {
 	}
 	f := v.frameOf()
 	label := fmt.Sprintf("Design %d of %d", i+1, n)
-	if v.compact() {
+	if v.stageRoom() < 620 {
 		label = fmt.Sprintf("%d / %d", i+1, n)
 	}
 	ui.Text(c.Key("at"), label).FontSize(theme.TextLabel).TextColor(theme.TextSoft).SingleLine().Shrink(0).Tooltip(f.Name)

@@ -77,6 +77,10 @@ func TestCanvasGridBuilder(t *testing.T) {
 	if !strings.Contains(h.tt.Clipboard(), "grid-template-columns: repeat(8, minmax(0, 1fr));") {
 		t.Fatalf("clipboard %q", h.tt.Clipboard())
 	}
+	// The panel's fields stand over its areas: it scrolls down to them, and back.
+	panel, _ := h.tt.Find("Copy the grid's CSS")
+	h.tt.Scroll(panel.X, panel.Y, 0, 600)
+	h.tt.Frame()
 	if err := h.tt.Click("Lay the mockup out on it"); err != nil {
 		t.Fatal(err)
 	}
@@ -84,6 +88,8 @@ func TestCanvasGridBuilder(t *testing.T) {
 		c, _ := h.cl.Canvas(cv.ID)
 		return strings.Contains(c.Frames[0].HTML, `<section id="area-1">`)
 	})
+	h.tt.Scroll(panel.X, panel.Y, 0, -1200)
+	h.tt.Frame()
 
 	if err := h.tt.Click("Draw an area"); err != nil { // done drawing
 		t.Fatal(err)

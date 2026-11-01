@@ -31,7 +31,7 @@ func TestCanvasAgentDesignsAndTheUserUndoes(t *testing.T) {
 	if _, err := h.cl.EditCanvas(proto.CanvasEdit{ID: cv.ID, Op: proto.CanvasOpElementSet, Element: &hero}); err != nil {
 		t.Fatal(err)
 	}
-	h.settle("the canvas open", func() bool { return h.tt.HasText("Welcome back") })
+	h.settle("the canvas open", func() bool { _, ok := h.tt.Find("hero"); return ok })
 	if err := h.tt.Click("hero"); err != nil {
 		t.Fatal(err)
 	}

@@ -19,7 +19,8 @@ func (v *View) toolbar(c *ui.Context, o Options, cv proto.Canvas) {
 	f := v.frameOf()
 	// In a narrow stage, buttons show as icons alone.
 	narrow := v.stageRoom() < 620
-	ui.Row(c.Key("canvas-tools")).FillWidth().Height(theme.ControlHeight).Shrink(0).Gap(theme.S1).AlignItems(ui.Center).Children(func() {
+	// As tall as the Edit and Interact segments it holds, its tallest control.
+	ui.Row(c.Key("canvas-tools")).FillWidth().Height(36).Shrink(0).Gap(theme.S1).AlignItems(ui.Center).Children(func() {
 		v.designNav(c, o, cv)
 		if cv.Kind == proto.CanvasMockup || strings.TrimSpace(f.HTML) != "" {
 			var ins ui.Element

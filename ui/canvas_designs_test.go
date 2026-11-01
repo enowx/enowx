@@ -57,7 +57,10 @@ func TestCanvasManyDesigns(t *testing.T) {
 	if err := h.tt.Click("All designs"); err != nil {
 		t.Fatal(err)
 	}
-	h.settle("the grid", func() bool { return h.tt.HasText("10 · Landing 10") && h.tt.HasText("Open design 4") })
+	h.settle("the grid", func() bool { return h.tt.HasText("10 Landing 10") && h.tt.HasText("Open design 4") })
+	card, _ := h.tt.Find("Open design 1")
+	h.tt.Scroll(card.X+card.W/2, card.Y+card.H/2, 0, 300) // the third card is a row down
+	h.tt.Frame()
 	for _, n := range []string{"3", "4"} {
 		if err := h.tt.Click("Compare design " + n); err != nil {
 			t.Fatal(err)
@@ -72,7 +75,7 @@ func TestCanvasManyDesigns(t *testing.T) {
 		t.Fatal(err)
 	}
 	h.settle("side by side", func() bool {
-		return h.tt.HasText("3 · Landing 3") && h.tt.HasText("4 · Landing 4") && !h.tt.HasText("Open design 5")
+		return h.tt.HasText("3 Landing 3") && h.tt.HasText("4 Landing 4") && !h.tt.HasText("Open design 5")
 	})
 	shot(t, h.tt, "canvas-designs-compare.png")
 	if err := h.tt.Click("Pick Landing 4 as the winner"); err != nil {
