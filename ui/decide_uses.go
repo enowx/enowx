@@ -6,6 +6,7 @@ import (
 	"slices"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/egoist/mygo/ui"
 
@@ -25,80 +26,112 @@ var sureChoices = []float64{0.6, 0.75, 0.9, 0.97}
 // templates.
 var useHooks = map[string]string{proto.DecideApprove: "Have the judge approve commands", proto.DecideTrim: "Trim long test and build output"}
 
-// usesTab is each use: on, how sure, its judge, its calls a day; what it
-// saved; this project's own policy.
+// usesTab is what the judge saved, this project's own policy, and each use:
+// on, how sure, its judge, its calls a day.
 func (a *App) usesTab(c *ui.Context, st *decideState) {
-	if tokens, loops := weekSaved(st.log); tokens > 0 || loops > 0 {
-		widget.Notice(c, icon.Sparkle, theme.Done, fmt.Sprintf("This week: about %s tokens kept out of agents' context, %d loops stopped", count(tokens), loops), "", nil)
+	tokens, loops := weekSaved(st.log)
+	p, inProject := a.currentProject()
+	inProject = inProject && projectlinks.ReadID(p.Path) != "" // one without an ID of its own keeps the host's
+	if tokens > 0 || loops > 0 || inProject {
+		ui.Column(c.Key("uses-top")).FillWidth().Shrink(0).Padding(theme.S4, theme.S5, 0, theme.S5).Gap(theme.S3).Children(func() {
+			if tokens > 0 || loops > 0 {
+				widget.Banner(c, theme.Done, fmt.Sprintf("This week: about %s tokens kept out of agents' context, %d loops stopped", count(tokens), loops), nil)
+			}
+			if inProject {
+				a.projectPolicy(c, st, p)
+			}
+		})
 	}
-	for _, use := range proto.DecideUses {
-		a.useCard(c.Key(use), st, use)
+	widget.FillGrid(c, 3, len(proto.DecideUses), 200, func() {
+		for _, use := range proto.DecideUses {
+			a.useCard(c.Key(use), st, use)
+		}
+	})
+}
+
+// callsToday counts use's decisions in the log today.
+func callsToday(log []proto.Decision, use string) int {
+	n := 0
+	now := time.Now()
+	for _, d := range log {
+		if t := d.Time.Local(); d.Use == use && t.YearDay() == now.YearDay() && t.Year() == now.Year() {
+			n++
+		}
 	}
-	if p, ok := a.currentProject(); ok {
-		a.projectPolicy(c, st, p)
-	}
+	return n
 }
 
 func (a *App) useCard(c *ui.Context, st *decideState, use string) {
 	u := st.set.Uses[use]
 	changed := false
-	widget.Card(c).FillWidth().Padding(12, 14).Gap(10).Children(func() {
-		if switchRowKey(c, "Use: "+useInfo[use][0], &u.On, useInfo[use][0], useInfo[use][1]) {
-			changed = true
-		}
+	widget.GridCard(c).Gap(theme.S2).Padding(theme.S3, theme.S4).Children(func() {
+		ui.Row(c.Key("title")).FillWidth().Shrink(0).MinHeight(24).Gap(theme.S2).Children(func() {
+			ui.Row(c).Grow(1).Basis(0).MinWidth(0).Children(func() { widget.Running(c, useInfo[use][0], widget.RunStyle{Weight: 500}) })
+			if t, ok := useHooks[use]; ok && u.On {
+				if widget.GhostButton(c.Key("hook"), "Set your own…").Tooltip("Built in while this is on. A hook of your own replaces it, to say what it covers.").Clicked() {
+					a.startHookTemplate(t)
+				}
+			}
+			if widget.Switch(c.Key("on"), &u.On, "Use: "+useInfo[use][0]) {
+				changed = true
+			}
+		})
+		widget.CardNote(c, useShort[use], 2).Shrink(0).Tooltip(useInfo[use][1])
 		if !u.On {
 			return
 		}
-		ui.Row(c).FillWidth().Gap(12).Wrap().Children(func() {
-			widget.Field(c, "Acts when the judge is at least", func() {
-				sure := u.MinConfidence
-				if sure == 0 {
-					sure = 0.75
-					if use == proto.DecideApprove {
-						sure = 0.9
-					}
+		ui.Row(c.Key("sure")).FillWidth().Shrink(0).Gap(theme.S2).Children(func() {
+			today := strconv.Itoa(callsToday(st.log, use)) + " today"
+			if u.DailyCalls > 0 {
+				today = strconv.Itoa(callsToday(st.log, use)) + " of " + strconv.Itoa(u.DailyCalls) + " today"
+			}
+			ui.Row(c).Grow(1).Basis(0).MinWidth(0).Children(func() { widget.Running(c, today, widget.RunStyle{Size: theme.TextLabel, Color: theme.TextSoft}) })
+			sure := u.MinConfidence
+			if sure == 0 {
+				sure = 0.75
+				if use == proto.DecideApprove {
+					sure = 0.9
 				}
-				labels := make([]string, len(sureChoices))
-				cur := 0
-				for i, v := range sureChoices {
-					labels[i] = fmt.Sprintf("%.0f%% sure", v*100)
-					if v == sure {
-						cur = i
-					}
+			}
+			labels := make([]string, len(sureChoices))
+			cur := 0
+			for i, v := range sureChoices {
+				labels[i] = fmt.Sprintf("%.0f%%", v*100)
+				if v == sure {
+					cur = i
 				}
+			}
+			ui.Row(c).Shrink(0).Tooltip("Acts when the judge is at least this sure").Children(func() {
 				if i := widget.Segmented(c, labels, cur, nil); i >= 0 {
 					u.MinConfidence, changed = sureChoices[i], true
 				}
 			})
-			widget.Field(c, "Calls a day", func() {
-				v := st.calls[use]
-				if widget.Input(c.Key("calls"), &v, "No limit").Width(90).Changed() {
-					st.calls[use] = v
-					if n, ok := parseDailyCalls(v); ok {
-						u.DailyCalls, changed = n, true
+		})
+		ui.Row(c.Key("who")).FillWidth().Shrink(0).Gap(theme.S2).Children(func() {
+			ui.Column(c).Grow(1).Basis(0).MinWidth(0).Children(func() {
+				widget.Field(c, "Judge", func() {
+					opts := []string{""}
+					names := map[string]string{"": "The judges in their order"}
+					for _, j := range st.judges {
+						opts, names[j.ID] = append(opts, j.ID), j.Label+" alone"
 					}
-				}
+					was := u.Judge
+					hookSelect(c.Key("judge"), "Judge", &u.Judge, opts, names)
+					changed = changed || was != u.Judge
+				})
+			})
+			ui.Column(c).Width(84).Shrink(0).Children(func() {
+				widget.Field(c, "Calls a day", func() {
+					v := st.calls[use]
+					if widget.Input(c.Key("calls"), &v, "No limit").FillWidth().Changed() {
+						st.calls[use] = v
+						if n, ok := parseDailyCalls(v); ok {
+							u.DailyCalls, changed = n, true
+						}
+					}
+				})
 			})
 		})
-		widget.Field(c, "Judge", func() {
-			opts := []string{""}
-			names := map[string]string{"": "The judges in their order, the next when one fails"}
-			for _, j := range st.judges {
-				opts, names[j.ID] = append(opts, j.ID), j.Label+" alone"
-			}
-			was := u.Judge
-			hookSelect(c.Key("judge"), "Judge", &u.Judge, opts, names)
-			changed = changed || was != u.Judge
-		})
-		if t, ok := useHooks[use]; ok {
-			ui.Row(c).FillWidth().Gap(8).AlignItems(ui.Center).Children(func() {
-				ui.Text(c, "Built in while this is on. A hook of your own replaces it, to say what it covers.").FontSize(theme.TextLabel).TextColor(theme.Muted)
-				ui.Spacer(c)
-				if widget.GhostButton(c.Key("hook"), "Set your own…").Clicked() {
-					a.startHookTemplate(t)
-				}
-			})
-		}
 	})
 	if changed {
 		if st.set.Uses == nil {
@@ -124,34 +157,30 @@ func (a *App) startHookTemplate(name string) {
 // projectPolicy is project p's own policy, the host's when unset.
 func (a *App) projectPolicy(c *ui.Context, st *decideState, p proto.ProjectInfo) {
 	id := projectlinks.ReadID(p.Path)
-	if id == "" {
-		return // a project without an ID of its own keeps the host's
-	}
 	cur := st.set.Projects[id].Policy
 	opts := append([]string{""}, policies...)
 	names := map[string]string{"": "The host's policy"}
 	for k, v := range policyNames {
 		names[k] = v
 	}
-	widget.Field(c, "In “"+p.Name+"”", func() {
-		was := cur
+	was := cur
+	decidePick(c.Key("project-policy"), "In “"+p.Name+"”", 240, "A client's project can keep to local models, say.", func() {
 		hookSelect(c.Key("project-policy"), "Project policy", &cur, opts, names)
-		if cur == proto.DecideOneProvider {
-			cur = proto.DecideSameProvider // one provider is set for the host
-		}
-		if was != cur {
-			if st.set.Projects == nil {
-				st.set.Projects = map[string]proto.DecideProject{}
-			}
-			if cur == "" {
-				delete(st.set.Projects, id)
-			} else {
-				st.set.Projects[id] = proto.DecideProject{Policy: cur}
-			}
-			a.saveDecide(st)
-		}
-		ui.Text(c, "A client's project can keep to local models, say.").FontSize(theme.TextLabel).TextColor(theme.Muted)
 	})
+	if cur == proto.DecideOneProvider {
+		cur = proto.DecideSameProvider // one provider is set for the host
+	}
+	if was != cur {
+		if st.set.Projects == nil {
+			st.set.Projects = map[string]proto.DecideProject{}
+		}
+		if cur == "" {
+			delete(st.set.Projects, id)
+		} else {
+			st.set.Projects[id] = proto.DecideProject{Policy: cur}
+		}
+		a.saveDecide(st)
+	}
 }
 
 func (a *App) addJudge(st *decideState, j proto.Judge) {

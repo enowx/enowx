@@ -115,7 +115,7 @@ func TestNewSessionSuggestsAModel(t *testing.T) {
 	if err := tt.Click("Suggest a model for this prompt"); err != nil {
 		t.Fatal(err)
 	}
-	drain(t, tt, posted, func() bool { return hasText(tt, "Suggested: Haiku 5.5 · low effort. A one-word fix in one file.") }, "the suggestion")
+	drain(t, tt, posted, func() bool { return hasText(tt, "Haiku 5.5 · low effort: A one-word fix in one file.") }, "the suggestion")
 	shot(t, tt, "new-session-route.png")
 	if err := tt.Click("Use it"); err != nil {
 		t.Fatal(err)

@@ -43,10 +43,10 @@ type decideState struct {
 }
 
 var policyNames = map[string]string{
-	proto.DecideSameProvider: "The session's agent's provider (Claude Code: Anthropic, Codex: OpenAI)",
+	proto.DecideSameProvider: "The session's agent's provider",
 	proto.DecideOneProvider:  "One provider I pick",
 	proto.DecideAnyProvider:  "Any provider",
-	proto.DecideLocalOnly:    "Local models only: nothing leaves the host",
+	proto.DecideLocalOnly:    "Local models only",
 }
 
 var policies = []string{proto.DecideSameProvider, proto.DecideOneProvider, proto.DecideAnyProvider, proto.DecideLocalOnly}
@@ -69,6 +69,20 @@ var useInfo = map[string][2]string{
 	proto.DecideMemory:  {"RAG: memories to keep", "When a session ends, its last answer is offered as a memory only when the judge finds a decision in it, written as that decision."},
 	proto.DecideChat:    {"Team chat urgency", "The judge reads a team message: urgent ones sound and show a banner even when the chat is set to mentions or off; quiet ones only count as unread. A message naming you is never kept quiet."},
 	proto.DecideFlaky:   {"Flaky or real test failures", "When a check fails, the judge reads its output: flaky (timing, network, order) or real, shown on the check with why; a flaky one offers Run again."},
+}
+
+// useShort says what each use does on its card; useInfo's second part is its
+// whole story, the card's tooltip.
+var useShort = map[string]string{
+	proto.DecideState:   "Reads the screen of an agent without hooks when it goes quiet.",
+	proto.DecideApprove: "Before an agent's command runs: allowed, left to you, or refused.",
+	proto.DecideTrim:    "A test's or build's long output reaches the agent cut to what matters.",
+	proto.DecideLoop:    "When an agent's commands keep failing alike, a loop stops its turn.",
+	proto.DecideRoute:   "How hard a prompt is, to suggest a model and effort.",
+	proto.DecideContext: "Keeps only the search results that bear on the prompt.",
+	proto.DecideMemory:  "Offers a memory only when the last answer holds a decision.",
+	proto.DecideChat:    "Urgent messages sound even when the chat is set to mentions.",
+	proto.DecideFlaky:   "Reads a failed check: flaky offers Run again.",
 }
 
 func (a *App) decideOf() *decideState {
@@ -125,26 +139,12 @@ func (a *App) saveDecide(st *decideState) {
 }
 
 func (a *App) decideSection(c *ui.Context) {
-	settingsColumn(c, "Decisions", "", nil, func() { a.decideBody(c) })
-}
-
-func (a *App) decideBody(c *ui.Context) {
 	st := a.decideOf()
-	sectionIntro(c, "Decisions", "A small, cheap model, the judge, that enowX asks instead of guessing: whether a quiet session needs you, whether an agent's command may run, what of a long output matters, whether an agent loops. Every use is on until you turn it off (Uses); with no judge, no answer or one not sure enough, enowX does what it does without.")
-	switch {
-	case st.err != "":
-		widget.Notice(c, icon.Alert, theme.Error, st.err, "", nil)
-		return
-	case !st.loaded:
-		widget.Spinner(c, 14)
-		return
-	}
-	ui.Row(c).FillWidth().Gap(8).AlignItems(ui.Center).Children(func() {
+	widget.PageHeader(c, "Decisions", "A small model, asked instead of guessing", func() {
 		if i := widget.Segmented(c, []string{"Judges", "Uses", "Log"}, st.tab, nil); i >= 0 && i != st.tab {
 			st.tab = i
 			a.loadDecide()
 		}
-		ui.Spacer(c)
 		switch st.tab {
 		case 0:
 			busy := len(st.testing) > 0
@@ -155,37 +155,81 @@ func (a *App) decideBody(c *ui.Context) {
 				st.adding = judgeForm{open: true, kind: proto.JudgeLocal, url: "http://127.0.0.1:11434/v1"}
 			}
 		case 2:
-			if widget.GhostButton(c, "Refresh").Clicked() {
+			if widget.Button(c, widget.Secondary, icon.Sync, "Refresh", "").Clicked() {
 				a.loadDecide()
 			}
 		}
 	})
+	switch {
+	case st.err != "":
+		widget.PageBody(c, true, func() { widget.Notice(c, icon.Alert, theme.Error, st.err, "", nil) })
+		return
+	case !st.loaded:
+		widget.PageBody(c, true, func() { widget.Spinner(c, 14) })
+		return
+	}
+	widget.FigsBand(c, decideFigs(st.log))
 	switch st.tab {
 	case 0:
-		a.judgesTab(c, st)
+		widget.PageBody(c, true, func() { a.judgesTab(c, st) })
 	case 1:
 		a.usesTab(c, st)
 	default:
-		a.decideLogTab(c, st)
+		widget.PageBody(c, true, func() { a.decideLogTab(c, st) })
 	}
 	a.judgeFormSheet(c, st)
 	a.judgeKeySheet(c, st)
 }
 
-// judgesTab is who may judge, and the judges in the order tried.
+// decideFigs are the section's figures, all from the log.
+func decideFigs(log []proto.Decision) []widget.Fig {
+	acted, fell := 0, 0
+	cost := 0.0
+	var took []int64
+	for _, d := range log {
+		if d.Acted != "" {
+			acted++
+		}
+		if len(d.Tried) > 0 {
+			fell++
+		}
+		if d.Judge != "" {
+			took = append(took, d.Ms)
+		}
+		cost += d.Cost
+	}
+	share := "–"
+	if len(log) > 0 {
+		share = strconv.Itoa(acted*100/len(log)) + "%"
+	}
+	return []widget.Fig{
+		{Label: "Decisions in the log", Value: strconv.Itoa(len(log))},
+		{Label: "Acted on", Value: share},
+		{Label: "Typical speed", Value: typicalMs(took)},
+		{Label: "Fell through a judge", Value: strconv.Itoa(fell)},
+		{Label: "Cost", Value: fmt.Sprintf("$%.4f", cost)},
+	}
+}
+
+// judgesTab is who may judge, the judges in the order tried, and what they
+// decided of late.
 func (a *App) judgesTab(c *ui.Context, st *decideState) {
 	if st.move.said != "" || slices.ContainsFunc(st.judges, func(j proto.Judge) bool { return j.Own && j.HasKey }) {
 		a.keysToVaultRow(c, &st.move, a.loadDecide)
 	}
-	widget.Field(c, "Who may judge", func() {
+	ui.Row(c.Key("tools")).FillWidth().Shrink(0).Gap(theme.S3).Children(func() {
 		before := st.set.Policy
-		hookSelect(c, "Policy", &st.set.Policy, policies, policyNames)
+		decidePick(c, "Who may judge", 240, "Local models are always allowed. A judge not allowed for a session is skipped; the next in the order is asked when one fails or takes too long.", func() {
+			hookSelect(c, "Policy", &st.set.Policy, policies, policyNames)
+		})
 		if st.set.Policy == proto.DecideOneProvider {
 			if st.set.Provider == "" {
 				st.set.Provider = proto.ProviderAnthropic
 			}
 			was := st.set.Provider
-			hookSelect(c.Key("provider"), "Provider", &st.set.Provider, providers, providerNames)
+			decidePick(c, "Provider", 160, "", func() {
+				hookSelect(c.Key("provider"), "Provider", &st.set.Provider, providers, providerNames)
+			})
 			if was != st.set.Provider {
 				a.saveDecide(st)
 			}
@@ -193,61 +237,83 @@ func (a *App) judgesTab(c *ui.Context, st *decideState) {
 		if before != st.set.Policy && (st.set.Policy != proto.DecideOneProvider || st.set.Provider != "") {
 			a.saveDecide(st)
 		}
-		ui.Text(c, "Local models are always allowed. A judge not allowed for a session is skipped; the next in the order is asked when one fails or takes too long.").FontSize(theme.TextLabel).TextColor(theme.Muted)
 	})
 	if len(st.judges) == 0 {
 		widget.EmptyState(c, icon.Brain, "No judge on "+a.host.Name, "Install Claude Code or Codex (their own sign-in judges), add an Anthropic, OpenAI, Gemini or OpenRouter key to the vault, or run Ollama or LM Studio.", nil)
 		return
 	}
-	for i, j := range st.judges {
-		a.judgeRow(c.Key(j.ID), st, i, j)
+	widget.Cols(c.Key("judge-cards"), 3).Children(func() {
+		for i, j := range st.judges {
+			a.judgeRow(c.Key(j.ID), st, i, j)
+		}
+	})
+	a.decideRecent(c, st)
+}
+
+// decidePick is a label and its drop-down of the given width, in a row of them.
+func decidePick(c *ui.Context, label string, width float32, about string, fn func()) {
+	ui.Row(c.Key("pick:" + label)).Shrink(0).Gap(theme.S2).Children(func() {
+		t := ui.Text(c, label).FontSize(theme.TextLabel).TextColor(theme.TextSoft).SingleLine()
+		if about != "" {
+			t.Tooltip(about)
+		}
+		ui.Row(c).Width(width).Shrink(0).Children(fn)
+	})
+}
+
+// decideRecent is the log in short: how many of each use, the latest.
+func (a *App) decideRecent(c *ui.Context, st *decideState) {
+	counts := map[string]int{}
+	largest := 0
+	for _, d := range st.log {
+		counts[d.Use]++
+		largest = max(largest, counts[d.Use])
 	}
+	widget.TwoParts(c, func() {
+		widget.Heading(c, "Decisions by use")
+		for _, u := range proto.DecideUses {
+			widget.TallyRow(c, useInfo[u][0], counts[u], largest)
+		}
+	}, func() {
+		widget.Heading(c, "Latest decisions")
+		if len(st.log) == 0 {
+			widget.CardNote(c, "They show here as the judge is asked.", 0)
+		}
+		for i, d := range st.log[:min(12, len(st.log))] {
+			col, status := decisionStatus(d)
+			why := d.Why
+			if d.Judge == "" {
+				why = d.Error
+			}
+			widget.RecordRow(c.Key(i), clockOrDay(d.Time), useInfo[d.Use][0]+" · "+why, col, status)
+		}
+	})
+}
+
+// decisionStatus is what a decision came to: its dot's color and its words.
+func decisionStatus(d proto.Decision) (ui.Color, string) {
+	if d.Judge == "" {
+		return theme.Idle, "no answer"
+	}
+	return verdictColor(d.Verdict), fmt.Sprintf("%s %.0f%%", d.Verdict, d.Confidence*100)
 }
 
 func (a *App) judgeRow(c *ui.Context, st *decideState, i int, j proto.Judge) {
 	off := slices.Contains(st.set.Off, j.ID)
-	widget.Card(c).FillWidth().Padding(10, 12).Children(func() {
-		ui.Row(c).FillWidth().Gap(10).AlignItems(ui.Center).Children(func() {
-			ui.Text(c, strconv.Itoa(i+1)).FontSize(theme.TextLabel).TextColor(theme.Muted).Width(14)
-			ui.Column(c).Grow(1).MinWidth(0).Gap(2).Children(func() {
-				ui.Row(c).Gap(6).AlignItems(ui.Center).Children(func() {
-					ui.Text(c, j.Label).FontSize(theme.TextUI).SingleLine()
-					widget.Tag(c, providerNames[j.Provider], theme.Muted)
-					if j.HasKey {
-						widget.Tag(c, "key set here", theme.Muted)
-					}
-					if !underPolicy(st.set, j) {
-						widget.Tag(c, "not under this policy", theme.Warning)
-					}
-					switch {
-					case st.testing[j.ID]:
-						widget.Spinner(c, 10)
-					case j.Tested.IsZero():
-						widget.Tag(c, "not tested", theme.Muted)
-					case j.OK:
-						widget.Tag(c, judgeSpeed(j), theme.Done)
-					default:
-						widget.Tag(c, "failed", theme.Error)
-					}
-				})
-				ui.Text(c, judgeHow(j)).FontSize(theme.TextLabel).TextColor(theme.Muted).SingleLine()
-				if !j.OK && j.Error != "" {
-					ui.Text(c, j.Error).FontSize(theme.TextLabel).TextColor(theme.Error).MaxLines(2)
-				}
+	testing := st.testing[j.ID]
+	failed := !testing && !j.Tested.IsZero() && !j.OK
+	card := widget.GridCard(c)
+	if failed {
+		card.Background(theme.Fade(theme.Error, 0.13))
+	}
+	card.Children(func() {
+		ui.Row(c.Key("title")).FillWidth().Shrink(0).MinHeight(24).Gap(theme.S2).Children(func() {
+			ui.Row(c).Size(24, 24).Shrink(0).Radius(theme.RadiusFull).Background(theme.Sunken).Center().Children(func() {
+				ui.Text(c, strconv.Itoa(i+1)).FontSize(theme.TextLabel).SingleLine()
 			})
-			if widget.IconButton(c.Key("up"), icon.ChevronUp, "Ask it sooner", false).Disabled(i == 0).Clicked() && i > 0 {
-				a.moveJudge(st, i, i-1)
-			}
-			if widget.IconButton(c.Key("down"), icon.ChevronDown, "Ask it later", false).Disabled(i == len(st.judges)-1).Clicked() && i < len(st.judges)-1 {
-				a.moveJudge(st, i, i+1)
-			}
-			if needsKey(j) && widget.IconButton(c.Key("key"), icon.Key, "Its key", j.HasKey).Clicked() {
-				jj := j
-				st.keying, st.keyInput = &jj, ""
-			}
-			if widget.GhostButton(c.Key("test"), "Test").Disabled(st.testing[j.ID]).Clicked() {
-				a.testJudges(st, j.ID)
-			}
+			ui.Row(c).Grow(1).Basis(0).MinWidth(0).Children(func() {
+				widget.Running(c, j.Label, widget.RunStyle{Size: theme.TextRead, Weight: 600})
+			})
 			on := !off
 			if widget.Switch(c.Key("on"), &on, "") {
 				st.set.Off = slices.DeleteFunc(slices.Clone(st.set.Off), func(id string) bool { return id == j.ID })
@@ -256,14 +322,79 @@ func (a *App) judgeRow(c *ui.Context, st *decideState, i int, j proto.Judge) {
 				}
 				a.saveDecide(st)
 			}
+		})
+		ui.Row(c.Key("state")).FillWidth().Shrink(0).MinHeight(16).Gap(theme.S1).Children(func() {
+			switch {
+			case testing:
+				widget.Spinner(c, 10)
+				widget.Running(c, "Testing", widget.RunStyle{Size: theme.TextLabel})
+			case j.Tested.IsZero():
+				widget.StatusLine(c, theme.Idle, true, "Not tested")
+			case j.OK:
+				widget.StatusLine(c, theme.Done, false, judgeWorks(j))
+			default:
+				widget.StatusLine(c, theme.Error, false, "Failed")
+			}
+		})
+		if j.HasKey || !underPolicy(st.set, j) {
+			ui.Row(c.Key("tags")).FillWidth().Shrink(0).Gap(theme.S1).Wrap().Children(func() {
+				if j.HasKey {
+					widget.Tag(c, "key set here", theme.TextSoft)
+				}
+				if !underPolicy(st.set, j) {
+					widget.Tag(c, "not under this policy", theme.Warning)
+				}
+			})
+		}
+		how := a.judgeHow(j)
+		if failed && j.Error != "" {
+			how = j.Error
+		}
+		widget.CardNote(c, how, 2).MinHeight(32).Shrink(0)
+		answered, took := 0, []int64(nil)
+		for _, d := range st.log {
+			if d.Judge == j.ID {
+				answered++
+				took = append(took, d.Ms)
+			}
+		}
+		last := "–"
+		if !j.Tested.IsZero() && j.OK {
+			last = msWords(j.Ms)
+		}
+		widget.CardStats(c, []widget.Stat{{Value: strconv.Itoa(answered), Label: "answered"}, {Value: typicalMs(took), Label: "typical"}, {Value: last, Label: "last test"}})
+		widget.CardFoot(c, func() {
+			if widget.GhostButton(c.Key("test"), "Test").Disabled(testing).Clicked() {
+				a.testJudges(st, j.ID)
+			}
+			ui.Spacer(c)
+			if needsKey(j) && widget.IconButton(c.Key("key"), icon.Key, "Its key", j.HasKey).Clicked() {
+				jj := j
+				st.keying, st.keyInput = &jj, ""
+			}
 			if j.Own && widget.IconButton(c.Key("rm"), icon.Trash, "Remove", false).Clicked() {
 				a.confirm("Remove the judge "+j.Label+"?", "It is no longer asked; a use set to it alone goes back to the order.", "Remove", func() {
 					st.set.Own = slices.DeleteFunc(slices.Clone(st.set.Own), func(x proto.Judge) bool { return x.ID == j.ID })
 					a.saveDecide(st)
 				})
 			}
+			if widget.IconButton(c.Key("up"), icon.ChevronUp, "Ask it sooner", false).Disabled(i == 0).Clicked() && i > 0 {
+				a.moveJudge(st, i, i-1)
+			}
+			if widget.IconButton(c.Key("down"), icon.ChevronDown, "Ask it later", false).Disabled(i == len(st.judges)-1).Clicked() && i < len(st.judges)-1 {
+				a.moveJudge(st, i, i+1)
+			}
 		})
 	})
+}
+
+// judgeWorks says a judge's last test answered, and what a call cost when its
+// service said.
+func judgeWorks(j proto.Judge) string {
+	if j.Cost > 0 {
+		return fmt.Sprintf("Works · $%.4f a call", j.Cost)
+	}
+	return "Works"
 }
 
 // underPolicy says whether judge j may judge at all under st's policy
@@ -280,19 +411,8 @@ func underPolicy(st proto.DecideSettings, j proto.Judge) bool {
 	return j.Provider == proto.ProviderAnthropic || j.Provider == proto.ProviderOpenAI || j.Provider == proto.ProviderGoogle
 }
 
-func judgeSpeed(j proto.Judge) string {
-	s := fmt.Sprintf("%.1f s", float64(j.Ms)/1000)
-	if j.Ms < 1000 {
-		s = fmt.Sprintf("%d ms", j.Ms)
-	}
-	if j.Cost > 0 {
-		s += fmt.Sprintf(" · $%.4f", j.Cost)
-	}
-	return s
-}
-
 // judgeHow is how judge j is reached, in words.
-func judgeHow(j proto.Judge) string {
+func (a *App) judgeHow(j proto.Judge) string {
 	switch j.Kind {
 	case proto.JudgeDecision:
 		where := j.URL
@@ -300,19 +420,22 @@ func judgeHow(j proto.Judge) string {
 			where = providerNames[j.Provider] + "'s System One"
 		}
 		if j.Cred != "" {
-			return "Decision model · key " + j.Cred + " from the vault · " + where
+			return "Decision model, key " + j.Cred + " from the vault · " + where
 		}
 		return "Decision model · " + where
 	case proto.JudgeAgent:
-		return "Through " + j.Agent + "'s own sign-in, its tools and project left out"
+		return "Through " + a.agentName(j.Agent) + "'s own sign-in, its tools and project left out"
 	case proto.JudgeLocal:
 		return "On this host: " + j.URL
 	}
-	where := "its API"
+	where := providerNames[j.Provider] + "'s API"
 	if j.URL != "" {
 		where = j.URL
 	}
-	return "Key " + j.Cred + " from the vault · " + where
+	if j.Cred == "" {
+		return "Model API · " + where
+	}
+	return "Model API, key " + j.Cred + " from the vault · " + where
 }
 
 // moveJudge moves the judge at from to to in the order.
@@ -363,40 +486,35 @@ func (a *App) decideLogTab(c *ui.Context, st *decideState) {
 	for _, u := range proto.DecideUses {
 		names[u] = useInfo[u][0]
 	}
-	ui.Row(c).Width(260).Children(func() { hookSelect(c.Key("log-use"), "Use", &st.logUse, opts, names) })
-	n := 0
-	for _, d := range st.log {
-		if st.logUse != "" && d.Use != st.logUse {
-			continue
-		}
-		n++
-		a.decisionRow(c.Key(d.ID), st, d)
-	}
-	if n == 0 {
+	ui.Row(c.Key("tools")).Width(260).Shrink(0).Children(func() { hookSelect(c.Key("log-use"), "Use", &st.logUse, opts, names) })
+	shown := slices.DeleteFunc(slices.Clone(st.log), func(d proto.Decision) bool { return st.logUse != "" && d.Use != st.logUse })
+	if len(shown) == 0 {
 		widget.EmptyState(c, icon.List, "No decisions yet", "They show here as the judge is asked, with why and what enowX did.", nil)
+		return
 	}
+	widget.LogGrid(c, len(shown), func() {
+		for _, d := range shown {
+			a.decisionRow(c.Key(d.ID), st, d)
+		}
+	})
 }
 
 func (a *App) decisionRow(c *ui.Context, st *decideState, d proto.Decision) {
-	widget.Card(c).FillWidth().Padding(10, 12).Gap(4).Children(func() {
-		ui.Row(c).FillWidth().Gap(6).AlignItems(ui.Center).Children(func() {
-			ui.Text(c, d.Time.Local().Format("Jan 2 15:04")).FontSize(theme.TextLabel).TextColor(theme.Muted)
-			ui.Text(c, useInfo[d.Use][0]).FontSize(theme.TextUI)
+	col, status := decisionStatus(d)
+	widget.LogCard(c, useInfo[d.Use][0], false, col, status, a.decisionMeta(st, d), func() {
+		if d.Acted != "" {
+			widget.Tag(c, d.Acted, theme.TextSoft)
+		}
+		if d.Wrong {
+			widget.Tag(c, "marked wrong", theme.Warning)
+		}
+	}, func() {
+		ui.Row(c.Key("why")).FillWidth().Grow(1).MinHeight(0).Gap(theme.S2).Children(func() {
+			why := d.Why
 			if d.Judge == "" {
-				widget.Tag(c, "no answer", theme.Muted)
-			} else {
-				widget.Tag(c, fmt.Sprintf("%s %.0f%%", d.Verdict, d.Confidence*100), verdictColor(d.Verdict))
+				why = d.Error
 			}
-			if d.Acted != "" {
-				widget.Tag(c, d.Acted, theme.Accent)
-			}
-			if d.Wrong {
-				widget.Tag(c, "marked wrong", theme.Warning)
-			}
-			if d.Session != "" {
-				ui.Text(c, a.sessionLabel(d.Session)).FontSize(theme.TextLabel).TextColor(theme.Muted).SingleLine().Shrink(1)
-			}
-			ui.Spacer(c)
+			ui.Text(c, why).FontSize(theme.TextLabel).Grow(1).Basis(0).MinWidth(0).MaxLines(2)
 			if d.Judge != "" {
 				label := "This was wrong"
 				if d.Wrong {
@@ -407,20 +525,33 @@ func (a *App) decisionRow(c *ui.Context, st *decideState, d proto.Decision) {
 				}
 			}
 		})
-		why := d.Why
-		if d.Judge == "" {
-			why = d.Error
-		}
-		ui.Text(c, why).FontSize(theme.TextLabel).TextColor(theme.TextSoft)
-		meta := fmt.Sprintf("%s · %d ms", d.Judge, d.Ms)
-		if d.Saved > 0 {
-			meta += fmt.Sprintf(" · %d characters kept from the agent", d.Saved)
-		}
-		if len(d.Tried) > 0 {
-			meta += fmt.Sprintf(" · %d failed first", len(d.Tried))
-		}
-		ui.Text(c, meta).FontSize(theme.TextLabel).TextColor(theme.Muted).SingleLine()
 	})
+}
+
+// decisionMeta says when, where, who and how long a decision took.
+func (a *App) decisionMeta(st *decideState, d proto.Decision) string {
+	parts := []string{clockOrDay(d.Time)}
+	if d.Session != "" {
+		parts = append(parts, a.sessionLabel(d.Session))
+	}
+	judge := "No judge"
+	if d.Judge != "" {
+		judge = d.Judge
+		if i := slices.IndexFunc(st.judges, func(j proto.Judge) bool { return j.ID == d.Judge }); i >= 0 {
+			judge = st.judges[i].Label
+		}
+	}
+	parts = append(parts, judge)
+	if d.Judge != "" {
+		parts = append(parts, msWords(d.Ms))
+	}
+	if d.Saved > 0 {
+		parts = append(parts, fmt.Sprintf("%d characters kept from the agent", d.Saved))
+	}
+	if len(d.Tried) > 0 {
+		parts = append(parts, fmt.Sprintf("%d failed first", len(d.Tried)))
+	}
+	return strings.Join(parts, " · ")
 }
 
 func verdictColor(v string) ui.Color {
@@ -484,7 +615,7 @@ func (a *App) judgeKeySheet(c *ui.Context, st *decideState) {
 	widget.FormSheet(c, &open, 480, "Key for "+j.Label, about, func() {
 		widget.Input(c.Key("judge-key-input"), &st.keyInput, "sk-…").FillWidth().Password().AutoFocus()
 		if j.HasKey {
-			ui.Text(c, "A key is set here; a new one replaces it.").FontSize(theme.TextLabel).TextColor(theme.Muted)
+			widget.CardNote(c, "A key is set here; a new one replaces it.", 0)
 		}
 	}, func() {
 		if j.HasKey && widget.DangerButton(c, "Remove the key").Clicked() {
