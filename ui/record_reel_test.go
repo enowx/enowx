@@ -565,7 +565,7 @@ func TestRecordReelRAG(t *testing.T) {
 	r.hold(2.2)
 
 	r.say("Search by meaning, as agents do: file, line and the part found")
-	if err := r.tt.Click("Search by meaning: where are invoices totalled"); err != nil {
+	if err := r.tt.Click("Search the project by meaning"); err != nil {
 		t.Fatal(err)
 	}
 	r.typed("where is the tax added to an invoice", 0.03)

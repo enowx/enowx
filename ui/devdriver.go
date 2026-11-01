@@ -120,6 +120,8 @@ func (a *App) devStep(tt *ui.Tester, step string) error {
 	case "theme":
 		a.state.Theme = arg
 		a.applyTheme()
+	case "sample":
+		a.devSampleData(arg)
 	case "move":
 		if r, ok := tt.Find(arg); ok {
 			tt.Move(r.X+r.W/2, r.Y+r.H/2)

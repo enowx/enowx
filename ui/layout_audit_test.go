@@ -58,6 +58,11 @@ func auditPages() []auditPage {
 	for _, s := range settingsSections() {
 		pages = append(pages, settings(s))
 	}
+	pages = append(pages,
+		auditPage{name: "settings-hooks-log", open: func(a *App) { a.page, a.settingsSection = pageSettings, sectionHooks; a.hooksOf().tab = 1 }, fill: true},
+		auditPage{name: "settings-decisions-uses", open: func(a *App) { a.page, a.settingsSection = pageSettings, sectionDecide; a.decideOf().tab = 1 }, fill: true},
+		auditPage{name: "settings-decisions-log", open: func(a *App) { a.page, a.settingsSection = pageSettings, sectionDecide; a.decideOf().tab = 2 }, fill: true},
+	)
 	session := func(a *App) {
 		a.page, a.state.Panel.Open = "", false
 		if len(a.sessions) > 0 {
