@@ -56,15 +56,22 @@ func appendRules(rules, added string) (string, bool) {
 	return out, len(out) <= proto.RulesMaxBytes
 }
 
-// rulesDraftBox lets the user say what they want and has an AI put it in
-// text (rules of forWhat; path a project's folder).
+// rulesDraftBox is what asks an AI for rules, then their earlier versions, for a
+// dialog that keeps the two together.
 func (a *App) rulesDraftBox(c *ui.Context, d *rulesDraft, forWhat, path string, text *string) {
-	widget.Field(c, "Write them with AI", func() {
-		ui.TextArea(c.Key("rules-ask"), &d.ask).Height(64).Padding(8, 10).Radius(theme.RadiusControl).FontSize(theme.TextUI).
-			Background(theme.Sunken).Border(1, theme.BorderStrong).
-			Placeholder("Say what to add, in your own words and any language: it writes clear rules and adds them after those above. To change or remove one, edit the text.")
+	a.rulesAskBox(c, d, forWhat, path, text)
+	a.rulesVersionsRow(c, d, forWhat, path, text)
+}
+
+// rulesAskBox lets the user say what they want and has an AI put it in text
+// (rules of forWhat; path a project's folder).
+func (a *App) rulesAskBox(c *ui.Context, d *rulesDraft, forWhat, path string, text *string) {
+	widget.Field(c, "What you want, in your words", func() {
+		ask := ui.TextArea(c.Key("rules-ask"), &d.ask).Height(72).Padding(theme.S2, theme.S3).Radius(theme.RadiusCard).FontSize(theme.TextUI).
+			Placeholder("Say what to add, in any language: it writes clear rules and adds them after the ones there. To change or remove one, edit the text.")
+		widget.Well(ask, ask.Focused())
 	})
-	ui.Row(c.Key("rules-ai")).FillWidth().Gap(8).AlignItems(ui.Center).Children(func() {
+	ui.Row(c.Key("rules-ai")).FillWidth().Shrink(0).Gap(theme.S2).Children(func() {
 		b := widget.Button(c, widget.Secondary, icon.Sparkle, "Write with AI", "")
 		if d.drafting || strings.TrimSpace(d.ask) == "" {
 			b.Disabled(true)
@@ -74,22 +81,22 @@ func (a *App) rulesDraftBox(c *ui.Context, d *rulesDraft, forWhat, path string, 
 		switch {
 		case d.drafting:
 			widget.Spinner(c, 12)
-			ui.Text(c, "Writing…").FontSize(theme.TextLabel).TextColor(theme.Muted)
+			ui.Text(c, "Writing…").FontSize(theme.TextLabel).TextColor(theme.TextSoft)
 		case d.by != "":
-			ui.Text(c, "Written by "+d.by+": read them, then save.").FontSize(theme.TextLabel).TextColor(theme.Muted)
-			ui.Spacer(c)
+			ui.Row(c).Grow(1).MinWidth(0).Children(func() {
+				widget.Running(c, "Written by "+d.by+": read them, then save.", widget.RunStyle{Size: theme.TextLabel, Color: theme.TextSoft})
+			})
 			if widget.GhostButton(c, "Undo").Clicked() {
 				*text, d.by, d.conflicts = d.before, "", nil
 			}
 		}
 	})
 	for _, said := range d.conflicts {
-		widget.Notice(c, icon.Alert, theme.Warning, "This may go against a rule above", said, nil)
+		widget.Notice(c.Key(said), icon.Alert, theme.Warning, "This may go against a rule", said, nil)
 	}
 	if d.err != "" {
 		widget.Notice(c, icon.Alert, theme.Error, d.err, "", nil)
 	}
-	a.rulesVersionsRow(c, d, forWhat, path, text)
 }
 
 // rulesVersionsRow brings back rules as they were before a save, into the
@@ -110,12 +117,17 @@ func (a *App) rulesVersionsRow(c *ui.Context, d *rulesDraft, forWhat, path strin
 		return
 	}
 	widget.Field(c, "Earlier versions", func() {
-		ui.Column(c).FillWidth().Gap(2).Children(func() {
+		ui.Column(c).FillWidth().Gap(theme.S1).Children(func() {
 			for i, v := range d.versions[:min(len(d.versions), 5)] {
-				b := ui.ButtonBase(c.Key("version:"+strconv.Itoa(i))).FillWidth().Padding(4, 6).Radius(theme.RadiusControl).Justify(ui.Start).Cursor(ui.CursorPointer).
+				b := ui.ButtonBase(c.Key("version:" + strconv.Itoa(i))).FillWidth().Height(28).PaddingX(theme.S2).Radius(theme.RadiusFull).Justify(ui.Start).Cursor(ui.CursorPointer).
 					Label("Bring back the version of " + v.Time.Format("2 Jan 15:04"))
+				if b.Hovered() {
+					b.Background(theme.Hover)
+				}
 				b.Children(func() {
-					ui.Text(c, v.Time.Format("2 Jan 15:04")+"  "+textfmt.FirstLine(v.Rules, 70)).FontSize(theme.TextLabel).TextColor(theme.TextSoft).SingleLine()
+					ui.Row(c).Grow(1).MinWidth(0).Children(func() {
+						widget.Running(c, v.Time.Format("2 Jan 15:04")+"  "+textfmt.FirstLine(v.Rules, 70), widget.RunStyle{Size: theme.TextLabel, Color: theme.TextSoft})
+					})
 				})
 				if b.Clicked() {
 					d.before, d.by, *text = *text, "an earlier version", v.Rules

@@ -65,22 +65,17 @@ func zoomKey() string {
 	return "Ctrl+"
 }
 
-// termSizeSection changes the terminals' text size, in Settings ›
-// Terminal.
-func (a *App) termSizeSection(c *ui.Context) {
-	widget.SectionLabel(c, "TEXT SIZE", theme.Muted).Margin(14, 0, 0, 0)
-	ui.Row(c).FillWidth().Gap(8).AlignItems(ui.Center).Children(func() {
-		if widget.IconButton(c, icon.Minus, "Smaller ("+zoomKey()+"−)", false).Clicked() {
-			a.setTermSize(a.termSize() - 1)
-		}
-		ui.Text(c, fmt.Sprintf("%g", a.termSize())).FontSize(theme.TextUI).FontWeight(600).Width(28).TextAlign(ui.Center)
-		if widget.IconButton(c, icon.Plus, "Larger ("+zoomKey()+"+)", false).Clicked() {
-			a.setTermSize(a.termSize() + 1)
-		}
-		if a.state.TermFontSize != 0 && widget.GhostButton(c, "Default").Clicked() {
-			a.setTermSize(0)
-		}
-	})
-	ui.Text(c, "Every terminal's, on this device. "+zoomKey()+"+ and "+zoomKey()+"− in a terminal (or its scroll wheel with "+zoomKey()+" held) change it too, "+zoomKey()+"0 back to the default.").
-		FontSize(12).TextColor(theme.Muted)
+// termSizeControl changes the terminals' text size, in Settings › Terminal:
+// a step at a time, as the whole range doesn't fit a row of choices.
+func (a *App) termSizeControl(c *ui.Context) {
+	if a.state.TermFontSize != 0 && widget.GhostButton(c, "Default").Clicked() {
+		a.setTermSize(0)
+	}
+	if widget.IconButton(c, icon.Minus, "Smaller ("+zoomKey()+"−)", false).Clicked() {
+		a.setTermSize(a.termSize() - 1)
+	}
+	ui.Text(c, fmt.Sprintf("%g", a.termSize())).FontSize(theme.TextUI).FontWeight(600).Width(theme.S5).TextAlign(ui.Center).Shrink(0)
+	if widget.IconButton(c, icon.Plus, "Larger ("+zoomKey()+"+)", false).Clicked() {
+		a.setTermSize(a.termSize() + 1)
+	}
 }

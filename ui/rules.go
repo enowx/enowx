@@ -63,35 +63,39 @@ func (a *App) rulesDialog(c *ui.Context) {
 	if f.rules.Team != "" {
 		about = "Every session in " + f.project.Name + " reads them first, on every member's host: they are " + a.spaceName(f.rules.Team) + "'s."
 	}
-	widget.FormSheet(c, &f.open, 600, "Rules of "+f.project.Name, about, func() {
+	widget.FormSheet(c, &f.open, 640, "Rules of "+f.project.Name, about, func() {
 		if !f.loaded {
 			rulesNotRead(c, f.err)
 			return
 		}
 		if f.rules.Team != "" {
-			ui.Row(c).Gap(6).AlignItems(ui.Center).Children(func() {
+			ui.Row(c).FillWidth().Gap(theme.S2).Children(func() {
 				widget.TeamTag(c, f.rules.Team, a.spaceName(f.rules.Team))
 				if !f.rules.CanEdit {
-					ui.Text(c, "Edited by the team's admins").FontSize(theme.TextLabel).TextColor(theme.Muted)
+					ui.Text(c, "Edited by the team's admins").FontSize(theme.TextLabel).TextColor(theme.TextSoft)
 				}
 			})
 		}
-		area := ui.TextArea(c, &f.text).Height(260).Padding(10, 12).Radius(theme.RadiusControl).Font(theme.MonoFont).FontSize(theme.TextUI).
-			Background(theme.Sunken).Border(1, theme.BorderStrong).Placeholder("- Run the tests before saying it's done\n- Never push to main")
-		if !f.rules.CanEdit {
-			area.Disabled(true)
-		}
-		ui.Text(c, "No credentials here: agents read these, and rules that look like they hold a secret are refused.").FontSize(theme.TextLabel).TextColor(theme.Muted)
 		if f.rules.CanEdit {
-			a.rulesDraftBox(c, &f.draft, proto.RulesForProject, f.project.Path, &f.text)
+			a.rulesAskBox(c, &f.draft, proto.RulesForProject, f.project.Path, &f.text)
+		}
+		widget.Field(c, "Rules", func() {
+			area := ui.TextArea(c, &f.text).Height(240).Padding(theme.S2, theme.S3).Radius(theme.RadiusCard).FontSize(theme.TextUI).
+				Placeholder("- Run the tests before saying it's done\n- Never push to main")
+			widget.Well(area, area.Focused())
+			if !f.rules.CanEdit {
+				area.Disabled(true)
+			}
+			widget.CardNote(c, "No credentials here: agents read these, and rules that look like they hold a secret are refused.", 0)
+		})
+		if f.rules.CanEdit {
+			a.rulesVersionsRow(c, &f.draft, proto.RulesForProject, f.project.Path, &f.text)
 		}
 		if f.rules.Team != "" && a.isAdminOf(f.rules.Team) {
 			widget.Field(c, "Who edits them", func() {
-				ui.Row(c).FillWidth().Children(func() {
-					if i := widget.Segmented(c, []string{"Members", "Admins only"}, f.editors, nil); i >= 0 {
-						f.editors = i
-					}
-				})
+				if i := widget.Segmented(c, []string{"Members", "Admins only"}, f.editors, nil); i >= 0 {
+					f.editors = i
+				}
 			})
 		}
 		if f.err != "" {
@@ -124,9 +128,9 @@ func rulesNotRead(c *ui.Context, err string) {
 		widget.Notice(c, icon.Alert, theme.Error, "The rules couldn't be read", err+" Nothing can change them until they are: close this and open it again.", nil)
 		return
 	}
-	ui.Row(c).Gap(8).AlignItems(ui.Center).Children(func() {
+	ui.Row(c).Gap(theme.S2).Children(func() {
 		widget.Spinner(c, 12)
-		ui.Text(c, "Reading them…").FontSize(theme.TextLabel).TextColor(theme.Muted)
+		ui.Text(c, "Reading them…").FontSize(theme.TextLabel).TextColor(theme.TextSoft)
 	})
 }
 

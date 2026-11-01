@@ -162,6 +162,10 @@ func TestNotificationSounds(t *testing.T) {
 		t.Fatalf("no section; shows %q", tt.Texts())
 	}
 	shot(t, tt, "notify-settings.png")
+	if err := tt.Click("Sound of agent finished"); err != nil {
+		t.Fatal(err)
+	}
+	run(100 * time.Millisecond)
 	if err := tt.Click("Bell"); err != nil {
 		t.Fatal(err)
 	}

@@ -72,61 +72,73 @@ func (a *App) setShell(path string) {
 // terminalSection picks the shell the host's terminals start with, and
 // the font they draw with.
 func (a *App) terminalSection(c *ui.Context) {
-	settingsColumn(c, "Terminal", "", nil, func() { a.terminalBody(c) })
+	hs := a.shellsOf()
+	widget.PageHeader(c, "Terminal", "What terminals start with", nil)
+	ui.Row(c.Key("terminal-page")).Grow(1).FillWidth().MinHeight(0).AlignItems(ui.Stretch).Gap(theme.S3).Padding(theme.S4, theme.S5, theme.S5, theme.S5).Children(func() {
+		ui.Scroll(c.Key("terminal-picks")).Grow(1).Basis(0).MinWidth(0).FillHeight().Children(func() {
+			ui.Column(c).FillWidth().Gap(theme.S3).Children(func() {
+				ui.Column(c.Key("shell")).FillWidth().Gap(theme.S2).Children(func() {
+					widget.Heading(c, "Shell")
+					switch {
+					case hs.err != "":
+						widget.CardNote(c, hs.err, 0).TextColor(theme.Error)
+					case len(hs.list.Shells) == 0:
+						widget.CardNote(c, "Looking for "+a.host.Name+"'s shells…", 0)
+					}
+					if len(hs.list.Shells) > 0 {
+						a.shellPicker(c, hs)
+					}
+					widget.CardNote(c, "The shell terminals on "+a.host.Name+" start with: new terminal tabs, and agents' sessions once the agent exits. A session's + opens a tab of any other.", 0)
+				})
+				a.fontSection(c)
+			})
+		})
+		widget.Card(c.Key("terminal-look")).Grow(1).Basis(0).FillHeight().Children(func() {
+			widget.CardTitle(c, nil, "How terminals look", func() { a.termSizeControl(c) })
+			ui.Scroll(c.Key("term-sample")).Grow(1).FillWidth().MinHeight(0).Radius(theme.RadiusCard).Background(widget.CodeGround).Children(func() {
+				ui.Text(c, a.termSample(hs)).Font(a.state.TermFont).FontSize(a.termSize()).TextColor(widget.CodeText).FillWidth().MinWidth(0).Padding(theme.S3, theme.S4)
+			})
+			widget.CardNote(c, "The font terminals draw with on this device, whatever host they run on. A Nerd Font draws the icons some programs print; the system's monospaced font shows them as boxes. The size is every terminal's: "+zoomKey()+"+ and "+zoomKey()+"− in a terminal (or its scroll wheel with "+zoomKey()+" held) change it too, "+zoomKey()+"0 back to the default.", 0)
+		})
+	})
 }
 
-func (a *App) terminalBody(c *ui.Context) {
-	hs := a.shellsOf()
-	sectionIntro(c, "Terminal", "The shell terminals on "+a.host.Name+" start with: new terminal tabs, and agents' sessions once the agent exits. A session's + opens a tab of any other.")
-	if hs.err != "" {
-		ui.Text(c, hs.err).FontSize(theme.TextLabel).TextColor(theme.Error)
+// termSample is what the look's preview shows.
+func (a *App) termSample(hs *hostShells) string {
+	shell := "shell"
+	for _, s := range hs.list.Shells {
+		if hs.list.Default == s.Path || hs.list.Default == "" && s.Login {
+			shell = s.Name
+		}
 	}
-	switch {
-	case len(hs.list.Shells) == 0 && hs.err == "":
-		ui.Text(c, "Looking for "+a.host.Name+"'s shells…").FontSize(theme.TextLabel).TextColor(theme.Muted)
-	default:
-		a.shellPicker(c, hs)
-	}
-	a.termSizeSection(c)
-	a.fontSection(c)
+	return shell + " on " + a.host.Name + "\n$ go version\ngo version go1.27.3\n$ go test ./ui\nok  ui  6.1s\n$ _"
 }
 
 // shellPicker lists the host's shells, the one terminals start with
 // picked.
 func (a *App) shellPicker(c *ui.Context, hs *hostShells) {
-	widget.Field(c, "Shell", func() {
-		ui.Column(c).FillWidth().Gap(4).Children(func() {
-			for _, s := range hs.list.Shells {
-				on := hs.list.Default == s.Path || hs.list.Default == "" && s.Login
-				b := ui.ButtonBase(c.Key(s.Path)).FillWidth().Height(40).PaddingX(12).Gap(10).Radius(theme.RadiusControl).
-					Border(1, theme.Border).Cursor(ui.CursorPointer).Label(s.Name)
-				if on {
-					b.Border(1, theme.AccentLine).Background(theme.Selected)
-				} else if b.Hovered() {
-					b.Background(theme.Hover)
-				}
-				b.Children(func() {
-					ui.Icon(c, icon.Terminal).FontSize(13).TextColor(theme.TextSoft)
-					ui.Text(c, s.Name).FontSize(theme.TextUI).TextColor(theme.Text)
+	for _, s := range hs.list.Shells {
+		on := hs.list.Default == s.Path || hs.list.Default == "" && s.Login
+		b := widget.PickFace(c, s.Path, s.Name, on, func() {
+			ui.Icon(c, icon.Terminal).FontSize(14).Shrink(0)
+			ui.Column(c).Grow(1).MinWidth(0).Children(func() {
+				ui.Row(c).FillWidth().Gap(theme.S1).Children(func() {
+					ui.Text(c, s.Name).FontSize(theme.TextUI).FontWeight(500).SingleLine().Shrink(0)
 					if s.Login {
-						ui.Text(c, "login shell").FontSize(theme.TextLabel).TextColor(theme.Muted)
-					}
-					ui.Spacer(c)
-					ui.Text(c, s.Path).Font(theme.MonoFont).FontSize(theme.TextLabel).TextColor(theme.Muted).SingleLine().Shrink(1)
-					if on {
-						ui.Icon(c, icon.Check).FontSize(12).TextColor(theme.Accent)
+						ui.Text(c, "login shell").FontSize(theme.TextLabel).TextColor(theme.TextSoft).SingleLine().Shrink(1).MinWidth(0)
 					}
 				})
-				if b.Clicked() && !on {
-					path := s.Path
-					if s.Login {
-						path = "" // follows the login shell as it changes
-					}
-					a.setShell(path)
-				}
-			}
+				widget.Running(c.Key("path"), s.Path, widget.RunStyle{Size: theme.TextLabel, Mono: true, Color: theme.TextSoft})
+			})
 		})
-	})
+		if b.Clicked() && !on {
+			path := s.Path
+			if s.Login {
+				path = "" // follows the login shell as it changes
+			}
+			a.setShell(path)
+		}
+	}
 }
 
 // shellTabItems are the + menu's terminals: the default, then the host's

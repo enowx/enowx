@@ -74,60 +74,47 @@ func (a *App) fontFamilies() []ui.FontFamily {
 // this device, whatever host runs them, so the fonts offered are this
 // device's.
 func (a *App) fontSection(c *ui.Context) {
-	widget.SectionLabel(c, "FONT", theme.Muted).Margin(14, 0, 0, 0)
-	ui.Text(c, "The font terminals draw with on this device, whatever host they run on. A Nerd Font draws the icons some programs print; the system's monospaced font shows them as boxes.").
-		FontSize(12).TextColor(theme.Muted)
-	families := a.fontFamilies()
-	widget.SearchField(c, &a.fontQuery, "Find a font", icon.Search)
-	// A device can have a hundred: they scroll, so the page stays short.
-	ui.Scroll(c).FillWidth().MaxHeight(360).Children(func() { a.fontList(c, families) })
+	ui.Column(c.Key("font")).FillWidth().Gap(theme.S2).Children(func() {
+		widget.Heading(c, "Font")
+		families := a.fontFamilies()
+		widget.SearchField(c, &a.fontQuery, "Find a font", icon.Search)
+		a.fontList(c, families)
+	})
 }
 
 // fontList lists the fonts the search matches, the system's first.
 func (a *App) fontList(c *ui.Context, families []ui.FontFamily) {
-	ui.Column(c).FillWidth().Gap(4).Children(func() {
+	q := strings.ToLower(strings.TrimSpace(a.fontQuery))
+	var rows []ui.FontFamily
+	for _, f := range families {
+		if q == "" || strings.Contains(strings.ToLower(f.Name), q) {
+			rows = append(rows, f)
+		}
+	}
+	widget.Cols(c, 2).Gap(theme.S2).Children(func() {
 		a.fontRow(c, "", "System monospaced font")
-		switch {
-		case !a.fontsLoaded:
-			ui.Text(c, "Looking for the fonts of this device…").FontSize(theme.TextLabel).TextColor(theme.Muted)
-			return
-		case len(families) == 0:
-			ui.Text(c, "This device has no other monospaced font.").FontSize(theme.TextLabel).TextColor(theme.Muted)
-			return
-		}
-		q, shown := strings.ToLower(strings.TrimSpace(a.fontQuery)), 0
-		for _, f := range families {
-			if q != "" && !strings.Contains(strings.ToLower(f.Name), q) {
-				continue
-			}
+		for _, f := range rows {
 			a.fontRow(c, f.Name, f.Name)
-			shown++
-		}
-		if shown == 0 {
-			ui.Text(c, "No monospaced font has that name.").FontSize(theme.TextLabel).TextColor(theme.Muted)
 		}
 	})
+	switch {
+	case !a.fontsLoaded:
+		widget.CardNote(c, "Looking for the fonts of this device…", 0)
+	case len(families) == 0:
+		widget.CardNote(c, "This device has no other monospaced font.", 0)
+	case len(rows) == 0:
+		widget.CardNote(c, "No monospaced font has that name.", 0)
+	}
 }
 
 // fontRow is one font of the section's list, its name drawn in it.
 func (a *App) fontRow(c *ui.Context, family, label string) {
 	on := a.state.TermFont == family
-	b := ui.ButtonBase(c.Key("font:"+family)).FillWidth().Height(40).PaddingX(12).Gap(10).Radius(theme.RadiusControl).
-		Border(1, theme.Border).Cursor(ui.CursorPointer).Label(label)
-	switch {
-	case on:
-		b.Border(1, theme.AccentLine).Background(theme.Selected)
-	case b.Hovered():
-		b.Background(theme.Hover)
-	}
-	b.Children(func() {
-		ui.Icon(c, icon.Type).FontSize(13).TextColor(theme.TextSoft)
-		ui.Text(c, label).Font(family).FontSize(theme.TextUI).TextColor(theme.Text).SingleLine().Shrink(1)
-		ui.Spacer(c)
-		ui.Text(c, "Aa 0123").Font(family).FontSize(theme.TextLabel).TextColor(theme.Muted)
-		if on {
-			ui.Icon(c, icon.Check).FontSize(12).TextColor(theme.Accent)
-		}
+	b := widget.PickFace(c, "font:"+family, label, on, func() {
+		ui.Row(c).Grow(1).MinWidth(0).Children(func() {
+			ui.Text(c, label).Font(family).FontSize(theme.TextUI).FontWeight(500).SingleLine().Shrink(1).MinWidth(0)
+		})
+		ui.Text(c, "Aa 0123").Font(family).FontSize(theme.TextLabel).TextColor(theme.TextSoft).SingleLine().Shrink(0)
 	})
 	if b.Clicked() && !on {
 		a.setTermFont(family)

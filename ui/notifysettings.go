@@ -21,146 +21,171 @@ import (
 // notifySection is Settings' Notifications: the sounds the app plays when
 // agents finish, ask for input or fail, wherever they run.
 func (a *App) notifySection(c *ui.Context) {
-	settingsColumn(c, "Notifications", "", nil, func() { a.notifyBody(c) })
-}
-
-func (a *App) notifyBody(c *ui.Context) {
-	sectionIntro(c, "Notifications", "A sound when an agent finishes its turn, asks for input or fails, in a session on this device or on any host enowX reaches. These settings are the same on every host.")
 	st := a.notifySettings()
 	changed := false
-	on := !st.Off
-	if switchRow(c, &on, "Sounds", "Off silences every sound.") {
-		st.Off, changed = !on, true
-	}
-	widget.Field(c, "Volume", func() {
-		ui.Row(c).FillWidth().Gap(10).AlignItems(ui.Center).Children(func() {
-			ui.Icon(c, icon.VolumeDown).FontSize(13).TextColor(theme.Muted)
-			v := st.Volume
-			s := ui.Slider(c, &v, 0, 1).Grow(1).Label("Volume")
-			if s.Changed() {
-				st.Volume, changed = v, true
-			}
-			ui.Icon(c, icon.VolumeUp).FontSize(13).TextColor(theme.Muted)
-			ui.Text(c, fmt.Sprintf("%.0f%%", v*100)).FontSize(theme.TextLabel).TextColor(theme.TextSoft).Width(40)
-		})
-	})
-	for _, k := range []string{proto.NotifyDone, proto.NotifyInput, proto.NotifyError, proto.NotifyChat} { // agents first
-		label := map[string]string{proto.NotifyChat: "Team chat message", proto.NotifyDone: "Agent finished", proto.NotifyInput: "Agent needs input", proto.NotifyError: "Agent failed"}[k]
-		widget.Field(c.Key(k), label, func() {
-			ui.Row(c).FillWidth().Gap(6).Wrap().AlignItems(ui.Center).Children(func() {
-				for _, name := range a.soundChoices(st) {
-					picked := st.Sounds[k] == name
-					b := widget.Button(c.Key(name), widget.Secondary, nil, soundLabel(name), "").Height(28).PaddingX(10)
-					if picked {
-						b.Border(1, theme.AccentLine).Background(theme.Selected)
-					}
-					if b.Clicked() {
-						st.Sounds[k], changed = name, true
-						a.playNamed(name, st.Volume)
-					}
+	settingsColumn(c, "Notifications", "The same on every host", nil, func() {
+		widget.Cols(c, 3).Children(func() {
+			widget.Card(c.Key("sounds")).Children(func() {
+				widget.CardTitle(c, nil, "Sounds", nil)
+				on := !st.Off
+				if switchRow(c, &on, "A sound for notifications", "When an agent finishes its turn, asks for input or fails, on any host enowX reaches. Off silences every sound.") {
+					st.Off, changed = !on, true
 				}
-				if widget.IconButton(c, icon.Play, "Test the sound of "+strings.ToLower(label), false).Clicked() {
-					a.playNamed(st.Sounds[k], max(st.Volume, 0.3))
+				widget.Field(c, "Volume", func() {
+					ui.Row(c).FillWidth().Gap(theme.S2).Children(func() {
+						ui.Icon(c, icon.VolumeDown).FontSize(14).TextColor(theme.TextSoft)
+						v := st.Volume
+						if ui.Slider(c, &v, 0, 1).Grow(1).MinWidth(0).Label("Volume").Changed() {
+							st.Volume, changed = v, true
+						}
+						ui.Icon(c, icon.VolumeUp).FontSize(14).TextColor(theme.TextSoft)
+						ui.Text(c, fmt.Sprintf("%.0f%%", v*100)).FontSize(theme.TextLabel).TextColor(theme.TextSoft).SingleLine().Shrink(0)
+					})
+				})
+				watched := st.Watched
+				if switchRow(c, &watched, "Also for the session I'm looking at", "Off: no sound for a session shown in a focused window.") {
+					st.Watched, changed = watched, true
+				}
+			})
+			widget.Card(c.Key("quiet")).Children(func() {
+				widget.CardTitle(c, nil, "Quiet hours", nil)
+				quiet := st.Quiet
+				if switchRow(c, &quiet, "No sounds between these times, every day.", "") {
+					st.Quiet, changed = quiet, true
+				}
+				if st.Quiet {
+					from, to := st.QuietFrom, st.QuietTo
+					widget.Cols(c, 2).Children(func() {
+						widget.Field(c, "From", func() {
+							if widget.Input(c.Key("from"), &from, "22:00").FillWidth().Changed() {
+								st.QuietFrom, changed = from, true
+							}
+						})
+						widget.Field(c, "To", func() {
+							if widget.Input(c.Key("to"), &to, "07:00").FillWidth().Changed() {
+								st.QuietTo, changed = to, true
+							}
+						})
+					})
+					widget.CardNote(c, "The system's Focus and Do Not Disturb silence enowX's banners; its sounds follow these hours.", 0)
+				}
+			})
+			widget.Card(c.Key("device")).Children(func() {
+				widget.CardTitle(c, nil, "On this device", nil)
+				banner := !st.NoBanner
+				if switchRow(c, &banner, "Desktop notifications", "A banner with the sound, which a click opens.") {
+					st.NoBanner, changed = !banner, true
+				}
+				badge := st.Badge
+				if switchRow(c, &badge, "Count on the app's icon", "The sessions waiting for you, on the Dock or taskbar icon.") {
+					st.Badge, changed = badge, true
 				}
 			})
 		})
-	}
-	ui.Row(c).FillWidth().Children(func() {
-		if widget.GhostButton(c, "Add a sound of your own…").Tooltip("A WAV or an MP3, kept with your settings on every host").Clicked() {
-			a.addSound()
-		}
-	})
-	quiet := st.Quiet
-	if switchRow(c, &quiet, "Quiet hours", "No sounds between these times, every day.") {
-		st.Quiet, changed = quiet, true
-	}
-	if st.Quiet {
-		ui.Row(c).FillWidth().Gap(8).AlignItems(ui.Center).Children(func() {
-			ui.Text(c, "From").FontSize(theme.TextLabel).TextColor(theme.Muted)
-			from, to := st.QuietFrom, st.QuietTo
-			if widget.Input(c.Key("from"), &from, "22:00").Width(80).Changed() {
-				st.QuietFrom, changed = from, true
-			}
-			ui.Text(c, "to").FontSize(theme.TextLabel).TextColor(theme.Muted)
-			if widget.Input(c.Key("to"), &to, "07:00").Width(80).Changed() {
-				st.QuietTo, changed = to, true
-			}
-		})
-		ui.Text(c, "The system's Focus and Do Not Disturb silence enowX's banners; its sounds follow these hours.").FontSize(theme.TextLabel).TextColor(theme.Muted)
-	}
-	watched := st.Watched
-	if switchRow(c, &watched, "Also for the session I'm looking at", "Off: no sound for a session shown in a focused window.") {
-		st.Watched, changed = watched, true
-	}
-	banner := !st.NoBanner
-	if switchRow(c, &banner, "Desktop notifications", "A banner with the sound, which a click opens.") {
-		st.NoBanner, changed = !banner, true
-	}
-	badge := st.Badge
-	if switchRow(c, &badge, "Count on the app's icon", "The sessions waiting for you, on the Dock or taskbar icon.") {
-		st.Badge, changed = badge, true
-	}
-	widget.Field(c, "Team chat", func() {
-		modes := []string{"", "mentions", "off"}
-		cur := max(0, slices.Index(modes, st.Chat))
-		if i := widget.Segmented(c, []string{"Every message", "Mentions of me", "Off"}, cur, nil); i >= 0 && i != cur {
-			st.Chat, changed = modes[i], true
-		}
-		ui.Text(c, "A message from your team, when its chat isn't open: a sound, a card in the window's corner to answer from, and a banner when the window is in the background. Mentions of you and replies to you always notify.").FontSize(theme.TextLabel).TextColor(theme.Muted)
-		for _, sp := range a.spacesOf().list {
-			if sp.Team == "" {
-				continue
-			}
-			team := sp.Team
-			ui.Row(c.Key("chat:" + team)).FillWidth().Gap(8).AlignItems(ui.Center).Children(func() {
-				ui.Text(c, a.spaceName(team)).FontSize(theme.TextLabel).TextColor(theme.TextSoft).Grow(1).SingleLine()
-				modes := []string{"default", "", "mentions", "off"}
-				cur := 0
-				if m, ok := st.ChatTeams[team]; ok {
-					cur = max(1, slices.Index(modes, m))
-				}
-				if i := widget.Segmented(c, []string{"As above", "All", "Mentions", "Off"}, cur, nil); i >= 0 && i != cur {
-					teams := map[string]string{}
-					for k, v := range st.ChatTeams {
-						teams[k] = v
-					}
-					if i == 0 {
-						delete(teams, team)
-					} else {
-						teams[team] = modes[i]
-					}
-					st.ChatTeams, changed = teams, true
+		ui.Column(c.Key("kinds")).FillWidth().Gap(theme.S2).Children(func() {
+			ui.Row(c).FillWidth().Gap(theme.S2).Children(func() {
+				ui.Row(c).Grow(1).MinWidth(0).Children(func() { widget.Heading(c, "Each kind") })
+				if widget.GhostButton(c, "Add a sound of your own…").Tooltip("A WAV or an MP3, kept with your settings on every host").Clicked() {
+					a.addSound()
 				}
 			})
-		}
-	})
-	widget.Field(c, "Agents", func() {
-		ui.Column(c).FillWidth().Gap(6).Children(func() {
-			for _, ag := range a.agents {
-				if !ag.Installed || ag.Command == "" {
-					continue
+			widget.Cols(c, 4).Children(func() {
+				for _, k := range []string{proto.NotifyDone, proto.NotifyInput, proto.NotifyError, proto.NotifyChat} { // agents first
+					label := map[string]string{proto.NotifyChat: "Team chat message", proto.NotifyDone: "Agent finished", proto.NotifyInput: "Agent needs input", proto.NotifyError: "Agent failed"}[k]
+					widget.Card(c.Key(k)).Children(func() {
+						widget.CardTitle(c, nil, label, nil)
+						ui.Row(c).FillWidth().Gap(theme.S2).Children(func() {
+							ui.Column(c).Grow(1).Basis(0).MinWidth(0).Children(func() {
+								names := map[string]string{}
+								choices := a.soundChoices(st)
+								for _, n := range choices {
+									names[n] = soundLabel(n)
+								}
+								picked := st.Sounds[k]
+								hookSelect(c, "Sound of "+strings.ToLower(label), &picked, choices, names)
+								if picked != st.Sounds[k] {
+									st.Sounds[k], changed = picked, true
+									a.playNamed(picked, st.Volume)
+								}
+							})
+							if widget.IconButton(c, icon.Play, "Test the sound of "+strings.ToLower(label), false).Clicked() {
+								a.playNamed(st.Sounds[k], max(st.Volume, 0.3))
+							}
+						})
+					})
 				}
-				on := !slices.Contains(st.MutedAgents, ag.ID)
-				if switchRow(c.Key(ag.ID), &on, ag.Name, "") {
-					st.MutedAgents = without(st.MutedAgents, ag.ID)
-					if !on {
-						st.MutedAgents = append(st.MutedAgents, ag.ID)
-					}
-					changed = true
-				}
-			}
+			})
 		})
-	})
-	if len(st.MutedSessions) > 0 {
-		widget.Field(c, "Sessions muted", func() {
-			ui.Column(c).FillWidth().Gap(4).Children(func() {
+		widget.Cols(c, 3).Children(func() {
+			widget.Card(c.Key("team-chat")).Children(func() {
+				widget.CardTitle(c, nil, "Team chat", nil)
+				modes := []string{"", "mentions", "off"}
+				cur := max(0, slices.Index(modes, st.Chat))
+				if i := widget.Segmented(c, []string{"Every message", "Mentions", "Off"}, cur, nil); i >= 0 && i != cur {
+					st.Chat, changed = modes[i], true
+				}
+				widget.CardNote(c, "A message from your team, when its chat isn't open: a sound, a card in the window's corner to answer from, and a banner when the window is in the background. Mentions of you and replies to you always notify.", 0)
+				for _, sp := range a.spacesOf().list {
+					if sp.Team == "" {
+						continue
+					}
+					team := sp.Team
+					ui.Row(c.Key("chat:" + team)).FillWidth().Gap(theme.S2).Children(func() {
+						ui.Row(c).Grow(1).Basis(0).MinWidth(0).Children(func() { widget.Running(c, a.spaceName(team), widget.RunStyle{}) })
+						ui.Column(c).Grow(1).Basis(0).MinWidth(0).Children(func() {
+							modes := []string{"default", "", "mentions", "off"}
+							names := map[string]string{"default": "As above", "": "All", "mentions": "Mentions", "off": "Off"}
+							cur := "default"
+							if m, ok := st.ChatTeams[team]; ok {
+								cur = m
+							}
+							picked := cur
+							hookSelect(c, "Chat of "+team, &picked, modes, names)
+							if picked != cur {
+								teams := map[string]string{}
+								for k, v := range st.ChatTeams {
+									teams[k] = v
+								}
+								if picked == "default" {
+									delete(teams, team)
+								} else {
+									teams[team] = picked
+								}
+								st.ChatTeams, changed = teams, true
+							}
+						})
+					})
+				}
+			})
+			widget.Card(c.Key("agents")).Children(func() {
+				widget.CardTitle(c, nil, "Agents", nil)
+				widget.CardNote(c, "The agents muted make no sound.", 0)
+				for _, ag := range a.agents {
+					if !ag.Installed || ag.Command == "" {
+						continue
+					}
+					on := !slices.Contains(st.MutedAgents, ag.ID)
+					if switchRow(c.Key(ag.ID), &on, ag.Name, "") {
+						st.MutedAgents = without(st.MutedAgents, ag.ID)
+						if !on {
+							st.MutedAgents = append(st.MutedAgents, ag.ID)
+						}
+						changed = true
+					}
+				}
+			})
+			widget.Card(c.Key("muted")).Children(func() {
+				widget.CardTitle(c, nil, "Sessions muted", nil)
+				if len(st.MutedSessions) == 0 {
+					widget.CardNote(c, "No session is muted.", 0)
+				}
 				for _, id := range st.MutedSessions {
-					ui.Row(c.Key(id)).FillWidth().Gap(8).AlignItems(ui.Center).Children(func() {
+					ui.Row(c.Key(id)).FillWidth().Gap(theme.S2).Children(func() {
 						name := id
 						if s, ok := a.sessionByID(id); ok {
 							name = a.sessionName(s)
 						}
-						ui.Text(c, name).FontSize(theme.TextUI).TextColor(theme.Text).Grow(1)
+						ui.Row(c).Grow(1).MinWidth(0).Children(func() { widget.Running(c, name, widget.RunStyle{}) })
 						if widget.GhostButton(c, "Unmute").Clicked() {
 							st.MutedSessions, changed = without(st.MutedSessions, id), true
 						}
@@ -168,7 +193,7 @@ func (a *App) notifyBody(c *ui.Context) {
 				}
 			})
 		})
-	}
+	})
 	if changed {
 		if notify.Check(st) == nil {
 			a.setNotify(st)

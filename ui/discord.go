@@ -10,8 +10,10 @@ import (
 
 	"github.com/enowx/enowx/core/agent"
 	"github.com/enowx/enowx/core/discordrpc"
+	"github.com/enowx/enowx/ui/icon"
 	"github.com/enowx/enowx/ui/textfmt"
 	"github.com/enowx/enowx/ui/theme"
+	"github.com/enowx/enowx/ui/widget"
 )
 
 // Discord Rich Presence: under the user's name in Discord, what they work
@@ -187,26 +189,66 @@ func (a *App) discordLoop(want <-chan *discordrpc.Activity) {
 
 // discordSection is Settings › Discord.
 func (a *App) discordSection(c *ui.Context) {
-	settingsColumn(c, "Discord", "", nil, func() { a.discordBody(c) })
-}
-
-func (a *App) discordBody(c *ui.Context) {
-	sectionIntro(c, "Discord", "Show what you work on in enowX under your name in Discord, as Rich Presence, with a link to get enowX. It goes to the Discord app on this device, while it runs.")
+	widget.PageHeader(c, "Discord", "Rich Presence, through the Discord app on this device", nil)
 	if a.discordID() == "" {
-		ui.Text(c, "This build of enowX has no Discord application set.").FontSize(theme.TextLabel).TextColor(theme.Muted)
+		widget.PageBody(c, true, func() {
+			widget.CardNote(c, "This build of enowX has no Discord application set.", 0)
+		})
 		return
 	}
-	on := !a.state.Discord.Off
-	if switchRow(c, &on, "Show in Discord", "The selected session: its project, branch and agent, and how long it has run.") {
-		a.state.Discord.Off = !on
-	}
-	names := !a.state.Discord.HideProject
-	if switchRow(c, &names, "Show the project and branch", "Off, Discord shows the agent only: “Working with Claude Code”.") {
-		a.state.Discord.HideProject = !names
-	}
-	status := a.discord.status
-	if status == "" {
-		status = "Looking for Discord…"
-	}
-	ui.Text(c, status).FontSize(theme.TextLabel).TextColor(theme.Muted)
+	widget.PageFill(c, func() {
+		widget.Cols(c, 2).Shrink(0).Children(func() {
+			widget.Card(c.Key("device")).Children(func() {
+				widget.CardTitle(c, nil, "On this device", nil)
+				on := !a.state.Discord.Off
+				if switchRow(c, &on, "Show in Discord", "The selected session: its project, branch and agent, and how long it has run.") {
+					a.state.Discord.Off = !on
+				}
+				names := !a.state.Discord.HideProject
+				if switchRow(c, &names, "Show the project and branch", "Off, Discord shows the agent only: “Working with Claude Code”.") {
+					a.state.Discord.HideProject = !names
+				}
+			})
+			widget.Card(c.Key("status")).Children(func() {
+				widget.CardTitle(c, nil, "Discord on this device", nil)
+				status := a.discord.status
+				if status == "" {
+					status = "Looking for Discord…"
+				}
+				col := theme.Warning
+				if status == "Showing in Discord" {
+					col = theme.Done
+				}
+				widget.Banner(c, col, status, nil)
+				widget.CardNote(c, "It reaches the Discord app over its local socket (a named pipe on Windows). Nothing goes through a server of enowX's.", 0)
+			})
+		})
+		widget.Heading(c, "What Discord shows")
+		ui.Row(c.Key("shows")).Grow(1).FillWidth().MinHeight(0).AlignItems(ui.Stretch).Gap(theme.S3).Children(func() {
+			details := "Working on a project · its branch"
+			if a.state.Discord.HideProject {
+				details = "Working with Claude Code"
+			}
+			discordSample(c, "With a session selected", details, "Claude Code · "+plural(max(len(a.sessions), 1), "session"))
+			discordSample(c, "With none selected", "In enowX", plural(len(a.sessions), "session")+" open")
+		})
+	})
+}
+
+// discordSample is a card with what Discord's profile card shows.
+func discordSample(c *ui.Context, title, details, state string) {
+	widget.Card(c.Key(title)).Grow(1).Basis(0).Children(func() {
+		widget.CardTitle(c, nil, title, nil)
+		ui.Row(c).Grow(1).FillWidth().MinHeight(0).Padding(theme.S5).Gap(theme.S4).Radius(theme.RadiusCard).Background(theme.Sunken).Justify(ui.Center).Children(func() {
+			ui.Box(c).Size(72, 72).Shrink(0).Radius(theme.RadiusCard).Background(theme.Hover).Center().Children(func() {
+				ui.Icon(c, icon.Agent("claude")).FontSize(32)
+			})
+			ui.Column(c).MinWidth(0).Shrink(1).Children(func() {
+				ui.Text(c, "Playing").FontSize(theme.TextLabel).TextColor(theme.TextSoft)
+				ui.Text(c, "enowX").FontSize(theme.TextUI).FontWeight(500)
+				widget.CardNote(c, details, 2)
+				widget.CardNote(c, state, 1)
+			})
+		})
+	})
 }
