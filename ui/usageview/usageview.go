@@ -3,9 +3,11 @@
 package usageview
 
 import (
+	"cmp"
 	"fmt"
 	"os"
 	"slices"
+	"strconv"
 	"time"
 
 	"github.com/egoist/mygo/ui"
@@ -13,7 +15,6 @@ import (
 	"github.com/enowx/enowx/client"
 	"github.com/enowx/enowx/core/procstat"
 	"github.com/enowx/enowx/proto"
-	"github.com/enowx/enowx/ui/icon"
 	"github.com/enowx/enowx/ui/textfmt"
 	"github.com/enowx/enowx/ui/theme"
 	"github.com/enowx/enowx/ui/widget"
@@ -33,7 +34,7 @@ type Meter struct {
 	app     procstat.Usage
 	sampler procstat.Sampler // this app; used by the poller only
 	poke    chan struct{}
-	open    bool // the chip's popover
+	held    bool // Show's numbers stand
 }
 
 // Poke measures again now, as the numbers came into view.
@@ -54,6 +55,22 @@ type Host struct {
 	LocalName string // this device's name
 	// Session labels a session ID: its name, agent and project.
 	Session func(id string) (name, agent, project string)
+	// AgentName names an agent preset ID.
+	AgentName func(id string) string
+	// Working counts the agents at work now.
+	Working int
+	// Others are the other hosts the app watches.
+	Others []OtherHost
+	// Select shows a session.
+	Select func(id string)
+}
+
+// OtherHost is another host the app watches, as it last told.
+type OtherHost struct {
+	Name      string
+	Connected bool
+	Sessions  int
+	Usage     proto.HostUsage
 }
 
 // Follow measures cl's host while wanted (called on the main thread)
@@ -80,6 +97,9 @@ func (u *Meter) Follow(cl *client.Client, update func(func()), wanted func() boo
 					wait = u.Every()
 				}
 				stop <- false
+				if u.held {
+					return
+				}
 				if err == nil {
 					u.host = st
 				}
@@ -131,126 +151,167 @@ func (u *Meter) Session(id string) (proto.Usage, bool) {
 	return proto.Usage{}, false
 }
 
-// Details draws the usage page's body: the host's memory and CPU, then
-// enowX and every session, biggest first.
-func (u *Meter) Details(c *ui.Context, h Host) {
-	ui.Column(c).FillWidth().Gap(18).Children(func() {
-		if u.host.Supported {
-			hostMeters(c, u.host.Host, u.total(h.Local).RSS)
-		} else {
-			ui.Text(c, h.Name+" doesn't report its usage.").FontSize(theme.TextLabel).TextColor(theme.Muted)
+// Figures are the host's numbers over the page: what the machine has in use,
+// and the sessions on it.
+func (u *Meter) Figures(c *ui.Context, h Host) {
+	var figs []widget.Fig
+	tones := map[int]ui.Color{}
+	if u.host.Supported {
+		m := u.host.Host
+		figs = append(figs, widget.Fig{Label: "Memory", Value: textfmt.Bytes(m.MemUsed) + " of " + textfmt.Bytes(m.MemTotal)})
+		figs = append(figs, widget.Fig{Label: "CPU", Value: fmt.Sprintf("%.1f of %d cores", m.CPU/100*float64(m.CPUs), m.CPUs)})
+		if m.DiskTotal > 0 {
+			label := "Disk"
+			if ratio(float64(m.DiskUsed), float64(m.DiskTotal)) > 0.9 {
+				label = "Disk · Nearly full"
+				tones[len(figs)] = theme.Warning
+			}
+			figs = append(figs, widget.Fig{Label: label, Value: textfmt.Bytes(m.DiskUsed) + " of " + textfmt.Bytes(m.DiskTotal)})
 		}
-		ui.Column(c).FillWidth().Gap(2).Children(func() {
-			header(c)
-			appDetail := ""
-			if !h.Local {
-				appDetail = "on " + h.LocalName
-			}
-			if u.host.Supported {
-				sessions := slices.Clone(u.host.Sessions)
-				slices.SortFunc(sessions, func(x, y proto.SessionUsage) int {
-					switch {
-					case x.RSS > y.RSS:
-						return -1
-					case x.RSS < y.RSS:
-						return 1
-					}
-					return 0
-				})
-				for _, su := range sessions {
-					name, agentID, project := h.Session(su.ID)
-					row(c.Key(su.ID), icon.Agent(agentID), name, project, su.Usage)
-				}
-				if len(sessions) == 0 {
-					ui.Text(c, "No session is running.").FontSize(theme.TextLabel).TextColor(theme.Muted).Padding(8, 10)
-				}
-				row(c.Key("daemon"), icon.Server, "Daemon", "on "+h.Name, u.host.Daemon)
-			}
-			row(c.Key("app"), icon.Laptop, "enowX app", appDetail, proto.Usage{RSS: u.app.RSS, CPU: u.app.CPU, Procs: 1})
-			widget.Divider(c)
-			cells(c, func() { ui.Text(c, "enowX on "+h.Name).FontSize(theme.TextLabel).SingleLine() }, u.total(h.Local), true)
-		})
-		ui.Text(c, "Each session counts everything it started: language servers, MCP servers, dev servers. Updates every 2 seconds.").
-			FontSize(11).TextColor(theme.Muted)
-	})
-}
-
-// hostMeters is the host's memory, split into enowX, other apps and free,
-// beside its CPU.
-func hostMeters(c *ui.Context, h proto.HostUsage, enowx uint64) {
-	tracks := []ui.Track{ui.Fr(2), ui.Fr(1)}
-	if h.DiskTotal > 0 {
-		tracks = append(tracks, ui.Fr(1))
 	}
-	ui.Grid(c).FillWidth().ColumnTracks(tracks...).Gap(12).Children(func() {
-		used := ratio(float64(h.MemUsed), float64(h.MemTotal))
-		card(c, "Memory", fmt.Sprintf("%s of %s", textfmt.Bytes(h.MemUsed), textfmt.Bytes(h.MemTotal)), func() {
-			ours := min(float64(enowx), float64(h.MemUsed))
-			share := ratio(ours, float64(h.MemTotal))
-			widget.Meter(c, widget.Segment{Fraction: share, Color: theme.Accent}, widget.Segment{Fraction: used - share, Color: theme.Idle})
-			ui.Row(c).FillWidth().Gap(14).Children(func() {
-				widget.Legend(c, theme.Accent, "enowX "+textfmt.Bytes(uint64(ours)))
-				widget.Legend(c, theme.Idle, "Other apps "+textfmt.Bytes(h.MemUsed-uint64(ours)))
-				widget.Legend(c, theme.BorderStrong, "Free "+textfmt.Bytes(h.MemTotal-min(h.MemUsed, h.MemTotal)))
-				ui.Spacer(c)
-				if used > 0.85 {
-					ui.Text(c, "Memory is getting tight").FontSize(theme.TextLabel).TextColor(theme.Warning).SingleLine()
-				}
-			})
-		})
-		card(c, "CPU", fmt.Sprintf("%s of %d cores", textfmt.CPU(h.CPU), h.CPUs), func() {
-			widget.Meter(c, widget.Segment{Fraction: h.CPU / 100, Color: widget.Level(h.CPU / 100)})
-		})
-		if h.DiskTotal > 0 {
-			disk := ratio(float64(h.DiskUsed), float64(h.DiskTotal))
-			card(c, "Disk", fmt.Sprintf("%s of %s", textfmt.Bytes(h.DiskUsed), textfmt.Bytes(h.DiskTotal)), func() {
-				widget.Meter(c, widget.Segment{Fraction: disk, Color: widget.Level(disk)})
-				if disk > 0.9 {
-					ui.Text(c, "Nearly full").FontSize(theme.TextLabel).TextColor(theme.Warning)
-				}
-			})
-		}
-	})
+	figs = append(figs, widget.Fig{Label: "Sessions here", Value: strconv.Itoa(len(u.host.Sessions))}, widget.Fig{Label: "Agents at work", Value: strconv.Itoa(h.Working)})
+	widget.FigsBandToned(c, figs, tones)
 }
 
-func card(c *ui.Context, title, value string, body func()) {
-	widget.Card(c).Children(func() {
-		ui.Row(c).FillWidth().Gap(8).Children(func() {
-			ui.Text(c, title).FontSize(theme.TextLabel).TextColor(theme.TextSoft).Grow(1).Shrink(1).SingleLine()
-			ui.Text(c, value).FontSize(theme.TextUI).SingleLine().Shrink(0)
-		})
-		body()
-	})
-}
-
-func header(c *ui.Context) {
-	ui.Row(c).FillWidth().Padding(0, 10, 4, 10).Gap(10).Children(func() {
-		ui.Text(c, "").Grow(1)
-		for _, h := range []string{"Memory", "CPU", "Processes"} {
-			ui.Text(c, h).FontSize(theme.TextLabel).TextColor(theme.Muted).Width(80).TextAlign(ui.End)
-		}
-	})
-}
-
-func row(c *ui.Context, svg *ui.SVG, name, detail string, u proto.Usage) {
-	cells(c, func() {
-		ui.Icon(c, svg).FontSize(13).TextColor(theme.TextSoft)
-		ui.Text(c, name).FontSize(theme.TextLabel).SingleLine().Shrink(1)
-		if detail != "" {
-			ui.Text(c, detail).FontSize(theme.TextLabel).TextColor(theme.Muted).SingleLine().Shrink(1)
-		}
-	}, u, false)
-}
-
-func cells(c *ui.Context, label func(), u proto.Usage, total bool) {
-	ui.Row(c).FillWidth().Padding(8, 10).Gap(10).Radius(theme.RadiusControl).Children(func() {
-		ui.Row(c).Grow(1).MinWidth(0).Gap(8).Children(label)
-		for _, v := range []string{textfmt.Bytes(u.RSS), textfmt.CPU(u.CPU), fmt.Sprint(u.Procs)} {
-			t := ui.Text(c, v).FontSize(theme.TextLabel).Width(80).TextAlign(ui.End).SingleLine().TextColor(theme.TextSoft)
-			if total {
-				t.TextColor(theme.Text)
+// Details draws the page under its figures: the host's memory, the app and
+// daemon, the other hosts, then every session, biggest first.
+func (u *Meter) Details(c *ui.Context, h Host) {
+	ui.Scroll(c.Key("usage-body")).Grow(1).FillWidth().MinHeight(0).Children(func() {
+		ui.Column(c).FillWidth().Padding(theme.S4, theme.S5, theme.S5, theme.S5).Gap(theme.S4).Children(func() {
+			if !u.host.Supported {
+				ui.Text(c, h.Name+" doesn't report its usage.").FontSize(theme.TextUI).TextColor(theme.TextSoft)
 			}
+			columns := 1
+			if u.host.Supported {
+				columns = min(3, 2+len(h.Others))
+			}
+			ui.Grid(c).FillWidth().Columns(columns).Gap(theme.S3).Children(func() {
+				if u.host.Supported {
+					memoryCard(c, h, u.host.Host, u.total(h.Local).RSS)
+				}
+				u.daemonCard(c, h)
+				if u.host.Supported {
+					for _, o := range h.Others {
+						otherHostCard(c.Key(o.Name), o)
+					}
+				}
+			})
+			if u.host.Supported {
+				u.sessions(c, h)
+			}
+		})
+	})
+}
+
+// memoryCard is the host's memory, split into enowX, other apps and free.
+func memoryCard(c *ui.Context, h Host, m proto.HostUsage, enowx uint64) {
+	used := ratio(float64(m.MemUsed), float64(m.MemTotal))
+	ours := min(float64(enowx), float64(m.MemUsed))
+	share := ratio(ours, float64(m.MemTotal))
+	widget.Card(c).Children(func() {
+		widget.CardTitle(c, nil, "Memory on "+h.Name, nil)
+		widget.Meter(c, widget.Segment{Fraction: share, Color: theme.Working}, widget.Segment{Fraction: used - share, Color: theme.Warning})
+		widget.CardLines(c, func() {
+			line(c.Key("ours"), true, "Sessions, app and daemon", textfmt.Bytes(uint64(ours)))
+			line(c.Key("others"), false, "Other apps", textfmt.Bytes(m.MemUsed-uint64(ours)))
+			line(c.Key("free"), false, "Free", textfmt.Bytes(m.MemTotal-min(m.MemUsed, m.MemTotal)))
+		})
+		if used > 0.85 {
+			widget.CardNote(c, "Memory is getting tight", 0).TextColor(theme.Warning)
 		}
+	})
+}
+
+// daemonCard is what enowX itself takes: the app, on this device, and the daemon.
+func (u *Meter) daemonCard(c *ui.Context, h Host) {
+	widget.Card(c).Children(func() {
+		widget.CardTitle(c, nil, "Daemon and app", nil)
+		widget.CardLines(c, func() {
+			app := "enowX, the app"
+			if !h.Local {
+				app += " on " + h.LocalName
+			}
+			line(c.Key("app"), true, app, textfmt.Bytes(u.app.RSS)+" · "+textfmt.CPU(u.app.CPU))
+			if u.host.Supported {
+				line(c.Key("daemon"), false, "enowxd, the daemon", textfmt.Bytes(u.host.Daemon.RSS)+" · "+textfmt.CPU(u.host.Daemon.CPU))
+			}
+		})
+		widget.CardNote(c, "Each session counts everything it started: language servers, MCP servers, dev servers. Updates every 2 seconds.", 0)
+	})
+}
+
+// otherHostCard is what another host told last.
+func otherHostCard(c *ui.Context, o OtherHost) {
+	widget.Card(c).Children(func() {
+		widget.CardTitle(c, nil, o.Name, nil)
+		if !o.Connected {
+			widget.StatusLine(c, theme.Idle, true, "Not connected")
+			return
+		}
+		widget.StatusLine(c, theme.Done, false, "Connected")
+		m := o.Usage
+		widget.CardStats(c, []widget.Stat{
+			{Value: strconv.Itoa(o.Sessions), Label: "sessions"},
+			{Value: textfmt.Bytes(m.MemUsed) + " of " + textfmt.Bytes(m.MemTotal), Label: "memory"},
+			{Value: fmt.Sprintf("%.1f of %d", m.CPU/100*float64(m.CPUs), m.CPUs), Label: "cores"},
+		})
+		used := ratio(float64(m.MemUsed), float64(m.MemTotal))
+		widget.Meter(c, widget.Segment{Fraction: used, Color: widget.Level(used)})
+	})
+}
+
+// sessions is a card per session, biggest first.
+func (u *Meter) sessions(c *ui.Context, h Host) {
+	list := slices.Clone(u.host.Sessions)
+	slices.SortFunc(list, func(x, y proto.SessionUsage) int { return cmp.Compare(y.RSS, x.RSS) })
+	ui.Column(c).FillWidth().Gap(theme.S2).Children(func() {
+		ui.Text(c, "Sessions on "+h.Name).FontSize(theme.TextUI).FontWeight(500)
+		if len(list) == 0 {
+			ui.Text(c, "No session is running.").FontSize(theme.TextUI).TextColor(theme.TextSoft)
+			return
+		}
+		ui.Grid(c).FillWidth().Columns(4).Gap(theme.S3).Children(func() {
+			for _, su := range list {
+				sessionCard(c.Key(su.ID), h, su, list[0].RSS)
+			}
+		})
+	})
+}
+
+// sessionCard is what one session uses, its meter against the biggest's.
+func sessionCard(c *ui.Context, h Host, su proto.SessionUsage, biggest uint64) {
+	name, agentID, project := h.Session(su.ID)
+	agentName := "Shell"
+	if agentID != "" && h.AgentName != nil {
+		agentName = h.AgentName(agentID)
+	}
+	widget.Card(c).Children(func() {
+		widget.CardTitle(c, nil, name, nil)
+		widget.CardStats(c, []widget.Stat{
+			{Value: textfmt.Bytes(su.RSS), Label: "memory"},
+			{Value: textfmt.CPU(su.CPU), Label: "CPU"},
+			{Value: agentName, Label: "agent"},
+		})
+		widget.Meter(c, widget.Segment{Fraction: ratio(float64(su.RSS), float64(biggest)), Color: theme.Working})
+		widget.CardFoot(c, func() {
+			about := fmt.Sprintf("%d %s", su.Procs, textfmt.Plural(su.Procs, "process", "processes"))
+			if project != "" {
+				about += " · " + project
+			}
+			ui.Row(c).Grow(1).MinWidth(0).Children(func() {
+				widget.Running(c, about, widget.RunStyle{Size: theme.TextLabel, Color: theme.TextSoft})
+			})
+			if widget.GhostButton(c, "Open").Label("Open "+name).Clicked() && h.Select != nil {
+				h.Select(su.ID)
+			}
+		})
+	})
+}
+
+// line is a row of a card's list: what it is, and how much at the right.
+func line(c *ui.Context, first bool, title, value string) {
+	widget.CardLine(c, first, title, "", func() {
+		ui.Text(c, value).FontSize(theme.TextLabel).TextColor(theme.TextSoft).SingleLine()
 	})
 }
 
@@ -260,3 +321,7 @@ func ratio(a, b float64) float64 {
 	}
 	return a / b
 }
+
+// Show puts a measurement in and keeps it from being measured over, for a
+// development build's sample data.
+func (u *Meter) Show(st proto.DaemonStats, app procstat.Usage) { u.host, u.app, u.held = st, app, true }
