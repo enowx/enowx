@@ -245,7 +245,7 @@ func (d *Doc) text(c *ui.Context) {
 		d.picture(c)
 		return
 	case d.markdown && !d.raw && !f.Binary && f.Text != "":
-		widget.MarkdownList(c.Key("preview"), &d.preview, f.Text, 720).Grow(1).FillWidth().MinHeight(0).Padding(18, 20)
+		widget.MarkdownList(c.Key("preview"), &d.preview, f.Text, 720).Grow(1).FillWidth().MinHeight(0).Padding(theme.S4, theme.S5)
 		return
 	case f.Binary:
 		centered(c, "A binary file: nothing to show as text.")
@@ -266,8 +266,8 @@ func (d *Doc) text(c *ui.Context) {
 	}
 	ui.List(c.Key("doc"), &d.list, n, func(i int) {
 		if i == len(lines) {
-			ui.Row(c).FillWidth().Height(lineHeight + 6).PaddingX(14).Children(func() {
-				ui.Text(c, "…the rest of this file is too long to show here").FontSize(theme.TextLabel).TextColor(theme.Muted).SingleLine()
+			ui.Row(c).FillWidth().Height(lineHeight + 6).PaddingX(theme.S4).Children(func() {
+				ui.Text(c, "…the rest of this file is too long to show here").FontSize(theme.TextLabel).TextColor(ui.Hex("#8A8FA3")).SingleLine()
 			})
 			return
 		}
@@ -294,8 +294,8 @@ func (d *Doc) text(c *ui.Context) {
 // the panel's width, on a ground that shows its transparent parts.
 func (d *Doc) picture(c *ui.Context) {
 	ui.Scroll(c).Grow(1).FillWidth().MinHeight(0).Children(func() {
-		ui.Column(c).FillWidth().Padding(16).AlignItems(ui.Center).Children(func() {
-			img := ui.Image(c, d.image).MaxWidth(float32(max(d.imgW, 1))).FillWidth().Background(theme.Sunken).Radius(theme.RadiusTail)
+		ui.Column(c).FillWidth().Padding(theme.S4).AlignItems(ui.Center).Children(func() {
+			img := ui.Image(c, d.image).MaxWidth(float32(max(d.imgW, 1))).FillWidth().Background(theme.Sunken).Radius(theme.RadiusSmall)
 			if d.imgW == 0 { // an SVG: as wide as the panel
 				img.MaxWidth(10000)
 			}
