@@ -60,8 +60,8 @@ var providers = []string{proto.ProviderAnthropic, proto.ProviderOpenAI, proto.Pr
 
 var useInfo = map[string][2]string{
 	proto.DecideState:   {"A quiet session's state", "When an agent without hooks of its own goes quiet, the judge reads its screen: one that asks you something is marked waiting, with the input sound; one stuck or failed gets the error sound."},
-	proto.DecideApprove: {"Approving commands", "Before an agent's command runs: allowed without asking you, left to you, or refused. Acts through a hook: Ask the judge."},
-	proto.DecideTrim:    {"Trimming long output", "A test's, build's or install's long output reaches the agent cut to what matters, saving its context; the whole stays in a file. Acts through a hook: Trim its long output."},
+	proto.DecideApprove: {"Approving commands", "Before an agent's command runs: allowed without asking you, left to you, or refused. Runs built in, for every shell command."},
+	proto.DecideTrim:    {"Trimming long output", "A test's, build's or install's long output reaches the agent cut to what matters, saving its context; the whole stays in a file. Runs built in, for test, build and install commands."},
 	proto.DecideLoop:    {"Stopping loops", "When an agent's commands keep failing alike, the judge reads its last steps; a loop stops its turn and asks you how to go on, before more tokens go."},
 	proto.DecideRoute:   {"A model per prompt", "The judge says how hard a prompt is, and enowX suggests the agent's model and effort to match: the cheapest for easy ones. New session offers it; agents ask with decide route. A running session's model never changes on its own."},
 	proto.DecideContext: {"RAG: context or not", "Before a prompt gets a project's search results (RAG's Context), the judge keeps only those that bear on it, or none."},

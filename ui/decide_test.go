@@ -115,7 +115,7 @@ func TestDecisionsSection(t *testing.T) {
 		s, _ := cl.DecideSettings()
 		return s.Uses[proto.DecideApprove].On
 	}, "the use turned on again")
-	frames(func() bool { return hasText(tt, "Add the hook…") }, "the hook offered")
+	frames(func() bool { return hasText(tt, "Set your own…") }, "the hook offered")
 	if os.Getenv("SHOTS") != "" {
 		shot(t, tt, "decisions-uses.png")
 	}

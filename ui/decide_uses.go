@@ -20,7 +20,8 @@ import (
 // sureChoices are how sure the judge must be, offered.
 var sureChoices = []float64{0.6, 0.75, 0.9, 0.97}
 
-// useHooks are the hooks a use acts through, from their templates.
+// useHooks are the hooks that replace a use's built-in one, from their
+// templates.
 var useHooks = map[string]string{proto.DecideApprove: "Have the judge approve commands", proto.DecideTrim: "Trim long test and build output"}
 
 // usesTab is each use: on, how sure, its judge, its calls a day; what it
@@ -90,9 +91,9 @@ func (a *App) useCard(c *ui.Context, st *decideState, use string) {
 		})
 		if t, ok := useHooks[use]; ok {
 			ui.Row(c).FillWidth().Gap(8).AlignItems(ui.Center).Children(func() {
-				ui.Text(c, "Acts through a hook before a tool runs.").FontSize(11.5).TextColor(theme.Muted)
+				ui.Text(c, "Built in while this is on. A hook of your own replaces it, to say what it covers.").FontSize(11.5).TextColor(theme.Muted)
 				ui.Spacer(c)
-				if widget.GhostButton(c.Key("hook"), "Add the hook…").Clicked() {
+				if widget.GhostButton(c.Key("hook"), "Set your own…").Clicked() {
 					a.startHookTemplate(t)
 				}
 			})
