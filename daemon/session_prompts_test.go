@@ -170,10 +170,13 @@ func TestGOAReachesAnyProjectsRAG(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if dir, err := srv.ragDir(proto.RAGRef{Session: g.ID(), Project: "/code/b"}); err != nil || dir != "/code/b" {
+	if dir, err := srv.ragSetupDir(proto.RAGRef{Session: g.ID(), Project: "/code/b"}); err != nil || dir != "/code/b" {
 		t.Fatalf("GOA: %q %v", dir, err)
 	}
-	if _, err := srv.ragDir(proto.RAGRef{Session: w.ID(), Project: "/code/b"}); err == nil {
+	if _, err := srv.ragDir(proto.RAGRef{Session: g.ID(), Project: "/code/b"}); err == nil {
+		t.Fatal("GOA could write to a project's memories")
+	}
+	if _, err := srv.ragSetupDir(proto.RAGRef{Session: w.ID(), Project: "/code/b"}); err == nil {
 		t.Fatal("a worker reached another project")
 	}
 }

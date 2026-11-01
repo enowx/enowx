@@ -44,14 +44,14 @@ var ragHandlers = map[string]handler{
 	}),
 	proto.MethodRAGSetProject: with(func(c *conn, p proto.RAGProjectParams) (any, error) { return c.srv.setRAGProject(p) }),
 	proto.MethodRAGIndex: with(func(c *conn, p proto.RAGRef) (any, error) {
-		dir, err := c.srv.ragDir(p)
+		dir, err := c.srv.ragSetupDir(p)
 		if err != nil {
 			return nil, err
 		}
 		return c.srv.ragIndex(dir)
 	}),
 	proto.MethodRAGPlan: with(func(c *conn, p proto.RAGRef) (any, error) {
-		dir, err := c.srv.ragDir(p)
+		dir, err := c.srv.ragSetupDir(p)
 		if err != nil {
 			return nil, err
 		}

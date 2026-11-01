@@ -15,7 +15,8 @@ Each version's section is also what the app's update dialog shows.
   - **Motion:** anime.js and three.js built in, so they work offline, with play, pause, restart and a scrubber, and agents check motion from sampled frames.
   - **Stays where you are:** the zoom holds between designs, Interact mode fits a design in a centered box, the grid hides with a button, and the unslop card scrolls inside itself.
 - **Nothing moves you any more:** agents asking to show a canvas, a browser page or a login raise a card you can click. A dropped connection leaves your page and forms in place.
-- **Settings → Agents lists all 45 agents,** with what each takes or why it can't, and search. Kilo Code, Qwen Code, Goose, Kimi, Continue and Crush take a model API per session; these were read from their docs and not run here.
+- **Asks no longer take your keyboard:** what an agent or the app asks without your doing arrives as a card you click or Tab to, so Enter or Space while typing approves nothing. A late answer no longer runs.
+- **Settings → Agents lists all 45 agents,** with what each takes or why it can't, and search. Kilo Code, Qwen Code, Goose, Kimi, Continue and Crush take a model API per session, and Kimi, Mistral Vibe and Pi another account.
 - **Fork a session:** a compacted copy goes on in a new session, for Claude Code and Codex.
 - **Notifications say what they're about,** in cards that open the session.
 - **Keep typed keys in the vault,** from RAG and Decisions, so other hosts can use them.
@@ -27,15 +28,17 @@ Each version's section is also what the app's update dialog shows.
   - A session that dies says why, and isn't restarted in a tight loop.
   - The missing confirmations and other bugs an inventory of the app found.
 
-### Still open
+### Not tested for real yet
 
-- **Sessions dying with code 129 on an Intel Mac (#12):** the cause isn't found, and it needs macOS 14 on Intel. This release only says why a session died.
-- **Scrolling in OpenCode:** the report couldn't be reproduced here; wheel and trackpad work in a terminal and in the app, on this Mac, including Claude Code, Codex, OMP, Antigravity and CodeBuddy. Kiro CLI, Command Code and Freebuff gave nothing to scroll, Droid, Cursor and Muse need a sign-in, and a remote host wasn't tried.
-- **Dialogs that ask you for something** take the keyboard while you type, and some focus their approving button. Which should change is still to be decided.
-- **The model shown** wasn't tested for real through an account's fallback or a config. `switch --model` on Claude Code also changes its default for new sessions.
-- **Other accounts** for agents besides Claude Code and Codex, which need a real sign-in to check.
-- **Not every interruption** was triggered on a real agent: limits, signing out, updates and the like are recognized by their words only.
-- **Not tried in the real app:** typed keys moving to a real vault on a VPS, and opening a session of a real remote host from GOD of Agents' list. Motion's controls in Interact mode and its Linux and Windows web views are also untested.
+Built and tested with stand-ins or on this project's Mac; these wait for real use.
+
+- **Sessions dying with code 129 on an Intel Mac (#12) is not fixed:** the cause isn't found. This release only says why a session died, and stops restarting it in a loop.
+- **Scrolling in OpenCode:** the report couldn't be reproduced. Wheel and trackpad work here in OpenCode, Claude Code, Codex, OMP, Antigravity, CodeBuddy and Freebuff; not checked with long output in Kiro CLI, Command Code, Droid, Cursor or Muse, nor on a remote host. If it still fails for you, please say where.
+- **In the real app:** typing while an ask card arrives, motion's bar in Interact mode, and opening a real remote host's session from GOD of Agents' list were tested in the test harness only.
+- **Accounts and limits:** an account's fallback was tested on Claude Code and Codex with a mock API's limit error, not a real limit. Kimi's, Mistral Vibe's and Pi's other accounts and the new per-session APIs are read from their docs, not run. Keeping typed keys in the vault wasn't run on a real VPS.
+- **Interruptions:** usage limits, signing out and running out of credits are recognized by their words, not seen on a real agent. A stalled worker was tested with stand-ins.
+- **Motion** ran in a real web view on macOS only, not Linux or Windows.
+- `switch --model` on Claude Code also changes its default for new sessions, as `/model` does.
 
 ## 0.5.0
 

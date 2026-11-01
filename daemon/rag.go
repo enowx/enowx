@@ -57,8 +57,19 @@ func (s *Server) newRAG(dir string) {
 	s.ragRun = ragState{status: map[string]proto.RAGStatus{}, running: map[string]bool{}, soon: map[string]*time.Timer{}}
 }
 
+// ragSetupDir is ragDir for looking at and indexing a project, not writing to
+// its memories: GOD of Agents sets any project's RAG up with the user.
+func (s *Server) ragSetupDir(ref proto.RAGRef) (string, error) {
+	if ref.Session != "" && ref.Project != "" {
+		if sess, err := s.sessions.Get(ref.Session); err == nil && sess.Meta().GOA {
+			return ref.Project, nil
+		}
+	}
+	return s.ragDir(ref)
+}
+
 // ragDir is the project folder ref names: its own, or its session's
-// project (a session may only reach its own, GOD of Agents' any).
+// project (a session may only reach its own).
 func (s *Server) ragDir(ref proto.RAGRef) (string, error) {
 	if ref.Session != "" {
 		sess, err := s.sessions.Get(ref.Session)
@@ -69,10 +80,6 @@ func (s *Server) ragDir(ref proto.RAGRef) (string, error) {
 		dir := meta.Project
 		if dir == "" {
 			dir = info.Dir
-		}
-		// GOD of Agents works across projects, and sets their RAG up with the user.
-		if ref.Project != "" && meta.GOA {
-			return ref.Project, nil
 		}
 		if ref.Project != "" && ref.Project != dir {
 			return "", errors.New("rag: a session searches its own project only")
