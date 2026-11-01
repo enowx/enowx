@@ -57,6 +57,9 @@ func (a *App) workspace(c *ui.Context) {
 	view := "page:" + a.page
 	if a.page == "" {
 		view = "session:" + a.selected
+		if a.goaOn() && a.goa.shown != "" {
+			view = "goa-tab:" + a.goa.shown
+		}
 		if a.splitOn() {
 			view = "split:" + a.project
 		}
@@ -65,6 +68,7 @@ func (a *App) workspace(c *ui.Context) {
 		Transition(widget.LayoutMotion).Children(func() {
 		if a.goaOn() {
 			a.goaNav(c) // GOD of Agents' way to the pages (goa_view.go)
+			a.goaTabs(c)
 		}
 		ui.Column(c.Key(view)).Grow(1).FillWidth().MinHeight(0).Transition(widget.PageMotion).Children(func() { a.workspaceView(c) })
 	})

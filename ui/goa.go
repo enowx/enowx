@@ -26,7 +26,11 @@ type goaApp struct {
 	override *goaOverrideForm
 	detail   *goaDetail    // a session's details, from the Sessions tool
 	rules    *goaRulesForm // its rules being edited (goa_rules.go)
-	err      string
+	// tabs are the sessions open beside GOA, shown the one in view, ""
+	// for GOA itself (goa_tabs.go).
+	tabs  []*goaTab
+	shown string
+	err   string
 	// chatSet is the GOA session last opened on its chat, once: the user's
 	// own choice of view is kept after.
 	chatSet string
@@ -144,6 +148,7 @@ func (a *App) enterGOA() {
 // leaveGOA goes back to the projects and their sessions; GOA keeps
 // running.
 func (a *App) leaveGOA() {
+	a.closeGOATabs()
 	a.state.GOA = false
 	a.page = ""
 	if a.selected == a.goa.board.Session {

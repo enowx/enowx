@@ -8,6 +8,7 @@ import (
 
 	"github.com/egoist/mygo/ui"
 
+	"github.com/enowx/enowx/client"
 	"github.com/enowx/enowx/core/agent"
 	"github.com/enowx/enowx/proto"
 	"github.com/enowx/enowx/ui/icon"
@@ -36,6 +37,7 @@ func goaScroll(c *ui.Context, gap float32, body func()) {
 // goaHostSessions are a host's sessions as the Sessions tool lists them.
 type goaHostSessions struct {
 	name, state string
+	cl          *client.Client
 	sessions    []proto.SessionInfo
 }
 
@@ -44,11 +46,11 @@ type goaHostSessions struct {
 func (a *App) goaEveryHost() []goaHostSessions {
 	var out []goaHostSessions
 	if a.client != nil {
-		out = append(out, goaHostSessions{name: a.host.Name, state: hostOnline, sessions: a.sessions})
+		out = append(out, goaHostSessions{name: a.host.Name, state: hostOnline, cl: a.client, sessions: a.sessions})
 	}
 	var watched []goaHostSessions
 	for _, w := range a.watches {
-		watched = append(watched, goaHostSessions{name: w.host.Name, state: w.status.state, sessions: w.status.sessions})
+		watched = append(watched, goaHostSessions{name: w.host.Name, cl: w.cl, state: w.status.state, sessions: w.status.sessions})
 	}
 	slices.SortFunc(watched, func(x, y goaHostSessions) int { return strings.Compare(x.name, y.name) })
 	return append(out, watched...)
@@ -87,11 +89,21 @@ func (a *App) sessionsTab(c *ui.Context) {
 }
 
 // goaSessionRow is a session: its state, name and agent, and its task.
+// Clicking it opens it in a tab; its details are a button beside it.
 func (a *App) goaSessionRow(c *ui.Context, host string, s proto.SessionInfo) {
+	ui.Row(c).FillWidth().Gap(2).AlignItems(ui.Center).Children(func() {
+		a.goaSessionButton(c, host, s)
+		if widget.IconButton(c, icon.More, "Details of "+a.sessionName(s), false).Clicked() {
+			a.goa.detail = &goaDetail{open: true, host: host, session: s}
+		}
+	})
+}
+
+func (a *App) goaSessionButton(c *ui.Context, host string, s proto.SessionInfo) {
 	st := statusOf(s)
 	t := a.goaTaskOf(s.ID)
-	row := ui.ButtonBase(c).FillWidth().Padding(7, 8).Gap(8).Radius(theme.RadiusControl).Cursor(ui.CursorPointer).Label(a.sessionName(s)).
-		Tooltip("Click for its details; drag it into a chat or terminal to point an agent at it").
+	row := ui.ButtonBase(c).Grow(1).MinWidth(0).Padding(7, 8).Gap(8).Radius(theme.RadiusControl).Cursor(ui.CursorPointer).Label(a.sessionName(s)).
+		Tooltip("Click to open it in a tab here; drag it into a chat or terminal to point an agent at it").
 		Drag(widget.TextDrag{Text: a.sessionPointer(host, s)})
 	if row.Hovered() {
 		row.Background(theme.Hover)
@@ -114,7 +126,11 @@ func (a *App) goaSessionRow(c *ui.Context, host string, s proto.SessionInfo) {
 		})
 	})
 	if row.Clicked() {
-		a.goa.detail = &goaDetail{open: true, host: host, session: s}
+		if cl := a.goaClientOf(host); cl != nil {
+			a.openGOATab(host, cl, s)
+		} else {
+			a.goa.detail = &goaDetail{open: true, host: host, session: s}
+		}
 	}
 }
 
@@ -157,10 +173,10 @@ func (a *App) goaDetailDialog(c *ui.Context) {
 			d.open = false
 			a.openGOAOverride(*t)
 		}
-		if d.host == a.host.ID || d.host == a.host.Name {
-			if widget.PrimaryButton(c, nil, "Open the session", "").Tooltip("Leaves GOD of Agents and shows it").Clicked() {
+		if cl := a.goaClientOf(d.host); cl != nil {
+			if widget.PrimaryButton(c, nil, "Open in a tab", "").Tooltip("Shows it beside GOD of Agents; closing the tab leaves it running").Clicked() {
 				d.open = false
-				a.confirmLeaveGOA(func() { a.selectSession(s) })
+				a.openGOATab(d.host, cl, s)
 			}
 		}
 	})

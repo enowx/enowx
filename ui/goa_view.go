@@ -68,6 +68,9 @@ func (a *App) goaNav(c *ui.Context) {
 		if s, ok := a.goaSession(); ok && shown == "" && a.state.BrowserViews[s.ID] {
 			shown = goaBrowser
 		}
+		if a.goaShownTab() != nil {
+			shown = "a tab" // none of the strip's
+		}
 		current := slices.IndexFunc(goaPages, func(p struct{ page, label string }) bool { return p.page == shown })
 		if i := widget.Segmented(c.Key("goa-pages"), labels, current, nil); i >= 0 {
 			a.goaShow(goaPages[i].page)
@@ -88,6 +91,7 @@ func (a *App) goaNav(c *ui.Context) {
 // goaShow shows what the strip's item page stands for: a page, GOA's
 // session on its Browser view, or GOA's session on its chat (or terminal).
 func (a *App) goaShow(page string) {
+	a.goa.shown = ""
 	s, ok := a.goaSession()
 	switch {
 	case page == goaBrowser && ok:
@@ -127,6 +131,10 @@ func (a *App) goaMain(c *ui.Context) {
 		return
 	}
 	a.selected, a.maximized = s.ID, ""
+	if t := a.goaShownTab(); t != nil {
+		a.goaTabView(c, t)
+		return
+	}
 	if a.goa.chatSet != s.ID {
 		// GOA is talked to: its chat first, where its agent has one.
 		a.goa.chatSet = s.ID

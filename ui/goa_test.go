@@ -125,20 +125,64 @@ func TestGOAMode(t *testing.T) {
 			app.goa.detail = &goaDetail{open: true, host: "this Mac", session: s}
 		}
 	}
-	frames("the worker's details", func() bool { return tt.HasText("Open the session") })
+	frames("the worker's details", func() bool { return tt.HasText("Open in a tab") })
 	for range 6 {
 		tt.Advance(100 * time.Millisecond)
 		tt.Frame()
 	}
 	shot(t, tt, "goa-worker-details.png")
 	const dialogRight = (1400 + 520) / 2
-	for _, label := range []string{"Cancel", "Change model", "Open the session", "Leaves GOD of Agents and shows it"} {
+	for _, label := range []string{"Cancel", "Change model", "Open in a tab"} {
 		if b, ok := tt.Find(label); ok && b.X+b.W > dialogRight {
 			t.Errorf("%q ends at %.0f, past the dialog's %d", label, b.X+b.W, dialogRight)
 		}
 	}
 	app.goa.detail = nil
 	tt.Frame()
+
+	// A click opens it in a tab: live, GOA still there; closing the tab
+	// leaves it running, and it opens again.
+	gBefore := app.selected
+	row, _ := tt.Find("Fix the totals · working")
+	tt.Press(row.X+10, row.Y+row.H/2)
+	tt.Release(row.X+10, row.Y+row.H/2)
+	frames("the tab", func() bool { return len(app.goa.tabs) == 1 && app.goa.tabs[0].term != nil })
+	tab := app.goa.tabs[0]
+	if !app.goaOn() || app.selected != gBefore || app.goa.shown != tab.key {
+		t.Fatalf("opening a tab: goa %v selected %q shown %q", app.goaOn(), app.selected, app.goa.shown)
+	}
+	if err := cl.Input(task.Session, "seen in the tab", false, true); err != nil {
+		t.Fatal(err)
+	}
+	frames("the tab live", func() bool { return strings.Contains(tab.term.Text(), "heard: seen in the tab") })
+	for range 6 {
+		tt.Advance(100 * time.Millisecond)
+		tt.Frame()
+	}
+	shot(t, tt, "goa-tab.png")
+	click("Close this tab: the session keeps running")
+	if len(app.goa.tabs) != 0 || app.goa.shown != "" {
+		t.Fatalf("the tab stayed: %+v", app.goa.tabs)
+	}
+	if err := cl.Input(task.Session, "still running", false, true); err != nil {
+		t.Fatal(err)
+	}
+	frames("still running", func() bool {
+		screen, _ := cl.Screen(task.Session)
+		return strings.Contains(screen, "heard: still running")
+	})
+	for _, s := range app.sessions {
+		if s.ID == task.Session {
+			app.openGOATab(app.host.Name, cl, s)
+		}
+	}
+	frames("opened again", func() bool { return len(app.goa.tabs) == 1 && app.goa.tabs[0].term != nil })
+	app.goaShow("")
+	tt.Frame()
+	if app.currentView(g0) != viewChat || app.goaShownTab() != nil {
+		t.Fatalf("back to GOA: view %q", app.currentView(g0))
+	}
+	app.closeGOATabs()
 	// In its terminal, typed where the prompt is, not sent.
 	app.showView(g0, viewTerminal)
 	frames("GOA's terminal", func() bool { return app.panes[g0.ID] != nil })
@@ -231,4 +275,64 @@ func TestGOAMode(t *testing.T) {
 		t.Fatal("still in GOA mode")
 	}
 	frames("the chip again", func() bool { return tt.HasText("GOD of Agents") })
+}
+
+// A tab works on another host's connection the same, and brings a hibernated
+// session back to show it.
+func TestGOATabOnAnotherHost(t *testing.T) {
+	bin := t.TempDir()
+	os.WriteFile(filepath.Join(bin, "claude"), []byte("#!/bin/sh\necho up\nwhile read -r line; do echo \"heard: $line\"; done\n"), 0o755)
+	t.Setenv("PATH", bin+string(os.PathListSeparator)+os.Getenv("PATH"))
+	srv, err := daemon.NewServer(t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer srv.Close()
+	a1, b1 := net.Pipe()
+	go srv.ServeConn(a1)
+	cl, err := client.New(b1, func(proto.Event) {})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer cl.Close()
+	s, err := cl.CreateSession(proto.SessionCreateParams{Agent: "claude", Dir: t.TempDir(), Cols: 80, Rows: 24})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := cl.Call(proto.MethodSessionState, proto.SessionStateParams{ID: s.ID, State: proto.StateDone}, nil); err != nil {
+		t.Fatal(err)
+	}
+	res, err := cl.HibernateSessions(proto.SessionHibernateParams{IDs: []string{s.ID}})
+	if err != nil || len(res.Hibernated) != 1 {
+		t.Fatalf("hibernating: %+v %v", res, err)
+	}
+	s.Exited, s.Hibernated = true, true
+	app := New(Options{})
+	posted := make(chan func(), 16)
+	app.onMain = func(fn func()) { posted <- fn }
+	app.openGOATab("enowxlabs", cl, s)
+	tab := app.goa.tabs[0]
+	deadline := time.After(15 * time.Second)
+	for tab.term == nil && tab.err == "" {
+		select {
+		case fn := <-posted:
+			fn()
+		case <-deadline:
+			t.Fatal("never attached")
+		}
+	}
+	if tab.err != "" {
+		t.Fatal(tab.err)
+	}
+	defer app.closeGOATabs()
+	if err := cl.Input(s.ID, "over there", false, true); err != nil {
+		t.Fatal(err)
+	}
+	for !strings.Contains(tab.term.Text(), "heard: over there") {
+		select {
+		case <-deadline:
+			t.Fatalf("not live: %q", tab.term.Text())
+		case <-time.After(20 * time.Millisecond):
+		}
+	}
 }
