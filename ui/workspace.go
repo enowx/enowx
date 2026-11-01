@@ -299,6 +299,10 @@ func (a *App) sessionBody(c *ui.Context, s proto.SessionInfo) {
 		a.chatView(c.Key("chat"), s)
 	case p != nil:
 		v := terminal.View(c.Key("term"), p.term).Grow(1).FillWidth()
+		if text, ok := widget.TakeTextDrag(v); ok {
+			p.term.Paste(text + " ")
+			v.Focus()
+		}
 		if top := a.parentOf(s); v.Focused() && a.selected != top.ID {
 			a.selected = top.ID
 		}

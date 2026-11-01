@@ -44,6 +44,7 @@ func Supported(s proto.SessionInfo) bool { return transcript.Supports(s.Agent) }
 // Chat is one session's chat. It belongs to the main thread; its poller
 // reports through the update function given to Follow.
 type Chat struct {
+	caretEnd    bool          // the composer's caret goes after what InsertDraft added
 	attachments []*attachment // going with the next message
 	nextAttach  int
 	viewing     *attachment // shown large, in a modal
@@ -133,6 +134,17 @@ type pendingSet struct {
 // settleAfter is how long a setting asked for shows before what the agent
 // reports takes over again, should the agent not have taken it.
 const settleAfter = 15 * time.Second
+
+// InsertDraft adds text to what the composer holds, and focuses it.
+func (ch *Chat) InsertDraft(text string) {
+	if ch.input != "" && !strings.HasSuffix(ch.input, " ") && !strings.HasSuffix(ch.input, "\n") {
+		ch.input += " "
+	}
+	ch.input, ch.focus, ch.caretEnd = ch.input+text+" ", true, true
+}
+
+// Draft is what the composer holds.
+func (ch *Chat) Draft() string { return ch.input }
 
 // SetDraft puts text in the composer, to finish and send, and focuses it.
 func (ch *Chat) SetDraft(text string) { ch.input, ch.focus = text, true }
@@ -383,6 +395,9 @@ func (ch *Chat) View(c *ui.Context, o Options) {
 		if files := col.DroppedFiles(); len(files) > 0 {
 			o.Drop(files)
 		}
+	}
+	if text, ok := widget.TakeTextDrag(col); ok {
+		ch.InsertDraft(text)
 	}
 	col.Children(func() {
 		switch {

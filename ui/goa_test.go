@@ -7,6 +7,7 @@ import (
 	"os"
 	"path/filepath"
 	"slices"
+	"strings"
 	"testing"
 	"time"
 
@@ -93,6 +94,47 @@ func TestGOAMode(t *testing.T) {
 		t.Fatal(err)
 	}
 	frames("the worker listed", func() bool { return tt.HasText("Fix the totals · working") })
+
+	// Dragged into GOA's chat, a session is a pointer in the composer.
+	drag := func(label string, x, y float32) {
+		t.Helper()
+		from, ok := tt.Find(label)
+		if !ok {
+			t.Fatalf("no %q: %q", label, tt.Texts())
+		}
+		tt.Press(from.X+from.W/2, from.Y+from.H/2)
+		tt.Move(from.X+from.W/2-30, from.Y+from.H/2)
+		tt.Frame()
+		tt.Move(x, y)
+		tt.Frame()
+		tt.Release(x, y)
+		tt.Frame()
+	}
+	pointer := "[session " + task.Session + ": "
+	frames("GOA on its chat", func() bool { s, ok := app.goaSession(); return ok && app.currentView(s) == viewChat })
+	drag("Fix the totals · working", 400, 400)
+	g0, _ := app.goaSession()
+	frames("the pointer in the composer", func() bool { return strings.HasPrefix(app.chats[g0.ID].Draft(), pointer) })
+	if !app.goaOn() || app.goa.detail != nil {
+		t.Fatalf("the drag clicked: detail %+v", app.goa.detail)
+	}
+	shot(t, tt, "goa-pointer.png")
+	// In its terminal, typed where the prompt is, not sent.
+	app.showView(g0, viewTerminal)
+	frames("GOA's terminal", func() bool { return app.panes[g0.ID] != nil })
+	for range 4 {
+		tt.Advance(100 * time.Millisecond)
+		tt.Frame()
+	}
+	drag("Fix the totals · working", 400, 400)
+	frames("the pointer in the terminal", func() bool {
+		screen, _ := cl.Screen(g0.ID)
+		return strings.Contains(screen, pointer)
+	})
+	if screen, _ := cl.Screen(g0.ID); strings.Contains(screen, "heard:") {
+		t.Fatalf("the pointer was sent: %q", screen)
+	}
+	app.showView(g0, viewChat)
 	click("Tasks")
 	frames("the task on the board", func() bool { return tt.HasText("Fix the totals") && tt.HasText("its own · its own") })
 	shot(t, tt, "goa-mode.png")

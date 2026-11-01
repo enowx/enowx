@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"strings"
 	"time"
+	"unicode/utf8"
 
 	"github.com/egoist/mygo/ui"
 
@@ -158,6 +159,11 @@ func (ch *Chat) box(c *ui.Context, o Options) {
 		// The composer has the focus when the chat shows, and gets it back
 		// after a button, a menu or a send takes it.
 		in.AutoFocus()
+		if ch.caretEnd {
+			n := utf8.RuneCountInString(ch.input)
+			in.SetTextSelection(n, n)
+			ch.caretEnd = false
+		}
 		if ch.focus {
 			in.Focus()
 			ch.focus = false

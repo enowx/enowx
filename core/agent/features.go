@@ -118,6 +118,7 @@ var Features = []Feature{
     "$ENOWX_BIN" send ID "..."    # a message to it
     "$ENOWX_BIN" ls               # every session; "$ENOWX_BIN" agents lists the agents installed
 --branch gives it a branch in a worktree of its own, so it doesn't touch your files; without it, it works in this project's folder. Tell the user what you started.
+A "[session ID: name, agent on host]" in what the user writes points at that session, dragged in from the app: read it ("$ENOWX_BIN" read ID, or chat ID, with --host H when it's another host's) before acting on it.
 Done with sessions you spawned? "$ENOWX_BIN" hibernate ID... frees the host's memory and CPU (the user confirms in the app; "wake ID" brings one back on its conversation; --dry-run says what it would stop).`,
 		Tools: []string{"session_spawn", "session_read", "session_send", "session_wait", "sessions_list"}},
 	{ID: "modelapi", Name: "Agent configs", Group: GroupCore,

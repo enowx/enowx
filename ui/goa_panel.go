@@ -90,7 +90,9 @@ func (a *App) sessionsTab(c *ui.Context) {
 func (a *App) goaSessionRow(c *ui.Context, host string, s proto.SessionInfo) {
 	st := statusOf(s)
 	t := a.goaTaskOf(s.ID)
-	row := ui.ButtonBase(c).FillWidth().Padding(7, 8).Gap(8).Radius(theme.RadiusControl).Cursor(ui.CursorPointer).Label(a.sessionName(s))
+	row := ui.ButtonBase(c).FillWidth().Padding(7, 8).Gap(8).Radius(theme.RadiusControl).Cursor(ui.CursorPointer).Label(a.sessionName(s)).
+		Tooltip("Click for its details; drag it into a chat or terminal to point an agent at it").
+		Drag(widget.TextDrag{Text: a.sessionPointer(host, s)})
 	if row.Hovered() {
 		row.Background(theme.Hover)
 	}
@@ -114,6 +116,13 @@ func (a *App) goaSessionRow(c *ui.Context, host string, s proto.SessionInfo) {
 	if row.Clicked() {
 		a.goa.detail = &goaDetail{open: true, host: host, session: s}
 	}
+}
+
+// sessionPointer is session s on host as text an agent reads: enowX's
+// guide says what it points at.
+func (a *App) sessionPointer(host string, s proto.SessionInfo) string {
+	name := strings.Join(strings.Fields(strings.NewReplacer("[", "(", "]", ")").Replace(a.sessionName(s))), " ")
+	return "[session " + s.ID + ": " + name + ", " + a.agentName(s.Agent) + " on " + host + "]"
 }
 
 // goaDetail is a session's details, from the Sessions tool.
