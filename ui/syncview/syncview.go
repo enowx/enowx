@@ -24,6 +24,8 @@ type Options struct {
 	Update func(func())
 	// AgentName names agent IDs the dialog doesn't know.
 	AgentName func(id string) string
+	// Back leaves the page while a sync runs, which goes on.
+	Back func()
 }
 
 // Dialog is one open Sync environment dialog. It belongs to the main
@@ -269,4 +271,16 @@ func (d *Dialog) sourceName() string {
 		return d.opts.Local.Name
 	}
 	return d.opts.Host.Name
+}
+
+// ShowSame lists what is the same on both sides too.
+func (d *Dialog) ShowSame(on bool) { d.showSame = on }
+
+// Loaded is a page with both sides already read: what it shows of a host and
+// this device doesn't need the daemons to draw.
+func Loaded(opts Options, local, remote proto.EnvScan) *Dialog {
+	d := &Dialog{opts: opts, toRemote: true}
+	d.scans = map[bool]proto.EnvScan{true: local, false: remote}
+	d.buildRows()
+	return d
 }
