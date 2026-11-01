@@ -28,7 +28,7 @@ var tabs = []string{TabOverview, TabBudgets, TabPrices, TabCoverage}
 var ranges = []struct {
 	label string
 	days  int
-}{{"Today", 0}, {"7 days", 7}, {"30 days", 30}, {"90 days", 90}, {"Year", 365}}
+}{{"Today", 0}, {"Week", 7}, {"Month", 30}, {"90 days", 90}, {"Year", 365}}
 
 var splits = []struct{ label, by string }{
 	{"Agent", proto.TokensByAgent}, {"Model", proto.TokensByModel}, {"Project", proto.TokensByProject},
@@ -88,6 +88,8 @@ type Options struct {
 	Confirm func(title, body, action string, fn func())
 	// Agent names an agent's preset ID.
 	Agent func(id string) string
+	// Projects are the folders of the host's projects, for the filter.
+	Projects []string
 }
 
 // Draw draws the Tokens tab.
@@ -95,45 +97,51 @@ func (v *View) Draw(c *ui.Context, d Data, o Options) {
 	if v.Tab == "" {
 		v.Tab = TabOverview
 	}
-	ui.Column(c).FillWidth().Gap(16).Children(func() {
-		ui.Row(c).FillWidth().Gap(12).Children(func() {
-			cur := 0
-			for i, t := range tabs {
-				if t == v.Tab {
-					cur = i
+	ui.Scroll(c.Key("tokens-body")).Grow(1).FillWidth().MinHeight(0).Children(func() {
+		ui.Column(c).FillWidth().Padding(theme.S4, theme.S5, theme.S5, theme.S5).Gap(theme.S4).Children(func() {
+			ui.Row(c).FillWidth().Shrink(0).Gap(theme.S2).Children(func() {
+				cur := 0
+				for i, t := range tabs {
+					if t == v.Tab {
+						cur = i
+					}
 				}
+				if i := widget.Segmented(c.Key("tabs"), tabs, cur, nil); i >= 0 {
+					v.Tab = tabs[i]
+				}
+				ui.Spacer(c)
+				if widget.GhostButton(c, "Add a budget").Clicked() {
+					v.budget = budgetForm{open: true}
+				}
+			})
+			if d.Err != "" {
+				widget.CardNote(c, d.Err, 0).TextColor(theme.Error)
 			}
-			if i := widget.Segmented(c.Key("tabs"), tabs, cur, nil); i >= 0 {
-				v.Tab = tabs[i]
+			switch v.Tab {
+			case TabBudgets:
+				v.budgets(c, d, o)
+			case TabPrices:
+				v.prices(c, d, o)
+			case TabCoverage:
+				coverage(c, d)
+			default:
+				v.overview(c, d, o)
 			}
-			ui.Spacer(c)
-			v.tracking(c, d, o)
 		})
-		if d.Err != "" {
-			ui.Text(c, d.Err).FontSize(theme.TextLabel).TextColor(theme.Error)
-		}
-		switch v.Tab {
-		case TabBudgets:
-			v.budgets(c, d, o)
-		case TabPrices:
-			v.prices(c, d, o)
-		case TabCoverage:
-			coverage(c, d)
-		default:
-			v.overview(c, d, o)
-		}
 	})
 	v.budgetSheet(c, d, o)
 	v.priceSheet(c, d, o)
 }
 
-// tracking is tracking's switch and its layers'.
+// tracking is tracking's switch.
 func (v *View) tracking(c *ui.Context, d Data, o Options) {
 	st := d.Settings
 	on := st.On
-	if widget.Switch(c.Key("on"), &on, "Track tokens on "+o.HostName) && o.Save != nil {
-		st.On = on
-		o.Save(st)
-	}
-	ui.Text(c, "Track on "+o.HostName).FontSize(theme.TextLabel).TextColor(theme.TextSoft).SingleLine()
+	ui.Row(c).Shrink(0).Gap(theme.S3).Children(func() {
+		ui.Text(c, "Track tokens on "+o.HostName).FontSize(theme.TextUI).FontWeight(500).SingleLine()
+		if widget.Switch(c.Key("on"), &on, "Track tokens on "+o.HostName) && o.Save != nil {
+			st.On = on
+			o.Save(st)
+		}
+	})
 }
