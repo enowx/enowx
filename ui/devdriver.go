@@ -141,3 +141,7 @@ func (a *App) finishDevRequest(req devRequest, tt *ui.Tester, log []string) {
 	}
 	_ = os.WriteFile(req.Out+".txt", []byte(result), 0o644)
 }
+
+// devSample says this development build shows sample data alone: nothing of
+// the machine it runs on, as its tailnet's devices, may reach its pictures.
+func devSample() bool { return os.Getenv("ENOWX_DEV_SAMPLE") != "" }
