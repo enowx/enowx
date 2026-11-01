@@ -72,7 +72,7 @@ func (t turn) elapsed() time.Duration {
 // turn draws one turn; animate makes it come in, for turns that arrive
 // while the chat shows, not those it opens on.
 func (ch *Chat) turn(c *ui.Context, t turn, running, animate bool) {
-	col := ui.Column(c).FillWidth().Gap(12)
+	col := ui.Column(c).FillWidth()
 	if animate {
 		col.Transition(widget.RowMotion(0))
 	}
@@ -102,43 +102,6 @@ func plural(n int, one, many string) string {
 		return one
 	}
 	return many
-}
-
-// row is a line of a turn's work that opens to show body.
-func (ch *Chat) row(c *ui.Context, index int, svg *ui.SVG, label, detail string, status func(), body func()) {
-	open := ch.open[index]
-	ui.Column(c).FillWidth().Children(func() {
-		if ch.lineHead(c, svg, label, detail, status).Clicked() {
-			ch.open[index] = !open
-		}
-		if open {
-			ui.Column(c).FillWidth().Padding(2, 10, 8, 32).Transition(widget.PageMotion).Children(body)
-		}
-	})
-}
-
-// lineHead is the clickable line of a step: an icon, what it is, a detail
-// in the code font, and its status at the end.
-func (ch *Chat) lineHead(c *ui.Context, svg *ui.SVG, label, detail string, status func()) ui.Element {
-	head := ui.ButtonBase(c).FillWidth().Gap(9).Padding(5, 10).Radius(theme.RadiusControl).Cursor(ui.CursorPointer).
-		Justify(ui.Start).Label(label)
-	bg := theme.Fade(theme.Hover, 0)
-	if head.Hovered() {
-		bg = theme.Hover
-	}
-	head.Background(widget.Tint(head, "bg", bg)).Children(func() {
-		ui.Icon(c, svg).FontSize(13).TextColor(theme.Muted)
-		ui.Text(c, label).FontSize(theme.TextUI).TextColor(theme.TextSoft).SingleLine().Shrink(0)
-		if detail != "" {
-			ui.Text(c, detail).Font(theme.MonoFont).FontSize(theme.TextLabel).TextColor(theme.Muted).SingleLine().Shrink(1).Grow(1)
-		} else {
-			ui.Spacer(c)
-		}
-		if status != nil {
-			ui.Row(c).Gap(5).Shrink(0).Children(status)
-		}
-	})
-	return head
 }
 
 // toolLook is the icon and verb a tool call shows with.
@@ -174,7 +137,7 @@ func (ch *Chat) toolBody(c *ui.Context, e proto.TranscriptEntry) {
 	if e.Old != "" || e.New != "" {
 		if ch.openChanges != nil && e.Detail != "" {
 			ui.Row(c).FillWidth().Justify(ui.End).Children(func() {
-				if widget.Button(c.Key("git"), widget.Secondary, icon.Git, "Open in Git", "").Height(26).Clicked() {
+				if widget.Button(c.Key("git"), widget.Secondary, icon.Git, "Open in Git", "").Clicked() {
 					ch.openChanges(e.Detail)
 				}
 			})
@@ -192,9 +155,8 @@ func (ch *Chat) toolBody(c *ui.Context, e proto.TranscriptEntry) {
 		return
 	}
 	if e.Result == "" {
-		ui.Text(c, "No output yet.").FontSize(theme.TextLabel).TextColor(theme.Muted)
+		ui.Text(c, "No output yet.").FontSize(theme.TextUI).TextColor(theme.TextSoft)
 		return
 	}
-	ui.Text(c, e.Result).Font(theme.MonoFont).FontSize(theme.TextLabel).TextColor(theme.TextSoft).Padding(8, 10).Radius(theme.RadiusControl).
-		Background(theme.Sunken).Border(1, theme.Border).FillWidth().Selectable()
+	widget.CodeBlockText(c, e.Result)
 }

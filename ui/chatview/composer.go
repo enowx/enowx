@@ -16,52 +16,28 @@ import (
 	"github.com/enowx/enowx/ui/widget"
 )
 
-// composer is where the user writes to the agent: what the agent is doing
-// and what it changed, as chips over a box with the message and the
-// agent's settings under it.
+// composer is where the user writes to the agent: a capsule floating over the
+// frame's foot, the conversation scrolling under it, with the message over a
+// row of the agent's settings. What it says of the conversation (the lines
+// changed, the context) keeps to the row's free end.
 func (ch *Chat) composer(c *ui.Context, o Options) {
-	ui.Row(c).FillWidth().Justify(ui.Center).Padding(4, 24, 16, 24).Children(func() {
-		ui.Column(c).Grow(1).MaxWidth(columnWidth).Gap(8).Children(func() {
-			ch.chips(c, o)
+	ui.Row(c.Key("composer")).Absolute().Left(0).Bottom(theme.S4).FillWidth().Justify(ui.Center).PaddingX(theme.S5).PassThrough().Children(func() {
+		ui.Column(c).Grow(1).MinWidth(0).MaxWidth(columnWidth).Gap(theme.S2).PassThrough().Children(func() {
 			ch.slashMenu(c)
 			ch.box(c, o)
-			ui.Row(c).FillWidth().Gap(14).Padding(0, 4).Children(func() {
-				if ch.compact {
-					ui.Text(c, "Enter to send · Shift+Enter: new line").FontSize(theme.TextLabel).TextColor(theme.Idle).SingleLine()
-					return
-				}
-				ui.Text(c, "Enter to send · Shift+Enter for a new line").FontSize(theme.TextLabel).TextColor(theme.Idle).SingleLine()
-				ui.Spacer(c)
-				if !ch.ask.canAnswer() {
-					ui.Text(c, "Approvals and menus show in the terminal").FontSize(theme.TextLabel).TextColor(theme.Idle).SingleLine()
-				}
-			})
 		})
 	})
 }
 
-// chips say the lines the agent's edits changed; what it is doing shows
-// in the bar over the conversation.
-func (ch *Chat) chips(c *ui.Context, o Options) {
-	added, removed := ch.added, ch.removed
-	if added+removed == 0 {
-		return
-	}
-	ui.Row(c).FillWidth().Gap(6).Children(func() {
-		if added+removed > 0 {
-			chip(c.Key("diff"), func() {
-				ui.Text(c, fmt.Sprintf("+%d", added)).FontSize(theme.TextLabel).TextColor(theme.Done).SingleLine()
-				ui.Text(c, fmt.Sprintf("−%d", removed)).FontSize(theme.TextLabel).TextColor(theme.Error).SingleLine()
-				diffBar(c, added, removed)
-			})
+// diffChip says the lines the agent's edits changed, with five blocks once
+// there's room for them.
+func (ch *Chat) diffChip(c *ui.Context, bar bool) {
+	ui.Row(c.Key("diff")).Gap(theme.S1).Shrink(0).AlignItems(ui.Center).Children(func() {
+		figures(c, ch.added, ch.removed)
+		if bar {
+			diffBar(c, ch.added, ch.removed)
 		}
 	})
-}
-
-// chip is a small pill over the composer.
-func chip(c *ui.Context, content func()) ui.Element {
-	return ui.Row(c).Height(26).PaddingX(10).Gap(7).Radius(theme.RadiusSmall).Shrink(1).MinWidth(0).
-		Background(theme.Raised).Border(1, theme.Border).Children(content)
 }
 
 // diffBar is five blocks split between added and removed lines, as code
@@ -71,32 +47,43 @@ func diffBar(c *ui.Context, added, removed int) {
 	if added > 0 && green == 0 {
 		green = 1
 	}
-	ui.Row(c).Gap(2).Children(func() {
+	ui.Row(c).Gap(2).Padding(0, 0, 0, theme.S1).Children(func() {
 		for i := range 5 {
-			col := theme.Error
+			col := theme.Del
 			if i < green {
-				col = theme.Done
+				col = theme.Add
 			}
-			ui.Box(c.Key(i)).Size(6, 6).Radius(theme.RadiusTail).Background(col)
+			ui.Box(c.Key(i)).Size(6, 6).Radius(2).Background(col)
 		}
 	})
 }
 
 // compactWidth is the composer's width under which it shows its settings
-// as icons: their labels and the context's tokens no longer fit.
-const compactWidth = 600
+// as icons: their labels and the context's tokens no longer fit. The row's
+// other figures go by room: diffBarWidth for the blocks of a change, and
+// spentRoom is the least the tokens spent read in.
+const (
+	compactWidth = 600
+	diffBarWidth = 700
+	spentRoom    = 72
+)
 
 // box is the message and the row of buttons under it.
 func (ch *Chat) box(c *ui.Context, o Options) {
-	box := ui.Column(c).FillWidth().Radius(theme.RadiusCard).Background(theme.Raised)
+	box := ui.Column(c).FillWidth().Padding(theme.S3, theme.S2, theme.S2, theme.S2).Gap(theme.S1).Radius(theme.RadiusPanel).Background(theme.Popover).
+		InsetShadow(0, 0, 0, 0.5, theme.Border).Shadow(0, 10, 30, 0, ui.RGBA(0, 0, 0, 0.35))
 	// Narrow, as beside the side panel: the settings show as icons and the
 	// context as its percentage, so nothing is cut.
-	ch.compact = box.LayoutBounds().W > 0 && box.LayoutBounds().W < compactWidth
-	border := theme.BorderStrong
-	if box.FocusWithin() {
-		border = theme.AccentLine
+	width := box.LayoutBounds().W
+	ch.compact = width > 0 && width < compactWidth
+	if h := box.LayoutBounds().H; h > 0 {
+		ch.composerH = h
 	}
-	widget.Raise(box.Border(1, widget.Tint(box, "border", border))).Children(func() {
+	// An inset ring, as a border would move what is inside when focus comes.
+	if box.FocusWithin() {
+		box.InsetShadow(0, 0, 0, 2, theme.Now)
+	}
+	box.Children(func() {
 		ch.editBanner(c)
 		ch.attachmentRow(c)
 		ch.imageViewer(c)
@@ -105,8 +92,8 @@ func (ch *Chat) box(c *ui.Context, o Options) {
 		// OnTextKey: the slash menu its arrows, Tab, Enter and Escape;
 		// Enter sends otherwise, Shift+Enter breaking the line.
 		send := false
-		in := ui.TextAreaBase(c, &ch.input).FillWidth().MinHeight(44).MaxHeight(220).Padding(12, 14, 4, 14).
-			FontSize(13).Placeholder("Message " + o.AgentName + "…  / for commands, @ for files").Label("Message").
+		in := ui.TextAreaBase(c, &ch.input).FillWidth().Lines(1, 5).PaddingX(theme.S2).
+			FontSize(theme.TextRead).LineHeight(readLeading).Placeholder("Message " + o.AgentName + ", / for commands, @ for files").Label("Message").
 			OnPaste(func(text string) bool { return o.Paste != nil && o.Paste(text) }).
 			OnTextKey(func(k ui.TextKey) bool {
 				if k.Mods != 0 {
@@ -168,43 +155,76 @@ func (ch *Chat) box(c *ui.Context, o Options) {
 			in.Focus()
 			ch.focus = false
 		}
-		ui.Row(c).FillWidth().Gap(4).Padding(4, 8, 8, 8).Children(func() {
-			if o.AttachFiles != nil && widget.IconButton(c.Key("attach"), icon.Paperclip, "Attach files or images (or drop or paste them)", false).Clicked() {
-				o.AttachFiles()
-			}
-			if widget.IconButton(c.Key("mention"), icon.AtSign, "Mention a file (@)", false).Clicked() {
-				ch.input += "@"
-				ch.focus = true
-			}
-			if widget.IconButton(c, icon.Slash, "Commands (/)", false).Clicked() {
-				if !strings.HasPrefix(ch.input, "/") {
-					// Commands only run at the start of a message.
-					ch.input, ch.slashClosed = "/"+ch.input, ""
+		ui.Row(c).FillWidth().Gap(theme.S1).AlignItems(ui.Center).Children(func() {
+			ui.Row(c).Shrink(0).Gap(theme.S1).AlignItems(ui.Center).Children(func() {
+				if o.AttachFiles != nil && widget.IconButton(c.Key("attach"), icon.Paperclip, "Attach files or images (or drop or paste them)", false).Clicked() {
+					o.AttachFiles()
 				}
-				ch.focus = true
-			}
-			ch.settings(c, o)
-			ui.Spacer(c)
-			if o.Spent != "" && !ch.compact {
-				ui.Text(c.Key("spent"), o.Spent).FontSize(theme.TextLabel).TextColor(theme.Muted).SingleLine().Shrink(1).Tooltip(o.SpentTip)
-			}
-			ch.contextMeter(c)
-			if o.Working && strings.TrimSpace(ch.input) == "" && len(ch.attachments) == 0 {
-				if roundButton(c, icon.Stop, "Interrupt (Esc)", false).Clicked() && o.Interrupt != nil {
-					o.Interrupt()
+				if widget.IconButton(c.Key("mention"), icon.AtSign, "Mention a file (@)", false).Clicked() {
+					ch.input += "@"
 					ch.focus = true
 				}
-				return
-			}
-			empty := strings.TrimSpace(ch.input) == "" && len(ch.attachments) == 0
-			if roundButton(c, icon.ArrowUp, "Send (Enter)", empty || ch.attaching()).Clicked() {
-				send = true
-			}
+				if widget.IconButton(c.Key("slash"), icon.Slash, "Commands (/)", false).Clicked() {
+					if !strings.HasPrefix(ch.input, "/") {
+						// Commands only run at the start of a message.
+						ch.input, ch.slashClosed = "/"+ch.input, ""
+					}
+					ch.focus = true
+				}
+				ch.settings(c, o)
+			})
+			right := ui.Row(c.Key("row-end")).Grow(1).MinWidth(0).Justify(ui.End).Gap(theme.S2).AlignItems(ui.Center)
+			room := right.LayoutBounds().W
+			right.Children(func() {
+				empty := strings.TrimSpace(ch.input) == "" && len(ch.attachments) == 0
+				stops := o.Working
+				// What goes before the buttons takes what they leave.
+				room -= theme.S2 + roundSize
+				if stops && !empty {
+					room -= theme.S2 + roundSize
+				}
+				room -= ch.contextWidth()
+				bar := width >= diffBarWidth
+				if ch.added+ch.removed > 0 && !ch.compact {
+					room -= theme.S2 + diffWidth(bar)
+				}
+				if o.Spent != "" && !ch.compact && room >= spentRoom {
+					ui.Row(c.Key("spent")).MinWidth(0).Shrink(1).Children(func() {
+						widget.Running(c, o.Spent, widget.RunStyle{Size: theme.TextLabel, Color: theme.TextSoft}).Tooltip(o.SpentTip)
+					})
+				}
+				if ch.added+ch.removed > 0 && !ch.compact {
+					ch.diffChip(c, bar)
+				}
+				ch.contextMeter(c)
+				if stops {
+					// With a message typed, sending is the main action and stopping steps back.
+					if roundButton(c.Key("stop"), icon.Stop, "Stop "+o.AgentName+" (Esc)", false, !empty).Clicked() && o.Interrupt != nil {
+						o.Interrupt()
+						ch.focus = true
+					}
+					if empty {
+						return
+					}
+				}
+				if roundButton(c.Key("send"), icon.ArrowUp, "Send (Enter)", empty || ch.attaching(), false).
+					Tooltip("Send (Enter). Shift+Enter makes a new line.").Clicked() {
+					send = true
+				}
+			})
 		})
 		if send && ch.send(o, ch.input) {
 			ch.input, ch.scrollToEnd, ch.focus = "", true, true
 		}
 	})
+}
+
+// diffWidth is about how wide diffChip runs.
+func diffWidth(bar bool) float32 {
+	if bar {
+		return 112
+	}
+	return 72
 }
 
 // editBanner says the composer holds a message sent before, which sending
@@ -214,19 +234,19 @@ func (ch *Chat) editBanner(c *ui.Context) {
 	if ch.editing == nil {
 		return
 	}
-	ui.Row(c.Key("editing")).FillWidth().Gap(8).Padding(8, 8, 0, 14).AlignItems(ui.Center).Children(func() {
+	ui.Row(c.Key("editing")).FillWidth().Gap(theme.S2).Padding(0, 0, theme.S1, theme.S2).AlignItems(ui.Center).Children(func() {
 		switch {
 		case ch.editBusy:
 			widget.Spinner(c, 12)
-			ui.Text(c, "Going back to before this message…").FontSize(theme.TextLabel).TextColor(theme.TextSoft).Grow(1).Shrink(1)
+			ui.Text(c, "Going back to before this message…").FontSize(theme.TextUI).TextColor(theme.TextSoft).Grow(1).Shrink(1)
 			return
 		case ch.editErr != "":
-			ui.Icon(c, icon.Alert).FontSize(12).TextColor(theme.Error)
-			ui.Text(c, ch.editErr).FontSize(theme.TextLabel).TextColor(theme.Error).Grow(1).Shrink(1)
+			ui.Icon(c, icon.Alert).FontSize(14).TextColor(theme.Del).Shrink(0)
+			ui.Text(c, ch.editErr).FontSize(theme.TextUI).TextColor(theme.Del).Grow(1).Shrink(1)
 		default:
-			ui.Icon(c, icon.Pencil).FontSize(12).TextColor(theme.Accent)
+			ui.Icon(c, icon.Pencil).FontSize(14).TextColor(theme.Now).Shrink(0)
 			ui.Text(c, "Editing a message: sending it replaces it and what came after. Files stay as they are.").
-				FontSize(11.5).TextColor(theme.TextSoft).Grow(1).Shrink(1)
+				FontSize(theme.TextUI).TextColor(theme.TextSoft).Grow(1).Shrink(1)
 		}
 		if widget.IconButton(c, icon.Close, "Stop editing", false).Clicked() {
 			ch.editing, ch.editErr, ch.input, ch.focus = nil, "", "", true
@@ -234,8 +254,21 @@ func (ch *Chat) editBanner(c *ui.Context) {
 	})
 }
 
-// contextMeter is how full the model's context is: a ring of the part
-// used and the percentage, the token counts in its tooltip.
+// contextWidth is about how wide contextMeter runs, with its gap.
+func (ch *Chat) contextWidth() float32 {
+	switch {
+	case ch.contextUsed == 0:
+		return 0
+	case ch.compact:
+		return theme.S2 + 40
+	case ch.contextWindow == 0:
+		return theme.S2 + 80
+	}
+	return theme.S2 + 92
+}
+
+// contextMeter is how full the model's context is: a meter of the part used
+// and the percentage, the token counts in its tooltip.
 func (ch *Chat) contextMeter(c *ui.Context) {
 	if ch.contextUsed == 0 {
 		return
@@ -243,8 +276,8 @@ func (ch *Chat) contextMeter(c *ui.Context) {
 	if ch.contextWindow == 0 {
 		// The model's window isn't known: the count alone, no guess.
 		tip := "Context: " + tokens(ch.contextUsed) + " tokens used. This model's window isn't known to enowX."
-		ui.Row(c.Key("context")).Height(28).PaddingX(8).Radius(theme.RadiusControl).Shrink(0).Tooltip(tip).Label(tip).Children(func() {
-			ui.Text(c, tokens(ch.contextUsed)+" tokens").FontSize(theme.TextLabel).TextColor(theme.Muted).SingleLine()
+		ui.Row(c.Key("context")).Shrink(0).Tooltip(tip).Label(tip).Children(func() {
+			ui.Text(c, tokens(ch.contextUsed)+" tokens").FontSize(theme.TextLabel).TextColor(theme.TextSoft).SingleLine()
 		})
 		return
 	}
@@ -252,16 +285,13 @@ func (ch *Chat) contextMeter(c *ui.Context) {
 	col := widget.Level(fill)
 	tip := fmt.Sprintf("Context: %s of %s tokens used. The agent compacts the conversation as it fills up.",
 		tokens(ch.contextUsed), tokens(ch.contextWindow))
-	ui.Row(c.Key("context")).Height(28).PaddingX(8).Gap(7).Radius(theme.RadiusControl).Shrink(0).Tooltip(tip).Label(tip).Children(func() {
+	ui.Row(c.Key("context")).Gap(theme.S2).Shrink(0).AlignItems(ui.Center).Tooltip(tip).Label(tip).Children(func() {
 		if !ch.compact {
-			ui.Column(c).Width(44).Gap(3).Children(func() {
+			ui.Column(c).Width(44).Children(func() {
 				widget.Meter(c, widget.Segment{Fraction: fill, Color: col})
 			})
 		}
 		ui.Text(c, fmt.Sprintf("%.0f%%", 100*fill)).FontSize(theme.TextLabel).TextColor(col).SingleLine()
-		if !ch.compact {
-			ui.Text(c, tokens(ch.contextUsed)+" / "+tokens(ch.contextWindow)).FontSize(theme.TextLabel).TextColor(theme.Muted).SingleLine()
-		}
 	})
 }
 
@@ -276,62 +306,91 @@ func tokens(n int64) string {
 	return fmt.Sprint(n)
 }
 
-// roundButton is the composer's send or stop button.
-func roundButton(c *ui.Context, svg *ui.SVG, label string, off bool) ui.Element {
-	b := ui.ButtonBase(c).Size(30, 30).Radius(theme.RadiusCard).Center().Shrink(0).Label(label).Tooltip(label).Cursor(ui.CursorPointer).
-		Gradient(theme.AccentHigh, theme.Accent, 180).TextColor(theme.OnAccent).InsetShadow(0, 1, 0, 0, ui.RGBA(255, 255, 255, 0.3))
+// roundSize is the send and stop buttons' size.
+const roundSize = 36
+
+// roundButton is the composer's send or stop button: in the accent, or
+// quiet when back is set.
+func roundButton(c *ui.Context, svg *ui.SVG, label string, off, back bool) ui.Element {
+	b := ui.ButtonBase(c).Size(roundSize, roundSize).Radius(theme.RadiusFull).Center().Shrink(0).Label(label).Tooltip(label).Cursor(ui.CursorPointer)
+	if back {
+		bg := theme.Selected
+		if b.Hovered() {
+			bg = theme.Hover
+		}
+		b.Background(widget.QuickTint(b, "bg", bg)).TextColor(theme.Text)
+	} else {
+		bg := theme.Accent
+		if b.Hovered() && !off {
+			bg = theme.AccentHigh
+		}
+		b.Background(widget.QuickTint(b, "bg", bg)).TextColor(theme.OnAccent)
+	}
 	if off {
-		b.Opacity(0.35).Disabled(true)
+		b.Opacity(0.45).Disabled(true)
 	}
 	b.Children(func() { ui.Icon(c, svg).FontSize(14) })
 	return widget.Pressable(b)
 }
 
-// settings are the chips of what the agent lets the chat change: its
+// settings are the options of what the agent lets the chat change: its
 // model, its permission mode, its effort.
 func (ch *Chat) settings(c *ui.Context, o Options) {
 	set := agent.SettingsOf(o.Agent)
 	if len(set.Models) > 0 {
-		ch.setting(c, o, "model", icon.CPU, set.Models, ch.model, "Model")
+		ch.setting(c, o, "model", icon.CPU, set.Models, ch.model, "Model", "", modelWidth)
 	}
 	if len(set.Modes) > 0 && set.ModeKey != "" {
-		ch.setting(c, o, "mode", icon.Shield, set.Modes, ch.mode, cmp.Or(set.ModeTitle, "Permissions"))
+		ch.setting(c, o, "mode", icon.Shield, set.Modes, ch.mode, cmp.Or(set.ModeTitle, "Permissions"), "", optionWidth)
 	}
 	if len(set.Efforts) > 0 {
-		ch.setting(c, o, "effort", icon.Gauge, set.Efforts, ch.effort, "Effort")
+		ch.setting(c, o, "effort", icon.Gauge, set.Efforts, ch.effort, "Effort", " effort", optionWidth)
 	}
 }
 
-// setting is a chip showing a setting's value that opens the list of its
-// values; picking one asks the agent for it.
-func (ch *Chat) setting(c *ui.Context, o Options, key string, svg *ui.SVG, list []agent.Choice, current, title string) {
+// The room a setting's option takes in the row: the model's keeps its width,
+// so that changing it doesn't move the others; the rest's are as much as they
+// take, up to this, and run when longer.
+const (
+	modelWidth  = 132
+	optionWidth = 120
+)
+
+// setting is an option showing a setting's value (with suffix after it) that
+// opens the list of its values; picking one asks the agent for it.
+func (ch *Chat) setting(c *ui.Context, o Options, key string, svg *ui.SVG, list []agent.Choice, current, title, suffix string, width float32) {
 	shown := current
 	if p, ok := ch.pending[key]; ok {
 		shown = p.id
 	}
 	cur, known := agent.FindChoice(list, shown)
-	label := cur.Label
+	label := cur.Label + suffix
 	switch {
 	case !known && shown != "":
 		label = shown
 	case !known:
 		label = title
 	}
-	b := ui.ButtonBase(c.Key(key)).Height(28).PaddingX(9).Gap(6).Radius(theme.RadiusControl).Shrink(0).
-		Label(title).Tooltip(title + ": " + label).Cursor(ui.CursorPointer).TextColor(theme.TextSoft)
-	if ch.compact {
-		b.PaddingX(6).Gap(3)
-	}
-	bg := theme.Fade(theme.Hover, 0)
+	b := ui.ButtonBase(c.Key(key)).Height(theme.ControlHeight).PaddingX(theme.S2).Gap(theme.S1).Radius(theme.RadiusFull).Shrink(0).AlignItems(ui.Center).Justify(ui.Start).
+		Label(title).Tooltip(title + ": " + label).Cursor(ui.CursorPointer)
+	bg, fg := theme.Fade(theme.Selected, 0), theme.TextSoft
 	if b.Hovered() || ch.menu == key {
-		bg = theme.Hover
+		bg, fg = theme.Selected, theme.Text
 	}
-	b.Background(widget.Tint(b, "bg", bg)).Children(func() {
-		ui.Icon(c, svg).FontSize(13)
-		if !ch.compact {
-			ui.Text(c, label).FontSize(theme.TextLabel).SingleLine()
+	if !ch.compact {
+		if key == "model" {
+			b.Width(width)
+		} else {
+			b.MaxWidth(width)
 		}
-		ui.Icon(c, icon.ChevronDown).FontSize(10).TextColor(theme.Muted)
+	}
+	b.Background(widget.QuickTint(b, "bg", bg)).TextColor(fg).Children(func() {
+		if ch.compact {
+			ui.Icon(c, svg).FontSize(14).Shrink(0)
+		} else {
+			widget.Running(c, label, widget.RunStyle{})
+		}
+		ui.Icon(c, icon.ChevronDown).FontSize(10).Shrink(0)
 	})
 	if widget.Pressable(b).Clicked() {
 		if ch.menu == key {
@@ -345,19 +404,18 @@ func (ch *Chat) setting(c *ui.Context, o Options, key string, svg *ui.SVG, list 
 	}
 	open := true
 	ui.PopoverBase(c, b, &open, func(panel ui.Element) {
-		widget.Popup(panel.AttachTo(b, ui.AnchorTopLeft, ui.AnchorBottomLeft).Margin(0, 0, 6, 0).Width(250))
-		widget.PopupLabel(c, strings.ToUpper(title))
+		widget.Popup(panel.AttachTo(b, ui.AnchorTopLeft, ui.AnchorBottomLeft).Margin(0, 0, theme.S1, 0).Width(250))
 		for _, choice := range list {
-			item := ui.ButtonBase(c.Key(choice.ID)).Label(choice.Label).Cursor(ui.CursorPointer)
+			item := ui.ButtonBase(c.Key(choice.ID)).Label(choice.Label).Cursor(ui.CursorPointer).AlignItems(ui.Center).Justify(ui.Start)
 			widget.PopupItem(item, item.Hovered()).Children(func() {
-				ui.Column(c).Gap(1).Grow(1).MinWidth(0).Children(func() {
-					ui.Text(c, choice.Label).FontSize(theme.TextUI)
+				ui.Column(c).Grow(1).MinWidth(0).Children(func() {
+					ui.Text(c, choice.Label+suffix).FontSize(theme.TextUI)
 					if choice.Note != "" {
-						ui.Text(c, choice.Note).FontSize(theme.TextLabel).TextColor(theme.Muted)
+						ui.Text(c, choice.Note).FontSize(theme.TextLabel).TextColor(theme.TextSoft)
 					}
 				})
 				if known && choice.ID == cur.ID {
-					ui.Icon(c, icon.Check).FontSize(13).TextColor(theme.Accent)
+					ui.Icon(c, icon.Check).FontSize(14).TextColor(theme.Now).Shrink(0)
 				}
 			})
 			if item.Clicked() {

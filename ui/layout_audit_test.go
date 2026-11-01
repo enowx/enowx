@@ -71,6 +71,20 @@ func auditPages() []auditPage {
 		}})
 	}
 	pages = append(pages, auditPage{name: "session", open: session})
+	pages = append(pages, auditToolPages()...)
+	for name, tab := range map[string]string{
+		"check":   centerCheck + "test",
+		"browser": centerBrowser,
+		"diff":    centerDiff + "README.md",
+		"file":    fileTabPrefix + "README.md",
+	} {
+		pages = append(pages, auditPage{name: "session-center-" + name, open: func(a *App) {
+			session(a)
+			a.openPanel(map[string]string{"check": panelChecks, "browser": panelBrowser, "diff": panelChanges, "file": panelFiles}[name])
+			a.openCenter(a.sessions[0], tab)
+		}})
+	}
+	pages = append(pages, chatAuditPages()...)
 	pages = append(pages,
 		auditPage{name: "session-by-project", open: func(a *App) { session(a); a.state.SessionsByProject = true; a.state.RailWide = true }},
 		auditPage{name: "session-by-state", open: func(a *App) { session(a); a.state.SessionsByProject = false; a.state.RailWide = true }},
@@ -111,7 +125,7 @@ func auditPages() []auditPage {
 		}
 		a.vaultOf().view.OpenAdd("github")
 	}})
-	return append(pages, dialogs...)
+	return append(append(pages, dialogs...), auditCloudPages()...)
 }
 
 // closeAudit closes what the pages opened, for the next.
@@ -122,9 +136,12 @@ func closeAudit(a *App) {
 	a.addHost.open = false
 	a.noteImport, a.noteExport = nil, nil
 	a.linksForm, a.attaching, a.copying, a.projectSyncing, a.creating, a.cloningTo = nil, nil, nil, nil, nil, nil
+	a.cloudSet, a.ragSet, a.rulesEditing, a.ragOffers, a.cloudSigningIn = nil, ragSettingsState{}, nil, nil, false
+	a.projects = a.projects[:min(1, len(a.projects))]
 }
 
 func TestLayoutAudit(t *testing.T) {
+	t.Setenv("ANDROID_HOME", stubAndroidSDK(t))
 	h := newNotesHarness(t)
 	seedAudit(t, h)
 	shots := os.Getenv("SHOTS")

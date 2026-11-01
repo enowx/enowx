@@ -14,9 +14,9 @@ import (
 	"github.com/enowx/enowx/ui/theme"
 )
 
-// A turn is a timeline: the user's message, the work folded once done
-// into a line that opens to each step, the answer; the turn under way
-// shows its steps, the latest lit.
+// A turn reads as a conversation: the user's message, the work folded once
+// done into a line that opens to each step, the answer; the turn under way
+// shows its steps and what it does now.
 func TestTurnTimeline(t *testing.T) {
 	at := time.Date(2026, 10, 30, 14, 2, 0, 0, time.Local)
 	entries := []proto.TranscriptEntry{
@@ -38,7 +38,7 @@ func TestTurnTimeline(t *testing.T) {
 		})
 	}, 760, 700)
 	tt.Frame()
-	for _, want := range []string{"You · 14:02", "Worked for 14s", "· 2 tools · 1 file edited", "Saya pasang context 30 detik dan retry 3×.", "Run", "go test ./proxy/..."} {
+	for _, want := range []string{"Worked for 14s", "· 2 tools · 1 file edited", "Saya pasang context 30 detik dan retry 3×.", "Running", "go test ./proxy/..."} {
 		if !tt.HasText(want) {
 			t.Fatalf("no %q: %q", want, tt.Texts())
 		}
@@ -46,6 +46,15 @@ func TestTurnTimeline(t *testing.T) {
 	if tt.HasText("Thought for 8s") {
 		t.Fatal("the done turn's work shows unfolded")
 	}
+	// The message's time shows under the pointer, not to move what is read.
+	msg, _ := tt.Find("Your message")
+	tt.Move(msg.X+msg.W-10, msg.Y+10)
+	tt.Frame()
+	if !tt.HasText("14:02") {
+		t.Fatalf("no time under the pointer: %q", tt.Texts())
+	}
+	tt.Move(0, 0)
+	tt.Frame()
 	if err := tt.Click("Show the work"); err != nil {
 		t.Fatal(err)
 	}

@@ -32,8 +32,8 @@ func (ch *Chat) outline(c *ui.Context, turns []turn, more int) {
 		}
 	}
 	ch.outlineFollow()
-	ui.Column(c.Key("outline")).Absolute().Right(16).Top(20).Width(outlineWidth).MaxHeight(420).Gap(0).Children(func() {
-		ui.Text(c, "Your messages").FontSize(theme.TextLabel).TextColor(theme.Muted).Padding(0, 0, 6, 0)
+	ui.Column(c.Key("outline")).Absolute().Right(theme.S4).Top(theme.S5 + theme.ControlHeight).Width(outlineWidth).MaxHeight(420).Gap(0).Children(func() {
+		ui.Text(c, "Your messages").FontSize(theme.TextLabel).FontWeight(500).TextColor(theme.TextSoft).Padding(0, 0, theme.S1, 0)
 		ui.Scroll(c.Key("outline-rows")).FillWidth().TrackScroll(&ch.outlineScroll).Children(func() {
 			ui.Column(c).FillWidth().Children(func() {
 				for _, r := range rows {
@@ -41,7 +41,7 @@ func (ch *Chat) outline(c *ui.Context, turns []turn, more int) {
 					on := r == current
 					b := ui.ButtonBase(c.Key(r)).FillWidth().Padding(5, 10).Justify(ui.Start).Cursor(ui.CursorPointer).
 						BorderWidth(0, 0, 0, 2).Label("Go to: " + firstLine(t.prompt.Text))
-					col, edge := theme.Muted, theme.BorderStrong
+					col, edge := theme.TextSoft, theme.BorderStrong
 					switch {
 					case on:
 						col, edge = theme.Text, theme.Accent
@@ -49,7 +49,7 @@ func (ch *Chat) outline(c *ui.Context, turns []turn, more int) {
 						col = theme.TextSoft
 					}
 					b.BorderColor(edge).Children(func() {
-						ui.Text(c, firstLine(t.prompt.Text)).FontSize(theme.TextLabel).TextColor(col).SingleLine()
+						ui.Text(c, firstLine(t.prompt.Text)).FontSize(theme.TextLabel).TextColor(col).SingleLine().MinWidth(0).Shrink(1)
 					})
 					if b.Clicked() {
 						ch.list.ScrollTo(r, ui.Start)

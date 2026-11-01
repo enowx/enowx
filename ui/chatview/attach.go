@@ -114,7 +114,7 @@ func (ch *Chat) attachmentRow(c *ui.Context) {
 	if len(ch.attachments) == 0 {
 		return
 	}
-	ui.Row(c.Key("attachments")).FillWidth().Gap(8).Padding(10, 12, 0, 12).Children(func() {
+	ui.Row(c.Key("attachments")).FillWidth().Gap(theme.S2).Wrap().Padding(0, theme.S1, theme.S1, theme.S1).Children(func() {
 		for _, at := range ch.attachments {
 			ch.attachmentChip(c.Key(at.id), at)
 		}
@@ -122,7 +122,7 @@ func (ch *Chat) attachmentRow(c *ui.Context) {
 }
 
 func (ch *Chat) attachmentChip(c *ui.Context, at *attachment) {
-	chip := ui.ButtonBase(c).Size(56, 56).Radius(theme.RadiusSmall).Clip().Background(theme.Sunken).Border(1, theme.Border).
+	chip := ui.ButtonBase(c).Size(56, 56).Shrink(0).Radius(theme.RadiusSmall).Clip().Background(theme.Sunken).InsetShadow(0, 0, 0, 0.5, theme.Border).
 		Tooltip(at.name).Label(at.name)
 	if at.preview == nil {
 		chip.Width(140)
@@ -148,7 +148,7 @@ func (ch *Chat) attachmentChip(c *ui.Context, at *attachment) {
 		if at.path == "" {
 			ui.Box(c).Absolute().Fill().Center().Children(func() { widget.Spinner(c, 14) })
 		}
-		x := ui.ButtonBase(c).Absolute().Top(3).Right(3).Size(18, 18).Radius(theme.RadiusSmall).Center().
+		x := ui.ButtonBase(c).Absolute().Top(3).Right(3).Size(18, 18).Radius(theme.RadiusFull).Center().
 			Background(theme.Fade(theme.Ground, 0.8)).Cursor(ui.CursorPointer).Label("Remove " + at.name)
 		x.Children(func() { ui.Icon(c, icon.Close).FontSize(10).TextColor(theme.Text) })
 		if x.Clicked() {
@@ -178,19 +178,21 @@ func (ch *Chat) imageViewer(c *ui.Context) {
 	open := true
 	ui.DialogBase(c, &open, func(backdrop, panel ui.Element) {
 		backdrop.Background(widget.Backdrop)
-		panel.Padding(10).Gap(8).Radius(theme.RadiusPanel).Background(theme.Dialog).Border(1, theme.BorderStrong).Transition(widget.OverlayMotion)
+		widget.Float(panel.Padding(theme.S3).Gap(theme.S2).Radius(theme.RadiusPanel).Background(theme.Dialog)).Transition(widget.OverlayMotion)
 		w, h := float32(max(at.w, 1)), float32(max(at.h, 1))
 		scale := min(1, viewerWidth/w, viewerHeight/h)
-		ui.Image(c, at.preview).Size(w*scale, h*scale).Fit(ui.Contain).Radius(theme.RadiusSmall)
-		ui.Row(c).FillWidth().Gap(8).Children(func() {
-			ui.Text(c, at.name).FontSize(theme.TextLabel).TextColor(theme.TextSoft).SingleLine().Shrink(1)
-			ui.Text(c, fmt.Sprintf("%d × %d", at.w, at.h)).FontSize(theme.TextLabel).TextColor(theme.Muted).SingleLine()
+		ui.Image(c, at.preview).Size(w*scale, h*scale).Fit(ui.Contain).Radius(theme.RadiusCard)
+		ui.Row(c).FillWidth().Gap(theme.S2).AlignItems(ui.Center).PaddingX(theme.S1).Children(func() {
+			ui.Row(c).MinWidth(0).Shrink(1).Children(func() {
+				widget.Running(c, at.name, widget.RunStyle{Color: theme.TextSoft})
+			})
+			ui.Text(c, fmt.Sprintf("%d × %d", at.w, at.h)).FontSize(theme.TextUI).TextColor(theme.TextSoft).SingleLine().Shrink(0)
 			ui.Spacer(c)
-			if widget.GhostButton(c, "Remove").Clicked() {
+			if widget.Button(c.Key("remove"), widget.Secondary, nil, "Remove", "").Clicked() {
 				ch.dropAttachment(at.id)
 				open = false
 			}
-			if widget.GhostButton(c, "Close").Clicked() {
+			if widget.Button(c.Key("close"), widget.Secondary, nil, "Close", "").Clicked() {
 				open = false
 			}
 		})
