@@ -110,17 +110,17 @@ func TestCloudSettingsSignInAndInvite(t *testing.T) {
 	click("Done")
 	settle("signed in, on the Teams tab", func() bool { return !app.cloudSigningIn && tt.HasText("No teams yet") })
 	click("Devices (2)")
-	settle("the devices", func() bool { return tt.HasText("Ada's other laptop") && tt.HasText("this host") })
+	settle("the devices", func() bool { return tt.HasText("Ada's other laptop") && tt.HasText("This device") })
 	click("Make a recovery key")
 	settle("the recovery key, once", func() bool {
 		return strings.HasPrefix(app.cloudSet.recovery.shown, "enxr-") && tt.HasText("Your recovery key")
 	})
 	click("I kept it")
-	settle("set", func() bool { return tt.HasText("Make a new one") })
+	settle("set", func() bool { return tt.HasText("Make a new one…") })
 	if _, ok := tt.Find("Account: Ada"); !ok {
 		t.Fatalf("the rail's account isn't there: %q", tt.Texts())
 	}
-	if !tt.HasText("This Mac, signed in as the app") {
+	if !tt.HasText("This Mac · a computer · " + cloud.URL) {
 		t.Fatalf("the device: %q", tt.Texts())
 	}
 
@@ -167,8 +167,8 @@ func TestCloudSettingsSignInAndInvite(t *testing.T) {
 	app.openCloudTeam(app.cloudSet, teamID)
 	settle("bob, a viewer", func() bool { return tt.HasText("@bob") })
 	click("Role of Bob")
-	settle("the roles", func() bool { return tt.HasText("member") && tt.HasText("viewer (now)") })
-	click("member")
+	settle("the roles", func() bool { return tt.HasText("Member") && tt.HasText("Viewer (now)") })
+	click("Member")
 	settle("bob, a member", func() bool {
 		full, _ := db.Team(ctx, teamID, acc.ID)
 		for _, m := range full.Members {
@@ -183,7 +183,7 @@ func TestCloudSettingsSignInAndInvite(t *testing.T) {
 	settle("the team's card", func() bool { return app.cloudSet.teams.open == "" && tt.HasText("enowX Labs") })
 	shot(t, tt, "cloud-teams.png")
 	click("Sign out")
-	settle("asked first", func() bool { return app.confirming != nil && tt.HasText("Sign This Mac out of enowX Cloud?") })
+	settle("asked first", func() bool { return app.confirming != nil && tt.HasText("Sign This Mac out?") })
 	if !app.cloudSet.st.SignedIn {
 		t.Fatal("signed out before confirming")
 	}
