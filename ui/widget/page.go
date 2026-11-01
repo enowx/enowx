@@ -82,6 +82,7 @@ func SideEntry(c *ui.Context, svg *ui.SVG, label string, on bool) ui.Element {
 // through FigsNav.
 type Fig struct {
 	Label, Value string
+	Tone         ui.Color // of a value that stands out; zero is the text's
 }
 
 // Figs is a row of figures on one well, divided by hairlines.
@@ -135,7 +136,7 @@ func figGround() ui.Color {
 
 func figFace(c *ui.Context, f Fig) {
 	Running(c.Key("l"), f.Label, RunStyle{Size: theme.TextLabel, Color: theme.TextSoft})
-	Running(c.Key("v"), f.Value, RunStyle{Size: 24, Weight: 500})
+	Running(c.Key("v"), f.Value, RunStyle{Size: 24, Weight: 500, Color: f.Tone})
 }
 
 // KV is a fact: its name and its value, in one row of a card. A long value
