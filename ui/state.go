@@ -95,9 +95,12 @@ func loadState(path string) appState {
 	if path == "" {
 		return st
 	}
-	if data, err := os.ReadFile(path); err == nil {
-		_ = json.Unmarshal(data, &st)
+	data, err := os.ReadFile(path)
+	if err != nil {
+		st.RailWide = true // who opens the app the first time sees the list whole
+		return st
 	}
+	_ = json.Unmarshal(data, &st)
 	return st
 }
 

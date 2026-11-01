@@ -58,7 +58,7 @@ func (a *App) runButton(c *ui.Context, s proto.SessionInfo) {
 	if b.Clicked() {
 		a.loadCommands(s)
 	}
-	a.menu.OpenBelow(b, "run:"+s.ID, 24)
+	a.menu.OpenBelow(b, "run:"+s.ID, theme.ControlHeight)
 	a.menu.Show(c, b, "run:"+s.ID, func(done func()) {
 		cmds := a.runCommands[s.ID]
 		switch {

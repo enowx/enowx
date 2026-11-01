@@ -95,7 +95,7 @@ func (a *App) conflictMark(c *ui.Context, s proto.SessionInfo) {
 	if len(list) == 0 {
 		return
 	}
-	col, lines := theme.Muted, 0
+	col, lines := theme.TextSoft, 0
 	for _, x := range list {
 		if x.Lines {
 			col = theme.Warning

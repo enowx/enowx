@@ -71,6 +71,11 @@ func auditPages() []auditPage {
 		}})
 	}
 	pages = append(pages, auditPage{name: "session", open: session})
+	pages = append(pages,
+		auditPage{name: "session-by-project", open: func(a *App) { session(a); a.state.SessionsByProject = true; a.state.RailWide = true }},
+		auditPage{name: "session-by-state", open: func(a *App) { session(a); a.state.SessionsByProject = false; a.state.RailWide = true }},
+		auditPage{name: "session-folded", open: func(a *App) { session(a); a.state.RailWide = false }},
+	)
 	project := func(a *App) proto.ProjectInfo { return a.projects[0] }
 	note := func(a *App) proto.NoteInfo { return a.noteList.list[0] }
 	dialogs := []auditPage{
