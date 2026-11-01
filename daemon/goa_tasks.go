@@ -268,7 +268,12 @@ func (s *Server) goaAskOf(t proto.GOATask) proto.SessionAsk {
 
 // askLine is what ask asks, in a line.
 func askLine(ask proto.SessionAsk) string {
+	if ask.Deadline != "" {
+		ask.Prompt += " (it gives " + ask.Deadline + ": read the screen and answer soon)"
+	}
 	switch {
+	case ask.Prompt != "" && ask.Tool == "" && len(ask.Questions) == 0:
+		return clip(oneLine(ask.Prompt), 300) + ". Answer with its keys, as its screen shows (send), or answer if it offers them"
 	case len(ask.Questions) > 0:
 		return ask.Questions[0].Question
 	case ask.Tool != "":

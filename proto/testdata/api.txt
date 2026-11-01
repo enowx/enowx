@@ -1767,7 +1767,9 @@ field RunCommand.source string
 field SessionAnswerParams.answer string
 field SessionAnswerParams.id string
 field SessionAsk.answers []string
+field SessionAsk.deadline string
 field SessionAsk.detail string
+field SessionAsk.prompt string
 field SessionAsk.questions []TranscriptQuestion
 field SessionAsk.reason string
 field SessionAsk.tool string

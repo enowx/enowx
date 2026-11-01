@@ -85,6 +85,9 @@ type SessionAsk struct {
 	Questions []TranscriptQuestion `json:"questions,omitempty"`
 	Answers   []string             `json:"answers,omitempty"`
 	Reason    string               `json:"reason,omitempty"`
+	// Prompt is what its screen asks, Deadline the time that gives, as shown.
+	Prompt   string `json:"prompt,omitempty"`
+	Deadline string `json:"deadline,omitempty"`
 	// Urgent says why the user answers this one, not another session:
 	// a GOA worker's call that can't be undone, spends money, publishes,
 	// touches secrets, or the judge isn't sure of (docs/goa.md).
