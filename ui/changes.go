@@ -2,6 +2,7 @@ package ui
 
 import (
 	"slices"
+	"strings"
 
 	"github.com/egoist/mygo"
 	"github.com/egoist/mygo/ui"
@@ -31,18 +32,13 @@ const (
 	viewTraffic  = "Traffic"
 )
 
-// sessionViews are the views session s can show, terminal first.
+// sessionViews are the views session s can show, its chat first; Browser and
+// Traffic are tools that open as tabs.
 func (a *App) sessionViews(s proto.SessionInfo) []string {
-	views := []string{viewTerminal}
 	if canChat(s) {
-		views = append(views, viewChat)
+		return []string{viewChat, viewTerminal}
 	}
-	// GOA's session reaches its browser from GOD of Agents' strip, not
-	// twice from its header too.
-	if webViewAvailable() && !(a.goaOn() && s.ID == a.goa.board.Session) {
-		views = append(views, viewBrowser)
-	}
-	return append(views, viewTraffic)
+	return []string{viewTerminal}
 }
 
 // currentView is what session s shows now.
@@ -81,17 +77,14 @@ func (a *App) showView(s proto.SessionInfo, view string) {
 	}
 }
 
-// changesTab draws the Changes tab for session s.
-func (a *App) changesTab(c *ui.Context, s proto.SessionInfo) {
-	v := a.diffOf(s.ID)
-	gen := a.gen
-	v.Draw(c, diffview.Options{
-		Client:  a.client,
-		Session: s,
-		Update:  a.onMain,
-		Wanted: func() bool {
-			return gen == a.gen && a.panelShows(panelChanges) && a.selected == s.ID && a.diffs[s.ID] == v
-		},
+// diffOptions connect session s's diff to the app; wanted tells whether it
+// still shows.
+func (a *App) diffOptions(s proto.SessionInfo, wanted func() bool) diffview.Options {
+	return diffview.Options{
+		Client:    a.client,
+		Session:   s,
+		Update:    a.onMain,
+		Wanted:    wanted,
 		OpenURL:   func(url string) { go func() { _ = mygo.Shell.OpenExternal(url) }() },
 		Notify:    a.notify,
 		Send:      func(text string) { a.sendToSession(s.ID, text) },
@@ -103,7 +96,29 @@ func (a *App) changesTab(c *ui.Context, s proto.SessionInfo) {
 				}
 			}
 		},
-	})
+		OpenDiff: func(p string) { a.openCenter(s, centerDiff+p) },
+		OpenFile: func(p string) { a.openFileTab(s, p) },
+		Current:  func() string { p, _ := strings.CutPrefix(a.centerFront(s), centerDiff); return p },
+	}
+}
+
+// changesTab draws the Git tool for session s: the changed files.
+func (a *App) changesTab(c *ui.Context, s proto.SessionInfo) {
+	v := a.diffOf(s.ID)
+	gen := a.gen
+	v.Draw(c, a.diffOptions(s, func() bool {
+		return gen == a.gen && a.panelShows(panelChanges) && a.selected == s.ID && a.diffs[s.ID] == v
+	}))
+}
+
+// diffTab draws the changes of the file at p, in the center.
+func (a *App) diffTab(c *ui.Context, s proto.SessionInfo, p string) {
+	v := a.diffOf(s.ID)
+	gen := a.gen
+	tab := centerDiff + p
+	v.DrawFile(c, a.diffOptions(s, func() bool {
+		return gen == a.gen && a.centerShows(s.ID, tab) && a.selected == s.ID && a.diffs[s.ID] == v
+	}), p)
 }
 
 func (a *App) diffOf(id string) *diffview.View {

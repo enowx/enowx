@@ -27,8 +27,8 @@ func TestLinksOpenFilesInThePanel(t *testing.T) {
 		if !a.openLink("s2", link) {
 			t.Fatalf("%s: not opened", link)
 		}
-		if a.selected != "s1" || a.panelTab() != fileTabPrefix+want {
-			t.Fatalf("%s: selected %q, panel %q, want tab %q", link, a.selected, a.panelTab(), want)
+		if a.selected != "s1" || a.centerOf("s1").front != fileTabPrefix+want {
+			t.Fatalf("%s: selected %q, in front %q, want tab %q", link, a.selected, a.centerOf("s1").front, want)
 		}
 	}
 	if a.openLink("s1", "https://example.com/") {
@@ -48,8 +48,8 @@ func TestWindowsImagePathsOpenOutsideProject(t *testing.T) {
 		"file:///C:/Users/Julian%20Fernando/.enowx-app/notes/assets/1fdcf71820cc/icon.png",
 		"~/.enowx-app/notes/assets/1fdcf71820cc/icon.png",
 	} {
-		if !a.openLink("s1", link) || a.panelTab() != fileTabPrefix+want {
-			t.Fatalf("%s opened as %q", link, a.panelTab())
+		if !a.openLink("s1", link) || a.centerOf("s1").front != fileTabPrefix+want {
+			t.Fatalf("%s opened as %q", link, a.centerOf("s1").front)
 		}
 	}
 	for link, expected := range map[string]string{

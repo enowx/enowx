@@ -2,7 +2,6 @@ package ui
 
 import (
 	"slices"
-	"strings"
 
 	"github.com/egoist/mygo/ui"
 
@@ -112,24 +111,16 @@ type sidePanel struct {
 // The side panel's width: as wide as the user dragged it, within these.
 // A narrow window shrinks it down to its minimum before the workspace.
 const (
-	defaultPanelWidth = 436
-	minPanelWidth     = 300
+	defaultPanelWidth = 320
+	minPanelWidth     = 280
 	maxPanelWidth     = 1100
 	panelGrip         = 6 // the strip along its left edge that resizes it
 )
 
-// panelTab is what the panel shows: a tool, or a file of the selected
-// session ("file:<path>"). A file the session hasn't open gives Files.
+// panelTab is what the panel shows: a tool.
 func (a *App) panelTab() string {
-	tab := a.state.Panel.Tab
-	if _, ok := findTool(tab); ok {
-		return tab
-	}
-	if _, ok := a.fileTabOf(a.selected, tab); ok {
-		return tab
-	}
-	if strings.HasPrefix(tab, fileTabPrefix) {
-		return panelFiles
+	if _, ok := findTool(a.state.Panel.Tab); ok {
+		return a.state.Panel.Tab
 	}
 	return panelTools[0].id
 }
@@ -183,6 +174,9 @@ func (a *App) sidePanelView(c *ui.Context) {
 	width := a.state.Panel.Width
 	if width <= 0 {
 		width = defaultPanelWidth
+		if t := a.panelTab(); t == panelBrowser || t == panelTraffic || t == panelAndroid {
+			width = 436 // what they hold doesn't fit a list's width yet
+		}
 	}
 	widget.Bento(ui.Column(c.Key("side-panel")).Width(width).MinWidth(minPanelWidth).Shrink(1).FillHeight(), theme.Fade(theme.Panel, 0.94)).
 		Transition(widget.PanelMotion(24)).Children(func() {
@@ -226,8 +220,6 @@ func (a *App) sidePanelView(c *ui.Context) {
 			a.checksTab(c.Key("checks:"+s.ID), s)
 		case tool == panelActivity:
 			a.activityTab(c.Key("activity:"+s.ID), s)
-		case strings.HasPrefix(tool, fileTabPrefix):
-			a.docTab(c.Key("doc:"+s.ID+":"+tool), s, strings.TrimPrefix(tool, fileTabPrefix))
 		}
 		a.panelGrip(c, width)
 	})
@@ -249,8 +241,7 @@ func (a *App) panelGrip(c *ui.Context, width float32) {
 }
 
 // panelStrip is the panel's top: the tool's name and the button that folds
-// the panel; the tools themselves are in the dock. Code's open files follow
-// as tabs.
+// the panel; the tools themselves are in the dock.
 func (a *App) panelStrip(c *ui.Context) {
 	front := a.panelTab()
 	if front == panelBrowser {
@@ -262,22 +253,12 @@ func (a *App) panelStrip(c *ui.Context) {
 	}
 	a.state.Panel.Last[group.id] = front
 	ui.Row(c).Height(52).Shrink(0).FillWidth().Padding(0, theme.S2, 0, theme.S4).Gap(theme.S2).Children(func() {
-		name := "Files"
-		if t, ok := findTool(front); ok {
-			name = t.name
-		}
-		ui.Text(c, name).FontSize(theme.TextRead).FontWeight(600).SingleLine().Grow(1).MinWidth(0)
+		t, _ := findTool(front)
+		ui.Text(c, t.name).FontSize(theme.TextRead).FontWeight(600).SingleLine().Grow(1).MinWidth(0)
 		if widget.IconButton(c, icon.Close, "Hide the panel ("+modKey+"⇧D)", false).Clicked() {
 			a.state.Panel.Open = false
 		}
 	})
-	if tabs := a.fileTabs[a.selected]; group.id == "code" && len(tabs) > 0 && (front == panelFiles || strings.HasPrefix(front, fileTabPrefix)) {
-		ui.Row(c).Height(36).Shrink(0).FillWidth().PaddingX(theme.S3).Gap(theme.S1).Clip().Children(func() {
-			for _, p := range tabs {
-				a.fileTabButton(c.Key("file:"+p), p, fileTabPrefix+p == front)
-			}
-		})
-	}
 }
 
 // dockFirst are the tools the dock always shows; the others are in its menu.
@@ -292,9 +273,6 @@ func (a *App) toolsDock(c *ui.Context) {
 	front := ""
 	if a.panelShown() {
 		front = a.panelTab()
-		if strings.HasPrefix(front, fileTabPrefix) {
-			front = panelFiles
-		}
 	}
 	first := dockFirst
 	var rest []panelTool
@@ -351,38 +329,6 @@ func (a *App) dockButton(c *ui.Context, t panelTool, front bool) ui.Element {
 		ui.Box(c).Size(8, 8).AttachTo(b, ui.AnchorTopRight, ui.AnchorTopRight).Margin(4, 4, 0, 0).Radius(theme.RadiusFull).Background(theme.Now)
 	}
 	return b
-}
-
-// fileTabButton is the tab of a file: its name, and an × that closes it.
-func (a *App) fileTabButton(c *ui.Context, p string, front bool) {
-	name := fileTabName(p)
-	b := ui.ButtonBase(c).Height(28).PaddingX(theme.S2).Gap(theme.S1).Radius(theme.RadiusFull).Shrink(1).MinWidth(64).
-		Label(p).Tooltip(p).Cursor(ui.CursorPointer)
-	bg, fg := theme.Fade(theme.Selected, 0), theme.TextSoft
-	switch {
-	case front:
-		bg, fg = theme.Selected, theme.TextStrong
-	case b.Hovered():
-		bg, fg = theme.Hover, theme.Text
-	}
-	b.Background(widget.QuickTint(b, "bg", bg)).TextColor(widget.QuickTint(b, "fg", fg)).Transition(widget.QuickMotion)
-	closed := false
-	b.Children(func() {
-		ui.Icon(c, icon.File).FontSize(12)
-		widget.Running(c, name, widget.RunStyle{})
-		x := ui.ButtonBase(c).Size(16, 16).Shrink(0).Radius(theme.RadiusFull).Center().Cursor(ui.CursorPointer).Label("Close " + name)
-		if x.Hovered() {
-			x.Background(theme.Hover)
-		}
-		x.Children(func() { ui.Icon(c, icon.Close).FontSize(10).TextColor(theme.Muted) })
-		closed = x.Clicked()
-	})
-	switch {
-	case closed:
-		a.closeFileTab(a.selected, p)
-	case b.Clicked():
-		a.state.Panel.Tab = fileTabPrefix + p
-	}
 }
 
 func panelNote(c *ui.Context, text string) {

@@ -214,8 +214,10 @@ func (a *App) focusView(c *ui.Context, p proto.ProjectInfo, s proto.SessionInfo)
 		a.menu.OpenBelow(more, "more:"+s.ID, theme.ControlHeight)
 		a.menu.Show(c, more, "more:"+s.ID, func(done func()) { a.sessionMenuItems(c, s, done) })
 	})
-	if !a.showsChat(front.ID) {
-		a.tabStrip(c, s)
+	a.tabStrip(c, s)
+	if tab := a.centerFront(s); tab != "" {
+		a.centerBody(c, s, tab)
+		return
 	}
 	a.sessionBanner(c, front)
 	a.sessionBody(c.Key("front:"+front.ID), front)
@@ -293,7 +295,13 @@ func (a *App) viewToggle(c *ui.Context, s proto.SessionInfo) {
 	if len(views) < 2 {
 		return
 	}
-	if i := widget.Segmented(c.Key("view"), views, slices.Index(views, a.currentView(s)), nil); i >= 0 {
+	// With a viewer in front, neither is lit: picking one comes back to it.
+	current := slices.Index(views, a.currentView(s))
+	if a.centerFront(s) != "" {
+		current = -1
+	}
+	if i := widget.Segmented(c.Key("view"), views, current, nil); i >= 0 {
+		a.centerOf(a.parentOf(s).ID).front = ""
 		a.showView(s, views[i])
 	}
 }

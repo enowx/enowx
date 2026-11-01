@@ -193,9 +193,8 @@ type App struct {
 	chats              map[string]*chatview.Chat // by session ID
 	diffs              map[string]*diffview.View // by session ID
 	fileViews          map[string]*fileview.View // by session ID
-	// fileTabs are the files open in the side panel, by session ID; docs
-	// show them, by session ID and path.
-	fileTabs        map[string][]string
+	center             map[string]*centerTabs    // what tools opened in the center, by session ID
+	// docs are the files center tabs show, by session ID and path., by session ID and path.
 	docs            map[string]*fileview.Doc
 	pageViews       map[string]*pageView      // file tabs showing their page, by session and path
 	portViews       map[string]*portview.View // by session ID
@@ -380,6 +379,7 @@ func (a *App) Open() *mygo.Window {
 		Content:           ui.View(a.view),
 	})
 	a.onMain = a.win.Update
+	a.startDevDriver()
 	stopAppearance := mygo.Theme.OnUpdated(func() { a.systemAppearanceChanged(mygo.Theme.IsDark()) })
 	a.watchQuit()
 	a.usage.Every = a.usageEvery
@@ -681,10 +681,10 @@ func (a *App) remove(id string) {
 	delete(a.state.Chats, id)
 	delete(a.diffs, id)
 	delete(a.fileViews, id)
-	for _, p := range a.fileTabs[id] {
+	for _, p := range a.centerFiles(id) {
 		delete(a.docs, id+"\x00"+p)
 	}
-	delete(a.fileTabs, id)
+	delete(a.center, id)
 	delete(a.portViews, id)
 	a.stopForwards(id)
 	a.closeAppWindows(id)

@@ -115,8 +115,7 @@ func (a *App) chatViewSending(c *ui.Context, s proto.SessionInfo, shown func() b
 		AttachFiles: func() { a.pickChatFiles(s, ch) },
 		Drop:        func(paths []string) { a.attachToChat(s, ch, paths) },
 		OpenChanges: func(file string) {
-			a.openPanel(panelChanges)
-			a.diffOf(s.ID).OpenFile(file)
+			a.openCenter(s, centerDiff+a.diffOf(s.ID).PathOf(file))
 		},
 	})
 }

@@ -14,16 +14,16 @@ type RunStyle struct {
 	Weight int      // 0 is 400
 	Color  ui.Color // zero inherits
 	Mono   bool
-	// Always runs it without the pointer over it: for a title, the one
-	// thing a frame says. Rows of a list run only under the pointer, as many
-	// at once would never be still.
+	// Always runs it without the pointer over it: for what is in front, as a
+	// selected row or a frame's title. Others run only under the pointer, as
+	// many at once would never be still.
 	Always bool
 }
 
 // Running is one line of text in the room its frame gives: the frame never
-// grows for it. Text too long is cut with an ellipsis at rest and runs,
-// back and forth, to show the rest. With less motion asked for it stays cut,
-// and its tooltip says it whole.
+// grows for it. Text too long is cut with an ellipsis at rest and runs, back
+// and forth a few times, to show the rest, then rests again. Its tooltip
+// says it whole.
 func Running(c *ui.Context, text string, st RunStyle) ui.Element {
 	size := st.Size
 	if size == 0 {
@@ -50,25 +50,38 @@ func Running(c *ui.Context, text string, st RunStyle) ui.Element {
 		}
 		return t
 	}
+	wants := room > 0 && over > 1 && (st.Always || box.Hovered())
+	// A pause at each end; about 40 DIPs a second between them.
+	travel := time.Duration(over/40*float32(time.Second)) + 2*runPause
+	period := 2 * travel
+	// How long it has wanted to run: Animate climbs to 1 over its runs, then
+	// stands still, which stops the frames too.
+	ran := float32(0)
+	if wants {
+		ran = box.AnimateWith("ran", 1, runTimes*period, ui.Linear)
+	} else {
+		box.AnimateWith("ran", 0, 0, ui.Linear)
+	}
 	box.Children(func() {
-		if room <= 0 || over <= 1 || !(st.Always || box.Hovered()) {
+		if !wants || ran >= 1 {
 			t := style(ui.Text(c, text)).Shrink(1).MinWidth(0)
 			if room > 0 && over > 1 {
 				t.Tooltip(text)
 			}
 			return
 		}
-		// A pause at each end; about 40 DIPs a second between them.
-		travel := time.Duration(over/40*float32(time.Second)) + 2*runPause
-		period := 2 * travel
 		p := box.Loop("run", period, ui.Linear)
 		style(ui.Text(c, text)).Shrink(0).Translate(-over*runAt(p, float32(runPause)/float32(travel)), 0)
 	})
 	return box
 }
 
-// runPause is how long running text rests at each end.
-const runPause = 1200 * time.Millisecond
+// runPause is how long running text rests at each end, and runTimes how many
+// times it goes there and back.
+const (
+	runPause = 1200 * time.Millisecond
+	runTimes = 3
+)
 
 // runAt is how far running text has gone at p of its way there and back,
 // from 0 to 1, resting for rest of each way at its end.

@@ -65,20 +65,27 @@ func (a *App) showTab(parent, id string) {
 	a.tabs[parent] = id
 }
 
-// tabStrip is the row of session s's tabs, its own first, with the button
-// that opens another.
+// tabStrip is the row of session s's tabs: its own first, the terminals and
+// agents opened beside it, then the viewers tools opened, with the buttons that
+// open another. Every tab is one width; those that don't fit scroll.
 func (a *App) tabStrip(c *ui.Context, s proto.SessionInfo) {
+	viewer := a.centerFront(s)
 	front := a.frontTab(s).ID
-	ui.Row(c).Height(36).Shrink(0).FillWidth().PaddingX(theme.S2).Gap(theme.S2).Background(theme.Sunken).
+	ui.Row(c.Key("tab-strip")).Height(36).Shrink(0).FillWidth().PaddingX(theme.S2).Gap(theme.S1).Background(theme.Sunken).
 		BorderWidth(0, 0, 0.5, 0).BorderColor(theme.Border).Children(func() {
-		ui.Row(c).MinWidth(0).Gap(theme.S1).Clip().Children(func() {
-			a.tabButton(c.Key("tab:"+s.ID), s, s, front == s.ID, false)
-			for _, t := range a.tabsOf(s.ID) {
-				a.tabButton(c.Key("tab:"+t.ID), s, t, front == t.ID, true)
-			}
+		ui.ScrollHorizontal(c.Key("tabs")).Grow(1).MinWidth(0).Height(36).Children(func() {
+			ui.Row(c).Gap(theme.S1).Height(36).Children(func() {
+				a.tabButton(c.Key("tab:"+s.ID), s, s, viewer == "" && front == s.ID, false)
+				for _, t := range a.tabsOf(s.ID) {
+					a.tabButton(c.Key("tab:"+t.ID), s, t, viewer == "" && front == t.ID, true)
+				}
+				for _, tab := range a.centerOf(s.ID).tabs {
+					a.centerTabButton(c, s, tab, viewer == tab)
+				}
+			})
 		})
-		add := smallIcon(c, icon.Plus, "New tab in this session's folder")
-		a.menu.OpenBelow(add, "tab:"+s.ID, 24)
+		add := widget.IconButton(c, icon.Plus, "New tab in this session's folder", false)
+		a.menu.OpenBelow(add, "tab:"+s.ID, theme.ControlHeight)
 		a.menu.Show(c, add, "tab:"+s.ID, func(done func()) {
 			a.shellTabItems(c, s, done)
 			for _, ag := range a.agents {
@@ -92,7 +99,6 @@ func (a *App) tabStrip(c *ui.Context, s proto.SessionInfo) {
 			}
 		})
 		a.runButton(c, s)
-		ui.Spacer(c)
 	})
 }
 
@@ -103,38 +109,13 @@ func (a *App) tabButton(c *ui.Context, parent, t proto.SessionInfo, front, closa
 	if closable && t.Name != "" {
 		name = t.Name // a command run in it
 	}
-	b := ui.ButtonBase(c).Height(28).PaddingX(theme.S2).Gap(theme.S1).Radius(theme.RadiusFull).Shrink(1).MinWidth(64).
-		Label(name).Tooltip(a.sessionName(t)).Cursor(ui.CursorPointer)
-	bg, fg := theme.Fade(theme.Selected, 0), theme.TextSoft
-	switch {
-	case front:
-		bg, fg = theme.Selected, theme.Text
-	case b.Hovered():
-		bg, fg = theme.Hover, theme.Text
-	}
-	b.Background(widget.QuickTint(b, "bg", bg)).TextColor(widget.QuickTint(b, "fg", fg)).Transition(widget.QuickMotion)
 	st := statusOf(t)
-	closed := false
-	b.Children(func() {
-		widget.Dot(c, st.color, st.hollow, 8)
-		ui.Icon(c, icon.Agent(t.Agent)).FontSize(12)
-		widget.Running(c, name, widget.RunStyle{})
-		if !closable {
-			return
-		}
-		x := ui.ButtonBase(c).Size(16, 16).Shrink(0).Radius(theme.RadiusFull).Center().Cursor(ui.CursorPointer).Label("Close " + name)
-		if x.Hovered() {
-			x.Background(theme.Hover)
-		}
-		x.Children(func() { ui.Icon(c, icon.Close).FontSize(10).TextColor(theme.Muted) })
-		closed = x.Clicked()
-	})
-	switch {
-	case closed:
-		a.closeTab(parent, t)
-	case b.Clicked():
-		a.showTab(parent.ID, t.ID)
-	}
+	a.tabFace(c, name, a.sessionName(t), front, closable, st.color, st.hollow, icon.Agent(t.Agent),
+		func() {
+			a.centerOf(parent.ID).front = ""
+			a.showTab(parent.ID, t.ID)
+		},
+		func() { a.closeTab(parent, t) })
 }
 
 // openTab starts agent id (agent.Shell for a terminal, shell its shell or
