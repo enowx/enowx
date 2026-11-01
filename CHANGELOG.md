@@ -2,6 +2,20 @@
 
 Each version's section is also what the app's update dialog shows.
 
+## 0.5.0
+
+- **GOD of Agents:** one session you drive that controls every session on every host. It splits what you ask into tasks, hands each to a session with a model and effort picked for it, follows them on a board, and reads files and writes what is small itself. Its mode keeps Sessions and Tasks beside it, with Notes, Canvas and Browser a click away. Give it rules of your own, written by you or by an AI from what you say, and drag a session into a chat or terminal to point an agent at it.
+- **RAG, built in:** agents find a project's code, docs, notes and memories by meaning. Indexed by enowX itself in SQLite or PostgreSQL with pgvector, with Voyage, an OpenAI-compatible or a TEI embedder. A project is indexed only after you agree to send its text to the embedder; secrets and ignored files never are.
+- **Decision models:** a small model answers instead of guessing: allow a command or leave it to you, is a quiet session waiting, what of a long output the agent needs, is it looping, which model a prompt needs. It uses an agent you have signed in, a model API, a local server or a decision model (Jev, Clef, Neuralwatt). A failure never blocks an agent.
+- **On by default:** RAG, Decisions and their uses start on, and approving commands and trimming long output run without a hook, which costs a little time per command and some of the judge's quota. Turn any of them off in Settings → Decisions and Features.
+- **Hooks:** every event, condition and action, on every agent, from the host, a project or a session.
+- **Token usage:** what each agent, model, project and session used, with costs and budgets, in Resource usage and on the command line.
+- **Agents' configs:** other accounts and model APIs per agent, picked per session, with fallback in your order at a limit.
+- **Control from any session:** agents stop, answer, switch and review sessions on any host the app reaches; what can't be undone asks you.
+- **Keys typed in Settings:** a judge's or RAG's key can stay on the host alone, without the vault.
+- **Team chat:** notifications with a sound and a card to answer from, unread counts, and owners can delete a team.
+- Fixed: a team chat that showed only new messages until later; an agent resumed with no conversation to continue failing to start; a wait on an SSH agent that hangs.
+
 ## 0.4.2
 
 - **Agent chat, redone:** a conversation reads as a timeline, each step with its own icon (a pencil for an edit, a terminal for a command), a turn's work folded under one line. A bar over it says what the agent is at and for how long, searches the chat (⌘F) and opens or folds every step; each step says how long it took, an edit opens in Git in one click, and a button brings you back to the latest.
