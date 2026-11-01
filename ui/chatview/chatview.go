@@ -73,7 +73,11 @@ type Chat struct {
 	olderAsked  bool          // older entries are on the way
 	older       chan struct{} // asks the poller for older entries
 	scrollToEnd bool
-	width       float32 // the conversation's, last laid out
+	// outlineScroll is where the outline of the user's messages is scrolled;
+	// outlineLeft that the user took it from its end (outline.go).
+	outlineScroll ui.ScrollState
+	outlineLeft   bool
+	width         float32 // the conversation's, last laid out
 
 	// The agent's settings as the daemon last read them.
 	model, mode, effort string

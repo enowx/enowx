@@ -4,6 +4,7 @@ import (
 	"image/png"
 	"os"
 	"path/filepath"
+	"strconv"
 	"testing"
 	"time"
 
@@ -125,5 +126,84 @@ func TestPicturePaths(t *testing.T) {
 	got := picturePaths(`look at /tmp/up/Screen\ Shot\ 1.png and /tmp/a.go, then /tmp/b.WEBP`)
 	if len(got) != 2 || got[0] != "/tmp/up/Screen Shot 1.png" || got[1] != "/tmp/b.WEBP" {
 		t.Fatalf("%q", got)
+	}
+}
+
+// The outline shows the newest messages: at its end when opened and as
+// messages come, where the user left it once scrolled up, following again
+// once back at its end. Each conversation starts at its end.
+func TestOutlineStaysAtTheNewest(t *testing.T) {
+	entries := func(n int) []proto.TranscriptEntry {
+		var out []proto.TranscriptEntry
+		for i := range n {
+			out = append(out, proto.TranscriptEntry{Index: 2 * i, Kind: proto.TranscriptUser, Text: "Message number " + strconv.Itoa(i)},
+				proto.TranscriptEntry{Index: 2*i + 1, Kind: proto.TranscriptAssistant, Text: "Done."})
+		}
+		return out
+	}
+	ch := New()
+	ch.turns = splitTurns(entries(40))
+	view := func(chat *Chat) *ui.Tester {
+		return ui.NewTester(func(c *ui.Context) {
+			ui.Column(c).Width(1280).Height(700).Background(theme.Background).TextColor(theme.Text).Children(func() {
+				chat.conversation(c, Options{})
+			})
+		}, 1280, 700)
+	}
+	tt := view(ch)
+	frames := func(tt *ui.Tester) {
+		for range 4 {
+			tt.Frame()
+		}
+	}
+	shows := func(tt *ui.Tester, n int) bool {
+		b, ok := tt.Find("Go to: Message number " + strconv.Itoa(n))
+		return ok && b.H > 0 // off the outline's rows, it isn't laid out
+	}
+	frames(tt)
+	if ch.outlineScroll.MaxY <= 0 {
+		t.Fatal("the outline doesn't overflow: nothing to test")
+	}
+	if !shows(tt, 39) {
+		t.Fatalf("opened: not at its newest: at %v of %v", ch.outlineScroll.Y, ch.outlineScroll.MaxY)
+	}
+	// A new message keeps it at the end.
+	ch.turns = splitTurns(entries(41))
+	frames(tt)
+	if !shows(tt, 40) || ch.outlineLeft {
+		t.Fatalf("a new message: at %v of %v", ch.outlineScroll.Y, ch.outlineScroll.MaxY)
+	}
+	// Scrolled up, it stays, whatever comes and whatever is read.
+	over := float32(1280 - 16 - outlineWidth/2)
+	tt.Move(over, 200)
+	tt.Frame()
+	tt.Scroll(over, 200, 0, -200) // up: a wheel's sign
+	frames(tt)
+	if !ch.outlineLeft {
+		t.Fatal("the wheel didn't move it")
+	}
+	left := ch.outlineScroll.Y
+	ch.turns = splitTurns(entries(42))
+	frames(tt)
+	ch.list.ScrollTo(0, ui.Start)
+	frames(tt)
+	if ch.outlineScroll.Y != left || shows(tt, 41) {
+		t.Fatalf("moved from where it was left: %v, was %v", ch.outlineScroll.Y, left)
+	}
+	// Back at its end, it follows again.
+	ch.outlineScroll.Y = ch.outlineScroll.MaxY
+	frames(tt)
+	ch.turns = splitTurns(entries(43))
+	frames(tt)
+	if ch.outlineLeft || !shows(tt, 42) {
+		t.Fatalf("back at its end: at %v of %v", ch.outlineScroll.Y, ch.outlineScroll.MaxY)
+	}
+	// Another session's starts at its end.
+	other := New()
+	other.turns = splitTurns(entries(30))
+	ot := view(other)
+	frames(ot)
+	if !shows(ot, 29) {
+		t.Fatalf("another conversation: at %v of %v", other.outlineScroll.Y, other.outlineScroll.MaxY)
 	}
 }

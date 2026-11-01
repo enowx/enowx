@@ -22,6 +22,8 @@ A long conversation stays light. The chat opens on about the last 300 entries, w
 
 Each message of the user's starts a turn. The agent's thoughts, tool calls and what it said on the way fold into one line, "Worked for 12s · 4 tools · 2 files edited", open while the turn is under way; its answer, the text it ended on, shows under it as Markdown (headings, nested and task lists, quotes, rules, tables, fenced code with a Copy button, inline code, bold, italics, strikethrough, links). Three or more tool calls in a row fold into one line that sums them up ("Read 3 files, searched twice, ran 1 command"), open while the turn is under way; a shell command counts by its program (cat and sed read, rg and find search, ls lists), past a leading cd, pwd or echo. A call that went well shows no mark; a failed one says so, an edit shows its +/−. An edit opens to its diff; other tools to their output. Over the composer, chips say what the agent is doing and the lines its edits added and removed.
 
+Beside a wide conversation, **Your messages** lists the user's messages, the one read now lit, each a click away. It stays at the newest as messages come; scrolled up, it stays where it is left and new messages don't move it, until it is scrolled back to its end. The lit row doesn't move it. Each session keeps its own place, starting at the newest.
+
 ## Changing the agent's settings
 
 The composer shows the agent's model, permission mode and effort, as the transcript and the screen say them, and changes them the way the agent's user would (`core/agent/settings.go`):

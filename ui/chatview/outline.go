@@ -1,6 +1,8 @@
 package chatview
 
 import (
+	"math"
+
 	"github.com/egoist/mygo/ui"
 
 	"github.com/enowx/enowx/ui/theme"
@@ -29,9 +31,10 @@ func (ch *Chat) outline(c *ui.Context, turns []turn, more int) {
 			current = r
 		}
 	}
+	ch.outlineFollow()
 	ui.Column(c.Key("outline")).Absolute().Right(16).Top(20).Width(outlineWidth).MaxHeight(420).Gap(0).Children(func() {
 		ui.Text(c, "Your messages").FontSize(11).TextColor(theme.Muted).Padding(0, 0, 6, 0)
-		ui.Scroll(c).FillWidth().Children(func() {
+		ui.Scroll(c.Key("outline-rows")).FillWidth().TrackScroll(&ch.outlineScroll).Children(func() {
 			ui.Column(c).FillWidth().Children(func() {
 				for _, r := range rows {
 					t := turns[r-more]
@@ -55,6 +58,20 @@ func (ch *Chat) outline(c *ui.Context, turns []turn, more int) {
 			})
 		})
 	})
+}
+
+// outlineFollow keeps the outline at its newest messages, as it was left
+// unless the user scrolled it up, until they scroll back to its end. The row
+// lit for what is read in the conversation doesn't move it.
+func (ch *Chat) outlineFollow() {
+	st := &ch.outlineScroll
+	const near = 1 // a DIP's rounding is still the end
+	if st.MaxY > 0 {
+		ch.outlineLeft = st.Y < st.MaxY-near
+	}
+	if !ch.outlineLeft {
+		st.Y = math.MaxFloat32
+	}
 }
 
 // firstLine is a message's first line, cut short for the outline.
