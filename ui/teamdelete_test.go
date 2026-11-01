@@ -168,9 +168,11 @@ func TestOwnerDeletesTeamByTypingItsName(t *testing.T) {
 	shot(t, member, "team-deleted-card.png")
 	click(member, "OK")
 	settle("seen", func() bool { return !member.HasText("Design was deleted") })
-	if gone, _ := bob.SpacesGone(); len(gone) != 0 {
-		t.Fatalf("seen, the host still says it: %+v", gone)
-	}
+	// The card closes at once; the host hears of it in the background.
+	settle("seen by the host", func() bool {
+		gone, err := bob.SpacesGone()
+		return err == nil && len(gone) == 0
+	})
 }
 
 func spaceNames(list []proto.Space) string {
