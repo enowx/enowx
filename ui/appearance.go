@@ -48,7 +48,7 @@ func (a *App) appearancePage(c *ui.Context) {
 					p := theme.LookupAppearance(preset.ID, ui.Color{}, a.lightAppearance())
 					if a.paletteCard(c.Key(p.ID), p) {
 						a.state.Theme = p.ID
-						if p.ID == theme.Palettes[0].ID {
+						if p.ID == theme.Default.ID {
 							a.state.Theme = ""
 						}
 						a.applyTheme()

@@ -13,29 +13,33 @@ func LookupAppearance(id string, accent ui.Color, light bool) Palette {
 		return Lookup(id, accent)
 	}
 	dark := Lookup(id, ui.Color{})
+	black := func(a float32) ui.Color { return ui.RGBA(0, 0, 0, a) }
+	white := func(a float32) ui.Color { return ui.RGBA(255, 255, 255, a) }
+	wall := dark.Wall
+	for i := range wall {
+		wall[i].A = 70
+	}
 	p := Palette{
 		ID: dark.ID, Name: dark.Name, Light: true,
-		Background: ui.Hex("#F4F6F9"), Panel: ui.Hex("#FFFFFF"), Raised: ui.Hex("#FFFFFF"), Sunken: ui.Hex("#EDF0F5"),
-		Hover: ui.Hex("#EAF0F8"), Selected: ui.Hex("#E0E8F3"), Dialog: ui.Hex("#FFFFFF"),
-		Border: ui.Hex("#D9DFE8"), BorderStrong: ui.Hex("#778497"),
-		Text: ui.Hex("#243043"), TextStrong: ui.Hex("#101828"), TextSoft: ui.Hex("#475467"), Muted: ui.Hex("#536176"),
-		Accent: ui.Hex("#315FBD"), Working: ui.Hex("#245BC1"), Done: ui.Hex("#166B42"), Warning: ui.Hex("#855300"), Error: ui.Hex("#B42318"), Idle: ui.Hex("#6A7688"),
+		Ground: ui.Hex("#E9EDF5"), Wall: wall,
+		Background: ui.Hex("#F4F6F9"), Panel: white(0.62), Raised: white(0.62), Sunken: black(0.06),
+		Frame: white(0.88), Popover: ui.RGBA(252, 252, 254, 0.98),
+		Hover: black(0.05), Selected: black(0.1), Dialog: ui.RGBA(252, 252, 254, 0.98),
+		Border: black(0.12), BorderStrong: ui.Hex("#778497"),
+		Text: ui.Hex("#1C2130"), TextStrong: ui.Hex("#0C101C"), TextSoft: ui.Hex("#475467"), Muted: ui.Hex("#536176"),
+		Accent: ui.Hex("#0A63C9"), Working: ui.Hex("#075E8C"), Done: ui.Hex("#166B42"), Warning: ui.Hex("#855300"),
+		Error: ui.Hex("#B3261E"), Idle: ui.Hex("#5F6673"),
+		Add: ui.Hex("#166B42"), Del: ui.Hex("#B3261E"), Now: ui.Hex("#0A63C9"),
 	}
 	switch p.ID {
 	case Champagne.ID:
-		p.Background, p.Sunken = ui.Hex("#F8F6F1"), ui.Hex("#F0ECE4")
-		p.Hover, p.Selected = ui.Hex("#F1ECE3"), ui.Hex("#E9E0D1")
-		p.Border, p.BorderStrong = ui.Hex("#E2DACB"), ui.Hex("#8E7C63")
-		p.Text, p.TextStrong, p.TextSoft, p.Muted = ui.Hex("#322B22"), ui.Hex("#20190F"), ui.Hex("#60523F"), ui.Hex("#6A5B47")
-		p.Accent = ui.Hex("#826235")
+		p.Ground, p.Accent = ui.Hex("#F3EFE7"), ui.Hex("#826235")
 	case Obsidian.ID:
 		p.Accent = ui.Hex("#4E5A6B")
 	case Midnight.ID:
 		p.Accent = ui.Hex("#355CAD")
 	case Copper.ID:
-		p.Background, p.Sunken = ui.Hex("#F8F5F2"), ui.Hex("#F0E9E3")
-		p.Hover, p.Selected = ui.Hex("#F3EAE1"), ui.Hex("#ECDDCE")
-		p.Accent = ui.Hex("#9C5429")
+		p.Ground, p.Accent = ui.Hex("#F3ECE6"), ui.Hex("#9C5429")
 	}
 	if accent.A != 0 {
 		p.Accent = accent
@@ -49,6 +53,11 @@ func LookupAppearance(id string, accent ui.Color, light bool) Palette {
 	return p
 }
 
+func onWhite(c ui.Color) ui.Color {
+	at := func(v uint8) uint8 { return uint8(255 - (255-float64(v))*float64(c.A)/255 + 0.5) }
+	return ui.Color{R: at(c.R), G: at(c.G), B: at(c.B), A: 255}
+}
+
 func contrastInk(background ui.Color) ui.Color {
 	dark, light := ui.Hex("#101828"), ui.Hex("#FFFFFF")
 	if contrast(dark, background) >= contrast(light, background) {
@@ -57,7 +66,10 @@ func contrastInk(background ui.Color) ui.Color {
 	return light
 }
 
+// contrast is the ratio of a and b, each a translucent color as it reads on
+// white.
 func contrast(a, b ui.Color) float64 {
+	a, b = onWhite(a), onWhite(b)
 	luminance := func(c ui.Color) float64 {
 		linear := func(v uint8) float64 {
 			x := float64(v) / 255

@@ -15,15 +15,17 @@ import (
 // The color tokens. Status colors differ in lightness as well as hue.
 var (
 	Background   ui.Color // window, terminals
-	Ground       ui.Color // what the bento panels sit on: darker than the window
-	Panel        ui.Color // rail, session list, title and status bars
-	Raised       ui.Color // cards
-	Sunken       ui.Color // inputs, tracks: below the surface
+	Ground       ui.Color // the wallpaper the glass sits on
+	Panel        ui.Color // glass: the session list, the bars' capsules, the tools
+	Frame        ui.Color // the one bright frame the user works in
+	Raised       ui.Color // cards on a frame
+	Sunken       ui.Color // wells: inputs, tracks, segmented controls
 	Hover        ui.Color
 	Selected     ui.Color
 	Border       ui.Color // hairlines between areas
 	BorderStrong ui.Color // outlines of controls
-	Dialog       ui.Color // dialogs, menus, pop-overs
+	Dialog       ui.Color // dialogs
+	Popover      ui.Color // menus, pop-overs
 	Text         ui.Color
 	TextStrong   ui.Color
 	TextSoft     ui.Color
@@ -40,6 +42,10 @@ var (
 	Warning ui.Color
 	Error   ui.Color
 	Idle    ui.Color
+
+	Add ui.Color // lines added
+	Del ui.Color // lines removed, destructive words
+	Now ui.Color // what happens now, the focus ring
 )
 
 // MonoFont is the font of paths, code and command output.
@@ -47,12 +53,34 @@ const MonoFont = "monospace"
 
 // Shape: the same in every palette.
 const (
-	RadiusControl = 9  // buttons, inputs, rows
-	RadiusCard    = 12 // cards, menus
-	RadiusPanel   = 16 // dialogs, sections
-	RadiusBento   = 14 // the window's panels
-	BentoGap      = 8  // between the window's panels, and around them
+	RadiusFull    = 999 // capsules: half the height, whatever the height is
+	RadiusControl = 16  // buttons, inputs: a capsule at ControlHeight
+	RadiusTail    = 4   // a bubble's corner toward who said it
+	RadiusSmall   = 12  // thumbnails, swatches
+	RadiusCard    = 20  // cards, bubbles, wells, menus
+	RadiusPanel   = 28  // the window's panels, dialogs
+	RadiusBento   = 28  // the window's panels
+	BentoGap      = 8   // between the window's panels
+	WindowInset   = 12  // around them
 	ControlHeight = 32
+)
+
+// Spacing: the steps of every gap and padding.
+const (
+	S1 = 4
+	S2 = 8
+	S3 = 12
+	S4 = 16
+	S5 = 24
+	S6 = 32
+)
+
+// Type: the steps of every text size.
+const (
+	TextLabel = 12 // labels, details
+	TextUI    = 13 // controls, lists: the default
+	TextRead  = 15 // what is read: conversations, notes
+	TextTitle = 17 // the title of a frame or dialog
 )
 
 // current is the palette applied last.
@@ -61,29 +89,27 @@ var current Palette
 // Current is the palette in use.
 func Current() Palette { return current }
 
-func init() { Apply(Champagne) }
+func init() { Apply(Default) }
 
 // Apply sets every token from p.
 func Apply(p Palette) {
 	current = p
 	Background, Panel, Raised, Sunken = p.Background, p.Panel, p.Raised, p.Sunken
-	Ground = Mix(p.Background, ui.Hex("#000000"), 0.5)
-	if p.Light {
-		Ground = Mix(p.Background, ui.Hex("#000000"), 0.035)
-	}
+	Ground, Frame, Popover = p.Ground, p.Frame, p.Popover
 	Hover, Selected, Dialog = p.Hover, p.Selected, p.Dialog
 	Border, BorderStrong = p.Border, p.BorderStrong
 	Text, TextStrong, TextSoft, Muted = p.Text, p.TextStrong, p.TextSoft, p.Muted
 	Accent, OnAccent = p.Accent, p.OnAccent
-	AccentHigh = Mix(p.Accent, ui.Hex("#FFFFFF"), 0.22)
-	AccentSoft = Fade(p.Accent, 0.08)
-	AccentLine = Fade(p.Accent, 0.4)
-	Highlight = Fade(p.Text, 0.05)
+	AccentHigh = Mix(p.Accent, ui.Hex("#FFFFFF"), 0.12)
+	AccentSoft = Fade(p.Accent, 0.16)
+	AccentLine = p.Now
+	Highlight = ui.RGBA(255, 255, 255, 0.55)
 	if p.Light {
 		AccentHigh = Mix(p.Accent, ui.Hex("#000000"), 0.08)
 		AccentLine = Fade(p.Accent, 0.75)
-		Highlight = ui.RGBA(255, 255, 255, 0.65)
+		Highlight = ui.RGBA(255, 255, 255, 0.85)
 	}
+	Add, Del, Now = p.Add, p.Del, p.Now
 	Working, Done, Warning, Error, Idle = p.Working, p.Done, p.Warning, p.Error, p.Idle
 }
 
@@ -95,7 +121,7 @@ func Window() *ui.Theme {
 		t = *ui.LightTheme()
 	}
 	t.Background = Background
-	t.Surface = Raised
+	t.Surface = Selected
 	t.SurfaceHover = Hover
 	t.SurfacePressed = Selected
 	t.Border = BorderStrong
@@ -109,10 +135,12 @@ func Window() *ui.Theme {
 	t.Warning = Warning
 	t.Success = Done
 	t.Selection = Fade(Accent, 0.28)
-	t.Focus = AccentLine
+	t.Focus = Now
 	t.Radius = RadiusControl
-	t.Inverse, t.InverseText = Selected, Text
-	t.Scrollbar = BorderStrong
+	t.Inverse, t.InverseText = Popover, Text
+	t.Scrollbar = Selected
+	t.ScrollbarWidth = 8
+	t.FontSize = TextUI
 	return &t
 }
 
