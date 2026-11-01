@@ -57,7 +57,7 @@ func TestCloudSettingsSignInAndInvite(t *testing.T) {
 	tt := ui.NewTester(func(c *ui.Context) {
 		c.SetTheme(theme.Window())
 		ui.Row(c).Width(980).Height(900).Background(theme.Background).Children(func() {
-			ui.Column(c).Width(220).FillHeight().Padding(8).Children(func() { app.railAccount(c, true) })
+			ui.Column(c).Width(220).FillHeight().Padding(8).Children(func() { app.accountAction(c) })
 			ui.Column(c).Grow(1).FillHeight().Padding(24, 32).Gap(16).Children(func() { app.cloudSection(c) })
 		})
 		app.cloudSignInDialog(c)

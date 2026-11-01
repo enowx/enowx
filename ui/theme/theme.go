@@ -156,5 +156,14 @@ func Fade(c ui.Color, a float64) ui.Color {
 	return c
 }
 
+// Solid is translucent c as it reads on the wallpaper's ground, opaque: for
+// what has no ground under it.
+func Solid(c ui.Color) ui.Color {
+	at := func(v, g uint8) uint8 {
+		return uint8(float64(g) + (float64(v)-float64(g))*float64(c.A)/255 + 0.5)
+	}
+	return ui.Color{R: at(c.R, Ground.R), G: at(c.G, Ground.G), B: at(c.B, Ground.B), A: 255}
+}
+
 // Hex writes c as #RRGGBB, as ui.Hex reads it back.
 func Hex(c ui.Color) string { return fmt.Sprintf("#%02X%02X%02X", c.R, c.G, c.B) }

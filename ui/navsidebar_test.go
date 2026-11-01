@@ -21,9 +21,12 @@ func TestOneSidebar(t *testing.T) {
 	}
 	app.sessions = []proto.SessionInfo{{ID: "s1", Name: "Sinkronisasi branch payroll", Agent: "claude", State: proto.StateWorking}}
 	h.tt = ui.NewTester(func(c *ui.Context) {
-		ui.Row(c).Width(1280).Height(800).Background(theme.Ground).TextColor(theme.Text).Children(func() {
-			app.navSidebar(c)
-			ui.Column(c).Grow(1).MinWidth(0).FillHeight().Children(func() { app.canvasPage(c) })
+		ui.Column(c).Width(1280).Height(800).Background(theme.Ground).TextColor(theme.Text).Children(func() {
+			app.titleBar(c)
+			ui.Row(c).Grow(1).FillWidth().MinHeight(0).Children(func() {
+				app.navSidebar(c)
+				ui.Column(c).Grow(1).MinWidth(0).FillHeight().Children(func() { app.canvasPage(c) })
+			})
 		})
 	}, 1280, 800)
 	h.settle("the canvas in the sidebar", func() bool {

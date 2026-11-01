@@ -10,7 +10,6 @@ import (
 	"github.com/egoist/mygo/ui"
 
 	"github.com/enowx/enowx/proto"
-	"github.com/enowx/enowx/ui/theme"
 )
 
 // Clicking anywhere in a slice's sector picks it, not only its icon's 44 DIP
@@ -111,8 +110,8 @@ func TestFloatingSlicesAreOpaque(t *testing.T) {
 		}
 	}
 	// The hub's surface, which the title sits on.
-	if theme.Raised.A != 255 {
-		t.Fatalf("the hub's fill has alpha %d, want 255", theme.Raised.A)
+	if got := app.floatingSurface(); got.A != 255 {
+		t.Fatalf("the hub's fill has alpha %d, want 255", got.A)
 	}
 	// A disabled slice is still visibly dimmer than an enabled one: dim by
 	// colour, not by alpha.

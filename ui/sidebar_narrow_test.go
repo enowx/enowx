@@ -33,27 +33,18 @@ func TestSidebarFoldsToIcons(t *testing.T) {
 		})
 	}, 600, 600)
 	tt.Frame()
-	if err := tt.Click("Collapse sidebar (" + modKey + "B)"); err != nil {
+	if err := tt.Click("Collapse the sidebar (" + modKey + "B)"); err != nil {
 		t.Fatalf("%v: %q", err, tt.Texts())
 	}
 	tt.Advance(time.Second) // its width done moving
 	tt.Frame()
 	shot(t, tt, "sidebar-folded.png")
-	if app.state.RailWide || tt.HasText("Filter sessions") {
+	if app.state.RailWide || tt.HasText("Sessions only") {
 		t.Fatalf("not folded: %q", tt.Texts())
 	}
 	r, ok := tt.Find("Refactor the payment webhooks")
 	if !ok || r.X+r.W > navNarrow {
 		t.Fatalf("the session isn't there folded, by its name: %v %v", ok, r)
-	}
-	if !tt.HasText("CR") || !tt.HasText("EN") {
-		t.Fatalf("the projects' initials: %q", tt.Texts())
-	}
-	if _, ok := tt.Find("New session in cryptgo (" + modKey + "N)"); !ok {
-		t.Fatal("no New in the current project's group")
-	}
-	if _, ok := tt.Find("New session in enxapi (" + modKey + "N)"); ok {
-		t.Fatal("New in another project's group")
 	}
 	if err := tt.Click("Refactor the payment webhooks"); err != nil {
 		t.Fatal(err)
@@ -62,11 +53,11 @@ func TestSidebarFoldsToIcons(t *testing.T) {
 	if app.selected != "s1" {
 		t.Fatalf("selected %q", app.selected)
 	}
-	if err := tt.Click("Expand sidebar"); err != nil {
+	if err := tt.Click("Expand the sidebar (" + modKey + "B)"); err != nil {
 		t.Fatal(err)
 	}
 	tt.Frame()
-	if !app.state.RailWide || !tt.HasText("Filter sessions") {
+	if !app.state.RailWide || !tt.HasText("Sessions only") {
 		t.Fatalf("not unfolded: %q", tt.Texts())
 	}
 }

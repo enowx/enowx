@@ -69,15 +69,15 @@ func (a *App) showTab(parent, id string) {
 // that opens another.
 func (a *App) tabStrip(c *ui.Context, s proto.SessionInfo) {
 	front := a.frontTab(s).ID
-	ui.Row(c).Height(34).Shrink(0).FillWidth().PaddingX(8).Gap(4).Background(theme.Panel).
-		BorderWidth(0, 0, 1, 0).BorderColor(theme.Border).Children(func() {
-		ui.Row(c).MinWidth(0).Gap(4).Clip().Children(func() {
+	ui.Row(c).Height(36).Shrink(0).FillWidth().PaddingX(theme.S2).Gap(theme.S2).Background(theme.Sunken).
+		BorderWidth(0, 0, 0.5, 0).BorderColor(theme.Border).Children(func() {
+		ui.Row(c).MinWidth(0).Gap(theme.S1).Clip().Children(func() {
 			a.tabButton(c.Key("tab:"+s.ID), s, s, front == s.ID, false)
 			for _, t := range a.tabsOf(s.ID) {
 				a.tabButton(c.Key("tab:"+t.ID), s, t, front == t.ID, true)
 			}
 		})
-		add := widget.IconButton(c, icon.Plus, "New tab in this session's folder", false)
+		add := smallIcon(c, icon.Plus, "New tab in this session's folder")
 		a.menu.OpenBelow(add, "tab:"+s.ID, 24)
 		a.menu.Show(c, add, "tab:"+s.ID, func(done func()) {
 			a.shellTabItems(c, s, done)
@@ -103,9 +103,9 @@ func (a *App) tabButton(c *ui.Context, parent, t proto.SessionInfo, front, closa
 	if closable && t.Name != "" {
 		name = t.Name // a command run in it
 	}
-	b := ui.ButtonBase(c).Height(26).PaddingX(8).Gap(6).Radius(theme.RadiusControl).Shrink(1).MinWidth(64).
+	b := ui.ButtonBase(c).Height(28).PaddingX(theme.S2).Gap(theme.S1).Radius(theme.RadiusFull).Shrink(1).MinWidth(64).
 		Label(name).Tooltip(a.sessionName(t)).Cursor(ui.CursorPointer)
-	bg, fg := theme.Fade(theme.Selected, 0), theme.Muted
+	bg, fg := theme.Fade(theme.Selected, 0), theme.TextSoft
 	switch {
 	case front:
 		bg, fg = theme.Selected, theme.Text
@@ -116,13 +116,13 @@ func (a *App) tabButton(c *ui.Context, parent, t proto.SessionInfo, front, closa
 	st := statusOf(t)
 	closed := false
 	b.Children(func() {
-		widget.Dot(c, st.color, st.hollow, 6)
+		widget.Dot(c, st.color, st.hollow, 8)
 		ui.Icon(c, icon.Agent(t.Agent)).FontSize(12)
-		ui.Text(c, name).FontSize(12).SingleLine().Shrink(1)
+		widget.Running(c, name, widget.RunStyle{})
 		if !closable {
 			return
 		}
-		x := ui.ButtonBase(c).Size(16, 16).Shrink(0).Radius(4).Center().Cursor(ui.CursorPointer).Label("Close " + name)
+		x := ui.ButtonBase(c).Size(16, 16).Shrink(0).Radius(theme.RadiusFull).Center().Cursor(ui.CursorPointer).Label("Close " + name)
 		if x.Hovered() {
 			x.Background(theme.Hover)
 		}

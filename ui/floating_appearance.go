@@ -35,7 +35,9 @@ func (a *App) floatingTheme() *ui.Theme {
 }
 
 func (a *App) floatingSurface() ui.Color {
-	base := theme.Mix(theme.Panel, theme.Raised, 0.65)
+	// Opaque: the panel is sliced out of a window of its own, with nothing
+	// under it to tint.
+	base := theme.Solid(theme.Panel)
 	if a.state.FloatingTint {
 		return theme.Mix(base, a.floatingAccent(), 0.12)
 	}
@@ -124,7 +126,7 @@ func (a *App) floatingAppearance(c *ui.Context) {
 					p.FillPath(chart.Sector(cx, cy, 20, 46, slice), a.sliceFill(st, floatingAction{enabled: true}, hover))
 				}
 				hub := ui.Rect{X: cx - 15, Y: cy - 15, W: 30, H: 30}
-				p.Fill(hub, theme.Panel, 15)
+				p.Fill(hub, theme.Solid(theme.Panel), 15)
 				p.Stroke(hub, theme.BorderStrong, 15, 1)
 				p.Icon(icon.Logo, ui.Rect{X: cx - 8, Y: cy - 8, W: 16, H: 16}, a.floatingAccent())
 			})

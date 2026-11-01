@@ -18,7 +18,7 @@ import (
 func (v *View) toolbar(c *ui.Context, o Options, cv proto.Canvas) {
 	f := v.frameOf()
 	// In a narrow stage, buttons show as icons alone.
-	narrow := v.stageRoom() < 620
+	narrow := v.stageRoom() < 800
 	ui.Row(c).FillWidth().Height(40).Shrink(0).PaddingX(12).Gap(6).AlignItems(ui.Center).BorderWidth(0, 0, 1, 0).BorderColor(theme.Border).Children(func() {
 		v.designNav(c, o, cv)
 		if cv.Kind == proto.CanvasMockup || strings.TrimSpace(f.HTML) != "" {

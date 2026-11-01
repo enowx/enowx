@@ -2,7 +2,6 @@ package ui
 
 import (
 	"slices"
-	"strconv"
 	"strings"
 
 	"github.com/egoist/mygo/ui"
@@ -13,8 +12,7 @@ import (
 )
 
 // The side panel sits right of the workspace, about the selected session,
-// and folds away. It holds tools as tabs: Git first; the session's files
-// and a browser are meant to join it.
+// and folds away; the dock beside it picks its tool.
 
 // panelTool is a tool the side panel can open as a tab.
 type panelTool struct {
@@ -114,7 +112,7 @@ type sidePanel struct {
 // The side panel's width: as wide as the user dragged it, within these.
 // A narrow window shrinks it down to its minimum before the workspace.
 const (
-	defaultPanelWidth = 460
+	defaultPanelWidth = 436
 	minPanelWidth     = 300
 	maxPanelWidth     = 1100
 	panelGrip         = 6 // the strip along its left edge that resizes it
@@ -186,7 +184,7 @@ func (a *App) sidePanelView(c *ui.Context) {
 	if width <= 0 {
 		width = defaultPanelWidth
 	}
-	widget.Bento(ui.Column(c.Key("side-panel")).Width(width).MinWidth(minPanelWidth).Shrink(1).FillHeight(), theme.Background).
+	widget.Bento(ui.Column(c.Key("side-panel")).Width(width).MinWidth(minPanelWidth).Shrink(1).FillHeight(), theme.Fade(theme.Panel, 0.94)).
 		Transition(widget.PanelMotion(24)).Children(func() {
 		a.panelStrip(c)
 		s, ok := a.selectedSession()
@@ -250,8 +248,9 @@ func (a *App) panelGrip(c *ui.Context, width float32) {
 	}
 }
 
-// panelStrip is the panel's top row: a button per tool, the one shown
-// lit, and the button that folds the panel.
+// panelStrip is the panel's top: the tool's name and the button that folds
+// the panel; the tools themselves are in the dock. Code's open files follow
+// as tabs.
 func (a *App) panelStrip(c *ui.Context) {
 	front := a.panelTab()
 	if front == panelBrowser {
@@ -262,109 +261,107 @@ func (a *App) panelStrip(c *ui.Context) {
 		a.state.Panel.Last = map[string]string{}
 	}
 	a.state.Panel.Last[group.id] = front
-	// First the groups, then the group's tools (and Code's open files).
-	ui.Row(c).Height(40).Shrink(0).FillWidth().PaddingX(8).Gap(4).
-		BorderWidth(0, 0, 1, 0).BorderColor(theme.Border).Children(func() {
-		for _, g := range a.shownGroups() {
-			if a.groupButton(c.Key("group:"+g.id), g, g.id == group.id).Clicked() && g.id != group.id {
-				tab := a.state.Panel.Last[g.id]
-				if tab == "" || groupOf(tab).id != g.id {
-					tab = g.tools[0]
-				}
-				a.state.Panel.Tab = tab
-			}
+	ui.Row(c).Height(52).Shrink(0).FillWidth().Padding(0, theme.S2, 0, theme.S4).Gap(theme.S2).Children(func() {
+		name := "Files"
+		if t, ok := findTool(front); ok {
+			name = t.name
 		}
-		ui.Spacer(c)
-		if widget.IconButton(c, icon.PanelRight, "Hide the panel ("+modKey+"⇧D)", true).Clicked() {
+		ui.Text(c, name).FontSize(theme.TextRead).FontWeight(600).SingleLine().Grow(1).MinWidth(0)
+		if widget.IconButton(c, icon.Close, "Hide the panel ("+modKey+"⇧D)", false).Clicked() {
 			a.state.Panel.Open = false
 		}
 	})
-	ui.Row(c).Height(36).Shrink(0).FillWidth().PaddingX(8).Gap(4).
-		BorderWidth(0, 0, 1, 0).BorderColor(theme.Border).Background(theme.Panel).Children(func() {
-		for _, id := range group.tools {
-			t, _ := findTool(id)
-			if a.toolButton(c.Key("tool:"+t.id), t, t.id == front).Clicked() {
-				a.state.Panel.Tab = t.id
+	if tabs := a.fileTabs[a.selected]; group.id == "code" && len(tabs) > 0 && (front == panelFiles || strings.HasPrefix(front, fileTabPrefix)) {
+		ui.Row(c).Height(36).Shrink(0).FillWidth().PaddingX(theme.S3).Gap(theme.S1).Clip().Children(func() {
+			for _, p := range tabs {
+				a.fileTabButton(c.Key("file:"+p), p, fileTabPrefix+p == front)
+			}
+		})
+	}
+}
+
+// dockFirst are the tools the dock always shows; the others are in its menu.
+var dockFirst = []string{panelChanges, panelFiles, panelChecks, panelBrowser, panelTraffic}
+
+// toolsDock is the column of tools at the window's right, while a session
+// shows: the conversation keeps the room until one is asked for.
+func (a *App) toolsDock(c *ui.Context) {
+	if a.page != "" || a.client == nil {
+		return
+	}
+	front := ""
+	if a.panelShown() {
+		front = a.panelTab()
+		if strings.HasPrefix(front, fileTabPrefix) {
+			front = panelFiles
+		}
+	}
+	first := dockFirst
+	var rest []panelTool
+	if a.goaOn() {
+		first = append([]string{panelSessions, panelTasks}, first...)
+	}
+	for _, g := range a.shownGroups() {
+		for _, id := range g.tools {
+			if !slices.Contains(first, id) {
+				t, _ := findTool(id)
+				rest = append(rest, t)
 			}
 		}
-		if tabs := a.fileTabs[a.selected]; group.id == "code" && len(tabs) > 0 {
-			ui.Box(c).Size(1, 18).Shrink(0).Background(theme.Border).Margin(0, 4)
-			ui.Row(c).Grow(1).MinWidth(0).Gap(4).Clip().Children(func() {
-				for _, p := range tabs {
-					a.fileTabButton(c.Key("file:"+p), p, fileTabPrefix+p == front)
+	}
+	ui.Column(c.Key("dock-room")).Width(44).Shrink(0).FillHeight().Justify(ui.Center).Children(func() {
+		widget.Glass(ui.Column(c.Key("dock")).FillWidth().Padding(theme.S1, 0).Gap(theme.S1).Radius(theme.RadiusFull).AlignItems(ui.Center)).Children(func() {
+			for _, id := range first {
+				t, _ := findTool(id)
+				if a.dockButton(c.Key("tool:"+id), t, id == front).Clicked() {
+					a.toggleTool(id)
+				}
+			}
+			more := dockFace(c.Key("tool-more"), icon.More, "More tools", slices.ContainsFunc(rest, func(t panelTool) bool { return t.id == front }))
+			a.menu.OpenBelow(more, "tool-more", 36)
+			a.menu.Show(c, more, "tool-more", func(done func()) {
+				for _, t := range rest {
+					if widget.MenuItem(c.Key(t.id), t.svg, t.name, false) {
+						a.openPanel(t.id)
+						done()
+					}
 				}
 			})
-		}
+		})
 	})
 }
 
-// groupButton is a group's button: its icon and name, lit while shown.
-func (a *App) groupButton(c *ui.Context, g panelGroup, front bool) ui.Element {
-	b := ui.ButtonBase(c).Height(28).PaddingX(10).Gap(6).Radius(theme.RadiusControl).Shrink(0).
-		Label(g.name).Cursor(ui.CursorPointer)
-	bg, fg := theme.Fade(theme.Selected, 0), theme.Muted
-	switch {
-	case front:
-		bg, fg = theme.Selected, theme.Accent
-	case b.Hovered():
-		bg, fg = theme.Hover, theme.Text
+// dockFace is the round button of a dock's entry.
+func dockFace(c *ui.Context, svg *ui.SVG, label string, on bool) ui.Element {
+	b := ui.ButtonBase(c).Size(36, 36).Radius(theme.RadiusFull).Center().Shrink(0).Label(label).Tooltip(label).Cursor(ui.CursorPointer)
+	bg, fg := theme.Fade(theme.Selected, 0), theme.TextSoft
+	if on || b.Hovered() {
+		bg, fg = theme.Selected, theme.Text
 	}
-	b.Background(widget.QuickTint(b, "bg", bg)).TextColor(widget.QuickTint(b, "fg", fg)).Transition(widget.QuickMotion)
-	b.Children(func() {
-		ui.Icon(c, g.svg).FontSize(13)
-		ui.Text(c, g.name).FontSize(12).SingleLine()
-		if a.browserNews && !front && slices.Contains(g.tools, panelBrowser) {
-			newsDot(c)
-		}
-		if g.id == "team" {
-			if n := a.chatUnread(a.chatTeam()); n > 0 {
-				ui.Box(c).Height(16).Padding(0, 5).Radius(8).Background(theme.Accent).Center().Children(func() {
-					ui.Text(c, strconv.Itoa(n)).FontSize(10).FontWeight(700).TextColor(theme.OnAccent)
-				})
-			}
-		}
+	b.Background(widget.QuickTint(b, "bg", bg)).TextColor(widget.QuickTint(b, "fg", fg)).Children(func() {
+		ui.Icon(c, svg).FontSize(16)
 	})
-	return widget.Pressable(b)
+	return b
 }
 
-// toolButton is a tool's button: its icon, and its name while shown.
-func (a *App) toolButton(c *ui.Context, t panelTool, front bool) ui.Element {
-	b := ui.ButtonBase(c).Height(28).PaddingX(8).Gap(6).Radius(theme.RadiusControl).Shrink(0).
-		Label(t.name).Tooltip(t.name).Cursor(ui.CursorPointer)
-	bg, fg := theme.Fade(theme.Selected, 0), theme.Muted
-	switch {
-	case front:
-		bg, fg = theme.Selected, theme.Accent
-	case b.Hovered():
-		bg, fg = theme.Hover, theme.Text
+// dockButton is a tool's entry of the dock, with its news.
+func (a *App) dockButton(c *ui.Context, t panelTool, front bool) ui.Element {
+	b := dockFace(c, t.svg, t.name, front)
+	if t.id == panelBrowser && a.browserNews && !front {
+		ui.Box(c).Size(8, 8).AttachTo(b, ui.AnchorTopRight, ui.AnchorTopRight).Margin(4, 4, 0, 0).Radius(theme.RadiusFull).Background(theme.Now)
 	}
-	b.Background(widget.QuickTint(b, "bg", bg)).TextColor(widget.QuickTint(b, "fg", fg)).Transition(widget.QuickMotion)
-	b.Children(func() {
-		ui.Icon(c, t.svg).FontSize(13)
-		if front {
-			ui.Text(c, t.name).FontSize(12).SingleLine()
-		}
-		if t.id == panelBrowser && a.browserNews && !front {
-			newsDot(c)
-		}
-		if t.id == panelChat && !front {
-			if n := a.chatUnread(a.chatTeam()); n > 0 {
-				ui.Text(c, strconv.Itoa(n)).FontSize(10).FontWeight(700).TextColor(theme.Accent)
-			}
-		}
-	})
-	return widget.Pressable(b)
+	return b
 }
 
 // fileTabButton is the tab of a file: its name, and an × that closes it.
 func (a *App) fileTabButton(c *ui.Context, p string, front bool) {
 	name := fileTabName(p)
-	b := ui.ButtonBase(c).Height(28).PaddingX(8).Gap(6).Radius(theme.RadiusControl).Shrink(1).MinWidth(64).
+	b := ui.ButtonBase(c).Height(28).PaddingX(theme.S2).Gap(theme.S1).Radius(theme.RadiusFull).Shrink(1).MinWidth(64).
 		Label(p).Tooltip(p).Cursor(ui.CursorPointer)
-	bg, fg := theme.Fade(theme.Selected, 0), theme.Muted
+	bg, fg := theme.Fade(theme.Selected, 0), theme.TextSoft
 	switch {
 	case front:
-		bg, fg = theme.Selected, theme.Text
+		bg, fg = theme.Selected, theme.TextStrong
 	case b.Hovered():
 		bg, fg = theme.Hover, theme.Text
 	}
@@ -372,8 +369,8 @@ func (a *App) fileTabButton(c *ui.Context, p string, front bool) {
 	closed := false
 	b.Children(func() {
 		ui.Icon(c, icon.File).FontSize(12)
-		ui.Text(c, name).FontSize(12).SingleLine().Shrink(1)
-		x := ui.ButtonBase(c).Size(16, 16).Shrink(0).Radius(4).Center().Cursor(ui.CursorPointer).Label("Close " + name)
+		widget.Running(c, name, widget.RunStyle{})
+		x := ui.ButtonBase(c).Size(16, 16).Shrink(0).Radius(theme.RadiusFull).Center().Cursor(ui.CursorPointer).Label("Close " + name)
 		if x.Hovered() {
 			x.Background(theme.Hover)
 		}
@@ -389,20 +386,12 @@ func (a *App) fileTabButton(c *ui.Context, p string, front bool) {
 }
 
 func panelNote(c *ui.Context, text string) {
-	ui.Column(c).Grow(1).FillWidth().Center().Padding(24).Children(func() {
-		ui.Text(c, text).FontSize(12.5).TextColor(theme.Muted).TextAlign(ui.Center)
+	ui.Column(c).Grow(1).FillWidth().Center().Padding(theme.S5).Children(func() {
+		ui.Text(c, text).FontSize(theme.TextUI).TextColor(theme.TextSoft).TextAlign(ui.Center)
 	})
-}
-
-// panelButton shows the side panel, from a view's header, while it is
-// folded; the panel's own strip folds it again.
-func (a *App) panelButton(c *ui.Context) {
-	if !a.panelShown() && widget.IconButton(c, icon.PanelRight, "Show the panel ("+modKey+"⇧D)", false).Clicked() {
-		a.togglePanel()
-	}
 }
 
 // newsDot marks a button whose tool has something new.
 func newsDot(c *ui.Context) {
-	ui.Box(c).Size(6, 6).Radius(3).Shrink(0).Background(theme.Accent)
+	ui.Box(c).Size(8, 8).Radius(theme.RadiusFull).Shrink(0).Background(theme.Now)
 }

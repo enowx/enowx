@@ -188,7 +188,7 @@ func (v *View) compareColumn(c *ui.Context, o Options, cv proto.Canvas, f proto.
 			v.pickButton(c, o, cv, f)
 		})
 		open := ui.ButtonBase(c.Key("open")).Cursor(ui.CursorPointer).Label(fmt.Sprintf("Open design %d", i+1))
-		open.Children(func() { v.comparePreview(c.Key("pv"), o, f, fw) })
+		open.Children(func() { v.comparePreview(c.Key("pv"), o, f, fw-14) })
 		if open.Clicked() {
 			v.frame, v.view = f.ID, viewDesign
 		}

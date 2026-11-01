@@ -155,7 +155,7 @@ func (a *App) floatingHubButton(c *ui.Context, panel ui.Element, st *floatingSta
 	b := widget.Float(ui.ButtonBase(c.Key("hub")).Absolute().
 		Left(floatingSize/2-floatingHubSize/2).Top(floatingSize/2-floatingHubSize/2).
 		Size(floatingHubSize, floatingHubSize).Radius(floatingHubSize/2).Center().
-		Background(theme.Panel).Border(1, theme.BorderStrong).TextColor(theme.TextStrong).
+		Background(a.floatingSurface()).Border(1, theme.BorderStrong).TextColor(theme.TextStrong).
 		Opacity(t).Label(label).Tooltip(tip).Cursor(ui.CursorPointer))
 	b.Children(func() {
 		// The mark, which the title fades over: nothing hovered leaves it

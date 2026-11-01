@@ -74,7 +74,7 @@ func TestGOAMode(t *testing.T) {
 		tt.Frame()
 	}
 	frames("the chip", func() bool { return tt.HasText("GOD of Agents") && app.goa.host == "local" })
-	click("One session controlling every session on every host")
+	click("GOD of Agents")
 	frames("the agents, with their levels", func() bool { return tt.HasText("Start GOD of Agents") && tt.HasText("enforced") })
 	shot(t, tt, "goa-start.png")
 	click("Start GOA")

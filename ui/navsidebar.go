@@ -12,28 +12,33 @@ import (
 	"github.com/enowx/enowx/ui/widget"
 )
 
-// The sidebar, one column where there were three (the hosts, the
-// sessions, a page's own list): the host as a menu at its top, the pages
-// as tabs, then the list of the page shown (sessions, notes' pages,
-// canvases), the sessions at work while another page shows, and the
-// account. Folded (Cmd+B), the rail of icons and the Sessions panel come
-// back.
+// The sidebar: the sessions, by state or by project, on the Sessions page;
+// Notes and Canvas their own lists, in the same place. The other pages have
+// no list of sessions. Folded (Cmd+B), the sessions show as icons.
 
 // navWidth is the sidebar's width.
-const navWidth = 284
+const navWidth = 248
 
-// navShown says the sidebar shows unfolded (never in GOD of Agents' mode,
-// so Notes and Canvas draw their lists themselves): wide, unless the user folded
-// it or the window is too narrow for it beside a page.
+// sessionListShows says the sidebar shows at all.
+func (a *App) sessionListShows() bool {
+	if a.goaOn() && a.navPage() == "" {
+		return false
+	}
+	if a.navPage() != "" {
+		return true
+	}
+	return a.page == "" && !a.sessionsHidden()
+}
+
+// navShown says the sidebar shows unfolded: wide, unless the user folded it
+// or the window is too narrow for it beside a page.
 func (a *App) navShown() bool {
-	return a.state.RailWide && !a.goaOn() && !a.sessionsHidden() && !(a.page != "" && a.winW > 0 && a.winW < 1100)
+	return a.state.RailWide && !(a.page != "" && a.winW > 0 && a.winW < 1100)
 }
 
 func (a *App) navSidebar(c *ui.Context) {
-	widget.Bento(ui.Column(c.Key("nav")).Width(navWidth).Shrink(0).FillHeight(), theme.Panel).
+	widget.Glass(ui.Column(c.Key("nav")).Width(navWidth).Shrink(0).FillHeight().Radius(theme.RadiusPanel).Clip()).
 		Transition(widget.LayoutMotion).Children(func() {
-		a.navHead(c)
-		a.navTabs(c)
 		ui.Column(c.Key("nav-list:" + a.navPage())).Grow(1).FillWidth().MinHeight(0).Children(func() {
 			switch a.navPage() {
 			case pageNotes:
@@ -47,11 +52,10 @@ func (a *App) navSidebar(c *ui.Context) {
 			}
 		})
 		a.navRunning(c)
-		ui.Column(c).FillWidth().Padding(4, 8, 8, 8).Children(func() { a.railAccount(c, true) })
 	})
 }
 
-// navPage is the tab the sidebar shows: Notes and Canvas their lists,
+// navPage is the list the sidebar shows: Notes and Canvas their lists,
 // every other page the sessions.
 func (a *App) navPage() string {
 	switch {
@@ -61,39 +65,6 @@ func (a *App) navPage() string {
 		return pageCanvas
 	}
 	return ""
-}
-
-// navHead is the sidebar's top: enowX's mark, the host as a menu, and
-// folding the sidebar.
-func (a *App) navHead(c *ui.Context) {
-	ui.Row(c.Key("nav-head")).FillWidth().Height(52).Shrink(0).Padding(0, 8, 0, 10).Gap(6).AlignItems(ui.Center).Children(func() {
-		mark := ui.Box(c).Size(30, 30).Shrink(0).Center().Radius(theme.RadiusControl).
-			Gradient(theme.AccentHigh, theme.Accent, 180).TextColor(theme.OnAccent).InsetShadow(0, 1, 0, 0, ui.RGBA(255, 255, 255, 0.3))
-		mark.Children(func() { ui.Icon(c, icon.Logo).FontSize(24) })
-		a.hostSwitcher(c)
-		ui.Spacer(c)
-		if widget.IconButton(c, icon.Collapse, "Collapse sidebar ("+modKey+"B)", false).Clicked() {
-			a.state.RailWide = false
-		}
-	})
-}
-
-// hostSwitcher is the host the app is on, a menu of the others: devices,
-// servers, the team's shared hosts, and adding or managing them.
-func (a *App) hostSwitcher(c *ui.Context) {
-	col, state := a.connectionState()
-	b := ui.ButtonBase(c.Key("host-switch")).Height(32).Padding(0, 8).Gap(6).Radius(theme.RadiusControl).AlignItems(ui.Center).
-		Cursor(ui.CursorPointer).Label("Host: " + a.host.Name + ", " + state).Tooltip(a.host.Name + " · " + state).Shrink(1).MinWidth(0)
-	if b.Hovered() {
-		b.Background(theme.Hover)
-	}
-	b.Children(func() {
-		ui.Text(c, a.host.Name).FontSize(13).FontWeight(600).TextColor(theme.TextStrong).SingleLine().Shrink(1)
-		widget.Dot(c, col, false, 7)
-		ui.Icon(c, icon.ChevronDown).FontSize(11).TextColor(theme.Muted)
-	})
-	a.menu.OpenBelow(b, "host-switch", 34)
-	a.menu.Show(c, b, "host-switch", func(done func()) { a.hostMenuItems(c, done) })
 }
 
 // hostMenuItems are the hosts to switch to: devices, servers, the team's
@@ -107,9 +78,9 @@ func (a *App) hostMenuItems(c *ui.Context, done func()) {
 			servers = append(servers, h)
 		}
 	}
+	widget.PopupLabel(c, "Hosts")
 	pick := func(h hosts.Host) {
-		label := h.Name + " · " + hostDetail(h)
-		if widget.MenuItem(c.Key("host:"+h.ID), hostIcon(h), label, false) {
+		if widget.MenuItemSub(c.Key("host:"+h.ID), hostIcon(h), h.Name, hostDetail(h), false) {
 			if h.ID != a.host.ID {
 				a.connect(h)
 			}
@@ -119,17 +90,13 @@ func (a *App) hostMenuItems(c *ui.Context, done func()) {
 	for _, h := range devices {
 		pick(h)
 	}
-	if len(servers) > 0 {
-		widget.MenuSeparator(c)
-		for _, h := range servers {
-			pick(h)
-		}
+	for _, h := range servers {
+		pick(h)
 	}
 	if a.client != nil && len(a.spacesOf().list) > 0 {
 		if shared := a.teamHostsOf().hosts; len(shared) > 0 {
-			widget.MenuSeparator(c)
 			for _, h := range shared {
-				if widget.MenuItem(c.Key("teamhost:"+h.Device), icon.Server, h.Name+" · "+h.Owner+"'s, "+a.spaceName(h.Team), false) {
+				if widget.MenuItemSub(c.Key("teamhost:"+h.Device), icon.Server, h.Name, h.Owner+"'s, "+a.spaceName(h.Team), false) {
 					a.openTeamHost(h)
 					done()
 				}
@@ -141,16 +108,31 @@ func (a *App) hostMenuItems(c *ui.Context, done func()) {
 		a.peersAt = time.Now()
 		go a.loadPeers()
 	}
-	if peers := a.newPeers(); len(peers) > 0 {
-		widget.MenuSeparator(c)
-		for _, p := range peers {
-			if widget.MenuItem(c.Key("peer:"+p.Address()), icon.Tailscale, p.HostName+" · on your tailnet", false) {
-				a.connectPeer(p)
+	for _, p := range a.newPeers() {
+		if widget.MenuItemSub(c.Key("peer:"+p.Address()), icon.Tailscale, p.HostName, "On your tailnet", false) {
+			a.connectPeer(p)
+			done()
+		}
+	}
+	if a.client != nil && len(a.projects) > 0 {
+		widget.PopupLabel(c, "Project")
+		for _, p := range a.projects {
+			if widget.MenuItem(c.Key("project:"+p.Path), icon.Folder, p.Name, false) {
+				a.project, a.selected, a.page = p.Path, "", ""
+				delete(a.collapsed, p.Path)
 				done()
 			}
 		}
 	}
 	widget.MenuSeparator(c)
+	if widget.MenuItem(c.Key("open-folder"), icon.FolderPlus, "Open a folder… ("+modKey+"O)", false) {
+		a.openFolder()
+		done()
+	}
+	if widget.MenuItem(c.Key("clone"), icon.Git, "Clone from Git…", false) {
+		a.openClone()
+		done()
+	}
 	if a.client != nil && a.host.ID != hosts.LocalID && widget.MenuItem(c.Key("sync"), icon.Sync, "Sync environment…", false) {
 		a.openSync()
 		done()
@@ -165,48 +147,23 @@ func (a *App) hostMenuItems(c *ui.Context, done func()) {
 	}
 }
 
-// navTabs are the pages: Sessions, Notes and Canvas, the others in a
-// menu.
-func (a *App) navTabs(c *ui.Context) {
-	ui.Row(c.Key("nav-tabs")).FillWidth().Shrink(0).Padding(0, 10, 8, 10).Gap(6).AlignItems(ui.Center).Children(func() {
-		ui.Row(c).Grow(1).Height(34).Padding(3).Gap(2).Radius(theme.RadiusControl+1).Background(theme.Sunken).Border(1, theme.BorderStrong).Children(func() {
-			tab := func(id, label string, enabled bool) {
-				on := a.navPage() == id && (id != "" || a.page == "")
-				t := ui.ButtonBase(c.Key("tab:" + id)).Grow(1).Height(26).PaddingX(10).Radius(theme.RadiusControl - 2).Center().Label(label)
-				fg := theme.Muted
-				switch {
-				case on:
-					t.Background(theme.Selected).InsetShadow(0, 1, 0, 0, theme.Highlight)
-					fg = theme.Accent
-				case !enabled:
-					fg = theme.Idle
-				case t.Hovered():
-					fg = theme.Text
-					t.Cursor(ui.CursorPointer)
-				default:
-					t.Cursor(ui.CursorPointer)
-				}
-				// Text alone: three tabs share the sidebar's width with room
-				// around each label.
-				t.Children(func() { ui.Text(c, label).FontSize(12).FontWeight(500).TextColor(fg).SingleLine() })
-				if enabled && !on && t.Clicked() {
-					a.page = id
-				}
-			}
-			tab("", "Sessions", true)
-			tab(pageNotes, "Notes", a.client != nil)
-			tab(pageCanvas, "Canvas", a.client != nil)
-		})
-		a.navMore(c)
-	})
-}
-
-// navMore is the menu of the pages without a tab.
+// navMore is the menu of the pages without an entry of their own.
 func (a *App) navMore(c *ui.Context) {
-	more := widget.IconButton(c.Key("nav-more"), icon.More, "More: credentials, settings, appearance, usage", a.navPage() == "" && a.page != "")
-	a.menu.OpenBelow(more, "nav-more", 30)
+	more := ui.ButtonBase(c.Key("nav-more")).Height(theme.ControlHeight).PaddingX(theme.S3).Gap(theme.S1).Radius(theme.RadiusFull).
+		Label("More").Tooltip("More pages").Cursor(ui.CursorPointer).Shrink(0)
+	bg, fg, weight := theme.Fade(theme.Selected, 0), theme.TextSoft, 400
+	switch {
+	case a.page == pageVault || (a.page == pageSync) || a.page == pageHosts || a.page == pageSetup:
+		bg, fg, weight = theme.Selected, theme.TextStrong, 500
+	case more.Hovered():
+		bg, fg = theme.Selected, theme.TextStrong
+	}
+	more.Background(widget.QuickTint(more, "bg", bg)).TextColor(fg).Children(func() {
+		ui.Text(c, "More").FontSize(theme.TextUI).FontWeight(weight).SingleLine()
+		ui.Icon(c, icon.ChevronDown).FontSize(12)
+	})
+	a.menu.OpenBelow(more, "nav-more", titleBarHeight)
 	a.menu.Show(c, more, "nav-more", func(done func()) {
-		remote := a.client != nil && a.host.ID != hosts.LocalID
 		items := []struct {
 			svg     *ui.SVG
 			label   string
@@ -214,17 +171,11 @@ func (a *App) navMore(c *ui.Context) {
 			open    func()
 		}{
 			{icon.Key, "Credentials", true, a.openVault},
-			{icon.Settings, "Settings", a.client != nil, func() { a.page = pageSettings }},
-			{icon.Palette, "Appearance", true, func() { a.accentInput = a.state.Accent; a.page = pageAppearance }},
-			{icon.Usage, "Resource usage", a.client != nil, func() { a.page = pageUsage }},
-			{icon.Credits, "Credits", a.client != nil, func() { a.page = pageCredits }},
-			{icon.Sync, "Sync environment", remote, a.openSync},
+			{icon.Server, "Hosts", true, func() { a.page = pageHosts }},
+			{icon.Sync, "Sync environment", a.hostIsRemote(), a.openSync},
 		}
 		for _, it := range items {
-			if !it.enabled {
-				continue
-			}
-			if widget.MenuItem(c.Key(it.label), it.svg, it.label, false) {
+			if it.enabled && widget.MenuItem(c.Key(it.label), it.svg, it.label, false) {
 				it.open()
 				done()
 			}
@@ -247,23 +198,22 @@ func (a *App) navRunning(c *ui.Context) {
 	if len(busy) == 0 {
 		return
 	}
-	ui.Column(c.Key("nav-running")).FillWidth().Shrink(0).Padding(8, 8, 4, 8).Gap(2).BorderWidth(1, 0, 0, 0).BorderColor(theme.Border).Children(func() {
-		ui.Text(c, "At work").FontSize(11).TextColor(theme.Muted).Padding(0, 6, 2, 6)
+	ui.Column(c.Key("nav-running")).FillWidth().Shrink(0).Padding(theme.S2).Gap(0).Children(func() {
+		widget.SectionLabel(c, "At work", theme.TextSoft).Padding(theme.S1, theme.S3)
 		for i, s := range busy {
 			if i == 4 {
-				ui.Text(c, "and more in Sessions").FontSize(11).TextColor(theme.Idle).Padding(2, 6)
+				ui.Text(c, "and more in Sessions").FontSize(theme.TextLabel).TextColor(theme.TextSoft).Padding(theme.S1, theme.S3)
 				break
 			}
 			st := statusOf(s)
-			row := ui.ButtonBase(c.Key("run:"+s.ID)).FillWidth().Height(32).Padding(0, 6).Gap(8).Radius(8).AlignItems(ui.Center).
+			row := ui.ButtonBase(c.Key("run:" + s.ID)).FillWidth().Height(theme.ControlHeight).PaddingX(theme.S3).Gap(theme.S2).Radius(theme.RadiusFull).AlignItems(ui.Center).
 				Cursor(ui.CursorPointer).Label("Open " + a.sessionName(s))
 			if row.Hovered() {
 				row.Background(theme.Hover)
 			}
 			row.Children(func() {
-				agentTile(c, s.Agent, 22)
-				ui.Text(c, a.sessionName(s)).FontSize(12).SingleLine().Grow(1).Shrink(1).MinWidth(0)
-				widget.Dot(c, st.color, st.hollow, 6)
+				ui.Row(c).Grow(1).MinWidth(0).Children(func() { widget.Running(c, a.sessionName(s), widget.RunStyle{}) })
+				widget.Dot(c, st.color, st.hollow, 8)
 			})
 			if row.Clicked() {
 				a.page = ""

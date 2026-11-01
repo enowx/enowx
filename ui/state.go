@@ -72,6 +72,9 @@ type appState struct {
 	FloatingTint         bool   `json:"floatingTint,omitempty"`
 	FloatingCompact      bool   `json:"floatingCompact,omitempty"`
 	FloatingReduceMotion bool   `json:"floatingReduceMotion,omitempty"`
+	// SessionsByProject lists the sessions under their projects, rather
+	// than by state.
+	SessionsByProject bool `json:"sessionsByProject,omitempty"`
 	// HideSessions folds the sidebar away, giving the session the room.
 	HideSessions bool `json:"hideSessions,omitempty"`
 	// GOA shows GOD of Agents mode (goa.go).

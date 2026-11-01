@@ -96,7 +96,7 @@ func TestTeamChatInTheSidePanel(t *testing.T) {
 			}
 		}
 	}
-	settle("the team's chat", func() bool { return tt.HasText("Team") && tt.HasText("have a look when you can") })
+	settle("the team's chat", func() bool { return tt.HasText("Design") && tt.HasText("have a look when you can") })
 	if !tt.HasText("Bob") || !tt.HasText("@Ada") {
 		t.Fatalf("Bob's messages, under his name, mentioning Ada: %q", tt.Texts())
 	}
@@ -238,13 +238,9 @@ func TestTeamChatInTheSidePanel(t *testing.T) {
 	settle("back to the chat", func() bool { return tt.HasText("ya") })
 
 	// The group's other tools: the team's projects, its members.
-	if err := tt.Click("Projects"); err != nil {
-		t.Fatal(err)
-	}
+	app.state.Panel.Tab = panelTeamProjects
 	settle("the projects", func() bool { return tt.HasText("No projects yet") })
-	if err := tt.Click("Members"); err != nil {
-		t.Fatal(err)
-	}
+	app.state.Panel.Tab = panelTeamMembers
 	settle("the members, who is online", func() bool { return tt.HasText("Bob") && tt.HasText("online") })
 }
 

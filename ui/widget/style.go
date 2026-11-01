@@ -26,10 +26,17 @@ func Rim(e ui.Element) ui.Element {
 		Shadow(0, 10, 30, 0, ui.RGBA(0, 0, 0, 0.35))
 }
 
+// Frosted says glass frosts what is under it. Off, as in tests where the CPU
+// draws every frame, it is its tint alone.
+var Frosted = true
+
 // Glass makes e a piece of glass over the wallpaper: what is under it shows
 // through, frosted, tinted by theme.Panel. For the bars' capsules, the
 // session list and the tools.
 func Glass(e ui.Element) ui.Element {
+	if !Frosted {
+		return Rim(e.Background(theme.Panel))
+	}
 	return Rim(e.Material(glass.Glass{Tint: theme.Panel}))
 }
 
@@ -79,5 +86,7 @@ func PopupLabel(c *ui.Context, label string) {
 
 // Divider is a hairline between groups.
 func Divider(c *ui.Context) {
-	ui.Box(c).Height(0.5).FillWidth().Shrink(0).Margin(theme.S1, theme.S2).Background(theme.Border)
+	ui.Row(c).FillWidth().Shrink(0).Padding(theme.S1, theme.S2).Children(func() {
+		ui.Box(c).Height(0.5).FillWidth().Background(theme.Border)
+	})
 }

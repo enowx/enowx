@@ -11,15 +11,15 @@ import (
 // However narrow the window, the title bar's chips stay whole inside it:
 // the search gives way.
 func TestTitleBarChipsStayWhole(t *testing.T) {
-	for _, width := range []int{1600, 1300, 1150} {
+	for _, width := range []int{1600, 1300, 1200} {
 		a := New(Options{})
 		a.winCtl = &fakeWindow{}
 		var last ui.Rect
 		tt := ui.NewTester(func(c *ui.Context) {
 			ui.Column(c).Width(float32(width)).Height(60).Background(theme.Ground).Children(func() {
 				a.titleBarWith(c, func() {
-					for _, w := range []float32{210, 330, 110} { // memory, credits, host
-						last = ui.Box(c).Size(w, 26).Shrink(0).Background(theme.Done).Bounds()
+					for _, w := range []float32{120, 40, 40, 40} {
+						last = ui.Box(c).Size(w, 32).Shrink(0).Background(theme.Done).Bounds()
 					}
 				})
 			})

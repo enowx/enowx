@@ -130,7 +130,7 @@ func TestMakeAModelAPIConfig(t *testing.T) {
 		c.SetTheme(theme.Window())
 		ui.Column(c).Width(300).Height(60).Background(theme.Panel).TextColor(theme.Text).Children(func() {
 			app.sessionRow(c, 0, proto.SessionInfo{ID: "s1", Agent: "claude", Name: "Fix the parser", Account: list[0].ID,
-				Config: &proto.SessionConfig{ID: list[0].ID, Name: "GLM", Kind: proto.ConfigKindAPI, Color: list[0].Color}})
+				Config: &proto.SessionConfig{ID: list[0].ID, Name: "GLM", Kind: proto.ConfigKindAPI, Color: list[0].Color}}, "")
 		})
 	}, 300, 60)
 	row.Frame()

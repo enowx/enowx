@@ -35,18 +35,18 @@ func TestAppearanceModePersistsWithoutLosingPaletteOrAccent(t *testing.T) {
 	if err := tt.Click("Midnight"); err != nil {
 		t.Fatal(err)
 	}
-	if err := tt.Click("#7CCBD3"); err != nil {
+	if err := tt.Click("#0E7490"); err != nil {
 		t.Fatal(err)
 	}
 	app.saveState()
 	reopened := New(Options{StateFile: file})
-	if reopened.state.ThemeMode != "light" || reopened.state.Theme != "midnight" || reopened.state.Accent != "#7CCBD3" || reopened.theme.Dark {
+	if reopened.state.ThemeMode != "light" || reopened.state.Theme != "midnight" || reopened.state.Accent != "#0E7490" || reopened.theme.Dark {
 		t.Fatal("appearance did not survive reopening")
 	}
 	if err := tt.Click("Dark"); err != nil {
 		t.Fatal(err)
 	}
-	if !app.theme.Dark || app.state.Theme != "midnight" || app.state.Accent != "#7CCBD3" {
+	if !app.theme.Dark || app.state.Theme != "midnight" || app.state.Accent != "#0E7490" {
 		t.Fatal("switching mode lost the palette or accent")
 	}
 }

@@ -63,7 +63,7 @@ func TestAccountMenuPicksTheTeamsSpace(t *testing.T) {
 	tt := ui.NewTester(func(c *ui.Context) {
 		c.SetTheme(theme.Window())
 		ui.Row(c).Width(1100).Height(720).Background(theme.Background).TextColor(theme.Text).Children(func() {
-			ui.Column(c).Width(navWidth).FillHeight().Children(func() { app.railAccount(c, true) })
+			ui.Column(c).Width(navWidth).FillHeight().Children(func() { app.accountAction(c) })
 			ui.Column(c).Grow(1).FillHeight().Children(func() { app.notesPage(c) })
 			app.spaceMoveDialog(c)
 		})
