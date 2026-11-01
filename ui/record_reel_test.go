@@ -636,7 +636,7 @@ func TestRecordReelDecide(t *testing.T) {
 
 	r.say("It stops a loop before more tokens go, and leaves the call to you")
 	loop.Acted, loop.Session = proto.ActedPaused, sess.ID
-	r.app.decision = &loop
+	r.app.decisions = []*proto.Decision{&loop}
 	r.settle("the dialog", func() bool { return r.tt.HasText("Leave it") })
 	r.glide(0.6, reelW/2, reelH/2, 1.45, -1, 0)
 	r.hold(3)

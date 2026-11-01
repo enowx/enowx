@@ -3,6 +3,7 @@ package ui
 import (
 	"encoding/json"
 	"fmt"
+	"slices"
 	"time"
 
 	"github.com/egoist/mygo/ui"
@@ -15,7 +16,7 @@ import (
 	"github.com/enowx/enowx/ui/widget"
 )
 
-// A session's account at its limit: asked first, a dialog to go on as the
+// A session's account at its limit: asked first, a card to go on as the
 // next account (or agent); switched by itself, a line saying so; and a
 // session's menu switching its account by hand.
 
@@ -31,7 +32,7 @@ func (a *App) accountEvent(ev proto.Event) {
 	a.onMain(func() {
 		switch {
 		case f.Ask:
-			a.acctAsk = &f
+			a.acctAsks = append(a.acctAsks, &f)
 		case f.Back:
 			a.notify(fmt.Sprintf("%s is back on %s, its limit reset", a.sessionLabel(f.Session), accountTitle(f.To)))
 		case f.Switched:
@@ -68,38 +69,34 @@ func limitText(reason string) string {
 
 func (a *App) sessionLabel(id string) string { return a.hookSessionName(id) }
 
-// accountAskDialog asks to go on as the next account.
-func (a *App) accountAskDialog(c *ui.Context) {
-	f := a.acctAsk
-	if f == nil {
-		return
+// accountAsk asks to go on as the next account.
+func (a *App) accountAsk(c *ui.Context) *widget.Ask {
+	if len(a.acctAsks) == 0 {
+		return nil
 	}
-	open := true
-	widget.Dialog(c, &open, 460, 12, func() {
-		what := accountTitle(f.From) + " " + limitText(f.Reason)
-		if !f.Until.IsZero() {
-			what += ", until " + f.Until.Local().Format("Mon 15:04")
-		}
-		widget.DialogHeader(c, a.sessionLabel(f.Session)+": "+what, f.Line, false)
-		to := accountTitle(f.To)
-		if f.ToAgent != "" {
-			to = a.agentName(f.ToAgent) + " (a new conversation, told where the task stands)"
-		}
-		ui.Text(c, "Go on as "+to+"? The session picks up its conversation and is told to go on.").FontSize(12.5).TextColor(theme.TextSoft)
-		ui.Row(c).FillWidth().Gap(8).Children(func() {
-			ui.Spacer(c)
-			if widget.GhostButton(c, "Not now").Clicked() {
-				a.acctAsk = nil
-			}
-			if widget.PrimaryButton(c, icon.Play, "Switch and go on", "").Clicked() {
-				a.acctAsk = nil
+	f := a.acctAsks[0]
+	what := accountTitle(f.From) + " " + limitText(f.Reason)
+	if !f.Until.IsZero() {
+		what += ", until " + f.Until.Local().Format("Mon 15:04")
+	}
+	to := accountTitle(f.To)
+	if f.ToAgent != "" {
+		to = a.agentName(f.ToAgent) + " (a new conversation, told where the task stands)"
+	}
+	done := func() {
+		a.acctAsks = slices.DeleteFunc(a.acctAsks, func(x *proto.AccountFallback) bool { return x == f })
+	}
+	return &widget.Ask{Key: fmt.Sprintf("account:%p", f), Icon: icon.Account, Title: a.sessionLabel(f.Session) + ": " + what, About: f.Line,
+		Body: func() {
+			ui.Text(c, "Go on as "+to+"? The session picks up its conversation and is told to go on.").FontSize(12.5).TextColor(theme.TextSoft)
+		},
+		Buttons: []widget.AskButton{
+			{Kind: widget.Secondary, Label: "Not now", Do: done},
+			{Kind: widget.Primary, Icon: icon.Play, Label: "Switch and go on", Do: func() {
+				done()
 				a.switchSessionAccount(f.Session, f.ToID, f.ToAgent, true)
-			}
-		})
-	})
-	if !open {
-		a.acctAsk = nil
-	}
+			}},
+		}}
 }
 
 // switchSessionAccount has session id go on as account (an ID, "" its

@@ -3,6 +3,7 @@ package ui
 import (
 	"encoding/json"
 	"fmt"
+	"slices"
 	"strconv"
 	"strings"
 
@@ -190,19 +191,18 @@ func (a *App) decideEvent(ev proto.Event) {
 			a.decideSet.log = append([]proto.Decision{d}, a.decideSet.log...)
 		}
 		if d.Acted == proto.ActedPaused || d.Acted == proto.ActedRefused {
-			a.decision = &d
+			a.decisions = append(a.decisions, &d)
 		}
 	})
 }
 
-// decisionDialog asks what to do after the judge stopped an agent or
-// refused its command: go on (the judge was wrong) or leave it.
-func (a *App) decisionDialog(c *ui.Context) {
-	d := a.decision
-	if d == nil {
-		return
+// decisionAsk asks what to do after the judge stopped an agent or refused its
+// command: go on (the judge was wrong) or leave it.
+func (a *App) decisionAsk(*ui.Context) *widget.Ask {
+	if len(a.decisions) == 0 {
+		return nil
 	}
-	open := true
+	d := a.decisions[0]
 	who := a.sessionLabel(d.Session)
 	title, body, goOn, prompt := "", "", "", ""
 	if d.Acted == proto.ActedPaused {
@@ -212,22 +212,11 @@ func (a *App) decisionDialog(c *ui.Context) {
 		title, body, goOn = "enowX's judge refused a command in "+who, d.Why, "Let it run it"
 		prompt = "The user allows the command the judge refused: run it again."
 	}
-	widget.Dialog(c, &open, 480, 12, func() {
-		widget.DialogHeader(c, title, body, false)
-		ui.Row(c).FillWidth().Gap(8).Children(func() {
-			ui.Spacer(c)
-			if widget.GhostButton(c, "Leave it").Clicked() {
-				a.decision = nil
-			}
-			if widget.PrimaryButton(c, icon.Play, goOn, "").Clicked() {
-				a.decision = nil
-				a.overruleDecision(*d, prompt)
-			}
-		})
-	})
-	if !open {
-		a.decision = nil
-	}
+	done := func() { a.decisions = slices.DeleteFunc(a.decisions, func(x *proto.Decision) bool { return x == d }) }
+	return &widget.Ask{Key: fmt.Sprintf("decision:%p", d), Title: title, About: body, Buttons: []widget.AskButton{
+		{Kind: widget.Secondary, Label: "Leave it", Do: done},
+		{Kind: widget.Primary, Icon: icon.Play, Label: goOn, Do: func() { done(); a.overruleDecision(*d, prompt) }},
+	}}
 }
 
 // overruleDecision marks decision d wrong and tells its session's agent

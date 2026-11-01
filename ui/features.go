@@ -3,6 +3,7 @@ package ui
 import (
 	"fmt"
 	"slices"
+	"time"
 
 	"github.com/egoist/mygo/ui"
 
@@ -219,21 +220,35 @@ func (a *App) featuresCall(fn func(cl *client.Client) (proto.FeaturesState, erro
 // featureAsk is an agent asking the user to turn a feature on, and the
 // connection it came over.
 type featureAsk struct {
-	req proto.FeatureRequest
-	cl  *client.Client
-	on  string // its host's name
+	req   proto.FeatureRequest
+	cl    *client.Client
+	on    string    // its host's name
+	until time.Time // past it, the daemon waits no more
 }
 
 // featureRequested queues an agent's request for the user.
 func (a *App) featureRequested(cl *client.Client, host string, req proto.FeatureRequest) {
-	a.featAsks = append(a.featAsks, featureAsk{req, cl, host})
+	a.featAsks = append(a.featAsks, featureAsk{req, cl, host, askUntil(hostAskLife)})
 	a.notify(fmt.Sprintf("An agent on %s asks to turn on %s", host, req.ID))
 }
 
-// featureAskDialog asks the user about the first request waiting.
-func (a *App) featureAskDialog(c *ui.Context) {
+// answerFeatureAsk answers ask and takes it off the queue.
+func (a *App) answerFeatureAsk(ask featureAsk, allowed bool, scope string) {
+	a.featAsks = slices.DeleteFunc(a.featAsks, func(q featureAsk) bool { return q.req.RequestID == ask.req.RequestID })
+	go func() {
+		if allowed {
+			on := true
+			_, _ = ask.cl.SetFeature(proto.FeatureSetParams{ID: ask.req.ID, On: &on, Scope: scope, Session: ask.req.Session})
+		}
+		_ = ask.cl.AnswerFeature(proto.FeatureAnswer{RequestID: ask.req.RequestID, Allowed: allowed, Scope: scope})
+		a.onMain(a.loadFeatures)
+	}()
+}
+
+// featureAskCard asks the user about the first request waiting.
+func (a *App) featureAskCard(*ui.Context) *widget.Ask {
 	if len(a.featAsks) == 0 {
-		return
+		return nil
 	}
 	ask := a.featAsks[0]
 	f, _ := agent.FindFeature(ask.req.ID)
@@ -252,33 +267,13 @@ func (a *App) featureAskDialog(c *ui.Context) {
 	if f.About != "" {
 		msg += " " + f.About
 	}
-	open := true
-	answer := func(allowed bool, scope string) {
-		a.featAsks = a.featAsks[1:]
-		go func() {
-			if allowed {
-				on := true
-				_, _ = ask.cl.SetFeature(proto.FeatureSetParams{ID: ask.req.ID, On: &on, Scope: scope, Session: ask.req.Session})
-			}
-			_ = ask.cl.AnswerFeature(proto.FeatureAnswer{RequestID: ask.req.RequestID, Allowed: allowed, Scope: scope})
-			a.onMain(a.loadFeatures)
-		}()
+	answer := func(allowed bool, scope string) func() {
+		return func() { a.answerFeatureAsk(ask, allowed, scope) }
 	}
-	widget.Dialog(c, &open, 440, 14, func() {
-		widget.DialogHeader(c, "Turn on "+name+"?", msg, false)
-		widget.DialogFooter(c, "", func() {
-			if widget.GhostButton(c, "Keep it off").Clicked() {
-				answer(false, "")
-			}
-			if ask.req.Session != "" && widget.GhostButton(c, "For this session").Clicked() {
-				answer(true, features.ScopeSession)
-			}
-			if widget.PrimaryButton(c, nil, "Turn on everywhere", "").Clicked() {
-				answer(true, features.ScopeGlobal)
-			}
-		})
-	})
-	if !open && len(a.featAsks) > 0 && a.featAsks[0].req.RequestID == ask.req.RequestID {
-		answer(false, "")
+	buttons := []widget.AskButton{{Kind: widget.Secondary, Label: "Keep it off", Do: answer(false, "")}}
+	if ask.req.Session != "" {
+		buttons = append(buttons, widget.AskButton{Kind: widget.Secondary, Label: "For this session", Do: answer(true, features.ScopeSession)})
 	}
+	buttons = append(buttons, widget.AskButton{Kind: widget.Primary, Label: "Turn on everywhere", Do: answer(true, features.ScopeGlobal)})
+	return &widget.Ask{Key: "feature:" + ask.req.RequestID, Title: "Turn on " + name + "?", About: msg, Buttons: buttons}
 }

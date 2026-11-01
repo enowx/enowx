@@ -47,7 +47,7 @@ func TestHostCallFollowsTheAskersMode(t *testing.T) {
 	ask := func(from string, p proto.HostCallParams) (done chan answer, bypassed *bool) {
 		raw, _ := json.Marshal(p)
 		done, bypassed = make(chan answer, 1), new(bool)
-		app.confirming = nil
+		app.hostAsks = nil
 		app.hostCallAsked(from, proto.AppRequest{Params: raw}, func(out any, err error) { done <- answer{out, err} }, func() { *bypassed = true })
 		return done, bypassed
 	}
@@ -64,16 +64,16 @@ func TestHostCallFollowsTheAskersMode(t *testing.T) {
 	}
 	asked := func(what string, bypassed *bool) {
 		t.Helper()
-		if app.confirming == nil || *bypassed {
-			t.Fatalf("%s: confirming %v, bypassed %v", what, app.confirming, *bypassed)
+		if len(app.hostAsks) == 0 || *bypassed {
+			t.Fatalf("%s: asks %v, bypassed %v", what, app.hostAsks, *bypassed)
 		}
 	}
 
 	done, bypassed := ask(info.ID, kill(info.ID, "bypassPermissions"))
 	select {
 	case a := <-done:
-		if a.err != nil || !*bypassed || app.confirming != nil {
-			t.Fatalf("in bypass on the user's host: %+v, bypassed %v, confirming %v", a, *bypassed, app.confirming)
+		if a.err != nil || !*bypassed || len(app.hostAsks) > 0 {
+			t.Fatalf("in bypass on the user's host: %+v, bypassed %v, asks %v", a, *bypassed, app.hostAsks)
 		}
 	case <-time.After(10 * time.Second):
 		t.Fatal("in bypass on the user's host: nothing done")
@@ -94,12 +94,12 @@ func TestHostCallFollowsTheAskersMode(t *testing.T) {
 	_, bypassed = ask(info.ID, hibernate(false, ""))
 	asked("hibernating", bypassed)
 	done, bypassed = ask(info.ID, hibernate(true, ""))
-	if app.confirming != nil || *bypassed {
+	if len(app.hostAsks) > 0 || *bypassed {
 		t.Fatal("a dry run asked")
 	}
 	<-done
 	done, bypassed = ask(info.ID, hibernate(false, "bypassPermissions"))
-	if app.confirming != nil || !*bypassed {
+	if len(app.hostAsks) > 0 || !*bypassed {
 		t.Fatal("hibernating in bypass asked")
 	}
 	<-done

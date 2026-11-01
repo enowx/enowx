@@ -169,7 +169,7 @@ func TestMemberOpensASharedHost(t *testing.T) {
 		asks: []proto.TakeoverAsk{{Session: who[0].Watching[0], Name: "Checkout page", Visitor: who[0]}}}
 	owner := ui.NewTester(func(c *ui.Context) {
 		c.SetTheme(theme.Window())
-		ui.Column(c).Width(900).Height(600).Background(theme.Background).TextColor(theme.Text).Children(func() { adaApp.takeoverDialog(c) })
+		ui.Column(c).Width(900).Height(600).Background(theme.Background).TextColor(theme.Text).Children(func() { adaApp.asksView(c) })
 	}, 900, 600)
 	owner.Frame()
 	if !owner.HasText("bob asks to take over") {

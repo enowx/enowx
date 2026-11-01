@@ -120,38 +120,13 @@ func (a *App) cancelRunAs() {
 
 func (a *App) runAsDialog(c *ui.Context) {
 	p := a.runAs
-	if p == nil {
+	if p == nil || a.connectByApp {
 		return
 	}
 	open := true
 	widget.Dialog(c, &open, 540, 14, func() {
 		widget.DialogHeader(c, "Run agents as a regular user?", "", false, "Hosts", a.host.Name, "Run as")
-		ui.Text(c, "You signed in to "+p.host.Name+" as root. Claude Code won't skip permission prompts as root, and agents running as root can change anything on the server. "+
-			"enowX can run its daemon and every session as a regular user instead. SSH still signs in as root.").
-			FontSize(12.5).TextColor(theme.TextSoft)
-		submit := false
-		if len(p.users) > 0 {
-			ui.Column(c).FillWidth().Gap(6).Children(func() {
-				for _, u := range p.users {
-					if widget.OptionCard(c.Key(u.Name), p.choice == u.Name, u.Name, u.Home) {
-						p.choice = u.Name
-					}
-				}
-				if widget.OptionCard(c.Key("+new"), p.choice == "", "New user", "A user of its own, without sudo") {
-					p.choice = ""
-				}
-			})
-		}
-		if p.choice == "" {
-			submit = widget.Input(c, &p.user, defaultRunAs).FillWidth().Font(theme.MonoFont).Submitted()
-		} else {
-			ui.Text(c, "Agents get "+p.choice+"'s permissions: if it can use sudo, so can they.").FontSize(12).TextColor(theme.Muted)
-		}
-		if p.err != "" {
-			ui.Text(c, p.err).FontSize(12).TextColor(theme.Error)
-		}
-		ui.Text(c, "Afterwards, sign in to each agent once from a Shell session (it runs as that user), and keep projects in that user's home. "+
-			"Agents installed only for root, for example with nvm, need installing again.").FontSize(12).TextColor(theme.Muted)
+		submit := runAsFacts(c, p)
 		widget.DialogFooter(c, "", func() {
 			if widget.GhostButton(c, "Cancel").Clicked() {
 				a.cancelRunAs()
@@ -171,6 +146,59 @@ func (a *App) runAsDialog(c *ui.Context) {
 	if !open {
 		a.cancelRunAs()
 	}
+}
+
+// runAsAsk is runAsDialog on a connection the user didn't start.
+func (a *App) runAsAsk(c *ui.Context) *widget.Ask {
+	p := a.runAs
+	if p == nil || !a.connectByApp {
+		return nil
+	}
+	label, user := "Create user and connect", p.user
+	if p.choice != "" {
+		label, user = "Connect as "+p.choice, p.choice
+	}
+	return &widget.Ask{Key: "runas:" + p.host.ID, Title: "Run agents as a regular user?",
+		Body: func() {
+			if runAsFacts(c, p) {
+				a.answerRunAs(user, false)
+			}
+		},
+		Buttons: []widget.AskButton{
+			{Kind: widget.Secondary, Label: "Cancel", Do: a.cancelRunAs},
+			{Kind: widget.Secondary, Label: "Keep root", Do: func() { a.answerRunAs("", true) }},
+			{Kind: widget.Primary, Label: label, Do: func() { a.answerRunAs(user, false) }},
+		}}
+}
+
+// runAsFacts is what runAsDialog says and asks; submit is Enter in its field.
+func runAsFacts(c *ui.Context, p *runAsPrompt) (submit bool) {
+	ui.Text(c, "You signed in to "+p.host.Name+" as root. Claude Code won't skip permission prompts as root, and agents running as root can change anything on the server. "+
+		"enowX can run its daemon and every session as a regular user instead. SSH still signs in as root.").
+		FontSize(12.5).TextColor(theme.TextSoft)
+	if len(p.users) > 0 {
+		ui.Column(c).FillWidth().Gap(6).Children(func() {
+			for _, u := range p.users {
+				if widget.OptionCard(c.Key(u.Name), p.choice == u.Name, u.Name, u.Home) {
+					p.choice = u.Name
+				}
+			}
+			if widget.OptionCard(c.Key("+new"), p.choice == "", "New user", "A user of its own, without sudo") {
+				p.choice = ""
+			}
+		})
+	}
+	if p.choice == "" {
+		submit = widget.Input(c, &p.user, defaultRunAs).FillWidth().Font(theme.MonoFont).Submitted()
+	} else {
+		ui.Text(c, "Agents get "+p.choice+"'s permissions: if it can use sudo, so can they.").FontSize(12).TextColor(theme.Muted)
+	}
+	if p.err != "" {
+		ui.Text(c, p.err).FontSize(12).TextColor(theme.Error)
+	}
+	ui.Text(c, "Afterwards, sign in to each agent once from a Shell session (it runs as that user), and keep projects in that user's home. "+
+		"Agents installed only for root, for example with nvm, need installing again.").FontSize(12).TextColor(theme.Muted)
+	return submit
 }
 
 // runAsNote says who enowX runs as on a root login, once the user chose.

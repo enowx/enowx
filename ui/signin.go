@@ -82,40 +82,13 @@ func (a *App) submitSignIn() {
 
 func (a *App) signInDialog(c *ui.Context) {
 	p := a.signIn
-	if p == nil {
+	if p == nil || a.connectByApp {
 		return
 	}
 	open := true
 	widget.Dialog(c, &open, 480, 14, func() {
 		widget.DialogHeader(c, "Sign in to "+p.host.Name, "", false, "Hosts", p.host.Name, "Sign in")
-		what := "your SSH keys"
-		if p.refusal.TriedPassword {
-			what = "your SSH keys or the saved password"
-		}
-		ui.Text(c, p.refusal.Addr+" didn't accept "+what+" for "+p.refusal.User+".").FontSize(12.5).TextColor(theme.TextSoft)
-		submit := false
-		widget.Field(c, "User", func() {
-			in := widget.Input(c, &p.user, "root").FillWidth().Font(theme.MonoFont)
-			if !p.refusal.AcceptsPassword() {
-				in.AutoFocus()
-			}
-			submit = in.Submitted()
-		})
-		if p.refusal.AcceptsPassword() {
-			widget.Field(c, "Password", func() {
-				submit = widget.Input(c, &p.password, "The user's password").FillWidth().Password().AutoFocus().Submitted() || submit
-			})
-			ui.Row(c).FillWidth().Gap(10).Children(func() {
-				ui.Text(c, "Remember the password in the keychain").FontSize(12.5).TextColor(theme.TextSoft).Grow(1)
-				widget.Switch(c, &p.remember, "Remember the password in the keychain")
-			})
-		} else {
-			ui.Text(c, "This server accepts SSH keys only. Add your public key (~/.ssh/id_ed25519.pub) to the user's ~/.ssh/authorized_keys, or allow passwords in the server's /etc/ssh/sshd_config.").
-				FontSize(12).TextColor(theme.Muted)
-		}
-		if p.err != "" {
-			ui.Text(c, p.err).FontSize(12).TextColor(theme.Error)
-		}
+		submit := signInFields(c, p, true)
 		widget.DialogFooter(c, "", func() {
 			if widget.GhostButton(c, "Cancel").Clicked() {
 				a.signIn = nil
@@ -128,4 +101,61 @@ func (a *App) signInDialog(c *ui.Context) {
 	if !open {
 		a.signIn = nil
 	}
+}
+
+// signInAsk is signInDialog on a connection the user didn't start: the fields
+// wait for their click.
+func (a *App) signInAsk(c *ui.Context) *widget.Ask {
+	p := a.signIn
+	if p == nil || !a.connectByApp {
+		return nil
+	}
+	return &widget.Ask{Key: "signin:" + p.host.ID, Title: "Sign in to " + p.host.Name,
+		Body: func() {
+			if signInFields(c, p, false) {
+				a.submitSignIn()
+			}
+		},
+		Buttons: []widget.AskButton{
+			{Kind: widget.Secondary, Label: "Cancel", Do: func() { a.signIn = nil }},
+			{Kind: widget.Primary, Label: "Sign in", Do: a.submitSignIn},
+		}}
+}
+
+// signInFields is what signInDialog says and asks; focus has a field take the
+// keyboard, in a dialog the user's own connecting opened. submit is Enter in a
+// field.
+func signInFields(c *ui.Context, p *signInPrompt, focus bool) (submit bool) {
+	what := "your SSH keys"
+	if p.refusal.TriedPassword {
+		what = "your SSH keys or the saved password"
+	}
+	ui.Text(c, p.refusal.Addr+" didn't accept "+what+" for "+p.refusal.User+".").FontSize(12.5).TextColor(theme.TextSoft)
+	widget.Field(c, "User", func() {
+		in := widget.Input(c, &p.user, "root").FillWidth().Font(theme.MonoFont)
+		if focus && !p.refusal.AcceptsPassword() {
+			in.AutoFocus()
+		}
+		submit = in.Submitted()
+	})
+	if p.refusal.AcceptsPassword() {
+		widget.Field(c, "Password", func() {
+			in := widget.Input(c, &p.password, "The user's password").FillWidth().Password()
+			if focus {
+				in.AutoFocus()
+			}
+			submit = in.Submitted() || submit
+		})
+		ui.Row(c).FillWidth().Gap(10).Children(func() {
+			ui.Text(c, "Remember the password in the keychain").FontSize(12.5).TextColor(theme.TextSoft).Grow(1)
+			widget.Switch(c, &p.remember, "Remember the password in the keychain")
+		})
+	} else {
+		ui.Text(c, "This server accepts SSH keys only. Add your public key (~/.ssh/id_ed25519.pub) to the user's ~/.ssh/authorized_keys, or allow passwords in the server's /etc/ssh/sshd_config.").
+			FontSize(12).TextColor(theme.Muted)
+	}
+	if p.err != "" {
+		ui.Text(c, p.err).FontSize(12).TextColor(theme.Error)
+	}
+	return submit
 }

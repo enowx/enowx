@@ -163,6 +163,16 @@ func TestTypingSurvivesAgentsAsking(t *testing.T) {
 			t.Fatalf("after ask %d the composer lost the keyboard", i)
 		}
 	}
+	// An ask waiting for the user's yes: the Enter that sends below approves nothing.
+	h.tt.Type("zz")
+	h.app.featureRequested(h.cl, "this Mac", proto.FeatureRequest{ID: "traffic", RequestID: "r1"})
+	n := 0
+	h.settle("the card", func() bool { n++; return n > 8 && h.tt.HasText("Turn on everywhere") })
+	h.tt.Type("yy")
+	want += "zzyy"
+	if !h.tt.Focused("Message") {
+		t.Fatal("a card took the keyboard from the composer")
+	}
 	h.tt.Key(0, ui.KeyEnter)
 	h.settle("what was typed sent whole", func() bool {
 		list, _ := h.cl.Sessions()
@@ -170,6 +180,9 @@ func TestTypingSurvivesAgentsAsking(t *testing.T) {
 	})
 	if id, _ := h.app.canvases.Showing(); id != cv.ID || h.app.page != pageCanvas {
 		t.Fatalf("moved to %s on %q", id, h.app.page)
+	}
+	if len(h.app.featAsks) != 1 {
+		t.Fatal("the Enter that sent the message answered the card")
 	}
 }
 

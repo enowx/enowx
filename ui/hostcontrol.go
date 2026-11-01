@@ -3,11 +3,17 @@ package ui
 import (
 	"encoding/json"
 	"errors"
+	"slices"
+	"strconv"
 	"strings"
+	"time"
+
+	"github.com/egoist/mygo/ui"
 
 	"github.com/enowx/enowx/client"
 	"github.com/enowx/enowx/core/hostcontrol"
 	"github.com/enowx/enowx/proto"
+	"github.com/enowx/enowx/ui/widget"
 )
 
 // A session controlling another host's sessions and settings (host.call,
@@ -80,9 +86,37 @@ func (a *App) hostCallAsked(from string, req proto.AppRequest, reply func(any, e
 	if hibernate {
 		after = " It can be continued later."
 	}
-	a.confirmOr("Let a session do this?",
-		"The agent of “"+asker+"”"+askerHost+" asks to "+controlWhat(p)+" on "+hostName+"."+after,
-		"Allow", run, func() { reply(nil, errors.New("the user said no")) })
+	a.hostAskKey++
+	a.hostAsks = append(a.hostAsks, &hostAsk{key: a.hostAskKey, until: askUntil(hostAskLife),
+		about: "The agent of “" + asker + "”" + askerHost + " asks to " + controlWhat(p) + " on " + hostName + "." + after,
+		run:   run, refuse: func() { reply(nil, errors.New("the user said no")) }})
+}
+
+// hostAsk is a session waiting for the user's yes.
+type hostAsk struct {
+	key    int
+	about  string
+	run    func()
+	refuse func()
+	until  time.Time
+}
+
+// hostControlAsk is the card of the oldest session waiting.
+func (a *App) hostControlAsk(*ui.Context) *widget.Ask {
+	if len(a.hostAsks) == 0 {
+		return nil
+	}
+	q := a.hostAsks[0]
+	answer := func(do func()) func() {
+		return func() {
+			a.hostAsks = slices.DeleteFunc(a.hostAsks, func(x *hostAsk) bool { return x == q })
+			do()
+		}
+	}
+	return &widget.Ask{Key: "host:" + strconv.Itoa(q.key), Title: "Let a session do this?", About: q.about, Buttons: []widget.AskButton{
+		{Kind: widget.Secondary, Label: "Cancel", Do: answer(q.refuse)},
+		{Kind: widget.Primary, Label: "Allow", Do: answer(q.run)},
+	}}
 }
 
 // agentHibernates says p has an agent stop sessions' agents on another

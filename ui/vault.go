@@ -56,10 +56,9 @@ type vaultApp struct {
 	found   []proto.VaultFound
 	scan    bool
 	audit   []proto.VaultAuditEntry
-	asks    []*vaultAsk // questions waiting for the user, the first shown
-	askOpen bool
-	warned  map[string]string // credential ID → the day its expiry was told
-	keyRead bool              // the keychain was tried this run
+	asks    []*vaultRequestAsk // questions waiting for the user, the first shown
+	warned  map[string]string  // credential ID → the day its expiry was told
+	keyRead bool               // the keychain was tried this run
 }
 
 // vaultOf is the vault, read from disk the first time.

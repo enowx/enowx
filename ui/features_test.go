@@ -18,7 +18,7 @@ func TestFeaturesSettingsAndAsking(t *testing.T) {
 	h.tt = ui.NewTester(func(c *ui.Context) {
 		ui.Column(c).Width(1000).Height(2400).Background(theme.Background).Children(func() {
 			h.app.settingsBody(c)
-			h.app.featureAskDialog(c)
+			h.app.asksView(c)
 		})
 	}, 1000, 2400)
 	h.settle("the features", func() bool { return h.tt.HasText("Traffic (HTTP inspector)") })

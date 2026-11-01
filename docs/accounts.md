@@ -35,7 +35,7 @@ What reads as a key or a token in that line is masked before it is kept, shown o
 
 **At a limit** sets what happens next:
 - **Stop and tell me:** a sound and a banner.
-- **Ask me first:** a dialog offers to go on as the next account.
+- **Ask me first:** a card offers to go on as the next account.
 - **Go on as the next:** the session switches by itself.
 
 The next account is the one after it in the order that isn't spent (still at its limit, or one that doesn't say when it resets for an hour, credits and sign-ins for a day) and is allowed for the project. **Then** names another agent to go on with once every account is spent: it starts on a summary of the task (the user's prompts, what the other agent said last), since it can't take the other's conversation.

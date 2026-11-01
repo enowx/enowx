@@ -44,16 +44,16 @@ GOD of Agents (one session controlling every session, on any host; PLAN §10) re
 
 What can't be undone (the `confirm` methods in `core/hostcontrol`: close, push, pull request, merge, discard, removing a project, a host's environment variable) and hibernating or stopping sessions, asked by an agent, follow the asking session's permission mode:
 
-- **In bypass, on the user's own hosts:** done without a dialog, and logged: `control log` says `not asked: the agent is in bypassPermissions`.
-- **Anything else:** the dialog, as before. That includes a mode not known, `auto`, `acceptEdits` and the like, a teammate's session on this host, and any request to a teammate's shared host, which also keeps checking the role.
+- **In bypass, on the user's own hosts:** done without asking, and logged: `control log` says `not asked: the agent is in bypassPermissions`.
+- **Anything else:** a card for the user's yes ([agents.md](agents.md), Agents don't move the user), which doesn't take the keyboard. That includes a mode not known, `auto`, `acceptEdits` and the like, a teammate's session on this host, and any request to a teammate's shared host, which also keeps checking the role.
 
 The mode comes from the daemon, never from what the session sends (`HostCallParams.Bypass` is overwritten): what the agent's own hook last reported as `permission_mode`, which it does just before each tool call, so a shift+tab counts by the next call. A report counts for two minutes, and is forgotten when the agent restarts and when the daemon does. How a session was started counts for nothing, since the mode can change after.
 
-| Agent | What enowX knows | Without a dialog |
+| Agent | What enowX knows | Without asking |
 |---|---|---|
 | Claude Code, Claude Agent Teams, OpenClaude | `permission_mode` in its hooks, `bypassPermissions` when it asks nothing | Yes |
 | Codex | the same field; `bypassPermissions` when it never asks for approval | Yes |
-| Every other agent, and any agent on Windows | no report: `--yolo` at the start says nothing of now | No, always the dialog |
+| Every other agent, and any agent on Windows | no report: `--yolo` at the start says nothing of now | No, always the card |
 
 This follows the agent's mode; it isn't a boundary against the agent. A command the agent runs could call `enowx hook` with a mode of its choosing or name another session in `From`, as it could already leave `From` out; agents' other asks (features, the vault, moving project copies) are unchanged.
 
