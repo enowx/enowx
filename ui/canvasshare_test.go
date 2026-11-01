@@ -27,8 +27,7 @@ func TestCanvasShareLinkDialog(t *testing.T) {
 		}
 		h.tt.Frame()
 	}
-	click("Export")
-	click("Share a link…")
+	click("Share")
 	h.settle("the link", func() bool {
 		for _, s := range h.tt.Texts() {
 			if strings.HasPrefix(s, "http://127.0.0.1:") && strings.Contains(s, "/c/") {

@@ -215,7 +215,7 @@ func TestCanvasMockupCommentsAndVersions(t *testing.T) {
 	if err := h.tt.Click("Layers"); err != nil {
 		t.Fatal(err)
 	}
-	h.settle("layers", func() bool { return h.tt.HasText("<button>") })
+	h.settle("layers", func() bool { _, ok := h.tt.Find("Layer cta"); return ok })
 	h.tt.Advance(time.Second) // the panel slid in
 	if err := h.tt.Click("Layer cta"); err != nil {
 		t.Fatal(err)
@@ -247,7 +247,7 @@ func TestCanvasMockupCommentsAndVersions(t *testing.T) {
 	if err := h.tt.Click("Versions"); err != nil {
 		t.Fatal(err)
 	}
-	h.settle("versions", func() bool { return h.tt.HasText("v4 · html.patch cta") && h.tt.HasText("v1 · create") })
+	h.settle("versions", func() bool { return h.tt.HasText("Version 4") && h.tt.HasText("Version 1") })
 	if err := h.tt.Click("Compare v2 with the one shown"); err != nil {
 		t.Fatal(err)
 	}
@@ -269,12 +269,12 @@ func TestCanvasMadeAndEditedByTheUser(t *testing.T) {
 	if err := h.tt.Click("New canvas"); err != nil {
 		t.Fatal(err)
 	}
-	h.settle("the dialog", func() bool { return h.tt.HasText("Make canvas") })
+	h.settle("the dialog", func() bool { return h.tt.HasText("New canvas") })
 	h.tt.Type("Retro")
 	if err := h.tt.Click("Board"); err != nil {
 		t.Fatal(err)
 	}
-	if err := h.tt.Click("Make canvas"); err != nil {
+	if err := h.tt.Click("Create canvas"); err != nil {
 		t.Fatal(err)
 	}
 	var id string
@@ -283,7 +283,7 @@ func TestCanvasMadeAndEditedByTheUser(t *testing.T) {
 		if len(list) == 1 && list[0].Kind == proto.CanvasBoard && list[0].Title == "Retro" {
 			id = list[0].ID
 		}
-		return id != "" && h.tt.HasText("Design 1 of 1 · Board  1600×1000")
+		return id != "" && h.tt.HasText("Design 1 of 1")
 	})
 	if err := h.tt.Click("Add sticky note"); err != nil {
 		t.Fatal(err)

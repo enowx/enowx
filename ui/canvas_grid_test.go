@@ -23,7 +23,7 @@ func TestCanvasGridBuilder(t *testing.T) {
 		t.Fatal(err)
 	}
 	h.settle("the canvas open", func() bool { return h.tt.HasText("Box") })
-	if err := h.tt.Click("Layout grid"); err != nil {
+	if err := h.tt.Click("Grid"); err != nil {
 		t.Fatal(err)
 	}
 	h.tt.Advance(time.Second)

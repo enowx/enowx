@@ -99,7 +99,7 @@ func (a *App) canvasAgentPanel(c *ui.Context) {
 	}
 	width := a.state.CanvasChatWidth
 	if width <= 0 {
-		width = 400
+		width = 320
 	}
 	// The canvas keeps the most of a narrow window.
 	if winW, _ := c.Size(); winW > 0 {
@@ -109,7 +109,7 @@ func (a *App) canvasAgentPanel(c *ui.Context) {
 	if dx, _, ok := edge.Dragged(); ok && dx != 0 {
 		a.state.CanvasChatWidth = min(max(width-dx, 320), 760)
 	}
-	widget.Bento(ui.Column(c.Key("canvas-agent")).Width(width).MinWidth(minPanelWidth).Shrink(1).FillHeight(), theme.Background).
+	widget.Rim(ui.Column(c.Key("canvas-agent")).Width(width).MinWidth(minPanelWidth).Shrink(1).FillHeight().Radius(theme.RadiusCard).Clip().Background(theme.Popover)).
 		Transition(widget.PanelMotion(24)).Children(func() { a.canvasAssistant(c, *cv) })
 }
 
@@ -124,7 +124,7 @@ func (a *App) canvasAssistant(c *ui.Context, cv proto.Canvas) {
 	s, ok := a.canvasSession(cv.ID, agentID)
 	a.canvasChatHeader(c, cv, hc, agentID, s, ok)
 	if agentID == "" {
-		ui.Text(c, "No agent is installed on "+a.host.Name+".").FontSize(theme.TextLabel).TextColor(theme.Muted).Padding(16)
+		ui.Text(c, "No agent is installed on "+a.host.Name+".").FontSize(theme.TextUI).TextColor(theme.TextSoft).Padding(theme.S4)
 		return
 	}
 	if hc.history {
@@ -151,7 +151,7 @@ func (a *App) canvasAssistant(c *ui.Context, cv proto.Canvas) {
 	case p != nil:
 		terminal.View(c.Key("term:"+s.ID), p.term).Grow(1).FillWidth()
 	default:
-		ui.Text(c, "Connecting…").FontSize(theme.TextLabel).TextColor(theme.Muted).Padding(16)
+		ui.Text(c, "Connecting…").FontSize(theme.TextUI).TextColor(theme.TextSoft).Padding(theme.S4)
 	}
 }
 
@@ -159,17 +159,19 @@ func (a *App) canvasAssistant(c *ui.Context, cv proto.Canvas) {
 // the history and a new conversation.
 func (a *App) canvasChatHeader(c *ui.Context, cv proto.Canvas, hc *hostCanvasChat, agentID string, s proto.SessionInfo, ok bool) {
 	cl := a.client
-	ui.Row(c).FillWidth().Height(44).Shrink(0).PaddingX(12).Gap(6).AlignItems(ui.Center).BorderWidth(0, 0, 1, 0).BorderColor(theme.Border).Children(func() {
-		pick := ui.ButtonBase(c).Height(30).PaddingX(10).Gap(7).Radius(theme.RadiusCard).Border(1, theme.Border).Cursor(ui.CursorPointer).Label("Agent").Tooltip("The agent this canvas talks to")
+	ui.Row(c.Key("agent-head")).FillWidth().Height(52).Shrink(0).Padding(0, theme.S2, 0, theme.S3).Gap(theme.S1).AlignItems(ui.Center).Clip().Children(func() {
+		pick := ui.ButtonBase(c.Key("pick")).Height(theme.ControlHeight).Shrink(1).MinWidth(0).PaddingX(theme.S2).Gap(theme.S1).Radius(theme.RadiusFull).Cursor(ui.CursorPointer).Label("Agent").Tooltip("The agent this canvas talks to")
 		if pick.Hovered() {
 			pick.Background(theme.Hover)
 		}
 		pick.Children(func() {
 			ui.Icon(c, icon.Agent(agentID)).FontSize(14)
-			ui.Text(c, a.agentName(agentID)).FontSize(theme.TextUI).TextColor(theme.Text)
-			ui.Icon(c, icon.ChevronDown).FontSize(10).TextColor(theme.Muted)
+			ui.Row(c).Shrink(1).MinWidth(0).Children(func() {
+				widget.Running(c, a.agentName(agentID), widget.RunStyle{Weight: 500})
+			})
+			ui.Icon(c, icon.ChevronDown).FontSize(12).TextColor(theme.TextSoft)
 		})
-		a.menu.OpenBelow(pick, "canvas-agent", 30)
+		a.menu.OpenBelow(pick, "canvas-agent", theme.ControlHeight)
 		a.menu.Show(c, pick, "canvas-agent", func(done func()) {
 			for _, ag := range a.notesAgents() {
 				if widget.MenuItem(c.Key(ag.ID), icon.Agent(ag.ID), ag.Name, false) {
@@ -185,7 +187,7 @@ func (a *App) canvasChatHeader(c *ui.Context, cv proto.Canvas, hc *hostCanvasCha
 		if !review {
 			label = "Changes apply directly: click to review each message's instead"
 		}
-		if widget.IconButton(c, icon.History, label, review).Clicked() {
+		if widget.IconButton(c.Key("review"), icon.History, label, review).Clicked() {
 			mode := proto.CanvasChatDirect
 			if !review {
 				mode = proto.CanvasChatReview
@@ -193,20 +195,20 @@ func (a *App) canvasChatHeader(c *ui.Context, cv proto.Canvas, hc *hostCanvasCha
 			hc.log.Mode = mode
 			go func() { _, _ = cl.CanvasChat(proto.CanvasChatParams{ID: cv.ID, Mode: mode}) }()
 		}
-		if widget.IconButton(c, icon.Paperclip, "Attach a picture (or paste one)", false).Clicked() {
+		if widget.IconButton(c.Key("attach"), icon.Paperclip, "Attach a picture (or paste one)", false).Clicked() {
 			a.canvasAttachFile(cv.ID, s, ok)
 		}
-		if widget.IconButton(c, icon.List, fmt.Sprintf("Messages and their versions (%d)", len(hc.log.Messages)), hc.history).Clicked() {
+		if widget.IconButton(c.Key("list"), icon.List, fmt.Sprintf("Messages and their versions (%d)", len(hc.log.Messages)), hc.history).Clicked() {
 			hc.history = !hc.history
 		}
 		if ok {
 			st := statusOf(s)
-			widget.Dot(c, st.color, st.hollow, 7)
-			if widget.IconButton(c, icon.Plus, "New conversation", false).Clicked() {
+			widget.Dot(c.Key("state"), st.color, st.hollow, 8)
+			if widget.IconButton(c.Key("new"), icon.Plus, "New conversation", false).Clicked() {
 				a.endNotesSession(s)
 			}
 		}
-		if widget.IconButton(c, icon.Close, "Close the agent", false).Clicked() {
+		if widget.IconButton(c.Key("close"), icon.Close, "Close the agent", false).Clicked() {
 			a.canvases.CloseAssistant()
 		}
 	})
@@ -243,32 +245,34 @@ func (a *App) canvasStart(c *ui.Context, cv proto.Canvas, agentID string) {
 }
 
 func (a *App) canvasIntro(c *ui.Context, cv proto.Canvas, agentID string) {
-	ui.Column(c).FillWidth().Gap(18).Padding(24, 0, 8, 0).Children(func() {
-		ui.Column(c).FillWidth().Center().Gap(8).Children(func() {
+	ui.Column(c).FillWidth().Gap(theme.S4).Padding(theme.S5, 0, theme.S2, 0).Children(func() {
+		ui.Column(c.Key("hello")).FillWidth().Center().Gap(theme.S2).Children(func() {
 			ui.Row(c).Size(48, 48).Radius(theme.RadiusCard).Center().Background(theme.AccentSoft).Children(func() {
 				ui.Icon(c, icon.Agent(agentID)).FontSize(24).TextColor(theme.Accent)
 			})
-			ui.Text(c, "Design with "+a.agentName(agentID)).FontSize(theme.TextTitle).FontWeight(650).TextColor(theme.TextStrong)
-			ui.Text(c, "On “"+cv.Title+"”: it sees the design you show and the element you select").FontSize(theme.TextLabel).TextColor(theme.Muted).MaxWidth(320).TextAlign(ui.Center)
+			ui.Text(c, "Design with "+a.agentName(agentID)).FontSize(theme.TextTitle).FontWeight(600).TextColor(theme.TextStrong).TextAlign(ui.Center)
+			ui.Text(c, "On “"+cv.Title+"”: it sees the design you show and the element you select").FontSize(theme.TextUI).TextColor(theme.TextSoft).TextAlign(ui.Center)
 			tip := "It changes the canvas with its tools only, live; it reads the projects the canvas belongs to, and writes no files and runs no commands."
-			ui.Row(c).Height(24).PaddingX(10).Gap(6).Radius(theme.RadiusSmall).Border(1, theme.Border).AlignItems(ui.Center).Tooltip(tip).Children(func() {
-				ui.Icon(c, icon.Lock).FontSize(11).TextColor(theme.Muted)
-				ui.Text(c, "Canvas only · you keep or undo each change").FontSize(theme.TextLabel).TextColor(theme.TextSoft)
+			ui.Row(c.Key("only")).MaxWidth(280).Height(24).PaddingX(theme.S2).Gap(theme.S1).Radius(theme.RadiusFull).Background(theme.Sunken).AlignItems(ui.Center).Tooltip(tip).Children(func() {
+				ui.Icon(c, icon.Lock).FontSize(12).TextColor(theme.TextSoft)
+				ui.Row(c).Shrink(1).MinWidth(0).Children(func() {
+					widget.Running(c, "Canvas only · you keep or undo each change", widget.RunStyle{Size: theme.TextLabel, Color: theme.TextSoft})
+				})
 			})
 		})
-		ui.Column(c).FillWidth().Gap(8).Children(func() {
+		ui.Column(c.Key("asks")).FillWidth().Gap(theme.S2).Children(func() {
 			for row := 0; row < len(canvasSuggestions); row += 2 {
-				ui.Row(c.Key(row)).FillWidth().Gap(8).AlignItems(ui.Stretch).Children(func() {
+				ui.Row(c.Key(row)).FillWidth().Gap(theme.S2).AlignItems(ui.Stretch).Children(func() {
 					for _, sug := range canvasSuggestions[row:min(row+2, len(canvasSuggestions))] {
-						card := ui.ButtonBase(c.Key(sug.title)).Grow(1).Basis(0).MinWidth(0).Padding(12).Gap(6).Radius(theme.RadiusSmall).Border(1, theme.Border).
+						card := ui.ButtonBase(c.Key(sug.title)).Grow(1).Basis(0).MinWidth(0).Padding(theme.S3).Gap(theme.S1).Radius(theme.RadiusCard).
 							Background(theme.Raised).Cursor(ui.CursorPointer).Label(sug.ask).Column().AlignItems(ui.Start)
 						if card.Hovered() {
-							card.Border(1, theme.AccentLine).Background(theme.Hover)
+							card.Background(theme.Hover)
 						}
-						card.Children(func() {
-							ui.Icon(c, sug.svg).FontSize(15).TextColor(theme.Accent)
-							ui.Text(c, sug.title).FontSize(theme.TextUI).FontWeight(600).TextColor(theme.TextStrong)
-							ui.Text(c, sug.about).FontSize(theme.TextLabel).TextColor(theme.Muted)
+						widget.Raise(card).Children(func() {
+							ui.Icon(c, sug.svg).FontSize(14).TextColor(theme.Accent)
+							ui.Text(c, sug.title).FontSize(theme.TextUI).FontWeight(500).TextColor(theme.TextStrong)
+							ui.Text(c, sug.about).FontSize(theme.TextLabel).TextColor(theme.TextSoft)
 						})
 						if card.Clicked() {
 							a.canvasAsk(cv, agentID, sug.ask, nil)

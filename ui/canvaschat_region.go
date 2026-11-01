@@ -57,7 +57,7 @@ func (a *App) canvasRegionView(c *ui.Context, cv proto.Canvas, hc *hostCanvasCha
 	case p != nil:
 		terminal.View(c.Key("term:"+s.ID), p.term).Grow(1).FillWidth()
 	default:
-		ui.Text(c, "Connecting…").FontSize(theme.TextLabel).TextColor(theme.Muted).Padding(16)
+		ui.Text(c, "Connecting…").FontSize(theme.TextUI).TextColor(theme.TextSoft).Padding(theme.S4)
 	}
 }
 
@@ -74,16 +74,16 @@ func canvasRegionPrompt(text string) string {
 // agent, the regions to go to, and this one's state.
 func (a *App) regionBar(c *ui.Context, cv proto.Canvas, hc *hostCanvasChat, s proto.SessionInfo) {
 	run, hasRun := a.unslopRuns[cv.ID]
-	ui.Column(c).FillWidth().Shrink(0).Padding(8, 10).Gap(8).BorderWidth(0, 0, 1, 0).BorderColor(theme.Border).Children(func() {
-		ui.Row(c).FillWidth().Gap(8).AlignItems(ui.Center).Children(func() {
-			back := ui.ButtonBase(c.Key("back")).Height(28).Padding(0, 10, 0, 6).Gap(6).Radius(theme.RadiusControl).AlignItems(ui.Center).
+	ui.Column(c.Key("region-bar")).FillWidth().Shrink(0).Padding(theme.S2, theme.S3).Gap(theme.S2).Children(func() {
+		ui.Row(c.Key("head")).FillWidth().Gap(theme.S2).AlignItems(ui.Center).Children(func() {
+			back := ui.ButtonBase(c.Key("back")).Height(theme.ControlHeight).Padding(0, theme.S3, 0, theme.S2).Gap(theme.S1).Radius(theme.RadiusFull).AlignItems(ui.Center).
 				Label("Back to the main agent").Cursor(ui.CursorPointer)
 			if back.Hovered() {
 				back.Background(theme.Hover)
 			}
 			back.Children(func() {
-				ui.Icon(c, icon.ArrowLeft).FontSize(13).TextColor(theme.TextSoft)
-				ui.Text(c, "Main agent").FontSize(theme.TextLabel).FontWeight(600).TextColor(theme.TextSoft)
+				ui.Icon(c, icon.ArrowLeft).FontSize(14).TextColor(theme.TextSoft)
+				ui.Text(c, "Main agent").FontSize(theme.TextUI).FontWeight(500).TextColor(theme.TextSoft).SingleLine()
 			})
 			if back.Clicked() {
 				hc.viewing = ""
@@ -103,25 +103,27 @@ func (a *App) regionBar(c *ui.Context, cv proto.Canvas, hc *hostCanvasChat, s pr
 			widget.Tag(c, label, col)
 		})
 		if !hasRun || len(run.Regions) == 0 {
-			ui.Text(c, s.Name).FontSize(theme.TextUI).FontWeight(600).SingleLine()
+			widget.Running(c.Key("name"), s.Name, widget.RunStyle{Weight: 500})
 			return
 		}
 		// Every region's agent, the one shown lit: one click to the next.
-		ui.Row(c).FillWidth().Gap(6).Wrap().Children(func() {
+		ui.Row(c.Key("regions")).FillWidth().Gap(theme.S1).Wrap().Children(func() {
 			for i, r := range run.Regions {
 				on := r.Session == s.ID
-				chip := ui.ButtonBase(c.Key("r:"+r.ID)).Height(24).Padding(0, 9, 0, 7).Gap(6).Radius(theme.RadiusSmall).AlignItems(ui.Center).
-					Label("Show the agent of #"+r.ID).Cursor(ui.CursorPointer).Border(1, theme.Border)
+				chip := ui.ButtonBase(c.Key("r:" + r.ID)).Height(24).MaxWidth(200).PaddingX(theme.S2).Gap(theme.S1).Radius(theme.RadiusFull).AlignItems(ui.Center).
+					Label("Show the agent of #" + r.ID).Cursor(ui.CursorPointer).Background(theme.Sunken)
 				if on {
-					chip.Background(theme.Fade(theme.Accent, 0.16)).Border(1, theme.AccentLine)
+					chip.Background(theme.Selected)
 				} else if chip.Hovered() {
 					chip.Background(theme.Hover)
 				}
 				chip.Children(func() {
-					ui.Box(c).Size(7, 7).Radius(theme.RadiusTail).Background(ui.Hex(unslopview.RegionColors[i%len(unslopview.RegionColors)]))
-					ui.Text(c, "#"+r.ID).FontSize(theme.TextLabel).TextColor(theme.TextSoft).SingleLine()
+					ui.Box(c).Size(8, 8).Shrink(0).Radius(theme.RadiusFull).Background(ui.Hex(unslopview.RegionColors[i%len(unslopview.RegionColors)]))
+					ui.Row(c).Shrink(1).MinWidth(0).Children(func() {
+						widget.Running(c, "#"+r.ID, widget.RunStyle{Size: theme.TextLabel, Color: theme.TextSoft})
+					})
 					if r.Done {
-						ui.Icon(c, icon.Check).FontSize(10).TextColor(theme.Done)
+						ui.Icon(c, icon.Check).FontSize(12).TextColor(theme.Done)
 					}
 				})
 				if chip.Clicked() {
