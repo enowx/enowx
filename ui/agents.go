@@ -1,9 +1,11 @@
 package ui
 
 import (
+	"cmp"
 	"fmt"
 	"slices"
 	"strconv"
+	"strings"
 
 	"github.com/egoist/mygo/ui"
 
@@ -42,16 +44,22 @@ func (a *App) agentsSection(c *ui.Context) {
 		a.accountHistory(c, st)
 		return
 	}
-	list := a.configAgents(st, apis)
-	if st.loaded && len(list) == 0 {
-		ui.Text(c, "No agent that can have configs is installed on "+a.host.Name+".").FontSize(12).TextColor(theme.Muted)
-	}
+	list := a.configAgents(st)
 	if len(list) > 0 && !slices.ContainsFunc(list, func(ag proto.AgentInfo) bool { return ag.ID == st.agent }) {
 		st.agent = list[0].ID
 	}
 	ui.Row(c).FillWidth().Gap(14).AlignItems(ui.Start).Children(func() {
 		ui.Column(c).Width(184).Shrink(0).Gap(2).Children(func() {
+			widget.Input(c.Key("find"), &st.find, "Find an agent").Label("Find an agent").FillWidth()
+			find, group := strings.ToLower(strings.TrimSpace(st.find)), 1
 			for _, ag := range list {
+				if find != "" && !strings.Contains(strings.ToLower(ag.Name+" "+ag.ID), find) {
+					continue
+				}
+				if rank := agentRank(st, ag); rank != group {
+					group = rank
+					ui.Text(c, "Not installed").FontSize(11).FontWeight(600).TextColor(theme.Muted).Padding(8, 8, 2, 8)
+				}
 				a.agentListItem(c.Key("ag:"+ag.ID), st, ag)
 			}
 		})
@@ -92,6 +100,11 @@ func (a *App) agentListItem(c *ui.Context, st *accountsState, ag proto.AgentInfo
 // agentPage is an agent's configs and, where it takes a model API only in
 // its own settings, that API.
 func (a *App) agentPage(c *ui.Context, st *accountsState, apis *agentAPIState, ag proto.AgentInfo) {
+	way := accounts.WayOf(ag.ID)
+	a.agentWay(c, ag, way)
+	if why := noConfigWhy(ag, way); why != "" && len(st.accountsOfAgent(ag.ID)) == 0 {
+		return
+	}
 	a.agentAccounts(c, st, ag)
 	info, ok := apiInfoOf(apis, ag.ID)
 	if !ok || info.PerSession && info.Current == nil && len(info.Backups) == 0 {
@@ -108,21 +121,28 @@ func (a *App) agentPage(c *ui.Context, st *accountsState, apis *agentAPIState, a
 	})
 }
 
-// configAgents are the agents a page shows: those installed that can
-// have a config (another account, an API key, a model API), and any with
-// configs.
-func (a *App) configAgents(st *accountsState, apis *agentAPIState) []proto.AgentInfo {
+// configAgents are every agent, installed ones first: each says how it takes a
+// config, or why it can't (accounts.WayOf).
+func (a *App) configAgents(st *accountsState) []proto.AgentInfo {
 	var out []proto.AgentInfo
 	for _, ag := range a.agents {
-		if agent.Base(ag.ID) != ag.ID || ag.ID == agent.Shell || ag.Command == "" && !accounts.Supported(ag.ID) {
+		if _, ok := agent.Find(ag.ID); !ok || ag.ID == agent.Shell {
 			continue
 		}
-		_, api := apiInfoOf(apis, ag.ID)
-		if ag.Installed && (accounts.Supported(ag.ID) || api) || len(st.accountsOfAgent(ag.ID)) > 0 {
-			out = append(out, ag)
-		}
+		out = append(out, ag)
 	}
+	slices.SortStableFunc(out, func(x, y proto.AgentInfo) int {
+		return cmp.Compare(agentRank(st, y), agentRank(st, x))
+	})
 	return out
+}
+
+// agentRank puts first what can have a config now: installed, or with some.
+func agentRank(st *accountsState, ag proto.AgentInfo) int {
+	if ag.Installed || len(st.accountsOfAgent(ag.ID)) > 0 {
+		return 1
+	}
+	return 0
 }
 
 func apiInfoOf(apis *agentAPIState, id string) (proto.AgentAPIInfo, bool) {
@@ -135,6 +155,47 @@ func apiInfoOf(apis *agentAPIState, id string) (proto.AgentAPIInfo, bool) {
 
 // configKinds are the kinds of config agent id can have, as the form
 // offers them.
+// agentWay says what an agent takes, what it doesn't and how that was checked.
+func (a *App) agentWay(c *ui.Context, ag proto.AgentInfo, way accounts.Way) {
+	ui.Column(c).FillWidth().Gap(4).Children(func() {
+		ui.Text(c, ag.Name+" takes "+way.Says()).FontSize(12.5).TextColor(theme.TextSoft)
+		if way.Why != "" {
+			ui.Text(c, way.Why).FontSize(11.5).TextColor(theme.Muted)
+		}
+		if why := noConfigWhy(ag, way); why != "" {
+			ui.Text(c, why).FontSize(11.5).TextColor(theme.Warning)
+		}
+		ui.Text(c, wayChecked[way.Checked]).FontSize(10.5).TextColor(theme.Muted)
+	})
+}
+
+// wayChecked says how a Way was checked.
+var wayChecked = map[string]string{
+	"run":  "Run here.",
+	"help": "From its --help and docs; not run with a config.",
+	"docs": "Read from its docs; not run.",
+}
+
+// noConfigWhy is why ag has no New config on this host, "" when it has.
+func noConfigWhy(ag proto.AgentInfo, way accounts.Way) string {
+	switch {
+	case way.Base != "":
+		return "Pick the config in " + agentNameOf(way.Base) + "'s page."
+	case way.None():
+		return "It can't have a config."
+	case !ag.Installed:
+		return "It isn't installed on this host: install it to give it a config."
+	}
+	return ""
+}
+
+func agentNameOf(id string) string {
+	if p, ok := agent.Find(id); ok {
+		return p.Name
+	}
+	return id
+}
+
 func (a *App) configKinds(id string) []string {
 	var out []string
 	if info, ok := apiInfoOf(a.agentAPIsOf(), id); ok && info.PerSession {
@@ -143,7 +204,10 @@ func (a *App) configKinds(id string) []string {
 	if accounts.Supported(agent.Base(id)) {
 		out = append(out, kindAccount)
 	}
-	return append(out, kindKey)
+	if accounts.WayOf(id).Key {
+		out = append(out, kindKey)
+	}
+	return out
 }
 
 // The kinds of config, as the form names them.

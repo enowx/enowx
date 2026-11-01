@@ -26,7 +26,7 @@ What enowX adds is named `enowx`, so it finds it again and leaves the user's own
 | Continue | OpenAI chat, Anthropic, Gemini | a config of enowX's, `~/.enowx-app/agentapi/continue.yaml`, given to its sessions (`--config`); the user's own untouched | docs.continue.dev/cli/configuration |
 | Pi | OpenAI chat, OpenAI Responses, Anthropic, Gemini | `~/.pi/agent/models.json` `providers.enowx`, `defaultProvider`/`defaultModel` of `~/.pi/agent/settings.json` | pi-mono's models docs |
 
-The others have no API of the user's (Cursor, Amp, Kiro, Auggie, Rovo Dev), set it only in their own screens (Qoder, Cline's `cline auth`), or document it too little to write safely; they don't show.
+The others take no model API from enowX for the reason [configs.md](configs.md#every-agent) gives each; Settings → Agents says it on their page.
 
 ## Models and their options
 

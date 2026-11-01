@@ -109,7 +109,11 @@ func (r runner) configsList(only string) error {
 		}
 		fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%s\t%s\n", st.Agent, name, kind, what, state, orDash(c.ID))
 	}
-	return w.Flush()
+	w.Flush()
+	if only != "" {
+		return nil
+	}
+	return r.printAgentWays()
 }
 
 // config is agent's config named name (or of that ID).

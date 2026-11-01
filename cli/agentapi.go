@@ -4,6 +4,8 @@ import (
 	"bufio"
 	"errors"
 	"fmt"
+	"github.com/enowx/enowx/core/accounts"
+	"github.com/enowx/enowx/core/agent"
 	"os"
 	"strconv"
 	"strings"
@@ -48,7 +50,8 @@ func (r runner) api(args []string) error {
 			}
 			fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%s\n", a.Agent, api, orDash(model), orDash(key), inst)
 		}
-		return w.Flush()
+		w.Flush()
+		return r.printAgentWays()
 	}
 	cmd, rest := args[0], args[1:]
 	if cmd == "help" {
@@ -257,4 +260,20 @@ func capsText(a proto.AgentAPIInfo) string {
 		out = append(out, "one effort for all (--effort): "+strings.Join(c.Efforts, "|"))
 	}
 	return strings.Join(out, ", ")
+}
+
+// printAgentWays lists every agent: how it takes a config, or why it can't,
+// the same on every host and as Settings → Agents says.
+func (r runner) printAgentWays() error {
+	fmt.Fprintln(r.out, "\nEvery agent:")
+	w := tabwriter.NewWriter(r.out, 0, 4, 2, ' ', 0)
+	fmt.Fprintln(w, "AGENT\tINSTALLED\tTAKES\tCHECKED\tWHY NOT MORE")
+	for _, p := range agent.Presets {
+		way, inst := accounts.WayOf(p.ID), ""
+		if p.Installed() {
+			inst = "yes"
+		}
+		fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%s\n", p.ID, inst, way.Says(), way.Checked, way.Why)
+	}
+	return w.Flush()
 }

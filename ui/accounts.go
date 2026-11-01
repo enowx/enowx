@@ -17,6 +17,7 @@ import (
 
 // accountsState is Settings → Agents'. It belongs to the main thread.
 type accountsState struct {
+	find   string // what the list of agents is narrowed to
 	host   string
 	asked  bool
 	loaded bool
