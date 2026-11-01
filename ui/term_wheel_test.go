@@ -1,6 +1,7 @@
 package ui
 
 import (
+	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
@@ -60,4 +61,62 @@ func TestWheelReachesAFullScreenProgram(t *testing.T) {
 	try("attached as it starts")
 	time.Sleep(200 * time.Millisecond)
 	try("attached again")
+}
+
+// A program that doesn't take the mouse scrolls back through its history, and a
+// full-screen one taking the wheel as arrows gets arrows.
+func TestWheelWithoutMouseTracking(t *testing.T) {
+	h := newCanvasHarness(t)
+	dir := t.TempDir()
+	got := filepath.Join(dir, "got")
+	cases := []struct {
+		name, script string
+		check        func(t *testing.T, moved bool)
+	}{
+		{"history", `i=0; while [ $i -lt 200 ]; do echo line-$i; i=$((i+1)); done; sleep 30`, func(t *testing.T, moved bool) {
+			if !moved {
+				t.Error("the wheel didn't scroll back")
+			}
+		}},
+		{"arrows", `printf '\033[?1049h\033[?1007hREADY'; stty raw -echo; cat > ` + got, func(t *testing.T, _ bool) {
+			for range 50 {
+				if data, _ := os.ReadFile(got); strings.Contains(string(data), "\x1b[A") || strings.Contains(string(data), "\x1bOA") {
+					return
+				}
+				time.Sleep(40 * time.Millisecond)
+			}
+			data, _ := os.ReadFile(got)
+			t.Errorf("no arrows: %q", data)
+		}},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			info, err := h.cl.CreateSession(proto.SessionCreateParams{Command: []string{"sh", "-c", c.script}, Cols: 80, Rows: 24})
+			if err != nil {
+				t.Fatal(err)
+			}
+			st, err := h.cl.Attach(info.ID)
+			if err != nil {
+				t.Fatal(err)
+			}
+			term, err := terminal.New(terminal.Options{Conn: st, ResizeByConn: true})
+			if err != nil {
+				t.Fatal(err)
+			}
+			defer term.Close()
+			tt := ui.NewTester(func(c *ui.Context) { terminal.View(c, term).Fill() }, 800, 500)
+			for range 40 {
+				tt.Frame()
+				time.Sleep(20 * time.Millisecond)
+			}
+			before := fmt.Sprint(tt.Image())
+			for range 5 {
+				tt.Scroll(300, 200, 0, -60)
+				tt.Frame()
+				time.Sleep(30 * time.Millisecond)
+			}
+			tt.Frame()
+			c.check(t, fmt.Sprint(tt.Image()) != before)
+		})
+	}
 }
