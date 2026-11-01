@@ -76,7 +76,12 @@ func (s *Server) watchModels(done <-chan struct{}) {
 // readModel is what session info's transcript says now; ok false when nothing
 // changed since the last look.
 func (s *Server) readModel(home string, info proto.SessionInfo, f *modelFollow) (model, effort string, ok bool) {
-	if f.path == "" || time.Since(f.found) > modelFind {
+	if own := s.transcripts.owned(info.ID); own != "" && own != f.path {
+		f.path, f.stamp, f.length = own, time.Time{}, 0
+	}
+	// Files are found by folder alone, so a newer one may be another session's,
+	// as a fork's: only a session at work can have started a new conversation.
+	if f.path == "" && info.State != proto.StateDone || info.State == proto.StateWorking && time.Since(f.found) > modelFind {
 		f.found = time.Now()
 		for _, found := range transcript.FindIn(info.Agent, home, info.Dir, s.agentStore(info.Agent, info.ID, false)) {
 			if found.Changed.Before(info.Created.Add(-time.Second)) {

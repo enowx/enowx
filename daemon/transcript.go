@@ -75,6 +75,18 @@ func (t *transcripts) claim(id, path, old string) bool {
 	return true
 }
 
+// owned is the file session id follows, "" for none.
+func (t *transcripts) owned(id string) string {
+	t.mu.Lock()
+	defer t.mu.Unlock()
+	for path, owner := range t.files {
+		if owner == id {
+			return path
+		}
+	}
+	return ""
+}
+
 func (t *transcripts) forget(id string) {
 	t.mu.Lock()
 	defer t.mu.Unlock()
