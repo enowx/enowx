@@ -71,9 +71,9 @@ func (a *App) useCard(c *ui.Context, st *decideState, use string) {
 			})
 			widget.Field(c, "Calls a day", func() {
 				v := st.calls[use]
-				if widget.Input(c.Key("calls"), &v, "300").Width(90).Changed() {
+				if widget.Input(c.Key("calls"), &v, "No limit").Width(90).Changed() {
 					st.calls[use] = v
-					if n, err := strconv.Atoi(strings.TrimSpace(v)); err == nil && n >= 0 {
+					if n, ok := parseDailyCalls(v); ok {
 						u.DailyCalls, changed = n, true
 					}
 				}
@@ -246,4 +246,15 @@ func (a *App) overruleDecision(d proto.Decision, prompt string) {
 			}
 		})
 	}()
+}
+
+// parseDailyCalls reads the Calls a day field: empty or "unlimited" is no
+// limit (0), a number that limit.
+func parseDailyCalls(v string) (int, bool) {
+	v = strings.ToLower(strings.TrimSpace(v))
+	if v == "" || v == "unlimited" || v == "no limit" {
+		return 0, true
+	}
+	n, err := strconv.Atoi(v)
+	return n, err == nil && n >= 0
 }

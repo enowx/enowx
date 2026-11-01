@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -216,5 +217,20 @@ func TestAgentSetToAnotherAPI(t *testing.T) {
 	}
 	if ProviderOfURL("https://openrouter.ai/api/v1") != proto.ProviderOpenRouter || ProviderOfURL("https://llm.example.com") != "other" {
 		t.Fatal("providers of addresses")
+	}
+}
+
+// With no limit set, a use goes on past what the limit used to be.
+func TestNoDailyLimitByDefault(t *testing.T) {
+	local := localServer(t, []string{"a"}, func(string) string { return `{"verdict":"allow","confidence":0.99,"why":"ok"}` })
+	e := engine(t, Found{Local: []string{local}})
+	st := e.settings.Get()
+	st.Uses[proto.DecideApprove] = proto.DecideUse{On: true}
+	e.settings.Set(st)
+	for i := range 305 {
+		d, err := e.Decide(context.Background(), Request{DecideAsk: proto.DecideAsk{Use: proto.DecideApprove, Command: fmt.Sprintf("ls %d", i)}})
+		if err != nil || d.Error != "" {
+			t.Fatalf("call %d: %+v %v", i, d, err)
+		}
 	}
 }

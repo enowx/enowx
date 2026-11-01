@@ -250,7 +250,7 @@ func (e *Engine) Decide(ctx context.Context, r Request) (proto.Decision, error) 
 		e.Record(c)
 		return c, nil
 	}
-	if r.Judge == "" && e.callsToday(r.Use) >= u.DailyCalls {
+	if r.Judge == "" && u.DailyCalls > 0 && e.callsToday(r.Use) >= u.DailyCalls {
 		e.mu.Unlock()
 		d.Error = fmt.Sprintf("today's %d calls are used up", u.DailyCalls)
 		e.Record(d)

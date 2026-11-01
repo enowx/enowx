@@ -65,3 +65,15 @@ func TestProjectLines(t *testing.T) {
 	shows("/Volumes/SSD/app", "/Volumes/SSD/app", "", "vps", "app · /Volumes/SSD/app on vps")
 	shows("/Users/me/app", "/tmp/wt", "fix", "", "app · /tmp/wt · fix")
 }
+
+// Calls a day: empty or "unlimited" is no limit, a number a limit.
+func TestParseDailyCalls(t *testing.T) {
+	for in, want := range map[string]int{"": 0, " unlimited ": 0, "1000000": 1000000, "5": 5} {
+		if n, ok := parseDailyCalls(in); !ok || n != want {
+			t.Errorf("%q: %d %v", in, n, ok)
+		}
+	}
+	if _, ok := parseDailyCalls("-1"); ok {
+		t.Error("a negative limit taken")
+	}
+}

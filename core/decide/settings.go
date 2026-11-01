@@ -117,8 +117,5 @@ func Use(st proto.DecideSettings, use string) proto.DecideUse {
 			u.MinConfidence = 0.9 // allowing without the user wants more
 		}
 	}
-	if u.DailyCalls == 0 {
-		u.DailyCalls = 300
-	}
 	return u
 }

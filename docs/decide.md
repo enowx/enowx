@@ -122,7 +122,7 @@ Local models are always allowed. A project can have its own policy (Settings →
 - **On or off.**
 - **How sure** the judge must be for enowX to act: 75% by default, 90% for approving commands.
 - **The judge:** the order, or one judge alone.
-- **Calls a day:** 300 by default. Every judge asked counts, including those that failed; an answer from the cache doesn't.
+- **Calls a day:** no limit by default, for an empty field or `unlimited`; a number is a limit. Every judge asked counts, including those that failed; an answer from the cache doesn't.
 
 The same question asked again within ten minutes gets the same answer without asking a judge.
 

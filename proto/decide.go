@@ -141,7 +141,7 @@ type DecideUse struct {
 	On            bool    `json:"on,omitempty"`
 	Judge         string  `json:"judge,omitempty"`
 	MinConfidence float64 `json:"minConfidence,omitempty"` // 0: the use's default
-	DailyCalls    int     `json:"dailyCalls,omitempty"`    // 0: 300
+	DailyCalls    int     `json:"dailyCalls,omitempty"`    // 0: no limit
 }
 
 // DecideProject is a project's own policy ("" the host's).
