@@ -221,10 +221,12 @@ func (a *App) statusToast(c *ui.Context) {
 		if news {
 			col = theme.Text
 		}
-		toast := widget.Float(ui.Row(c).MaxWidth(640).Shrink(1).MinWidth(0).Height(40).Padding(0, theme.S1, 0, theme.S4).Gap(theme.S2).
-			Radius(theme.RadiusFull).Background(theme.Popover)).Transition(widget.OverlayMotion)
+		// As wide as it says, up to its limit; longer, it runs inside that.
+		natural, _ := c.MeasureText(0, ui.Span{Text: a.status, Size: theme.TextUI})
+		toast := widget.Float(ui.Row(c).Width(min(natural+theme.S4+theme.S1+theme.S2+theme.ControlHeight+2, 640)).Shrink(1).MinWidth(0).Height(40).
+			Padding(0, theme.S1, 0, theme.S4).Gap(theme.S2).Radius(theme.RadiusFull).Background(theme.Popover)).Transition(widget.OverlayMotion)
 		toast.Children(func() {
-			widget.Running(c, a.status, widget.RunStyle{Color: col})
+			ui.Row(c).Grow(1).MinWidth(0).Children(func() { widget.Running(c, a.status, widget.RunStyle{Color: col, Always: true}) })
 			if widget.IconButton(c, icon.Close, "Dismiss", false).Clicked() {
 				a.status = ""
 			}

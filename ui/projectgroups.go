@@ -73,8 +73,8 @@ func (a *App) groupSection(c *ui.Context, e listEntry) int {
 		}
 	}
 	open := filtering || !a.foldedGroups[e.group]
-	ui.Row(c).Height(28).FillWidth().Gap(4).Margin(8, 0, 0, 0).Children(func() {
-		row := ui.ButtonBase(c).Grow(1).Height(28).PaddingX(4).Gap(6).Radius(theme.RadiusSmall).Cursor(ui.CursorPointer).Label(e.group)
+	ui.Row(c).Height(theme.ControlHeight).FillWidth().Gap(theme.S1).Children(func() {
+		row := ui.ButtonBase(c).Grow(1).MinWidth(0).Height(theme.ControlHeight).PaddingX(theme.S2).Gap(theme.S1).Radius(theme.RadiusFull).Justify(ui.Start).Cursor(ui.CursorPointer).Label(e.group)
 		row.Drag(listDrag{group: e.group})
 		a.dropOnEntry(row, e)
 		if row.Hovered() {
@@ -85,9 +85,9 @@ func (a *App) groupSection(c *ui.Context, e listEntry) int {
 			if open {
 				chev = icon.ChevronDown
 			}
-			ui.Icon(c, chev).FontSize(11).TextColor(theme.Muted)
+			ui.Icon(c, chev).FontSize(12).TextColor(theme.TextSoft)
 			ui.Icon(c, icon.Folder).FontSize(12).TextColor(theme.TextSoft)
-			ui.Text(c, e.group).FontSize(theme.TextLabel).FontWeight(600).TextColor(theme.TextSoft).SingleLine().Shrink(1)
+			ui.Text(c, e.group).FontSize(theme.TextLabel).FontWeight(500).TextColor(theme.TextSoft).SingleLine().Shrink(1)
 			ui.Spacer(c)
 			ui.Text(c, fmt.Sprint(len(e.projects))).FontSize(theme.TextLabel).TextColor(theme.Muted).SingleLine()
 		})
@@ -100,8 +100,8 @@ func (a *App) groupSection(c *ui.Context, e listEntry) int {
 		key := "group:" + e.group
 		a.menu.Open(row, key)
 		a.menu.Show(c, row, key, func(done func()) { a.groupMenuItems(c, e, done) })
-		more := widget.IconButton(c, icon.More, "More for "+e.group, false)
-		a.menu.OpenBelow(more, "group-more:"+e.group, 28)
+		more := smallIcon(c, icon.More, "More for "+e.group)
+		a.menu.OpenBelow(more, "group-more:"+e.group, 24)
 		a.menu.Show(c, more, "group-more:"+e.group, func(done func()) { a.groupMenuItems(c, e, done) })
 	})
 	if !open {
