@@ -87,7 +87,8 @@ var (
 	VolumeUp   = load("volume-up")
 	VolumeDown = load("volume-down")
 	Globe      = load("globe")
-	Eye        = load("eye")     // someone watching
+	Eye        = load("eye") // someone watching
+	EyeOff     = load("eye-off")
 	AtSign     = load("at-sign") // a mention
 	Users      = load("users")   // a team's members
 	Stop       = load("stop")

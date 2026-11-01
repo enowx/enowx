@@ -52,7 +52,7 @@ A design has a layout grid, as CSS grid lays one out: columns and rows of equal 
 
 - **Add a 12-column grid** starts one: 8 columns for a tablet's width, 4 for a phone's. Its numbers change in the fields, and **Apply** sets them.
 - **Draw an area**, then drag across cells on the design, makes an area (`area-1`…). The list beside removes them.
-- Guides show the columns and rows on the stage, and the areas outlined and named. **Guides** hides them.
+- Guides show the columns and rows on the stage, and the areas outlined and named. The eye in the toolbar (Shift+G), or **Guides** in the panel, hides them at once: for this device and the whole canvas, kept when it is reopened, with the grid, its areas and Snap as they were, and no new version. An agent adding a grid doesn't bring them back.
 - With **Snap** on, a shape moved or resized lands on the grid's lines, and so do the shapes agents place.
 - **CSS** is the grid's: the container (`.grid`) and each area by its id, to copy. **Lay the mockup out on it** makes the design's HTML the grid, with an empty element per area to fill.
 

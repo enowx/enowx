@@ -44,6 +44,9 @@ func (v *View) toolbar(c *ui.Context, o Options, cv proto.Canvas) {
 		if v.view == viewDesign && widget.IconButton(c.Key("grid"), icon.Grid, "Layout grid", v.panel == "grid").Clicked() {
 			v.togglePanel(o, "grid")
 		}
+		if v.view == viewDesign {
+			v.gridToggle(c, o, f)
+		}
 		canCompare := len(v.comparing(cv)) >= 2
 		if narrow {
 			for i, b := range []struct {

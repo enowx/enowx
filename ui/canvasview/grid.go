@@ -105,7 +105,7 @@ func (v *View) gridPanel(c *ui.Context, o Options) {
 		show := !v.hideGrid
 		ui.Row(c).Gap(6).AlignItems(ui.Center).Children(func() {
 			if widget.Switch(c, &show, "Guides") {
-				v.hideGrid = !show
+				v.setGridHidden(o, !show)
 			}
 			ui.Text(c, "Guides").FontSize(12).TextColor(theme.TextSoft)
 		})
@@ -122,6 +122,9 @@ func (v *View) gridPanel(c *ui.Context, o Options) {
 		}
 		if widget.Button(c, widget.Secondary, icon.Square, label, "").Height(26).PaddingX(10).Label("Draw an area").Clicked() {
 			gf.drawing = !gf.drawing
+			if gf.drawing {
+				v.setGridHidden(o, false) // what's drawn on is the grid
+			}
 		}
 	})
 	if len(g.Areas) == 0 {
@@ -193,7 +196,7 @@ func (v *View) applyGrid(o Options, g proto.CanvasGrid) {
 // lined, its areas outlined and named; while drawing an area, a drag
 // across cells makes one.
 func (v *View) gridGuides(c *ui.Context, o Options, f proto.CanvasFrame, s float64) {
-	if f.Grid == nil || v.hideGrid && v.panel != "grid" {
+	if f.Grid == nil || v.hideGrid {
 		return
 	}
 	g := *f.Grid
@@ -266,4 +269,27 @@ func snapped(f proto.CanvasFrame, el proto.CanvasElement) proto.CanvasElement {
 	}
 	el.X, el.Y, el.W, el.H = canvas.Snap(*f.Grid, f, el.X, el.Y, math.Max(el.W, 1), math.Max(el.H, 1))
 	return el
+}
+
+// setGridHidden shows or hides the guides of the canvas open: a choice of this
+// device's view, apart from the grid, its areas and its snapping, which stay.
+func (v *View) setGridHidden(o Options, hidden bool) {
+	v.hideGrid = hidden
+	if o.SetGridHidden != nil && v.selected != "" {
+		o.SetGridHidden(v.selected, hidden)
+	}
+}
+
+// gridToggle is the toolbar's button for the guides, for a design with a grid.
+func (v *View) gridToggle(c *ui.Context, o Options, f proto.CanvasFrame) {
+	if f.Grid == nil {
+		return
+	}
+	svg, tip := icon.Eye, "Hide the grid (Shift+G): it stays, with its settings"
+	if v.hideGrid {
+		svg, tip = icon.EyeOff, "Show the grid (Shift+G)"
+	}
+	if widget.IconButton(c.Key("grid-eye"), svg, tip, v.hideGrid).Clicked() || c.Shortcut(ui.Shift, ui.KeyG) {
+		v.setGridHidden(o, !v.hideGrid)
+	}
 }

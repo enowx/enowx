@@ -226,6 +226,18 @@ func (a *App) canvasOptions() canvasview.Options {
 			var list []proto.CanvasComment
 			call(func() (err error) { list, err = cl.CommentCanvas(p); return err }, func(err error) { done(list, err) })
 		},
+		GridHidden: func(id string) bool { return a.state.CanvasGridHidden[id] },
+		SetGridHidden: func(id string, hidden bool) {
+			if a.state.CanvasGridHidden == nil {
+				a.state.CanvasGridHidden = map[string]bool{}
+			}
+			if hidden {
+				a.state.CanvasGridHidden[id] = true
+			} else {
+				delete(a.state.CanvasGridHidden, id)
+			}
+			a.saveState()
+		},
 		Control: func(id, action string, done func(error)) {
 			call(func() error { _, err := cl.ControlCanvas(id, action); return err }, done)
 		},

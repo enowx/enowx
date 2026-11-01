@@ -9,6 +9,7 @@ import (
 
 	"github.com/enowx/enowx/core/canvas"
 	"github.com/enowx/enowx/proto"
+	"github.com/enowx/enowx/ui/canvasview"
 )
 
 // The user gives a design a grid from the Grid panel, changes its
@@ -99,4 +100,65 @@ func TestCanvasGridBuilder(t *testing.T) {
 		x, y, w, hh := canvas.Snap(*f.Grid, f, el.X, el.Y, el.W, el.H)
 		return x == el.X && y == el.Y && w == el.W && hh == el.H
 	})
+}
+
+// The toolbar's eye hides the guides in one click, with the panel open too,
+// changing nothing of the canvas; the choice stays with the canvas, for
+// reopening it and for a grid an agent adds; a design with no grid has no eye.
+func TestCanvasGridHides(t *testing.T) {
+	const hide, show = "Hide the grid (Shift+G): it stays, with its settings", "Show the grid (Shift+G)"
+	h := newCanvasHarness(t)
+	guides := func() bool { _, ok := h.tt.Find("Grid guides"); return ok }
+	grid := &proto.CanvasGrid{Cols: 4, Rows: 2, Snap: true, Areas: []proto.GridArea{{Name: "heroarea", Col: 1, Row: 1, ColSpan: 2, RowSpan: 1}}}
+	cv, err := h.cl.CreateCanvas(proto.CanvasCreateParams{Title: "Home", Kind: proto.CanvasWireframe, Frames: []proto.CanvasFrame{{Name: "One"}, {Name: "Two"}}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	h.settle("the canvas open", func() bool { return h.tt.HasText("Frame One") })
+	if _, ok := h.tt.Find(hide); ok {
+		t.Fatal("an eye with no grid")
+	}
+	if _, err := h.cl.EditCanvas(proto.CanvasEdit{ID: cv.ID, Frame: cv.Frames[0].ID, Op: proto.CanvasOpFrameGrid, Grid: grid}); err != nil {
+		t.Fatal(err)
+	}
+	h.settle("the guides", func() bool { return guides() })
+	before, _ := h.cl.Canvas(cv.ID)
+
+	if err := h.tt.Click(hide); err != nil {
+		t.Fatal(err)
+	}
+	h.settle("hidden", func() bool { return !guides() })
+	if !h.app.state.CanvasGridHidden[cv.ID] {
+		t.Fatal("the choice wasn't kept")
+	}
+	after, _ := h.cl.Canvas(cv.ID)
+	if after.Version != before.Version || after.Frames[0].Grid == nil || !after.Frames[0].Grid.Snap {
+		t.Fatalf("hiding changed the canvas: %+v", after.Frames[0].Grid)
+	}
+
+	// An agent's grid on another design, and going there, doesn't bring it back.
+	if _, err := h.cl.EditCanvas(proto.CanvasEdit{ID: cv.ID, Frame: cv.Frames[1].ID, Op: proto.CanvasOpFrameGrid, Grid: grid, Session: "agent-1"}); err != nil {
+		t.Fatal(err)
+	}
+	if err := h.tt.Click("Design after (→)"); err != nil {
+		t.Fatal(err)
+	}
+	h.settle("the other design", func() bool { return h.tt.HasText("Frame Two") })
+	if guides() {
+		t.Fatal("the guides came back on another design")
+	}
+
+	// Reopened.
+	h.app.canvases = canvasview.View{}
+	h.settle("the canvas again", func() bool { return h.tt.HasText("Frame One") })
+	if guides() {
+		t.Fatal("reopened, the guides came back")
+	}
+	if err := h.tt.Click(show); err != nil {
+		t.Fatal(err)
+	}
+	h.settle("shown", func() bool { return guides() })
+	if h.app.state.CanvasGridHidden[cv.ID] {
+		t.Fatal("still kept as hidden")
+	}
 }
