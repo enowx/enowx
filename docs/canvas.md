@@ -36,8 +36,14 @@ A canvas's frames are its designs, numbered from 1: the variations an agent was 
 - **Grid** shows them all at once. **Pick to compare** on two to four of them, then **Compare** shows them side by side at one scale, scrolling together.
 - A design is starred, picked the winner, duplicated as a variant, named and described, or deleted from its menu. Agents read what the user starred and picked.
 - Comments go with the design they are on.
-- In Interact mode, a mockup's links to other designs move between them: `href="#design-2"` or `data-goto="Login"`. The shared page does the same.
+- In Interact mode, a mockup's links to other designs move between them: `href="#design-2"` or `data-goto="Login"`. The shared page does the same, showing the design it names alone (**Show all designs** goes back).
 - `canvas://ID/design-3` links to a design. In a note or a chat, it opens the Canvas page there; **Copy link** in a design's menu gives it.
+
+## Prototypes
+
+A prototype is a canvas's designs linked together, one per page, so the strip, comments and versions work on each. Each page is its own document, so what it should remember goes through `enowx.state`, in every mockup: `data-set="plan=pro;step=2"` sets it on a click, `data-bind="email"` edits and shows a value, `data-show-if="plan=pro"` or `"!email"` shows by it, `data-reset` empties it, with `enowx.state.get/set/all/reset` and an `enowx:state` event for scripts. Interact mode and the shared page carry it from page to page alike, and each has a **Reset**, which empties it and returns to the first design. On the board a design shows as it starts.
+
+Scripts stay in their design. On the shared page each design is a sandboxed frame with an origin of its own: it can't read the page around it or its link, reach the sharing server, or keep storage, and it only tells the page where to go and what state holds. In the app each load of a mockup gets an address of its own that leads nowhere, so the page counts as a stranger's: calls into the app are refused, the device's files can't be read, and what it stores isn't there for another design. The app only reads from the page the link clicked and the state. A design can still load from the internet, as a page does; that is how it gets its libraries.
 
 ## Layout grids
 

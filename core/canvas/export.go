@@ -126,6 +126,9 @@ func FrameDocument(f proto.CanvasFrame, assets Assets) string {
 		overlay = fmt.Sprintf(`<div style="position:absolute;left:0;top:0;width:%dpx;height:%dpx;pointer-events:none;z-index:2147483647">%s</div>`, f.Width, f.Height, SVG(proto.CanvasFrame{Width: f.Width, Height: f.Height, Elements: f.Elements}, assets, false))
 	}
 	base := fmt.Sprintf(`<style>html,body{margin:0;min-height:%dpx;background:%s}body{position:relative;width:%dpx}</style>`, f.Height, attrEsc(bg), f.Width)
+	if usesPrototype(f.HTML) {
+		base += prototypeRuntime
+	}
 	page := inlineAssets(f.HTML, assets)
 	if strings.Contains(strings.ToLower(page), "</body>") {
 		i := strings.LastIndex(strings.ToLower(page), "</body>")
@@ -172,23 +175,22 @@ func Standalone(c proto.Canvas, assets Assets) string {
 	var b strings.Builder
 	b.WriteString(`<!doctype html><html><head><meta charset="utf-8"><title>` + html.EscapeString(c.Title) + `</title>`)
 	b.WriteString(`<style>body{margin:0;background:#f1f5f9;font-family:Inter,system-ui,sans-serif;color:#0f172a}header{padding:24px 32px}h1{margin:0;font-size:22px}p{margin:6px 0 0;color:#64748b;font-size:13px}section{padding:0 32px 40px}h2{font-size:14px;color:#475569;margin:0 0 10px}iframe{border:0;background:#fff;box-shadow:0 1px 3px rgba(15,23,42,.12),0 8px 24px rgba(15,23,42,.08);border-radius:8px;max-width:100%}</style></head><body>`)
-	fmt.Fprintf(&b, `<header><h1>%s</h1><p>%s · version %d · read-only</p></header>`, html.EscapeString(c.Title), html.EscapeString(c.Kind), c.Version)
+	b.WriteString(shareStyle)
+	fmt.Fprintf(&b, `<header><h1>%s</h1><p>%s · version %d · read-only</p>`+shareControls+`</header>`, html.EscapeString(c.Title), html.EscapeString(c.Kind), c.Version)
 	for i, f := range c.Frames {
 		doc := FrameDocument(f, assets)
 		if j := strings.LastIndex(strings.ToLower(doc), "</body>"); j >= 0 {
 			doc = doc[:j] + shareGoto + doc[j:]
+		} else {
+			doc += shareGoto
 		}
 		about := ""
 		if f.Description != "" {
 			about = `<p>` + html.EscapeString(f.Description) + `</p>`
 		}
-		fmt.Fprintf(&b, `<section id="design-%d" data-name="%s"><h2>%d · %s · %d×%d</h2>%s<iframe title="%s" width="%d" height="%d" srcdoc="%s"></iframe></section>`,
-			i+1, attrEsc(f.Name), i+1, html.EscapeString(f.Name), f.Width, f.Height, about, attrEsc(f.Name), f.Width, f.Height, attrEsc(doc))
+		fmt.Fprintf(&b, `<section id="design-%d" data-name="%s"><h2>%d · %s · %d×%d</h2>%s<iframe title="%s" width="%d" height="%d" sandbox="%s" srcdoc="%s"></iframe></section>`,
+			i+1, attrEsc(f.Name), i+1, html.EscapeString(f.Name), f.Width, f.Height, about, attrEsc(f.Name), f.Width, f.Height, shareFrameSandbox, attrEsc(doc))
 	}
-	b.WriteString(`</body></html>`)
+	b.WriteString(shareHost + `</body></html>`)
 	return b.String()
 }
-
-// shareGoto makes a shared page's links between designs (href="#design-2",
-// data-goto="Login") scroll to the design they name.
-const shareGoto = `<script>document.addEventListener('click',function(e){var a=e.target.closest&&e.target.closest('[data-goto],a[href^="#"]');if(!a)return;var t=a.getAttribute('data-goto')||a.getAttribute('href').slice(1);var d=parent.document;var s=d.getElementById(t)||d.querySelector('[data-name="'+t+'"]');if(s){e.preventDefault();s.scrollIntoView({behavior:'smooth'})}},true)</script>`

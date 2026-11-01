@@ -23,8 +23,16 @@ Kinds: mockup (HTML, real UI), wireframe (boxes and text, grey, no styling), dia
     "$ENOWX_BIN" canvas patch ID --element hero --into main --html '<section id="hero">…</section>'
 3. Small changes: --text sets what an element holds; remove takes one out.
     "$ENOWX_BIN" canvas patch ID --element hero-title --text "Ship faster"
-Give every element you may change later an id (kebab-case, unique). One <style> block in the skeleton; add rules with a patch of an element <style id="styles-cards">. No JavaScript beyond small interactions (tabs, a menu toggle, a modal opening): the canvas is interactive in the app's Interact mode, so buttons, links between frames (#frame-name), inputs and :hover states should work.
+Give every element you may change later an id (kebab-case, unique). One <style> block in the skeleton; add rules with a patch of an element <style id="styles-cards">. Small JavaScript for what a page does (tabs, a menu, a modal, a form's states): the canvas is interactive in the app's Interact mode and on its shared page, so buttons, links between designs, inputs and :hover states should work. Scripts have no storage or server of their own: no localStorage, cookies or calls to enowX.
 Responsive: one HTML per frame. Write desktop first, then the tablet and mobile frames (--frame mobile) as their own layouts, not a squeezed desktop: stacked columns, a menu button, 16px gutters, 44px tap targets.
+
+## Prototypes
+Asked for a prototype, or for something to click through, build it so by default: one design per page (--page Home, Pricing, Checkout), linked, so the strip, comments and versions still work on each. Every page carries the same navigation. Move between them with data-goto="Pricing" or href="#design-2". What the pages share lives in enowX's state, not in a script's variable or localStorage, which end with the page:
+    <button data-set="plan=pro;step=2" data-goto="Checkout">Choose Pro</button>   sets state as it goes
+    <input data-bind="email">  <b data-bind="email"></b>   edits and shows a value, on any page
+    <div data-show-if="plan=pro">…</div>  <div data-show-if="!email">…</div>   shows by state
+    <button data-reset>  enowx.state.get/set/all/reset  document.addEventListener('enowx:state',…)
+Build its real states with these, in the page: empty (no items yet), loading (set it, then setTimeout to clear it), error (a form left wrong), filled. Menus and dialogs open for real. Keep it a design: the unslop check applies as to any other, and a screenshot shows each page as it starts, so check a state by setting it. Interact's Reset takes it back to the start.
 
 ## Many designs in one canvas
 Asked for several designs or variations ("10 landing pages", "3 versions of the hero"), make them designs of one canvas, not one long page: each is a frame the user browses, compares side by side, stars and picks from. Number them from 1.

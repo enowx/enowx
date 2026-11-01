@@ -475,6 +475,15 @@ func (v *View) arrowHandle(c *ui.Context, o Options, f proto.CanvasFrame, el pro
 	_ = o
 }
 
+// resetPrototype takes a prototype back to its start: nothing remembered, on
+// its first design.
+func (v *View) resetPrototype(o Options) {
+	o.Web.ResetState()
+	if v.canvas != nil && len(v.canvas.Frames) > 0 {
+		v.frame, v.sel = v.canvas.Frames[0].ID, ""
+	}
+}
+
 // followLink shows the design a mockup's link goes to: its number
 // ("design-2"), name or ID.
 func (v *View) followLink(target string) {

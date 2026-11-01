@@ -48,6 +48,11 @@ type Web struct {
 	zoom    float64
 	sel     string // the element outlined as selected
 	polling bool   // a link's design is being asked for
+	// state is what a prototype's pages hold between them, as JSON, of
+	// canvas stateOf (core/canvas/prototype.go).
+	state   string
+	stateOf string
+	loads   int // documents composed, so an old page's answer isn't taken for this one's
 	polled  time.Time
 	design  bool // the page shows whole on the board: no scrolling of its own
 	// wider is how far the page reaches past its frame's width, in CSS
@@ -113,6 +118,9 @@ func (w *Web) show(c proto.Canvas, f proto.CanvasFrame, _ *proto.Canvas) {
 
 // load loads frame f's HTML whole, its files fetched first.
 func (w *Web) load(c proto.Canvas, f proto.CanvasFrame) {
+	if w.stateOf != c.ID {
+		w.state, w.stateOf = "", c.ID
+	}
 	w.shown, w.html, w.scanned = key(c, f), f.HTML, "" // the marks go with the page
 	names := canvas.AssetNames(f.HTML)
 	bare := proto.CanvasFrame{Width: f.Width, Height: f.Height, Background: f.Background, HTML: f.HTML}
@@ -148,15 +156,30 @@ var errNoAsset = errors.New("canvas: no such asset")
 // data-goto="Login") say where they go, for the page to show it.
 const gotoScript = `<script>document.addEventListener('click',function(e){var a=e.target.closest&&e.target.closest('[data-goto],a[href^="#"]');if(!a)return;var t=a.getAttribute('data-goto')||a.getAttribute('href').slice(1);if(!t)return;e.preventDefault();window.__enowxGoto=t},true)</script>`
 
-// takeGoto is the design a link clicked in the mockup goes to, "" for
-// none; it waits for the page, so it runs off the main thread.
-func (w *Web) takeGoto(page Page) string {
-	v, err := page.Eval("(function(){var t=window.__enowxGoto||'';window.__enowxGoto='';return t})()")
+// pageGoto is what a page says: the design a link clicked went to, "" for none,
+// its prototype's state, and which load it is.
+type pageGoto struct {
+	T, S string
+	L    int
+}
+
+// takeGoto asks the page; it waits for it, so it runs off the main thread.
+func takeGoto(page Page) pageGoto {
+	v, err := page.Eval("(function(){var t=window.__enowxGoto||'';window.__enowxGoto='';return JSON.stringify({t:t,s:window.__enowxState||'',l:window.__enowxLoad||0})})()")
 	if err != nil {
-		return ""
+		return pageGoto{}
 	}
-	t, _ := v.(string)
-	return t
+	text, _ := v.(string)
+	var got pageGoto
+	if json.Unmarshal([]byte(text), &got) != nil {
+		return pageGoto{}
+	}
+	return got
+}
+
+// ResetState empties the prototype's state and shows the page anew.
+func (w *Web) ResetState() {
+	w.state, w.shown = "", ""
 }
 
 // pollGoto asks the page for a design a link went to, now and then, while
@@ -169,11 +192,17 @@ func (w *Web) pollGoto(c *ui.Context, done func(target string)) {
 	w.polling, w.polled = true, time.Now()
 	page := w.page
 	go func() {
-		t := w.takeGoto(page)
+		got := takeGoto(page)
 		w.Update(func() {
 			w.polling = false
-			if t != "" {
-				done(t)
+			if got.L != w.loads {
+				return
+			}
+			if got.S != "" {
+				w.state = got.S
+			}
+			if got.T != "" {
+				done(got.T)
 			}
 		})
 	}()
@@ -193,6 +222,11 @@ func (w *Web) setDesign(on bool) {
 	if w.page == nil {
 		return
 	}
+	// A prototype's state shows in Interact alone, so its page starts over.
+	if w.state != "" && w.state != "{}" && w.pending != "" {
+		w.page.LoadHTML(w.compose())
+		return
+	}
 	page := w.page
 	code := "document.documentElement.classList.toggle('enowx-design'," + map[bool]string{true: "true", false: "false"}[on] + ");window.scrollTo(0,0)"
 	go func() { _, _ = page.Eval(code) }()
@@ -205,13 +239,19 @@ func (w *Web) setDoc(doc string) {
 	}
 }
 
-// compose is the document to load: the frame's, with the links' script
-// and the mode as it is now.
+// compose is the document to load: the frame's, with the prototype's runtime
+// and state, the links' script and the mode as it is now. On the board a design
+// shows as it starts, whatever a prototype was left at.
 func (w *Web) compose() string {
-	doc := w.pending
-	mode := "<script>document.documentElement.classList.remove('enowx-design')</script>"
+	seed := w.state
 	if w.design {
-		mode = "<script>document.documentElement.classList.add('enowx-design')</script>"
+		seed = ""
+	}
+	doc := canvas.WithHead(w.pending, canvas.PrototypeSeed(seed))
+	w.loads++
+	mode := fmt.Sprintf("<script>window.__enowxLoad=%d;document.documentElement.classList.remove('enowx-design')</script>", w.loads)
+	if w.design {
+		mode = fmt.Sprintf("<script>window.__enowxLoad=%d;document.documentElement.classList.add('enowx-design')</script>", w.loads)
 	}
 	if i := strings.Index(strings.ToLower(doc), "</head>"); i >= 0 {
 		doc = doc[:i] + designStyle + doc[i:]

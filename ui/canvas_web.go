@@ -1,6 +1,7 @@
 package ui
 
 import (
+	"crypto/rand"
 	"errors"
 	"sync"
 	"time"
@@ -16,11 +17,19 @@ import (
 // made for a moment, behind the window's content, to render a frame for
 // an agent (canvas screenshot) or an export.
 
+// designOrigin is the address a mockup's page loads at, a new one each time.
+// A page with no address counts as the app's own and may call into it (close
+// the window, say); at this one it can't, and what it stores goes with it, so
+// no design reaches another's.
+func designOrigin() string {
+	return "https://" + rand.Text() + ".design.invalid/"
+}
+
 // canvasPage is a web view as canvasview uses it.
 type canvasPage struct{ wv *mygo.WebView }
 
 func (p canvasPage) Show(c *ui.Context) ui.Element { return ui.WebView(c, p.wv) }
-func (p canvasPage) LoadHTML(html string)          { p.wv.Page().LoadHTML(html, "") }
+func (p canvasPage) LoadHTML(html string)          { p.wv.Page().LoadHTML(html, designOrigin()) }
 func (p canvasPage) Eval(code string) (any, error) { return p.wv.Page().Eval(code) }
 func (p canvasPage) SetZoom(f float64)             { p.wv.Page().SetZoomFactor(f) }
 func (p canvasPage) Close()                        { p.wv.Destroy() }
@@ -112,7 +121,7 @@ func renderIn(pg *mygo.Page, capture func() ([]byte, error), req proto.CanvasRen
 		}
 	})
 	defer off()
-	pg.LoadHTML(req.HTML, "")
+	pg.LoadHTML(req.HTML, designOrigin())
 	select {
 	case <-loaded:
 	case <-time.After(20 * time.Second):

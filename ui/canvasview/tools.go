@@ -89,6 +89,9 @@ func (v *View) toolbar(c *ui.Context, o Options, cv proto.Canvas) {
 			} else if i := widget.Segmented(c.Key("mode"), []string{"Edit", "Interact"}, v.mode, nil); i >= 0 {
 				v.mode = i
 			}
+			if v.mode == modeInteract && o.Web != nil && widget.IconButton(c.Key("reset"), icon.Undo, "Reset the prototype: its state, and back to the first design", false).Clicked() {
+				v.resetPrototype(o)
+			}
 		}
 	})
 }
