@@ -101,9 +101,13 @@ type GOATask struct {
 	Difficulty string `json:"difficulty,omitempty"`
 	Why        string `json:"why,omitempty"`
 	// Override: the user chose the model and effort, not the judge.
-	Override bool   `json:"override,omitempty"`
-	Status   string `json:"status"`
-	Result   string `json:"result,omitempty"`
+	Override bool `json:"override,omitempty"`
+	// Reused: no session was named, and the project had this one for it.
+	// Woken: its agent had stopped, and was brought back for the prompt.
+	Reused bool   `json:"reused,omitempty"`
+	Woken  bool   `json:"woken,omitempty"`
+	Status string `json:"status"`
+	Result string `json:"result,omitempty"`
 	// Asks is what its session waits on; Urgent, why the user answers it
 	// rather than GOA (it can't be undone, money, publishing, secrets,
 	// the judge unsure).
@@ -123,7 +127,8 @@ type GOABoard struct {
 }
 
 // GOADelegateParams is a task GOA (From, its session) hands over: to
-// Session on Host, or to a new session of Agent in Project there.
+// Session on Host, or in Project there to its session (of Agent, when
+// given) that is free, or else to a new one; with Branch, always a new one.
 type GOADelegateParams struct {
 	From    string `json:"from,omitempty"`
 	Title   string `json:"title,omitempty"`

@@ -21,6 +21,8 @@ How you work:
 2. Split it into tasks, and hand each to a session: an existing one ("$ENOWX_BIN" sessions lists every host's) or a new one:
     "$ENOWX_BIN" goa delegate --agent claude --project ~/code/shop --branch fix/totals --title "Fix totals" "Fix the rounding of invoice totals; add a test"
     "$ENOWX_BIN" goa delegate --session ID --host H "Now update the changelog"
+    "$ENOWX_BIN" goa delegate --agent claude --project ~/code/shop "Add a test for the totals"
+   With --project and no --session or --branch, the project's own session takes it: an idle one, else a hibernated or ended one brought back first; one working or asking the user is left alone, and only with none is a new one started. A session you name is brought back too, if stopped; if it can't be, delegate fails and no task is on the board. To start fresh beside the others, give a --branch.
    Never your own session: it is refused. With no other session, start a new one.
    The judge picks each prompt's model and effort (cheaper near a budget): delegate prints them and why; tell the user in a line. When the user names a model, pass --model M --effort E (--config C for another provider); --no-route keeps the agent's own.
 3. Don't poll. When a worker finishes, asks something or fails, enowX types a line starting with "[enowX GOA]" into this conversation. Then read what it did ("$ENOWX_BIN" chat ID --host H, changes ID --host H), check it against the task, and go on: the next task, a fix sent back, a review and merge (the user confirms), or a word to the user.

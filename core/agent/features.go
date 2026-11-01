@@ -162,7 +162,7 @@ Agents that can't take an API per session (enowx-app api lists them) still take 
 		About:   "GOD of Agents' tools: hand tasks to sessions on any host with a model the judge picks, a board of them, its own RAG collection. Always on in its own session.",
 		Summary: "GOD of Agents: \"$ENOWX_BIN\" goa delegate|board|task|remember|recall (\"$ENOWX_BIN\" help goa).",
 		Guide: `GOD of Agents' tools (its session has them all; another session uses them only when the user asks it to hand work out):
-    "$ENOWX_BIN" goa delegate --agent claude --project P "…"   # a task to a new session, its model and effort routed; --session S for one that runs
+    "$ENOWX_BIN" goa delegate --agent claude --project P "…"   # a task to the project's idle or stopped session, else a new one, its model and effort routed; --session S for one that runs
     "$ENOWX_BIN" goa board                                      # the tasks, their sessions, status and results
     "$ENOWX_BIN" goa task ID --status done --result "…"         # settle one
     "$ENOWX_BIN" goa remember --kind decision "…" | goa recall "…" [--project P --host H]`,

@@ -3,6 +3,7 @@ package goa
 import (
 	"path/filepath"
 	"testing"
+	"time"
 
 	"github.com/enowx/enowx/proto"
 )
@@ -119,5 +120,57 @@ func TestBoard(t *testing.T) {
 	}
 	if w := again.Working(); len(w) != 1 {
 		t.Fatalf("working %+v", w)
+	}
+}
+
+// A task with no session named goes to the project's own: running before
+// hibernated before ended, newest first; never one busy, someone else's or
+// on another branch.
+func TestPickSession(t *testing.T) {
+	const proj = "/code/shop"
+	now := time.Now()
+	s := func(id string, at int, edit func(*proto.SessionInfo)) proto.SessionInfo {
+		info := proto.SessionInfo{ID: id, Agent: "claude", Project: proj, State: proto.StateDone, Created: now.Add(time.Duration(at) * time.Minute)}
+		if edit != nil {
+			edit(&info)
+		}
+		return info
+	}
+	free := func(string) bool { return false }
+	hibernated := func(i *proto.SessionInfo) { i.Exited, i.Hibernated = true, true }
+	ended := func(i *proto.SessionInfo) { i.Exited = true }
+	want := Want{Project: proj, Agent: "claude"}
+	cases := []struct {
+		name string
+		list []proto.SessionInfo
+		want Want
+		busy func(string) bool
+		id   string
+	}{
+		{"none", nil, want, free, ""},
+		{"idle first", []proto.SessionInfo{s("hib", 9, hibernated), s("idle", 1, nil), s("old", 0, nil)}, want, free, "idle"},
+		{"hibernated before ended", []proto.SessionInfo{s("end", 9, ended), s("hib", 1, hibernated)}, want, free, "hib"},
+		{"ended if that is all", []proto.SessionInfo{s("end", 1, ended)}, want, free, "end"},
+		{"working left alone", []proto.SessionInfo{s("w", 1, func(i *proto.SessionInfo) { i.State = proto.StateWorking })}, want, free, ""},
+		{"asking left alone", []proto.SessionInfo{s("a", 1, func(i *proto.SessionInfo) { i.State = proto.StateWaiting })}, want, free, ""},
+		{"an open task", []proto.SessionInfo{s("x", 1, nil)}, want, func(string) bool { return true }, ""},
+		{"another project", []proto.SessionInfo{s("x", 1, func(i *proto.SessionInfo) { i.Project = "/code/blog" })}, want, free, ""},
+		{"another agent", []proto.SessionInfo{s("x", 1, func(i *proto.SessionInfo) { i.Agent = "codex" })}, want, free, ""},
+		{"any agent when none named", []proto.SessionInfo{s("x", 1, func(i *proto.SessionInfo) { i.Agent = "codex" })}, Want{Project: proj}, free, "x"},
+		{"a worktree", []proto.SessionInfo{s("x", 1, func(i *proto.SessionInfo) { i.Worktree = true })}, want, free, ""},
+		{"a tab", []proto.SessionInfo{s("x", 1, func(i *proto.SessionInfo) { i.Parent = "p" })}, want, free, ""},
+		{"GOA", []proto.SessionInfo{s("x", 1, func(i *proto.SessionInfo) { i.GOA = true })}, want, free, ""},
+		{"a teammate's", []proto.SessionInfo{s("x", 1, func(i *proto.SessionInfo) { i.Member = &proto.SessionMember{Name: "Rina"} })}, want, free, ""},
+		{"not to a --yolo unasked", []proto.SessionInfo{s("x", 1, func(i *proto.SessionInfo) { i.SkipPermissions = true })}, want, free, ""},
+		{"a shell", []proto.SessionInfo{s("x", 1, func(i *proto.SessionInfo) { i.Agent = "shell" })}, Want{Project: proj}, free, ""},
+		{"hookless at rest may be working", []proto.SessionInfo{s("x", 1, func(i *proto.SessionInfo) { i.Agent, i.State = "aider", "" })}, Want{Project: proj}, free, ""},
+		{"another config", []proto.SessionInfo{s("x", 1, func(i *proto.SessionInfo) { i.Config = &proto.SessionConfig{ID: "c1", Name: "GLM"} })}, Want{Project: proj, Config: "official"}, free, ""},
+		{"its config", []proto.SessionInfo{s("x", 1, func(i *proto.SessionInfo) { i.Config = &proto.SessionConfig{ID: "c1", Name: "GLM"} })}, Want{Project: proj, Config: "glm"}, free, "x"},
+	}
+	for _, c := range cases {
+		got, ok := PickSession(c.list, c.want, c.busy)
+		if got.ID != c.id || ok != (c.id != "") {
+			t.Errorf("%s: got %q %v, want %q", c.name, got.ID, ok, c.id)
+		}
 	}
 }

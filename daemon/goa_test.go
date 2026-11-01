@@ -449,3 +449,119 @@ func TestGOADelegatesToAnotherSession(t *testing.T) {
 		t.Fatalf("on the board: %+v", tasks)
 	}
 }
+
+// A prompt goes to a stopped session only once it is back: the task on the
+// board then means the prompt arrived. One that can't come back fails, with
+// no task. With a project and no session, its own session takes the task, a
+// new one only if it has none free.
+func TestGOABringsSessionsBack(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("uses sh")
+	}
+	bin := t.TempDir()
+	// Up after a moment, as an agent resuming its conversation is.
+	script := "#!/bin/sh\nsleep 1\necho up\nwhile read -r line; do echo \"heard: $line\"; done\n"
+	if err := os.WriteFile(filepath.Join(bin, "claude"), []byte(script), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv("PATH", bin+string(os.PathListSeparator)+os.Getenv("PATH"))
+	a, b := startServer(t), startServer(t)
+	ca, cb := connect(t, a, nil), connect(t, b, nil)
+	standInApp(t, a, map[string]*client.Client{b.daemonID: cb}, func(proto.HostCallParams) bool { return true })
+	delegate := func(p proto.GOADelegateParams) (proto.GOATask, error) {
+		var task proto.GOATask
+		p.NoRoute = true
+		err := ca.Call(proto.MethodGOADelegate, p, &task)
+		return task, err
+	}
+	stopped := func(c *client.Client, project string) proto.SessionInfo {
+		t.Helper()
+		info, err := c.CreateSession(proto.SessionCreateParams{Agent: "claude", Project: project, Cols: 80, Rows: 24})
+		if err != nil {
+			t.Fatal(err)
+		}
+		waitScreen(t, c, info.ID, "up")
+		if err := c.Call(proto.MethodSessionState, proto.SessionStateParams{ID: info.ID, State: proto.StateDone}, nil); err != nil {
+			t.Fatal(err)
+		}
+		if res, err := c.HibernateSessions(proto.SessionHibernateParams{IDs: []string{info.ID}}); err != nil || len(res.Hibernated) != 1 {
+			t.Fatalf("hibernating: %+v %v", res, err)
+		}
+		return info
+	}
+	project := func(c *client.Client) string {
+		t.Helper()
+		dir := gitRepo(t)
+		if _, err := c.AddProject(dir); err != nil {
+			t.Fatal(err)
+		}
+		return dir
+	}
+
+	// Named, on this host.
+	dir := project(ca)
+	info := stopped(ca, dir)
+	task, err := delegate(proto.GOADelegateParams{Session: info.ID, Prompt: "first task"})
+	if err != nil || !task.Woken || task.Reused || task.Status != proto.GOATaskWorking {
+		t.Fatalf("named: %+v %v", task, err)
+	}
+	waitScreen(t, ca, info.ID, "heard: first task")
+	if back, _ := a.sessions.Get(info.ID); back.Info().Exited {
+		t.Fatal("not brought back")
+	}
+
+	// Not named: the project's, while the task on it is open a new one.
+	again, err := delegate(proto.GOADelegateParams{Project: dir, Agent: "claude", Prompt: "second task"})
+	if err != nil || again.Session == info.ID || again.Reused {
+		t.Fatalf("with its session on an open task: %+v %v", again, err)
+	}
+	for _, id := range []string{task.ID, again.ID} {
+		if err := ca.Call(proto.MethodGOATask, proto.GOATaskParams{ID: id, Status: proto.GOATaskDone}, nil); err != nil {
+			t.Fatal(err)
+		}
+	}
+	for _, id := range []string{info.ID, again.Session} {
+		if err := ca.Call(proto.MethodSessionState, proto.SessionStateParams{ID: id, State: proto.StateDone}, nil); err != nil {
+			t.Fatal(err)
+		}
+	}
+	reused, err := delegate(proto.GOADelegateParams{Project: dir, Agent: "claude", Prompt: "third task"})
+	if err != nil || !reused.Reused || reused.Woken || reused.Session != again.Session {
+		t.Fatalf("an idle one, the newest: %+v %v (first %s, second %s)", reused, err, info.ID, again.Session)
+	}
+	waitScreen(t, ca, again.Session, "heard: third task")
+	// One working is left alone.
+	if err := ca.Call(proto.MethodSessionState, proto.SessionStateParams{ID: reused.Session, State: proto.StateWorking}, nil); err != nil {
+		t.Fatal(err)
+	}
+	if err := ca.Call(proto.MethodGOATask, proto.GOATaskParams{ID: reused.ID, Status: proto.GOATaskDone}, nil); err != nil {
+		t.Fatal(err)
+	}
+	other, err := delegate(proto.GOADelegateParams{Project: dir, Agent: "claude", Prompt: "fourth task"})
+	if err != nil || other.Session != info.ID || !other.Reused {
+		t.Fatalf("beside one working: %+v %v", other, err)
+	}
+
+	// On another host, through the app: named and not.
+	there := project(cb)
+	far := stopped(cb, there)
+	remote, err := delegate(proto.GOADelegateParams{Host: b.daemonID, Project: there, Agent: "claude", Prompt: "far task"})
+	if err != nil || remote.Session != far.ID || !remote.Reused || !remote.Woken {
+		t.Fatalf("on another host: %+v %v", remote, err)
+	}
+	waitScreen(t, cb, far.ID, "heard: far task")
+
+	// One that can't come back: an error, and nothing on the board.
+	before := len(a.goa.board.List())
+	plain, err := a.sessions.Create(session.Spec{Command: []string{"sh", "-c", "exit 0"}, Dir: t.TempDir()})
+	if err != nil {
+		t.Fatal(err)
+	}
+	waitFor(t, "it ended", func() bool { return plain.Info().Exited })
+	if task, err := delegate(proto.GOADelegateParams{Session: plain.ID(), Prompt: "lost task"}); err == nil || !strings.Contains(err.Error(), "can't be brought back") {
+		t.Fatalf("a session that can't come back: %+v %v", task, err)
+	}
+	if n := len(a.goa.board.List()); n != before {
+		t.Fatalf("on the board all the same: %d, was %d", n, before)
+	}
+}

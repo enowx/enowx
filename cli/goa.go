@@ -20,8 +20,9 @@ const goaUsage = `usage: enowx-app goa COMMAND
   board [--json]                   the tasks, the session each went to, status and result
   delegate [flags] PROMPT          hand a task to a session, its model and effort routed
       --session S      an existing session (else a new one:)
-      --agent A        the agent of a new session (default claude)
-      --project DIR    its project; --branch B a new branch in a worktree of its own
+      --project DIR    its project: the project's idle or stopped session takes it, else a new one
+      --branch B       always a new one, on a new branch in a worktree of its own
+      --agent A        the agent of the session (default claude)
       --host H         the host (default this one)
       --model M --effort E --config C
                        chosen by hand, over the judge's route; --no-route keeps the agent's own
@@ -148,6 +149,14 @@ func (r runner) goaDelegate(args []string) error {
 	where := "session " + t.Session
 	if t.Host != "" {
 		where += " on " + t.Host
+	}
+	switch {
+	case t.Reused && t.Woken:
+		where += ", the project's, brought back"
+	case t.Reused:
+		where += ", the project's"
+	case t.Woken:
+		where += ", brought back"
 	}
 	fmt.Fprintf(r.out, "Task %s → %s (%s)\n", t.ID, where, t.Agent)
 	fmt.Fprintf(r.out, "model: %s · effort: %s", nonEmpty(t.Model, "its own"), nonEmpty(t.Effort, "its own"))

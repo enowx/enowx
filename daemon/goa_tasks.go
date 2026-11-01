@@ -30,6 +30,7 @@ func (s *Server) goaDelegate(p proto.GOADelegateParams) (proto.GOATask, error) {
 	}
 	t := proto.GOATask{Title: p.Title, Prompt: p.Prompt, Host: p.Host, Session: p.Session, Agent: p.Agent,
 		Model: p.Model, Effort: p.Effort, Config: p.Config}
+	var target proto.SessionInfo
 	if p.Session != "" {
 		info, err := s.goaSessionOn(p.From, p.Host, p.Session)
 		if err != nil {
@@ -38,7 +39,17 @@ func (s *Server) goaDelegate(p proto.GOADelegateParams) (proto.GOATask, error) {
 		if info.GOA {
 			return proto.GOATask{}, errors.New("goa: a task goes to another session, not GOD of Agents' own: start a new one")
 		}
-		t.Session, t.Agent = info.ID, info.Agent
+		target, t.Session, t.Agent = info, info.ID, info.Agent
+	} else if p.Project != "" && p.Branch == "" {
+		// A session the project has before a new one; a new branch is a
+		// new one's.
+		info, ok, err := s.goaPick(p)
+		if err != nil {
+			return t, err
+		}
+		if ok {
+			target, t.Session, t.Agent, t.Reused = info, info.ID, info.Agent, true
+		}
 	}
 	if t.Agent == "" {
 		t.Agent = "claude"
@@ -61,6 +72,9 @@ func (s *Server) goaDelegate(p proto.GOADelegateParams) (proto.GOATask, error) {
 			t.Why = "not routed (" + err.Error() + "): the agent's own model"
 		case rc.Error != "":
 			t.Why = "the judge didn't answer (" + rc.Error + "): the agent's own model"
+		case rc.Config != "" && t.Session != "":
+			// Another provider's model: a running session stays on its own.
+			t.Difficulty, t.Why = rc.Difficulty, rc.Why+" (the session keeps its own config and model)"
 		default:
 			t.Model, t.Effort, t.Difficulty, t.Why, switches = rc.Model, rc.Effort, rc.Difficulty, rc.Why, rc.Switch
 			if rc.Config != "" && t.Config == "" {
@@ -69,7 +83,13 @@ func (s *Server) goaDelegate(p proto.GOADelegateParams) (proto.GOATask, error) {
 		}
 	}
 	if t.Session != "" {
-		// An existing session: its model switched, then the prompt.
+		// An existing session: back and ready first, or nothing reaches
+		// it; its model switched, then the prompt.
+		woken, err := s.goaReady(p, target)
+		if err != nil {
+			return t, err
+		}
+		t.Woken = woken
 		for _, line := range switches {
 			if err := s.goaCall(p.From, p.Host, proto.MethodSessionInput, proto.SessionInputParams{ID: t.Session, Text: line, Enter: true}, nil); err != nil {
 				return t, err

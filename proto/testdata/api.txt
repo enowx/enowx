@@ -1103,12 +1103,14 @@ field GOATask.model string
 field GOATask.override bool
 field GOATask.prompt string
 field GOATask.result string
+field GOATask.reused bool
 field GOATask.session string
 field GOATask.status string
 field GOATask.title string
 field GOATask.updated time.Time
 field GOATask.urgent string
 field GOATask.why string
+field GOATask.woken bool
 field GOATaskParams.id string
 field GOATaskParams.result string
 field GOATaskParams.status string
