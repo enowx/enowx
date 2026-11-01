@@ -1,6 +1,6 @@
 # GOD of Agents
 
-GOD of Agents (GOA) is one session the user drives that controls every enowX session on every host: this device, servers, teammates' shared hosts. It never does the work itself: it hands each task to a session, follows it, checks what came back and reports. Starting, stopping and switching sessions, opening projects, reviewing and merging, changing settings is control, and GOA's to do.
+GOD of Agents (GOA) is one session the user drives that controls every enowX session on every host: this device, servers, teammates' shared hosts. It doesn't do the coding itself: it hands each task to a session, follows it, checks what came back and reports. It may read files for a project's context, and write what is small itself (a plan, a note, a doc), an edit going by its session's permission mode. Starting, stopping and switching sessions, opening projects, reviewing and merging, changing settings is control, and GOA's to do.
 
 ## In the app
 
@@ -23,21 +23,21 @@ Leaving the mode asks first, whichever way: the title bar's chip, **Leave**, the
 
 - **A folder of its own**, outside every project (`<enowX's folder>/goa`), with no branch.
 - **Every feature on**, its guide `agent.GOAGuide` first: delegate, don't work; don't poll; who answers which permission; keep the board and its collection.
-- **Its permissions asked**: it runs nothing that needs them; enowX's own tools are allowed (Claude Code's `--allowedTools mcp__enowx`, Codex's MCP server approved).
+- **Its permissions asked**: enowX's own tools are allowed (Claude Code's `--allowedTools mcp__enowx`, Codex's MCP server approved) and reading is allowed by its hook, unless the path looks like a secret; an edit goes by the session's permission mode: Claude Code asks unless it is in auto mode or the like; Codex writes in GOA's folder and the system's temporary folders unasked, its sandbox stopping the rest.
 
 ### Held to delegating, as far as each agent allows
 
 | Level | Agents | How |
 |---|---|---|
-| enforced | Claude Code (and its teams), Codex | Their own hooks hand every tool call to the daemon first (`tool.before`); every tool but enowX's is refused before it runs: enowX's MCP tools (`mcp__enowx__*`), or one `"$ENOWX_BIN" …` command with nothing chained, piped, redirected or substituted (`core/goa.Allowed`). Claude Code also starts with none of its own tools (`--tools ""`, enowX's MCP server only, `--strict-mcp-config`, `ENABLE_TOOL_SEARCH=false` so enowX's tools load); Codex runs its commands read-only (`--sandbox read-only`). |
+| enforced | Claude Code (and its teams), Codex | Their own hooks hand every tool call to the daemon first (`tool.before`); every tool but these is refused before it runs: enowX's MCP tools (`mcp__enowx__*`), its tools for reading and editing files, or one `"$ENOWX_BIN" …` or reading command (`cat`, `head`, `tail`, `ls`, `wc`, `grep`, `rg`, `sed -n 'Np'`, no secret named) with nothing chained, piped, redirected or substituted (`core/goa.Allowed`). Claude Code also starts with only its tools for files (`--tools Read,Grep,Glob,Edit,Write,NotebookEdit`, enowX's MCP server only, `--strict-mcp-config`, `ENABLE_TOOL_SEARCH=false` so enowX's tools load); Codex runs its commands read-only (`--sandbox read-only`). |
 | limited | agents whose tools can be restricted at start but have no hooks | Started with enowX's tools only. (No agent enowX knows is limited and not enforced today.) |
 | watched | every other agent | Only told. The programs GOA's session runs itself (found by the session's tag in their environment) and the files that change in the host's git projects while no other session works there are flagged to the user, with a banner; a file unchanged, or changed only in tracked files, when GOA started can be put back as it was (`git stash create` keeps that state without touching the folder). Best effort: a change GOA makes in a folder a worker works in passes as the worker's. |
 
 The app shows each agent's level when picking GOA's; `enowx goa agents` lists them.
 
-No enowX command that runs a program of GOA's choosing works in its session, or in its MCP server: `creds use … -- COMMAND`, `decide trim -- COMMAND`, and `run` of a project command (listing them still works). Those would be a way around its missing tools.
+No enowX command that runs a program of GOA's choosing works in its session, or in its MCP server: `creds use … -- COMMAND`, `decide trim -- COMMAND`, and `run` of a project command (listing them still works). Those would be a way around the tools it lacks.
 
-Checked with Codex itself, started with GOA's flags: enowX's tools reached it over MCP as `mcp__enowx__…`, as its hooks name them, and its read-only sandbox refused to write a file ("operation not permitted"). Checked with Claude Code itself, started as GOA: it reported over 100 tools, all of them enowX's (`mcp__enowx__…`), and no Bash, Read, Edit or Write. Asked to write a file, it had no tool to do so, and offered to hand the task to a session.
+Checked with Codex itself, started as GOA: enowX's tools reached it over MCP as `mcp__enowx__…`, as its hooks name them; it read a project's file and wrote one in its own folder, and handed over a write outside it and a `go version`. Checked with Claude Code itself, started as GOA: it read a project's file and wrote one (in auto mode, unasked), and handed `go version` to a session, having no Bash.
 
 ## Tasks
 

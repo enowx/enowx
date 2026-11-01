@@ -2,6 +2,7 @@ package goa
 
 import (
 	"path/filepath"
+	"regexp"
 	"strings"
 )
 
@@ -9,22 +10,64 @@ import (
 // tools, keeping a to-do list.
 var metaTools = map[string]bool{"ToolSearch": true, "TodoWrite": true, "ListMcpResourcesTool": true, "ReadMcpResourceTool": true}
 
+// readTools and editTools are agents' tools for a file: GOA reads a
+// project's context and writes what is small itself, and hands the rest
+// over. An edit is the user's to allow, as their agent asks.
+var (
+	readTools = map[string]bool{"Read": true, "Grep": true, "Glob": true, "LS": true, "NotebookRead": true}
+	editTools = map[string]bool{"Edit": true, "Write": true, "MultiEdit": true, "NotebookEdit": true, "apply_patch": true}
+)
+
 // Allowed says whether GOA may make a tool call: one of enowX's MCP tools,
-// or a shell command that runs enowX's program (bin, or "$ENOWX_BIN") and
-// nothing else. why says what was refused.
+// a tool reading or editing a file, or a shell command that runs enowX's
+// program (bin, or "$ENOWX_BIN") or only reads, and nothing else. why says
+// what was refused.
 func Allowed(tool, command, bin string) (ok bool, why string) {
 	switch {
 	case tool == "mcp__enowx" || strings.HasPrefix(tool, "mcp__enowx__"):
 		return true, ""
-	case metaTools[tool]:
+	case metaTools[tool], readTools[tool], editTools[tool]:
 		return true, ""
 	case command != "" && isShellTool(tool):
-		if EnowxCommand(command, bin) {
+		if EnowxCommand(command, bin) || readCommand(command) {
 			return true, ""
 		}
-		return false, "GOD of Agents runs enowX's commands only (\"$ENOWX_BIN\" …, one command, nothing chained): hand this to a session with goa delegate"
+		return false, "GOD of Agents runs enowX's commands and ones that only read (\"$ENOWX_BIN\" …, cat, rg …, one command, nothing chained, no secrets): hand this to a session with goa delegate"
 	}
-	return false, "GOD of Agents never does the work itself: " + tool + " is refused. Hand it to a session (goa delegate), or use enowX's tools"
+	return false, "GOD of Agents reads and edits files and uses enowX's tools; " + tool + " is refused. Hand this to a session (goa delegate)"
+}
+
+// ReadOnly says whether tool call only reads a file, so nothing is lost
+// by running it unasked.
+func ReadOnly(tool, command string) bool {
+	return readTools[tool] || command != "" && isShellTool(tool) && readCommand(command)
+}
+
+// sedPrint is sed printing lines and nothing else: its other commands can
+// write files and run programs.
+var sedPrint = regexp.MustCompile(`^\s+-n\s+'?\d+(,\d+)?p'?\s`)
+
+// readCommand says whether command is one program that only reads, for
+// agents that read through a shell (Codex): nothing chained, no secret
+// named, which a tool's permission prompt would catch but a sandboxed
+// shell wouldn't.
+func readCommand(command string) bool {
+	command = strings.TrimSpace(command)
+	first, rest := firstWord(command)
+	switch first {
+	case "cat", "head", "tail", "ls", "wc", "grep", "pwd", "stat":
+	case "rg":
+		if strings.Contains(rest, "--pre") {
+			return false // runs a program on each file
+		}
+	case "sed":
+		if !sedPrint.MatchString(rest) {
+			return false
+		}
+	default:
+		return false
+	}
+	return plainArgs(rest) && Urgent("", command, nil) == ""
 }
 
 // isShellTool says whether tool runs a shell command, by the names agents

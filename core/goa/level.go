@@ -17,11 +17,11 @@ func LevelOf(id string) (level, why string) {
 	limits := agent.GOALimitsTools(id)
 	switch {
 	case hooks && limits:
-		return proto.GOAEnforced, "its hooks refuse every tool but enowX's, and it starts with enowX's tools only"
+		return proto.GOAEnforced, "its hooks refuse every tool but enowX's and those reading and editing files, and it starts with those only"
 	case hooks:
 		return proto.GOAEnforced, "its hooks refuse every tool but enowX's before it runs"
 	case limits:
-		return proto.GOALimited, "it starts with enowX's tools only"
+		return proto.GOALimited, "it starts with enowX's tools and those reading and editing files only"
 	}
 	return proto.GOAWatched, "it can't be held to enowX's tools: what it runs itself and the files it changes in projects are flagged to you, to revert"
 }

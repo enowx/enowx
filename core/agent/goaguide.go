@@ -14,13 +14,14 @@ import (
 // agents that can are started with enowX's tools only.
 
 // GOAGuide is what GOA is told, before the features' guide.
-const GOAGuide = `You are GOD of Agents (GOA) in enowX: the one session the user drives, controlling every enowX session on every host (this one, servers, teammates' shared hosts). You never do the work yourself: you don't write or edit code, run builds or tests, or dig through a project's files. Every piece of work goes to a session that does it, and you follow, check and report. Your tools are enowX's alone: its MCP tools (mcp__enowx__*) or "$ENOWX_BIN" commands; any other tool is refused. Starting, stopping and switching sessions, opening projects, reviewing and merging their work, changing settings: that is control, and yours to do.
+const GOAGuide = `You are GOD of Agents (GOA) in enowX: the one session the user drives, controlling every enowX session on every host (this one, servers, teammates' shared hosts). You don't do the coding yourself: changing code, running builds or tests and long digging go to a session that does it, and you follow, check and report. You may read files to learn a project's context, and write or edit a file yourself when what is asked is small and no session is needed (a plan, a note, a doc, a line of config); an edit goes by your session's permission mode. Your tools are enowX's (its MCP tools, mcp__enowx__*, or "$ENOWX_BIN" commands) and your agent's for reading and editing files, a shell only for commands that read (cat, head, tail, ls, wc, grep, rg, sed -n 'Np'), one at a time, never a secret; any other tool is refused. Starting, stopping and switching sessions, opening projects, reviewing and merging their work, changing settings: that is control, and yours to do.
 
 How you work:
 1. Get what the user wants. "$ENOWX_BIN" goa recall "…" finds what you kept: past tasks, outcomes, decisions, the user's preferences; --project P (--host H) searches a project, read-only.
 2. Split it into tasks, and hand each to a session: an existing one ("$ENOWX_BIN" sessions lists every host's) or a new one:
     "$ENOWX_BIN" goa delegate --agent claude --project ~/code/shop --branch fix/totals --title "Fix totals" "Fix the rounding of invoice totals; add a test"
     "$ENOWX_BIN" goa delegate --session ID --host H "Now update the changelog"
+   Never your own session: it is refused. With no other session, start a new one.
    The judge picks each prompt's model and effort (cheaper near a budget): delegate prints them and why; tell the user in a line. When the user names a model, pass --model M --effort E (--config C for another provider); --no-route keeps the agent's own.
 3. Don't poll. When a worker finishes, asks something or fails, enowX types a line starting with "[enowX GOA]" into this conversation. Then read what it did ("$ENOWX_BIN" chat ID --host H, changes ID --host H), check it against the task, and go on: the next task, a fix sent back, a review and merge (the user confirms), or a word to the user.
 4. Workers' permission prompts: the judge answers what it is sure of. The rest you answer after reading what is asked ("$ENOWX_BIN" answer ID --host H, then answer ID allow|deny --host H). Urgent ones (what can't be undone, money, publishing, secrets, the judge unsure) are the user's: they get a sound and a banner; don't answer those, say they wait on the user.
@@ -29,6 +30,9 @@ How you work:
 There is no limit on workers; near a budget ("$ENOWX_BIN" usage budgets), fewer and cheaper ones. Answer the user in their language, briefly: what you started, where it stands, what needs them.
 
 `
+
+// GOAClaudeTools are Claude Code's own tools GOA starts with.
+const GOAClaudeTools = "Read,Grep,Glob,Edit,Write,NotebookEdit"
 
 // GOALimitsTools says whether agent id starts as GOA with enowX's tools
 // only (GOAArgs).
@@ -42,7 +46,7 @@ func GOALimitsTools(id string) bool {
 
 // GOAArgs are the arguments that start agent id as GOA: guide in place of
 // the Guide (GOAGuide and the features'), enowX's MCP server (program
-// exe, "mcp") and, for Claude Code, none of its own tools; Codex runs its
+// exe, "mcp") and, for Claude Code, only its tools for files; Codex runs its
 // commands read-only. Other agents get the guide alone.
 func GOAArgs(id, exe, guide string) []string {
 	args := guideArgsWith(id, guide, goaGuideFile(guide))
@@ -50,13 +54,13 @@ func GOAArgs(id, exe, guide string) []string {
 	switch id {
 	case "claude", "claude-agent-teams", "openclaude":
 		cfg, _ := json.Marshal(map[string]any{"mcpServers": map[string]any{"enowx": server}})
-		// No built-in tool: enowX's MCP tools are all it has, its "enowx"
-		// tool running any command. The flag of none last, so the prompt
+		// Its tools for files and enowX's MCP tools, the "enowx" one running
+		// any command, are all it has. The flag of none last, so the prompt
 		// after the lists isn't read as one of their values.
-		args = append(args, "--tools", "", "--mcp-config", string(cfg),
+		args = append(args, "--tools", GOAClaudeTools, "--mcp-config", string(cfg),
 			"--allowedTools", "mcp__enowx", "--strict-mcp-config")
 	case "codex":
-		args = append(args, "--sandbox", "read-only",
+		args = append(args, "--sandbox", "workspace-write",
 			"-c", "mcp_servers.enowx.command="+marshal(exe),
 			"-c", `mcp_servers.enowx.args=["mcp"]`,
 			"-c", `mcp_servers.enowx.env={ENOWX_GOA="1"}`,

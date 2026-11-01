@@ -35,6 +35,9 @@ func (s *Server) goaDelegate(p proto.GOADelegateParams) (proto.GOATask, error) {
 		if err != nil {
 			return t, err
 		}
+		if info.GOA {
+			return proto.GOATask{}, errors.New("goa: a task goes to another session, not GOD of Agents' own: start a new one")
+		}
 		t.Session, t.Agent = info.ID, info.Agent
 	}
 	if t.Agent == "" {

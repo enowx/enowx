@@ -11,6 +11,7 @@ import (
 	"testing"
 
 	"github.com/enowx/enowx/client"
+	"github.com/enowx/enowx/core/agent"
 	"github.com/enowx/enowx/core/rag"
 	"github.com/enowx/enowx/core/session"
 	"github.com/enowx/enowx/proto"
@@ -121,9 +122,10 @@ func TestGOAControlsAnotherHostEndToEnd(t *testing.T) {
 	}
 }
 
-// GOA's own tool calls: enowX's MCP tools and "$ENOWX_BIN" commands run;
-// editing a file, a shell command of its own, a subagent are refused
-// before they run, by its agent's hooks. Its work goes to sessions.
+// GOA's own tool calls: enowX's MCP tools, "$ENOWX_BIN" commands and its
+// tools for files run; a shell command of its own, a subagent are refused
+// before they run, by its agent's hooks. Reading is allowed unasked, unless
+// of a secret; an edit is left to its prompt.
 func TestGOARefusesDoingTheWorkItself(t *testing.T) {
 	if runtime.GOOS == "windows" {
 		t.Skip("uses sh")
@@ -136,8 +138,6 @@ func TestGOARefusesDoingTheWorkItself(t *testing.T) {
 	}
 	t.Setenv(session.EnvSession, g.ID())
 	refused := []string{
-		`{"tool_name":"Edit","tool_input":{"file_path":"/src/shop/totals.go","old_string":"a","new_string":"b"}}`,
-		`{"tool_name":"Write","tool_input":{"file_path":"/src/shop/new.go","content":"package shop"}}`,
 		`{"tool_name":"Bash","tool_input":{"command":"go test ./..."}}`,
 		`{"tool_name":"Bash","tool_input":{"command":"\"$ENOWX_BIN\" ls; sed -i s/a/b/ totals.go"}}`,
 		`{"tool_name":"Task","tool_input":{"prompt":"fix it"}}`,
@@ -157,11 +157,22 @@ func TestGOARefusesDoingTheWorkItself(t *testing.T) {
 			t.Errorf("%s: refused: %q", in, reason)
 		}
 	}
+	for in, unasked := range map[string]bool{
+		`{"tool_name":"Read","tool_input":{"file_path":"/src/shop/totals.go"}}`:                                   true,
+		`{"tool_name":"Read","tool_input":{"file_path":"/src/shop/.env"}}`:                                        false,
+		`{"tool_name":"Edit","tool_input":{"file_path":"/src/shop/totals.go","old_string":"a","new_string":"b"}}`: false,
+		`{"tool_name":"Write","tool_input":{"file_path":"/src/shop/plan.md","content":"# Plan"}}`:                 false,
+	} {
+		code, out, reason := hookOf(in, "--event", proto.HookToolBefore)
+		if code != 0 || strings.Contains(out, `"permissionDecision":"allow"`) != unasked {
+			t.Errorf("%s: exit %d, %q, %q; unasked: %v", in, code, out, reason, unasked)
+		}
+	}
 	// A worker's own edits aren't GOA's: the same hook lets them by.
 	w, _ := srv.sessions.Create(session.Spec{Command: []string{"sh", "-c", "cat"}, Dir: t.TempDir(), Meta: session.Meta{Agent: "claude"}})
 	t.Setenv(session.EnvSession, w.ID())
-	if code, _, reason := hookOf(refused[0], "--event", proto.HookToolBefore); code != 0 {
-		t.Fatalf("a worker's edit refused: %q", reason)
+	if code, _, reason := hookOf(`{"tool_name":"Bash","tool_input":{"command":"go test ./..."}}`, "--event", proto.HookToolBefore); code != 0 {
+		t.Fatalf("a worker's command refused: %q", reason)
 	}
 }
 
@@ -326,8 +337,8 @@ func TestGOAWorkersPermissions(t *testing.T) {
 }
 
 // GOA runs on Claude Code and on Codex, each in GOA's folder with its
-// guide: Claude Code with none of its own tools and enowX's MCP server,
-// its hooks refusing the rest; Codex read-only, enowX's MCP server
+// guide: Claude Code with only its tools for files and enowX's MCP server,
+// its hooks refusing the rest; Codex's sandbox writing, enowX's MCP server
 // approved, its hooks set. Both are enforced on the board.
 func TestGOAOnClaudeCodeAndCodex(t *testing.T) {
 	if runtime.GOOS == "windows" {
@@ -366,8 +377,8 @@ func TestGOAOnClaudeCodeAndCodex(t *testing.T) {
 		t.Fatal(err)
 	}
 	args, env := launched("claude")
-	if after(args, "--tools") != "" || !slices.Contains(args, "--strict-mcp-config") || after(args, "--allowedTools") != "mcp__enowx" {
-		t.Errorf("Claude Code's own tools aren't off: %q", args)
+	if after(args, "--tools") != agent.GOAClaudeTools || !slices.Contains(args, "--strict-mcp-config") || after(args, "--allowedTools") != "mcp__enowx" {
+		t.Errorf("Claude Code's tools aren't only those for files: %q", args)
 	}
 	if !strings.Contains(after(args, "--mcp-config"), `"ENOWX_GOA":"1"`) || !strings.Contains(after(args, "--settings"), "PreToolUse") {
 		t.Errorf("Claude Code: no enowX MCP server or hooks: %q", args)
@@ -391,7 +402,7 @@ func TestGOAOnClaudeCodeAndCodex(t *testing.T) {
 	}
 	args, _ = launched("codex")
 	joined := strings.Join(args, " ")
-	if after(args, "--sandbox") != "read-only" || !strings.Contains(joined, "mcp_servers.enowx.command=") ||
+	if after(args, "--sandbox") != "workspace-write" || !strings.Contains(joined, "mcp_servers.enowx.command=") ||
 		!strings.Contains(joined, `default_tools_approval_mode="approve"`) || !strings.Contains(joined, "hooks.PreToolUse=") {
 		t.Errorf("Codex as GOA: %q", args)
 	}
@@ -414,5 +425,27 @@ func TestGOAOnClaudeCodeAndCodex(t *testing.T) {
 	}
 	if levels["claude"] != proto.GOAEnforced || levels["codex"] != proto.GOAEnforced || levels["aider"] != proto.GOAWatched {
 		t.Errorf("levels: %v", levels)
+	}
+}
+
+// GOA can't hand a task to itself: its prompt would land in its own
+// conversation, its model switched, the task never settled.
+func TestGOADelegatesToAnotherSession(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("uses sh")
+	}
+	srv, _ := hookServer(t)
+	c := connect(t, srv, nil)
+	g, err := srv.sessions.Create(session.Spec{Command: []string{"sh", "-c", "cat"}, Dir: t.TempDir(), Cols: 80, Rows: 24, Meta: session.Meta{Agent: "codex", GOA: true}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	var task proto.GOATask
+	err = c.Call(proto.MethodGOADelegate, proto.GOADelegateParams{From: g.ID(), Session: g.ID(), Prompt: "Write the plan", NoRoute: true}, &task)
+	if err == nil || !strings.Contains(err.Error(), "not GOD of Agents' own") {
+		t.Fatalf("delegated to itself: %+v %v", task, err)
+	}
+	if tasks := srv.goa.board.List(); len(tasks) != 0 {
+		t.Fatalf("on the board: %+v", tasks)
 	}
 }

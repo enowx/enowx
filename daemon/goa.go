@@ -103,7 +103,8 @@ func goaEnv(meta session.Meta) []string {
 }
 
 // goaHook is GOA's say on event ev of session info, before the user's
-// hooks: GOA's tools other than enowX's are refused (stop); a worker's
+// hooks: GOA's tools other than enowX's and those for files are refused
+// (stop), what only reads allowed; a worker's
 // call is judged (goa_workers.go), its decision merged after the hooks.
 func (s *Server) goaHook(info proto.SessionInfo, ev proto.HookEvent) (d proto.HookDecision, stop bool) {
 	if ev.Event != proto.HookToolBefore {
@@ -114,6 +115,9 @@ func (s *Server) goaHook(info proto.SessionInfo, ev proto.HookEvent) (d proto.Ho
 			s.logger().Info("goa: a tool refused", "session", info.ID, "tool", ev.Tool)
 			return proto.HookDecision{Block: true, Reason: why}, true
 		}
+		// Reading needs no asking, unless of a secret; an edit stays the
+		// user's, as its agent asks.
+		d.Approve = goa.ReadOnly(ev.Tool, ev.Command) && goa.Urgent(ev.Tool, ev.Command, ev.Paths) == ""
 		return d, false
 	}
 	if info.GOAWorker != "" || s.goa.board.Has(info.ID) {

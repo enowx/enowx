@@ -186,7 +186,7 @@ func (a *App) goaStartDialog(c *ui.Context) {
 	}
 	start := false
 	widget.FormSheet(c, &f.open, 520, "Start GOD of Agents",
-		"One session that controls every session on every host and only delegates: it hands each task to a session, never does the work itself. It runs in a folder of its own on "+a.host.Name+". Pick its agent: how far each holds it to delegating is shown.", func() {
+		"One session that controls every session on every host: it hands each task to a session, reading files and writing what is small itself. It runs in a folder of its own on "+a.host.Name+". Pick its agent: how far each holds it to delegating is shown.", func() {
 			if a.goa.err != "" {
 				ui.Text(c, a.goa.err).FontSize(12).TextColor(theme.Error)
 				return
