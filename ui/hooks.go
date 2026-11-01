@@ -88,6 +88,10 @@ func (a *App) hooksEvent(ev proto.Event) {
 }
 
 func (a *App) hooksSection(c *ui.Context) {
+	settingsColumn(c, "Hooks", "", nil, func() { a.hooksBody(c) })
+}
+
+func (a *App) hooksBody(c *ui.Context) {
 	st := a.hooksOf()
 	sectionIntro(c, "Hooks", "Run a command, give the agent context, refuse or change what it is about to do, notify or call a webhook when something happens in a session, on every agent: in the agent where it has hooks of its own (Claude Code, Codex), else as "+a.host.Name+" sees it happen.")
 	ui.Row(c).FillWidth().Gap(8).AlignItems(ui.Center).Children(func() {

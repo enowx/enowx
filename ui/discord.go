@@ -187,6 +187,10 @@ func (a *App) discordLoop(want <-chan *discordrpc.Activity) {
 
 // discordSection is Settings › Discord.
 func (a *App) discordSection(c *ui.Context) {
+	settingsColumn(c, "Discord", "", nil, func() { a.discordBody(c) })
+}
+
+func (a *App) discordBody(c *ui.Context) {
 	sectionIntro(c, "Discord", "Show what you work on in enowX under your name in Discord, as Rich Presence, with a link to get enowX. It goes to the Discord app on this device, while it runs.")
 	if a.discordID() == "" {
 		ui.Text(c, "This build of enowX has no Discord application set.").FontSize(theme.TextLabel).TextColor(theme.Muted)

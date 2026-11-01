@@ -24,6 +24,10 @@ import (
 // each session ran on is a tab of its own.
 
 func (a *App) agentsSection(c *ui.Context) {
+	settingsColumn(c, "Agents", "", nil, func() { a.agentsBody(c) })
+}
+
+func (a *App) agentsBody(c *ui.Context) {
 	st, apis := a.accountsOf(), a.agentAPIsOf()
 	sectionIntro(c, "Agents", "Each agent's configs on "+a.host.Name+". The official one is the agent as installed, never changed by enowX. The others are another account (signed in once on each host) or a model API (a gateway, OpenRouter, a local server, its key from the vault). A session picks one at New session and keeps it; at a usage limit it can go on as the next in the order.")
 	ui.Row(c).FillWidth().Children(func() {

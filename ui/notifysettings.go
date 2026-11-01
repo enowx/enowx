@@ -21,6 +21,10 @@ import (
 // notifySection is Settings' Notifications: the sounds the app plays when
 // agents finish, ask for input or fail, wherever they run.
 func (a *App) notifySection(c *ui.Context) {
+	settingsColumn(c, "Notifications", "", nil, func() { a.notifyBody(c) })
+}
+
+func (a *App) notifyBody(c *ui.Context) {
 	sectionIntro(c, "Notifications", "A sound when an agent finishes its turn, asks for input or fails, in a session on this device or on any host enowX reaches. These settings are the same on every host.")
 	st := a.notifySettings()
 	changed := false

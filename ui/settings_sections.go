@@ -89,54 +89,59 @@ func (a *App) loadHostSettings() {
 	}()
 }
 
-// settingsBody is the section shown.
+// settingsBody is the section shown. Each heads the frame itself; the ones
+// made of a column of cards share settingsSection's frame.
 func (a *App) settingsBody(c *ui.Context) {
-	if a.settingsSection == "" || a.settingsSection == sectionLibrary {
+	switch a.settingsSection {
+	case "", sectionLibrary:
 		a.library.Draw(c, a.libraryOptions())
-		return
+	case sectionSessions:
+		a.sessionDefaults(c)
+	case sectionEnvironment:
+		a.environmentSection(c)
+	case sectionTerminal:
+		a.terminalSection(c)
+	case sectionAutomations:
+		a.automationsSection(c)
+	case sectionHooks:
+		a.hooksSection(c)
+	case sectionRAG:
+		a.ragSection(c)
+	case sectionDecide:
+		a.decideSection(c)
+	case sectionAgents:
+		a.agentsSection(c)
+	case sectionApp:
+		a.appSection(c)
+	case sectionFloating:
+		a.floatingSection(c)
+	case sectionDiagnostics:
+		a.diagnosticsSection(c)
+	case sectionNotify:
+		a.notifySection(c)
+	case sectionDiscord:
+		a.discordSection(c)
+	case sectionSync:
+		a.syncSection(c)
+	case sectionFeatures:
+		a.featuresSection(c)
+	case sectionCloud:
+		a.cloudSection(c)
 	}
-	ui.Scroll(c).Grow(1).FillWidth().Children(func() {
-		ui.Column(c).FillWidth().Padding(24, 32).Gap(16).Children(func() {
-			switch a.settingsSection {
-			case sectionSessions:
-				a.sessionDefaults(c)
-			case sectionEnvironment:
-				a.environmentSection(c)
-			case sectionTerminal:
-				a.terminalSection(c)
-			case sectionAutomations:
-				a.automationsSection(c)
-			case sectionHooks:
-				a.hooksSection(c)
-			case sectionRAG:
-				a.ragSection(c)
-			case sectionDecide:
-				a.decideSection(c)
-			case sectionAgents:
-				a.agentsSection(c)
-			case sectionApp:
-				a.appSection(c)
-			case sectionFloating:
-				a.floatingSection(c)
-			case sectionDiagnostics:
-				a.diagnosticsSection(c)
-			case sectionNotify:
-				a.notifySection(c)
-			case sectionDiscord:
-				a.discordSection(c)
-			case sectionSync:
-				a.syncSection(c)
-			case sectionFeatures:
-				a.featuresSection(c)
-			case sectionCloud:
-				a.cloudSection(c)
-			}
-		})
-	})
+}
+
+// settingsColumn heads the frame and scrolls what's under it.
+func settingsColumn(c *ui.Context, title, sub string, actions, body func()) {
+	widget.PageHeader(c, title, sub, actions)
+	widget.PageBody(c, true, body)
 }
 
 // sessionDefaults are what New session starts with.
 func (a *App) sessionDefaults(c *ui.Context) {
+	settingsColumn(c, "New sessions", "", nil, func() { a.sessionDefaultsBody(c) })
+}
+
+func (a *App) sessionDefaultsBody(c *ui.Context) {
 	sectionIntro(c, "New sessions", "What New session starts with; each session can still differ.")
 	widget.Field(c, "Agent", func() {
 		ui.Row(c).FillWidth().Gap(6).Wrap().Children(func() {
@@ -258,6 +263,10 @@ func (a *App) setHibernation(minutes int) {
 
 // environmentSection keeps the variables every session on the host gets.
 func (a *App) environmentSection(c *ui.Context) {
+	settingsColumn(c, "Environment", "", nil, func() { a.environmentBody(c) })
+}
+
+func (a *App) environmentBody(c *ui.Context) {
 	hs := a.hostSettingsOf()
 	sectionIntro(c, "Environment", "Variables every session on "+a.host.Name+" gets, agents included: API keys, tokens. Kept on "+a.host.Name+" in ~/"+transport.HomeName+"/session-env.json, readable by its user alone; they apply to sessions started or continued after.")
 	if hs.err != "" {
@@ -310,6 +319,10 @@ func (a *App) setVar(name, value string) {
 // own, and works the same for a session on this machine and one on a
 // server.
 func (a *App) floatingSection(c *ui.Context) {
+	settingsColumn(c, "Floating control", "", nil, func() { a.floatingBody(c) })
+}
+
+func (a *App) floatingBody(c *ui.Context) {
 	sectionIntro(c, "Floating control", "A radial panel of the main actions, over any app: "+floatingKey+". While it is on, "+floatingKey+" no longer reaches other apps.")
 	floating := a.state.FloatingControl
 	if switchRowKey(c, "Floating control switch", &floating, "Floating control", "The panel and its shortcut. Off, "+floatingKey+" goes back to other apps.") {
@@ -351,6 +364,10 @@ func (a *App) floatingAtPointer() bool {
 
 // appSection is the app's own preferences.
 func (a *App) appSection(c *ui.Context) {
+	settingsColumn(c, "App", "", nil, func() { a.appBody(c) })
+}
+
+func (a *App) appBody(c *ui.Context) {
 	sectionIntro(c, "App", "enowX on this device.")
 	widget.Field(c, "Editor", func() {
 		names := make([]string, len(editors))
@@ -453,6 +470,10 @@ func shortcutList() [][2]string {
 // diagnosticsSection says what the connected host's daemon is, and its
 // log; it restarts it.
 func (a *App) diagnosticsSection(c *ui.Context) {
+	settingsColumn(c, "Diagnostics", "", nil, func() { a.diagnosticsBody(c) })
+}
+
+func (a *App) diagnosticsBody(c *ui.Context) {
 	hs := a.hostSettingsOf()
 	info := a.daemonInfo
 	sectionIntro(c, "Diagnostics", "What enowX's daemon on "+a.host.Name+" says about itself.")

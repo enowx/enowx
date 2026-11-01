@@ -28,6 +28,8 @@ type Options struct {
 	// OpenInEditor opens a file of the host, by its absolute path, in the
 	// user's editor; nil hides the button.
 	OpenInEditor func(path string)
+	// Sync copies items to another host; nil hides the button.
+	Sync func()
 }
 
 // kinds are the kinds of item the page shows, in its order, with their

@@ -87,6 +87,10 @@ func (a *App) loadRAGSettings() {
 }
 
 func (a *App) ragSection(c *ui.Context) {
+	settingsColumn(c, "RAG", "", nil, func() { a.ragBody(c) })
+}
+
+func (a *App) ragBody(c *ui.Context) {
 	st := a.ragSettingsOf()
 	sectionIntro(c, "RAG", "Agents find a project's code, docs, attached notes and memories by meaning rather than by reading it all. A project is indexed only once turned on in its Index tool, after you agree to send its text to the embedder below; secrets and ignored files never are.")
 	switch {

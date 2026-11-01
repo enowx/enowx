@@ -6,4 +6,7 @@ import "github.com/egoist/mygo/ui"
 // the same place the session list has on the Sessions page. Pages without one
 // give their frame the whole width.
 func (a *App) pageSide(c *ui.Context) {
+	if a.page == pageSettings && a.client != nil {
+		a.settingsSide(c)
+	}
 }

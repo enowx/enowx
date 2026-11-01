@@ -125,6 +125,10 @@ func (a *App) saveDecide(st *decideState) {
 }
 
 func (a *App) decideSection(c *ui.Context) {
+	settingsColumn(c, "Decisions", "", nil, func() { a.decideBody(c) })
+}
+
+func (a *App) decideBody(c *ui.Context) {
 	st := a.decideOf()
 	sectionIntro(c, "Decisions", "A small, cheap model, the judge, that enowX asks instead of guessing: whether a quiet session needs you, whether an agent's command may run, what of a long output matters, whether an agent loops. Every use is on until you turn it off (Uses); with no judge, no answer or one not sure enough, enowX does what it does without.")
 	switch {

@@ -77,6 +77,10 @@ func (a *App) featureOn(id string) bool {
 
 // featuresSection is Settings' Features.
 func (a *App) featuresSection(c *ui.Context) {
+	settingsColumn(c, "Features", "", nil, func() { a.featuresBody(c) })
+}
+
+func (a *App) featuresBody(c *ui.Context) {
 	hf := a.featuresOf()
 	sectionIntro(c, "Features", "What agents are told of and get tools for. A feature off costs them no tokens; the app keeps it. Changes apply to sessions started after them: running ones keep what they had until restarted.")
 	if hf.err != "" {

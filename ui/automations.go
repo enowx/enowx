@@ -58,6 +58,10 @@ func (a *App) loadAutomations() {
 }
 
 func (a *App) automationsSection(c *ui.Context) {
+	settingsColumn(c, "Automations", "", nil, func() { a.automationsBody(c) })
+}
+
+func (a *App) automationsBody(c *ui.Context) {
 	st := a.automationsOf()
 	sectionIntro(c, "Automations", "Prompts an agent gets on a schedule, each run in a session of its own on "+a.host.Name+", whether or not this app is open. Times are "+a.host.Name+"'s.")
 	ui.Row(c).FillWidth().Children(func() {

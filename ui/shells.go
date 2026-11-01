@@ -72,6 +72,10 @@ func (a *App) setShell(path string) {
 // terminalSection picks the shell the host's terminals start with, and
 // the font they draw with.
 func (a *App) terminalSection(c *ui.Context) {
+	settingsColumn(c, "Terminal", "", nil, func() { a.terminalBody(c) })
+}
+
+func (a *App) terminalBody(c *ui.Context) {
 	hs := a.shellsOf()
 	sectionIntro(c, "Terminal", "The shell terminals on "+a.host.Name+" start with: new terminal tabs, and agents' sessions once the agent exits. A session's + opens a tab of any other.")
 	if hs.err != "" {

@@ -144,6 +144,10 @@ func (a *App) cloudDo(what string, fn func(cl *client.Client) error, done func()
 }
 
 func (a *App) cloudSection(c *ui.Context) {
+	settingsColumn(c, "Cloud", "", nil, func() { a.cloudBody(c) })
+}
+
+func (a *App) cloudBody(c *ui.Context) {
 	cs := a.cloudOf()
 	sectionIntro(c, "Cloud", "Your teams in enowX: their members, the notes and canvases they share, their hosts. Off until you sign in; nothing reaches the cloud before. This is "+a.host.Name+"'s sign-in: each host signs in as a device of your account.")
 	if cs.err != "" {
