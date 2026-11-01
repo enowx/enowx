@@ -110,7 +110,11 @@ func (a *App) tabButton(c *ui.Context, parent, t proto.SessionInfo, front, closa
 		name = t.Name // a command run in it
 	}
 	st := statusOf(t)
-	a.tabFace(c, name, a.sessionName(t), front, closable, st.color, st.hollow, icon.Agent(t.Agent),
+	svg := icon.Agent(t.Agent)
+	if t.GOA {
+		name, svg = "GOD of Agents", icon.Sparkle
+	}
+	a.tabFace(c, name, a.sessionName(t), front, closable, st.color, st.hollow, svg,
 		func() {
 			a.centerOf(parent.ID).front = ""
 			a.showTab(parent.ID, t.ID)

@@ -4,20 +4,20 @@ GOD of Agents (GOA) is one session the user drives that controls every enowX ses
 
 ## In the app
 
-The title bar's **GOD of Agents** chip (or ⌘K, "Enter or leave GOD of Agents") enters the mode. With no GOA on the host shown, it asks which agent to run GOA on, each with how far it holds GOA to delegating (below). In the mode:
+**GOD of Agents** in the title bar's pages (or ⌘K, "Enter or leave GOD of Agents") enters the mode. With no GOA on the host shown, it asks which agent to run GOA on, each with how far it holds GOA to delegating (below). In the mode:
 
-- GOA's session is the main view, alone; the session list is folded away.
-- A strip on top reaches GOD of Agents, **Browser** (GOA session's browser in the main view), Notes, Canvas, Usage, Hosts and Settings, and **Leave** goes back (GOA keeps running; the chip, now "Leave GOD of Agents", does the same).
+- GOA's session is the main view, as a session's: the same header, tab strip, tools dock and panel, with the session list folded away.
+- The title bar reaches the pages as anywhere. GOA's header has **Rules** and **Leave**, which goes back (GOA keeps running), and its More menu **Stall limits**.
 - Notes and Canvas show their own lists beside the page, with the choice of the user's own or a team's space, as the session list that holds them elsewhere is folded away.
-- GOA's session opens on its **chat** when its agent has one (Claude Code, Codex…), once; Terminal, Chat and Traffic stay in its header (its browser is the strip's), and the view picked is kept.
+- GOA's session opens on its **chat** when its agent has one (Claude Code, Codex…), once; Chat and Terminal stay in its header, the tools open in center tabs as in a session, and the view picked is kept.
 - The side panel stays, its **GOA** group first:
-  - **Sessions**: every session on every host the app reaches, its state and the task GOA gave it; a session that waits on the user says so. Clicking one opens it in a tab, under the strip: its terminal, live, on any host the app reaches, GOA and its conversation staying as they are; a stopped one is brought back first. Closing the tab closes the view alone, and the session runs on. Its details button shows its task.
+  - **Sessions**: every session on every host the app reaches, its state and the task GOA gave it; a session that waits on the user says so. Clicking one opens it in a tab of the strip: its terminal, live, on any host the app reaches, GOA and its conversation staying as they are; a stopped one is brought back first. Closing the tab closes the view alone, and the session runs on. Its details button shows its task.
     Dragging one into a chat or terminal puts a pointer at it where the prompt is typed, `[session ID: name, agent on host]`, to edit and send; the guide tells agents what it means.
   - **Tasks**: the board, newest first: each task's session and host, the model and effort its prompt runs on and why, its status and result, what it asks. **Change model** sets another model and effort: switched in its session at once (its `/model`, `/effort`) and kept on the board as chosen by the user; GOA is told. Below, what a watched GOA did itself, files to revert (the user confirms).
 
 GOA's mode shows the host the app shows; the app tells that host of GOA's workers on other hosts as they change (`goa.worker`), as only it sees them. With the app closed, GOA keeps controlling its own host; other hosts wait until the app is back, whose first look at each host tells GOA's host what its workers there did meanwhile (and every look after, for a change it missed).
 
-Leaving the mode asks first, whichever way: the title bar's chip, **Leave**, or the palette. GOD of Agents keeps running either way.
+Leaving the mode asks first, whichever way: the title bar's **Sessions**, **Leave**, or the palette. GOD of Agents keeps running either way.
 
 ## Its session
 
@@ -72,7 +72,7 @@ GOA's collection is its folder's (`rag.ProjectID` of GOA's folder), apart from e
 
 ## Its rules
 
-**Rules** in GOA's strip opens the user's rules for it: Markdown on how it delegates, what it leaves to the user, what it tells its workers. They live in the synced settings (`settings/goa-rules.md`), so every host's GOA follows them. GOA reads them in its guide when it starts, and, on an agent with a start-of-prompt hook (Claude Code, Codex), again with the next prompt after they change; `enowx-app goa rules` prints them. Only the app changes them: an agent reads them, it doesn't rewrite them. Rules that look like they hold a secret are refused.
+**Rules** in GOA's header opens the user's rules for it: Markdown on how it delegates, what it leaves to the user, what it tells its workers. They live in the synced settings (`settings/goa-rules.md`), so every host's GOA follows them. GOA reads them in its guide when it starts, and, on an agent with a start-of-prompt hook (Claude Code, Codex), again with the next prompt after they change; `enowx-app goa rules` prints them. Only the app changes them: an agent reads them, it doesn't rewrite them. Rules that look like they hold a secret are refused.
 
 **Write with AI**, there and in a project's rules, takes what the user wants in their own words and has an AI write it as clear rules, added after those there, which it sees but never gets to change (`rules.draft`): the app does the adding, exactly as they are, and a new rule that goes against one is shown to the user, not settled. Changing or removing a rule is by hand. It's refused past 32 KB, cutting nothing. Rules that couldn't be read can't be edited or saved over; saving them empty asks first. **Earlier versions** brings back the last 20 before a save (`rules.history`), kept on that host. The first of the host's judges that writes is asked: agents' one-shot commands, then model APIs, then local models, never a decision model, which only picks; the policy *local only* keeps it on the host. The result lands in the editor, to read and undo; nothing is saved until the user saves. Text that looks like it holds a secret isn't sent.
 
@@ -106,7 +106,7 @@ A task that isn't moving goes to `stalled` on the board until its screen moves, 
 
 A session's processes using the CPU (over 1% of a core, its whole process tree) keep a task from counting as never started, idle or stuck, so a long build or test run isn't taken for one; a slow model's reply shows the agent's own timer, which moves the screen. That timer also hides an agent hung with its spinner still turning: nothing here reads its transcript. Where a host can't measure processes (Windows, or an older app or daemon on the way), the line says so, as it may be a long build. A session waiting for its turn to start (at the host's limit of agents) doesn't count.
 
-The limits are each host's, for its own GOA, from a second to a day: **Stall limits** in GOA's strip, Settings → New sessions, or `enowx-app goa stall --blank 90s --idle 5m --stuck 30m` (`goa_stall`), `0` putting one back to its default. They are kept in `goa-stall.json` in the host's data folder, and apply at once.
+The limits are each host's, for its own GOA, from a second to a day: **Stall limits** in GOA's More menu, Settings → New sessions, or `enowx-app goa stall --blank 90s --idle 5m --stuck 30m` (`goa_stall`), `0` putting one back to its default. They are kept in `goa-stall.json` in the host's data folder, and apply at once.
 
 Tasks on other hosts are watched the same, through the app, which is what reaches them: every few seconds GOA's host reads their sessions, screens and CPU. With no app connected, or the host out of reach, their tasks stay as they are until it can look. Those reads aren't in `control log`, as no session made them. The hook runs on GOA's host, not the worker's.
 

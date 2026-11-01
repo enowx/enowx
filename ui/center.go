@@ -24,6 +24,7 @@ const (
 	centerBrowser  = "browser:"  // the session's page
 	centerAndroid  = "android:"  // the phone's screen
 	centerActivity = "activity:" // an entry of the activity
+	centerGOA      = "goa:"      // a session opened from GOD of Agents' Sessions tool (goa_tabs.go)
 )
 
 // centerTabs are a session's open viewers, and the one in front; "" is the
@@ -74,6 +75,9 @@ func (a *App) closeCenter(id, tab string) {
 	if p, ok := strings.CutPrefix(tab, fileTabPrefix); ok {
 		delete(a.docs, id+"\x00"+p)
 		a.closePage(id, p)
+	}
+	if key, ok := strings.CutPrefix(tab, centerGOA); ok {
+		a.dropGOATab(key)
 	}
 }
 
@@ -157,6 +161,10 @@ func (a *App) centerDot(s proto.SessionInfo, tab string) ui.Color {
 
 // centerTabButton is a viewer's tab in the strip, with its ×.
 func (a *App) centerTabButton(c *ui.Context, s proto.SessionInfo, tab string, front bool) {
+	if key, ok := strings.CutPrefix(tab, centerGOA); ok {
+		a.goaTabButton(c, s, key, front)
+		return
+	}
 	a.tabFace(c.Key("v:"+tab), centerName(tab), tab, front, true, a.centerDot(s, tab), false, centerIcon(tab),
 		func() { a.centerOf(s.ID).front = tab },
 		func() { a.closeCenter(s.ID, tab) })
@@ -221,6 +229,8 @@ func (a *App) centerBody(c *ui.Context, s proto.SessionInfo, tab string) {
 		a.androidTab(c.Key("android"), s)
 	case centerActivity:
 		a.activityEntryTab(c.Key("activity:"+tab), s, what)
+	case centerGOA:
+		a.goaTabView(c, what)
 	}
 }
 

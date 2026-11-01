@@ -158,7 +158,7 @@ func (a *App) togglePanel() {
 // toggleTool shows tool in the panel, or folds the panel if it shows it.
 func (a *App) toggleTool(tool string) {
 	if a.panelShows(tool) {
-		a.state.Panel.Open = false
+		a.foldTool()
 		return
 	}
 	a.openPanel(tool)
@@ -252,11 +252,15 @@ func (a *App) panelStrip(c *ui.Context) {
 		a.state.Panel.Last = map[string]string{}
 	}
 	a.state.Panel.Last[group.id] = front
+	if group.id == "goa" {
+		a.goaSideStrip(c, front)
+		return
+	}
 	ui.Row(c).Height(52).Shrink(0).FillWidth().Padding(0, theme.S2, 0, theme.S4).Gap(theme.S2).Children(func() {
 		t, _ := findTool(front)
 		ui.Text(c, t.name).FontSize(theme.TextRead).FontWeight(600).SingleLine().Grow(1).MinWidth(0)
 		if widget.IconButton(c, icon.Close, "Hide the panel ("+modKey+"⇧D)", false).Clicked() {
-			a.state.Panel.Open = false
+			a.foldTool()
 		}
 	})
 }
@@ -276,9 +280,6 @@ func (a *App) toolsDock(c *ui.Context) {
 	}
 	first := dockFirst
 	var rest []panelTool
-	if a.goaOn() {
-		first = append([]string{panelSessions, panelTasks}, first...)
-	}
 	for _, g := range a.shownGroups() {
 		for _, id := range g.tools {
 			if !slices.Contains(first, id) {

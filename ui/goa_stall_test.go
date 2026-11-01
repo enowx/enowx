@@ -11,7 +11,7 @@ import (
 )
 
 // The stall limits' dialog opens from both its ways in, Settings → New
-// sessions' Change… and GOD of Agents' Stall limits, and what is saved in
+// sessions' Change… and GOD of Agents' Stall limits…, and what is saved in
 // it is what the host answers.
 func TestStallLimitsFromSettingsAndGOA(t *testing.T) {
 	app, posted := laterApp(t)
@@ -20,7 +20,7 @@ func TestStallLimitsFromSettingsAndGOA(t *testing.T) {
 	tt := ui.NewTester(func(c *ui.Context) {
 		c.SetTheme(theme.Window())
 		ui.Column(c).FillWidth().FillHeight().Background(theme.Background).Children(func() {
-			app.goaNav(c)
+			app.goaHeader(c, proto.SessionInfo{}, proto.SessionInfo{})
 			app.settingsPage(c)
 			app.goaStallDialog(c)
 		})
@@ -61,7 +61,11 @@ func TestStallLimitsFromSettingsAndGOA(t *testing.T) {
 	tt.Frame()
 	saved("from Settings", proto.GOAStall{Blank: 60, Idle: 300, Stuck: 600})
 
-	if err := tt.Click("Stall limits"); err != nil {
+	if err := tt.Click("More for GOD of Agents"); err != nil {
+		t.Fatal(err)
+	}
+	frames("its menu", func() bool { return tt.HasText("Stall limits…") })
+	if err := tt.Click("Stall limits…"); err != nil {
 		t.Fatal(err)
 	}
 	frames("the dialog from GOD of Agents", loaded)
