@@ -266,6 +266,11 @@ func (s *Server) appRender(req proto.CanvasRenderRequest) (proto.CanvasRenderRep
 			return proto.CanvasRenderReply{}, errors.New(r.Error)
 		}
 		return r, nil
+	case <-s.done:
+		cs.mu.Lock()
+		delete(cs.pending, req.ID)
+		cs.mu.Unlock()
+		return proto.CanvasRenderReply{}, errors.New("canvas: the daemon is stopping")
 	case <-time.After(canvasRenderTimeout):
 		cs.mu.Lock()
 		delete(cs.pending, req.ID)

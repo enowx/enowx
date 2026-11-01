@@ -121,6 +121,11 @@ func (u *unslopRuns) verdict(session string, r proto.DesignReview) (any, proto.D
 // startReview has a fresh agent review id's run in runs, done: task says
 // what was designed, shots what it looks like now.
 func (s *Server) startReview(runs reviewStore, id string, r reviewing, task string, brief *proto.DesignBrief, shots []reviewShot) {
+	select {
+	case <-s.done:
+		return // its screenshots may be missing for that, and its agent wouldn't last
+	default:
+	}
 	round, ok := runs.reviewRound(id, r)
 	if !ok {
 		return

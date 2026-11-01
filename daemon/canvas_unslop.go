@@ -130,7 +130,7 @@ func (s *Server) canvasUnslop(p proto.CanvasUnslopParams) (proto.CanvasUnslop, e
 		s.unslopRuns.setLayout(cv.ID, rendered)
 	}
 	if ok && run.Done && strings.EqualFold(p.Pass, "done") && p.Region == "" {
-		go s.reviewCanvas(cv, f, n, p.Session)
+		s.background.start(func() { s.reviewCanvas(cv, f, n, p.Session) })
 	}
 	if ok {
 		s.broadcast(proto.EventCanvasUnslop, run)

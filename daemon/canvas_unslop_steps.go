@@ -89,7 +89,7 @@ func (s *Server) stepEnded(cv proto.Canvas, f proto.CanvasFrame, passes []string
 	_ = s.saveStory(st)
 	steps := slices.Clone(st.Steps)
 	s.stories.mu.Unlock()
-	go s.measureStep(cv, f, k)
+	s.background.start(func() { s.measureStep(cv, f, k) })
 	return steps
 }
 

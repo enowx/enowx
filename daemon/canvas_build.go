@@ -249,7 +249,7 @@ func (s *Server) canvasBuild(p proto.CanvasBuildParams) (proto.CanvasBuild, erro
 			run.Stage, run.Lead = proto.BuildReviewing, p.Session
 		})
 		if ok && run.Work != proto.WorkReview {
-			go s.reviewBuild(cv, cv.Frames[i], i+1, p.Session)
+			s.background.start(func() { s.reviewBuild(cv, cv.Frames[i], i+1, p.Session) })
 		} else if ok {
 			run, _ = s.canvasBuilds.with(cv.ID, func(run *proto.CanvasBuildRun) { run.Stage, run.Done = proto.BuildDone, true })
 		}
