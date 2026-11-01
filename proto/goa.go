@@ -44,6 +44,11 @@ const (
 	// MethodGOARulesSave keeps them (synced, every host's GOA reads
 	// them): GOARules → GOARules.
 	MethodGOARulesSave = "goa.rules.save"
+	// MethodGOAStall are how long a task on this host's board may not move
+	// before GOA is told: → GOAStall.
+	MethodGOAStall = "goa.stall"
+	// MethodGOAStallSave keeps them, on this host: GOAStall → GOAStall.
+	MethodGOAStallSave = "goa.stall.save"
 
 	// EventGOABoard is GOA's board changed: GOABoard.
 	EventGOABoard = "goa.changed"
@@ -246,4 +251,15 @@ type GOARules struct {
 	Rules string `json:"rules"`
 	// Clear: the user agreed to Rules being empty, over rules there.
 	Clear bool `json:"clear,omitempty"`
+}
+
+// GOAStall are how long a task may not move before GOA is told, in seconds; 0
+// (to keep) is its default.
+type GOAStall struct {
+	// Blank: its session's screen is still empty after the task.
+	Blank int `json:"blank"`
+	// Idle: its session is hibernated or gone, or its agent isn't at work.
+	Idle int `json:"idle"`
+	// Stuck: its agent says it works, but nothing shows or uses the CPU.
+	Stuck int `json:"stuck"`
 }

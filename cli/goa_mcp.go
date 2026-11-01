@@ -6,7 +6,7 @@ var goaTools = []mcpTool{
 		props:    map[string]mcpProp{"name": {"string", "setup or features"}},
 		required: []string{"name"},
 		args:     func(a map[string]any) []string { return []string{"skill", str(a, "name")} }},
-	{name: "goa_board", description: "GOD of Agents' task board as JSON: each task, the session (and host) it went to, its model and effort and why, its status (working, waiting, done, failed, stopped), its result, what it asks and whether that is urgent (the user's to answer).",
+	{name: "goa_board", description: "GOD of Agents' task board as JSON: each task, the session (and host) it went to, its model and effort and why, its status (working, waiting, stalled, queued, turn-ended, done, failed, stopped), its result, what it asks and whether that is urgent (the user's to answer).",
 		args: func(map[string]any) []string { return []string{"board", "--json"} }},
 	{name: "goa_delegate", description: "Hand a task to a session and put it on the board: an existing session (session, host) or a new one (agent, project, branch, host). The judge picks the prompt's model and effort (cheaper near a token budget) unless model/effort/config are given or no_route is true. Returns the task as JSON with model, effort and why: tell the user. You are told when it finishes or asks something; don't poll.",
 		props: map[string]mcpProp{"prompt": {"string", "The task, as the worker should read it"}, "title": {"string", "Its title on the board"},
@@ -40,6 +40,16 @@ var goaTools = []mcpTool{
 		required: []string{"query"},
 		args: func(a map[string]any) []string {
 			return append(withFlag(withFlag([]string{"recall", "--json"}, a, "project", "project"), a, "host", "host"), "--", str(a, "query"))
+		}},
+	{name: "goa_stall", description: "How long a task on GOD of Agents' board may not move, on this host, before it is told and the task shows as stalled; a limit given changes it. A time such as 90s, 10m or 1h, or 0 for its default.",
+		props: map[string]mcpProp{"blank": {"string", "A screen still empty after the task (default 1m)"}, "idle": {"string", "Its session hibernated or gone, or its agent not at work (default 2m)"},
+			"stuck": {"string", "Its agent says it works, but nothing shows or uses the CPU (default 10m)"}},
+		args: func(a map[string]any) []string {
+			args := []string{"stall"}
+			for _, k := range []string{"blank", "idle", "stuck"} {
+				args = withFlag(args, a, k, k)
+			}
+			return args
 		}},
 	{name: "goa_agents", description: "The agents GOD of Agents can run on here, and how far each holds it to delegating: enforced, limited or watched.",
 		args: func(map[string]any) []string { return []string{"agents"} }},
