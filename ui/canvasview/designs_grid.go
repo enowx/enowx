@@ -44,7 +44,7 @@ func (v *View) grid(c *ui.Context, o Options, cv proto.Canvas) {
 	area.Children(func() {
 		ui.Column(c).FillWidth().Padding(20).Gap(12).Children(func() {
 			if n := len(v.comparing(cv)); n > 0 {
-				ui.Text(c, fmt.Sprintf("%d picked to compare (2 to 4): Compare above shows them side by side", n)).FontSize(11.5).TextColor(theme.Muted)
+				ui.Text(c, fmt.Sprintf("%d picked to compare (2 to 4): Compare above shows them side by side", n)).FontSize(theme.TextLabel).TextColor(theme.Muted)
 			}
 			// As many cards a row as fit 280 wide, as wide as the room
 			// shares out: the grid fills it at any width.
@@ -66,7 +66,7 @@ func (v *View) grid(c *ui.Context, o Options, cv proto.Canvas) {
 
 func (v *View) gridCard(c *ui.Context, o Options, cv proto.Canvas, i int, f proto.CanvasFrame, w float32) {
 	pw := w - 22
-	card := ui.Column(c).Width(w).Padding(10).Gap(8).Radius(10).Background(theme.Raised).Border(1, theme.Border)
+	card := ui.Column(c).Width(w).Padding(10).Gap(8).Radius(theme.RadiusSmall).Background(theme.Raised).Border(1, theme.Border)
 	if v.working(f) {
 		card.Border(1.5, theme.Accent)
 	}
@@ -77,7 +77,7 @@ func (v *View) gridCard(c *ui.Context, o Options, cv proto.Canvas, i int, f prot
 			v.frame, v.sel, v.view = f.ID, "", viewDesign
 		}
 		ui.Row(c).FillWidth().Gap(6).AlignItems(ui.Center).Children(func() {
-			ui.Text(c, fmt.Sprintf("%d · %s", i+1, f.Name)).FontSize(12.5).FontWeight(600).SingleLine().Shrink(1).Grow(1).MinWidth(0)
+			ui.Text(c, fmt.Sprintf("%d · %s", i+1, f.Name)).FontSize(theme.TextUI).FontWeight(600).SingleLine().Shrink(1).Grow(1).MinWidth(0)
 			if cv.Winner == f.ID {
 				widget.Tag(c, "Winner", theme.Done)
 			}
@@ -85,7 +85,7 @@ func (v *View) gridCard(c *ui.Context, o Options, cv proto.Canvas, i int, f prot
 		})
 		if g := groupOf(f); g != "" || f.Description != "" {
 			desc := strings.Trim(g+" — "+f.Description, " —")
-			ui.Text(c, desc).FontSize(11).TextColor(theme.Muted).MaxLines(3).Tooltip(desc)
+			ui.Text(c, desc).FontSize(theme.TextLabel).TextColor(theme.Muted).MaxLines(3).Tooltip(desc)
 		}
 		// The button at the card's foot, whatever the text above.
 		ui.Spacer(c)

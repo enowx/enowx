@@ -62,7 +62,7 @@ func (v *View) claudeSettings(c *ui.Context, o Options, p proto.EnvPayload) {
 		e.tab = i
 	}
 	if e.err != "" {
-		ui.Text(c, e.err).FontSize(12).TextColor(theme.Error)
+		ui.Text(c, e.err).FontSize(theme.TextLabel).TextColor(theme.Error)
 	}
 	switch e.tab {
 	case tabPermissions:
@@ -122,9 +122,9 @@ func (v *View) permissions(c *ui.Context, e *settingsEditor) {
 		widget.Field(c.Key(l.name), l.name+" · "+l.about, func() {
 			ui.Column(c).FillWidth().Gap(4).Children(func() {
 				for j, r := range *l.rules {
-					ui.Row(c.Key(strconv.Itoa(j))).FillWidth().Gap(8).Padding(4, 8).Radius(6).Background(theme.Sunken).Children(func() {
+					ui.Row(c.Key(strconv.Itoa(j))).FillWidth().Gap(8).Padding(4, 8).Radius(theme.RadiusSmall).Background(theme.Sunken).Children(func() {
 						widget.Dot(c, l.col, false, 6)
-						ui.Text(c, r).Font(theme.MonoFont).FontSize(12).Grow(1).MinWidth(0)
+						ui.Text(c, r).Font(theme.MonoFont).FontSize(theme.TextLabel).Grow(1).MinWidth(0)
 						if widget.IconButton(c, icon.Close, "Remove", false).Clicked() {
 							*l.rules = slices.Delete(slices.Clone(*l.rules), j, j+1)
 							e.dirty = true
@@ -150,10 +150,10 @@ func (v *View) hookList(c *ui.Context, e *settingsEditor) {
 	ui.Text(c, "Each runs a shell command on an event; on tool events, for the tools its matcher names (Bash, Edit|Write; empty for all).").
 		FontSize(11.5).TextColor(theme.Muted)
 	if len(e.hooks) == 0 {
-		ui.Text(c, "No hooks yet.").FontSize(12).TextColor(theme.Muted)
+		ui.Text(c, "No hooks yet.").FontSize(theme.TextLabel).TextColor(theme.Muted)
 	}
 	for i, h := range e.hooks {
-		ui.Row(c.Key(strconv.Itoa(i))).FillWidth().Gap(10).Padding(6, 10).Radius(6).Background(theme.Sunken).Children(func() {
+		ui.Row(c.Key(strconv.Itoa(i))).FillWidth().Gap(10).Padding(6, 10).Radius(theme.RadiusSmall).Background(theme.Sunken).Children(func() {
 			ui.Column(c).Grow(1).MinWidth(0).Gap(2).Children(func() {
 				label := h.Event
 				if h.Matcher != "" {
@@ -162,12 +162,12 @@ func (v *View) hookList(c *ui.Context, e *settingsEditor) {
 				if h.Timeout > 0 {
 					label += " · " + strconv.Itoa(h.Timeout) + "s"
 				}
-				ui.Text(c, label).FontSize(11.5).TextColor(theme.Muted)
+				ui.Text(c, label).FontSize(theme.TextLabel).TextColor(theme.Muted)
 				cmd := h.Command
 				if cmd == "" {
 					cmd, _ = h.Hook["type"].(string)
 				}
-				ui.Text(c, cmd).Font(theme.MonoFont).FontSize(12)
+				ui.Text(c, cmd).Font(theme.MonoFont).FontSize(theme.TextLabel)
 			})
 			if widget.IconButton(c, icon.Close, "Remove the hook", false).Clicked() {
 				e.hooks = slices.Delete(slices.Clone(e.hooks), i, i+1)
@@ -176,7 +176,7 @@ func (v *View) hookList(c *ui.Context, e *settingsEditor) {
 		})
 	}
 	widget.Card(c).Children(func() {
-		ui.Text(c, "Add a hook").FontSize(12.5)
+		ui.Text(c, "Add a hook").FontSize(theme.TextUI)
 		widget.Field(c, "On", func() {
 			ui.Row(c).FillWidth().Gap(4).Wrap().Children(func() {
 				for _, ev := range envsync.ClaudeHookEvents {
@@ -186,7 +186,7 @@ func (v *View) hookList(c *ui.Context, e *settingsEditor) {
 					if on {
 						b.Border(1, theme.AccentLine).Background(theme.Selected)
 					}
-					b.Children(func() { ui.Text(c, ev).FontSize(11.5) })
+					b.Children(func() { ui.Text(c, ev).FontSize(theme.TextLabel) })
 					if b.Clicked() {
 						e.hook.Event = ev
 					}

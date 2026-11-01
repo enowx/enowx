@@ -206,9 +206,9 @@ func (a *App) createServerDialog(c *ui.Context) {
 						a.loadRegions(f)
 					}
 				})
-				ui.Text(c, p.TokenHelp+".").FontSize(11.5).TextColor(theme.Muted)
+				ui.Text(c, p.TokenHelp+".").FontSize(theme.TextLabel).TextColor(theme.Muted)
 				if f.fromVault {
-					ui.Text(c, "From the vault: its "+p.Name+" credential.").FontSize(11.5).TextColor(theme.Done)
+					ui.Text(c, "From the vault: its "+p.Name+" credential.").FontSize(theme.TextLabel).TextColor(theme.Done)
 				} else {
 					switchRow(c, &f.remember, "Keep it in the system's keychain", "To create more servers, and to delete this one from enowX.")
 				}
@@ -240,7 +240,7 @@ func (a *App) createServerDialog(c *ui.Context) {
 			}
 			widget.Field(c, "Size", func() {
 				if len(f.sizes) == 0 {
-					ui.Text(c, "No sizes offered there.").FontSize(12).TextColor(theme.Muted)
+					ui.Text(c, "No sizes offered there.").FontSize(theme.TextLabel).TextColor(theme.Muted)
 					return
 				}
 				optionSelect(c, &f.size, f.sizes, "Size")
@@ -252,11 +252,11 @@ func (a *App) createServerDialog(c *ui.Context) {
 					if vps.NeedsCertificate(f.provider) {
 						whose = ", which " + p.Name + " signs a certificate for each time enowX connects"
 					}
-					ui.Text(c, f.key+whose).Font(theme.MonoFont).FontSize(11.5).TextColor(theme.TextSoft)
+					ui.Text(c, f.key+whose).Font(theme.MonoFont).FontSize(theme.TextLabel).TextColor(theme.TextSoft)
 					return
 				}
 				ui.Row(c).FillWidth().Gap(8).Children(func() {
-					ui.Text(c, "You have no SSH key yet.").FontSize(12).TextColor(theme.Muted).Grow(1)
+					ui.Text(c, "You have no SSH key yet.").FontSize(theme.TextLabel).TextColor(theme.Muted).Grow(1)
 					if widget.GhostButton(c, "Make one").Clicked() {
 						a.makeKey(f)
 					}
@@ -295,8 +295,8 @@ func optionSelect(c *ui.Context, value *string, opts []vps.Option, label string)
 		}
 	}
 	widget.Trigger(sel.Trigger, sel.Open()).FillWidth().Label(label).Children(func() {
-		ui.Text(c, cur.Name).FontSize(12.5).SingleLine()
-		ui.Text(c, optionNote(cur)).FontSize(11.5).TextColor(theme.Muted).SingleLine().Shrink(1)
+		ui.Text(c, cur.Name).FontSize(theme.TextUI).SingleLine()
+		ui.Text(c, optionNote(cur)).FontSize(theme.TextLabel).TextColor(theme.Muted).SingleLine().Shrink(1)
 		ui.Spacer(c)
 		ui.Icon(c, icon.ChevronDown).FontSize(12).TextColor(theme.Muted)
 	})
@@ -307,8 +307,8 @@ func optionSelect(c *ui.Context, value *string, opts []vps.Option, label string)
 				for _, o := range opts {
 					item := sel.Item(o.ID)
 					widget.PopupItem(item, item.Highlighted()).Children(func() {
-						ui.Text(c, o.Name).FontSize(12.5).SingleLine()
-						ui.Text(c, optionNote(o)).FontSize(11.5).TextColor(theme.Muted).SingleLine().Shrink(1)
+						ui.Text(c, o.Name).FontSize(theme.TextUI).SingleLine()
+						ui.Text(c, optionNote(o)).FontSize(theme.TextLabel).TextColor(theme.Muted).SingleLine().Shrink(1)
 					})
 				}
 			})

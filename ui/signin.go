@@ -130,7 +130,7 @@ func signInFields(c *ui.Context, p *signInPrompt, focus bool) (submit bool) {
 	if p.refusal.TriedPassword {
 		what = "your SSH keys or the saved password"
 	}
-	ui.Text(c, p.refusal.Addr+" didn't accept "+what+" for "+p.refusal.User+".").FontSize(12.5).TextColor(theme.TextSoft)
+	ui.Text(c, p.refusal.Addr+" didn't accept "+what+" for "+p.refusal.User+".").FontSize(theme.TextUI).TextColor(theme.TextSoft)
 	widget.Field(c, "User", func() {
 		in := widget.Input(c, &p.user, "root").FillWidth().Font(theme.MonoFont)
 		if focus && !p.refusal.AcceptsPassword() {
@@ -147,7 +147,7 @@ func signInFields(c *ui.Context, p *signInPrompt, focus bool) (submit bool) {
 			submit = in.Submitted() || submit
 		})
 		ui.Row(c).FillWidth().Gap(10).Children(func() {
-			ui.Text(c, "Remember the password in the keychain").FontSize(12.5).TextColor(theme.TextSoft).Grow(1)
+			ui.Text(c, "Remember the password in the keychain").FontSize(theme.TextUI).TextColor(theme.TextSoft).Grow(1)
 			widget.Switch(c, &p.remember, "Remember the password in the keychain")
 		})
 	} else {
@@ -155,7 +155,7 @@ func signInFields(c *ui.Context, p *signInPrompt, focus bool) (submit bool) {
 			FontSize(12).TextColor(theme.Muted)
 	}
 	if p.err != "" {
-		ui.Text(c, p.err).FontSize(12).TextColor(theme.Error)
+		ui.Text(c, p.err).FontSize(theme.TextLabel).TextColor(theme.Error)
 	}
 	return submit
 }

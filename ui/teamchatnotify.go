@@ -139,7 +139,7 @@ func (a *App) chatToastCard(c *ui.Context, t *chatToast, now time.Time) {
 			body.Children(func() {
 				ui.Column(c).FillWidth().Gap(2).Children(func() {
 					ui.Row(c).FillWidth().Gap(6).AlignItems(ui.Center).Children(func() {
-						ui.Text(c, m.Name).FontSize(12.5).FontWeight(600).TextColor(widget.TeamColor(m.Account)).SingleLine().Shrink(1)
+						ui.Text(c, m.Name).FontSize(theme.TextUI).FontWeight(600).TextColor(widget.TeamColor(m.Account)).SingleLine().Shrink(1)
 						where := a.spaceName(m.Team)
 						if t.mention {
 							where = "mentioned you · " + where
@@ -147,15 +147,15 @@ func (a *App) chatToastCard(c *ui.Context, t *chatToast, now time.Time) {
 						if t.urgent != "" {
 							where = "urgent · " + where
 						}
-						ui.Text(c, where).FontSize(11).TextColor(theme.Muted).SingleLine().Shrink(1)
+						ui.Text(c, where).FontSize(theme.TextLabel).TextColor(theme.Muted).SingleLine().Shrink(1)
 					})
 					text := snippet(m.Text)
 					if text == "" && len(m.Attachments) > 0 {
 						text = "Sent a picture"
 					}
-					ui.Text(c, text).FontSize(12.5).TextColor(theme.TextSoft).MaxLines(3)
+					ui.Text(c, text).FontSize(theme.TextUI).TextColor(theme.TextSoft).MaxLines(3)
 					if t.urgent != "" {
-						ui.Text(c, "Urgent, the judge says: "+t.urgent).FontSize(11).TextColor(theme.Muted).MaxLines(2)
+						ui.Text(c, "Urgent, the judge says: "+t.urgent).FontSize(theme.TextLabel).TextColor(theme.Muted).MaxLines(2)
 					}
 				})
 			})
@@ -167,7 +167,7 @@ func (a *App) chatToastCard(c *ui.Context, t *chatToast, now time.Time) {
 			}
 		})
 		if t.err != "" {
-			ui.Text(c, t.err).FontSize(11.5).TextColor(theme.Error)
+			ui.Text(c, t.err).FontSize(theme.TextLabel).TextColor(theme.Error)
 		}
 		if !t.replying {
 			ui.Row(c).FillWidth().Gap(6).Padding(0, 0, 0, 40).Children(func() {

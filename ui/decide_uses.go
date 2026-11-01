@@ -92,7 +92,7 @@ func (a *App) useCard(c *ui.Context, st *decideState, use string) {
 		})
 		if t, ok := useHooks[use]; ok {
 			ui.Row(c).FillWidth().Gap(8).AlignItems(ui.Center).Children(func() {
-				ui.Text(c, "Built in while this is on. A hook of your own replaces it, to say what it covers.").FontSize(11.5).TextColor(theme.Muted)
+				ui.Text(c, "Built in while this is on. A hook of your own replaces it, to say what it covers.").FontSize(theme.TextLabel).TextColor(theme.Muted)
 				ui.Spacer(c)
 				if widget.GhostButton(c.Key("hook"), "Set your own…").Clicked() {
 					a.startHookTemplate(t)
@@ -150,7 +150,7 @@ func (a *App) projectPolicy(c *ui.Context, st *decideState, p proto.ProjectInfo)
 			}
 			a.saveDecide(st)
 		}
-		ui.Text(c, "A client's project can keep to local models, say.").FontSize(11.5).TextColor(theme.Muted)
+		ui.Text(c, "A client's project can keep to local models, say.").FontSize(theme.TextLabel).TextColor(theme.Muted)
 	})
 }
 

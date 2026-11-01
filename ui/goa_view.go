@@ -47,7 +47,7 @@ func (a *App) goaChip(c *ui.Context) {
 	}
 	b.Children(func() {
 		ui.Icon(c, icon.Sparkle).FontSize(12).TextColor(theme.Accent)
-		ui.Text(c, label).FontSize(11.5).SingleLine()
+		ui.Text(c, label).FontSize(theme.TextLabel).SingleLine()
 	})
 	if b.Clicked() {
 		a.toggleGOA()
@@ -199,11 +199,11 @@ func (a *App) goaStartDialog(c *ui.Context) {
 	widget.FormSheet(c, &f.open, 520, "Start GOD of Agents",
 		"One session that controls every session on every host: it hands each task to a session, reading files and writing what is small itself. It runs in a folder of its own on "+a.host.Name+". Pick its agent: how far each holds it to delegating is shown.", func() {
 			if a.goa.err != "" {
-				ui.Text(c, a.goa.err).FontSize(12).TextColor(theme.Error)
+				ui.Text(c, a.goa.err).FontSize(theme.TextLabel).TextColor(theme.Error)
 				return
 			}
 			if a.goa.agents == nil {
-				ui.Text(c, "Reading the agents…").FontSize(12).TextColor(theme.Muted)
+				ui.Text(c, "Reading the agents…").FontSize(theme.TextLabel).TextColor(theme.Muted)
 				return
 			}
 			ui.Column(c).FillWidth().Gap(4).Children(func() {
@@ -220,8 +220,8 @@ func (a *App) goaStartDialog(c *ui.Context) {
 					}
 					row.Children(func() {
 						ui.Column(c).Grow(1).MinWidth(0).Gap(2).Children(func() {
-							ui.Text(c, ag.Name).FontSize(12.5).SingleLine()
-							ui.Text(c, ag.Why).FontSize(11.5).TextColor(theme.Muted)
+							ui.Text(c, ag.Name).FontSize(theme.TextUI).SingleLine()
+							ui.Text(c, ag.Why).FontSize(theme.TextLabel).TextColor(theme.Muted)
 						})
 						widget.Tag(c, ag.Level, goaLevelColor(ag.Level))
 					})

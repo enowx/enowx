@@ -122,7 +122,7 @@ func (ch *Chat) attachmentRow(c *ui.Context) {
 }
 
 func (ch *Chat) attachmentChip(c *ui.Context, at *attachment) {
-	chip := ui.ButtonBase(c).Size(56, 56).Radius(8).Clip().Background(theme.Sunken).Border(1, theme.Border).
+	chip := ui.ButtonBase(c).Size(56, 56).Radius(theme.RadiusSmall).Clip().Background(theme.Sunken).Border(1, theme.Border).
 		Tooltip(at.name).Label(at.name)
 	if at.preview == nil {
 		chip.Width(140)
@@ -142,13 +142,13 @@ func (ch *Chat) attachmentChip(c *ui.Context, at *attachment) {
 		} else {
 			ui.Row(c).Fill().Gap(6).PaddingX(8).Children(func() {
 				ui.Icon(c, icon.File).FontSize(13).TextColor(theme.Muted)
-				ui.Text(c, at.name).FontSize(11.5).SingleLine().Shrink(1)
+				ui.Text(c, at.name).FontSize(theme.TextLabel).SingleLine().Shrink(1)
 			})
 		}
 		if at.path == "" {
 			ui.Box(c).Absolute().Fill().Center().Children(func() { widget.Spinner(c, 14) })
 		}
-		x := ui.ButtonBase(c).Absolute().Top(3).Right(3).Size(18, 18).Radius(9).Center().
+		x := ui.ButtonBase(c).Absolute().Top(3).Right(3).Size(18, 18).Radius(theme.RadiusSmall).Center().
 			Background(theme.Fade(theme.Ground, 0.8)).Cursor(ui.CursorPointer).Label("Remove " + at.name)
 		x.Children(func() { ui.Icon(c, icon.Close).FontSize(10).TextColor(theme.Text) })
 		if x.Clicked() {
@@ -181,10 +181,10 @@ func (ch *Chat) imageViewer(c *ui.Context) {
 		panel.Padding(10).Gap(8).Radius(theme.RadiusPanel).Background(theme.Dialog).Border(1, theme.BorderStrong).Transition(widget.OverlayMotion)
 		w, h := float32(max(at.w, 1)), float32(max(at.h, 1))
 		scale := min(1, viewerWidth/w, viewerHeight/h)
-		ui.Image(c, at.preview).Size(w*scale, h*scale).Fit(ui.Contain).Radius(6)
+		ui.Image(c, at.preview).Size(w*scale, h*scale).Fit(ui.Contain).Radius(theme.RadiusSmall)
 		ui.Row(c).FillWidth().Gap(8).Children(func() {
-			ui.Text(c, at.name).FontSize(12).TextColor(theme.TextSoft).SingleLine().Shrink(1)
-			ui.Text(c, fmt.Sprintf("%d × %d", at.w, at.h)).FontSize(11.5).TextColor(theme.Muted).SingleLine()
+			ui.Text(c, at.name).FontSize(theme.TextLabel).TextColor(theme.TextSoft).SingleLine().Shrink(1)
+			ui.Text(c, fmt.Sprintf("%d × %d", at.w, at.h)).FontSize(theme.TextLabel).TextColor(theme.Muted).SingleLine()
 			ui.Spacer(c)
 			if widget.GhostButton(c, "Remove").Clicked() {
 				ch.dropAttachment(at.id)

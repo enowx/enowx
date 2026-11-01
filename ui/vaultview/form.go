@@ -122,7 +122,7 @@ func (v *View) formDialog(c *ui.Context, o Options) {
 				}
 				if fl.Multiline {
 					ui.TextArea(c, &val).FillWidth().Height(96).Padding(8, 11).Radius(theme.RadiusControl).Background(theme.Sunken).
-						Border(1, theme.BorderStrong).Font(theme.MonoFont).FontSize(11.5).Label("Paste the " + strings.ToLower(fl.Label))
+						Border(1, theme.BorderStrong).Font(theme.MonoFont).FontSize(theme.TextLabel).Label("Paste the " + strings.ToLower(fl.Label))
 				} else {
 					in := widget.Input(c, &val, "Paste the "+strings.ToLower(fl.Label)).FillWidth().Font(theme.MonoFont)
 					if fl.Secret {
@@ -137,10 +137,10 @@ func (v *View) formDialog(c *ui.Context, o Options) {
 			})
 		}
 		if env := envOf(p); env != "" {
-			ui.Text(c, "Sets "+env+" in a session.").FontSize(11.5).TextColor(theme.Muted)
+			ui.Text(c, "Sets "+env+" in a session.").FontSize(theme.TextLabel).TextColor(theme.Muted)
 		}
 		if p.Link != "" && (f.edit != nil || o.Actions.OpenURL == nil) {
-			ui.Text(c, "Make one at "+p.Link).FontSize(11.5).TextColor(theme.Muted)
+			ui.Text(c, "Make one at "+p.Link).FontSize(theme.TextLabel).TextColor(theme.Muted)
 		}
 		widget.Field(c, "Expires (YYYY-MM-DD, optional)", func() { widget.Input(c, &f.expires, "2027-01-31").FillWidth().Font(theme.MonoFont) })
 		widget.Field(c, "May be used without asking on", func() {
@@ -155,17 +155,17 @@ func (v *View) formDialog(c *ui.Context, o Options) {
 		})
 		ui.Row(c).FillWidth().Gap(10).AlignItems(ui.Center).Children(func() {
 			widget.Switch(c, &f.hostsOnly, "Only these hosts")
-			ui.Text(c, "Only these hosts: others are refused without asking.").FontSize(12).TextColor(theme.TextSoft)
+			ui.Text(c, "Only these hosts: others are refused without asking.").FontSize(theme.TextLabel).TextColor(theme.TextSoft)
 		})
 		ui.Row(c).FillWidth().Gap(10).AlignItems(ui.Center).Children(func() {
 			widget.Switch(c, &f.auto, "In every session")
-			ui.Text(c, "In every session: its variables are in each new session of those hosts.").FontSize(12).TextColor(theme.TextSoft)
+			ui.Text(c, "In every session: its variables are in each new session of those hosts.").FontSize(theme.TextLabel).TextColor(theme.TextSoft)
 		})
 		widget.Field(c, "Only for projects (folders or names, comma-separated; empty for any)", func() {
 			widget.Input(c, &f.projects, "work-api, /srv/billing").FillWidth().Font(theme.MonoFont)
 		})
 		if f.err != "" {
-			ui.Text(c, f.err).FontSize(12).TextColor(theme.Error)
+			ui.Text(c, f.err).FontSize(theme.TextLabel).TextColor(theme.Error)
 		}
 	}, func() {
 		label := "Add"
@@ -272,7 +272,7 @@ func (v *View) platformPicker(c *ui.Context, f *form) {
 						}
 						b.Children(func() {
 							Logo(c, p, 26)
-							ui.Text(c, p.Name).FontSize(12.5).TextColor(theme.Text).SingleLine().Shrink(1)
+							ui.Text(c, p.Name).FontSize(theme.TextUI).TextColor(theme.Text).SingleLine().Shrink(1)
 						})
 						if b.Clicked() {
 							f.pick(p)

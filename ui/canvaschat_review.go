@@ -36,8 +36,8 @@ func (a *App) canvasReview(c *ui.Context, cv proto.Canvas, hc *hostCanvasChat, s
 		return
 	}
 	ui.Column(c.Key("review")).FillWidth().Shrink(0).Padding(12).Gap(8).Background(theme.AccentSoft).BorderWidth(0, 0, 1, 0).BorderColor(theme.AccentLine).Children(func() {
-		ui.Text(c, fmt.Sprintf("Changes from your message: v%d → v%d", m.Version, cv.Version)).FontSize(12.5).FontWeight(600).TextColor(theme.TextStrong)
-		ui.Text(c, "“"+firstLine(m.Text)+"”").FontSize(11.5).TextColor(theme.Muted).SingleLine()
+		ui.Text(c, fmt.Sprintf("Changes from your message: v%d → v%d", m.Version, cv.Version)).FontSize(theme.TextUI).FontWeight(600).TextColor(theme.TextStrong)
+		ui.Text(c, "“"+firstLine(m.Text)+"”").FontSize(theme.TextLabel).TextColor(theme.Muted).SingleLine()
 		ui.Row(c).FillWidth().Gap(6).Children(func() {
 			if widget.Button(c, widget.Primary, icon.Check, "Keep", "").Height(28).PaddingX(10).Clicked() {
 				a.markCanvasMessage(cv.ID, m.N, proto.CanvasChatKept)
@@ -97,20 +97,20 @@ func (a *App) canvasChatHistory(c *ui.Context, cv proto.Canvas, hc *hostCanvasCh
 	ui.Scroll(c.Key("chat-history")).Grow(1).FillWidth().MinHeight(0).Children(func() {
 		ui.Column(c).FillWidth().Padding(12).Gap(8).Children(func() {
 			if len(hc.log.Messages) == 0 {
-				ui.Text(c, "No messages yet.").FontSize(12).TextColor(theme.Muted)
+				ui.Text(c, "No messages yet.").FontSize(theme.TextLabel).TextColor(theme.Muted)
 			}
 			for i := len(hc.log.Messages) - 1; i >= 0; i-- {
 				m := hc.log.Messages[i]
-				ui.Column(c.Key(m.N)).FillWidth().Padding(10).Gap(6).Radius(8).Background(theme.Raised).Border(1, theme.Border).Children(func() {
+				ui.Column(c.Key(m.N)).FillWidth().Padding(10).Gap(6).Radius(theme.RadiusSmall).Background(theme.Raised).Border(1, theme.Border).Children(func() {
 					ui.Row(c).FillWidth().Gap(6).AlignItems(ui.Center).Children(func() {
-						ui.Text(c, fmt.Sprintf("#%d · v%d", m.N, m.Version)).FontSize(11).FontWeight(600).TextColor(theme.Accent)
+						ui.Text(c, fmt.Sprintf("#%d · v%d", m.N, m.Version)).FontSize(theme.TextLabel).FontWeight(600).TextColor(theme.Accent)
 						if m.State != "" {
 							widget.Tag(c, m.State, theme.Muted)
 						}
 						ui.Spacer(c)
-						ui.Text(c, m.Time.Local().Format("Jan 2 15:04")).FontSize(10.5).TextColor(theme.Muted)
+						ui.Text(c, m.Time.Local().Format("Jan 2 15:04")).FontSize(theme.TextLabel).TextColor(theme.Muted)
 					})
-					ui.Text(c, m.Text).FontSize(12).TextColor(theme.Text)
+					ui.Text(c, m.Text).FontSize(theme.TextLabel).TextColor(theme.Text)
 					ui.Row(c).FillWidth().Gap(4).Children(func() {
 						if widget.GhostButton(c.Key("cmp"), fmt.Sprintf("Compare v%d", m.Version)).Clicked() {
 							a.canvases.ShowVersions(a.canvasOptions(), m.Version)

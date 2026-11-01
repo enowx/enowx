@@ -50,7 +50,7 @@ func (a *App) creditsPage(c *ui.Context) {
 		ui.Row(c).Grow(1).MinWidth(0).Children(func() {
 			widget.Breadcrumb(c, a.host.Name, "Credits")
 		})
-		ui.Text(c, a.credits.CheckedLabel()).FontSize(11).TextColor(theme.Muted).SingleLine()
+		ui.Text(c, a.credits.CheckedLabel()).FontSize(theme.TextLabel).TextColor(theme.Muted).SingleLine()
 		if widget.GhostButton(c, "Read again").Clicked() {
 			a.credits.Refresh()
 		}

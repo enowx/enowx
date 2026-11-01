@@ -42,7 +42,7 @@ func (v *View) sidebar(c *ui.Context, o Options) {
 	tree.Children(func() {
 		ui.Row(c).FillWidth().Height(44).Shrink(0).PaddingX(10).Gap(6).AlignItems(ui.Center).BorderWidth(0, 0, 1, 0).BorderColor(theme.Border).Children(func() {
 			ui.Column(c).Grow(1).MinWidth(0).Children(func() {
-				ui.Text(c, "Notes").FontSize(12.5).SingleLine()
+				ui.Text(c, "Notes").FontSize(theme.TextUI).SingleLine()
 				if len(o.Spaces) > 1 && o.PickSpace != nil {
 					name := o.Space
 					if o.Team == "" {
@@ -52,12 +52,12 @@ func (v *View) sidebar(c *ui.Context, o Options) {
 					return
 				}
 				if o.Team == "" {
-					ui.Text(c, "On "+o.Host).FontSize(10.5).TextColor(theme.Muted).SingleLine().Shrink(1)
+					ui.Text(c, "On "+o.Host).FontSize(theme.TextLabel).TextColor(theme.Muted).SingleLine().Shrink(1)
 					return
 				}
 				ui.Row(c).Gap(5).AlignItems(ui.Center).MinWidth(0).Children(func() {
 					widget.TeamMark(c, o.Team, o.Space, 11)
-					ui.Text(c, o.Space+" · on "+o.Host).FontSize(10.5).TextColor(theme.Muted).SingleLine().Shrink(1)
+					ui.Text(c, o.Space+" · on "+o.Host).FontSize(theme.TextLabel).TextColor(theme.Muted).SingleLine().Shrink(1)
 				})
 			})
 			if o.SyncState != nil {
@@ -102,7 +102,7 @@ func (v *View) sidebar(c *ui.Context, o Options) {
 		ui.Scroll(c).Grow(1).FillWidth().Children(func() {
 			ui.Column(c).FillWidth().Padding(6).Gap(1).Children(func() {
 				if o.Loaded && len(o.Notes) == 0 {
-					ui.Text(c, "No pages yet").FontSize(12).TextColor(theme.Muted).Padding(6)
+					ui.Text(c, "No pages yet").FontSize(theme.TextLabel).TextColor(theme.Muted).Padding(6)
 				}
 				if v.projectFilter == byProject {
 					v.byProjectTree(c, o, shown)
@@ -173,7 +173,7 @@ func (v *View) matching(o Options) map[string]bool {
 // treeRow is a page in the tree: dragging it onto another's upper or
 // lower edge puts it before or after that one, onto its middle under it.
 func (v *View) treeRow(c *ui.Context, o Options, n proto.NoteInfo, depth int, hasChildren bool, siblings []proto.NoteInfo) {
-	row := ui.ButtonBase(c).FillWidth().Height(30).Padding(0, 4, 0, 4+float32(depth)*14).Gap(4).Radius(6).
+	row := ui.ButtonBase(c).FillWidth().Height(30).Padding(0, 4, 0, 4+float32(depth)*14).Gap(4).Radius(theme.RadiusSmall).
 		Cursor(ui.CursorPointer).Label(titleOf(n)).AlignItems(ui.Center)
 	row.Drag(noteDrag{id: n.ID})
 	switch {
@@ -184,7 +184,7 @@ func (v *View) treeRow(c *ui.Context, o Options, n proto.NoteInfo, depth int, ha
 	}
 	v.dropOn(row, o, n, siblings)
 	row.Children(func() {
-		chev := ui.ButtonBase(c).Size(18, 18).Radius(4).Center().Shrink(0).Label("Fold " + titleOf(n))
+		chev := ui.ButtonBase(c).Size(18, 18).Radius(theme.RadiusTail).Center().Shrink(0).Label("Fold " + titleOf(n))
 		chev.Children(func() {
 			if hasChildren {
 				svg := icon.ChevronDown
@@ -201,14 +201,14 @@ func (v *View) treeRow(c *ui.Context, o Options, n proto.NoteInfo, depth int, ha
 			v.folded[n.ID] = !v.folded[n.ID]
 		}
 		widget.NoteIcon(c, n.Icon, 14, theme.TextSoft, nil)
-		name := ui.Text(c, titleOf(n)).FontSize(12.5).TextColor(theme.Text).SingleLine().Shrink(1).Grow(1)
+		name := ui.Text(c, titleOf(n)).FontSize(theme.TextUI).TextColor(theme.Text).SingleLine().Shrink(1).Grow(1)
 		if n.ID == v.selected {
 			name.TextColor(theme.TextStrong)
 		} else if strings.TrimSpace(n.Title) == "" {
 			name.TextColor(theme.Muted)
 		}
 		if n.IconReview && !row.Hovered() {
-			ui.Box(c).Size(6, 6).Radius(3).Background(theme.Warning).Shrink(0).Tooltip("Its icon stands in for an emoji: pick one")
+			ui.Box(c).Size(6, 6).Radius(theme.RadiusTail).Background(theme.Warning).Shrink(0).Tooltip("Its icon stands in for an emoji: pick one")
 		}
 		if row.Hovered() {
 			if widget.IconButton(c, icon.Plus, "Add a page inside", false).Clicked() {

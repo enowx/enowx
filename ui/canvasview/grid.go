@@ -67,7 +67,7 @@ func (v *View) gridPanel(c *ui.Context, o Options) {
 	f := v.frameOf()
 	gf := v.form(f)
 	if f.Grid == nil {
-		ui.Text(c, "A layout grid keeps a design's blocks on the same columns and spacing: shapes snap to it, and its CSS lays a mockup out.").FontSize(12).TextColor(theme.Muted)
+		ui.Text(c, "A layout grid keeps a design's blocks on the same columns and spacing: shapes snap to it, and its CSS lays a mockup out.").FontSize(theme.TextLabel).TextColor(theme.Muted)
 		g := defaultGrid(f)
 		if widget.Button(c, widget.Primary, icon.Grid, fmt.Sprintf("Add a %d-column grid", g.Cols), "").Clicked() {
 			v.setGrid(o, &g)
@@ -77,7 +77,7 @@ func (v *View) gridPanel(c *ui.Context, o Options) {
 	g := *f.Grid
 	field := func(key, label string, value *string) {
 		ui.Column(c.Key(key)).Grow(1).Basis(0).MinWidth(64).Gap(4).Children(func() {
-			ui.Text(c, label).FontSize(11).TextColor(theme.Muted)
+			ui.Text(c, label).FontSize(theme.TextLabel).TextColor(theme.Muted)
 			if widget.Input(c, value, "").Label("Grid " + strings.ToLower(label)).Submitted() {
 				v.applyGrid(o, g)
 			}
@@ -100,22 +100,22 @@ func (v *View) gridPanel(c *ui.Context, o Options) {
 				g.Snap = snap
 				v.setGrid(o, &g)
 			}
-			ui.Text(c, "Snap").FontSize(12).TextColor(theme.TextSoft)
+			ui.Text(c, "Snap").FontSize(theme.TextLabel).TextColor(theme.TextSoft)
 		})
 		show := !v.hideGrid
 		ui.Row(c).Gap(6).AlignItems(ui.Center).Children(func() {
 			if widget.Switch(c, &show, "Guides") {
 				v.setGridHidden(o, !show)
 			}
-			ui.Text(c, "Guides").FontSize(12).TextColor(theme.TextSoft)
+			ui.Text(c, "Guides").FontSize(theme.TextLabel).TextColor(theme.TextSoft)
 		})
 	})
 	if gf.err != "" {
-		ui.Text(c, gf.err).FontSize(11.5).TextColor(theme.Error)
+		ui.Text(c, gf.err).FontSize(theme.TextLabel).TextColor(theme.Error)
 	}
 	widget.Divider(c)
 	ui.Row(c).FillWidth().AlignItems(ui.Center).Children(func() {
-		ui.Text(c, "Areas").FontSize(12).FontWeight(600).Grow(1)
+		ui.Text(c, "Areas").FontSize(theme.TextLabel).FontWeight(600).Grow(1)
 		label := "Draw an area"
 		if gf.drawing {
 			label = "Drawing: drag across cells"
@@ -128,12 +128,12 @@ func (v *View) gridPanel(c *ui.Context, o Options) {
 		}
 	})
 	if len(g.Areas) == 0 {
-		ui.Text(c, "Name the regions of the layout: draw one by dragging across the grid's cells on the design.").FontSize(11.5).TextColor(theme.Muted)
+		ui.Text(c, "Name the regions of the layout: draw one by dragging across the grid's cells on the design.").FontSize(theme.TextLabel).TextColor(theme.Muted)
 	}
 	for i, a := range g.Areas {
 		ui.Row(c.Key("area:" + a.Name)).FillWidth().Gap(6).AlignItems(ui.Center).Children(func() {
-			ui.Text(c, "#"+a.Name).FontSize(12).TextColor(theme.Text).Grow(1).SingleLine()
-			ui.Text(c, fmt.Sprintf("col %d–%d · row %d–%d", a.Col, a.Col+a.ColSpan-1, a.Row, a.Row+a.RowSpan-1)).FontSize(11).TextColor(theme.Muted).SingleLine()
+			ui.Text(c, "#"+a.Name).FontSize(theme.TextLabel).TextColor(theme.Text).Grow(1).SingleLine()
+			ui.Text(c, fmt.Sprintf("col %d–%d · row %d–%d", a.Col, a.Col+a.ColSpan-1, a.Row, a.Row+a.RowSpan-1)).FontSize(theme.TextLabel).TextColor(theme.Muted).SingleLine()
 			if widget.IconButton(c.Key("rm"), icon.Close, "Remove area "+a.Name, false).Clicked() {
 				g.Areas = slices.Delete(slices.Clone(g.Areas), i, i+1)
 				v.setGrid(o, &g)
@@ -142,7 +142,7 @@ func (v *View) gridPanel(c *ui.Context, o Options) {
 	}
 	widget.Divider(c)
 	ui.Row(c).FillWidth().AlignItems(ui.Center).Children(func() {
-		ui.Text(c, "CSS").FontSize(12).FontWeight(600).Grow(1)
+		ui.Text(c, "CSS").FontSize(theme.TextLabel).FontWeight(600).Grow(1)
 		if widget.IconButton(c, icon.Copy, "Copy the grid's CSS", false).Clicked() {
 			c.WriteClipboard(canvas.GridCSS(g))
 		}

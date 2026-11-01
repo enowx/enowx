@@ -77,7 +77,7 @@ func (v *View) designNav(c *ui.Context, o Options, cv proto.Canvas) {
 	if v.compact() {
 		label = fmt.Sprintf("%d / %d", i+1, n)
 	}
-	t := ui.Text(c, label).FontSize(11.5).TextColor(theme.Text).SingleLine().Tooltip(f.Name)
+	t := ui.Text(c, label).FontSize(theme.TextLabel).TextColor(theme.Text).SingleLine().Tooltip(f.Name)
 	if v.compact() {
 		t.Shrink(0)
 	} else {
@@ -118,14 +118,14 @@ func (v *View) designLine(c *ui.Context, o Options) {
 		return
 	}
 	ui.Row(c).FillWidth().Height(36).Shrink(0).PaddingX(14).Gap(8).AlignItems(ui.Center).BorderWidth(0, 0, 1, 0).BorderColor(theme.Border).Children(func() {
-		ui.Text(c, fmt.Sprintf("%d · %s", v.designIndex()+1, f.Name)).FontSize(12.5).FontWeight(600).TextColor(theme.TextStrong).SingleLine()
+		ui.Text(c, fmt.Sprintf("%d · %s", v.designIndex()+1, f.Name)).FontSize(theme.TextUI).FontWeight(600).TextColor(theme.TextStrong).SingleLine()
 		if g := groupOf(f); g != "" {
 			widget.Tag(c, g, theme.Muted)
 		}
 		if cv.Winner == f.ID {
 			widget.Tag(c, "Winner", theme.Done)
 		}
-		ui.Text(c, f.Description).FontSize(11.5).TextColor(theme.Muted).SingleLine().Shrink(1).Grow(1).MinWidth(0)
+		ui.Text(c, f.Description).FontSize(theme.TextLabel).TextColor(theme.Muted).SingleLine().Shrink(1).Grow(1).MinWidth(0)
 		v.starButton(c, o, f)
 		more := widget.IconButton(c, icon.More, "Design "+f.Name, false)
 		v.menu.OpenBelow(more, "design-more", 28)
@@ -236,7 +236,7 @@ func (v *View) working(f proto.CanvasFrame) bool {
 
 func (v *View) stripItem(c *ui.Context, o Options, cv proto.Canvas, i int, f proto.CanvasFrame) {
 	label := fmt.Sprintf("Design %d", i+1)
-	item := ui.ButtonBase(c).FillWidth().Padding(6).Gap(5).Radius(8).Column().Cursor(ui.CursorPointer).Label(label)
+	item := ui.ButtonBase(c).FillWidth().Padding(6).Gap(5).Radius(theme.RadiusSmall).Column().Cursor(ui.CursorPointer).Label(label)
 	switch {
 	case f.ID == v.frame:
 		item.Background(theme.Selected).Border(1, theme.AccentLine)
@@ -258,8 +258,8 @@ func (v *View) stripItem(c *ui.Context, o Options, cv proto.Canvas, i int, f pro
 	item.Children(func() {
 		v.designPreview(c.Key("pv"), o, f, 152)
 		ui.Row(c).FillWidth().Gap(4).AlignItems(ui.Center).Children(func() {
-			ui.Text(c, fmt.Sprintf("%d", i+1)).FontSize(10.5).FontWeight(600).TextColor(theme.Muted)
-			ui.Text(c, f.Name).FontSize(11.5).TextColor(theme.Text).SingleLine().Shrink(1).Grow(1).MinWidth(0)
+			ui.Text(c, fmt.Sprintf("%d", i+1)).FontSize(theme.TextLabel).FontWeight(600).TextColor(theme.Muted)
+			ui.Text(c, f.Name).FontSize(theme.TextLabel).TextColor(theme.Text).SingleLine().Shrink(1).Grow(1).MinWidth(0)
 			if v.working(f) {
 				widget.Dot(c, theme.Accent, false, 6)
 				c.After(designingFor)

@@ -19,17 +19,17 @@ func (a *App) hookFields(c *ui.Context, st *hooksState, f *hookForm) {
 	widget.Field(c, "Name", func() { widget.Input(c, &h.Name, "No rm -rf").FillWidth().AutoFocus() })
 	widget.Field(c, "When", func() {
 		hookSelect(c, "When", &h.Event, proto.HookEvents, hookEventNames)
-		ui.Text(c, a.hookReach(st, h.Event)).FontSize(11).TextColor(theme.Muted)
+		ui.Text(c, a.hookReach(st, h.Event)).FontSize(theme.TextLabel).TextColor(theme.Muted)
 		if h.Event == proto.HookSchedule {
 			widget.Input(c, &h.Schedule, "weekdays 09:00").FillWidth().Font(theme.MonoFont)
-			ui.Text(c, "hourly (or hourly :15), daily 09:00, weekdays 18:30, weekly mon 08:00, in "+a.host.Name+"'s time.").FontSize(11).TextColor(theme.Muted)
+			ui.Text(c, "hourly (or hourly :15), daily 09:00, weekdays 18:30, weekly mon 08:00, in "+a.host.Name+"'s time.").FontSize(theme.TextLabel).TextColor(theme.Muted)
 		}
 	})
 	widget.Field(c, "Do", func() {
 		hookSelect(c, "Do", &h.Action, proto.HookActions, hookActionNames)
 		a.hookActionFields(c, h)
 		if note := hookActionNote(h.Event, h.Action); note != "" && !h.Background {
-			ui.Text(c, note).FontSize(11).TextColor(theme.Warning)
+			ui.Text(c, note).FontSize(theme.TextLabel).TextColor(theme.Warning)
 		}
 	})
 	widget.Field(c, "Only when", func() {
@@ -43,7 +43,7 @@ func (a *App) hookFields(c *ui.Context, st *hooksState, f *hookForm) {
 			hookCondition(c, h, "text", "Prompt or command text", &h.Text, `deploy|release`)
 		})
 		switchRow(c, &h.Any, "Any of them", "Run when one condition holds, not only when all do.")
-		ui.Text(c, "Empty means any. Tool and text are regular expressions, files and branches globs. Is not turns a condition round.").FontSize(11).TextColor(theme.Muted)
+		ui.Text(c, "Empty means any. Tool and text are regular expressions, files and branches globs. Is not turns a condition round.").FontSize(theme.TextLabel).TextColor(theme.Muted)
 	})
 	widget.Field(c, "How often", func() {
 		switchRow(c, &h.Once, "Once a session", "")
@@ -51,7 +51,7 @@ func (a *App) hookFields(c *ui.Context, st *hooksState, f *hookForm) {
 			hookNumber(c, "At most, a session", f.numbers["max"], "times")
 			hookNumber(c, "Apart at least", f.numbers["every"], "seconds")
 			ui.Column(c).Gap(4).Children(func() {
-				ui.Text(c, "Only within").FontSize(11.5).TextColor(theme.TextSoft)
+				ui.Text(c, "Only within").FontSize(theme.TextLabel).TextColor(theme.TextSoft)
 				widget.Input(c, &h.Hours, "09-18").Width(140).Font(theme.MonoFont)
 			})
 		})
@@ -61,13 +61,13 @@ func (a *App) hookFields(c *ui.Context, st *hooksState, f *hookForm) {
 // hookActionFields are what action h.Action needs.
 func (a *App) hookActionFields(c *ui.Context, h *proto.Hook) {
 	area := func(v *string, label, placeholder string, mono bool) {
-		t := ui.TextAreaBase(c, v).FillWidth().MinHeight(60).MaxHeight(180).Padding(9, 11).FontSize(12).
+		t := ui.TextAreaBase(c, v).FillWidth().MinHeight(60).MaxHeight(180).Padding(9, 11).FontSize(theme.TextLabel).
 			Label(label).Radius(theme.RadiusControl).Background(theme.Sunken).Border(1, theme.Border).Placeholder(placeholder)
 		if mono {
 			t.Font(theme.MonoFont)
 		}
 	}
-	muted := func(s string) { ui.Text(c, s).FontSize(11).TextColor(theme.Muted) }
+	muted := func(s string) { ui.Text(c, s).FontSize(theme.TextLabel).TextColor(theme.Muted) }
 	switch h.Action {
 	case proto.HookActionRun:
 		area(&h.Command, "Command", `gofmt -w $(jq -r '.paths[]')`, true)
@@ -126,7 +126,7 @@ func hookActionNote(event, action string) string {
 // is not to hold.
 func hookCondition(c *ui.Context, h *proto.Hook, name, label string, value *string, placeholder string) {
 	ui.Row(c.Key(name)).FillWidth().Gap(8).AlignItems(ui.Center).Children(func() {
-		ui.Text(c, label).FontSize(12).TextColor(theme.TextSoft).Width(150).Shrink(0)
+		ui.Text(c, label).FontSize(theme.TextLabel).TextColor(theme.TextSoft).Width(150).Shrink(0)
 		not := slices.Contains(h.Not, name)
 		which := "is"
 		if not {
@@ -145,10 +145,10 @@ func hookCondition(c *ui.Context, h *proto.Hook, name, label string, value *stri
 
 func hookNumber(c *ui.Context, label string, value *string, unit string) {
 	ui.Column(c.Key(label)).Gap(4).Children(func() {
-		ui.Text(c, label).FontSize(11.5).TextColor(theme.TextSoft)
+		ui.Text(c, label).FontSize(theme.TextLabel).TextColor(theme.TextSoft)
 		ui.Row(c).Gap(6).AlignItems(ui.Center).Children(func() {
 			widget.Input(c, value, "").Width(80)
-			ui.Text(c, unit).FontSize(11.5).TextColor(theme.Muted)
+			ui.Text(c, unit).FontSize(theme.TextLabel).TextColor(theme.Muted)
 		})
 	})
 }
@@ -157,7 +157,7 @@ func hookNumber(c *ui.Context, label string, value *string, unit string) {
 func hookSelect(c *ui.Context, label string, value *string, options []string, names map[string]string) {
 	sel := ui.SelectBase(c.Key("select:"+label), value)
 	widget.Trigger(sel.Trigger, sel.Open()).FillWidth().Label(label).Children(func() {
-		ui.Text(c, names[*value]).FontSize(12.5).SingleLine()
+		ui.Text(c, names[*value]).FontSize(theme.TextUI).SingleLine()
 		ui.Spacer(c)
 		ui.Icon(c, icon.ChevronDown).FontSize(12).TextColor(theme.Muted)
 	})
@@ -167,7 +167,7 @@ func hookSelect(c *ui.Context, label string, value *string, options []string, na
 			ui.Column(c).FillWidth().Children(func() {
 				for _, o := range options {
 					item := sel.Item(o)
-					widget.PopupItem(item, item.Highlighted()).Children(func() { ui.Text(c, names[o]).FontSize(12.5) })
+					widget.PopupItem(item, item.Highlighted()).Children(func() { ui.Text(c, names[o]).FontSize(theme.TextUI) })
 				}
 			})
 		})

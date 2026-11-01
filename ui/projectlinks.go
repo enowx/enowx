@@ -104,8 +104,8 @@ func (a *App) linksDialog(c *ui.Context) {
 	}
 	widget.Sheet(c, &f.open, 640, func() {
 		ui.Column(c).Grow(1).MinWidth(0).Gap(4).Children(func() {
-			ui.Text(c, "Sync & push “"+f.project.Name+"”").FontSize(15).TextColor(theme.TextStrong)
-			ui.Text(c, a.originLine(f)).FontSize(11.5).TextColor(theme.Muted)
+			ui.Text(c, "Sync & push “"+f.project.Name+"”").FontSize(theme.TextRead).TextColor(theme.TextStrong)
+			ui.Text(c, a.originLine(f)).FontSize(theme.TextLabel).TextColor(theme.Muted)
 		})
 		if widget.IconButton(c, icon.Close, "Close", false).Clicked() {
 			f.open = false
@@ -199,7 +199,7 @@ func (a *App) linkCard(c *ui.Context, f *linksForm, l proto.ProjectLinkState) {
 				a.saveLink(f, d)
 			}
 		})
-		ui.Text(c, a.linkStatus(l, srcOn && dstOn)).FontSize(11.5).TextColor(statusColor(l))
+		ui.Text(c, a.linkStatus(l, srcOn && dstOn)).FontSize(theme.TextLabel).TextColor(statusColor(l))
 		ui.Row(c).FillWidth().Gap(8).Children(func() {
 			doing := a.links.running[l.ID]
 			b := widget.Button(c, widget.Secondary, icon.Sync, "Sync now", "").Disabled(!srcOn || !dstOn || doing != "")
@@ -254,7 +254,7 @@ func endLabel(c *ui.Context, e proto.ProjectEnd, online bool) {
 		col = theme.Idle
 	}
 	widget.Dot(c, col, !online, 6)
-	ui.Text(c, e.Host).FontSize(12.5).FontWeight(600).SingleLine().TextColor(theme.Text)
+	ui.Text(c, e.Host).FontSize(theme.TextUI).FontWeight(600).SingleLine().TextColor(theme.Text)
 }
 
 func directionIcon(dir string) *ui.SVG {
@@ -383,12 +383,12 @@ func (a *App) linksHistory(c *ui.Context, f *linksForm) {
 			ui.Icon(c, svg).FontSize(13).TextColor(col)
 			ui.Column(c).Grow(1).MinWidth(0).Gap(2).Children(func() {
 				label := map[string]string{"sync": "Sync", "push": "Push"}[e.Kind] + " · " + e.Summary
-				ui.Text(c, label).FontSize(12).SingleLine().TextColor(theme.Text)
+				ui.Text(c, label).FontSize(theme.TextLabel).SingleLine().TextColor(theme.Text)
 				if e.Err != "" {
-					ui.Text(c, e.Err).FontSize(11).TextColor(theme.Error)
+					ui.Text(c, e.Err).FontSize(theme.TextLabel).TextColor(theme.Error)
 				}
 			})
-			ui.Text(c, textfmt.Age(e.Time, now)).FontSize(11).TextColor(theme.Muted).SingleLine()
+			ui.Text(c, textfmt.Age(e.Time, now)).FontSize(theme.TextLabel).TextColor(theme.Muted).SingleLine()
 		})
 	}
 }

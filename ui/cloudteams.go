@@ -64,8 +64,8 @@ func (a *App) cloudTeamsTab(c *ui.Context, cs *cloudSettings) {
 	ts := &cs.teams
 	ui.Row(c).FillWidth().Gap(8).AlignItems(ui.Center).Children(func() {
 		ui.Column(c).Grow(1).Shrink(1).MinWidth(0).Gap(2).Children(func() {
-			ui.Text(c, "Teams").FontSize(13.5).FontWeight(600)
-			ui.Text(c, "Each has its own space of notes and canvases, picked in the rail.").FontSize(11.5).TextColor(theme.Muted)
+			ui.Text(c, "Teams").FontSize(theme.TextUI).FontWeight(600)
+			ui.Text(c, "Each has its own space of notes and canvases, picked in the rail.").FontSize(theme.TextLabel).TextColor(theme.Muted)
 		})
 		if widget.Button(c, widget.Secondary, icon.Link, "Join with an invite", "").Clicked() {
 			ts.joining, ts.join = true, ""
@@ -97,8 +97,8 @@ func (a *App) cloudTeamCard(c *ui.Context, cs *cloudSettings, t api.Team) {
 	card.Children(func() {
 		widget.TeamMark(c, t.ID, t.Name, 32)
 		ui.Column(c).Grow(1).Shrink(1).MinWidth(0).Gap(2).Children(func() {
-			ui.Text(c, t.Name).FontSize(13.5).FontWeight(600).SingleLine()
-			ui.Text(c, "Since "+t.Created.Local().Format("2 Jan 2006")).FontSize(11.5).TextColor(theme.Muted).SingleLine()
+			ui.Text(c, t.Name).FontSize(theme.TextUI).FontWeight(600).SingleLine()
+			ui.Text(c, "Since "+t.Created.Local().Format("2 Jan 2006")).FontSize(theme.TextLabel).TextColor(theme.Muted).SingleLine()
 		})
 		widget.Tag(c, t.Role, theme.TextSoft)
 		ui.Icon(c, icon.ChevronRight).FontSize(12).TextColor(theme.Muted)
@@ -204,7 +204,7 @@ func (a *App) cloudTeamDialog(c *ui.Context, cs *cloudSettings) {
 			ui.Row(c).FillWidth().Gap(10).AlignItems(ui.Center).Children(func() {
 				widget.TeamMark(c, t.ID, t.Name, 34)
 				ui.Column(c).Grow(1).MinWidth(0).Gap(3).Children(func() {
-					ui.Text(c, t.Name).FontSize(15).SingleLine()
+					ui.Text(c, t.Name).FontSize(theme.TextRead).SingleLine()
 					sub := "You're its " + t.Role
 					if n := len(ts.team.Members); n > 0 {
 						sub += " · " + fmt.Sprintf("%d members", n)
@@ -212,7 +212,7 @@ func (a *App) cloudTeamDialog(c *ui.Context, cs *cloudSettings) {
 							sub = "You're its " + t.Role + " · 1 member"
 						}
 					}
-					ui.Text(c, sub).FontSize(11.5).TextColor(theme.Muted).SingleLine()
+					ui.Text(c, sub).FontSize(theme.TextLabel).TextColor(theme.Muted).SingleLine()
 				})
 				if widget.IconButton(c, icon.Close, "Close", false).Clicked() {
 					open = false
@@ -233,7 +233,7 @@ func (a *App) cloudTeamDialog(c *ui.Context, cs *cloudSettings) {
 		if ts.team.ID == "" {
 			ui.Row(c).Gap(8).AlignItems(ui.Center).Children(func() {
 				widget.Spinner(c, 12)
-				ui.Text(c, "Reading the team…").FontSize(12).TextColor(theme.Muted)
+				ui.Text(c, "Reading the team…").FontSize(theme.TextLabel).TextColor(theme.Muted)
 			})
 			return
 		}
@@ -314,8 +314,8 @@ func (a *App) cloudMemberRow(c *ui.Context, cs *cloudSettings, m api.Member) {
 		if m.Account.Name != "" {
 			initial = strings.ToUpper(string([]rune(m.Account.Name)[0]))
 		}
-		ui.Box(c).Size(28, 28).Radius(14).Shrink(0).Background(theme.Hover).Center().Children(func() {
-			ui.Text(c, initial).FontSize(12).FontWeight(600)
+		ui.Box(c).Size(28, 28).Radius(theme.RadiusCard).Shrink(0).Background(theme.Hover).Center().Children(func() {
+			ui.Text(c, initial).FontSize(theme.TextLabel).FontWeight(600)
 		})
 		me := m.Account.ID == cs.st.AccountID
 		ui.Column(c).Grow(1).Shrink(1).MinWidth(0).Gap(1).Children(func() {
@@ -323,9 +323,9 @@ func (a *App) cloudMemberRow(c *ui.Context, cs *cloudSettings, m api.Member) {
 			if me {
 				name += " (you)"
 			}
-			ui.Text(c, name).FontSize(12.5).SingleLine()
+			ui.Text(c, name).FontSize(theme.TextUI).SingleLine()
 			if m.Account.GitHub != "" {
-				ui.Text(c, "@"+m.Account.GitHub).FontSize(11).TextColor(theme.Muted).SingleLine()
+				ui.Text(c, "@"+m.Account.GitHub).FontSize(theme.TextLabel).TextColor(theme.Muted).SingleLine()
 			}
 		})
 		if me || m.Role == api.RoleOwner || !canAdmin(ts.team.Role) {
@@ -346,13 +346,13 @@ func (a *App) cloudMemberRow(c *ui.Context, cs *cloudSettings, m api.Member) {
 // owner also hands the team over from it, after a confirmation.
 func (a *App) memberRoleMenu(c *ui.Context, cs *cloudSettings, m api.Member) {
 	ts := &cs.teams
-	b := ui.ButtonBase(c).Height(24).PaddingX(9).Gap(5).Radius(12).Shrink(0).Border(1, theme.Border).Cursor(ui.CursorPointer).
+	b := ui.ButtonBase(c).Height(24).PaddingX(9).Gap(5).Radius(theme.RadiusSmall).Shrink(0).Border(1, theme.Border).Cursor(ui.CursorPointer).
 		Label("Role of " + m.Account.Name).Tooltip("Change " + m.Account.Name + "'s role")
 	if b.Hovered() {
 		b.Background(theme.Hover)
 	}
 	b.Children(func() {
-		ui.Text(c, m.Role).FontSize(11.5).TextColor(theme.TextSoft)
+		ui.Text(c, m.Role).FontSize(theme.TextLabel).TextColor(theme.TextSoft)
 		ui.Icon(c, icon.ChevronDown).FontSize(10).TextColor(theme.Muted)
 	})
 	key := "role:" + m.Account.ID
@@ -414,7 +414,7 @@ func (a *App) cloudInvite(c *ui.Context, cs *cloudSettings) {
 				}, nil)
 			}
 		})
-		ui.Text(c, roleAbout(inviteRoles[ts.role])).FontSize(11.5).TextColor(theme.Muted)
+		ui.Text(c, roleAbout(inviteRoles[ts.role])).FontSize(theme.TextLabel).TextColor(theme.Muted)
 	})
 	if in := ts.invite; in.Token != "" {
 		link := in.URL
@@ -423,10 +423,10 @@ func (a *App) cloudInvite(c *ui.Context, cs *cloudSettings) {
 		}
 		widget.Field(c, "Link", func() {
 			ui.Row(c).FillWidth().Gap(8).AlignItems(ui.Center).Padding(8, 10).Radius(theme.RadiusControl).Background(theme.Sunken).Border(1, theme.Border).Children(func() {
-				ui.Text(c, link).Font(theme.MonoFont).FontSize(11.5).Grow(1).Shrink(1).MinWidth(0).SingleLine()
+				ui.Text(c, link).Font(theme.MonoFont).FontSize(theme.TextLabel).Grow(1).Shrink(1).MinWidth(0).SingleLine()
 				widget.CopyIcon(c.Key("invite-copy"), &ts.copied, icon.Copy, "Copy the link", "Copy the invite link", link)
 			})
-			ui.Text(c, "For one person, as "+in.Role+", until "+in.Expires.Local().Format("2 Jan 15:04")+". It shows once: copy it now.").FontSize(11.5).TextColor(theme.Muted)
+			ui.Text(c, "For one person, as "+in.Role+", until "+in.Expires.Local().Format("2 Jan 15:04")+". It shows once: copy it now.").FontSize(theme.TextLabel).TextColor(theme.Muted)
 		})
 	}
 }
@@ -455,9 +455,9 @@ func (a *App) cloudTeamSettings(c *ui.Context, cs *cloudSettings) {
 					return cl.CloudCall("PATCH", teamPath(api.PathTeam, team), api.TeamParams{CopyOut: &out}, nil)
 				}, func() { a.openCloudTeam(cs, team); ts.tab = tabOptions })
 			}
-			ui.Text(c, label).FontSize(12.5).Grow(1).Shrink(1)
+			ui.Text(c, label).FontSize(theme.TextUI).Grow(1).Shrink(1)
 		})
-		ui.Text(c, "Off, the team's items stay in the team: members read and edit them, and nobody takes a copy into their own space.").FontSize(11.5).TextColor(theme.Muted)
+		ui.Text(c, "Off, the team's items stay in the team: members read and edit them, and nobody takes a copy into their own space.").FontSize(theme.TextLabel).TextColor(theme.Muted)
 	})
 	a.cloudTeamDeleteSection(c, cs)
 }

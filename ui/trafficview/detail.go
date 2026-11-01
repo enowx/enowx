@@ -101,8 +101,8 @@ func (v *View) detailView(c *ui.Context, o Options) {
 	ui.Column(c).Grow(1.2).FillWidth().MinHeight(160).BorderWidth(1, 0, 0, 0).BorderColor(theme.BorderStrong).Children(func() {
 		ui.Row(c).FillWidth().Shrink(0).Padding(8, 8, 6, 12).Gap(6).Children(func() {
 			ex := d.ex
-			ui.Text(c, ex.Method).Font(theme.MonoFont).FontSize(11.5).TextColor(theme.TextSoft).Shrink(0)
-			ui.Text(c, ex.URL).FontSize(12).SingleLine().Grow(1).Shrink(1).MinWidth(0).Tooltip(ex.URL)
+			ui.Text(c, ex.Method).Font(theme.MonoFont).FontSize(theme.TextLabel).TextColor(theme.TextSoft).Shrink(0)
+			ui.Text(c, ex.URL).FontSize(theme.TextLabel).SingleLine().Grow(1).Shrink(1).MinWidth(0).Tooltip(ex.URL)
 			if widget.IconButton(c, icon.Close, "Close", false).Clicked() {
 				v.detail, v.selected = nil, -1
 			}
@@ -136,15 +136,15 @@ func (v *View) detailView(c *ui.Context, o Options) {
 					bodyView(c, d, "request", d.req)
 				case tabResponse:
 					if d.ex.Error != "" {
-						ui.Text(c, d.ex.Error).FontSize(12).TextColor(theme.Error)
+						ui.Text(c, d.ex.Error).FontSize(theme.TextLabel).TextColor(theme.Error)
 					}
 					if d.ex.Status != 0 {
-						ui.Text(c, fmt.Sprintf("%d %s", d.ex.Status, d.ex.Proto)).Font(theme.MonoFont).FontSize(12)
+						ui.Text(c, fmt.Sprintf("%d %s", d.ex.Status, d.ex.Proto)).Font(theme.MonoFont).FontSize(theme.TextLabel)
 					}
 					headersView(c, d.ex.ResHeaders)
 					bodyView(c, d, "response", d.res)
 					if len(d.ex.Trailers) > 0 {
-						ui.Text(c, "Trailers").FontSize(11).TextColor(theme.Muted)
+						ui.Text(c, "Trailers").FontSize(theme.TextLabel).TextColor(theme.Muted)
 						headersView(c, d.ex.Trailers)
 					}
 				case tabMessages:
@@ -173,7 +173,7 @@ func (v *View) detailActions(c *ui.Context, o Options, d *detail) {
 			v.notice = "Sent to the agent, secrets masked."
 		}
 		ui.Spacer(c)
-		ui.Text(c, "Secrets").FontSize(11).TextColor(theme.Muted).Shrink(0)
+		ui.Text(c, "Secrets").FontSize(theme.TextLabel).TextColor(theme.Muted).Shrink(0)
 		if widget.Switch(c, &d.reveal, "Show secrets") {
 			v.read(o, d)
 		}
@@ -238,8 +238,8 @@ func headersView(c *ui.Context, hs []proto.Header) {
 	ui.Column(c).FillWidth().Gap(2).Children(func() {
 		for i, h := range hs {
 			ui.Row(c.Key(fmt.Sprint(i))).FillWidth().Gap(8).AlignItems(ui.Start).Children(func() {
-				ui.Text(c, h.Name).Font(theme.MonoFont).FontSize(11).TextColor(theme.Muted).Width(150).Shrink(0).SingleLine().Tooltip(h.Name)
-				ui.Text(c, h.Value).Font(theme.MonoFont).FontSize(11).Grow(1).Shrink(1).MinWidth(0).Selectable()
+				ui.Text(c, h.Name).Font(theme.MonoFont).FontSize(theme.TextLabel).TextColor(theme.Muted).Width(150).Shrink(0).SingleLine().Tooltip(h.Name)
+				ui.Text(c, h.Value).Font(theme.MonoFont).FontSize(theme.TextLabel).Grow(1).Shrink(1).MinWidth(0).Selectable()
 			})
 		}
 	})
@@ -250,13 +250,13 @@ func headersView(c *ui.Context, hs []proto.Header) {
 func bodyView(c *ui.Context, d *detail, which string, b proto.TrafficBody) {
 	if b.Total == 0 {
 		if b.ContentType != "" {
-			ui.Text(c, "No body").FontSize(11.5).TextColor(theme.Muted)
+			ui.Text(c, "No body").FontSize(theme.TextLabel).TextColor(theme.Muted)
 		}
 		return
 	}
 	kind := kindOf(b.ContentType)
 	ui.Row(c).Gap(6).Children(func() {
-		ui.Text(c, strings.TrimSpace(b.ContentType+" · "+textfmt.Bytes(uint64(b.Total)))).FontSize(11).TextColor(theme.Muted)
+		ui.Text(c, strings.TrimSpace(b.ContentType+" · "+textfmt.Bytes(uint64(b.Total)))).FontSize(theme.TextLabel).TextColor(theme.Muted)
 		if b.Encoding != "" {
 			widget.Tag(c, b.Encoding+" (not decoded)", theme.Warning)
 		}
@@ -290,12 +290,12 @@ func bodyView(c *ui.Context, d *detail, which string, b proto.TrafficBody) {
 	}
 	if strings.Contains(b.ContentType, "protobuf") {
 		if pb, ok := intercept.DecodeProtobuf(data); ok {
-			ui.Text(c, pb).Font(theme.MonoFont).FontSize(11).Selectable()
+			ui.Text(c, pb).Font(theme.MonoFont).FontSize(theme.TextLabel).Selectable()
 			return
 		}
 	}
 	if !utf8.Valid(data) {
-		ui.Text(c, hexDump(data)).Font(theme.MonoFont).FontSize(10.5).Selectable()
+		ui.Text(c, hexDump(data)).Font(theme.MonoFont).FontSize(theme.TextLabel).Selectable()
 		return
 	}
 	text, lang := string(data), ""
@@ -321,9 +321,9 @@ func bodyView(c *ui.Context, d *detail, which string, b proto.TrafficBody) {
 		widget.CodeBlock(c, lang, text)
 		return
 	}
-	ui.Text(c, text).Font(theme.MonoFont).FontSize(11).Selectable()
+	ui.Text(c, text).Font(theme.MonoFont).FontSize(theme.TextLabel).Selectable()
 	if b.Total > int64(len(data)) {
-		ui.Text(c, "… "+textfmt.Bytes(uint64(b.Total-int64(len(data))))+" more: export it to see all").FontSize(11).TextColor(theme.Muted)
+		ui.Text(c, "… "+textfmt.Bytes(uint64(b.Total-int64(len(data))))+" more: export it to see all").FontSize(theme.TextLabel).TextColor(theme.Muted)
 	}
 }
 
@@ -354,7 +354,7 @@ func hexDump(b []byte) string {
 
 func messagesView(c *ui.Context, msgs []proto.TrafficMessage) {
 	if len(msgs) == 0 {
-		ui.Text(c, "No messages yet.").FontSize(12).TextColor(theme.Muted)
+		ui.Text(c, "No messages yet.").FontSize(theme.TextLabel).TextColor(theme.Muted)
 		return
 	}
 	for i, m := range msgs {
@@ -363,8 +363,8 @@ func messagesView(c *ui.Context, msgs []proto.TrafficMessage) {
 			if m.Sent {
 				dir, col = "↑", theme.Accent
 			}
-			ui.Text(c, dir).FontSize(12).TextColor(col).Width(12).Shrink(0)
-			ui.Text(c, m.Time.Format("15:04:05.000")).Font(theme.MonoFont).FontSize(10.5).TextColor(theme.Muted).Shrink(0)
+			ui.Text(c, dir).FontSize(theme.TextLabel).TextColor(col).Width(12).Shrink(0)
+			ui.Text(c, m.Time.Format("15:04:05.000")).Font(theme.MonoFont).FontSize(theme.TextLabel).TextColor(theme.Muted).Shrink(0)
 			label := m.Kind
 			if m.Event != "" {
 				label = m.Event
@@ -372,9 +372,9 @@ func messagesView(c *ui.Context, msgs []proto.TrafficMessage) {
 			if m.Mocked {
 				label += " · mock"
 			}
-			ui.Text(c, label).FontSize(10.5).TextColor(theme.Muted).Width(70).Shrink(0).SingleLine()
+			ui.Text(c, label).FontSize(theme.TextLabel).TextColor(theme.Muted).Width(70).Shrink(0).SingleLine()
 			text := messageText(m)
-			ui.Text(c, text).Font(theme.MonoFont).FontSize(11).Grow(1).Shrink(1).MinWidth(0).Selectable()
+			ui.Text(c, text).Font(theme.MonoFont).FontSize(theme.TextLabel).Grow(1).Shrink(1).MinWidth(0).Selectable()
 		})
 	}
 }
@@ -391,21 +391,21 @@ func timingView(c *ui.Context, ex proto.TrafficExchange) {
 			continue
 		}
 		ui.Row(c.Key(fmt.Sprint(i))).FillWidth().Gap(8).Children(func() {
-			ui.Text(c, r.label).FontSize(11.5).TextColor(theme.TextSoft).Width(100).Shrink(0)
-			ui.Row(c).Grow(1).Height(6).Radius(3).Background(theme.Sunken).Children(func() {
-				ui.Box(c).Height(6).Radius(3).Background(theme.Accent).Width(float32(r.ms) / float32(total) * 220)
+			ui.Text(c, r.label).FontSize(theme.TextLabel).TextColor(theme.TextSoft).Width(100).Shrink(0)
+			ui.Row(c).Grow(1).Height(6).Radius(theme.RadiusTail).Background(theme.Sunken).Children(func() {
+				ui.Box(c).Height(6).Radius(theme.RadiusTail).Background(theme.Accent).Width(float32(r.ms) / float32(total) * 220)
 			})
-			ui.Text(c, fmt.Sprintf("%d ms", r.ms)).Font(theme.MonoFont).FontSize(11).Width(64).Shrink(0)
+			ui.Text(c, fmt.Sprintf("%d ms", r.ms)).Font(theme.MonoFont).FontSize(theme.TextLabel).Width(64).Shrink(0)
 		})
 	}
 	if ex.TLS != nil {
-		ui.Text(c, fmt.Sprintf("Client TLS: %s, %s, %s", ex.TLS.Version, ex.TLS.Cipher, ex.TLS.ALPN)).FontSize(11.5).TextColor(theme.Muted)
+		ui.Text(c, fmt.Sprintf("Client TLS: %s, %s, %s", ex.TLS.Version, ex.TLS.Cipher, ex.TLS.ALPN)).FontSize(theme.TextLabel).TextColor(theme.Muted)
 	}
 	if ex.Remote != "" {
-		ui.Text(c, "Server: "+ex.Remote).FontSize(11.5).TextColor(theme.Muted)
+		ui.Text(c, "Server: "+ex.Remote).FontSize(theme.TextLabel).TextColor(theme.Muted)
 	}
 	if ex.Rule != "" {
-		ui.Text(c, "Rule: "+ex.Rule).FontSize(11.5).TextColor(theme.Muted)
+		ui.Text(c, "Rule: "+ex.Rule).FontSize(theme.TextLabel).TextColor(theme.Muted)
 	}
 }
 

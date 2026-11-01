@@ -99,11 +99,11 @@ func (a *App) sessionField(c *ui.Context) {
 			Background(theme.Sunken).Border(1, theme.BorderStrong).Cursor(ui.CursorPointer).Label("Session: " + label)
 		b.Children(func() {
 			ui.Icon(c, svg).FontSize(14).TextColor(theme.TextSoft)
-			ui.Text(c, label).FontSize(12.5).TextColor(theme.Text).SingleLine().Grow(1).Shrink(1).MinWidth(0)
+			ui.Text(c, label).FontSize(theme.TextUI).TextColor(theme.Text).SingleLine().Grow(1).Shrink(1).MinWidth(0)
 			if f.cont != nil {
-				ui.Text(c, f.cont.where+" · "+f.cont.status).FontSize(11).TextColor(theme.Muted).SingleLine()
+				ui.Text(c, f.cont.where+" · "+f.cont.status).FontSize(theme.TextLabel).TextColor(theme.Muted).SingleLine()
 			} else {
-				ui.Text(c, textfmt.Plural(len(choices), "1 in this project", strconv.Itoa(len(choices))+" in this project")).FontSize(11).TextColor(theme.Muted)
+				ui.Text(c, textfmt.Plural(len(choices), "1 in this project", strconv.Itoa(len(choices))+" in this project")).FontSize(theme.TextLabel).TextColor(theme.Muted)
 			}
 			ui.Icon(c, icon.ChevronDown).FontSize(12).TextColor(theme.Muted)
 		})
@@ -150,7 +150,7 @@ func (a *App) choiceRow(c *ui.Context, ch *sessionChoice) bool {
 		}
 	}
 	picked := ch == nil && f.cont == nil || ch != nil && f.cont != nil && f.cont.key == ch.key
-	row := ui.ButtonBase(c.Key(key)).FillWidth().Padding(6, 8).Gap(8).Radius(6).Cursor(ui.CursorPointer).Label(name)
+	row := ui.ButtonBase(c.Key(key)).FillWidth().Padding(6, 8).Gap(8).Radius(theme.RadiusSmall).Cursor(ui.CursorPointer).Label(name)
 	switch {
 	case picked:
 		row.Background(theme.Selected)
@@ -160,8 +160,8 @@ func (a *App) choiceRow(c *ui.Context, ch *sessionChoice) bool {
 	row.Children(func() {
 		ui.Icon(c, svg).FontSize(14).TextColor(theme.TextSoft)
 		ui.Column(c).Grow(1).Shrink(1).MinWidth(0).Children(func() {
-			ui.Text(c, name).FontSize(12.5).TextColor(theme.Text).SingleLine()
-			ui.Text(c, sub).FontSize(11).TextColor(theme.Muted).SingleLine()
+			ui.Text(c, name).FontSize(theme.TextUI).TextColor(theme.Text).SingleLine()
+			ui.Text(c, sub).FontSize(theme.TextLabel).TextColor(theme.Muted).SingleLine()
 		})
 	})
 	return widget.Pressable(row).Clicked()

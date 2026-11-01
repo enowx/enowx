@@ -150,13 +150,13 @@ func (a *App) cloudSection(c *ui.Context) {
 		widget.Notice(c, icon.Alert, theme.Error, cs.err, "", nil)
 	}
 	if !cs.loaded {
-		ui.Text(c, "Asking "+a.host.Name+"…").FontSize(12).TextColor(theme.Muted)
+		ui.Text(c, "Asking "+a.host.Name+"…").FontSize(theme.TextLabel).TextColor(theme.Muted)
 		return
 	}
 	if cs.busy != "" {
 		ui.Row(c).Gap(8).AlignItems(ui.Center).Children(func() {
 			widget.Spinner(c, 14)
-			ui.Text(c, cs.busy).FontSize(12).TextColor(theme.Muted)
+			ui.Text(c, cs.busy).FontSize(theme.TextLabel).TextColor(theme.Muted)
 		})
 	}
 	a.cloudAccount(c, cs)
@@ -290,20 +290,20 @@ func (a *App) cloudAccount(c *ui.Context, cs *cloudSettings) {
 				if cs.st.Account != "" {
 					initial = strings.ToUpper(string([]rune(cs.st.Account)[0]))
 				}
-				ui.Column(c).Width(32).Height(32).Radius(16).Background(theme.Hover).Center().Children(func() {
-					ui.Text(c, initial).FontSize(14).FontWeight(600)
+				ui.Column(c).Width(32).Height(32).Radius(theme.RadiusCard).Background(theme.Hover).Center().Children(func() {
+					ui.Text(c, initial).FontSize(theme.TextUI).FontWeight(600)
 				})
 				ui.Column(c).Grow(1).Shrink(1).MinWidth(0).Gap(2).Children(func() {
 					who := cs.st.Account
 					if cs.st.GitHub != "" {
 						who += " · @" + cs.st.GitHub
 					}
-					ui.Text(c, who).FontSize(13).FontWeight(600).SingleLine()
+					ui.Text(c, who).FontSize(theme.TextUI).FontWeight(600).SingleLine()
 					device := a.host.Name + ", signed in as " + deviceKind(cs.st.DeviceKind)
 					if cs.st.DeviceName != a.host.Name {
 						device = a.host.Name + " is " + cs.st.DeviceName + " (" + deviceKind(cs.st.DeviceKind) + ")"
 					}
-					ui.Text(c, device).FontSize(11.5).TextColor(theme.Muted).SingleLine()
+					ui.Text(c, device).FontSize(theme.TextLabel).TextColor(theme.Muted).SingleLine()
 				})
 				if widget.GhostButton(c, "Sign out").Clicked() {
 					a.cloudSignOut()
@@ -313,7 +313,7 @@ func (a *App) cloudAccount(c *ui.Context, cs *cloudSettings) {
 			// The sign-in dialog shows the code; here, a line of it.
 			ui.Row(c).FillWidth().Gap(10).AlignItems(ui.Center).Padding(10, 12).Radius(theme.RadiusControl).Background(theme.Sunken).Border(1, theme.Border).Children(func() {
 				widget.Spinner(c, 12)
-				ui.Text(c, "Signing in: approve "+cs.st.Pending.UserCode+" in the browser").FontSize(12.5).Grow(1).Shrink(1).MinWidth(0).SingleLine()
+				ui.Text(c, "Signing in: approve "+cs.st.Pending.UserCode+" in the browser").FontSize(theme.TextUI).Grow(1).Shrink(1).MinWidth(0).SingleLine()
 				if widget.Button(c, widget.Secondary, nil, "Show", "").Clicked() {
 					a.cloudSigningIn = true
 				}
@@ -323,7 +323,7 @@ func (a *App) cloudAccount(c *ui.Context, cs *cloudSettings) {
 			})
 		default:
 			ui.Row(c).FillWidth().Gap(10).AlignItems(ui.Center).Children(func() {
-				ui.Text(c, "Not signed in. Sign in with GitHub: the browser opens on a code to approve.").FontSize(12.5).TextColor(theme.TextSoft).Grow(1).Shrink(1)
+				ui.Text(c, "Not signed in. Sign in with GitHub: the browser opens on a code to approve.").FontSize(theme.TextUI).TextColor(theme.TextSoft).Grow(1).Shrink(1)
 				if widget.PrimaryButton(c, icon.Account, "Sign in", "").Clicked() {
 					a.openCloudSignIn()
 				}
@@ -343,8 +343,8 @@ func deviceKind(kind string) string {
 // approve for another.
 func (a *App) cloudDevices(c *ui.Context, cs *cloudSettings) {
 	ui.Column(c).FillWidth().Gap(2).Children(func() {
-		ui.Text(c, "Devices").FontSize(13.5).FontWeight(600)
-		ui.Text(c, "The app and the hosts signed in to your account. Sign out one you no longer use.").FontSize(11.5).TextColor(theme.Muted)
+		ui.Text(c, "Devices").FontSize(theme.TextUI).FontWeight(600)
+		ui.Text(c, "The app and the hosts signed in to your account. Sign out one you no longer use.").FontSize(theme.TextLabel).TextColor(theme.Muted)
 	})
 	ui.Column(c).FillWidth().Gap(10).Children(func() {
 		list := append([]api.Device(nil), cs.devices...)
@@ -360,12 +360,12 @@ func (a *App) cloudDevices(c *ui.Context, cs *cloudSettings) {
 						svg = icon.Server
 					}
 					ui.Icon(c, svg).FontSize(14).TextColor(theme.TextSoft)
-					ui.Text(c, d.Name).FontSize(12.5).SingleLine().Shrink(1)
+					ui.Text(c, d.Name).FontSize(theme.TextUI).SingleLine().Shrink(1)
 					if d.Current {
 						widget.Tag(c, "this host", theme.Accent)
 					}
 					ui.Spacer(c)
-					ui.Text(c, "seen "+textfmt.Age(d.LastSeen, time.Now())).FontSize(11).TextColor(theme.Muted)
+					ui.Text(c, "seen "+textfmt.Age(d.LastSeen, time.Now())).FontSize(theme.TextLabel).TextColor(theme.Muted)
 					if !d.Current && widget.IconButton(c, icon.Close, "Sign "+d.Name+" out", false).Clicked() {
 						id, name := d.ID, d.Name
 						a.confirm("Sign "+name+" out?", name+" stops reaching your account and your teams until it signs in again with a new code.", "Sign out", func() {

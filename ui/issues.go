@@ -73,25 +73,25 @@ func (a *App) issueButton(c *ui.Context) {
 		}
 		switch {
 		case a.issues.err != "":
-			ui.Text(c, a.issues.err).FontSize(12).TextColor(theme.Error).Padding(8)
+			ui.Text(c, a.issues.err).FontSize(theme.TextLabel).TextColor(theme.Error).Padding(8)
 		case a.issues.loading:
 			ui.Row(c).Gap(8).Padding(8).Children(func() {
 				widget.Spinner(c, 13)
-				ui.Text(c, "Reading the issues…").FontSize(12).TextColor(theme.Muted)
+				ui.Text(c, "Reading the issues…").FontSize(theme.TextLabel).TextColor(theme.Muted)
 			})
 		case len(a.issues.issues) == 0:
-			ui.Text(c, "No open issues match.").FontSize(12).TextColor(theme.Muted).Padding(8)
+			ui.Text(c, "No open issues match.").FontSize(theme.TextLabel).TextColor(theme.Muted).Padding(8)
 		}
 		ui.Scroll(c).FillWidth().MaxHeight(340).Children(func() {
 			ui.Column(c).FillWidth().Children(func() {
 				for _, is := range a.issues.issues {
 					item := ui.ButtonBase(c.Key(is.Number)).FillWidth().Label(is.Title).Cursor(ui.CursorPointer)
 					widget.PopupItem(item, item.Hovered()).Children(func() {
-						ui.Text(c, "#"+strconv.Itoa(is.Number)).Font(theme.MonoFont).FontSize(11.5).TextColor(theme.Muted).Shrink(0)
+						ui.Text(c, "#"+strconv.Itoa(is.Number)).Font(theme.MonoFont).FontSize(theme.TextLabel).TextColor(theme.Muted).Shrink(0)
 						ui.Column(c).Grow(1).MinWidth(0).Gap(1).Children(func() {
-							ui.Text(c, is.Title).FontSize(12.5).SingleLine()
+							ui.Text(c, is.Title).FontSize(theme.TextUI).SingleLine()
 							if len(is.Labels) > 0 {
-								ui.Text(c, strings.Join(is.Labels, " · ")).FontSize(11).TextColor(theme.Muted).SingleLine()
+								ui.Text(c, strings.Join(is.Labels, " · ")).FontSize(theme.TextLabel).TextColor(theme.Muted).SingleLine()
 							}
 						})
 					})

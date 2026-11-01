@@ -29,7 +29,7 @@ func (v *View) pageView(c *ui.Context, o Options) {
 		state := ""
 		switch {
 		case v.err != "":
-			ui.Text(c, v.err).FontSize(11).TextColor(theme.Error).SingleLine().Shrink(1)
+			ui.Text(c, v.err).FontSize(theme.TextLabel).TextColor(theme.Error).SingleLine().Shrink(1)
 		case p.uploading:
 			state = "Adding image…"
 		case p.saving || p.dirty:
@@ -38,7 +38,7 @@ func (v *View) pageView(c *ui.Context, o Options) {
 			state = "Saved"
 		}
 		if !tight {
-			ui.Text(c, state).FontSize(11).TextColor(theme.Muted).SingleLine()
+			ui.Text(c, state).FontSize(theme.TextLabel).TextColor(theme.Muted).SingleLine()
 		}
 		if p.ed != nil && p.mode != modeRead {
 			if widget.IconButton(c, icon.Undo, "Undo edit", false).Tooltip("Undo · Ctrl+Z / ⌘Z").Disabled(len(p.edits.past) == 0).Clicked() {
@@ -86,7 +86,7 @@ func (v *View) pageView(c *ui.Context, o Options) {
 		v.menu.Show(c, more, "page", func(done func()) { v.pageItems(c, o, p.note.NoteInfo, done) })
 	})
 	if p.ed == nil {
-		ui.Text(c, "Opening…").FontSize(12).TextColor(theme.Muted).Padding(40)
+		ui.Text(c, "Opening…").FontSize(theme.TextLabel).TextColor(theme.Muted).Padding(40)
 		return
 	}
 	p.ed.env = v.env(o, p)
@@ -104,7 +104,7 @@ func (v *View) pageView(c *ui.Context, o Options) {
 			})
 			if p.scroll.Y > 480 {
 				top := widget.IconButton(c, icon.ArrowUp, "Back to top", false)
-				top.Absolute().Right(24).Bottom(24).Size(34, 34).Radius(17).Background(theme.Raised).Border(1, theme.Border).
+				top.Absolute().Right(24).Bottom(24).Size(34, 34).Radius(theme.RadiusCard).Background(theme.Raised).Border(1, theme.Border).
 					Shadow(0, 4, 14, 0, ui.RGBA(0, 0, 0, 0.25))
 				if top.Clicked() {
 					p.scroll.ScrollTo(0, 0, ui.Smooth)
@@ -170,7 +170,7 @@ func (v *View) pageBody(c *ui.Context, o Options, p *page) {
 	}
 	if kids := p.ed.env.children; len(kids) > 0 && p.mode != modeSource {
 		ui.Column(c).FillWidth().Gap(4).Padding(8, 0, 40, 0).BorderWidth(1, 0, 0, 0).BorderColor(theme.Border).Children(func() {
-			ui.Text(c, "Pages inside").FontSize(11.5).FontWeight(600).TextColor(theme.Muted).Padding(10, 6, 2, 6)
+			ui.Text(c, "Pages inside").FontSize(theme.TextLabel).FontWeight(600).TextColor(theme.Muted).Padding(10, 6, 2, 6)
 			p.ed.pagesView(c)
 		})
 	}
@@ -196,7 +196,7 @@ func (v *View) iconButton(c *ui.Context, o Options, p *page) {
 		size = float32(r.Size)
 	}
 	ui.Row(c).Gap(10).AlignItems(ui.Center).Children(func() {
-		b := ui.ButtonBase(c).Size(size+14, size+14).Radius(8).Center().Cursor(ui.CursorPointer).Label("Page icon").Tooltip("Pick an icon")
+		b := ui.ButtonBase(c).Size(size+14, size+14).Radius(theme.RadiusSmall).Center().Cursor(ui.CursorPointer).Label("Page icon").Tooltip("Pick an icon")
 		if b.Hovered() {
 			b.Background(theme.Hover)
 		}
@@ -219,7 +219,7 @@ func (v *View) iconButton(c *ui.Context, o Options, p *page) {
 			}
 		})
 		if p.note.IconReview && p.icon == p.note.Icon {
-			ui.Text(c, "This icon stands in for an emoji it had: pick one").FontSize(11.5).TextColor(theme.Warning)
+			ui.Text(c, "This icon stands in for an emoji it had: pick one").FontSize(theme.TextLabel).TextColor(theme.Warning)
 		}
 	})
 }
@@ -237,15 +237,15 @@ func (v *View) breadcrumb(c *ui.Context, o Options, id string) {
 	ui.Row(c).Gap(2).MinWidth(0).Shrink(1).AlignItems(ui.Center).Children(func() {
 		for i, n := range path {
 			if i > 0 {
-				ui.Text(c, "/").FontSize(11.5).TextColor(theme.Muted)
+				ui.Text(c, "/").FontSize(theme.TextLabel).TextColor(theme.Muted)
 			}
-			b := ui.ButtonBase(c.Key(n.ID)).Height(24).PaddingX(6).Radius(5).Gap(4).Cursor(ui.CursorPointer).Label(titleOf(n)).Shrink(1).MinWidth(0)
+			b := ui.ButtonBase(c.Key(n.ID)).Height(24).PaddingX(6).Radius(theme.RadiusSmall).Gap(4).Cursor(ui.CursorPointer).Label(titleOf(n)).Shrink(1).MinWidth(0)
 			if b.Hovered() {
 				b.Background(theme.Hover)
 			}
 			b.Children(func() {
 				widget.NoteIcon(c, n.Icon, 13, theme.Muted, nil)
-				ui.Text(c, titleOf(n)).FontSize(11.5).TextColor(theme.TextSoft).SingleLine().Shrink(1)
+				ui.Text(c, titleOf(n)).FontSize(theme.TextLabel).TextColor(theme.TextSoft).SingleLine().Shrink(1)
 			})
 			if b.Clicked() {
 				v.Select(o, n.ID)

@@ -74,8 +74,8 @@ func (a *App) floatingAnimate(e ui.Element, key string, target float32, animatio
 func (a *App) floatingAppearance(c *ui.Context) {
 	ui.Column(c.Key("floating-appearance")).FillWidth().Gap(12).Margin(12, 0, 0, 0).TextColor(theme.Text).Children(func() {
 		input := ui.Local[string](c.Root(), "floating-accent-input", func() string { return a.state.FloatingAccent })
-		ui.Text(c, "Menu color").FontSize(12.5).TextColor(theme.TextStrong)
-		ui.Text(c, "Choose a color for this menu, or follow the app theme.").FontSize(11.5).TextColor(theme.Muted)
+		ui.Text(c, "Menu color").FontSize(theme.TextUI).TextColor(theme.TextStrong)
+		ui.Text(c, "Choose a color for this menu, or follow the app theme.").FontSize(theme.TextLabel).TextColor(theme.Muted)
 		ui.Row(c).FillWidth().Gap(8).Children(func() {
 			if a.swatch(c.Key("theme"), theme.Accent, a.state.FloatingAccent == "", "Follow app theme") {
 				a.state.FloatingAccent, *input = "", ""
@@ -91,7 +91,7 @@ func (a *App) floatingAppearance(c *ui.Context) {
 			}
 		})
 		ui.Row(c).Gap(10).Children(func() {
-			ui.Text(c, "Custom").FontSize(12).TextColor(theme.TextSoft)
+			ui.Text(c, "Custom").FontSize(theme.TextLabel).TextColor(theme.TextSoft)
 			field := widget.Input(c, input, "#9DB6F5").Label("Custom floating color").Width(130).Font(theme.MonoFont).TextColor(theme.Text)
 			if field.Changed() {
 				if hex, ok := parseAccent(*input); ok {
@@ -101,7 +101,7 @@ func (a *App) floatingAppearance(c *ui.Context) {
 			}
 			if *input != "" {
 				if _, ok := parseAccent(*input); !ok {
-					ui.Text(c, "Type a color as #RRGGBB.").FontSize(11.5).TextColor(theme.Warning)
+					ui.Text(c, "Type a color as #RRGGBB.").FontSize(theme.TextLabel).TextColor(theme.Warning)
 				}
 			}
 		})
@@ -130,7 +130,7 @@ func (a *App) floatingAppearance(c *ui.Context) {
 				p.Stroke(hub, theme.BorderStrong, 15, 1)
 				p.Icon(icon.Logo, ui.Rect{X: cx - 8, Y: cy - 8, W: 16, H: 16}, a.floatingAccent())
 			})
-			ui.Text(c, "Preview").FontSize(11.5).TextColor(theme.TextSoft)
+			ui.Text(c, "Preview").FontSize(theme.TextLabel).TextColor(theme.TextSoft)
 		})
 	})
 }

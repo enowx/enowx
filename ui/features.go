@@ -80,17 +80,17 @@ func (a *App) featuresSection(c *ui.Context) {
 	hf := a.featuresOf()
 	sectionIntro(c, "Features", "What agents are told of and get tools for. A feature off costs them no tokens; the app keeps it. Changes apply to sessions started after them: running ones keep what they had until restarted.")
 	if hf.err != "" {
-		ui.Text(c, hf.err).FontSize(12).TextColor(theme.Error)
+		ui.Text(c, hf.err).FontSize(theme.TextLabel).TextColor(theme.Error)
 	}
 	if !hf.loaded {
-		ui.Text(c, "Reading "+a.host.Name+"'s features…").FontSize(12).TextColor(theme.Muted)
+		ui.Text(c, "Reading "+a.host.Name+"'s features…").FontSize(theme.TextLabel).TextColor(theme.Muted)
 		return
 	}
 	widget.Card(c).FillWidth().Children(func() {
 		ui.Row(c).FillWidth().Gap(12).AlignItems(ui.Center).Children(func() {
-			ui.Text(c, fmt.Sprintf("Agents' guide: ~%d tokens", hf.st.Tokens)).FontSize(13).TextColor(theme.TextStrong)
+			ui.Text(c, fmt.Sprintf("Agents' guide: ~%d tokens", hf.st.Tokens)).FontSize(theme.TextUI).TextColor(theme.TextStrong)
 			ui.Spacer(c)
-			ui.Text(c, fmt.Sprintf("every feature, in full: ~%d", hf.st.AllCost)).FontSize(11.5).TextColor(theme.Muted)
+			ui.Text(c, fmt.Sprintf("every feature, in full: ~%d", hf.st.AllCost)).FontSize(theme.TextLabel).TextColor(theme.Muted)
 		})
 		widget.Meter(c, widget.Segment{Fraction: float64(hf.st.Tokens) / float64(max(1, hf.st.AllCost)), Color: theme.Accent})
 		lazy := hf.st.Lazy
@@ -162,24 +162,24 @@ func (a *App) featureRow(c *ui.Context, hf *hostFeatures, f proto.FeatureInfo, o
 	ui.Row(c).FillWidth().Padding(10).Gap(12).Radius(theme.RadiusControl).Border(1, theme.Border).AlignItems(ui.Center).Children(func() {
 		ui.Column(c).Grow(1).MinWidth(0).Gap(3).Children(func() {
 			ui.Row(c).Gap(8).AlignItems(ui.Center).Children(func() {
-				ui.Text(c, f.Name).FontSize(12.5).TextColor(theme.Text)
+				ui.Text(c, f.Name).FontSize(theme.TextUI).TextColor(theme.Text)
 				if f.Tokens > 0 {
-					ui.Text(c, fmt.Sprintf("~%d tokens", f.Tokens)).FontSize(11).TextColor(theme.Muted)
+					ui.Text(c, fmt.Sprintf("~%d tokens", f.Tokens)).FontSize(theme.TextLabel).TextColor(theme.Muted)
 				}
 				if f.From != "" && !f.Core {
 					widget.Tag(c, "set "+map[string]string{"global": "everywhere", "host": "on this host", "project": "for the project", "session": "for a session"}[f.From], theme.Muted)
 				}
 			})
-			ui.Text(c, f.About).FontSize(11.5).TextColor(theme.Muted)
+			ui.Text(c, f.About).FontSize(theme.TextLabel).TextColor(theme.Muted)
 			if missing := features.Missing(f.ID, on); f.On && len(missing) > 0 {
 				ui.Row(c).Gap(5).AlignItems(ui.Center).Children(func() {
 					ui.Icon(c, icon.Alert).FontSize(11).TextColor(theme.Warning)
-					ui.Text(c, "Needs "+namesOf(missing)+", which is off").FontSize(11).TextColor(theme.Warning)
+					ui.Text(c, "Needs "+namesOf(missing)+", which is off").FontSize(theme.TextLabel).TextColor(theme.Warning)
 				})
 			}
 		})
 		if f.Core {
-			ui.Text(c, "always on").FontSize(11.5).TextColor(theme.Muted)
+			ui.Text(c, "always on").FontSize(theme.TextLabel).TextColor(theme.Muted)
 			return
 		}
 		v := f.On

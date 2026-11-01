@@ -46,7 +46,7 @@ func (v *View) load(o Options, id string) {
 func (v *View) detail(c *ui.Context, o Options) {
 	if v.selected == "" {
 		ui.Column(c).Grow(1).FillWidth().Center().Children(func() {
-			ui.Text(c, "Pick one to see it.").FontSize(12.5).TextColor(theme.Muted)
+			ui.Text(c, "Pick one to see it.").FontSize(theme.TextUI).TextColor(theme.Muted)
 		})
 		return
 	}
@@ -59,20 +59,20 @@ func (v *View) detail(c *ui.Context, o Options) {
 	ui.Column(c).FillWidth().Padding(14, 18).Gap(8).BorderWidth(0, 0, 1, 0).BorderColor(theme.Border).Children(func() {
 		ui.Row(c).FillWidth().Gap(8).Children(func() {
 			ui.Column(c).Grow(1).MinWidth(0).Gap(2).Children(func() {
-				ui.Text(c, it.Name).FontSize(15).SingleLine()
-				ui.Text(c, agentName(it.Agent)+" · "+it.Detail).FontSize(11.5).TextColor(theme.Muted).SingleLine().Shrink(1)
+				ui.Text(c, it.Name).FontSize(theme.TextRead).SingleLine()
+				ui.Text(c, agentName(it.Agent)+" · "+it.Detail).FontSize(theme.TextLabel).TextColor(theme.Muted).SingleLine().Shrink(1)
 			})
 			v.actions(c, o, it)
 		})
 		if len(it.Secrets) > 0 {
-			ui.Text(c, "Holds secrets: "+strings.Join(it.Secrets, ", ")+". Sync sends them only when asked.").FontSize(11.5).TextColor(theme.Warning)
+			ui.Text(c, "Holds secrets: "+strings.Join(it.Secrets, ", ")+". Sync sends them only when asked.").FontSize(theme.TextLabel).TextColor(theme.Warning)
 		}
 		for _, w := range it.Warnings {
-			ui.Text(c, w).FontSize(11.5).TextColor(theme.Muted)
+			ui.Text(c, w).FontSize(theme.TextLabel).TextColor(theme.Muted)
 		}
 		if v.deleting {
 			ui.Row(c).FillWidth().Gap(8).Children(func() {
-				ui.Text(c, "Delete "+it.Name+" from "+o.Host+"?"+deleteNote(it)).FontSize(12).Grow(1)
+				ui.Text(c, "Delete "+it.Name+" from "+o.Host+"?"+deleteNote(it)).FontSize(theme.TextLabel).Grow(1)
 				if widget.GhostButton(c, "Cancel").Clicked() {
 					v.deleting = false
 				}
@@ -86,7 +86,7 @@ func (v *View) detail(c *ui.Context, o Options) {
 		ui.Column(c).FillWidth().MaxWidth(820).AlignSelf(ui.Center).Padding(16, 18).Gap(14).Children(func() {
 			switch {
 			case v.itemErr != "":
-				ui.Text(c, v.itemErr).FontSize(12).TextColor(theme.Error)
+				ui.Text(c, v.itemErr).FontSize(theme.TextLabel).TextColor(theme.Error)
 			case v.item == nil || v.itemFor != it.ID:
 				widget.Spinner(c, 14)
 			case v.editing:
@@ -159,28 +159,28 @@ func (v *View) content(c *ui.Context, o Options, p proto.EnvPayload) {
 		v.mcpTestPanel(c, o, p.Item)
 	}
 	if len(p.Value) > 0 {
-		ui.Text(c, pretty(p.Value)).Font(theme.MonoFont).FontSize(11.5).Padding(10, 12).Radius(6).Background(theme.Sunken).FillWidth()
+		ui.Text(c, pretty(p.Value)).Font(theme.MonoFont).FontSize(theme.TextLabel).Padding(10, 12).Radius(theme.RadiusSmall).Background(theme.Sunken).FillWidth()
 		return
 	}
 	for _, f := range p.Files {
 		ui.Column(c.Key(f.Path)).FillWidth().Gap(6).Children(func() {
 			if len(p.Files) > 1 {
-				ui.Text(c, strings.TrimPrefix(f.Path, commonDir(p.Files)+"/")+" · "+textfmt.Bytes(uint64(len(f.Data)))).FontSize(11.5).TextColor(theme.Muted)
+				ui.Text(c, strings.TrimPrefix(f.Path, commonDir(p.Files)+"/")+" · "+textfmt.Bytes(uint64(len(f.Data)))).FontSize(theme.TextLabel).TextColor(theme.Muted)
 			}
 			switch {
 			case !isText(f.Data):
-				ui.Text(c, "Not text.").FontSize(12).TextColor(theme.Muted)
+				ui.Text(c, "Not text.").FontSize(theme.TextLabel).TextColor(theme.Muted)
 			case strings.HasSuffix(f.Path, ".md"):
 				meta, body := frontMatter(string(f.Data))
 				for _, kv := range meta {
 					ui.Row(c.Key("meta:" + kv[0])).FillWidth().Gap(8).Children(func() {
-						ui.Text(c, kv[0]).FontSize(11.5).TextColor(theme.Muted).Width(90).Shrink(0)
-						ui.Text(c, kv[1]).FontSize(12).TextColor(theme.TextSoft).Grow(1).MinWidth(0)
+						ui.Text(c, kv[0]).FontSize(theme.TextLabel).TextColor(theme.Muted).Width(90).Shrink(0)
+						ui.Text(c, kv[1]).FontSize(theme.TextLabel).TextColor(theme.TextSoft).Grow(1).MinWidth(0)
 					})
 				}
 				widget.Markdown(c, clip(body))
 			default:
-				ui.Text(c, clip(string(f.Data))).Font(theme.MonoFont).FontSize(11.5).Padding(10, 12).Radius(6).Background(theme.Sunken).FillWidth()
+				ui.Text(c, clip(string(f.Data))).Font(theme.MonoFont).FontSize(theme.TextLabel).Padding(10, 12).Radius(theme.RadiusSmall).Background(theme.Sunken).FillWidth()
 			}
 		})
 	}
@@ -188,8 +188,8 @@ func (v *View) content(c *ui.Context, o Options, p proto.EnvPayload) {
 
 // editor edits the item's one file and saves it to the host.
 func (v *View) editor(c *ui.Context, o Options) {
-	ui.TextAreaBase(c, &v.edited).FillWidth().MinHeight(360).Padding(10, 12).Radius(6).Background(theme.Sunken).
-		Font(theme.MonoFont).FontSize(12).Label("Content").AutoFocus()
+	ui.TextAreaBase(c, &v.edited).FillWidth().MinHeight(360).Padding(10, 12).Radius(theme.RadiusSmall).Background(theme.Sunken).
+		Font(theme.MonoFont).FontSize(theme.TextLabel).Label("Content").AutoFocus()
 	ui.Row(c).FillWidth().Gap(8).Justify(ui.End).Children(func() {
 		if widget.GhostButton(c, "Cancel").Clicked() {
 			v.editing = false

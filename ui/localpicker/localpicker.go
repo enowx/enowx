@@ -107,7 +107,7 @@ func (p *Picker) View(c *ui.Context) {
 		p.places(c)
 		p.list(c)
 		if p.err != "" {
-			ui.Text(c, p.err).FontSize(12).TextColor(theme.Error)
+			ui.Text(c, p.err).FontSize(theme.TextLabel).TextColor(theme.Error)
 		}
 		p.footer(c)
 	})
@@ -150,7 +150,7 @@ func (p *Picker) places(c *ui.Context) {
 			}
 			b.Children(func() {
 				ui.Icon(c, icon.Folder).FontSize(12).TextColor(theme.Muted)
-				ui.Text(c, name).FontSize(12)
+				ui.Text(c, name).FontSize(theme.TextLabel)
 			})
 			if b.Clicked() {
 				p.browse(dir)
@@ -200,7 +200,7 @@ func (p *Picker) row(c *ui.Context, e entry) {
 				svg, col = icon.Folder, theme.TextSoft
 			}
 			ui.Icon(c, svg).FontSize(13).TextColor(col)
-			name := ui.Text(c, e.name).FontSize(12.5).SingleLine().Shrink(1)
+			name := ui.Text(c, e.name).FontSize(theme.TextUI).SingleLine().Shrink(1)
 			if e.hidden {
 				name.TextColor(theme.Muted)
 			}
@@ -208,7 +208,7 @@ func (p *Picker) row(c *ui.Context, e entry) {
 			if e.dir {
 				ui.Icon(c, icon.ChevronRight).FontSize(11).TextColor(theme.Muted)
 			} else {
-				ui.Text(c, textfmt.Bytes(uint64(max(e.size, 0)))).FontSize(11).TextColor(theme.Muted).SingleLine()
+				ui.Text(c, textfmt.Bytes(uint64(max(e.size, 0)))).FontSize(theme.TextLabel).TextColor(theme.Muted).SingleLine()
 			}
 		})
 		if b.Clicked() {
@@ -226,11 +226,11 @@ func (p *Picker) row(c *ui.Context, e entry) {
 func (p *Picker) footer(c *ui.Context) {
 	ui.Row(c).FillWidth().Gap(8).Children(func() {
 		widget.Switch(c, &p.hidden, "Show hidden files")
-		ui.Text(c, "Hidden files").FontSize(12).TextColor(theme.TextSoft)
+		ui.Text(c, "Hidden files").FontSize(theme.TextLabel).TextColor(theme.TextSoft)
 		ui.Box(c).Grow(1)
 		n := len(p.selected)
 		if n > 0 {
-			ui.Text(c, fmt.Sprintf("%d picked", n)).FontSize(12).TextColor(theme.TextSoft)
+			ui.Text(c, fmt.Sprintf("%d picked", n)).FontSize(theme.TextLabel).TextColor(theme.TextSoft)
 		}
 		if widget.GhostButton(c, "Cancel").Clicked() {
 			p.open = false

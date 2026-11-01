@@ -55,14 +55,14 @@ func (v *View) Draw(c *ui.Context, o Options) {
 
 func note(c *ui.Context, text string, col ui.Color) {
 	ui.Column(c).Grow(1).FillWidth().Center().Padding(24).Children(func() {
-		ui.Text(c, text).FontSize(12.5).TextColor(col).TextAlign(ui.Center)
+		ui.Text(c, text).FontSize(theme.TextUI).TextColor(col).TextAlign(ui.Center)
 	})
 }
 
 func section(c *ui.Context, label string, n int) {
 	ui.Row(c).FillWidth().Height(30).PaddingX(14).Gap(6).Margin(6, 0, 0, 0).Children(func() {
-		ui.Text(c, label).FontSize(10.5).TextColor(theme.Muted).SingleLine()
-		ui.Text(c, strconv.Itoa(n)).FontSize(10.5).TextColor(theme.Idle).SingleLine()
+		ui.Text(c, label).FontSize(theme.TextLabel).TextColor(theme.Muted).SingleLine()
+		ui.Text(c, strconv.Itoa(n)).FontSize(theme.TextLabel).TextColor(theme.Idle).SingleLine()
 	})
 }
 
@@ -84,7 +84,7 @@ func (v *View) summary(c *ui.Context, o Options) {
 		BorderWidth(0, 0, 1, 0).BorderColor(theme.Border).Children(func() {
 		ui.Icon(c, icon.List).FontSize(13).TextColor(theme.Accent)
 		stat := func(n int, one, many string, col ui.Color) {
-			ui.Text(c, fmt.Sprintf("%d %s", n, textfmt.Plural(n, one, many))).FontSize(12).TextColor(col).SingleLine().Shrink(1)
+			ui.Text(c, fmt.Sprintf("%d %s", n, textfmt.Plural(n, one, many))).FontSize(theme.TextLabel).TextColor(col).SingleLine().Shrink(1)
 		}
 		stat(len(v.turns), "turn", "turns", theme.Text)
 		stat(tools, "tool call", "tool calls", theme.TextSoft)
@@ -106,15 +106,15 @@ func (v *View) fileRow(c *ui.Context, o Options, f edited) {
 		dir, name := path.Split(f.path)
 		ui.Row(c).Grow(1).MinWidth(0).Children(func() {
 			if dir != "" {
-				ui.Text(c, dir).Font(theme.MonoFont).FontSize(12).TextColor(theme.Muted).SingleLine().Shrink(1)
+				ui.Text(c, dir).Font(theme.MonoFont).FontSize(theme.TextLabel).TextColor(theme.Muted).SingleLine().Shrink(1)
 			}
-			ui.Text(c, name).Font(theme.MonoFont).FontSize(12).SingleLine().Shrink(0)
+			ui.Text(c, name).Font(theme.MonoFont).FontSize(theme.TextLabel).SingleLine().Shrink(0)
 		})
 		if f.added > 0 {
-			ui.Text(c, "+"+strconv.Itoa(f.added)).Font(theme.MonoFont).FontSize(11.5).TextColor(theme.Done).SingleLine().Shrink(0)
+			ui.Text(c, "+"+strconv.Itoa(f.added)).Font(theme.MonoFont).FontSize(theme.TextLabel).TextColor(theme.Done).SingleLine().Shrink(0)
 		}
 		if f.removed > 0 {
-			ui.Text(c, "−"+strconv.Itoa(f.removed)).Font(theme.MonoFont).FontSize(11.5).TextColor(theme.Error).SingleLine().Shrink(0)
+			ui.Text(c, "−"+strconv.Itoa(f.removed)).Font(theme.MonoFont).FontSize(theme.TextLabel).TextColor(theme.Error).SingleLine().Shrink(0)
 		}
 	})
 	if b.Clicked() && o.OpenFile != nil && !strings.HasPrefix(f.path, "/") {
@@ -143,8 +143,8 @@ func (v *View) turnRow(c *ui.Context, t turn, running bool, dir string) {
 				if prompt == "" {
 					prompt = "(no prompt)"
 				}
-				ui.Text(c, prompt).FontSize(12.5).TextColor(theme.Text).SingleLine().Shrink(1)
-				ui.Text(c, v.turnFacts(t, running)).FontSize(11).TextColor(theme.Muted).SingleLine().Shrink(1)
+				ui.Text(c, prompt).FontSize(theme.TextUI).TextColor(theme.Text).SingleLine().Shrink(1)
+				ui.Text(c, v.turnFacts(t, running)).FontSize(theme.TextLabel).TextColor(theme.Muted).SingleLine().Shrink(1)
 			})
 			if running {
 				widget.Spinner(c, 12)
@@ -160,7 +160,7 @@ func (v *View) turnRow(c *ui.Context, t turn, running bool, dir string) {
 		if open {
 			ui.Column(c).FillWidth().Padding(0, 14, 8, 33).Gap(2).Children(func() {
 				if len(t.tools) == 0 {
-					ui.Text(c, "No tools: it answered.").FontSize(11.5).TextColor(theme.Muted)
+					ui.Text(c, "No tools: it answered.").FontSize(theme.TextLabel).TextColor(theme.Muted)
 				}
 				for i, e := range t.tools {
 					toolRow(c.Key(i), e, dir)
@@ -202,11 +202,11 @@ func toolRow(c *ui.Context, e proto.TranscriptEntry, dir string) {
 	}
 	ui.Row(c).FillWidth().Height(22).Gap(8).Children(func() {
 		ui.Icon(c, toolIcon(e.Text)).FontSize(11).TextColor(theme.Muted)
-		ui.Text(c, e.Text).FontSize(11.5).TextColor(col).SingleLine().Shrink(0)
-		ui.Text(c, textfmt.FirstLine(relative(dir, e.Detail), 140)).Font(theme.MonoFont).FontSize(11).TextColor(theme.Muted).SingleLine().Shrink(1)
+		ui.Text(c, e.Text).FontSize(theme.TextLabel).TextColor(col).SingleLine().Shrink(0)
+		ui.Text(c, textfmt.FirstLine(relative(dir, e.Detail), 140)).Font(theme.MonoFont).FontSize(theme.TextLabel).TextColor(theme.Muted).SingleLine().Shrink(1)
 		ui.Spacer(c)
 		if e.Added > 0 || e.Removed > 0 {
-			ui.Text(c, fmt.Sprintf("+%d −%d", e.Added, e.Removed)).Font(theme.MonoFont).FontSize(11).TextColor(theme.Muted).SingleLine().Shrink(0)
+			ui.Text(c, fmt.Sprintf("+%d −%d", e.Added, e.Removed)).Font(theme.MonoFont).FontSize(theme.TextLabel).TextColor(theme.Muted).SingleLine().Shrink(0)
 		}
 	})
 }

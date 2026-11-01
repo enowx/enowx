@@ -105,16 +105,16 @@ func (a *App) configSheet(c *ui.Context, st *accountsState) {
 		case kindAPI:
 			a.configAPIFields(c, f)
 		case kindAccount:
-			ui.Text(c, "Its own sign-in, in a home of its own sharing "+a.agentName(f.agent)+"'s settings, skills and conversations. Once saved, it signs in on "+a.host.Name+"; on another host, sign it in there from its menu.").FontSize(11.5).TextColor(theme.Muted)
+			ui.Text(c, "Its own sign-in, in a home of its own sharing "+a.agentName(f.agent)+"'s settings, skills and conversations. Once saved, it signs in on "+a.host.Name+"; on another host, sign it in there from its menu.").FontSize(theme.TextLabel).TextColor(theme.Muted)
 		case kindKey:
 			widget.Field(c, "The vault's credential", func() {
 				widget.Input(c, &f.cred, "anthropic-work").FillWidth().Font(theme.MonoFont)
 			})
-			ui.Text(c, "Its value stays in the vault: sessions on this config get it as the vault lends credentials, never shown.").FontSize(11.5).TextColor(theme.Muted)
+			ui.Text(c, "Its value stays in the vault: sessions on this config get it as the vault lends credentials, never shown.").FontSize(theme.TextLabel).TextColor(theme.Muted)
 		}
 		a.configExtras(c, f)
 		if f.err != "" {
-			ui.Text(c, f.err).FontSize(12).TextColor(theme.Error)
+			ui.Text(c, f.err).FontSize(theme.TextLabel).TextColor(theme.Error)
 		}
 	}, func() {
 		label := "Save"
@@ -170,19 +170,19 @@ func (a *App) vaultKeyNames(c *ui.Context, value *string) {
 		}
 	}
 	if len(names) == 0 {
-		ui.Text(c, "Keep the key in the vault first (Vault → Add), then name it here: its value never leaves the vault but for the session.").FontSize(11).TextColor(theme.Muted)
+		ui.Text(c, "Keep the key in the vault first (Vault → Add), then name it here: its value never leaves the vault but for the session.").FontSize(theme.TextLabel).TextColor(theme.Muted)
 		return
 	}
 	ui.Row(c).FillWidth().Wrap().Gap(6).AlignItems(ui.Center).Children(func() {
-		ui.Text(c, "In the vault:").FontSize(11.5).TextColor(theme.Muted)
+		ui.Text(c, "In the vault:").FontSize(theme.TextLabel).TextColor(theme.Muted)
 		for _, n := range names {
-			b := ui.ButtonBase(c.Key("cred:"+n)).Height(24).PaddingX(8).Radius(12).Border(1, theme.Border).Cursor(ui.CursorPointer).Label("Use " + n)
+			b := ui.ButtonBase(c.Key("cred:"+n)).Height(24).PaddingX(8).Radius(theme.RadiusSmall).Border(1, theme.Border).Cursor(ui.CursorPointer).Label("Use " + n)
 			if *value == n {
 				b.Background(theme.Selected)
 			} else if b.Hovered() {
 				b.Background(theme.Hover)
 			}
-			b.Children(func() { ui.Text(c, n).FontSize(11.5).TextColor(theme.TextSoft) })
+			b.Children(func() { ui.Text(c, n).FontSize(theme.TextLabel).TextColor(theme.TextSoft) })
 			if widget.Pressable(b).Clicked() {
 				*value = n
 			}
@@ -212,7 +212,7 @@ func (a *App) configExtras(c *ui.Context, f *configForm) {
 		})
 	}
 	widget.Field(c, "Variables its sessions get (NAME=VALUE, a line each)", func() {
-		ui.TextAreaBase(c, &f.env).FillWidth().MinHeight(48).MaxHeight(140).Padding(9, 11).FontSize(12).Font(theme.MonoFont).
+		ui.TextAreaBase(c, &f.env).FillWidth().MinHeight(48).MaxHeight(140).Padding(9, 11).FontSize(theme.TextLabel).Font(theme.MonoFont).
 			Label("Variables").Radius(theme.RadiusControl).Background(theme.Sunken).Border(1, theme.Border).Placeholder("DISABLE_TELEMETRY=1")
 	})
 	widget.Field(c, "Flags added to its command line", func() {

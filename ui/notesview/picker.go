@@ -132,13 +132,13 @@ func (v *View) libraryIcons(c *ui.Context, o Options, current string, pick func(
 		shown := p.libraries()
 		for _, l := range iconlib.Libraries {
 			on := slices.Contains(shown, l.ID)
-			b := ui.ButtonBase(c.Key(l.ID)).Height(22).PaddingX(9).Radius(11).Border(1, theme.Border).Cursor(ui.CursorPointer).
+			b := ui.ButtonBase(c.Key(l.ID)).Height(22).PaddingX(9).Radius(theme.RadiusSmall).Border(1, theme.Border).Cursor(ui.CursorPointer).
 				Label("Library " + l.Name)
 			if on {
 				b.Background(theme.Selected).Border(1, theme.AccentLine)
 			}
 			b.Children(func() {
-				ui.Text(c, l.Name).FontSize(11).TextColor(map[bool]ui.Color{true: theme.Accent, false: theme.Muted}[on])
+				ui.Text(c, l.Name).FontSize(theme.TextLabel).TextColor(map[bool]ui.Color{true: theme.Accent, false: theme.Muted}[on])
 			})
 			if b.Clicked() {
 				v.toggleLibrary(o, l.ID, on)
@@ -146,9 +146,9 @@ func (v *View) libraryIcons(c *ui.Context, o Options, current string, pick func(
 		}
 	})
 	ui.Row(c).FillWidth().Gap(6).AlignItems(ui.Center).Children(func() {
-		ui.Text(c, "Color").FontSize(11).TextColor(theme.Muted).Width(40)
+		ui.Text(c, "Color").FontSize(theme.TextLabel).TextColor(theme.Muted).Width(40)
 		for _, col := range append([]string{""}, pickerColors...) {
-			sw := ui.ButtonBase(c.Key("c"+col)).Size(16, 16).Radius(8).Cursor(ui.CursorPointer).Label("Icon color " + col)
+			sw := ui.ButtonBase(c.Key("c"+col)).Size(16, 16).Radius(theme.RadiusSmall).Cursor(ui.CursorPointer).Label("Icon color " + col)
 			if col == "" {
 				sw.Border(1, theme.BorderStrong).Background(theme.TextSoft).Tooltip("The text's color, as the theme")
 			} else {
@@ -169,7 +169,7 @@ func (v *View) libraryIcons(c *ui.Context, o Options, current string, pick func(
 	if r, err := iconlib.Parse(current); err == nil && current != "" {
 		// How large it shows above its page's title.
 		ui.Row(c).FillWidth().Gap(6).AlignItems(ui.Center).Children(func() {
-			ui.Text(c, "Size").FontSize(11).TextColor(theme.Muted).Width(40)
+			ui.Text(c, "Size").FontSize(theme.TextLabel).TextColor(theme.Muted).Width(40)
 			for _, sz := range []struct {
 				label string
 				pts   int
@@ -201,7 +201,7 @@ func (v *View) libraryIcons(c *ui.Context, o Options, current string, pick func(
 				label = "Found"
 			}
 			if len(refs) == 0 {
-				ui.Text(c, "No icon for that: try a simpler word.").FontSize(12).TextColor(theme.Muted).Padding(8, 2)
+				ui.Text(c, "No icon for that: try a simpler word.").FontSize(theme.TextLabel).TextColor(theme.Muted).Padding(8, 2)
 			}
 			v.iconSection(c, label, refs, current, pick)
 			if len(found) > p.shown && widget.GhostButton(c, "Show more").Clicked() {
@@ -218,10 +218,10 @@ func (v *View) iconSection(c *ui.Context, label string, refs []string, current s
 		return
 	}
 	ui.Column(c.Key(label)).FillWidth().Gap(3).Children(func() {
-		ui.Text(c, label).FontSize(10.5).FontWeight(600).TextColor(theme.Muted)
+		ui.Text(c, label).FontSize(theme.TextLabel).FontWeight(600).TextColor(theme.Muted)
 		ui.Row(c).FillWidth().Gap(2).Wrap().Children(func() {
 			for _, ref := range refs {
-				b := ui.ButtonBase(c.Key(ref)).Size(36, 32).Radius(6).Center().Cursor(ui.CursorPointer).Label("Icon " + ref).Tooltip(ref)
+				b := ui.ButtonBase(c.Key(ref)).Size(36, 32).Radius(theme.RadiusSmall).Center().Cursor(ui.CursorPointer).Label("Icon " + ref).Tooltip(ref)
 				if sameIcon(ref, current) {
 					b.Background(theme.Selected).Border(1, theme.AccentLine)
 				} else if b.Hovered() {
@@ -273,7 +273,7 @@ func (v *View) favoriteRow(c *ui.Context, o Options, current string) {
 		if r.Custom != "" {
 			name = "Your own SVG"
 		}
-		ui.Text(c, name).FontSize(11.5).TextColor(theme.TextSoft).SingleLine().Shrink(1)
+		ui.Text(c, name).FontSize(theme.TextLabel).TextColor(theme.TextSoft).SingleLine().Shrink(1)
 		ui.Spacer(c)
 		label := "Add to favorites"
 		if fav {
@@ -340,7 +340,7 @@ func (v *View) customIcon(c *ui.Context, o Options, pick func(ref string)) {
 	p := &v.picker
 	ui.Text(c, "Paste SVG code, or choose a file. It is cleaned first: scripts, links out and embedded content go.").
 		FontSize(11.5).TextColor(theme.Muted)
-	ui.TextAreaBase(c, &p.svg).FillWidth().Lines(4, 8).Font(theme.MonoFont).FontSize(11).Padding(8).Radius(6).
+	ui.TextAreaBase(c, &p.svg).FillWidth().Lines(4, 8).Font(theme.MonoFont).FontSize(theme.TextLabel).Padding(8).Radius(theme.RadiusSmall).
 		Background(theme.Sunken).Border(1, theme.BorderStrong).Placeholder("<svg viewBox=\"0 0 24 24\">…</svg>").Label("SVG code")
 	ui.Row(c).FillWidth().Gap(8).AlignItems(ui.Center).Children(func() {
 		if o.OpenSVG != nil && widget.Button(c, widget.Secondary, icon.File, "Choose a file…", "").Height(28).Clicked() {
@@ -363,16 +363,16 @@ func (v *View) customIcon(c *ui.Context, o Options, pick func(ref string)) {
 	}
 	ref, err := p.customRef, p.customErr
 	ui.Row(c).FillWidth().Gap(10).AlignItems(ui.Center).Children(func() {
-		ui.Row(c).Size(48, 48).Radius(8).Center().Background(theme.Sunken).Children(func() {
+		ui.Row(c).Size(48, 48).Radius(theme.RadiusSmall).Center().Background(theme.Sunken).Children(func() {
 			if ref != "" {
 				widget.NoteIcon(c, ref, 32, theme.Text, nil)
 			}
 		})
 		switch {
 		case err != nil:
-			ui.Text(c, err.Error()).FontSize(11.5).TextColor(theme.Error).Grow(1).MinWidth(0)
+			ui.Text(c, err.Error()).FontSize(theme.TextLabel).TextColor(theme.Error).Grow(1).MinWidth(0)
 		case p.err != "":
-			ui.Text(c, p.err).FontSize(11.5).TextColor(theme.Error).Grow(1).MinWidth(0)
+			ui.Text(c, p.err).FontSize(theme.TextLabel).TextColor(theme.Error).Grow(1).MinWidth(0)
 		default:
 			ui.Spacer(c)
 		}

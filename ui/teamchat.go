@@ -289,13 +289,13 @@ func (a *App) chatTab(c *ui.Context) {
 		// Not "no message yet": they may just not be read, or have come.
 		ui.Column(c).Grow(1).FillWidth().Center().Gap(8).Padding(24).Children(func() {
 			widget.Spinner(c, 14)
-			ui.Text(c, "Reading the chat…").FontSize(12).TextColor(theme.Muted)
+			ui.Text(c, "Reading the chat…").FontSize(theme.TextLabel).TextColor(theme.Muted)
 		})
 	case len(msgs) == 0:
 		ui.Column(c).Grow(1).FillWidth().Center().Gap(6).Padding(24).Children(func() {
 			ui.Icon(c, icon.Chat).FontSize(22).TextColor(theme.Idle)
-			ui.Text(c, "No message yet: say hello to "+a.spaceName(team)+".").FontSize(12).TextColor(theme.Muted)
-			ui.Text(c, "Type @ to mention a member, a note or a file.").FontSize(11).TextColor(theme.Idle)
+			ui.Text(c, "No message yet: say hello to "+a.spaceName(team)+".").FontSize(theme.TextLabel).TextColor(theme.Muted)
+			ui.Text(c, "Type @ to mention a member, a note or a file.").FontSize(theme.TextLabel).TextColor(theme.Idle)
 		})
 	default:
 		a.chatMessages(c, team, msgs)
@@ -317,12 +317,12 @@ func (a *App) teamHeader(c *ui.Context, team string) {
 			a.state.Panel.Team = t
 		})
 		if n := len(a.teamMembers(team)); n > 0 {
-			ui.Text(c, textfmt.Plural(n, "1 member", fmt.Sprintf("%d members", n))).FontSize(11).TextColor(theme.Muted).SingleLine()
+			ui.Text(c, textfmt.Plural(n, "1 member", fmt.Sprintf("%d members", n))).FontSize(theme.TextLabel).TextColor(theme.Muted).SingleLine()
 		}
 		if n := len(a.hereOf().byTeam[team].Online); n > 0 {
 			ui.Row(c).Gap(4).AlignItems(ui.Center).Children(func() {
-				ui.Box(c).Size(6, 6).Radius(3).Background(theme.Done)
-				ui.Text(c, fmt.Sprintf("%d online", n)).FontSize(11).TextColor(theme.Muted).SingleLine()
+				ui.Box(c).Size(6, 6).Radius(theme.RadiusTail).Background(theme.Done)
+				ui.Text(c, fmt.Sprintf("%d online", n)).FontSize(theme.TextLabel).TextColor(theme.Muted).SingleLine()
 			})
 		}
 		ui.Spacer(c)
@@ -373,7 +373,7 @@ func (a *App) chatChip(c *ui.Context) {
 	b := titleChip(c, "chat-unread", label).Tooltip("Team chat: messages you haven't read")
 	b.TextColor(theme.Accent).Children(func() {
 		ui.Icon(c, icon.Chat).FontSize(11)
-		ui.Text(c, label).FontSize(11.5).SingleLine()
+		ui.Text(c, label).FontSize(theme.TextLabel).SingleLine()
 	})
 	if b.Clicked() {
 		a.state.Panel.Team = team

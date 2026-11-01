@@ -93,9 +93,9 @@ func (a *App) quickOpenDialog(c *ui.Context) {
 		}
 		switch {
 		case q.err != "":
-			ui.Text(c, q.err).FontSize(12).TextColor(theme.Error).Padding(8)
+			ui.Text(c, q.err).FontSize(theme.TextLabel).TextColor(theme.Error).Padding(8)
 		case len(q.paths) == 0 && q.asked == q.query:
-			ui.Text(c, "No file matches.").FontSize(12).TextColor(theme.Muted).Padding(8)
+			ui.Text(c, "No file matches.").FontSize(theme.TextLabel).TextColor(theme.Muted).Padding(8)
 		}
 		ui.Scroll(c).FillWidth().MaxHeight(420).Children(func() {
 			ui.Column(c).FillWidth().Gap(1).Children(func() {
@@ -104,8 +104,8 @@ func (a *App) quickOpenDialog(c *ui.Context) {
 					row := ui.ButtonBase(c.Key(p)).Label(p)
 					widget.ListRow(c, row, i == q.pick, "quickopen", func() {
 						ui.Icon(c, icon.File).FontSize(13).TextColor(theme.TextSoft)
-						ui.Text(c, name).FontSize(12.5).SingleLine().Shrink(0)
-						ui.Text(c, strings.TrimSuffix(dir, "/")).Font(theme.MonoFont).FontSize(11).TextColor(theme.Muted).SingleLine().Shrink(1)
+						ui.Text(c, name).FontSize(theme.TextUI).SingleLine().Shrink(0)
+						ui.Text(c, strings.TrimSuffix(dir, "/")).Font(theme.MonoFont).FontSize(theme.TextLabel).TextColor(theme.Muted).SingleLine().Shrink(1)
 					})
 					if row.Clicked() {
 						chosen = p

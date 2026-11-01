@@ -47,9 +47,9 @@ func (v *View) budgets(c *ui.Context, d Data, o Options) {
 	for _, b := range d.Budgets {
 		widget.Card(c.Key(b.ID)).Children(func() {
 			ui.Row(c).FillWidth().Gap(10).Children(func() {
-				ui.Text(c, budgetTitle(b.TokenBudget, o)).FontSize(12.5).Grow(1).Shrink(1).SingleLine()
+				ui.Text(c, budgetTitle(b.TokenBudget, o)).FontSize(theme.TextUI).Grow(1).Shrink(1).SingleLine()
 				col := widget.Level(b.Fraction)
-				ui.Text(c, fmt.Sprintf("%d%%", int(b.Fraction*100))).FontSize(12.5).TextColor(col)
+				ui.Text(c, fmt.Sprintf("%d%%", int(b.Fraction*100))).FontSize(theme.TextUI).TextColor(col)
 				if widget.IconButton(c, icon.Pencil, "Change", false).Clicked() {
 					v.budget = formOf(b.TokenBudget)
 				}
@@ -63,7 +63,7 @@ func (v *View) budgets(c *ui.Context, d Data, o Options) {
 				}
 			})
 			widget.Meter(c, widget.Segment{Fraction: min(b.Fraction, 1), Color: widget.Level(b.Fraction)})
-			ui.Text(c, budgetUsed(b)).FontSize(11).TextColor(theme.Muted)
+			ui.Text(c, budgetUsed(b)).FontSize(theme.TextLabel).TextColor(theme.Muted)
 		})
 	}
 }
@@ -148,7 +148,7 @@ func (v *View) budgetSheet(c *ui.Context, d Data, o Options) {
 			}
 		})
 		if f.err != "" {
-			ui.Text(c, f.err).FontSize(12).TextColor(theme.Error)
+			ui.Text(c, f.err).FontSize(theme.TextLabel).TextColor(theme.Error)
 		}
 	}, func() {
 		if widget.PrimaryButton(c, nil, "Save", "").Clicked() {

@@ -59,26 +59,26 @@ func (a *App) routeField(c *ui.Context) {
 		switch {
 		case r.asking:
 			widget.Spinner(c, 12)
-			ui.Text(c, "The judge weighs the prompt…").FontSize(12).TextColor(theme.Muted)
+			ui.Text(c, "The judge weighs the prompt…").FontSize(theme.TextLabel).TextColor(theme.Muted)
 		case r.applied:
 			widget.Tag(c, routeLabel(s, *r.choice), theme.Done)
-			ui.Text(c, r.choice.Why).FontSize(11.5).TextColor(theme.TextSoft).Shrink(1).MaxLines(2)
+			ui.Text(c, r.choice.Why).FontSize(theme.TextLabel).TextColor(theme.TextSoft).Shrink(1).MaxLines(2)
 			ui.Spacer(c)
 			if widget.GhostButton(c.Key("undo"), "Its own model").Clicked() {
 				r.applied = false
 			}
 		case r.err != "" && r.asked == prompt:
-			ui.Text(c, r.err).FontSize(11.5).TextColor(theme.Error).Shrink(1)
+			ui.Text(c, r.err).FontSize(theme.TextLabel).TextColor(theme.Error).Shrink(1)
 		case r.choice != nil && r.asked == prompt:
 			if r.choice.Model == "" && r.choice.Effort == "" {
 				why := r.choice.Why
 				if r.choice.Error != "" {
 					why = "No answer: " + r.choice.Error
 				}
-				ui.Text(c, why+" Its own model is kept.").FontSize(11.5).TextColor(theme.Muted).Shrink(1)
+				ui.Text(c, why+" Its own model is kept.").FontSize(theme.TextLabel).TextColor(theme.Muted).Shrink(1)
 				return
 			}
-			ui.Text(c, "Suggested: "+routeLabel(s, *r.choice)+". "+r.choice.Why).FontSize(11.5).TextColor(theme.TextSoft).Shrink(1).MaxLines(2)
+			ui.Text(c, "Suggested: "+routeLabel(s, *r.choice)+". "+r.choice.Why).FontSize(theme.TextLabel).TextColor(theme.TextSoft).Shrink(1).MaxLines(2)
 			ui.Spacer(c)
 			if widget.Button(c.Key("use"), widget.Secondary, icon.Check, "Use it", "").Height(26).Clicked() {
 				r.applied = true

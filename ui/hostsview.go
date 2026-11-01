@@ -144,7 +144,7 @@ func (a *App) hostsPage(c *ui.Context) {
 			})
 			widget.SectionLabel(c, "ON YOUR TAILNET", theme.Muted).Margin(10, 0, 0, 0)
 			if note := a.tailnetNote(); note != "" {
-				ui.Text(c, note).FontSize(12).TextColor(theme.Muted)
+				ui.Text(c, note).FontSize(theme.TextLabel).TextColor(theme.Muted)
 			}
 			widget.FitGrid(c, 340, 3).Gap(8).Children(func() {
 				for _, p := range a.newPeers() {
@@ -153,7 +153,7 @@ func (a *App) hostsPage(c *ui.Context) {
 							widget.Avatar(c, icon.Tailscale, 30, theme.TextSoft)
 							ui.Column(c).Gap(1).Grow(1).MinWidth(0).Children(func() {
 								ui.Text(c, p.HostName).SingleLine()
-								ui.Text(c, p.OS+" · "+p.Address()).Font(theme.MonoFont).FontSize(11).TextColor(theme.Muted).SingleLine()
+								ui.Text(c, p.OS+" · "+p.Address()).Font(theme.MonoFont).FontSize(theme.TextLabel).TextColor(theme.Muted).SingleLine()
 							})
 							widget.Dot(c, peerColor(p.Online), !p.Online, 6)
 							if widget.GhostButton(c, "Connect").Clicked() {
@@ -180,29 +180,29 @@ func (a *App) hostCard(c *ui.Context, h hosts.Host) {
 			hostTile(c, h)
 			ui.Column(c).Gap(1).Grow(1).MinWidth(0).Children(func() {
 				ui.Text(c, h.Name).SingleLine()
-				ui.Text(c, hostDetail(h)).Font(theme.MonoFont).FontSize(11).TextColor(theme.Muted).SingleLine()
+				ui.Text(c, hostDetail(h)).Font(theme.MonoFont).FontSize(theme.TextLabel).TextColor(theme.Muted).SingleLine()
 				if note := runAsNote(h); note != "" {
-					ui.Text(c, note).FontSize(11).TextColor(theme.TextSoft).SingleLine()
+					ui.Text(c, note).FontSize(theme.TextLabel).TextColor(theme.TextSoft).SingleLine()
 				}
 			})
 			if current {
 				col, state := a.connectionState()
 				ui.Row(c).Gap(6).Shrink(0).Children(func() {
 					widget.Dot(c, col, false, 6)
-					ui.Text(c, state).FontSize(11).TextColor(theme.Muted).SingleLine().MaxWidth(160)
+					ui.Text(c, state).FontSize(theme.TextLabel).TextColor(theme.Muted).SingleLine().MaxWidth(160)
 				})
 			} else if st, ok := a.statusOfHost(h); ok {
 				ui.Row(c).Gap(6).Shrink(0).Children(func() {
 					col := hostColor(st)
 					widget.Dot(c, col, col == (ui.Color{}), 6)
-					ui.Text(c, hostState(st)).FontSize(11).TextColor(theme.Muted).SingleLine().MaxWidth(200)
+					ui.Text(c, hostState(st)).FontSize(theme.TextLabel).TextColor(theme.Muted).SingleLine().MaxWidth(200)
 				})
 			}
 		})
 		if st, ok := a.statusOfHost(h); ok && st.state == hostOnline {
 			hostUsageRow(c, st)
 		} else if ok && st.err != "" && st.state != hostConnecting {
-			ui.Text(c, st.err).FontSize(11).TextColor(theme.Muted).MaxLines(2)
+			ui.Text(c, st.err).FontSize(theme.TextLabel).TextColor(theme.Muted).MaxLines(2)
 		}
 		ui.Row(c).FillWidth().Gap(6).Justify(ui.End).Children(func() {
 			// What is done now and then waits behind ⋯; the card keeps
@@ -292,9 +292,9 @@ func (a *App) trustAsk(c *ui.Context) *widget.Ask {
 func trustFacts(c *ui.Context, t *trustPrompt) {
 	ui.Text(c, "This is the first connection to "+t.addr+". Check that its key fingerprint matches the server's before trusting it:").
 		FontSize(12.5).TextColor(theme.TextSoft)
-	ui.Text(c, t.fingerprint).Font(theme.MonoFont).FontSize(12).Padding(10).Radius(theme.RadiusControl).
+	ui.Text(c, t.fingerprint).Font(theme.MonoFont).FontSize(theme.TextLabel).Padding(10).Radius(theme.RadiusControl).
 		Background(theme.Sunken).Border(1, theme.Border).FillWidth()
-	ui.Text(c, "On the server: for f in /etc/ssh/ssh_host_*_key.pub; do ssh-keygen -lf $f; done").Font(theme.MonoFont).FontSize(11).TextColor(theme.Muted)
+	ui.Text(c, "On the server: for f in /etc/ssh/ssh_host_*_key.pub; do ssh-keygen -lf $f; done").Font(theme.MonoFont).FontSize(theme.TextLabel).TextColor(theme.Muted)
 }
 
 // exportHosts saves the host list to a file the user picks, for another

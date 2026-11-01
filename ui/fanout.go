@@ -44,7 +44,7 @@ func (a *App) alsoField(c *ui.Context) {
 				}
 				b.Children(func() {
 					agentTile(c, ag.ID, 16)
-					ui.Text(c, ag.Name).FontSize(12)
+					ui.Text(c, ag.Name).FontSize(theme.TextLabel)
 				})
 				if b.Clicked() {
 					if on {
@@ -139,7 +139,7 @@ func (a *App) compareDialogView(c *ui.Context) {
 			widget.Notice(c, icon.Alert, theme.Error, d.err, "", nil)
 		}
 		if len(list) == 0 {
-			ui.Text(c, "These sessions are gone.").FontSize(12).TextColor(theme.Muted)
+			ui.Text(c, "These sessions are gone.").FontSize(theme.TextLabel).TextColor(theme.Muted)
 		}
 		for _, s := range list {
 			a.compareRow(c.Key(s.ID), s, list)
@@ -161,7 +161,7 @@ func (a *App) compareRow(c *ui.Context, s proto.SessionInfo, group []proto.Sessi
 		ui.Row(c).FillWidth().Gap(10).Children(func() {
 			agentTile(c, s.Agent, 26)
 			ui.Column(c).Grow(1).MinWidth(0).Gap(2).Children(func() {
-				ui.Text(c, a.agentName(s.Agent)+" · "+s.Branch).FontSize(12.5).SingleLine()
+				ui.Text(c, a.agentName(s.Agent)+" · "+s.Branch).FontSize(theme.TextUI).SingleLine()
 				var detail []string
 				if s.State != "" {
 					detail = append(detail, string(s.State))
@@ -176,7 +176,7 @@ func (a *App) compareRow(c *ui.Context, s proto.SessionInfo, group []proto.Sessi
 				if s.Note != "" {
 					detail = append(detail, s.Note)
 				}
-				ui.Text(c, strings.Join(detail, " · ")).FontSize(11).TextColor(theme.Muted).SingleLine()
+				ui.Text(c, strings.Join(detail, " · ")).FontSize(theme.TextLabel).TextColor(theme.Muted).SingleLine()
 			})
 			if widget.GhostButton(c, "Show").Clicked() {
 				d.open = false

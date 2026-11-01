@@ -140,14 +140,14 @@ func (e *editor) imageMentionMenu(c *ui.Context, in ui.Element, text string, set
 	e.mentionPick = min(e.mentionPick, len(matches)-1)
 	ui.Overlay(c, func() {
 		menu := ui.Column(c).AttachTo(in, ui.AnchorBottomStart, ui.AnchorTopStart).Width(260).MaxHeight(260).
-			Padding(4).Gap(1).Margin(4, 0, 0, 0).Radius(8).Background(theme.Raised).Border(1, theme.Border).
+			Padding(4).Gap(1).Margin(4, 0, 0, 0).Radius(theme.RadiusSmall).Background(theme.Raised).Border(1, theme.Border).
 			Shadow(0, 8, 24, 0, ui.RGBA(0, 0, 0, 0.35))
 		e.menuIn = e.menuIn || menu.Hovered()
 		menu.Children(func() {
-			ui.Text(c, "Mention an image").FontSize(10.5).TextColor(theme.Muted).Padding(4, 8)
+			ui.Text(c, "Mention an image").FontSize(theme.TextLabel).TextColor(theme.Muted).Padding(4, 8)
 			ui.Scroll(c).FillWidth().Shrink(1).MinHeight(0).MaxHeight(220).Children(func() {
 				for j, img := range matches {
-					row := ui.ButtonBase(c.Key(img.ref)).FillWidth().Padding(6, 8).Gap(8).Radius(5).
+					row := ui.ButtonBase(c.Key(img.ref)).FillWidth().Padding(6, 8).Gap(8).Radius(theme.RadiusSmall).
 						AlignItems(ui.Center).Cursor(ui.CursorPointer).Label("Choose image " + img.name)
 					if j == e.mentionPick || row.Hovered() {
 						row.Background(theme.Hover)
@@ -155,8 +155,8 @@ func (e *editor) imageMentionMenu(c *ui.Context, in ui.Element, text string, set
 					row.Children(func() {
 						ui.Icon(c, icon.Image).FontSize(14).TextColor(theme.Muted)
 						ui.Column(c).Grow(1).MinWidth(0).Children(func() {
-							ui.Text(c, img.name).FontSize(12.5).TextColor(theme.Text).SingleLine()
-							ui.Text(c, path.Base(img.ref)).FontSize(10.5).TextColor(theme.Muted).SingleLine()
+							ui.Text(c, img.name).FontSize(theme.TextUI).TextColor(theme.Text).SingleLine()
+							ui.Text(c, path.Base(img.ref)).FontSize(theme.TextLabel).TextColor(theme.Muted).SingleLine()
 						})
 					})
 					if row.Clicked() {

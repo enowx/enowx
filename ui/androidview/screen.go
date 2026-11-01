@@ -195,10 +195,10 @@ func (v *View) screenPane(c *ui.Context, o Options) {
 	}
 	ui.Column(c).Grow(1).FillWidth().Center().Gap(10).Padding(24).Children(func() {
 		if !ok || d.dev.State != "device" {
-			ui.Text(c, "The device's screen shows here once it runs.").FontSize(12).TextColor(theme.Muted)
+			ui.Text(c, "The device's screen shows here once it runs.").FontSize(theme.TextLabel).TextColor(theme.Muted)
 			return
 		}
-		ui.Text(c, "Use "+d.label()+" from here: touch, type, its buttons.").FontSize(12).TextColor(theme.Muted).TextAlign(ui.Center)
+		ui.Text(c, "Use "+d.label()+" from here: touch, type, its buttons.").FontSize(theme.TextLabel).TextColor(theme.Muted).TextAlign(ui.Center)
 		if widget.PrimaryButton(c, icon.AppWindow, "Show its screen", "").Disabled(v.busy != "").Clicked() {
 			v.openScreen(o, d)
 		}
@@ -224,7 +224,7 @@ func (v *View) screenView(c *ui.Context, o Options, d device) {
 			row.Grow(1)
 		}
 		row.Children(func() {
-			box := ui.Column(c).Shrink(1).MinWidth(0).MinHeight(0).Center().Radius(16).Background(ui.RGBA(0, 0, 0, 1))
+			box := ui.Column(c).Shrink(1).MinWidth(0).MinHeight(0).Center().Radius(theme.RadiusCard).Background(ui.RGBA(0, 0, 0, 1))
 			if landscape {
 				box.FillWidth().AspectRatio(aspect)
 			} else {
@@ -233,11 +233,11 @@ func (v *View) screenView(c *ui.Context, o Options, d device) {
 			box.Children(func() {
 				switch {
 				case s.err != "":
-					ui.Text(c, s.err).FontSize(12).TextColor(ui.RGBA(170, 170, 170, 1)).TextAlign(ui.Center).Padding(16)
+					ui.Text(c, s.err).FontSize(theme.TextLabel).TextColor(ui.RGBA(170, 170, 170, 1)).TextAlign(ui.Center).Padding(16)
 				case s.view != nil:
 					s.view.Show(c).FillWidth().FillHeight()
 				default:
-					ui.Text(c, "Connecting to the device…").FontSize(12).TextColor(ui.RGBA(170, 170, 170, 1))
+					ui.Text(c, "Connecting to the device…").FontSize(theme.TextLabel).TextColor(ui.RGBA(170, 170, 170, 1))
 				}
 			})
 		})

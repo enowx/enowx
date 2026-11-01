@@ -94,7 +94,7 @@ func (p *Panel) Draw(c *ui.Context, run *proto.CanvasUnslopRun, o PanelOptions) 
 			case run.Scans <= 1:
 				label = o.Reading
 			}
-			ui.Text(c, label).FontSize(12.5).FontWeight(600).SingleLine().Grow(1).Shrink(1)
+			ui.Text(c, label).FontSize(theme.TextUI).FontWeight(600).SingleLine().Grow(1).Shrink(1)
 			if run.Done && o.Compare != nil {
 				if widget.Button(c, widget.Secondary, icon.Columns, "Compare", "").Clicked() {
 					o.Compare()
@@ -113,10 +113,10 @@ func (p *Panel) Draw(c *ui.Context, run *proto.CanvasUnslopRun, o PanelOptions) 
 		})
 		ui.Row(c).FillWidth().Gap(8).AlignItems(ui.End).Children(func() {
 			ui.Text(c, fmt.Sprint(int(math.Round(h.shown)))).FontSize(30).FontWeight(300).TextColor(col).Font(theme.MonoFont)
-			ui.Text(c, "/100").FontSize(12).TextColor(theme.Muted).Margin(0, 0, 6, 0)
+			ui.Text(c, "/100").FontSize(theme.TextLabel).TextColor(theme.Muted).Margin(0, 0, 6, 0)
 			ui.Spacer(c)
 			if run.Score != run.From || run.Done {
-				ui.Text(c, fmt.Sprintf("from %d", run.From)).FontSize(11.5).TextColor(theme.Muted).Margin(0, 0, 6, 0)
+				ui.Text(c, fmt.Sprintf("from %d", run.From)).FontSize(theme.TextLabel).TextColor(theme.Muted).Margin(0, 0, 6, 0)
 			}
 		})
 	}, func() {
@@ -127,19 +127,19 @@ func (p *Panel) Draw(c *ui.Context, run *proto.CanvasUnslopRun, o PanelOptions) 
 			// Where a project's code is redesigned: going back undoes it.
 			ui.Row(c).FillWidth().Gap(6).AlignItems(ui.Center).Tooltip("Switch back to " + run.Base + " to undo it all; each pass is a commit of its own").Children(func() {
 				ui.Icon(c, icon.Git).FontSize(11).TextColor(theme.Muted)
-				ui.Text(c, run.Branch+" · from "+run.Base).FontSize(11).TextColor(theme.Muted).Font(theme.MonoFont).SingleLine().Shrink(1)
+				ui.Text(c, run.Branch+" · from "+run.Base).FontSize(theme.TextLabel).TextColor(theme.Muted).Font(theme.MonoFont).SingleLine().Shrink(1)
 			})
 		}
 		if run.Brief != nil {
 			p.drawBrief(c, *run.Brief)
 		}
 		// How far through the passes.
-		ui.Box(c).FillWidth().Height(4).Radius(2).Background(theme.Sunken).Children(func() {
+		ui.Box(c).FillWidth().Height(4).Radius(theme.RadiusTail).Background(theme.Sunken).Children(func() {
 			done := float32(len(run.Finished)) / float32(max(len(run.Passes), 1))
 			if run.Done {
 				done = 1
 			}
-			ui.Box(c).Width(244 * done).Height(4).Radius(2).Background(col)
+			ui.Box(c).Width(244 * done).Height(4).Radius(theme.RadiusTail).Background(col)
 		})
 		ui.Column(c).FillWidth().Gap(2).Children(func() {
 			for _, p := range run.Passes {
@@ -160,13 +160,13 @@ func (p *Panel) Draw(c *ui.Context, run *proto.CanvasUnslopRun, o PanelOptions) 
 
 func hudRegions(c *ui.Context, o PanelOptions, run *proto.CanvasUnslopRun) {
 	ui.Column(c).FillWidth().Gap(2).Padding(8, 0, 0, 0).BorderWidth(1, 0, 0, 0).BorderColor(theme.Border).Children(func() {
-		ui.Text(c, fmt.Sprintf("%d agents at once", len(run.Regions))).FontSize(10.5).FontWeight(600).TextColor(theme.Muted).Margin(0, 6, 4, 6)
+		ui.Text(c, fmt.Sprintf("%d agents at once", len(run.Regions))).FontSize(theme.TextLabel).FontWeight(600).TextColor(theme.Muted).Margin(0, 6, 4, 6)
 		for i, r := range run.Regions {
 			state := AgentWorking
 			if o.AgentState != nil {
 				state = o.AgentState(r.Session)
 			}
-			row := ui.ButtonBase(c.Key("region:" + r.ID)).FillWidth().Height(24).PaddingX(6).Gap(8).Radius(6).AlignItems(ui.Center).
+			row := ui.ButtonBase(c.Key("region:" + r.ID)).FillWidth().Height(24).PaddingX(6).Gap(8).Radius(theme.RadiusSmall).AlignItems(ui.Center).
 				Label("Show the agent of #" + r.ID).Tooltip("Show what this agent does")
 			if o.OpenSession != nil {
 				row.Cursor(ui.CursorPointer)
@@ -181,27 +181,27 @@ func hudRegions(c *ui.Context, o PanelOptions, run *proto.CanvasUnslopRun) {
 				}
 			}
 			row.Children(func() {
-				ui.Box(c).Size(8, 8).Radius(4).Background(ui.Hex(RegionColors[i%len(RegionColors)]))
+				ui.Box(c).Size(8, 8).Radius(theme.RadiusTail).Background(ui.Hex(RegionColors[i%len(RegionColors)]))
 				name := "#" + r.ID
 				if o.AgentName != nil {
 					if n := o.AgentName(r.Session); n != "" {
 						name = n + " · #" + r.ID
 					}
 				}
-				ui.Text(c, name).FontSize(11.5).TextColor(theme.TextSoft).Grow(1).Shrink(1).SingleLine()
+				ui.Text(c, name).FontSize(theme.TextLabel).TextColor(theme.TextSoft).Grow(1).Shrink(1).SingleLine()
 				switch {
 				case r.Done || run.Done:
 					ui.Icon(c, icon.Check).FontSize(11).TextColor(theme.Done)
 				case state == AgentStopped:
-					ui.Text(c, "stopped").FontSize(10.5).TextColor(theme.Error)
+					ui.Text(c, "stopped").FontSize(theme.TextLabel).TextColor(theme.Error)
 				case state == AgentWaiting:
-					ui.Text(c, "needs you").FontSize(10.5).FontWeight(600).TextColor(theme.Warning)
+					ui.Text(c, "needs you").FontSize(theme.TextLabel).FontWeight(600).TextColor(theme.Warning)
 				case state == AgentIdle:
-					ui.Text(c, "idle").FontSize(10.5).TextColor(theme.Muted).Tooltip("Not working: open it to see why")
+					ui.Text(c, "idle").FontSize(theme.TextLabel).TextColor(theme.Muted).Tooltip("Not working: open it to see why")
 				default:
 					if r.Pass != "" {
 						num, _, _ := strings.Cut(r.Pass, " ")
-						ui.Text(c, num).FontSize(10.5).TextColor(theme.Accent).Font(theme.MonoFont)
+						ui.Text(c, num).FontSize(theme.TextLabel).TextColor(theme.Accent).Font(theme.MonoFont)
 					}
 					widget.Spinner(c, 10)
 				}
@@ -218,7 +218,7 @@ func hudPass(c *ui.Context, run *proto.CanvasUnslopRun, pass string, found int, 
 	for _, r := range run.Regions {
 		active = active || (!r.Done && !run.Done && r.Pass == pass)
 	}
-	row := ui.Row(c.Key(pass)).FillWidth().Height(22).PaddingX(6).Gap(8).Radius(6).AlignItems(ui.Center)
+	row := ui.Row(c.Key(pass)).FillWidth().Height(22).PaddingX(6).Gap(8).Radius(theme.RadiusSmall).AlignItems(ui.Center)
 	if active {
 		// A slow pulse while the agent works on it.
 		a := 0.12 + 0.08*math.Sin(float64(now.UnixMilli())/300)
@@ -232,17 +232,17 @@ func hudPass(c *ui.Context, run *proto.CanvasUnslopRun, pass string, found int, 
 		case active:
 			widget.Spinner(c, 10)
 		default:
-			ui.Box(c).Size(6, 6).Radius(3).Background(theme.Border).Margin(0, 2)
+			ui.Box(c).Size(6, 6).Radius(theme.RadiusTail).Background(theme.Border).Margin(0, 2)
 		}
 		num, name, _ := strings.Cut(pass, " ")
-		ui.Text(c, num).FontSize(10.5).TextColor(theme.Idle).Font(theme.MonoFont)
+		ui.Text(c, num).FontSize(theme.TextLabel).TextColor(theme.Idle).Font(theme.MonoFont)
 		tc := theme.TextSoft
 		if !done && !active && found == 0 {
 			tc = theme.Muted
 		}
-		ui.Text(c, name).FontSize(11.5).TextColor(tc).Grow(1).SingleLine()
+		ui.Text(c, name).FontSize(theme.TextLabel).TextColor(tc).Grow(1).SingleLine()
 		if found > 0 {
-			ui.Text(c, fmt.Sprint(found)).FontSize(10.5).FontWeight(600).TextColor(theme.Warning)
+			ui.Text(c, fmt.Sprint(found)).FontSize(theme.TextLabel).FontWeight(600).TextColor(theme.Warning)
 		}
 	})
 }
@@ -295,7 +295,7 @@ const hudMargin = 12
 // board below.
 func hudCard(c *ui.Context, key string, head, body func()) {
 	room := ui.Box(c.Key(key + ":room")).Absolute().Top(0).Bottom(0).Right(0).Width(0).Bounds().H
-	card := ui.Column(c.Key(key)).Absolute().Right(hudMargin).Top(hudMargin).Width(264).Padding(12, 0).Gap(10).Radius(12).Clip().
+	card := ui.Column(c.Key(key)).Absolute().Right(hudMargin).Top(hudMargin).Width(264).Padding(12, 0).Gap(10).Radius(theme.RadiusSmall).Clip().
 		Background(theme.Dialog).Border(1, theme.BorderStrong)
 	if room > 0 {
 		card.MaxHeight(max(room-2*hudMargin, 80))
@@ -314,12 +314,12 @@ func hudCard(c *ui.Context, key string, head, body func()) {
 // DrawStarting is the panel while an unslop starts, before its first read
 // is in: what it is doing, a spinner.
 func DrawStarting(c *ui.Context, doing string) {
-	ui.Row(c.Key("unslop-starting")).Absolute().Right(12).Top(12).Width(264).Padding(12).Gap(10).Radius(12).AlignItems(ui.Center).
+	ui.Row(c.Key("unslop-starting")).Absolute().Right(12).Top(12).Width(264).Padding(12).Gap(10).Radius(theme.RadiusSmall).AlignItems(ui.Center).
 		Background(theme.Dialog).Border(1, theme.BorderStrong).Children(func() {
 		ui.Icon(c, icon.Wand).FontSize(14).TextColor(theme.Accent)
 		ui.Column(c).Grow(1).Shrink(1).MinWidth(0).Gap(2).Children(func() {
-			ui.Text(c, "Unslop starting…").FontSize(12.5).FontWeight(600).SingleLine()
-			ui.Text(c, doing).FontSize(11).TextColor(theme.Muted).SingleLine()
+			ui.Text(c, "Unslop starting…").FontSize(theme.TextUI).FontWeight(600).SingleLine()
+			ui.Text(c, doing).FontSize(theme.TextLabel).TextColor(theme.Muted).SingleLine()
 		})
 		widget.Spinner(c, 14)
 	})
@@ -328,13 +328,13 @@ func DrawStarting(c *ui.Context, doing string) {
 // DrawError says why an unslop didn't start, over what it was for, until
 // dismissed.
 func DrawError(c *ui.Context, msg string, dismiss func()) {
-	ui.Row(c.Key("unslop-error")).Absolute().Right(12).Top(12).Width(300).Padding(10, 12).Gap(8).Radius(12).AlignItems(ui.Start).
+	ui.Row(c.Key("unslop-error")).Absolute().Right(12).Top(12).Width(300).Padding(10, 12).Gap(8).Radius(theme.RadiusSmall).AlignItems(ui.Start).
 		Background(theme.Dialog).Border(1, theme.Fade(theme.Error, 0.6)).Children(func() {
 		ui.Icon(c, icon.Alert).FontSize(14).TextColor(theme.Error).Margin(1, 0, 0, 0)
 		ui.Column(c).Grow(1).Shrink(1).MinWidth(0).Gap(2).Children(func() {
-			ui.Text(c, "Unslop didn't start").FontSize(12.5).FontWeight(600)
+			ui.Text(c, "Unslop didn't start").FontSize(theme.TextUI).FontWeight(600)
 			ui.Scroll(c.Key("msg")).FillWidth().MaxHeight(200).Children(func() {
-				ui.Text(c, msg).FontSize(11.5).TextColor(theme.TextSoft)
+				ui.Text(c, msg).FontSize(theme.TextLabel).TextColor(theme.TextSoft)
 			})
 		})
 		if dismiss != nil && widget.IconButton(c, icon.Close, "Dismiss", false).Clicked() {
@@ -347,19 +347,19 @@ func DrawError(c *ui.Context, msg string, dismiss func()) {
 // those done checked, the one under way pulsing.
 func drawSteps(c *ui.Context, run *proto.CanvasUnslopRun) {
 	now := time.Now()
-	ui.Column(c.Key("unslop-steps")).Absolute().Right(12).Top(12).Width(264).Padding(12).Gap(10).Radius(12).
+	ui.Column(c.Key("unslop-steps")).Absolute().Right(12).Top(12).Width(264).Padding(12).Gap(10).Radius(theme.RadiusSmall).
 		Background(theme.Dialog).Border(1, theme.BorderStrong).Children(func() {
 		ui.Row(c).FillWidth().Gap(8).AlignItems(ui.Center).Children(func() {
 			ui.Icon(c, icon.Wand).FontSize(14).TextColor(theme.Accent)
-			ui.Text(c, "Unslop starting…").FontSize(12.5).FontWeight(600).Grow(1).SingleLine()
-			ui.Text(c, fmt.Sprintf("%d/%d", min(run.Step+1, len(run.Steps)), len(run.Steps))).FontSize(11).TextColor(theme.Muted).Font(theme.MonoFont)
+			ui.Text(c, "Unslop starting…").FontSize(theme.TextUI).FontWeight(600).Grow(1).SingleLine()
+			ui.Text(c, fmt.Sprintf("%d/%d", min(run.Step+1, len(run.Steps)), len(run.Steps))).FontSize(theme.TextLabel).TextColor(theme.Muted).Font(theme.MonoFont)
 		})
-		ui.Box(c).FillWidth().Height(4).Radius(2).Background(theme.Sunken).Children(func() {
-			ui.Box(c).Width(240 * float32(run.Step) / float32(len(run.Steps))).Height(4).Radius(2).Background(theme.Accent)
+		ui.Box(c).FillWidth().Height(4).Radius(theme.RadiusTail).Background(theme.Sunken).Children(func() {
+			ui.Box(c).Width(240 * float32(run.Step) / float32(len(run.Steps))).Height(4).Radius(theme.RadiusTail).Background(theme.Accent)
 		})
 		ui.Column(c).FillWidth().Gap(2).Children(func() {
 			for i, step := range run.Steps {
-				row := ui.Row(c.Key(step)).FillWidth().Height(24).PaddingX(6).Gap(8).Radius(6).AlignItems(ui.Center)
+				row := ui.Row(c.Key(step)).FillWidth().Height(24).PaddingX(6).Gap(8).Radius(theme.RadiusSmall).AlignItems(ui.Center)
 				active := i == run.Step
 				if active {
 					a := 0.12 + 0.08*math.Sin(float64(now.UnixMilli())/300)
@@ -376,9 +376,9 @@ func drawSteps(c *ui.Context, run *proto.CanvasUnslopRun) {
 						widget.Spinner(c, 10)
 						tc = theme.Text
 					default:
-						ui.Box(c).Size(6, 6).Radius(3).Background(theme.Border).Margin(0, 2)
+						ui.Box(c).Size(6, 6).Radius(theme.RadiusTail).Background(theme.Border).Margin(0, 2)
 					}
-					ui.Text(c, step).FontSize(11.5).TextColor(tc).Grow(1).Shrink(1).SingleLine()
+					ui.Text(c, step).FontSize(theme.TextLabel).TextColor(tc).Grow(1).Shrink(1).SingleLine()
 				})
 			}
 		})
@@ -387,7 +387,7 @@ func drawSteps(c *ui.Context, run *proto.CanvasUnslopRun) {
 
 // drawBrief is the run's brief in a line, all of it once clicked.
 func (p *Panel) drawBrief(c *ui.Context, b proto.DesignBrief) {
-	row := ui.ButtonBase(c.Key("brief")).FillWidth().Gap(6).AlignItems(ui.Start).Padding(4, 6).Radius(6).
+	row := ui.ButtonBase(c.Key("brief")).FillWidth().Gap(6).AlignItems(ui.Start).Padding(4, 6).Radius(theme.RadiusSmall).
 		Label("The brief: what it is for").Cursor(ui.CursorPointer)
 	if row.Hovered() {
 		row.Background(theme.Hover)
@@ -395,7 +395,7 @@ func (p *Panel) drawBrief(c *ui.Context, b proto.DesignBrief) {
 	row.Children(func() {
 		ui.Icon(c, icon.Target).FontSize(11).TextColor(theme.Accent).Margin(2, 0, 0, 0)
 		if !p.brief {
-			ui.Text(c, designbrief.Summary(b)).FontSize(11).TextColor(theme.TextSoft).SingleLine().Shrink(1)
+			ui.Text(c, designbrief.Summary(b)).FontSize(theme.TextLabel).TextColor(theme.TextSoft).SingleLine().Shrink(1)
 			return
 		}
 		ui.Column(c).Grow(1).Shrink(1).MinWidth(0).Gap(5).Children(func() {
@@ -404,8 +404,8 @@ func (p *Panel) drawBrief(c *ui.Context, b proto.DesignBrief) {
 					continue
 				}
 				ui.Column(c.Key(kv[0])).FillWidth().Gap(1).Children(func() {
-					ui.Text(c, kv[0]).FontSize(10).FontWeight(600).TextColor(theme.Muted)
-					ui.Text(c, kv[1]).FontSize(11).TextColor(theme.TextSoft)
+					ui.Text(c, kv[0]).FontSize(theme.TextLabel).FontWeight(600).TextColor(theme.Muted)
+					ui.Text(c, kv[1]).FontSize(theme.TextLabel).TextColor(theme.TextSoft)
 				})
 			}
 		})
@@ -422,7 +422,7 @@ func DrawReview(c *ui.Context, rv proto.DesignReview, open func(session string))
 		ui.Row(c).FillWidth().Gap(6).AlignItems(ui.Center).Children(func() {
 			ui.Icon(c, icon.Eye).FontSize(11).TextColor(theme.Muted)
 			label := fmt.Sprintf("Independent review · round %d", rv.Round)
-			ui.Text(c, label).FontSize(10.5).FontWeight(600).TextColor(theme.Muted).Grow(1).Shrink(1).SingleLine()
+			ui.Text(c, label).FontSize(theme.TextLabel).FontWeight(600).TextColor(theme.Muted).Grow(1).Shrink(1).SingleLine()
 			switch {
 			case !rv.Done:
 				widget.Spinner(c, 10)
@@ -437,23 +437,23 @@ func DrawReview(c *ui.Context, rv proto.DesignReview, open func(session string))
 			if rv.Session == "" {
 				text = "Starting a fresh agent to look at it…"
 			}
-			row := ui.ButtonBase(c.Key("reviewer")).FillWidth().Padding(2, 6).Radius(6).Label("Show the reviewer").Cursor(ui.CursorPointer)
+			row := ui.ButtonBase(c.Key("reviewer")).FillWidth().Padding(2, 6).Radius(theme.RadiusSmall).Label("Show the reviewer").Cursor(ui.CursorPointer)
 			if rv.Session == "" || open == nil {
 				row.Disabled(true)
 			} else if row.Hovered() {
 				row.Background(theme.Hover)
 			}
-			row.Children(func() { ui.Text(c, text).FontSize(11).TextColor(theme.TextSoft) })
+			row.Children(func() { ui.Text(c, text).FontSize(theme.TextLabel).TextColor(theme.TextSoft) })
 			if row.Clicked() && open != nil {
 				open(rv.Session)
 			}
 			return
 		}
 		for i, s := range append(append([]string{}, rv.Issues...), rv.Improvements...) {
-			ui.Text(c.Key(fmt.Sprint("r", i)), "· "+s).FontSize(11).TextColor(theme.TextSoft).Padding(0, 6)
+			ui.Text(c.Key(fmt.Sprint("r", i)), "· "+s).FontSize(theme.TextLabel).TextColor(theme.TextSoft).Padding(0, 6)
 		}
 		if rv.Keep != "" {
-			ui.Text(c, "Keep: "+rv.Keep).FontSize(11).TextColor(theme.Muted).Padding(0, 6)
+			ui.Text(c, "Keep: "+rv.Keep).FontSize(theme.TextLabel).TextColor(theme.Muted).Padding(0, 6)
 		}
 	})
 }
@@ -463,26 +463,26 @@ func DrawReview(c *ui.Context, rv proto.DesignReview, open func(session string))
 func hudSteps(c *ui.Context, o PanelOptions, run *proto.CanvasUnslopRun) {
 	ui.Column(c.Key("steps")).FillWidth().Gap(4).Children(func() {
 		ui.Row(c).FillWidth().AlignItems(ui.Center).Children(func() {
-			ui.Text(c, "Steps").FontSize(11).FontWeight(600).TextColor(theme.Muted).Grow(1)
+			ui.Text(c, "Steps").FontSize(theme.TextLabel).FontWeight(600).TextColor(theme.Muted).Grow(1)
 			if widget.GhostButton(c.Key("replay"), "Replay").Height(22).Clicked() {
 				o.Replay(0)
 			}
 		})
 		for i, s := range run.Passed {
 			label := unslopStepName(s)
-			b := ui.ButtonBase(c.Key(i)).FillWidth().Height(24).PaddingX(6).Gap(6).Radius(6).AlignItems(ui.Center).
+			b := ui.ButtonBase(c.Key(i)).FillWidth().Height(24).PaddingX(6).Gap(6).Radius(theme.RadiusSmall).AlignItems(ui.Center).
 				Cursor(ui.CursorPointer).Label("Play step " + label)
 			if b.Hovered() {
 				b.Background(theme.Hover)
 			}
 			b.Children(func() {
-				ui.Text(c, fmt.Sprint(i+1)).FontSize(10.5).Font(theme.MonoFont).TextColor(theme.Muted).Width(14)
-				ui.Text(c, label).FontSize(11.5).SingleLine().Grow(1).Shrink(1)
+				ui.Text(c, fmt.Sprint(i+1)).FontSize(theme.TextLabel).Font(theme.MonoFont).TextColor(theme.Muted).Width(14)
+				ui.Text(c, label).FontSize(theme.TextLabel).SingleLine().Grow(1).Shrink(1)
 				what := "not measured yet"
 				if s.Measured {
 					what = textfmt.Plural(len(s.Changes), "1 change", fmt.Sprintf("%d changes", len(s.Changes)))
 				}
-				ui.Text(c, what).FontSize(10.5).TextColor(theme.Muted).SingleLine()
+				ui.Text(c, what).FontSize(theme.TextLabel).TextColor(theme.Muted).SingleLine()
 			})
 			if b.Clicked() {
 				o.Replay(i + 1)

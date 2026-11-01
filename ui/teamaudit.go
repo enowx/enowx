@@ -58,11 +58,11 @@ func (a *App) cloudTeamAudit(c *ui.Context, cs *cloudSettings) {
 		widget.Notice(c, icon.Alert, theme.Error, ta.err, "", nil)
 	}
 	if !ta.loaded {
-		ui.Text(c, "Reading the team's log…").FontSize(12).TextColor(theme.Muted)
+		ui.Text(c, "Reading the team's log…").FontSize(theme.TextLabel).TextColor(theme.Muted)
 		return
 	}
 	if len(ta.entries) == 0 {
-		ui.Text(c, "Nothing yet.").FontSize(12).TextColor(theme.Muted)
+		ui.Text(c, "Nothing yet.").FontSize(theme.TextLabel).TextColor(theme.Muted)
 	}
 	now := time.Now()
 	ui.Column(c).FillWidth().Gap(2).Children(func() {
@@ -80,12 +80,12 @@ func (a *App) cloudTeamAudit(c *ui.Context, cs *cloudSettings) {
 					what = e.Action
 				}
 				ui.Column(c).Grow(1).Shrink(1).MinWidth(0).Gap(1).Children(func() {
-					ui.Text(c, who+" "+what).FontSize(12.5).SingleLine()
+					ui.Text(c, who+" "+what).FontSize(theme.TextUI).SingleLine()
 					if e.Detail != "" {
-						ui.Text(c, e.Detail).FontSize(11).TextColor(theme.Muted).SingleLine()
+						ui.Text(c, e.Detail).FontSize(theme.TextLabel).TextColor(theme.Muted).SingleLine()
 					}
 				})
-				ui.Text(c, textfmt.Age(e.At, now)).FontSize(11).TextColor(theme.Muted).SingleLine().Shrink(0).
+				ui.Text(c, textfmt.Age(e.At, now)).FontSize(theme.TextLabel).TextColor(theme.Muted).SingleLine().Shrink(0).
 					Tooltip(e.At.Local().Format("2 Jan 2006 15:04"))
 			})
 		}

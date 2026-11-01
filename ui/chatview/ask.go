@@ -50,8 +50,8 @@ func (ch *Chat) askNode(c *ui.Context, e proto.TranscriptEntry, last bool) {
 func (ch *Chat) waitNode(c *ui.Context) {
 	node(c, icon.Shield, toneAsk, true, func() {
 		askCard(c, func() {
-			ui.Text(c, "The agent waits for you").FontSize(13.5).FontWeight(600).TextColor(theme.TextStrong)
-			ui.Text(c, "It asks something its terminal shows.").FontSize(12).TextColor(theme.TextSoft)
+			ui.Text(c, "The agent waits for you").FontSize(theme.TextUI).FontWeight(600).TextColor(theme.TextStrong)
+			ui.Text(c, "It asks something its terminal shows.").FontSize(theme.TextLabel).TextColor(theme.TextSoft)
 			ch.terminalButton(c)
 		})
 	})
@@ -59,7 +59,7 @@ func (ch *Chat) waitNode(c *ui.Context) {
 
 // askCard is the card an ask shows in: lit, so it isn't missed.
 func askCard(c *ui.Context, body func()) {
-	ui.Column(c).FillWidth().Gap(8).Padding(12, 14).Radius(12).
+	ui.Column(c).FillWidth().Gap(8).Padding(12, 14).Radius(theme.RadiusSmall).
 		Background(theme.Fade(theme.Warning, 0.08)).Border(1, theme.Fade(theme.Warning, 0.7)).Children(body)
 }
 
@@ -69,9 +69,9 @@ func (ch *Chat) permissionCard(c *ui.Context, e proto.TranscriptEntry) {
 	askCard(c, func() {
 		ui.Row(c).FillWidth().Gap(12).AlignItems(ui.Center).Wrap().Children(func() {
 			ui.Column(c).Grow(1).MinWidth(200).Gap(3).Children(func() {
-				ui.Text(c, permissionTitle(e)).FontSize(13.5).FontWeight(600).TextColor(theme.TextStrong)
+				ui.Text(c, permissionTitle(e)).FontSize(theme.TextUI).FontWeight(600).TextColor(theme.TextStrong)
 				if e.Detail != "" {
-					ui.Text(c, e.Detail).Font(theme.MonoFont).FontSize(11.5).TextColor(theme.TextSoft).Selectable()
+					ui.Text(c, e.Detail).Font(theme.MonoFont).FontSize(theme.TextLabel).TextColor(theme.TextSoft).Selectable()
 				}
 			})
 			if !ch.ask.canAnswer() {
@@ -81,7 +81,7 @@ func (ch *Chat) permissionCard(c *ui.Context, e proto.TranscriptEntry) {
 			if ch.answered[e.Index] > 0 {
 				ui.Row(c).Gap(6).AlignItems(ui.Center).Children(func() {
 					widget.Spinner(c, 11)
-					ui.Text(c, "Sent").FontSize(12).TextColor(theme.Muted)
+					ui.Text(c, "Sent").FontSize(theme.TextLabel).TextColor(theme.Muted)
 				})
 				return
 			}
@@ -131,10 +131,10 @@ func (ch *Chat) questionCard(c *ui.Context, e proto.TranscriptEntry) {
 		if at >= len(e.Questions) {
 			ui.Row(c).Gap(6).AlignItems(ui.Center).Children(func() {
 				widget.Spinner(c, 11)
-				ui.Text(c, "Answered").FontSize(12).TextColor(theme.Muted)
+				ui.Text(c, "Answered").FontSize(theme.TextLabel).TextColor(theme.Muted)
 			})
 			if ch.ask.terminal != nil {
-				ui.Text(c, "If the agent asks you to confirm, its terminal shows it.").FontSize(11.5).TextColor(theme.Muted)
+				ui.Text(c, "If the agent asks you to confirm, its terminal shows it.").FontSize(theme.TextLabel).TextColor(theme.Muted)
 				ch.terminalButton(c)
 			}
 			return
@@ -145,13 +145,13 @@ func (ch *Chat) questionCard(c *ui.Context, e proto.TranscriptEntry) {
 				widget.Tag(c, q.Header, theme.Warning)
 			}
 			if len(e.Questions) > 1 {
-				ui.Text(c, strconv.Itoa(at+1)+" of "+strconv.Itoa(len(e.Questions))).FontSize(11.5).TextColor(theme.Muted)
+				ui.Text(c, strconv.Itoa(at+1)+" of "+strconv.Itoa(len(e.Questions))).FontSize(theme.TextLabel).TextColor(theme.Muted)
 			}
 		})
-		ui.Text(c, q.Question).FontSize(13.5).FontWeight(600).TextColor(theme.TextStrong).Selectable()
+		ui.Text(c, q.Question).FontSize(theme.TextUI).FontWeight(600).TextColor(theme.TextStrong).Selectable()
 		if !ch.ask.canAnswer() || q.Multi {
 			for i, o := range q.Options {
-				ui.Text(c.Key(i), "· "+o).FontSize(12.5).TextColor(theme.TextSoft)
+				ui.Text(c.Key(i), "· "+o).FontSize(theme.TextUI).TextColor(theme.TextSoft)
 			}
 			ch.terminalButton(c)
 			return
@@ -168,11 +168,11 @@ func (ch *Chat) questionCard(c *ui.Context, e proto.TranscriptEntry) {
 					b.Border(1, theme.AccentLine)
 				}
 				b.Children(func() {
-					ui.Text(c, strconv.Itoa(i+1)).FontSize(11).Font(theme.MonoFont).TextColor(theme.Muted)
+					ui.Text(c, strconv.Itoa(i+1)).FontSize(theme.TextLabel).Font(theme.MonoFont).TextColor(theme.Muted)
 					ui.Column(c).Grow(1).MinWidth(0).Gap(1).Children(func() {
-						ui.Text(c, o).FontSize(12.5).TextColor(theme.Text)
+						ui.Text(c, o).FontSize(theme.TextUI).TextColor(theme.Text)
 						if i < len(q.About) && q.About[i] != "" {
-							ui.Text(c, q.About[i]).FontSize(11.5).TextColor(theme.Muted)
+							ui.Text(c, q.About[i]).FontSize(theme.TextLabel).TextColor(theme.Muted)
 						}
 					})
 				})

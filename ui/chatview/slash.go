@@ -62,11 +62,11 @@ func (ch *Chat) slashMenu(c *ui.Context) {
 		case !ch.commandsRead:
 			ui.Row(c).Gap(8).Padding(8, 10).Children(func() {
 				widget.Spinner(c, 12)
-				ui.Text(c, "Reading the agent's commands…").FontSize(12).TextColor(theme.Muted)
+				ui.Text(c, "Reading the agent's commands…").FontSize(theme.TextLabel).TextColor(theme.Muted)
 			})
 			return
 		case len(matches) == 0:
-			ui.Text(c, "No command matches "+ch.input).FontSize(12).TextColor(theme.Muted).Padding(8, 10)
+			ui.Text(c, "No command matches "+ch.input).FontSize(theme.TextLabel).TextColor(theme.Muted).Padding(8, 10)
 			return
 		}
 		for i, cmd := range matches {
@@ -77,8 +77,8 @@ func (ch *Chat) slashMenu(c *ui.Context) {
 					svg = icon.Brain
 				}
 				ui.Icon(c, svg).FontSize(13).TextColor(theme.TextSoft)
-				ui.Text(c, "/"+cmd.Name).Font(theme.MonoFont).FontSize(12).TextColor(theme.Text).SingleLine().Shrink(0)
-				ui.Text(c, cmd.Description).FontSize(11.5).TextColor(theme.Muted).SingleLine().Shrink(1).Grow(1)
+				ui.Text(c, "/"+cmd.Name).Font(theme.MonoFont).FontSize(theme.TextLabel).TextColor(theme.Text).SingleLine().Shrink(0)
+				ui.Text(c, cmd.Description).FontSize(theme.TextLabel).TextColor(theme.Muted).SingleLine().Shrink(1).Grow(1)
 				if cmd.Kind != "" && cmd.Kind != "command" {
 					widget.Tag(c, cmd.Kind, theme.Muted)
 				}

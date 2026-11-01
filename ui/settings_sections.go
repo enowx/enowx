@@ -152,7 +152,7 @@ func (a *App) sessionDefaults(c *ui.Context) {
 				}
 				b.Children(func() {
 					ui.Icon(c, icon.Agent(ag.ID)).FontSize(13)
-					ui.Text(c, ag.Name).FontSize(12.5)
+					ui.Text(c, ag.Name).FontSize(theme.TextUI)
 				})
 				if b.Clicked() {
 					a.state.DefaultAgent = ag.ID
@@ -261,12 +261,12 @@ func (a *App) environmentSection(c *ui.Context) {
 	hs := a.hostSettingsOf()
 	sectionIntro(c, "Environment", "Variables every session on "+a.host.Name+" gets, agents included: API keys, tokens. Kept on "+a.host.Name+" in ~/"+transport.HomeName+"/session-env.json, readable by its user alone; they apply to sessions started or continued after.")
 	if hs.err != "" {
-		ui.Text(c, hs.err).FontSize(12).TextColor(theme.Error)
+		ui.Text(c, hs.err).FontSize(theme.TextLabel).TextColor(theme.Error)
 	}
 	for _, v := range hs.vars {
-		ui.Row(c.Key(v.Name)).FillWidth().Gap(10).Padding(8, 10).Radius(6).Background(theme.Sunken).Children(func() {
-			ui.Text(c, v.Name).Font(theme.MonoFont).FontSize(12.5).Grow(1)
-			ui.Text(c, v.Value).Font(theme.MonoFont).FontSize(12).TextColor(theme.Muted)
+		ui.Row(c.Key(v.Name)).FillWidth().Gap(10).Padding(8, 10).Radius(theme.RadiusSmall).Background(theme.Sunken).Children(func() {
+			ui.Text(c, v.Name).Font(theme.MonoFont).FontSize(theme.TextUI).Grow(1)
+			ui.Text(c, v.Value).Font(theme.MonoFont).FontSize(theme.TextLabel).TextColor(theme.Muted)
 			if widget.IconButton(c, icon.Close, "Remove it", false).Clicked() {
 				a.setVar(v.Name, "")
 			}
@@ -284,7 +284,7 @@ func (a *App) environmentSection(c *ui.Context) {
 		}
 	})
 	if a.host.ID != hosts.LocalID {
-		ui.Text(c, "Setting one sends its value to "+a.host.Name+".").FontSize(11.5).TextColor(theme.Warning)
+		ui.Text(c, "Setting one sends its value to "+a.host.Name+".").FontSize(theme.TextLabel).TextColor(theme.Warning)
 	}
 }
 
@@ -316,10 +316,10 @@ func (a *App) floatingSection(c *ui.Context) {
 		a.setFloatingControl(floating) // binds the key, and shows the panel
 	}
 	ui.Row(c).FillWidth().Gap(10).Children(func() {
-		ui.Text(c, "Shortcut").FontSize(12.5).Grow(1)
-		ui.Text(c, floatingKey).FontSize(12.5).TextColor(theme.Muted)
+		ui.Text(c, "Shortcut").FontSize(theme.TextUI).Grow(1)
+		ui.Text(c, floatingKey).FontSize(theme.TextUI).TextColor(theme.Muted)
 	})
-	ui.Text(c, "Listed with the keyboard shortcuts in App.").FontSize(11.5).TextColor(theme.Muted)
+	ui.Text(c, "Listed with the keyboard shortcuts in App.").FontSize(theme.TextLabel).TextColor(theme.Muted)
 	fold := a.floatingFoldOnBlur()
 	if switchRowKey(c, "Fold when you go elsewhere switch", &fold, "Fold when you go elsewhere", "Clicking another app, or the desktop, folds the panel away. Off, it stays until you pick an action, press Escape, or press "+floatingKey+" again.") {
 		a.state.FloatingFoldOnBlur = &fold
@@ -382,7 +382,7 @@ func (a *App) appSection(c *ui.Context) {
 	}
 	a.quitSection(c)
 	ui.Row(c).FillWidth().Gap(10).Children(func() {
-		ui.Text(c, "enowX "+version.String).FontSize(12.5).TextColor(theme.TextSoft)
+		ui.Text(c, "enowX "+version.String).FontSize(theme.TextUI).TextColor(theme.TextSoft)
 		if widget.GhostButton(c, "Check for updates").Clicked() {
 			a.checkForUpdates(true)
 		}
@@ -391,8 +391,8 @@ func (a *App) appSection(c *ui.Context) {
 	widget.Group(c, "Keyboard shortcuts", len(shortcutList()), &a.shortcutsOpen, func() {
 		for _, s := range shortcutList() {
 			ui.Row(c.Key(s[0])).FillWidth().Gap(10).Padding(4, 8).Children(func() {
-				ui.Text(c, s[1]).FontSize(12.5).Grow(1)
-				ui.Text(c, s[0]).Font(theme.MonoFont).FontSize(12).TextColor(theme.Muted)
+				ui.Text(c, s[1]).FontSize(theme.TextUI).Grow(1)
+				ui.Text(c, s[0]).Font(theme.MonoFont).FontSize(theme.TextLabel).TextColor(theme.Muted)
 			})
 		}
 	})
@@ -408,7 +408,7 @@ func (a *App) commandLineRow(c *ui.Context) {
 	link, _ := cli.LinkPath()
 	ui.Row(c).FillWidth().Gap(12).Children(func() {
 		ui.Column(c).Grow(1).MinWidth(0).Gap(2).Children(func() {
-			ui.Text(c, "Command line").FontSize(12.5)
+			ui.Text(c, "Command line").FontSize(theme.TextUI)
 			note := "enowx-app ls, spawn, send, wait… in any terminal: a link to this app at " + link + "."
 			if cli.Linked(exe) {
 				note = "Installed at " + link + "."
@@ -416,7 +416,7 @@ func (a *App) commandLineRow(c *ui.Context) {
 					note += " Add ~/.local/bin to your PATH to run it by name."
 				}
 			}
-			ui.Text(c, note).FontSize(11.5).TextColor(theme.Muted)
+			ui.Text(c, note).FontSize(theme.TextLabel).TextColor(theme.Muted)
 		})
 		label := "Install"
 		if cli.Linked(exe) {
@@ -473,8 +473,8 @@ func (a *App) diagnosticsSection(c *ui.Context) {
 		widget.FitGrid(c, 260, 2).Gap(10).Children(func() {
 			for _, r := range rows {
 				ui.Column(c.Key(r[0])).MinWidth(0).Gap(2).Children(func() {
-					ui.Text(c, r[0]).FontSize(11).TextColor(theme.Muted)
-					ui.Text(c, r[1]).FontSize(12.5).SingleLine().Tooltip(r[1])
+					ui.Text(c, r[0]).FontSize(theme.TextLabel).TextColor(theme.Muted)
+					ui.Text(c, r[1]).FontSize(theme.TextUI).SingleLine().Tooltip(r[1])
 				})
 			}
 		})
@@ -485,8 +485,8 @@ func (a *App) diagnosticsSection(c *ui.Context) {
 		}
 	})
 	ui.Row(c).FillWidth().Gap(8).Children(func() {
-		ui.Text(c, "LOG").FontSize(10.5).TextColor(theme.Muted)
-		ui.Text(c, hs.log.Path).Font(theme.MonoFont).FontSize(10.5).TextColor(theme.Idle).SingleLine().Shrink(1)
+		ui.Text(c, "LOG").FontSize(theme.TextLabel).TextColor(theme.Muted)
+		ui.Text(c, hs.log.Path).Font(theme.MonoFont).FontSize(theme.TextLabel).TextColor(theme.Idle).SingleLine().Shrink(1)
 		ui.Spacer(c)
 		if widget.IconButton(c, icon.Sync, "Read the log again", false).Clicked() {
 			a.loadHostSettings()
@@ -498,8 +498,8 @@ func (a *App) diagnosticsSection(c *ui.Context) {
 // sectionIntro heads a Settings section: what it is about.
 func sectionIntro(c *ui.Context, title, about string) {
 	ui.Column(c).FillWidth().Gap(4).Children(func() {
-		ui.Text(c, title).FontSize(16)
-		ui.Text(c, about).FontSize(12.5).TextColor(theme.Muted)
+		ui.Text(c, title).FontSize(theme.TextRead)
+		ui.Text(c, about).FontSize(theme.TextUI).TextColor(theme.Muted)
 	})
 }
 
@@ -536,9 +536,9 @@ func switchRowKey(c *ui.Context, key string, on *bool, label, about string) bool
 	changed := false
 	ui.Row(c.Key(key)).FillWidth().Gap(12).Children(func() {
 		ui.Column(c).Grow(1).MinWidth(0).Gap(2).Children(func() {
-			ui.Text(c, label).FontSize(12.5)
+			ui.Text(c, label).FontSize(theme.TextUI)
 			if about != "" {
-				ui.Text(c, about).FontSize(11.5).TextColor(theme.Muted)
+				ui.Text(c, about).FontSize(theme.TextLabel).TextColor(theme.Muted)
 			}
 		})
 		changed = widget.Switch(c, on, key)

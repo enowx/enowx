@@ -81,7 +81,7 @@ func (v *View) buildDialog(c *ui.Context, o Options) {
 		}
 		col.Children(func() {
 			widget.Field(c, "What to build", func() {
-				ui.TextArea(c, &f.what).FillWidth().TextColor(theme.Text).Height(72).Padding(8, 10).Radius(theme.RadiusControl).FontSize(12.5).
+				ui.TextArea(c, &f.what).FillWidth().TextColor(theme.Text).Height(72).Padding(8, 10).Radius(theme.RadiusControl).FontSize(theme.TextUI).
 					Background(theme.Sunken).Border(1, theme.BorderStrong).Label("What to build").
 					Placeholder("A pricing page for a ledger app small shops use")
 			})
@@ -111,7 +111,7 @@ func (v *View) buildDialog(c *ui.Context, o Options) {
 				}
 			}
 			if f.imageErr != "" {
-				ui.Text(c, f.imageErr).FontSize(11.5).TextColor(theme.Error)
+				ui.Text(c, f.imageErr).FontSize(theme.TextLabel).TextColor(theme.Error)
 			}
 		})
 	}, func() {
@@ -138,7 +138,7 @@ func (v *View) buildProjectFields(c *ui.Context, o Options, f *buildForm) {
 	widget.Field(c, "The work", func() {
 		ui.Column(c).FillWidth().Gap(6).Children(func() {
 			f.work = chosen(widget.Segmented(c.Key("work"), labels3(buildWorks), f.work, nil), f.work)
-			ui.Text(c, buildWorks[f.work].about).FontSize(11).TextColor(theme.Muted)
+			ui.Text(c, buildWorks[f.work].about).FontSize(theme.TextLabel).TextColor(theme.Muted)
 		})
 	})
 }
@@ -150,10 +150,10 @@ func (f *buildForm) screenshotField(c *ui.Context) {
 		box.Children(func() {
 			if f.preview != nil {
 				w, h := f.preview.Size()
-				ui.Image(c, f.preview).Size(float32(76*w/max(h, 1)), 76).Radius(6)
+				ui.Image(c, f.preview).Size(float32(76*w/max(h, 1)), 76).Radius(theme.RadiusSmall)
 			}
 			ui.Column(c).Grow(1).Shrink(1).MinWidth(0).Gap(4).Children(func() {
-				ui.Text(c, "Drop a picture here, or paste one").FontSize(12).TextColor(theme.TextSoft)
+				ui.Text(c, "Drop a picture here, or paste one").FontSize(theme.TextLabel).TextColor(theme.TextSoft)
 				if widget.GhostButton(c.Key("paste"), "Paste from the clipboard").Clicked() {
 					f.setImage(mygo.Clipboard.ReadImage(), nil)
 				}

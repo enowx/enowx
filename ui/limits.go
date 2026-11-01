@@ -141,7 +141,7 @@ func (a *App) agentLimitDialog(c *ui.Context) {
 		widget.DialogHeader(c, "Agents at once on "+a.host.Name,
 			"How many agents may work at the same time. A session started past it waits, queued, and starts when one finishes its turn: for a small server, or to keep this machine responsive.", false)
 		if !f.loaded {
-			ui.Text(c, "Reading…").FontSize(12).TextColor(theme.Muted)
+			ui.Text(c, "Reading…").FontSize(theme.TextLabel).TextColor(theme.Muted)
 			return
 		}
 		labels := make([]string, len(agentChoices))

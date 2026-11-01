@@ -148,7 +148,7 @@ func (v *View) Draw(c *ui.Context, o Options) {
 		v.toolbar(c, o)
 		if v.err != "" {
 			ui.Row(c).FillWidth().Padding(8, 14).Background(theme.Fade(theme.Error, 0.1)).Children(func() {
-				ui.Text(c, v.err).FontSize(12).TextColor(theme.Error).Shrink(1)
+				ui.Text(c, v.err).FontSize(theme.TextLabel).TextColor(theme.Error).Shrink(1)
 			})
 		}
 		switch {
@@ -171,7 +171,7 @@ func (v *View) Draw(c *ui.Context, o Options) {
 
 func note(c *ui.Context, text string) {
 	ui.Column(c).Grow(1).FillWidth().Center().Padding(24).Children(func() {
-		ui.Text(c, text).FontSize(12.5).TextColor(theme.Muted).TextAlign(ui.Center)
+		ui.Text(c, text).FontSize(theme.TextUI).TextColor(theme.Muted).TextAlign(ui.Center)
 	})
 }
 
@@ -184,7 +184,7 @@ func (v *View) toolbar(c *ui.Context, o Options) {
 			from = "Set for this project"
 		}
 		if v.loaded && len(v.info.Checks) > 0 {
-			ui.Text(c, from).FontSize(11).TextColor(theme.Muted).SingleLine().Shrink(1)
+			ui.Text(c, from).FontSize(theme.TextLabel).TextColor(theme.Muted).SingleLine().Shrink(1)
 		}
 		ui.Spacer(c)
 		if v.loaded && widget.GhostButton(c, "Edit").Clicked() {
@@ -218,10 +218,10 @@ func (v *View) checkRow(c *ui.Context, o Options, ch proto.Check) {
 		b.Children(func() {
 			stateMark(c, r.State, ran)
 			ui.Column(c).Grow(1).MinWidth(0).Gap(2).Children(func() {
-				ui.Text(c, ch.Name).FontSize(12.5).SingleLine()
-				ui.Text(c, ch.Command).Font(theme.MonoFont).FontSize(11).TextColor(theme.Muted).SingleLine().Shrink(1)
+				ui.Text(c, ch.Name).FontSize(theme.TextUI).SingleLine()
+				ui.Text(c, ch.Command).Font(theme.MonoFont).FontSize(theme.TextLabel).TextColor(theme.Muted).SingleLine().Shrink(1)
 			})
-			ui.Text(c, facts(r, ran)).FontSize(11).TextColor(theme.Muted).SingleLine().Shrink(0)
+			ui.Text(c, facts(r, ran)).FontSize(theme.TextLabel).TextColor(theme.Muted).SingleLine().Shrink(0)
 			if !v.running() && widget.IconButton(c, icon.ChevronRight, "Run "+ch.Name, false).Clicked() {
 				runOne = true
 				v.do(o, func(cl *client.Client) error { _, err := cl.RunChecks(o.Session.ID, ch.Name); return err })
@@ -239,7 +239,7 @@ func (v *View) checkRow(c *ui.Context, o Options, ch proto.Check) {
 				out = "(no output)"
 			}
 			ui.Scroll(c).FillWidth().MaxHeight(280).Background(theme.Sunken).Children(func() {
-				ui.Text(c, out).Font(theme.MonoFont).FontSize(11).TextColor(theme.TextSoft).Padding(8, 14).FillWidth()
+				ui.Text(c, out).Font(theme.MonoFont).FontSize(theme.TextLabel).TextColor(theme.TextSoft).Padding(8, 14).FillWidth()
 			})
 		}
 	})

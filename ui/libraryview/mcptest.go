@@ -61,16 +61,16 @@ func (v *View) mcpTestPanel(c *ui.Context, o Options, it proto.EnvItem) {
 		switch {
 		case t.running:
 			widget.Spinner(c, 14)
-			ui.Text(c, "Starting it on "+o.Host+"…").FontSize(12).TextColor(theme.Muted)
+			ui.Text(c, "Starting it on "+o.Host+"…").FontSize(theme.TextLabel).TextColor(theme.Muted)
 		case t.err != "":
-			ui.Text(c, t.err).FontSize(12).TextColor(theme.Error).Shrink(1)
+			ui.Text(c, t.err).FontSize(theme.TextLabel).TextColor(theme.Error).Shrink(1)
 		case t.result != nil && t.result.OK:
 			ui.Icon(c, icon.Check).FontSize(13).TextColor(theme.Done)
 			ui.Text(c, fmt.Sprintf("%s answers · %d tools · %.1fs", serverName(*t.result, it.Name), len(t.result.Tools), float64(t.result.Took)/1000)).
 				FontSize(12).TextColor(theme.Done).Shrink(1)
 		case t.result != nil:
 			ui.Icon(c, icon.Alert).FontSize(13).TextColor(theme.Error)
-			ui.Text(c, t.result.Error).FontSize(12).TextColor(theme.Error).Shrink(1)
+			ui.Text(c, t.result.Error).FontSize(theme.TextLabel).TextColor(theme.Error).Shrink(1)
 		}
 	})
 	r := t.result
@@ -81,14 +81,14 @@ func (v *View) mcpTestPanel(c *ui.Context, o Options, it proto.EnvItem) {
 		ui.Column(c).FillWidth().Gap(4).Children(func() {
 			for i, tool := range r.Tools {
 				ui.Row(c.Key(strconv.Itoa(i))).FillWidth().Gap(10).Children(func() {
-					ui.Text(c, tool.Name).Font(theme.MonoFont).FontSize(12).Width(220).Shrink(0)
-					ui.Text(c, tool.Description).FontSize(11.5).TextColor(theme.Muted).Grow(1).MinWidth(0)
+					ui.Text(c, tool.Name).Font(theme.MonoFont).FontSize(theme.TextLabel).Width(220).Shrink(0)
+					ui.Text(c, tool.Description).FontSize(theme.TextLabel).TextColor(theme.Muted).Grow(1).MinWidth(0)
 				})
 			}
 		})
 	}
 	if !r.OK && r.Stderr != "" {
-		ui.Text(c, r.Stderr).Font(theme.MonoFont).FontSize(11).Padding(8, 10).Radius(6).Background(theme.Sunken).FillWidth()
+		ui.Text(c, r.Stderr).Font(theme.MonoFont).FontSize(theme.TextLabel).Padding(8, 10).Radius(theme.RadiusSmall).Background(theme.Sunken).FillWidth()
 	}
 }
 

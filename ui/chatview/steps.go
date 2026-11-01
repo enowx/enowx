@@ -163,10 +163,10 @@ func (ch *Chat) toolRow(c *ui.Context, e proto.TranscriptEntry, latest bool) {
 	status := func() {
 		switch {
 		case e.Added+e.Removed > 0:
-			ui.Text(c, fmt.Sprintf("+%d", e.Added)).FontSize(11.5).TextColor(theme.Done).SingleLine()
-			ui.Text(c, fmt.Sprintf("−%d", e.Removed)).FontSize(11.5).TextColor(theme.Error).SingleLine()
+			ui.Text(c, fmt.Sprintf("+%d", e.Added)).FontSize(theme.TextLabel).TextColor(theme.Done).SingleLine()
+			ui.Text(c, fmt.Sprintf("−%d", e.Removed)).FontSize(theme.TextLabel).TextColor(theme.Error).SingleLine()
 		case e.Failed:
-			ui.Text(c, "failed").FontSize(11.5).TextColor(theme.Error).SingleLine()
+			ui.Text(c, "failed").FontSize(theme.TextLabel).TextColor(theme.Error).SingleLine()
 		case latest && !e.Done:
 			widget.Spinner(c, 11)
 		}

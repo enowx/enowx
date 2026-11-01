@@ -195,17 +195,17 @@ func markRow(c *ui.Context, row ui.Element, b block, n int, tick func(), text fu
 	case kH3:
 		top = 6
 	}
-	row.FillWidth().Gap(8).Padding(top+2, 6, 2, 6+float32(b.indent)*24).Radius(5).AlignItems(ui.Start).Children(func() {
+	row.FillWidth().Gap(8).Padding(top+2, 6, 2, 6+float32(b.indent)*24).Radius(theme.RadiusSmall).AlignItems(ui.Start).Children(func() {
 		switch b.kind {
 		case kBullet:
 			// A dot in the middle of the first line.
 			ui.Row(c).Width(14).Height(20).Shrink(0).Center().Children(func() {
-				ui.Box(c).Size(5, 5).Radius(3).Background(theme.TextSoft)
+				ui.Box(c).Size(5, 5).Radius(theme.RadiusTail).Background(theme.TextSoft)
 			})
 		case kNumber:
-			ui.Text(c, strconv.Itoa(max(n, 1))+".").FontSize(14).TextColor(theme.TextSoft).MinWidth(14).Shrink(0)
+			ui.Text(c, strconv.Itoa(max(n, 1))+".").FontSize(theme.TextUI).TextColor(theme.TextSoft).MinWidth(14).Shrink(0)
 		case kTodo:
-			box := ui.ButtonBase(c).Size(16, 16).Margin(2, 0, 0, 0).Shrink(0).Radius(4).Center().Border(1.5, theme.BorderStrong).
+			box := ui.ButtonBase(c).Size(16, 16).Margin(2, 0, 0, 0).Shrink(0).Radius(theme.RadiusTail).Center().Border(1.5, theme.BorderStrong).
 				Cursor(ui.CursorPointer).Label("Done")
 			if b.done {
 				box.Background(theme.Accent).Border(1.5, theme.Accent).Children(func() {
@@ -216,7 +216,7 @@ func markRow(c *ui.Context, row ui.Element, b block, n int, tick func(), text fu
 				tick()
 			}
 		case kQuote:
-			ui.Box(c).Width(3).FillHeight().MinHeight(20).Radius(2).Background(theme.BorderStrong).Shrink(0)
+			ui.Box(c).Width(3).FillHeight().MinHeight(20).Radius(theme.RadiusTail).Background(theme.BorderStrong).Shrink(0)
 		}
 		ui.Column(c).Grow(1).MinWidth(0).Children(text)
 	})
@@ -250,7 +250,7 @@ func (e *editor) show(c *ui.Context, i, n int) {
 	line := ui.Row(c).FillWidth().Margin(0, 0, 0, -22).AlignItems(ui.Start)
 	line.Children(func() {
 		if line.Hovered() {
-			g := ui.ButtonBase(c).Size(20, 22).Shrink(0).Radius(4).Center().Cursor(ui.CursorGrab).
+			g := ui.ButtonBase(c).Size(20, 22).Shrink(0).Radius(theme.RadiusTail).Center().Cursor(ui.CursorGrab).
 				Label("Drag block " + strconv.Itoa(i+1)).Tooltip("Drag to move").Drag(blockDrag{i})
 			if g.Hovered() {
 				g.Background(theme.Hover)
@@ -360,7 +360,7 @@ func (e *editor) edit(c *ui.Context, i, n int) {
 	case kCode, kTable, kLayout, kLeaf:
 		ui.Column(c).FillWidth().Gap(4).Padding(4, 0).Children(func() {
 			if b.kind == kCode {
-				widget.Input(c, &b.lang, "language").Width(160).Height(26).FontSize(11.5).Font(theme.MonoFont).OnTextKey(func(k ui.TextKey) bool {
+				widget.Input(c, &b.lang, "language").Width(160).Height(26).FontSize(theme.TextLabel).Font(theme.MonoFont).OnTextKey(func(k ui.TextKey) bool {
 					if e.historyKey == nil {
 						return false
 					}
@@ -375,11 +375,11 @@ func (e *editor) edit(c *ui.Context, i, n int) {
 			switch b.kind {
 			case kLayout:
 				label = "Layout block"
-				ui.Text(c, "Layout block, as Markdown · Esc shows it").FontSize(11).TextColor(theme.Muted)
+				ui.Text(c, "Layout block, as Markdown · Esc shows it").FontSize(theme.TextLabel).TextColor(theme.Muted)
 			case kLeaf:
 				lines, label = 1, "Directive"
 			}
-			in = ui.TextAreaBase(c, &b.text).FillWidth().Lines(lines, 40).Font(theme.MonoFont).FontSize(12.5).Padding(10, 12).
+			in = ui.TextAreaBase(c, &b.text).FillWidth().Lines(lines, 40).Font(theme.MonoFont).FontSize(theme.TextUI).Padding(10, 12).
 				Radius(8).Background(theme.Sunken).Border(1, theme.AccentLine).Label(label)
 		})
 	default:

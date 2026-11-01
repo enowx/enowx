@@ -59,10 +59,10 @@ func (a *App) goaRulesDialog(c *ui.Context) {
 			rulesNotRead(c, f.err)
 			return
 		}
-		ui.TextArea(c.Key("goa-rules"), &f.text).Height(240).Padding(10, 12).Radius(theme.RadiusControl).Font(theme.MonoFont).FontSize(12.5).
+		ui.TextArea(c.Key("goa-rules"), &f.text).Height(240).Padding(10, 12).Radius(theme.RadiusControl).Font(theme.MonoFont).FontSize(theme.TextUI).
 			Background(theme.Sunken).Border(1, theme.BorderStrong).
 			Placeholder("- Give frontend tasks to Codex, the rest to Claude Code\n- Ask me before merging to main")
-		ui.Text(c, "No credentials here: agents read these, and rules that look like they hold a secret are refused.").FontSize(11.5).TextColor(theme.Muted)
+		ui.Text(c, "No credentials here: agents read these, and rules that look like they hold a secret are refused.").FontSize(theme.TextLabel).TextColor(theme.Muted)
 		a.rulesDraftBox(c, &f.draft, proto.RulesForGOA, "", &f.text)
 		if f.err != "" {
 			widget.Notice(c, icon.Alert, theme.Error, f.err, "", nil)

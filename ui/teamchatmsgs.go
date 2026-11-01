@@ -68,7 +68,7 @@ func chatDay(c *ui.Context, at, now time.Time) {
 	}
 	ui.Row(c).FillWidth().Gap(10).Padding(10, 12, 6, 12).AlignItems(ui.Center).Children(func() {
 		ui.Box(c).Grow(1).Height(1).Background(theme.Border)
-		ui.Text(c, label).FontSize(10.5).FontWeight(600).TextColor(theme.Muted).SingleLine()
+		ui.Text(c, label).FontSize(theme.TextLabel).FontWeight(600).TextColor(theme.Muted).SingleLine()
 		ui.Box(c).Grow(1).Height(1).Background(theme.Border)
 	})
 }
@@ -100,9 +100,9 @@ func (a *App) memberMessage(c *ui.Context, team string, m proto.ChatMessage, fir
 		col.Children(func() {
 			if first {
 				ui.Row(c).Gap(6).AlignItems(ui.Center).Children(func() {
-					ui.Text(c, m.Name).FontSize(12).FontWeight(650).TextColor(widget.TeamColor(m.Account)).SingleLine().Shrink(1)
+					ui.Text(c, m.Name).FontSize(theme.TextLabel).FontWeight(650).TextColor(widget.TeamColor(m.Account)).SingleLine().Shrink(1)
 					if m.GitHub != "" {
-						ui.Text(c, "@"+m.GitHub).FontSize(11).TextColor(theme.Muted).SingleLine().Shrink(1)
+						ui.Text(c, "@"+m.GitHub).FontSize(theme.TextLabel).TextColor(theme.Muted).SingleLine().Shrink(1)
 					}
 					chatTime(c, m.At, now)
 				})
@@ -127,7 +127,7 @@ func (a *App) ownMessage(c *ui.Context, team string, m proto.ChatMessage, first 
 		if first {
 			ui.Row(c).Gap(6).AlignItems(ui.Center).Children(func() {
 				chatTime(c, m.At, now)
-				ui.Text(c, "You").FontSize(11).FontWeight(600).TextColor(theme.TextSoft)
+				ui.Text(c, "You").FontSize(theme.TextLabel).FontWeight(600).TextColor(theme.TextSoft)
 			})
 		}
 		ui.Row(c).Gap(4).AlignItems(ui.Center).Shrink(1).MinWidth(0).Children(func() {
@@ -195,13 +195,13 @@ func (a *App) teamAdmin(team string) bool {
 }
 
 func chatTime(c *ui.Context, at, now time.Time) {
-	ui.Text(c, textfmt.Age(at, now)).FontSize(10.5).TextColor(theme.Idle).SingleLine().Tooltip(at.Local().Format("Mon 2 Jan 15:04"))
+	ui.Text(c, textfmt.Age(at, now)).FontSize(theme.TextLabel).TextColor(theme.Idle).SingleLine().Tooltip(at.Local().Format("Mon 2 Jan 15:04"))
 }
 
 // chatBubble is a message's text, its mentions lit and opening what they
 // name; one its text no longer names shows as a chip under it.
 func (a *App) chatBubble(c *ui.Context, team string, m proto.ChatMessage, bg, border ui.Color) {
-	ui.Column(c).Padding(6, 10).Gap(6).Radius(12).Background(bg).Border(1, border).MaxWidth(520).Shrink(1).MinWidth(0).Children(func() {
+	ui.Column(c).Padding(6, 10).Gap(6).Radius(theme.RadiusSmall).Background(bg).Border(1, border).MaxWidth(520).Shrink(1).MinWidth(0).Children(func() {
 		a.replyQuote(c, team, m)
 		a.messageImages(c, team, m)
 		var loose []proto.ChatMention
@@ -209,7 +209,7 @@ func (a *App) chatBubble(c *ui.Context, team string, m proto.ChatMessage, bg, bo
 		if m.Text == "" && m.Edited == nil {
 			return // images only
 		}
-		ui.RichText(c).FontSize(12.5).TextColor(theme.Text).Selectable().Children(func() {
+		ui.RichText(c).FontSize(theme.TextUI).TextColor(theme.Text).Selectable().Children(func() {
 			for i, p := range parts {
 				if p.mention == nil {
 					a.chatText(c.Key(i), team, p.text)
@@ -218,7 +218,7 @@ func (a *App) chatBubble(c *ui.Context, team string, m proto.ChatMessage, bg, bo
 				a.inlineMention(c.Key(i), team, *p.mention)
 			}
 			if m.Edited != nil {
-				ui.Text(c.Key("edited"), "  (edited)").FontSize(10.5).TextColor(theme.Idle).Tooltip("Edited " + m.Edited.Local().Format("Mon 2 Jan 15:04"))
+				ui.Text(c.Key("edited"), "  (edited)").FontSize(theme.TextLabel).TextColor(theme.Idle).Tooltip("Edited " + m.Edited.Local().Format("Mon 2 Jan 15:04"))
 			}
 		})
 		for _, mn := range m.Mentions {
@@ -308,14 +308,14 @@ func mentionTip(mn proto.ChatMention) string {
 
 // mentionChip is what a message names, under its text.
 func (a *App) mentionChip(c *ui.Context, team string, mn proto.ChatMention) {
-	b := ui.ButtonBase(c).Height(22).Padding(0, 8, 0, 6).Gap(5).Radius(11).Background(theme.Sunken).Border(1, theme.Border).AlignItems(ui.Center).
+	b := ui.ButtonBase(c).Height(22).Padding(0, 8, 0, 6).Gap(5).Radius(theme.RadiusSmall).Background(theme.Sunken).Border(1, theme.Border).AlignItems(ui.Center).
 		Label(mn.Kind + " " + mn.Title)
 	if a.mentionOpens(mn) {
 		b.Cursor(ui.CursorPointer)
 	}
 	b.Children(func() {
 		ui.Icon(c, mentionIcon(mn.Kind)).FontSize(11).TextColor(theme.TextSoft)
-		ui.Text(c, mn.Title).FontSize(11).TextColor(theme.TextSoft).SingleLine()
+		ui.Text(c, mn.Title).FontSize(theme.TextLabel).TextColor(theme.TextSoft).SingleLine()
 	})
 	if b.Clicked() && a.mentionOpens(mn) {
 		a.openMention(team, mn)

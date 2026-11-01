@@ -307,14 +307,14 @@ func (v *View) rulesPage(c *ui.Context, o Options) {
 			if r.project != "" {
 				where = "Rules of " + baseName(r.project) + " (.enowx/traffic.json)"
 			}
-			ui.Text(c, where).FontSize(11.5).TextColor(theme.Muted).Grow(1).Shrink(1).SingleLine()
+			ui.Text(c, where).FontSize(theme.TextLabel).TextColor(theme.Muted).Grow(1).Shrink(1).SingleLine()
 			if widget.Button(c, widget.Secondary, icon.Plus, "Add rule", "").Clicked() {
 				r.edit = formOf(proto.TrafficRule{Enabled: true, Action: proto.TrafficAction{Kind: proto.ActionMock, Status: 200}})
 				r.edit.index = -1
 			}
 		})
 		if r.err != "" {
-			ui.Text(c, r.err).FontSize(12).TextColor(theme.Error).Margin(8, 12)
+			ui.Text(c, r.err).FontSize(theme.TextLabel).TextColor(theme.Error).Margin(8, 12)
 		}
 		ui.Scroll(c).Grow(1).FillWidth().MinHeight(0).Children(func() {
 			ui.Column(c).FillWidth().Padding(4, 0, 12, 0).Children(func() {
@@ -348,12 +348,12 @@ func (v *View) ruleRow(c *ui.Context, o Options, i int) {
 			if !rule.Enabled {
 				col = theme.Muted
 			}
-			ui.Text(c, title).FontSize(12).TextColor(col).Shrink(1)
+			ui.Text(c, title).FontSize(theme.TextLabel).TextColor(col).Shrink(1)
 			info := fmt.Sprintf("%d hits", rule.Hits)
 			if rule.Problem != "" {
-				ui.Text(c, rule.Problem).FontSize(11).TextColor(theme.Error)
+				ui.Text(c, rule.Problem).FontSize(theme.TextLabel).TextColor(theme.Error)
 			} else {
-				ui.Text(c, info).FontSize(11).TextColor(theme.Muted)
+				ui.Text(c, info).FontSize(theme.TextLabel).TextColor(theme.Muted)
 			}
 		})
 		if i > 0 && widget.IconButton(c, icon.ArrowUp, "Move up: rules apply first to last", false).Clicked() {
@@ -393,7 +393,7 @@ func (v *View) ruleSheet(c *ui.Context, o Options) {
 	open := true
 	sheet(c, &open, 560, title, where, func() {
 		ui.Column(c).FillWidth().Gap(10).Children(func() {
-			ui.Text(c, "When a request matches").FontSize(12.5).FontWeight(600)
+			ui.Text(c, "When a request matches").FontSize(theme.TextUI).FontWeight(600)
 			field("Name (optional)", &f.rule.Name, "Login fails")
 			ui.Row(c).FillWidth().Gap(8).Children(func() {
 				ui.Column(c).Width(120).Children(func() { field("Methods", &f.methods, "GET,POST") })
@@ -408,7 +408,7 @@ func (v *View) ruleSheet(c *ui.Context, o Options) {
 			field("Body contains (optional)", &f.body, "")
 		})
 		ui.Column(c).FillWidth().Gap(10).Children(func() {
-			ui.Text(c, "Then").FontSize(12.5).FontWeight(600)
+			ui.Text(c, "Then").FontSize(theme.TextUI).FontWeight(600)
 			if i := widget.Segmented(c, actions, f.action, nil); i >= 0 {
 				f.action = i
 			}
@@ -442,7 +442,7 @@ func (v *View) ruleSheet(c *ui.Context, o Options) {
 				}
 			case proto.ActionBreakpoint:
 				ui.Row(c).Gap(8).AlignItems(ui.Center).Children(func() {
-					ui.Text(c, "Pause the").FontSize(12).TextColor(theme.TextSoft)
+					ui.Text(c, "Pause the").FontSize(theme.TextLabel).TextColor(theme.TextSoft)
 					if i := widget.Segmented(c, stages, f.stage, nil); i >= 0 {
 						f.stage = i
 					}

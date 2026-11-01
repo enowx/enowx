@@ -54,14 +54,14 @@ func (ch *Chat) pictureChips(c *ui.Context, text string) {
 	}
 	ui.Row(c.Key("pictures")).FillWidth().Gap(6).Wrap().Children(func() {
 		for _, p := range pics {
-			b := ui.ButtonBase(c.Key(p)).Height(26).Padding(0, 9).Gap(6).Radius(13).AlignItems(ui.Center).
+			b := ui.ButtonBase(c.Key(p)).Height(26).Padding(0, 9).Gap(6).Radius(theme.RadiusSmall).AlignItems(ui.Center).
 				Background(theme.Raised).Border(1, theme.Border).Cursor(ui.CursorPointer).Label("Show " + path.Base(p)).Tooltip(p)
 			if b.Hovered() {
 				b.Border(1, theme.AccentLine)
 			}
 			b.Children(func() {
 				ui.Icon(c, icon.Image).FontSize(12).TextColor(theme.TextSoft)
-				ui.Text(c, path.Base(p)).FontSize(11.5).TextColor(theme.TextSoft).SingleLine().MaxWidth(220)
+				ui.Text(c, path.Base(p)).FontSize(theme.TextLabel).TextColor(theme.TextSoft).SingleLine().MaxWidth(220)
 			})
 			if b.Clicked() && ch.links != nil {
 				ch.links(p)

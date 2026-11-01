@@ -60,8 +60,8 @@ func (e *editor) nodeView(c *ui.Context, i int, n noteblocks.Node) {
 	case n.Name == "cards":
 		e.cardsView(c, i, n)
 	default:
-		ui.Column(c).FillWidth().Gap(4).Padding(10, 12).Radius(8).Border(1, theme.Border).Children(func() {
-			ui.Text(c, n.Name+" "+n.Args).Font(theme.MonoFont).FontSize(11).TextColor(theme.Muted)
+		ui.Column(c).FillWidth().Gap(4).Padding(10, 12).Radius(theme.RadiusSmall).Border(1, theme.Border).Children(func() {
+			ui.Text(c, n.Name+" "+n.Args).Font(theme.MonoFont).FontSize(theme.TextLabel).TextColor(theme.Muted)
 			for _, p := range n.Parts {
 				e.partView(c.Key(p.Line), i, p)
 			}
@@ -177,7 +177,7 @@ func (e *editor) tabsView(c *ui.Context, i int, n noteblocks.Node) {
 			at = k
 		}
 	}
-	ui.Column(c).FillWidth().Radius(10).Border(1, theme.Border).Clip().Children(func() {
+	ui.Column(c).FillWidth().Radius(theme.RadiusSmall).Border(1, theme.Border).Clip().Children(func() {
 		ui.Row(c).FillWidth().Gap(2).PaddingX(6).BorderWidth(0, 0, 1, 0).BorderColor(theme.Border).Background(theme.Raised).Children(func() {
 			for k, p := range n.Parts {
 				title := p.Title
@@ -191,7 +191,7 @@ func (e *editor) tabsView(c *ui.Context, i int, n noteblocks.Node) {
 					tab.Background(theme.Hover)
 				}
 				tab.Children(func() {
-					t := ui.Text(c, title).FontSize(12.5).SingleLine()
+					t := ui.Text(c, title).FontSize(theme.TextUI).SingleLine()
 					if k == at {
 						t.FontWeight(600).TextColor(theme.TextStrong)
 					} else {
@@ -217,7 +217,7 @@ func (e *editor) toggleView(c *ui.Context, i int, n noteblocks.Node) {
 		title = "Details"
 	}
 	ui.Column(c).FillWidth().Gap(2).Children(func() {
-		head := ui.ButtonBase(c).FillWidth().Height(30).PaddingX(6).Gap(6).Radius(6).AlignItems(ui.Center).Cursor(ui.CursorPointer).Label("Toggle " + title)
+		head := ui.ButtonBase(c).FillWidth().Height(30).PaddingX(6).Gap(6).Radius(theme.RadiusSmall).AlignItems(ui.Center).Cursor(ui.CursorPointer).Label("Toggle " + title)
 		if head.Hovered() {
 			head.Background(theme.Hover)
 		}
@@ -227,7 +227,7 @@ func (e *editor) toggleView(c *ui.Context, i int, n noteblocks.Node) {
 				chev = icon.ChevronDown
 			}
 			ui.Icon(c, chev).FontSize(13).TextColor(theme.Muted)
-			e.label(c, title).FontSize(14).FontWeight(600).TextColor(theme.TextStrong).Grow(1)
+			e.label(c, title).FontSize(theme.TextUI).FontWeight(600).TextColor(theme.TextStrong).Grow(1)
 		})
 		if head.Clicked() {
 			v := "open"
@@ -269,11 +269,11 @@ func (e *editor) calloutView(c *ui.Context, i int, n noteblocks.Node) {
 	kind, title := calloutOf(n.Args)
 	k := calloutKinds[kind]
 	col := k.color()
-	ui.Row(c).FillWidth().Gap(10).Padding(12, 14).Radius(10).Background(theme.Fade(col, 0.1)).Border(1, theme.Fade(col, 0.35)).AlignItems(ui.Start).Children(func() {
+	ui.Row(c).FillWidth().Gap(10).Padding(12, 14).Radius(theme.RadiusSmall).Background(theme.Fade(col, 0.1)).Border(1, theme.Fade(col, 0.35)).AlignItems(ui.Start).Children(func() {
 		ui.Icon(c, k.svg).FontSize(16).TextColor(col).Margin(2, 0, 0, 0)
 		ui.Column(c).Grow(1).MinWidth(0).Gap(2).Children(func() {
 			if title != "" {
-				e.label(c, title).FontSize(14).FontWeight(650).TextColor(theme.TextStrong)
+				e.label(c, title).FontSize(theme.TextUI).FontWeight(650).TextColor(theme.TextStrong)
 			}
 			for _, p := range n.Parts {
 				e.partView(c.Key(p.Line), i, p)
@@ -305,7 +305,7 @@ func (e *editor) columnsView(c *ui.Context, i int, n noteblocks.Node) {
 			}
 			col.Children(func() {
 				if p.Title != "" {
-					e.label(c, p.Title).FontSize(14).FontWeight(650).TextColor(theme.TextStrong)
+					e.label(c, p.Title).FontSize(theme.TextUI).FontWeight(650).TextColor(theme.TextStrong)
 				}
 				e.partView(c, i, p)
 			})
@@ -328,10 +328,10 @@ func (e *editor) cardsView(c *ui.Context, i int, n noteblocks.Node) {
 						continue
 					}
 					p := n.Parts[k]
-					ui.Column(c.Key(k)).Grow(1).Basis(0).MinWidth(0).Gap(4).Padding(12, 14).Radius(10).
+					ui.Column(c.Key(k)).Grow(1).Basis(0).MinWidth(0).Gap(4).Padding(12, 14).Radius(theme.RadiusSmall).
 						Border(1, theme.Border).Background(theme.Raised).Children(func() {
 						if p.Title != "" {
-							e.label(c, p.Title).FontSize(14).FontWeight(650).TextColor(theme.TextStrong)
+							e.label(c, p.Title).FontSize(theme.TextUI).FontWeight(650).TextColor(theme.TextStrong)
 						}
 						e.partView(c, i, p)
 					})

@@ -55,10 +55,10 @@ func (a *App) updateCard(c *ui.Context) {
 				case updateReady:
 					title, detail = "enowX "+v.Version+" is installed", "Restart to run it: your sessions come back, agents on their conversations."
 				}
-				ui.Text(c, title).FontSize(12.5).SingleLine().Shrink(1)
-				ui.Text(c, detail).FontSize(11.5).TextColor(theme.Muted)
+				ui.Text(c, title).FontSize(theme.TextUI).SingleLine().Shrink(1)
+				ui.Text(c, detail).FontSize(theme.TextLabel).TextColor(theme.Muted)
 				if u.err != "" {
-					ui.Text(c, "The update failed: "+u.err).FontSize(11.5).TextColor(theme.Error)
+					ui.Text(c, "The update failed: "+u.err).FontSize(theme.TextLabel).TextColor(theme.Error)
 				}
 			})
 		})

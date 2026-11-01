@@ -128,9 +128,9 @@ func (ch *Chat) lineHead(c *ui.Context, svg *ui.SVG, label, detail string, statu
 	}
 	head.Background(widget.Tint(head, "bg", bg)).Children(func() {
 		ui.Icon(c, svg).FontSize(13).TextColor(theme.Muted)
-		ui.Text(c, label).FontSize(12.5).TextColor(theme.TextSoft).SingleLine().Shrink(0)
+		ui.Text(c, label).FontSize(theme.TextUI).TextColor(theme.TextSoft).SingleLine().Shrink(0)
 		if detail != "" {
-			ui.Text(c, detail).Font(theme.MonoFont).FontSize(11).TextColor(theme.Muted).SingleLine().Shrink(1).Grow(1)
+			ui.Text(c, detail).Font(theme.MonoFont).FontSize(theme.TextLabel).TextColor(theme.Muted).SingleLine().Shrink(1).Grow(1)
 		} else {
 			ui.Spacer(c)
 		}
@@ -192,9 +192,9 @@ func (ch *Chat) toolBody(c *ui.Context, e proto.TranscriptEntry) {
 		return
 	}
 	if e.Result == "" {
-		ui.Text(c, "No output yet.").FontSize(12).TextColor(theme.Muted)
+		ui.Text(c, "No output yet.").FontSize(theme.TextLabel).TextColor(theme.Muted)
 		return
 	}
-	ui.Text(c, e.Result).Font(theme.MonoFont).FontSize(11).TextColor(theme.TextSoft).Padding(8, 10).Radius(theme.RadiusControl).
+	ui.Text(c, e.Result).Font(theme.MonoFont).FontSize(theme.TextLabel).TextColor(theme.TextSoft).Padding(8, 10).Radius(theme.RadiusControl).
 		Background(theme.Sunken).Border(1, theme.Border).FillWidth().Selectable()
 }

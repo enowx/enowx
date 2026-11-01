@@ -38,7 +38,7 @@ func SpacePicker(c *ui.Context, current Space, detail string, size float32, spac
 	}
 	choice := current.Team
 	sel := ui.SelectBase(c, &choice)
-	trig := sel.Trigger.Gap(5).Padding(1, 4, 1, 2).Margin(0, 0, 0, -2).Radius(5).AlignItems(ui.Center).MinWidth(0).Shrink(1).
+	trig := sel.Trigger.Gap(5).Padding(1, 4, 1, 2).Margin(0, 0, 0, -2).Radius(theme.RadiusSmall).AlignItems(ui.Center).MinWidth(0).Shrink(1).
 		Cursor(ui.CursorPointer).Label("Space: " + current.Name).Tooltip("Switch to another space")
 	if sel.Open() || trig.Hovered() {
 		trig.Background(theme.Hover)

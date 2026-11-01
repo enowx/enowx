@@ -30,17 +30,17 @@ var buildStages = []struct{ id, label string }{
 func (v *View) buildHUD(c *ui.Context, o Options, cv proto.Canvas) {
 	switch {
 	case o.Building:
-		ui.Row(c.Key("build-hud")).Absolute().Left(12).Bottom(12).Padding(10, 12).Gap(8).Radius(12).AlignItems(ui.Center).
+		ui.Row(c.Key("build-hud")).Absolute().Left(12).Bottom(12).Padding(10, 12).Gap(8).Radius(theme.RadiusSmall).AlignItems(ui.Center).
 			Background(theme.Dialog).Border(1, theme.BorderStrong).Children(func() {
 			widget.Spinner(c, 12)
-			ui.Text(c, "Starting the build…").FontSize(12).TextColor(theme.TextSoft)
+			ui.Text(c, "Starting the build…").FontSize(theme.TextLabel).TextColor(theme.TextSoft)
 		})
 		return
 	case o.BuildErr != "":
-		ui.Row(c.Key("build-hud")).Absolute().Left(12).Bottom(12).Padding(10, 12).Gap(8).Radius(12).AlignItems(ui.Center).
+		ui.Row(c.Key("build-hud")).Absolute().Left(12).Bottom(12).Padding(10, 12).Gap(8).Radius(theme.RadiusSmall).AlignItems(ui.Center).
 			Background(theme.Dialog).Border(1, theme.Fade(theme.Error, 0.5)).Children(func() {
 			ui.Icon(c, icon.Alert).FontSize(12).TextColor(theme.Error)
-			ui.Text(c, "The build didn't start: "+o.BuildErr).FontSize(12).TextColor(theme.TextSoft)
+			ui.Text(c, "The build didn't start: "+o.BuildErr).FontSize(theme.TextLabel).TextColor(theme.TextSoft)
 			if o.BuildDismiss != nil && widget.IconButton(c, icon.Close, "Dismiss", false).Clicked() {
 				o.BuildDismiss()
 			}
@@ -51,12 +51,12 @@ func (v *View) buildHUD(c *ui.Context, o Options, cv proto.Canvas) {
 	if run == nil || run.ID != cv.ID || v.buildClosed == run.What+run.Stage {
 		return
 	}
-	ui.Column(c.Key("build-hud")).Absolute().Left(12).Bottom(12).Width(280).Padding(12).Gap(10).Radius(12).
+	ui.Column(c.Key("build-hud")).Absolute().Left(12).Bottom(12).Width(280).Padding(12).Gap(10).Radius(theme.RadiusSmall).
 		Background(theme.Dialog).Border(1, theme.BorderStrong).Children(func() {
 		ui.Row(c).FillWidth().Gap(8).AlignItems(ui.Center).Children(func() {
 			ui.Icon(c, icon.Palette).FontSize(14).TextColor(theme.Accent)
-			ui.Text(c, "Build").FontSize(12.5).FontWeight(600)
-			ui.Text(c, run.What).FontSize(11.5).TextColor(theme.Muted).SingleLine().Grow(1).Shrink(1).MinWidth(0)
+			ui.Text(c, "Build").FontSize(theme.TextUI).FontWeight(600)
+			ui.Text(c, run.What).FontSize(theme.TextLabel).TextColor(theme.Muted).SingleLine().Grow(1).Shrink(1).MinWidth(0)
 			if run.Done && widget.IconButton(c, icon.Close, "Close", false).Clicked() {
 				v.buildClosed = run.What + run.Stage
 			}
@@ -83,11 +83,11 @@ func buildStepper(c *ui.Context, stage string) {
 			case i == at:
 				col, bg = theme.Accent, theme.Fade(theme.Accent, 0.14)
 			}
-			ui.Row(c.Key(s.id)).Height(20).Padding(0, 7).Gap(4).Radius(10).AlignItems(ui.Center).Background(bg).Children(func() {
+			ui.Row(c.Key(s.id)).Height(20).Padding(0, 7).Gap(4).Radius(theme.RadiusSmall).AlignItems(ui.Center).Background(bg).Children(func() {
 				if i < at || stage == proto.BuildDone {
 					ui.Icon(c, icon.Check).FontSize(9).TextColor(col)
 				}
-				ui.Text(c, s.label).FontSize(10.5).TextColor(col)
+				ui.Text(c, s.label).FontSize(theme.TextLabel).TextColor(col)
 			})
 		}
 	})
@@ -105,17 +105,17 @@ func (v *View) buildDirections(c *ui.Context, o Options, cv proto.Canvas, run pr
 	ui.Column(c).FillWidth().Gap(2).Padding(8, 0, 0, 0).BorderWidth(1, 0, 0, 0).BorderColor(theme.Border).Children(func() {
 		for i, d := range run.Directions {
 			f := cv.Frames[max(0, slices.IndexFunc(cv.Frames, func(f proto.CanvasFrame) bool { return f.ID == d.Frame }))]
-			row := ui.ButtonBase(c.Key(d.Frame)).FillWidth().Gap(8).Padding(4, 6).Radius(6).AlignItems(ui.Center).
+			row := ui.ButtonBase(c.Key(d.Frame)).FillWidth().Gap(8).Padding(4, 6).Radius(theme.RadiusSmall).AlignItems(ui.Center).
 				Label("Show " + f.Name).Cursor(ui.CursorPointer)
 			if row.Hovered() {
 				row.Background(theme.Hover)
 			}
 			row.Children(func() {
-				ui.Box(c).Size(7, 7).Radius(4).Background(ui.Hex(unslopview.RegionColors[i%len(unslopview.RegionColors)]))
+				ui.Box(c).Size(7, 7).Radius(theme.RadiusTail).Background(ui.Hex(unslopview.RegionColors[i%len(unslopview.RegionColors)]))
 				ui.Column(c).Grow(1).Shrink(1).MinWidth(0).Gap(1).Children(func() {
-					ui.Text(c, f.Name).FontSize(11.5).FontWeight(600).SingleLine()
+					ui.Text(c, f.Name).FontSize(theme.TextLabel).FontWeight(600).SingleLine()
 					if f.Direction != nil {
-						ui.Text(c, f.Direction.Source).FontSize(10.5).TextColor(theme.Muted).SingleLine()
+						ui.Text(c, f.Direction.Source).FontSize(theme.TextLabel).TextColor(theme.Muted).SingleLine()
 					}
 				})
 				switch {
@@ -144,7 +144,7 @@ func (v *View) buildDirections(c *ui.Context, o Options, cv proto.Canvas, run pr
 					text += " · first screens alike"
 				}
 			}
-			ui.Text(c.Key(p.A+p.B), text).FontSize(10.5).TextColor(col).Padding(0, 6)
+			ui.Text(c.Key(p.A+p.B), text).FontSize(theme.TextLabel).TextColor(col).Padding(0, 6)
 		}
 	})
 	c.After(time.Second) // agents' states change outside the run

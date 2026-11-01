@@ -40,11 +40,11 @@ func (v *View) importDialog(c *ui.Context, o Options) {
 			case o.Scanning:
 				ui.Row(c).Gap(8).AlignItems(ui.Center).Children(func() {
 					widget.Spinner(c, 14)
-					ui.Text(c, "Looking…").FontSize(12.5).TextColor(theme.TextSoft)
+					ui.Text(c, "Looking…").FontSize(theme.TextUI).TextColor(theme.TextSoft)
 				})
 				return
 			case len(o.Found) == 0:
-				ui.Text(c, "Nothing found: log in with a tool there first (gh auth login, aws configure…), or add it by hand.").FontSize(12.5).TextColor(theme.TextSoft)
+				ui.Text(c, "Nothing found: log in with a tool there first (gh auth login, aws configure…), or add it by hand.").FontSize(theme.TextUI).TextColor(theme.TextSoft)
 				return
 			}
 			for i, found := range o.Found {
@@ -60,7 +60,7 @@ func (v *View) importDialog(c *ui.Context, o Options) {
 						if found.Account != "" {
 							title += " · " + found.Account
 						}
-						ui.Text(c, title).FontSize(12.5).TextColor(theme.Text).SingleLine()
+						ui.Text(c, title).FontSize(theme.TextUI).TextColor(theme.Text).SingleLine()
 						about := "from " + found.Source
 						if found.Note != "" {
 							about += " · " + found.Note
@@ -68,12 +68,12 @@ func (v *View) importDialog(c *ui.Context, o Options) {
 						if has(o.Credentials, found) {
 							about = "in the vault already · " + about
 						}
-						ui.Text(c, about).FontSize(11).TextColor(theme.Muted).SingleLine()
+						ui.Text(c, about).FontSize(theme.TextLabel).TextColor(theme.Muted).SingleLine()
 					})
 				})
 			}
 			if f.err != "" {
-				ui.Text(c, f.err).FontSize(12).TextColor(theme.Error)
+				ui.Text(c, f.err).FontSize(theme.TextLabel).TextColor(theme.Error)
 			}
 		}, func() {
 			n := 0

@@ -39,7 +39,7 @@ func (a *App) linksPush(c *ui.Context, f *linksForm) {
 	elsewhere := st.On && st.Host != "" && st.Host != a.daemonInfo.ID
 	ui.Row(c).FillWidth().Gap(10).AlignItems(ui.Center).Children(func() {
 		ui.Column(c).Grow(1).MinWidth(0).Gap(3).Children(func() {
-			ui.Text(c, "Push the work on its own").FontSize(13).FontWeight(600).TextColor(theme.TextStrong)
+			ui.Text(c, "Push the work on its own").FontSize(theme.TextUI).FontWeight(600).TextColor(theme.TextStrong)
 			ui.Text(c, "Commits what is in the folder to a branch of its own and pushes it, never touching your branch, staged files or working tree. .env files and keys never go, and a push carrying secrets stops.").
 				FontSize(11.5).TextColor(theme.Muted)
 		})
@@ -69,13 +69,13 @@ func (a *App) linksPush(c *ui.Context, f *linksForm) {
 	widget.Field(c, "To the branch", func() {
 		ui.Column(c).FillWidth().Gap(5).Children(func() {
 			widget.Input(c, &f.pushText.branch, "enowx/autosync").FillWidth()
-			ui.Text(c, "Only this branch is ever pushed: never main, master or the branch checked out.").FontSize(11).TextColor(theme.Muted)
+			ui.Text(c, "Only this branch is ever pushed: never main, master or the branch checked out.").FontSize(theme.TextLabel).TextColor(theme.Muted)
 		})
 	})
 	widget.Field(c, "Of the remote", func() { widget.Input(c, &f.pushText.remote, "origin").Width(160) })
 	ui.Column(c).FillWidth().Gap(6).AlignItems(ui.Start).Children(func() {
 		if widget.Checkbox(c, &st.PR, "Open a pull request of it") && st.PR {
-			ui.Text(c, "With gh, signed in.").FontSize(11).TextColor(theme.Muted)
+			ui.Text(c, "With gh, signed in.").FontSize(theme.TextLabel).TextColor(theme.Muted)
 		}
 		if st.PR {
 			widget.Input(c, &f.pushText.base, "into: the repository's default branch").FillWidth()
@@ -110,10 +110,10 @@ func (a *App) pushOutcome(c *ui.Context, f *linksForm) {
 			ui.Text(c, "Pushed "+textfmt.Age(st.LastPush, now)+" · "+shortCommit(st.Commit)+" · "+textfmt.Plural(st.Files, "1 file", strconv.Itoa(st.Files)+" files")).
 				FontSize(12).TextColor(theme.TextSoft)
 		case !st.LastRun.IsZero():
-			ui.Text(c, "Looked "+textfmt.Age(st.LastRun, now)+": nothing new to push").FontSize(12).TextColor(theme.TextSoft)
+			ui.Text(c, "Looked "+textfmt.Age(st.LastRun, now)+": nothing new to push").FontSize(theme.TextLabel).TextColor(theme.TextSoft)
 		}
 		if st.On && !st.Next.IsZero() && st.Here {
-			ui.Text(c, "Next "+textfmt.Until(st.Next, now)).FontSize(11.5).TextColor(theme.Muted)
+			ui.Text(c, "Next "+textfmt.Until(st.Next, now)).FontSize(theme.TextLabel).TextColor(theme.Muted)
 		}
 		ui.Row(c).Gap(8).Children(func() {
 			if st.BranchURL != "" && widget.GhostButton(c, "Open the branch").Clicked() {

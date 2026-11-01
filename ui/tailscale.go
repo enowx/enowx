@@ -108,8 +108,8 @@ func (a *App) tailnetSection(c *ui.Context) {
 	ui.Column(c).FillWidth().Gap(8).Children(func() {
 		ui.Row(c).FillWidth().Gap(8).Children(func() {
 			ui.Icon(c, icon.Tailscale).FontSize(14).TextColor(theme.TextSoft)
-			ui.Text(c, "On your tailnet").FontSize(12).TextColor(theme.TextSoft).Grow(1)
-			ui.Text(c, "Sign in as").FontSize(12).TextColor(theme.Muted)
+			ui.Text(c, "On your tailnet").FontSize(theme.TextLabel).TextColor(theme.TextSoft).Grow(1)
+			ui.Text(c, "Sign in as").FontSize(theme.TextLabel).TextColor(theme.Muted)
 			widget.Input(c, &a.tailUser, localUser()).Font(theme.MonoFont).Width(120)
 		})
 		ui.Scroll(c).FillWidth().MaxHeight(260).Children(func() {
@@ -124,8 +124,8 @@ func (a *App) tailnetSection(c *ui.Context) {
 
 func (a *App) peerRow(c *ui.Context, p tailnet.Peer) {
 	saved, isSaved := a.savedPeer(p)
-	ui.Row(c).FillWidth().Gap(10).Padding(8, 10).Radius(8).Background(theme.Raised).Children(func() {
-		ui.Box(c).Size(28, 28).Radius(7).Background(theme.Selected).Center().TextColor(theme.TextSoft).Children(func() {
+	ui.Row(c).FillWidth().Gap(10).Padding(8, 10).Radius(theme.RadiusSmall).Background(theme.Raised).Children(func() {
+		ui.Box(c).Size(28, 28).Radius(theme.RadiusSmall).Background(theme.Selected).Center().TextColor(theme.TextSoft).Children(func() {
 			ui.Icon(c, icon.Server).FontSize(14)
 		})
 		ui.Column(c).Gap(1).Grow(1).MinWidth(0).Children(func() {
@@ -141,7 +141,7 @@ func (a *App) peerRow(c *ui.Context, p tailnet.Peer) {
 			if !p.Online {
 				detail = "offline · " + detail
 			}
-			ui.Text(c, detail).Font(theme.MonoFont).FontSize(11).TextColor(theme.Muted).SingleLine()
+			ui.Text(c, detail).Font(theme.MonoFont).FontSize(theme.TextLabel).TextColor(theme.Muted).SingleLine()
 		})
 		label := "Connect"
 		if isSaved {

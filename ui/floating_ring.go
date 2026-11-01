@@ -208,7 +208,7 @@ func (a *App) floatingSlice(c *ui.Context, act floatingAction, i int, angle floa
 		ic := ui.Icon(c, act.svg).FontSize(size).TextColor(ink)
 		ic.Scale(1+0.08*hover, 1+0.08*hover)
 		if act.status == nil {
-			ui.Text(c, floatingCaption(act)).FontSize(10).TextColor(ink).
+			ui.Text(c, floatingCaption(act)).FontSize(theme.TextLabel).TextColor(ink).
 				MaxWidth(floatingSliceTarget).MaxLines(2).TextAlign(ui.Center).PassThrough()
 		}
 		if act.status != nil {
@@ -225,7 +225,7 @@ func (a *App) floatingSlice(c *ui.Context, act floatingAction, i int, angle floa
 		ui.Icon(c, icon.ChevronRight).Absolute().
 			Left(float32(float64(floatingSize)/2+math.Cos(angle)*cueAt-5)).
 			Top(float32(float64(floatingSize)/2-math.Sin(angle)*cueAt-5)).
-			Size(10, 10).FontSize(10).TextColor(ink).
+			Size(10, 10).FontSize(theme.TextLabel).TextColor(ink).
 			Rotate(float32(-angle * 180 / math.Pi)).Opacity(t).PassThrough()
 	}
 	if b.Clicked() && act.enabled {

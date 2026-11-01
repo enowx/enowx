@@ -40,6 +40,7 @@ func (a *App) view(c *ui.Context) {
 				switch {
 				case !a.sessionListShows():
 					// Pages, and GOD of Agents: no session list.
+					a.pageSide(c)
 				case a.navShown():
 					a.navSidebar(c)
 				default:

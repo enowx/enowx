@@ -21,17 +21,17 @@ func (v *View) judgedLine(c *ui.Context, o Options, r proto.CheckRun) {
 		switch {
 		case r.Judging:
 			widget.Spinner(c, 10)
-			ui.Text(c, "The judge reads the failure…").FontSize(11.5).TextColor(theme.Muted)
+			ui.Text(c, "The judge reads the failure…").FontSize(theme.TextLabel).TextColor(theme.Muted)
 		case r.Judged == proto.VerdictFlaky:
 			widget.Tag(c, "flaky", theme.Warning)
-			ui.Text(c, r.JudgedWhy).FontSize(11.5).TextColor(theme.TextSoft).Shrink(1).MaxLines(2)
+			ui.Text(c, r.JudgedWhy).FontSize(theme.TextLabel).TextColor(theme.TextSoft).Shrink(1).MaxLines(2)
 			ui.Spacer(c)
 			if !v.running() && widget.Button(c, widget.Secondary, icon.Play, "Run again", "").Height(26).Clicked() {
 				v.do(o, func(cl *client.Client) error { _, err := cl.RunChecks(o.Session.ID, r.Name); return err })
 			}
 		default:
 			widget.Tag(c, "real failure", theme.Error)
-			ui.Text(c, r.JudgedWhy).FontSize(11.5).TextColor(theme.TextSoft).Shrink(1).MaxLines(2)
+			ui.Text(c, r.JudgedWhy).FontSize(theme.TextLabel).TextColor(theme.TextSoft).Shrink(1).MaxLines(2)
 		}
 	})
 }

@@ -90,17 +90,17 @@ func (a *App) automationRow(c *ui.Context, st *automationsState, au proto.Automa
 		ui.Row(c).FillWidth().Gap(10).Children(func() {
 			agentTile(c, au.Agent, 26)
 			ui.Column(c).Grow(1).MinWidth(0).Gap(2).Children(func() {
-				ui.Text(c, au.Name).FontSize(12.5).SingleLine()
+				ui.Text(c, au.Name).FontSize(theme.TextUI).SingleLine()
 				detail := au.Schedule + " · " + a.agentName(au.Agent) + " · " + filepath.Base(au.Project)
 				if au.Enabled && !au.NextRun.IsZero() {
 					detail += " · next " + au.NextRun.Local().Format("Mon Jan 2 15:04")
 				}
-				ui.Text(c, detail).FontSize(11).TextColor(theme.Muted).SingleLine()
+				ui.Text(c, detail).FontSize(theme.TextLabel).TextColor(theme.Muted).SingleLine()
 				switch {
 				case au.LastError != "":
-					ui.Text(c, "Last run failed: "+au.LastError).FontSize(11).TextColor(theme.Error).MaxLines(2)
+					ui.Text(c, "Last run failed: "+au.LastError).FontSize(theme.TextLabel).TextColor(theme.Error).MaxLines(2)
 				case !au.LastRun.IsZero():
-					ui.Text(c, "Last ran "+au.LastRun.Local().Format("Jan 2 15:04")).FontSize(11).TextColor(theme.Muted)
+					ui.Text(c, "Last ran "+au.LastRun.Local().Format("Jan 2 15:04")).FontSize(theme.TextLabel).TextColor(theme.Muted)
 				}
 			})
 			on := au.Enabled
@@ -142,7 +142,7 @@ func (a *App) automationForm(c *ui.Context, st *automationsState) {
 			widget.Field(c, "Project", func() {
 				sel := ui.SelectBase(c, &e.Project)
 				widget.Trigger(sel.Trigger, sel.Open()).FillWidth().Label("Project").Children(func() {
-					ui.Text(c, filepath.Base(e.Project)).FontSize(12.5).SingleLine()
+					ui.Text(c, filepath.Base(e.Project)).FontSize(theme.TextUI).SingleLine()
 					ui.Spacer(c)
 					ui.Icon(c, icon.ChevronDown).FontSize(12).TextColor(theme.Muted)
 				})
@@ -150,7 +150,7 @@ func (a *App) automationForm(c *ui.Context, st *automationsState) {
 					widget.Popup(panel.Margin(6, 0, 0, 0).Width(360))
 					for _, p := range a.projects {
 						item := sel.Item(p.Path)
-						widget.PopupItem(item, item.Highlighted()).Children(func() { ui.Text(c, p.Name).FontSize(12.5) })
+						widget.PopupItem(item, item.Highlighted()).Children(func() { ui.Text(c, p.Name).FontSize(theme.TextUI) })
 					}
 				})
 			})
@@ -158,7 +158,7 @@ func (a *App) automationForm(c *ui.Context, st *automationsState) {
 				sel := ui.SelectBase(c, &e.Agent)
 				widget.Trigger(sel.Trigger, sel.Open()).FillWidth().Label("Agent").Children(func() {
 					agentTile(c, e.Agent, 20)
-					ui.Text(c, a.agentName(e.Agent)).FontSize(12.5).SingleLine()
+					ui.Text(c, a.agentName(e.Agent)).FontSize(theme.TextUI).SingleLine()
 					ui.Spacer(c)
 					ui.Icon(c, icon.ChevronDown).FontSize(12).TextColor(theme.Muted)
 				})
@@ -173,7 +173,7 @@ func (a *App) automationForm(c *ui.Context, st *automationsState) {
 								item := sel.Item(ag.ID)
 								widget.PopupItem(item, item.Highlighted()).Children(func() {
 									agentTile(c, ag.ID, 20)
-									ui.Text(c, ag.Name).FontSize(12.5)
+									ui.Text(c, ag.Name).FontSize(theme.TextUI)
 								})
 							}
 						})
@@ -182,10 +182,10 @@ func (a *App) automationForm(c *ui.Context, st *automationsState) {
 			})
 			widget.Field(c, "When", func() {
 				widget.Input(c, &e.Schedule, "weekdays 09:00").FillWidth().Font(theme.MonoFont)
-				ui.Text(c, "hourly (or hourly :15), daily 09:00, weekdays 18:30, weekly mon 08:00").FontSize(11).TextColor(theme.Muted)
+				ui.Text(c, "hourly (or hourly :15), daily 09:00, weekdays 18:30, weekly mon 08:00").FontSize(theme.TextLabel).TextColor(theme.Muted)
 			})
 			widget.Field(c, "Prompt", func() {
-				ui.TextAreaBase(c, &e.Prompt).FillWidth().MinHeight(70).MaxHeight(180).Padding(9, 11).FontSize(12.5).
+				ui.TextAreaBase(c, &e.Prompt).FillWidth().MinHeight(70).MaxHeight(180).Padding(9, 11).FontSize(theme.TextUI).
 					Label("Prompt").Radius(theme.RadiusControl).Background(theme.Sunken).Border(1, theme.Border).
 					Placeholder("Triage the issues opened since yesterday and summarize them")
 			})

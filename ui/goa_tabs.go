@@ -161,9 +161,9 @@ func (a *App) goaTabs(c *ui.Context) {
 						st := statusOf(s)
 						widget.Dot(c, st.color, st.hollow, 7)
 					}
-					ui.Text(c, name).FontSize(12).SingleLine().Shrink(1)
+					ui.Text(c, name).FontSize(theme.TextLabel).SingleLine().Shrink(1)
 					if t.host != a.host.Name {
-						ui.Text(c, t.host).FontSize(11).TextColor(theme.Muted).SingleLine().Shrink(2)
+						ui.Text(c, t.host).FontSize(theme.TextLabel).TextColor(theme.Muted).SingleLine().Shrink(2)
 					}
 				})
 				if b.Clicked() {
@@ -194,7 +194,7 @@ func (a *App) goaTabView(c *ui.Context, t *goaTab) {
 		ui.Row(c).Grow(1).MinWidth(0).Gap(8).AlignItems(ui.Center).Children(func() {
 			widget.Breadcrumb(c, t.host, name)
 			if state != "" {
-				ui.Text(c, state).FontSize(11.5).TextColor(theme.Muted).SingleLine()
+				ui.Text(c, state).FontSize(theme.TextLabel).TextColor(theme.Muted).SingleLine()
 			}
 		})
 	})

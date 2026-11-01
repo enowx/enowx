@@ -216,7 +216,7 @@ func (b block) draw(c *ui.Context, open LinkOpener) {
 		ui.Box(c).Height(1).FillWidth().Background(theme.Border).Margin(4, 0)
 	case "quote":
 		ui.Row(c).FillWidth().Gap(12).AlignItems(ui.Stretch).Children(func() {
-			ui.Box(c).Width(2).Radius(1).Background(theme.AccentLine).Shrink(0)
+			ui.Box(c).Width(2).Radius(theme.RadiusTail).Background(theme.AccentLine).Shrink(0)
 			InlineLinks(c, open, b.text).Grow(1).Shrink(1).TextColor(theme.TextSoft)
 		})
 	case "list":
@@ -225,7 +225,7 @@ func (b block) draw(c *ui.Context, open LinkOpener) {
 				ui.Row(c.Key(j)).FillWidth().Gap(8).AlignItems(ui.Start).Padding(0, 0, 0, float32(it.depth)*18).Children(func() {
 					switch {
 					case it.task:
-						box := ui.Box(c).Size(13, 13).Radius(4).Shrink(0).Margin(3, 0, 0, 0).Center().TextColor(theme.OnAccent)
+						box := ui.Box(c).Size(13, 13).Radius(theme.RadiusTail).Shrink(0).Margin(3, 0, 0, 0).Center().TextColor(theme.OnAccent)
 						if it.done {
 							box.Background(theme.Accent).Children(func() { ui.Icon(c, icon.Check).FontSize(10) })
 						} else {
@@ -269,7 +269,7 @@ func table(c *ui.Context, rows [][]string, open LinkOpener) {
 						box.Background(theme.Raised)
 					}
 					box.Children(func() {
-						t := InlineLinks(c, open, cell).FontSize(12)
+						t := InlineLinks(c, open, cell).FontSize(theme.TextLabel)
 						if i == 0 {
 							t.TextColor(theme.TextSoft).FontWeight(600)
 						}
@@ -290,12 +290,12 @@ func CodeBlock(c *ui.Context, lang, code string) {
 			if label == "" {
 				label = "text"
 			}
-			ui.Text(c, label).Font(theme.MonoFont).FontSize(11).TextColor(theme.Muted).SingleLine()
+			ui.Text(c, label).Font(theme.MonoFont).FontSize(theme.TextLabel).TextColor(theme.Muted).SingleLine()
 			ui.Spacer(c)
 			copyButton(c, code)
 		})
 		ui.Scroll(c).FillWidth().Background(theme.Sunken).Children(func() {
-			ui.RichText(c).Font(theme.MonoFont).FontSize(12).Padding(10, 12).TextColor(theme.Text).Selectable().Children(func() {
+			ui.RichText(c).Font(theme.MonoFont).FontSize(theme.TextLabel).Padding(10, 12).TextColor(theme.Text).Selectable().Children(func() {
 				highlight(c, lang, code)
 			})
 		})
@@ -304,14 +304,14 @@ func CodeBlock(c *ui.Context, lang, code string) {
 
 // copyButton copies text to the clipboard.
 func copyButton(c *ui.Context, text string) {
-	b := ui.ButtonBase(c).Height(22).PaddingX(6).Gap(5).Radius(6).Label("Copy").Cursor(ui.CursorPointer)
+	b := ui.ButtonBase(c).Height(22).PaddingX(6).Gap(5).Radius(theme.RadiusSmall).Label("Copy").Cursor(ui.CursorPointer)
 	fg := theme.Muted
 	if b.Hovered() {
 		fg = theme.Text
 	}
 	b.TextColor(tint(b, "fg", fg)).Children(func() {
 		ui.Icon(c, icon.Copy).FontSize(12)
-		ui.Text(c, "Copy").FontSize(11).SingleLine()
+		ui.Text(c, "Copy").FontSize(theme.TextLabel).SingleLine()
 	})
 	if Pressable(b).Clicked() {
 		c.WriteClipboard(text)

@@ -124,7 +124,7 @@ func (a *App) canvasAssistant(c *ui.Context, cv proto.Canvas) {
 	s, ok := a.canvasSession(cv.ID, agentID)
 	a.canvasChatHeader(c, cv, hc, agentID, s, ok)
 	if agentID == "" {
-		ui.Text(c, "No agent is installed on "+a.host.Name+".").FontSize(12).TextColor(theme.Muted).Padding(16)
+		ui.Text(c, "No agent is installed on "+a.host.Name+".").FontSize(theme.TextLabel).TextColor(theme.Muted).Padding(16)
 		return
 	}
 	if hc.history {
@@ -151,7 +151,7 @@ func (a *App) canvasAssistant(c *ui.Context, cv proto.Canvas) {
 	case p != nil:
 		terminal.View(c.Key("term:"+s.ID), p.term).Grow(1).FillWidth()
 	default:
-		ui.Text(c, "Connecting…").FontSize(12).TextColor(theme.Muted).Padding(16)
+		ui.Text(c, "Connecting…").FontSize(theme.TextLabel).TextColor(theme.Muted).Padding(16)
 	}
 }
 
@@ -160,13 +160,13 @@ func (a *App) canvasAssistant(c *ui.Context, cv proto.Canvas) {
 func (a *App) canvasChatHeader(c *ui.Context, cv proto.Canvas, hc *hostCanvasChat, agentID string, s proto.SessionInfo, ok bool) {
 	cl := a.client
 	ui.Row(c).FillWidth().Height(44).Shrink(0).PaddingX(12).Gap(6).AlignItems(ui.Center).BorderWidth(0, 0, 1, 0).BorderColor(theme.Border).Children(func() {
-		pick := ui.ButtonBase(c).Height(30).PaddingX(10).Gap(7).Radius(15).Border(1, theme.Border).Cursor(ui.CursorPointer).Label("Agent").Tooltip("The agent this canvas talks to")
+		pick := ui.ButtonBase(c).Height(30).PaddingX(10).Gap(7).Radius(theme.RadiusCard).Border(1, theme.Border).Cursor(ui.CursorPointer).Label("Agent").Tooltip("The agent this canvas talks to")
 		if pick.Hovered() {
 			pick.Background(theme.Hover)
 		}
 		pick.Children(func() {
 			ui.Icon(c, icon.Agent(agentID)).FontSize(14)
-			ui.Text(c, a.agentName(agentID)).FontSize(12.5).TextColor(theme.Text)
+			ui.Text(c, a.agentName(agentID)).FontSize(theme.TextUI).TextColor(theme.Text)
 			ui.Icon(c, icon.ChevronDown).FontSize(10).TextColor(theme.Muted)
 		})
 		a.menu.OpenBelow(pick, "canvas-agent", 30)
@@ -245,30 +245,30 @@ func (a *App) canvasStart(c *ui.Context, cv proto.Canvas, agentID string) {
 func (a *App) canvasIntro(c *ui.Context, cv proto.Canvas, agentID string) {
 	ui.Column(c).FillWidth().Gap(18).Padding(24, 0, 8, 0).Children(func() {
 		ui.Column(c).FillWidth().Center().Gap(8).Children(func() {
-			ui.Row(c).Size(48, 48).Radius(14).Center().Background(theme.AccentSoft).Children(func() {
+			ui.Row(c).Size(48, 48).Radius(theme.RadiusCard).Center().Background(theme.AccentSoft).Children(func() {
 				ui.Icon(c, icon.Agent(agentID)).FontSize(24).TextColor(theme.Accent)
 			})
-			ui.Text(c, "Design with "+a.agentName(agentID)).FontSize(17).FontWeight(650).TextColor(theme.TextStrong)
-			ui.Text(c, "On “"+cv.Title+"”: it sees the design you show and the element you select").FontSize(12).TextColor(theme.Muted).MaxWidth(320).TextAlign(ui.Center)
+			ui.Text(c, "Design with "+a.agentName(agentID)).FontSize(theme.TextTitle).FontWeight(650).TextColor(theme.TextStrong)
+			ui.Text(c, "On “"+cv.Title+"”: it sees the design you show and the element you select").FontSize(theme.TextLabel).TextColor(theme.Muted).MaxWidth(320).TextAlign(ui.Center)
 			tip := "It changes the canvas with its tools only, live; it reads the projects the canvas belongs to, and writes no files and runs no commands."
-			ui.Row(c).Height(24).PaddingX(10).Gap(6).Radius(12).Border(1, theme.Border).AlignItems(ui.Center).Tooltip(tip).Children(func() {
+			ui.Row(c).Height(24).PaddingX(10).Gap(6).Radius(theme.RadiusSmall).Border(1, theme.Border).AlignItems(ui.Center).Tooltip(tip).Children(func() {
 				ui.Icon(c, icon.Lock).FontSize(11).TextColor(theme.Muted)
-				ui.Text(c, "Canvas only · you keep or undo each change").FontSize(11).TextColor(theme.TextSoft)
+				ui.Text(c, "Canvas only · you keep or undo each change").FontSize(theme.TextLabel).TextColor(theme.TextSoft)
 			})
 		})
 		ui.Column(c).FillWidth().Gap(8).Children(func() {
 			for row := 0; row < len(canvasSuggestions); row += 2 {
 				ui.Row(c.Key(row)).FillWidth().Gap(8).AlignItems(ui.Stretch).Children(func() {
 					for _, sug := range canvasSuggestions[row:min(row+2, len(canvasSuggestions))] {
-						card := ui.ButtonBase(c.Key(sug.title)).Grow(1).Basis(0).MinWidth(0).Padding(12).Gap(6).Radius(12).Border(1, theme.Border).
+						card := ui.ButtonBase(c.Key(sug.title)).Grow(1).Basis(0).MinWidth(0).Padding(12).Gap(6).Radius(theme.RadiusSmall).Border(1, theme.Border).
 							Background(theme.Raised).Cursor(ui.CursorPointer).Label(sug.ask).Column().AlignItems(ui.Start)
 						if card.Hovered() {
 							card.Border(1, theme.AccentLine).Background(theme.Hover)
 						}
 						card.Children(func() {
 							ui.Icon(c, sug.svg).FontSize(15).TextColor(theme.Accent)
-							ui.Text(c, sug.title).FontSize(12.5).FontWeight(600).TextColor(theme.TextStrong)
-							ui.Text(c, sug.about).FontSize(11).TextColor(theme.Muted)
+							ui.Text(c, sug.title).FontSize(theme.TextUI).FontWeight(600).TextColor(theme.TextStrong)
+							ui.Text(c, sug.about).FontSize(theme.TextLabel).TextColor(theme.Muted)
 						})
 						if card.Clicked() {
 							a.canvasAsk(cv, agentID, sug.ask, nil)

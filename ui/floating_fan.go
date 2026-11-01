@@ -71,7 +71,7 @@ func (a *App) floatingFan(c *ui.Context, panel ui.Element, st *floatingState, f,
 			}
 			b.Children(func() {
 				ui.Icon(c, act.svg).FontSize(16).TextColor(icon)
-				ui.Text(c, act.short).FontSize(9).TextColor(icon).
+				ui.Text(c, act.short).FontSize(theme.TextLabel).TextColor(icon).
 					MaxWidth(floatingFanTarget).MaxLines(2).TextAlign(ui.Center).PassThrough()
 			})
 			if b.Clicked() && act.enabled && a.floatingShown && st.fan != "" {

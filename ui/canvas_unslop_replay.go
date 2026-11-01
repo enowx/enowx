@@ -214,26 +214,26 @@ func (a *App) replayStrip(c *ui.Context, r *unslopReplay) {
 func (a *App) replaySide(c *ui.Context, r *unslopReplay) {
 	ui.Column(c).Width(300).Shrink(0).Gap(10).Children(func() {
 		if r.step == 0 {
-			ui.Text(c, "The design the redesign started from.").FontSize(12).TextColor(theme.TextSoft)
+			ui.Text(c, "The design the redesign started from.").FontSize(theme.TextLabel).TextColor(theme.TextSoft)
 		} else {
 			s := r.story.Steps[r.step-1]
-			ui.Text(c, fmt.Sprintf("Step %d · %s", r.step, unslop.StoryName(s))).FontSize(13).FontWeight(600)
+			ui.Text(c, fmt.Sprintf("Step %d · %s", r.step, unslop.StoryName(s))).FontSize(theme.TextUI).FontWeight(600)
 			ui.Scroll(c).FillWidth().MaxHeight(330).Children(func() {
 				ui.Column(c).FillWidth().Gap(6).Children(func() {
 					if !s.Measured {
-						ui.Text(c, "Not measured: the design is measured as rendered, by an app connected when the step ended.").FontSize(11.5).TextColor(theme.Muted)
+						ui.Text(c, "Not measured: the design is measured as rendered, by an app connected when the step ended.").FontSize(theme.TextLabel).TextColor(theme.Muted)
 					}
 					for i, ch := range s.Changes {
 						ui.Column(c.Key(i)).FillWidth().Gap(2).Padding(6, 8).Radius(theme.RadiusControl).Background(theme.Sunken).Children(func() {
-							ui.Text(c, "#"+ch.Element).Font(theme.MonoFont).FontSize(11.5).TextColor(theme.Text).SingleLine()
+							ui.Text(c, "#"+ch.Element).Font(theme.MonoFont).FontSize(theme.TextLabel).TextColor(theme.Text).SingleLine()
 							switch {
 							case ch.Added:
-								ui.Text(c, "added").FontSize(11).TextColor(theme.Done)
+								ui.Text(c, "added").FontSize(theme.TextLabel).TextColor(theme.Done)
 							case ch.Removed:
-								ui.Text(c, "removed").FontSize(11).TextColor(theme.Error)
+								ui.Text(c, "removed").FontSize(theme.TextLabel).TextColor(theme.Error)
 							}
 							for _, p := range ch.Props {
-								ui.Text(c, p.Name+"  "+p.From+" → "+p.To).Font(theme.MonoFont).FontSize(10.5).TextColor(theme.TextSoft).MaxLines(2)
+								ui.Text(c, p.Name+"  "+p.From+" → "+p.To).Font(theme.MonoFont).FontSize(theme.TextLabel).TextColor(theme.TextSoft).MaxLines(2)
 							}
 						})
 					}
@@ -245,7 +245,7 @@ func (a *App) replaySide(c *ui.Context, r *unslopReplay) {
 			}
 		}
 		if r.busy != "" {
-			ui.Text(c, r.busy).FontSize(11.5).TextColor(theme.Muted)
+			ui.Text(c, r.busy).FontSize(theme.TextLabel).TextColor(theme.Muted)
 		}
 		a.videoButtons(c, r)
 	})

@@ -91,7 +91,7 @@ func (a *App) cloneToDialog(c *ui.Context) {
 			f.open = false
 		}
 		if f.remote != "" {
-			ui.Text(c, f.remote).Font(theme.MonoFont).FontSize(11.5).TextColor(theme.TextSoft)
+			ui.Text(c, f.remote).Font(theme.MonoFont).FontSize(theme.TextLabel).TextColor(theme.TextSoft)
 		}
 		widget.Field(c, "On", func() {
 			ui.Column(c).FillWidth().Gap(4).Children(func() {
@@ -109,7 +109,7 @@ func (a *App) cloneToDialog(c *ui.Context) {
 					}
 					b.Children(func() {
 						ui.Icon(c, hostIcon(h)).FontSize(13).TextColor(theme.TextSoft)
-						ui.Text(c, h.Name).FontSize(12.5).TextColor(theme.Text)
+						ui.Text(c, h.Name).FontSize(theme.TextUI).TextColor(theme.Text)
 						ui.Spacer(c)
 						if on {
 							ui.Icon(c, icon.Check).FontSize(12).TextColor(theme.Accent)
@@ -126,9 +126,9 @@ func (a *App) cloneToDialog(c *ui.Context) {
 		})
 		switch {
 		case f.err != "":
-			ui.Text(c, f.err).FontSize(12).TextColor(theme.Error)
+			ui.Text(c, f.err).FontSize(theme.TextLabel).TextColor(theme.Error)
 		case f.status.State == proto.CloneDone:
-			ui.Text(c, "Cloned on "+f.target.Name+" into "+f.status.Path).FontSize(12).TextColor(theme.Done)
+			ui.Text(c, "Cloned on "+f.target.Name+" into "+f.status.Path).FontSize(theme.TextLabel).TextColor(theme.Done)
 		case f.running:
 			line := "Connecting to " + f.target.Name + "…"
 			if f.status.Phase != "" {
@@ -137,7 +137,7 @@ func (a *App) cloneToDialog(c *ui.Context) {
 					line += " " + strconv.Itoa(f.status.Percent) + "%"
 				}
 			}
-			ui.Text(c, line).FontSize(12).TextColor(theme.Muted)
+			ui.Text(c, line).FontSize(theme.TextLabel).TextColor(theme.Muted)
 		}
 		widget.DialogFooter(c, "", func() {
 			if widget.GhostButton(c, "Close").Clicked() {

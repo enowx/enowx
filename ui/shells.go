@@ -75,11 +75,11 @@ func (a *App) terminalSection(c *ui.Context) {
 	hs := a.shellsOf()
 	sectionIntro(c, "Terminal", "The shell terminals on "+a.host.Name+" start with: new terminal tabs, and agents' sessions once the agent exits. A session's + opens a tab of any other.")
 	if hs.err != "" {
-		ui.Text(c, hs.err).FontSize(12).TextColor(theme.Error)
+		ui.Text(c, hs.err).FontSize(theme.TextLabel).TextColor(theme.Error)
 	}
 	switch {
 	case len(hs.list.Shells) == 0 && hs.err == "":
-		ui.Text(c, "Looking for "+a.host.Name+"'s shells…").FontSize(12).TextColor(theme.Muted)
+		ui.Text(c, "Looking for "+a.host.Name+"'s shells…").FontSize(theme.TextLabel).TextColor(theme.Muted)
 	default:
 		a.shellPicker(c, hs)
 	}
@@ -103,12 +103,12 @@ func (a *App) shellPicker(c *ui.Context, hs *hostShells) {
 				}
 				b.Children(func() {
 					ui.Icon(c, icon.Terminal).FontSize(13).TextColor(theme.TextSoft)
-					ui.Text(c, s.Name).FontSize(12.5).TextColor(theme.Text)
+					ui.Text(c, s.Name).FontSize(theme.TextUI).TextColor(theme.Text)
 					if s.Login {
-						ui.Text(c, "login shell").FontSize(11).TextColor(theme.Muted)
+						ui.Text(c, "login shell").FontSize(theme.TextLabel).TextColor(theme.Muted)
 					}
 					ui.Spacer(c)
-					ui.Text(c, s.Path).Font(theme.MonoFont).FontSize(11).TextColor(theme.Muted).SingleLine().Shrink(1)
+					ui.Text(c, s.Path).Font(theme.MonoFont).FontSize(theme.TextLabel).TextColor(theme.Muted).SingleLine().Shrink(1)
 					if on {
 						ui.Icon(c, icon.Check).FontSize(12).TextColor(theme.Accent)
 					}

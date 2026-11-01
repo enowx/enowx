@@ -44,12 +44,12 @@ func (u *Meter) Chip(c *ui.Context, h Host, act ChipActions) {
 		if ok {
 			widget.Dot(c, widget.Level(used), false, 6)
 		}
-		ui.Text(c, "Memory").FontSize(11.5).SingleLine()
+		ui.Text(c, "Memory").FontSize(theme.TextLabel).SingleLine()
 		if ok {
-			ui.Text(c, fmt.Sprintf("%.0f%%", used*100)).FontSize(11.5).TextColor(levelText(used)).SingleLine()
-			ui.Text(c, "·").FontSize(11).TextColor(theme.Muted)
+			ui.Text(c, fmt.Sprintf("%.0f%%", used*100)).FontSize(theme.TextLabel).TextColor(levelText(used)).SingleLine()
+			ui.Text(c, "·").FontSize(theme.TextLabel).TextColor(theme.Muted)
 		}
-		ui.Text(c, "enowX "+textfmt.Bytes(total.RSS)).FontSize(11).TextColor(theme.Muted).SingleLine()
+		ui.Text(c, "enowX "+textfmt.Bytes(total.RSS)).FontSize(theme.TextLabel).TextColor(theme.Muted).SingleLine()
 	})
 	if b.Clicked() {
 		u.open = !u.open
@@ -61,9 +61,9 @@ func (u *Meter) Chip(c *ui.Context, h Host, act ChipActions) {
 	ui.PopoverBase(c, b, &u.open, func(panel ui.Element) {
 		widget.Popup(panel.AttachTo(b, ui.AnchorBottomRight, ui.AnchorTopRight).Margin(6, 0, 0, 0).Width(340).Padding(10).Gap(8))
 		ui.Row(c).FillWidth().Gap(8).Children(func() {
-			ui.Text(c, "Memory on "+h.Name).FontSize(12.5).Grow(1)
+			ui.Text(c, "Memory on "+h.Name).FontSize(theme.TextUI).Grow(1)
 			if ok {
-				ui.Text(c, fmt.Sprintf("%s of %s", textfmt.Bytes(host.MemUsed), textfmt.Bytes(host.MemTotal))).FontSize(11.5).TextColor(theme.TextSoft).SingleLine()
+				ui.Text(c, fmt.Sprintf("%s of %s", textfmt.Bytes(host.MemUsed), textfmt.Bytes(host.MemTotal))).FontSize(theme.TextLabel).TextColor(theme.TextSoft).SingleLine()
 			}
 		})
 		if ok {
@@ -88,11 +88,11 @@ func (u *Meter) Chip(c *ui.Context, h Host, act ChipActions) {
 			return 0
 		})
 		if len(sessions) == 0 {
-			ui.Text(c, "No session is running.").FontSize(12).TextColor(theme.Muted)
+			ui.Text(c, "No session is running.").FontSize(theme.TextLabel).TextColor(theme.Muted)
 		}
 		for i, su := range sessions {
 			if i == 6 {
-				ui.Text(c, fmt.Sprintf("and %d more", len(sessions)-6)).FontSize(11).TextColor(theme.Muted).Padding(0, 6)
+				ui.Text(c, fmt.Sprintf("and %d more", len(sessions)-6)).FontSize(theme.TextLabel).TextColor(theme.Muted).Padding(0, 6)
 				break
 			}
 			name, agentID, project := h.Session(su.ID)
@@ -102,13 +102,13 @@ func (u *Meter) Chip(c *ui.Context, h Host, act ChipActions) {
 			}
 			r.Children(func() {
 				ui.Icon(c, icon.Agent(agentID)).FontSize(12).TextColor(theme.TextSoft)
-				ui.Text(c, name).FontSize(12).SingleLine().Shrink(1)
+				ui.Text(c, name).FontSize(theme.TextLabel).SingleLine().Shrink(1)
 				if project != "" {
-					ui.Text(c, project).FontSize(11).TextColor(theme.Muted).SingleLine().Shrink(1)
+					ui.Text(c, project).FontSize(theme.TextLabel).TextColor(theme.Muted).SingleLine().Shrink(1)
 				}
 				ui.Spacer(c)
-				ui.Text(c, textfmt.CPU(su.CPU)).FontSize(11).TextColor(theme.Muted).SingleLine().Shrink(0)
-				ui.Text(c, textfmt.Bytes(su.RSS)).FontSize(12).TextColor(theme.TextSoft).Width(64).TextAlign(ui.End).SingleLine().Shrink(0)
+				ui.Text(c, textfmt.CPU(su.CPU)).FontSize(theme.TextLabel).TextColor(theme.Muted).SingleLine().Shrink(0)
+				ui.Text(c, textfmt.Bytes(su.RSS)).FontSize(theme.TextLabel).TextColor(theme.TextSoft).Width(64).TextAlign(ui.End).SingleLine().Shrink(0)
 			})
 			if r.Clicked() && act.Select != nil {
 				u.open = false

@@ -106,7 +106,7 @@ func (a *App) cloudTeamProjects(c *ui.Context, cs *cloudSettings) {
 		if admin {
 			msg = "No projects yet: add one by its Git link. Members who have it already are found by its remote; the others clone it from here."
 		}
-		ui.Text(c, msg).FontSize(12).TextColor(theme.Muted)
+		ui.Text(c, msg).FontSize(theme.TextLabel).TextColor(theme.Muted)
 	}
 	ui.Column(c).FillWidth().Gap(4).Children(func() {
 		for _, p := range list {
@@ -141,7 +141,7 @@ func (a *App) cloudTeamProjects(c *ui.Context, cs *cloudSettings) {
 				}()
 			}
 		})
-		ui.Text(c, "The link only, no token in it: each member clones with their own login.").FontSize(11.5).TextColor(theme.Muted)
+		ui.Text(c, "The link only, no token in it: each member clones with their own login.").FontSize(theme.TextLabel).TextColor(theme.Muted)
 	})
 }
 
@@ -149,12 +149,12 @@ func (a *App) teamProjectRow(c *ui.Context, p proto.TeamProject, admin bool) {
 	ui.Row(c.Key("tp:"+p.ID)).FillWidth().Gap(10).AlignItems(ui.Center).Padding(8, 10).Radius(theme.RadiusControl).Background(theme.Sunken).Children(func() {
 		ui.Icon(c, icon.Folder).FontSize(14).TextColor(theme.TextSoft)
 		ui.Column(c).Grow(1).Shrink(1).MinWidth(0).Gap(1).Children(func() {
-			ui.Text(c, p.Name).FontSize(12.5).SingleLine()
+			ui.Text(c, p.Name).FontSize(theme.TextUI).SingleLine()
 			where := strings.TrimPrefix(p.Ref, "git:")
 			if len(p.Here) > 0 {
 				where = "On " + a.host.Name + ": " + textfmt.TildePath(p.Here[0].Path, a.daemonInfo.Home)
 			}
-			ui.Text(c, where).FontSize(11).TextColor(theme.Muted).SingleLine()
+			ui.Text(c, where).FontSize(theme.TextLabel).TextColor(theme.Muted).SingleLine()
 		})
 		if notes := a.teamProjectNotes(p); notes > 0 {
 			widget.Tag(c, textfmt.Plural(notes, "1 note", fmt.Sprintf("%d notes", notes)), theme.TextSoft)

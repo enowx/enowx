@@ -68,8 +68,8 @@ func (a *App) spacesGoneCards(c *ui.Context) {
 			ui.Row(c).FillWidth().Gap(10).AlignItems(ui.Start).Children(func() {
 				ui.Icon(c, icon.Trash).FontSize(14).TextColor(theme.Warning).Margin(2, 0, 0, 0)
 				ui.Column(c).Grow(1).MinWidth(0).Gap(3).Children(func() {
-					ui.Text(c, g.Name+" was deleted").FontSize(12.5).SingleLine().Shrink(1)
-					ui.Text(c, spaceGoneDetail(g, a.host.Name)).FontSize(11.5).TextColor(theme.Muted)
+					ui.Text(c, g.Name+" was deleted").FontSize(theme.TextUI).SingleLine().Shrink(1)
+					ui.Text(c, spaceGoneDetail(g, a.host.Name)).FontSize(theme.TextLabel).TextColor(theme.Muted)
 				})
 			})
 			ui.Row(c).FillWidth().Justify(ui.End).Children(func() {

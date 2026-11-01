@@ -50,7 +50,7 @@ func spansLabel(c *ui.Context, open LinkOpener, spans []span) ui.Element {
 			switch {
 			case sp.badge:
 				fg, bg := BadgeColors(sp.text)
-				ui.Text(c, "\u2009"+sp.text+"\u2009").FontSize(11.5).FontWeight(600).TextColor(fg).Background(bg)
+				ui.Text(c, "\u2009"+sp.text+"\u2009").FontSize(theme.TextLabel).FontWeight(600).TextColor(fg).Background(bg)
 			case sp.url != "" && open != nil:
 				l := ui.Link(c.Key(i), sp.text, "").TextColor(theme.Accent).Underline()
 				if l.Clicked() && !open(sp.url) {
@@ -61,7 +61,7 @@ func spansLabel(c *ui.Context, open LinkOpener, spans []span) ui.Element {
 			case sp.url != "":
 				ui.Link(c.Key(i), sp.text, sp.url).TextColor(theme.Accent).Underline()
 			case sp.code:
-				ui.Text(c, sp.text).Font(theme.MonoFont).FontSize(12).Background(theme.Raised).TextColor(theme.Accent)
+				ui.Text(c, sp.text).Font(theme.MonoFont).FontSize(theme.TextLabel).Background(theme.Raised).TextColor(theme.Accent)
 			default:
 				t := ui.Text(c, sp.text)
 				if sp.bold {

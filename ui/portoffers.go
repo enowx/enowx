@@ -145,8 +145,8 @@ func (a *App) portOfferCard(c *ui.Context, o portOffer, remote bool) {
 		ui.Row(c).FillWidth().Gap(10).AlignItems(ui.Start).Children(func() {
 			ui.Icon(c, icon.Globe).FontSize(14).TextColor(theme.Accent).Margin(2, 0, 0, 0)
 			ui.Column(c).Grow(1).MinWidth(0).Gap(3).Children(func() {
-				ui.Text(c, o.port.Process+" is listening on :"+strconv.Itoa(o.port.Port)).FontSize(12.5).SingleLine().Shrink(1)
-				ui.Text(c, "in "+name).FontSize(11.5).TextColor(theme.Muted).SingleLine().Shrink(1)
+				ui.Text(c, o.port.Process+" is listening on :"+strconv.Itoa(o.port.Port)).FontSize(theme.TextUI).SingleLine().Shrink(1)
+				ui.Text(c, "in "+name).FontSize(theme.TextLabel).TextColor(theme.Muted).SingleLine().Shrink(1)
 			})
 			if widget.IconButton(c, icon.Close, "Dismiss", false).Clicked() {
 				a.dropPortOffer(o.port.Port)

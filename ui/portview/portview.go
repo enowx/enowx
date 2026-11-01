@@ -110,14 +110,14 @@ func (v *View) Draw(c *ui.Context, o Options) {
 			if o.Client != nil && o.Client.Remote() {
 				where = "Listening on " + o.Host
 			}
-			ui.Text(c, where).FontSize(11).TextColor(theme.Muted).SingleLine().Shrink(1)
+			ui.Text(c, where).FontSize(theme.TextLabel).TextColor(theme.Muted).SingleLine().Shrink(1)
 			ui.Spacer(c)
 			if o.Capture != nil {
 				on := o.Captured
 				if widget.Switch(c, &on, "Through Traffic") {
 					o.Capture(on)
 				}
-				ui.Text(c, "Through Traffic").FontSize(11).TextColor(theme.Muted).Tooltip("What opens or previews these ports goes through Traffic's interceptor, recorded")
+				ui.Text(c, "Through Traffic").FontSize(theme.TextLabel).TextColor(theme.Muted).Tooltip("What opens or previews these ports goes through Traffic's interceptor, recorded")
 			}
 			if widget.IconButton(c, icon.Sync, "Look again", false).Clicked() {
 				select {
@@ -151,7 +151,7 @@ func (v *View) Draw(c *ui.Context, o Options) {
 				if widget.Switch(c, &on, "Pop up when a port opens") {
 					o.SetOffers(on)
 				}
-				ui.Text(c, "Pop up when a session opens a port").FontSize(11.5).TextColor(theme.TextSoft).Grow(1).Shrink(1)
+				ui.Text(c, "Pop up when a session opens a port").FontSize(theme.TextLabel).TextColor(theme.TextSoft).Grow(1).Shrink(1)
 			})
 		}
 	})
@@ -159,7 +159,7 @@ func (v *View) Draw(c *ui.Context, o Options) {
 
 func note(c *ui.Context, text string, col ui.Color) {
 	ui.Column(c).Grow(1).FillWidth().Center().Padding(24).Children(func() {
-		ui.Text(c, text).FontSize(12.5).TextColor(col).TextAlign(ui.Center)
+		ui.Text(c, text).FontSize(theme.TextUI).TextColor(col).TextAlign(ui.Center)
 	})
 }
 
@@ -173,7 +173,7 @@ func (v *View) portRow(c *ui.Context, o Options, p proto.Port) {
 	ui.Row(c).FillWidth().Padding(8, 12, 8, 14).Gap(10).BorderWidth(0, 0, 1, 0).BorderColor(theme.Border).Children(func() {
 		ui.Column(c).Grow(1).MinWidth(0).Gap(2).Children(func() {
 			ui.Row(c).Gap(8).Children(func() {
-				ui.Text(c, ":"+strconv.Itoa(p.Port)).Font(theme.MonoFont).FontSize(14).SingleLine()
+				ui.Text(c, ":"+strconv.Itoa(p.Port)).Font(theme.MonoFont).FontSize(theme.TextUI).SingleLine()
 				reach, col := "localhost only", theme.Muted
 				if !loopback(p.Addr) {
 					reach, col = "all addresses", theme.Warning
@@ -184,7 +184,7 @@ func (v *View) portRow(c *ui.Context, o Options, p proto.Port) {
 			if forwarded {
 				who += " · forwarded to " + local
 			}
-			ui.Text(c, who).FontSize(11.5).TextColor(theme.Muted).SingleLine().Shrink(1)
+			ui.Text(c, who).FontSize(theme.TextLabel).TextColor(theme.Muted).SingleLine().Shrink(1)
 		})
 		if o.OpenWindow != nil && p.Process == "display" && widget.IconButton(c, icon.AppWindow, "Open the app in a window", false).Clicked() {
 			o.OpenWindow(p)

@@ -135,7 +135,7 @@ func (w *Web) motionBar(c *ui.Context, aw, ah float32) {
 		if w.scrub != was {
 			w.seekMotion(w.scrub)
 		}
-		ui.Text(c.Key("motion-time"), fmt.Sprintf("%.1f / %.1f s", w.scrub/1000, m.D/1000)).FontSize(11).TextColor(theme.Muted).Shrink(0)
+		ui.Text(c.Key("motion-time"), fmt.Sprintf("%.1f / %.1f s", w.scrub/1000, m.D/1000)).FontSize(theme.TextLabel).TextColor(theme.Muted).Shrink(0)
 	})
 	if m.P {
 		c.After(50 * time.Millisecond) // the scrubber moves on

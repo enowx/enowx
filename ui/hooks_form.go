@@ -113,7 +113,7 @@ func (a *App) hookFormSheet(c *ui.Context, st *hooksState) {
 			}
 		})
 		if f.asJSON {
-			ui.TextAreaBase(c, &f.json).FillWidth().MinHeight(320).MaxHeight(520).Padding(9, 11).FontSize(12).Font(theme.MonoFont).
+			ui.TextAreaBase(c, &f.json).FillWidth().MinHeight(320).MaxHeight(520).Padding(9, 11).FontSize(theme.TextLabel).Font(theme.MonoFont).
 				Label("The hook as JSON").Radius(theme.RadiusControl).Background(theme.Sunken).Border(1, theme.Border)
 			ui.Text(c, "Fields as in docs/hooks.md: event, action, command, context, reason, find, replace, url, message, agents, projects, tool, paths, text, branches, hosts, any, not, once, max, every, hours, schedule, background, timeout.").
 				FontSize(11).TextColor(theme.Muted)
@@ -164,7 +164,7 @@ func (a *App) hookPlacePicker(c *ui.Context, f *hookForm) {
 	cur := key(f.place)
 	sel := ui.SelectBase(c, &cur)
 	widget.Trigger(sel.Trigger, sel.Open()).Width(260).Label("Kept").Children(func() {
-		ui.Text(c, label(f.place)).FontSize(12.5).SingleLine().Shrink(1)
+		ui.Text(c, label(f.place)).FontSize(theme.TextUI).SingleLine().Shrink(1)
 		ui.Spacer(c)
 		ui.Icon(c, icon.ChevronDown).FontSize(12).TextColor(theme.Muted)
 	})
@@ -174,7 +174,7 @@ func (a *App) hookPlacePicker(c *ui.Context, f *hookForm) {
 			ui.Column(c).FillWidth().Children(func() {
 				for _, p := range places {
 					item := sel.Item(key(p))
-					widget.PopupItem(item, item.Highlighted()).Children(func() { ui.Text(c, label(p)).FontSize(12.5) })
+					widget.PopupItem(item, item.Highlighted()).Children(func() { ui.Text(c, label(p)).FontSize(theme.TextUI) })
 				}
 			})
 		})
@@ -228,9 +228,9 @@ func (a *App) hookTestResult(c *ui.Context, r *proto.HookRun) {
 		col, what = theme.Error, "Exited with "+strconv.Itoa(r.Exit)
 	}
 	ui.Column(c).FillWidth().Gap(4).Padding(8, 10).Radius(theme.RadiusControl).Background(theme.Sunken).Children(func() {
-		ui.Text(c, "Test: "+what).FontSize(12).TextColor(col)
+		ui.Text(c, "Test: "+what).FontSize(theme.TextLabel).TextColor(col)
 		if out := strings.TrimSpace(r.Output); out != "" {
-			ui.Text(c, out).Font(theme.MonoFont).FontSize(11).TextColor(theme.TextSoft).MaxLines(8)
+			ui.Text(c, out).Font(theme.MonoFont).FontSize(theme.TextLabel).TextColor(theme.TextSoft).MaxLines(8)
 		}
 	})
 }

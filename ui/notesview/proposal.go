@@ -110,14 +110,14 @@ func changed(d []diffLine, context int) []diffLine {
 // its Accept and Reject.
 func (v *View) proposalCard(c *ui.Context, o Options, p Proposal, body string) {
 	isNew := p.Note.ID == ""
-	ui.Column(c).FillWidth().Gap(8).Padding(12).Radius(10).Background(theme.Raised).Border(1, theme.AccentLine).Children(func() {
+	ui.Column(c).FillWidth().Gap(8).Padding(12).Radius(theme.RadiusSmall).Background(theme.Raised).Border(1, theme.AccentLine).Children(func() {
 		ui.Row(c).FillWidth().Gap(8).AlignItems(ui.Center).Children(func() {
 			ui.Icon(c, icon.Agent(p.AgentID)).FontSize(13).TextColor(theme.Accent)
 			what := p.Agent + " proposes changes to this page"
 			if isNew {
 				what = p.Agent + " proposes a new page: " + titleOf(p.Note.NoteInfo)
 			}
-			ui.Text(c, what).FontSize(12.5).TextColor(theme.TextStrong).Grow(1).Shrink(1)
+			ui.Text(c, what).FontSize(theme.TextUI).TextColor(theme.TextStrong).Grow(1).Shrink(1)
 			if widget.GhostButton(c, "Reject").Clicked() {
 				o.Reject(p.ID, v.failed)
 			}
@@ -126,14 +126,14 @@ func (v *View) proposalCard(c *ui.Context, o Options, p Proposal, body string) {
 			}
 		})
 		if !isNew && body != p.Before {
-			ui.Text(c, "The page changed since: accepting replaces it with this.").FontSize(11.5).TextColor(theme.Warning)
+			ui.Text(c, "The page changed since: accepting replaces it with this.").FontSize(theme.TextLabel).TextColor(theme.Warning)
 		}
 		lines := changed(lineDiff(body, p.Note.Body), 2)
 		if isNew {
 			lines = lineDiff("", p.Note.Body)
 		}
 		ui.Scroll(c).FillWidth().MaxHeight(320).Children(func() {
-			ui.Column(c).FillWidth().Radius(6).Background(theme.Sunken).Padding(6, 0).Children(func() {
+			ui.Column(c).FillWidth().Radius(theme.RadiusSmall).Background(theme.Sunken).Padding(6, 0).Children(func() {
 				for i, l := range lines {
 					row := ui.Row(c.Key(i)).FillWidth().PaddingX(10).Gap(8)
 					mark, col := " ", theme.TextSoft
@@ -146,8 +146,8 @@ func (v *View) proposalCard(c *ui.Context, o Options, p Proposal, body string) {
 						row.Background(theme.Fade(theme.Error, 0.12))
 					}
 					row.Children(func() {
-						ui.Text(c, mark).Font(theme.MonoFont).FontSize(12).TextColor(col).Width(10)
-						t := ui.Text(c, orSpace(l.text)).Font(theme.MonoFont).FontSize(12).TextColor(col).Grow(1).Shrink(1)
+						ui.Text(c, mark).Font(theme.MonoFont).FontSize(theme.TextLabel).TextColor(col).Width(10)
+						t := ui.Text(c, orSpace(l.text)).Font(theme.MonoFont).FontSize(theme.TextLabel).TextColor(col).Grow(1).Shrink(1)
 						if l.op == -1 {
 							t.Strikethrough()
 						}
@@ -193,9 +193,9 @@ func (v *View) undoBar(c *ui.Context, o Options) {
 	if u == nil {
 		return
 	}
-	ui.Row(c).FillWidth().Gap(8).Padding(8, 12).Radius(8).Background(theme.Raised).AlignItems(ui.Center).Children(func() {
+	ui.Row(c).FillWidth().Gap(8).Padding(8, 12).Radius(theme.RadiusSmall).Background(theme.Raised).AlignItems(ui.Center).Children(func() {
 		ui.Icon(c, icon.Check).FontSize(12).TextColor(theme.Done)
-		ui.Text(c, "Change accepted.").FontSize(12).TextColor(theme.TextSoft).Grow(1)
+		ui.Text(c, "Change accepted.").FontSize(theme.TextLabel).TextColor(theme.TextSoft).Grow(1)
 		if widget.GhostButton(c, "Undo").Clicked() {
 			v.undo = nil
 			if u.isNew {

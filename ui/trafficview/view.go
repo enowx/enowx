@@ -280,7 +280,7 @@ func (v *View) Draw(c *ui.Context, o Options) {
 		})
 		if v.notice != "" {
 			ui.Row(c).FillWidth().Padding(6, 12).Gap(8).Background(theme.Sunken).Children(func() {
-				ui.Text(c, v.notice).FontSize(11.5).TextColor(theme.TextSoft).Grow(1).Shrink(1)
+				ui.Text(c, v.notice).FontSize(theme.TextLabel).TextColor(theme.TextSoft).Grow(1).Shrink(1)
 				if widget.IconButton(c, icon.Close, "Dismiss", false).Clicked() {
 					v.notice = ""
 				}
@@ -308,7 +308,7 @@ func (v *View) Draw(c *ui.Context, o Options) {
 
 func note(c *ui.Context, text string, col ui.Color) {
 	ui.Column(c).Grow(1).FillWidth().Center().Padding(24).Children(func() {
-		ui.Text(c, text).FontSize(12.5).TextColor(col).TextAlign(ui.Center)
+		ui.Text(c, text).FontSize(theme.TextUI).TextColor(col).TextAlign(ui.Center)
 	})
 }
 

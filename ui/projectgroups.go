@@ -74,7 +74,7 @@ func (a *App) groupSection(c *ui.Context, e listEntry) int {
 	}
 	open := filtering || !a.foldedGroups[e.group]
 	ui.Row(c).Height(28).FillWidth().Gap(4).Margin(8, 0, 0, 0).Children(func() {
-		row := ui.ButtonBase(c).Grow(1).Height(28).PaddingX(4).Gap(6).Radius(6).Cursor(ui.CursorPointer).Label(e.group)
+		row := ui.ButtonBase(c).Grow(1).Height(28).PaddingX(4).Gap(6).Radius(theme.RadiusSmall).Cursor(ui.CursorPointer).Label(e.group)
 		row.Drag(listDrag{group: e.group})
 		a.dropOnEntry(row, e)
 		if row.Hovered() {
@@ -87,9 +87,9 @@ func (a *App) groupSection(c *ui.Context, e listEntry) int {
 			}
 			ui.Icon(c, chev).FontSize(11).TextColor(theme.Muted)
 			ui.Icon(c, icon.Folder).FontSize(12).TextColor(theme.TextSoft)
-			ui.Text(c, e.group).FontSize(12).FontWeight(600).TextColor(theme.TextSoft).SingleLine().Shrink(1)
+			ui.Text(c, e.group).FontSize(theme.TextLabel).FontWeight(600).TextColor(theme.TextSoft).SingleLine().Shrink(1)
 			ui.Spacer(c)
-			ui.Text(c, fmt.Sprint(len(e.projects))).FontSize(10.5).TextColor(theme.Muted).SingleLine()
+			ui.Text(c, fmt.Sprint(len(e.projects))).FontSize(theme.TextLabel).TextColor(theme.Muted).SingleLine()
 		})
 		if row.Clicked() && !filtering {
 			if a.foldedGroups == nil {

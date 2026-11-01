@@ -232,7 +232,7 @@ func (a *App) projectNotesRow(c *ui.Context, p proto.ProjectInfo) {
 		chevron = icon.ChevronDown
 	}
 	// Keyed by project: each has its own row, its hover and its click.
-	head := ui.ButtonBase(c.Key("notes-head:"+p.Path)).FillWidth().Height(22).Padding(0, 8, 0, 8).Gap(5).Radius(6).Justify(ui.Start).
+	head := ui.ButtonBase(c.Key("notes-head:"+p.Path)).FillWidth().Height(22).Padding(0, 8, 0, 8).Gap(5).Radius(theme.RadiusSmall).Justify(ui.Start).
 		Cursor(ui.CursorPointer).Label(fmt.Sprintf("Notes of %s (%d)", p.Name, len(list))).AlignItems(ui.Center)
 	if head.Hovered() {
 		head.Background(theme.Hover)
@@ -240,7 +240,7 @@ func (a *App) projectNotesRow(c *ui.Context, p proto.ProjectInfo) {
 	head.Children(func() {
 		ui.Icon(c, chevron).FontSize(10).TextColor(theme.Muted)
 		ui.Icon(c, icon.Notebook).FontSize(10.5).TextColor(theme.Muted)
-		ui.Text(c, textfmt.Plural(len(list), "1 note", fmt.Sprintf("%d notes", len(list)))).FontSize(11).TextColor(theme.Muted).SingleLine()
+		ui.Text(c, textfmt.Plural(len(list), "1 note", fmt.Sprintf("%d notes", len(list)))).FontSize(theme.TextLabel).TextColor(theme.Muted).SingleLine()
 	})
 	if head.Clicked() {
 		if a.notesOpen == nil {
@@ -256,7 +256,7 @@ func (a *App) projectNotesRow(c *ui.Context, p proto.ProjectInfo) {
 		if i == shown {
 			more := ui.ButtonBase(c.Key("notes-more:"+p.Path)).FillWidth().Height(20).Padding(0, 8, 0, 34).Justify(ui.Start).Cursor(ui.CursorPointer).Label("All notes of " + p.Name)
 			more.Children(func() {
-				ui.Text(c, fmt.Sprintf("+%d more", len(list)-shown)).FontSize(10.5).TextColor(theme.Muted)
+				ui.Text(c, fmt.Sprintf("+%d more", len(list)-shown)).FontSize(theme.TextLabel).TextColor(theme.Muted)
 			})
 			if more.Clicked() {
 				a.showProjectNotes(p.Path)
@@ -264,13 +264,13 @@ func (a *App) projectNotesRow(c *ui.Context, p proto.ProjectInfo) {
 			return
 		}
 		// A note can be in several projects: keyed by both.
-		row := ui.ButtonBase(c.Key("note:"+p.Path+":"+n.ID)).FillWidth().Height(22).Padding(0, 8, 0, 34).Radius(6).Justify(ui.Start).
+		row := ui.ButtonBase(c.Key("note:"+p.Path+":"+n.ID)).FillWidth().Height(22).Padding(0, 8, 0, 34).Radius(theme.RadiusSmall).Justify(ui.Start).
 			Cursor(ui.CursorPointer).Label("Note " + noteTitle(n)).AlignItems(ui.Center)
 		if row.Hovered() {
 			row.Background(theme.Hover)
 		}
 		row.Children(func() {
-			ui.Text(c, noteTitle(n)).FontSize(11).TextColor(theme.TextSoft).SingleLine().Shrink(1)
+			ui.Text(c, noteTitle(n)).FontSize(theme.TextLabel).TextColor(theme.TextSoft).SingleLine().Shrink(1)
 			if n.Team != "" {
 				ui.Spacer(c)
 				widget.TeamMark(c, n.Team, a.spaceName(n.Team), 12).Tooltip(a.spaceName(n.Team) + "'s note")
@@ -302,6 +302,6 @@ func (a *App) notesContextRow(c *ui.Context, n proto.NoteInfo) {
 	ui.Row(c).FillWidth().Shrink(0).Padding(6, 12).Gap(6).AlignItems(ui.Center).BorderWidth(0, 0, 1, 0).BorderColor(theme.Border).
 		Tooltip("The agent reads these projects, read-only, to write this page").Children(func() {
 		ui.Icon(c, icon.Git).FontSize(11).TextColor(theme.Muted)
-		ui.Text(c, "Context: "+strings.Join(names, ", ")).FontSize(11).TextColor(theme.TextSoft).SingleLine().Shrink(1)
+		ui.Text(c, "Context: "+strings.Join(names, ", ")).FontSize(theme.TextLabel).TextColor(theme.TextSoft).SingleLine().Shrink(1)
 	})
 }

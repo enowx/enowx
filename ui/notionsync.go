@@ -77,9 +77,9 @@ func (a *App) notionTokenField(c *ui.Context, f *noteImportForm) {
 	widget.Field(c, "Integration token", func() {
 		if len(creds) > 0 {
 			ui.Row(c).FillWidth().Wrap().Gap(6).AlignItems(ui.Center).Children(func() {
-				ui.Text(c, "From the vault:").FontSize(11.5).TextColor(theme.Muted)
+				ui.Text(c, "From the vault:").FontSize(theme.TextLabel).TextColor(theme.Muted)
 				for _, cr := range creds {
-					b := ui.ButtonBase(c.Key(cr.ID)).Height(26).PaddingX(8).Gap(6).Radius(13).Border(1, theme.Border).Cursor(ui.CursorPointer).Label("Use " + cr.Name)
+					b := ui.ButtonBase(c.Key(cr.ID)).Height(26).PaddingX(8).Gap(6).Radius(theme.RadiusSmall).Border(1, theme.Border).Cursor(ui.CursorPointer).Label("Use " + cr.Name)
 					if f.cred == cr.ID {
 						b.Background(theme.Selected).Border(1, theme.AccentLine)
 					} else if b.Hovered() {
@@ -87,7 +87,7 @@ func (a *App) notionTokenField(c *ui.Context, f *noteImportForm) {
 					}
 					b.Children(func() {
 						vaultview.Logo(c, vault.Lookup(cr.Platform), 16)
-						ui.Text(c, cr.Name).FontSize(11.5).TextColor(theme.TextSoft)
+						ui.Text(c, cr.Name).FontSize(theme.TextLabel).TextColor(theme.TextSoft)
 					})
 					if widget.Pressable(b).Clicked() {
 						f.cred, f.token, f.keep = cr.ID, "", false
@@ -104,7 +104,7 @@ func (a *App) notionTokenField(c *ui.Context, f *noteImportForm) {
 		if f.cred != "" {
 			help = "The vault's token goes to Notion from " + a.host.Name + " for each import, and isn't kept there."
 		}
-		ui.Text(c, help).FontSize(11).TextColor(theme.Muted)
+		ui.Text(c, help).FontSize(theme.TextLabel).TextColor(theme.Muted)
 	})
 	if f.cred == "" && a.vaultOf().data != nil {
 		switchRow(c, &f.keep, "Keep the token in the vault", "As a Notion credential, for importing again without typing it.")
@@ -116,7 +116,7 @@ func (a *App) notionTokenField(c *ui.Context, f *noteImportForm) {
 			}
 		})
 	} else if a.vaultOf().file != nil && a.vaultOf().data == nil {
-		ui.Text(c, "Unlock the vault (Credentials) to use a token kept there, or to import again on a schedule.").FontSize(11).TextColor(theme.Muted)
+		ui.Text(c, "Unlock the vault (Credentials) to use a token kept there, or to import again on a schedule.").FontSize(theme.TextLabel).TextColor(theme.Muted)
 	}
 	a.notionSyncList(c)
 }
@@ -183,7 +183,7 @@ func (a *App) notionSyncList(c *ui.Context) {
 				if s.Err != "" {
 					line, col = line+" · failed: "+s.Err, theme.Warning
 				}
-				ui.Text(c, line).FontSize(11.5).TextColor(col).Grow(1).Shrink(1).SingleLine()
+				ui.Text(c, line).FontSize(theme.TextLabel).TextColor(col).Grow(1).Shrink(1).SingleLine()
 				if widget.IconButton(c, icon.Close, "Stop importing again", false).Clicked() {
 					a.state.NotionSyncs = slices.DeleteFunc(a.state.NotionSyncs, func(o notionSync) bool { return o.ID == s.ID })
 					a.saveState()

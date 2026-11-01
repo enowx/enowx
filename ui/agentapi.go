@@ -119,7 +119,7 @@ func (a *App) agentAPIRow(c *ui.Context, st *agentAPIState, ag proto.AgentAPIInf
 		ui.Row(c).FillWidth().Gap(10).AlignItems(ui.Center).Children(func() {
 			agentTile(c, ag.Agent, 24)
 			ui.Column(c).Grow(1).MinWidth(0).Gap(2).Children(func() {
-				ui.Text(c, ag.Name).FontSize(13)
+				ui.Text(c, ag.Name).FontSize(theme.TextUI)
 				detail := "Its own API"
 				if cur := ag.Current; cur != nil {
 					detail = cur.BaseURL
@@ -137,9 +137,9 @@ func (a *App) agentAPIRow(c *ui.Context, st *agentAPIState, ag proto.AgentAPIInf
 				if ag.Current != nil {
 					col = theme.TextSoft
 				}
-				ui.Text(c, detail).FontSize(11.5).TextColor(col).SingleLine().Shrink(1)
+				ui.Text(c, detail).FontSize(theme.TextLabel).TextColor(col).SingleLine().Shrink(1)
 				if ag.Error != "" {
-					ui.Text(c, ag.Error).FontSize(11).TextColor(theme.Error)
+					ui.Text(c, ag.Error).FontSize(theme.TextLabel).TextColor(theme.Error)
 				}
 			})
 			label := "Use an API…"
@@ -248,10 +248,10 @@ func (a *App) agentAPISheet(c *ui.Context, st *agentAPIState) {
 			})
 		}
 		if ag.Note != "" {
-			ui.Text(c, ag.Note).FontSize(11.5).TextColor(theme.Muted)
+			ui.Text(c, ag.Note).FontSize(theme.TextLabel).TextColor(theme.Muted)
 		}
 		if f.err != "" {
-			ui.Text(c, f.err).FontSize(12).TextColor(theme.Error)
+			ui.Text(c, f.err).FontSize(theme.TextLabel).TextColor(theme.Error)
 		}
 	}, func() {
 		label := "Use it"
@@ -299,7 +299,7 @@ func (a *App) agentAPIModels(c *ui.Context, f *agentAPIForm) {
 		if caps.Multi {
 			title = "Models: the first is the default"
 		}
-		ui.Text(c, title).FontSize(12).TextColor(theme.TextSoft)
+		ui.Text(c, title).FontSize(theme.TextLabel).TextColor(theme.TextSoft)
 		for i := range f.models {
 			r := &f.models[i]
 			ui.Column(c.Key(fmt.Sprint("m", i))).FillWidth().Gap(6).Padding(10).Radius(theme.RadiusControl).Background(theme.Sunken).Children(func() {
@@ -333,7 +333,7 @@ func (a *App) agentAPIModels(c *ui.Context, f *agentAPIForm) {
 				}
 				if caps.Effort == "model" {
 					ui.Row(c).FillWidth().Gap(8).AlignItems(ui.Center).Children(func() {
-						ui.Text(c, "Effort").FontSize(11.5).TextColor(theme.Muted).Shrink(0)
+						ui.Text(c, "Effort").FontSize(theme.TextLabel).TextColor(theme.Muted).Shrink(0)
 						effortPicker(c, caps.Efforts, &r.effort)
 					})
 				}
@@ -352,7 +352,7 @@ func tokens(c *ui.Context, label string, value *string, all bool) {
 		tip += ": the agent takes one for every model"
 	}
 	ui.Row(c).Gap(6).AlignItems(ui.Center).Tooltip(tip).Children(func() {
-		ui.Text(c, label).FontSize(11.5).TextColor(theme.Muted).Shrink(0)
+		ui.Text(c, label).FontSize(theme.TextLabel).TextColor(theme.Muted).Shrink(0)
 		widget.Input(c, value, "auto").Width(96).Font(theme.MonoFont)
 	})
 }

@@ -234,24 +234,24 @@ func (a *App) trayView(c *ui.Context) {
 	case runtime.GOOS == "windows": // which rounds and outlines the flyout
 		box.Background(theme.Dialog)
 	default:
-		box.Background(theme.Dialog).Radius(10).Border(1, theme.BorderStrong)
+		box.Background(theme.Dialog).Radius(theme.RadiusSmall).Border(1, theme.BorderStrong)
 	}
 	box.Padding(12).Gap(8).Children(func() {
 		ui.Row(c).FillWidth().Gap(8).AlignItems(ui.Center).Children(func() {
 			ui.Column(c).Grow(1).MinWidth(0).Gap(1).Children(func() {
-				ui.Text(c, "enowX").FontSize(13).FontWeight(600)
+				ui.Text(c, "enowX").FontSize(theme.TextUI).FontWeight(600)
 				var parts []string
 				for _, p := range []string{a.host.Name, summary(a.sessions)} {
 					if p != "" {
 						parts = append(parts, p)
 					}
 				}
-				ui.Text(c, strings.Join(parts, " · ")).FontSize(11).TextColor(theme.Muted).SingleLine()
+				ui.Text(c, strings.Join(parts, " · ")).FontSize(theme.TextLabel).TextColor(theme.Muted).SingleLine()
 			})
 		})
 		list := a.traySessionList()
 		if len(list) == 0 {
-			ui.Text(c, "No agent is working or waiting.").FontSize(12).TextColor(theme.Muted).Padding(8, 0)
+			ui.Text(c, "No agent is working or waiting.").FontSize(theme.TextLabel).TextColor(theme.Muted).Padding(8, 0)
 		}
 		for _, s := range list {
 			a.traySessionRow(c.Key(s.ID), s)
@@ -291,8 +291,8 @@ func (a *App) traySessionRow(c *ui.Context, s proto.SessionInfo) {
 		}
 		widget.Dot(c, col, isWorking(s), 7)
 		ui.Column(c).Grow(1).MinWidth(0).Children(func() {
-			ui.Text(c, a.sessionName(s)).FontSize(12.5).SingleLine()
-			ui.Text(c, textfmt.LastPathPart(s.Project)+" · "+what).FontSize(10.5).TextColor(theme.Muted).SingleLine()
+			ui.Text(c, a.sessionName(s)).FontSize(theme.TextUI).SingleLine()
+			ui.Text(c, textfmt.LastPathPart(s.Project)+" · "+what).FontSize(theme.TextLabel).TextColor(theme.Muted).SingleLine()
 		})
 	})
 	if row.Clicked() {

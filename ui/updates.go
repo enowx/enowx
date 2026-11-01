@@ -215,7 +215,7 @@ func (a *App) updateChip(c *ui.Context) {
 	b := titleChip(c, "update", label)
 	b.TextColor(theme.Accent).Children(func() {
 		ui.Icon(c, icon.ArrowUp).FontSize(11)
-		ui.Text(c, label).FontSize(11.5).SingleLine()
+		ui.Text(c, label).FontSize(theme.TextLabel).SingleLine()
 	})
 	if b.Clicked() {
 		a.updates.dialog = true
@@ -248,13 +248,13 @@ func (a *App) updateDialog(c *ui.Context) {
 				frac = float64(u.done) / float64(u.total)
 			}
 			widget.Meter(c, widget.Segment{Fraction: frac, Color: theme.Accent})
-			ui.Text(c, "Downloading and checking its signature…").FontSize(11.5).TextColor(theme.Muted)
+			ui.Text(c, "Downloading and checking its signature…").FontSize(theme.TextLabel).TextColor(theme.Muted)
 		case updateReady:
 			ui.Text(c, "Installed. Restarting runs it: the daemon updates with it and brings your sessions back, agents continuing their conversations.").
 				FontSize(12).TextColor(theme.TextSoft)
 		}
 		if u.err != "" {
-			ui.Text(c, "The update failed: "+u.err).FontSize(12).TextColor(theme.Error)
+			ui.Text(c, "The update failed: "+u.err).FontSize(theme.TextLabel).TextColor(theme.Error)
 		}
 		ui.Row(c).FillWidth().Children(func() {
 			auto := !a.state.Updates.Manual

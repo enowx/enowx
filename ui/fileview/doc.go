@@ -267,7 +267,7 @@ func (d *Doc) text(c *ui.Context) {
 	ui.List(c.Key("doc"), &d.list, n, func(i int) {
 		if i == len(lines) {
 			ui.Row(c).FillWidth().Height(lineHeight + 6).PaddingX(14).Children(func() {
-				ui.Text(c, "…the rest of this file is too long to show here").FontSize(11.5).TextColor(theme.Muted).SingleLine()
+				ui.Text(c, "…the rest of this file is too long to show here").FontSize(theme.TextLabel).TextColor(theme.Muted).SingleLine()
 			})
 			return
 		}
@@ -295,7 +295,7 @@ func (d *Doc) text(c *ui.Context) {
 func (d *Doc) picture(c *ui.Context) {
 	ui.Scroll(c).Grow(1).FillWidth().MinHeight(0).Children(func() {
 		ui.Column(c).FillWidth().Padding(16).AlignItems(ui.Center).Children(func() {
-			img := ui.Image(c, d.image).MaxWidth(float32(max(d.imgW, 1))).FillWidth().Background(theme.Sunken).Radius(4)
+			img := ui.Image(c, d.image).MaxWidth(float32(max(d.imgW, 1))).FillWidth().Background(theme.Sunken).Radius(theme.RadiusTail)
 			if d.imgW == 0 { // an SVG: as wide as the panel
 				img.MaxWidth(10000)
 			}

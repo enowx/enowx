@@ -27,13 +27,13 @@ func (ch *Chat) composer(c *ui.Context, o Options) {
 			ch.box(c, o)
 			ui.Row(c).FillWidth().Gap(14).Padding(0, 4).Children(func() {
 				if ch.compact {
-					ui.Text(c, "Enter to send · Shift+Enter: new line").FontSize(10.5).TextColor(theme.Idle).SingleLine()
+					ui.Text(c, "Enter to send · Shift+Enter: new line").FontSize(theme.TextLabel).TextColor(theme.Idle).SingleLine()
 					return
 				}
-				ui.Text(c, "Enter to send · Shift+Enter for a new line").FontSize(10.5).TextColor(theme.Idle).SingleLine()
+				ui.Text(c, "Enter to send · Shift+Enter for a new line").FontSize(theme.TextLabel).TextColor(theme.Idle).SingleLine()
 				ui.Spacer(c)
 				if !ch.ask.canAnswer() {
-					ui.Text(c, "Approvals and menus show in the terminal").FontSize(10.5).TextColor(theme.Idle).SingleLine()
+					ui.Text(c, "Approvals and menus show in the terminal").FontSize(theme.TextLabel).TextColor(theme.Idle).SingleLine()
 				}
 			})
 		})
@@ -50,8 +50,8 @@ func (ch *Chat) chips(c *ui.Context, o Options) {
 	ui.Row(c).FillWidth().Gap(6).Children(func() {
 		if added+removed > 0 {
 			chip(c.Key("diff"), func() {
-				ui.Text(c, fmt.Sprintf("+%d", added)).FontSize(11.5).TextColor(theme.Done).SingleLine()
-				ui.Text(c, fmt.Sprintf("−%d", removed)).FontSize(11.5).TextColor(theme.Error).SingleLine()
+				ui.Text(c, fmt.Sprintf("+%d", added)).FontSize(theme.TextLabel).TextColor(theme.Done).SingleLine()
+				ui.Text(c, fmt.Sprintf("−%d", removed)).FontSize(theme.TextLabel).TextColor(theme.Error).SingleLine()
 				diffBar(c, added, removed)
 			})
 		}
@@ -60,7 +60,7 @@ func (ch *Chat) chips(c *ui.Context, o Options) {
 
 // chip is a small pill over the composer.
 func chip(c *ui.Context, content func()) ui.Element {
-	return ui.Row(c).Height(26).PaddingX(10).Gap(7).Radius(13).Shrink(1).MinWidth(0).
+	return ui.Row(c).Height(26).PaddingX(10).Gap(7).Radius(theme.RadiusSmall).Shrink(1).MinWidth(0).
 		Background(theme.Raised).Border(1, theme.Border).Children(content)
 }
 
@@ -77,7 +77,7 @@ func diffBar(c *ui.Context, added, removed int) {
 			if i < green {
 				col = theme.Done
 			}
-			ui.Box(c.Key(i)).Size(6, 6).Radius(1.5).Background(col)
+			ui.Box(c.Key(i)).Size(6, 6).Radius(theme.RadiusTail).Background(col)
 		}
 	})
 }
@@ -88,7 +88,7 @@ const compactWidth = 600
 
 // box is the message and the row of buttons under it.
 func (ch *Chat) box(c *ui.Context, o Options) {
-	box := ui.Column(c).FillWidth().Radius(16).Background(theme.Raised)
+	box := ui.Column(c).FillWidth().Radius(theme.RadiusCard).Background(theme.Raised)
 	// Narrow, as beside the side panel: the settings show as icons and the
 	// context as its percentage, so nothing is cut.
 	ch.compact = box.LayoutBounds().W > 0 && box.LayoutBounds().W < compactWidth
@@ -186,7 +186,7 @@ func (ch *Chat) box(c *ui.Context, o Options) {
 			ch.settings(c, o)
 			ui.Spacer(c)
 			if o.Spent != "" && !ch.compact {
-				ui.Text(c.Key("spent"), o.Spent).FontSize(11).TextColor(theme.Muted).SingleLine().Shrink(1).Tooltip(o.SpentTip)
+				ui.Text(c.Key("spent"), o.Spent).FontSize(theme.TextLabel).TextColor(theme.Muted).SingleLine().Shrink(1).Tooltip(o.SpentTip)
 			}
 			ch.contextMeter(c)
 			if o.Working && strings.TrimSpace(ch.input) == "" && len(ch.attachments) == 0 {
@@ -218,11 +218,11 @@ func (ch *Chat) editBanner(c *ui.Context) {
 		switch {
 		case ch.editBusy:
 			widget.Spinner(c, 12)
-			ui.Text(c, "Going back to before this message…").FontSize(11.5).TextColor(theme.TextSoft).Grow(1).Shrink(1)
+			ui.Text(c, "Going back to before this message…").FontSize(theme.TextLabel).TextColor(theme.TextSoft).Grow(1).Shrink(1)
 			return
 		case ch.editErr != "":
 			ui.Icon(c, icon.Alert).FontSize(12).TextColor(theme.Error)
-			ui.Text(c, ch.editErr).FontSize(11.5).TextColor(theme.Error).Grow(1).Shrink(1)
+			ui.Text(c, ch.editErr).FontSize(theme.TextLabel).TextColor(theme.Error).Grow(1).Shrink(1)
 		default:
 			ui.Icon(c, icon.Pencil).FontSize(12).TextColor(theme.Accent)
 			ui.Text(c, "Editing a message: sending it replaces it and what came after. Files stay as they are.").
@@ -244,7 +244,7 @@ func (ch *Chat) contextMeter(c *ui.Context) {
 		// The model's window isn't known: the count alone, no guess.
 		tip := "Context: " + tokens(ch.contextUsed) + " tokens used. This model's window isn't known to enowX."
 		ui.Row(c.Key("context")).Height(28).PaddingX(8).Radius(theme.RadiusControl).Shrink(0).Tooltip(tip).Label(tip).Children(func() {
-			ui.Text(c, tokens(ch.contextUsed)+" tokens").FontSize(11).TextColor(theme.Muted).SingleLine()
+			ui.Text(c, tokens(ch.contextUsed)+" tokens").FontSize(theme.TextLabel).TextColor(theme.Muted).SingleLine()
 		})
 		return
 	}
@@ -258,9 +258,9 @@ func (ch *Chat) contextMeter(c *ui.Context) {
 				widget.Meter(c, widget.Segment{Fraction: fill, Color: col})
 			})
 		}
-		ui.Text(c, fmt.Sprintf("%.0f%%", 100*fill)).FontSize(11.5).TextColor(col).SingleLine()
+		ui.Text(c, fmt.Sprintf("%.0f%%", 100*fill)).FontSize(theme.TextLabel).TextColor(col).SingleLine()
 		if !ch.compact {
-			ui.Text(c, tokens(ch.contextUsed)+" / "+tokens(ch.contextWindow)).FontSize(11).TextColor(theme.Muted).SingleLine()
+			ui.Text(c, tokens(ch.contextUsed)+" / "+tokens(ch.contextWindow)).FontSize(theme.TextLabel).TextColor(theme.Muted).SingleLine()
 		}
 	})
 }
@@ -278,7 +278,7 @@ func tokens(n int64) string {
 
 // roundButton is the composer's send or stop button.
 func roundButton(c *ui.Context, svg *ui.SVG, label string, off bool) ui.Element {
-	b := ui.ButtonBase(c).Size(30, 30).Radius(15).Center().Shrink(0).Label(label).Tooltip(label).Cursor(ui.CursorPointer).
+	b := ui.ButtonBase(c).Size(30, 30).Radius(theme.RadiusCard).Center().Shrink(0).Label(label).Tooltip(label).Cursor(ui.CursorPointer).
 		Gradient(theme.AccentHigh, theme.Accent, 180).TextColor(theme.OnAccent).InsetShadow(0, 1, 0, 0, ui.RGBA(255, 255, 255, 0.3))
 	if off {
 		b.Opacity(0.35).Disabled(true)
@@ -329,7 +329,7 @@ func (ch *Chat) setting(c *ui.Context, o Options, key string, svg *ui.SVG, list 
 	b.Background(widget.Tint(b, "bg", bg)).Children(func() {
 		ui.Icon(c, svg).FontSize(13)
 		if !ch.compact {
-			ui.Text(c, label).FontSize(12).SingleLine()
+			ui.Text(c, label).FontSize(theme.TextLabel).SingleLine()
 		}
 		ui.Icon(c, icon.ChevronDown).FontSize(10).TextColor(theme.Muted)
 	})
@@ -351,9 +351,9 @@ func (ch *Chat) setting(c *ui.Context, o Options, key string, svg *ui.SVG, list 
 			item := ui.ButtonBase(c.Key(choice.ID)).Label(choice.Label).Cursor(ui.CursorPointer)
 			widget.PopupItem(item, item.Hovered()).Children(func() {
 				ui.Column(c).Gap(1).Grow(1).MinWidth(0).Children(func() {
-					ui.Text(c, choice.Label).FontSize(12.5)
+					ui.Text(c, choice.Label).FontSize(theme.TextUI)
 					if choice.Note != "" {
-						ui.Text(c, choice.Note).FontSize(11).TextColor(theme.Muted)
+						ui.Text(c, choice.Note).FontSize(theme.TextLabel).TextColor(theme.Muted)
 					}
 				})
 				if known && choice.ID == cur.ID {

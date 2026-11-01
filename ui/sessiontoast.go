@@ -167,13 +167,13 @@ func (a *App) sessionToastCard(c *ui.Context, t *sessionToast, now time.Time) {
 		body.Children(func() {
 			ui.Column(c).FillWidth().Gap(2).Children(func() {
 				ui.Row(c).FillWidth().Gap(6).AlignItems(ui.Center).Children(func() {
-					ui.Text(c, label).FontSize(12.5).FontWeight(600).TextColor(col).SingleLine()
-					ui.Text(c, t.name).FontSize(12.5).SingleLine().Shrink(1)
+					ui.Text(c, label).FontSize(theme.TextUI).FontWeight(600).TextColor(col).SingleLine()
+					ui.Text(c, t.name).FontSize(theme.TextUI).SingleLine().Shrink(1)
 				})
 				if t.host != "" {
-					ui.Text(c, t.host).FontSize(11).TextColor(theme.Muted).SingleLine()
+					ui.Text(c, t.host).FontSize(theme.TextLabel).TextColor(theme.Muted).SingleLine()
 				}
-				ui.Text(c, t.text).FontSize(12.5).TextColor(theme.TextSoft).MaxLines(3)
+				ui.Text(c, t.text).FontSize(theme.TextUI).TextColor(theme.TextSoft).MaxLines(3)
 			})
 		})
 		if body.Clicked() && t.id != "" {

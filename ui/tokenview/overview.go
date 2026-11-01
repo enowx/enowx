@@ -36,7 +36,7 @@ func (v *View) overview(c *ui.Context, d Data, o Options) {
 		}
 		ui.Spacer(c)
 		if v.Project != "" {
-			ui.Text(c, "Project: "+filepath.Base(v.Project)).FontSize(12).TextColor(theme.TextSoft).SingleLine()
+			ui.Text(c, "Project: "+filepath.Base(v.Project)).FontSize(theme.TextLabel).TextColor(theme.TextSoft).SingleLine()
 			if widget.IconButton(c, icon.Close, "All projects", false).Clicked() {
 				v.Project = ""
 				refresh(o)
@@ -50,7 +50,7 @@ func (v *View) overview(c *ui.Context, d Data, o Options) {
 	if len(s.Days) > 0 {
 		widget.Card(c).Children(func() {
 			ui.Row(c).FillWidth().Gap(14).Children(func() {
-				ui.Text(c, "Each day").FontSize(12).TextColor(theme.TextSoft).Grow(1)
+				ui.Text(c, "Each day").FontSize(theme.TextLabel).TextColor(theme.TextSoft).Grow(1)
 				cols := partColors()
 				widget.Legend(c, cols[0], "Input")
 				widget.Legend(c, cols[1], "Cached")
@@ -108,11 +108,11 @@ func stat(c *ui.Context, title, value, note string, col ui.Color) {
 	widget.Card(c).Children(func() {
 		ui.Row(c).Gap(6).Children(func() {
 			widget.Dot(c, col, false, 6)
-			ui.Text(c, title).FontSize(11.5).TextColor(theme.TextSoft).SingleLine()
+			ui.Text(c, title).FontSize(theme.TextLabel).TextColor(theme.TextSoft).SingleLine()
 		})
-		ui.Text(c, value).FontSize(18).SingleLine()
+		ui.Text(c, value).FontSize(theme.TextTitle).SingleLine()
 		if note != "" {
-			ui.Text(c, note).FontSize(10.5).TextColor(theme.Muted)
+			ui.Text(c, note).FontSize(theme.TextLabel).TextColor(theme.Muted)
 		}
 	})
 }
@@ -140,7 +140,7 @@ func dayBars(s proto.TokensSummary, since time.Time) []widget.Bar {
 func (v *View) splitTable(c *ui.Context, s proto.TokensSummary, o Options) {
 	widget.Card(c).Children(func() {
 		ui.Row(c).FillWidth().Gap(10).Children(func() {
-			ui.Text(c, "By").FontSize(12).TextColor(theme.TextSoft)
+			ui.Text(c, "By").FontSize(theme.TextLabel).TextColor(theme.TextSoft)
 			labels := make([]string, len(splits))
 			for i, sp := range splits {
 				labels[i] = sp.label
@@ -163,7 +163,7 @@ func (v *View) splitTable(c *ui.Context, s proto.TokensSummary, o Options) {
 			countsRow(c.Key("g:"+g.Key), name, detail, g.TokenCounts)
 		}
 		if len(s.Groups) == 0 {
-			ui.Text(c, "Nothing counted in this range.").FontSize(12).TextColor(theme.Muted).Padding(8, 10)
+			ui.Text(c, "Nothing counted in this range.").FontSize(theme.TextLabel).TextColor(theme.Muted).Padding(8, 10)
 		}
 	})
 }
@@ -172,7 +172,7 @@ func header(c *ui.Context) {
 	ui.Row(c).FillWidth().Padding(4, 10).Gap(10).Children(func() {
 		ui.Text(c, "").Grow(1)
 		for _, h := range []string{"Input", "Cached", "Output", "Calls", "Cost"} {
-			ui.Text(c, h).FontSize(11).TextColor(theme.Muted).Width(76).TextAlign(ui.End)
+			ui.Text(c, h).FontSize(theme.TextLabel).TextColor(theme.Muted).Width(76).TextAlign(ui.End)
 		}
 	})
 }
@@ -180,9 +180,9 @@ func header(c *ui.Context) {
 func countsRow(c *ui.Context, name, detail string, t proto.TokenCounts) {
 	ui.Row(c).FillWidth().Padding(7, 10).Gap(10).Radius(theme.RadiusControl).Children(func() {
 		ui.Row(c).Grow(1).MinWidth(0).Gap(8).Children(func() {
-			ui.Text(c, name).FontSize(12).SingleLine().Shrink(1)
+			ui.Text(c, name).FontSize(theme.TextLabel).SingleLine().Shrink(1)
 			if detail != "" {
-				ui.Text(c, detail).FontSize(11).TextColor(theme.Muted).SingleLine().Shrink(1)
+				ui.Text(c, detail).FontSize(theme.TextLabel).TextColor(theme.Muted).SingleLine().Shrink(1)
 			}
 		})
 		cost := Dollars(t.Cost)
@@ -190,7 +190,7 @@ func countsRow(c *ui.Context, name, detail string, t proto.TokenCounts) {
 			cost = "≈" + cost
 		}
 		for _, v := range []string{Count(t.Input), Count(t.CacheRead + t.CacheWrite), Count(t.Output), strconv.Itoa(t.Calls), cost} {
-			ui.Text(c, v).FontSize(12).Width(76).TextAlign(ui.End).SingleLine().TextColor(theme.TextSoft)
+			ui.Text(c, v).FontSize(theme.TextLabel).Width(76).TextAlign(ui.End).SingleLine().TextColor(theme.TextSoft)
 		}
 	})
 }
@@ -213,9 +213,9 @@ func hosts(c *ui.Context, list []HostTotal) {
 
 func section(c *ui.Context, title, note string, body func()) {
 	widget.Card(c).Children(func() {
-		ui.Text(c, title).FontSize(12.5)
+		ui.Text(c, title).FontSize(theme.TextUI)
 		if note != "" {
-			ui.Text(c, note).FontSize(11).TextColor(theme.Muted)
+			ui.Text(c, note).FontSize(theme.TextLabel).TextColor(theme.Muted)
 		}
 		body()
 	})
@@ -232,7 +232,7 @@ func (v *View) layers(c *ui.Context, d Data, o Options) {
 				st.Traffic = on
 				o.Save(st)
 			}
-			ui.Text(c, "Meter agents that keep no records through the interceptor (new sessions)").FontSize(12).TextColor(theme.TextSoft).Grow(1).Shrink(1)
+			ui.Text(c, "Meter agents that keep no records through the interceptor (new sessions)").FontSize(theme.TextLabel).TextColor(theme.TextSoft).Grow(1).Shrink(1)
 		})
 		ui.Row(c).FillWidth().Gap(10).Children(func() {
 			on := st.Screen
@@ -240,12 +240,12 @@ func (v *View) layers(c *ui.Context, d Data, o Options) {
 				st.Screen = on
 				o.Save(st)
 			}
-			ui.Text(c, "Read the counts agents print on their screen, when nothing else tracks them").FontSize(12).TextColor(theme.TextSoft).Grow(1).Shrink(1)
+			ui.Text(c, "Read the counts agents print on their screen, when nothing else tracks them").FontSize(theme.TextLabel).TextColor(theme.TextSoft).Grow(1).Shrink(1)
 		})
 		ui.Row(c).FillWidth().Gap(10).Children(func() {
-			ui.Text(c, fmt.Sprintf("Records read back %d days when tracking turns on.", max(st.BackfillDays, 30))).FontSize(12).TextColor(theme.TextSoft).Grow(1)
+			ui.Text(c, fmt.Sprintf("Records read back %d days when tracking turns on.", max(st.BackfillDays, 30))).FontSize(theme.TextLabel).TextColor(theme.TextSoft).Grow(1)
 			if d.Backfilled != "" {
-				ui.Text(c, d.Backfilled).FontSize(11).TextColor(theme.Muted).SingleLine()
+				ui.Text(c, d.Backfilled).FontSize(theme.TextLabel).TextColor(theme.Muted).SingleLine()
 			}
 			if st.On && o.Backfill != nil && widget.GhostButton(c, "Read back now").Clicked() {
 				o.Backfill()

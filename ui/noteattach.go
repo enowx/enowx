@@ -110,10 +110,10 @@ func (a *App) attachDialog(c *ui.Context) {
 				})
 			}
 			if len(a.catalogs.list) == 0 {
-				ui.Text(c, "Reading the hosts' projects…").FontSize(12).TextColor(theme.Muted)
+				ui.Text(c, "Reading the hosts' projects…").FontSize(theme.TextLabel).TextColor(theme.Muted)
 			}
 			if f.err != "" {
-				ui.Text(c, f.err).FontSize(12).TextColor(theme.Error)
+				ui.Text(c, f.err).FontSize(theme.TextLabel).TextColor(theme.Error)
 			}
 		}, func() {
 			b := widget.PrimaryButton(c, nil, "Save", "")
@@ -135,7 +135,7 @@ func (a *App) attachRow(c *ui.Context, f *noteAttachForm, p proto.NoteProject) {
 				delete(f.picked, p.Ref)
 			}
 		}
-		ui.Text(c, p.Path).Font(theme.MonoFont).FontSize(11).TextColor(theme.Muted).SingleLine().Shrink(1)
+		ui.Text(c, p.Path).Font(theme.MonoFont).FontSize(theme.TextLabel).TextColor(theme.Muted).SingleLine().Shrink(1)
 	})
 }
 

@@ -146,7 +146,7 @@ func (v *View) commentRow(c *ui.Context, i int) {
 	ui.Row(c).FillWidth().Padding(6, 10, 6, 70).Gap(8).Background(theme.Fade(theme.Accent, 0.08)).
 		BorderWidth(0, 0, 0, 2).BorderColor(theme.Accent).AlignItems(ui.Start).Children(func() {
 		ui.Icon(c, icon.Chat).FontSize(12).TextColor(theme.Accent).Margin(2, 0, 0, 0)
-		ui.Text(c, cm.Text).FontSize(12.5).TextColor(theme.Text).Grow(1).Shrink(1)
+		ui.Text(c, cm.Text).FontSize(theme.TextUI).TextColor(theme.Text).Grow(1).Shrink(1)
 		if widget.IconButton(c, icon.Close, "Remove the comment", false).Clicked() {
 			v.removeComment(i)
 		}
@@ -164,7 +164,7 @@ func (v *View) draftRow(c *ui.Context) {
 			return
 		}
 		ui.Row(c).FillWidth().Gap(8).Children(func() {
-			ui.Text(c, "The comments go to the agent together.").FontSize(11).TextColor(theme.Muted).SingleLine().Shrink(1)
+			ui.Text(c, "The comments go to the agent together.").FontSize(theme.TextLabel).TextColor(theme.Muted).SingleLine().Shrink(1)
 			ui.Spacer(c)
 			if widget.GhostButton(c, "Cancel").Clicked() {
 				v.draft = nil
@@ -186,7 +186,7 @@ func (v *View) commentBar(c *ui.Context, o Options) {
 	ui.Row(c).Shrink(0).FillWidth().Padding(8, 10, 8, 14).Gap(8).Background(theme.Panel).
 		BorderWidth(1, 0, 0, 0).BorderColor(theme.Border).Children(func() {
 		ui.Icon(c, icon.Chat).FontSize(13).TextColor(theme.Accent)
-		ui.Text(c, fmt.Sprintf("%d review %s", n, textfmt.Plural(n, "comment", "comments"))).FontSize(12.5).SingleLine().Shrink(1)
+		ui.Text(c, fmt.Sprintf("%d review %s", n, textfmt.Plural(n, "comment", "comments"))).FontSize(theme.TextUI).SingleLine().Shrink(1)
 		ui.Spacer(c)
 		if widget.GhostButton(c, "Discard").Clicked() {
 			v.comments, v.draft = nil, nil

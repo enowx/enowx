@@ -123,9 +123,9 @@ func (a *App) sessionPresence(c *ui.Context, s proto.SessionInfo) {
 		if controls {
 			label = visitorName(v) + " has control"
 		}
-		ui.Row(c.Key("watch:"+v.Account)).Gap(5).Height(22).Padding(0, 8, 0, 6).Radius(11).Background(theme.Fade(widget.TeamColor(v.Team), 0.16)).AlignItems(ui.Center).Children(func() {
+		ui.Row(c.Key("watch:"+v.Account)).Gap(5).Height(22).Padding(0, 8, 0, 6).Radius(theme.RadiusSmall).Background(theme.Fade(widget.TeamColor(v.Team), 0.16)).AlignItems(ui.Center).Children(func() {
 			ui.Icon(c, icon.Eye).FontSize(11).TextColor(theme.TextSoft)
-			ui.Text(c, label).FontSize(11).TextColor(theme.TextSoft).SingleLine()
+			ui.Text(c, label).FontSize(theme.TextLabel).TextColor(theme.TextSoft).SingleLine()
 		})
 		if controls && widget.GhostButton(c, "Take back").Clicked() {
 			cl, account := a.client, v.Account
@@ -227,7 +227,7 @@ func (a *App) watchView(c *ui.Context, v *teamVisit) {
 				name = nonEmptyName(s)
 			}
 		}
-		ui.Text(c, name).FontSize(12.5).Grow(1).Shrink(1).MinWidth(0).SingleLine()
+		ui.Text(c, name).FontSize(theme.TextUI).Grow(1).Shrink(1).MinWidth(0).SingleLine()
 		own := false
 		for _, s := range v.sessions {
 			if s.ID == w.session && s.Member != nil && s.Member.Account == v.me.Account {

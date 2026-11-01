@@ -138,7 +138,7 @@ func (u *Meter) Details(c *ui.Context, h Host) {
 		if u.host.Supported {
 			hostMeters(c, u.host.Host, u.total(h.Local).RSS)
 		} else {
-			ui.Text(c, h.Name+" doesn't report its usage.").FontSize(12).TextColor(theme.Muted)
+			ui.Text(c, h.Name+" doesn't report its usage.").FontSize(theme.TextLabel).TextColor(theme.Muted)
 		}
 		ui.Column(c).FillWidth().Gap(2).Children(func() {
 			header(c)
@@ -162,13 +162,13 @@ func (u *Meter) Details(c *ui.Context, h Host) {
 					row(c.Key(su.ID), icon.Agent(agentID), name, project, su.Usage)
 				}
 				if len(sessions) == 0 {
-					ui.Text(c, "No session is running.").FontSize(12).TextColor(theme.Muted).Padding(8, 10)
+					ui.Text(c, "No session is running.").FontSize(theme.TextLabel).TextColor(theme.Muted).Padding(8, 10)
 				}
 				row(c.Key("daemon"), icon.Server, "Daemon", "on "+h.Name, u.host.Daemon)
 			}
 			row(c.Key("app"), icon.Laptop, "enowX app", appDetail, proto.Usage{RSS: u.app.RSS, CPU: u.app.CPU, Procs: 1})
 			widget.Divider(c)
-			cells(c, func() { ui.Text(c, "enowX on "+h.Name).FontSize(12).SingleLine() }, u.total(h.Local), true)
+			cells(c, func() { ui.Text(c, "enowX on "+h.Name).FontSize(theme.TextLabel).SingleLine() }, u.total(h.Local), true)
 		})
 		ui.Text(c, "Each session counts everything it started: language servers, MCP servers, dev servers. Updates every 2 seconds.").
 			FontSize(11).TextColor(theme.Muted)
@@ -194,7 +194,7 @@ func hostMeters(c *ui.Context, h proto.HostUsage, enowx uint64) {
 				widget.Legend(c, theme.BorderStrong, "Free "+textfmt.Bytes(h.MemTotal-min(h.MemUsed, h.MemTotal)))
 				ui.Spacer(c)
 				if used > 0.85 {
-					ui.Text(c, "Memory is getting tight").FontSize(11).TextColor(theme.Warning).SingleLine()
+					ui.Text(c, "Memory is getting tight").FontSize(theme.TextLabel).TextColor(theme.Warning).SingleLine()
 				}
 			})
 		})
@@ -206,7 +206,7 @@ func hostMeters(c *ui.Context, h proto.HostUsage, enowx uint64) {
 			card(c, "Disk", fmt.Sprintf("%s of %s", textfmt.Bytes(h.DiskUsed), textfmt.Bytes(h.DiskTotal)), func() {
 				widget.Meter(c, widget.Segment{Fraction: disk, Color: widget.Level(disk)})
 				if disk > 0.9 {
-					ui.Text(c, "Nearly full").FontSize(11).TextColor(theme.Warning)
+					ui.Text(c, "Nearly full").FontSize(theme.TextLabel).TextColor(theme.Warning)
 				}
 			})
 		}
@@ -216,8 +216,8 @@ func hostMeters(c *ui.Context, h proto.HostUsage, enowx uint64) {
 func card(c *ui.Context, title, value string, body func()) {
 	widget.Card(c).Children(func() {
 		ui.Row(c).FillWidth().Gap(8).Children(func() {
-			ui.Text(c, title).FontSize(12).TextColor(theme.TextSoft).Grow(1).Shrink(1).SingleLine()
-			ui.Text(c, value).FontSize(12.5).SingleLine().Shrink(0)
+			ui.Text(c, title).FontSize(theme.TextLabel).TextColor(theme.TextSoft).Grow(1).Shrink(1).SingleLine()
+			ui.Text(c, value).FontSize(theme.TextUI).SingleLine().Shrink(0)
 		})
 		body()
 	})
@@ -227,7 +227,7 @@ func header(c *ui.Context) {
 	ui.Row(c).FillWidth().Padding(0, 10, 4, 10).Gap(10).Children(func() {
 		ui.Text(c, "").Grow(1)
 		for _, h := range []string{"Memory", "CPU", "Processes"} {
-			ui.Text(c, h).FontSize(11).TextColor(theme.Muted).Width(80).TextAlign(ui.End)
+			ui.Text(c, h).FontSize(theme.TextLabel).TextColor(theme.Muted).Width(80).TextAlign(ui.End)
 		}
 	})
 }
@@ -235,9 +235,9 @@ func header(c *ui.Context) {
 func row(c *ui.Context, svg *ui.SVG, name, detail string, u proto.Usage) {
 	cells(c, func() {
 		ui.Icon(c, svg).FontSize(13).TextColor(theme.TextSoft)
-		ui.Text(c, name).FontSize(12).SingleLine().Shrink(1)
+		ui.Text(c, name).FontSize(theme.TextLabel).SingleLine().Shrink(1)
 		if detail != "" {
-			ui.Text(c, detail).FontSize(11).TextColor(theme.Muted).SingleLine().Shrink(1)
+			ui.Text(c, detail).FontSize(theme.TextLabel).TextColor(theme.Muted).SingleLine().Shrink(1)
 		}
 	}, u, false)
 }
@@ -246,7 +246,7 @@ func cells(c *ui.Context, label func(), u proto.Usage, total bool) {
 	ui.Row(c).FillWidth().Padding(8, 10).Gap(10).Radius(theme.RadiusControl).Children(func() {
 		ui.Row(c).Grow(1).MinWidth(0).Gap(8).Children(label)
 		for _, v := range []string{textfmt.Bytes(u.RSS), textfmt.CPU(u.CPU), fmt.Sprint(u.Procs)} {
-			t := ui.Text(c, v).FontSize(12).Width(80).TextAlign(ui.End).SingleLine().TextColor(theme.TextSoft)
+			t := ui.Text(c, v).FontSize(theme.TextLabel).Width(80).TextAlign(ui.End).SingleLine().TextColor(theme.TextSoft)
 			if total {
 				t.TextColor(theme.Text)
 			}

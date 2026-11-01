@@ -148,7 +148,7 @@ func (v *View) stage(c *ui.Context, o Options) {
 					Tooltip("Something sticks out past the design's width, so its page scrolls sideways: fix it, or ask the agent to").
 					Children(func() {
 						ui.Icon(c, icon.Alert).FontSize(13).TextColor(theme.Warning)
-						ui.Text(c, fmt.Sprintf("Wider than its frame by %d px: it scrolls sideways", n)).FontSize(12).TextColor(theme.Warning).SingleLine()
+						ui.Text(c, fmt.Sprintf("Wider than its frame by %d px: it scrolls sideways", n)).FontSize(theme.TextLabel).TextColor(theme.Warning).SingleLine()
 					})
 			}
 		}
@@ -248,15 +248,15 @@ func (v *View) mockup(c *ui.Context, o Options, f proto.CanvasFrame, design ui.R
 		return
 	}
 	ui.Column(c.Key("outline")).Absolute().Left(0).Top(0).Size(w, h).Padding(16).Gap(4).Children(func() {
-		ui.Text(c, "This device shows mockups in a web view: here, their elements.").FontSize(11).TextColor(ui.RGB(100, 116, 139))
+		ui.Text(c, "This device shows mockups in a web view: here, their elements.").FontSize(theme.TextLabel).TextColor(ui.RGB(100, 116, 139))
 		for _, el := range canvas.Outline(f.HTML) {
-			row := ui.Row(c.Key(el.ID)).Padding(2, 6, 2, 6+float32(el.Depth)*12).Radius(4).Gap(6)
+			row := ui.Row(c.Key(el.ID)).Padding(2, 6, 2, 6+float32(el.Depth)*12).Radius(theme.RadiusTail).Gap(6)
 			if v.recent(el.ID) {
 				row.Background(ui.RGBA(99, 102, 241, 0.18))
 			}
 			row.Children(func() {
-				ui.Text(c, "#"+el.ID).FontSize(11).TextColor(ui.RGB(79, 70, 229))
-				ui.Text(c, el.Text).FontSize(11).TextColor(ui.RGB(15, 23, 42)).SingleLine().Shrink(1)
+				ui.Text(c, "#"+el.ID).FontSize(theme.TextLabel).TextColor(ui.RGB(79, 70, 229))
+				ui.Text(c, el.Text).FontSize(theme.TextLabel).TextColor(ui.RGB(15, 23, 42)).SingleLine().Shrink(1)
 			})
 		}
 	})
@@ -352,8 +352,8 @@ func (v *View) shape(c *ui.Context, o Options, el proto.CanvasElement, s float64
 			if o.AgentName != nil {
 				who = o.AgentName(v.last.Session)
 			}
-			ui.Row(c.Key("who")).Absolute().Left(0).Top(-22).Height(18).PaddingX(6).Radius(4).Background(theme.Accent).Children(func() {
-				ui.Text(c, who).FontSize(10.5).TextColor(ui.RGB(255, 255, 255)).SingleLine()
+			ui.Row(c.Key("who")).Absolute().Left(0).Top(-22).Height(18).PaddingX(6).Radius(theme.RadiusTail).Background(theme.Accent).Children(func() {
+				ui.Text(c, who).FontSize(theme.TextLabel).TextColor(ui.RGB(255, 255, 255)).SingleLine()
 			})
 		}
 	})
@@ -422,7 +422,7 @@ func (v *View) handlePointer(c *ui.Context, o Options, box ui.Element, el proto.
 
 // resizeHandle is the selected shape's corner, which drags its size.
 func (v *View) resizeHandle(c *ui.Context, o Options, el proto.CanvasElement, s float64) {
-	h := ui.Box(c.Key("resize")).Absolute().Right(-5).Bottom(-5).Size(10, 10).Radius(2).
+	h := ui.Box(c.Key("resize")).Absolute().Right(-5).Bottom(-5).Size(10, 10).Radius(theme.RadiusTail).
 		Background(ui.RGB(255, 255, 255)).Border(1.5, ui.RGB(99, 102, 241)).Cursor(ui.CursorResizeNWSE).Label("Resize " + el.ID)
 	if dx, dy, ok := h.Dragged(); ok {
 		if v.drag == nil || v.drag.id != el.ID || !v.drag.resize {
@@ -494,7 +494,7 @@ func (v *View) arrowHandle(c *ui.Context, o Options, f proto.CanvasFrame, el pro
 			return
 		}
 		ui.Text(c, el.Text).FontSize(float32(st.FontSize * s * 0.85)).TextColor(color(st.Color, ui.RGB(15, 23, 42))).
-			Background(ui.RGBA(255, 255, 255, 0.9)).PaddingX(4).Radius(3).SingleLine()
+			Background(ui.RGBA(255, 255, 255, 0.9)).PaddingX(4).Radius(theme.RadiusTail).SingleLine()
 	})
 	_ = o
 }

@@ -29,7 +29,7 @@ func BarChart(c *ui.Context, bars []Bar, colors []ui.Color, height float32) {
 	ui.Column(c).FillWidth().Gap(4).Children(func() {
 		ui.Row(c).FillWidth().Height(height).Gap(3).AlignItems(ui.End).BorderWidth(0, 0, 1, 0).BorderColor(theme.Border).Children(func() {
 			for i, b := range bars {
-				col := ui.Column(c.Key(i)).Grow(1).MinWidth(0).Height(height).Justify(ui.End).Radius(2).Clip()
+				col := ui.Column(c.Key(i)).Grow(1).MinWidth(0).Height(height).Justify(ui.End).Radius(theme.RadiusTail).Clip()
 				if b.Tip != "" {
 					col.Tooltip(b.Tip).Label(b.Tip)
 				}
@@ -50,7 +50,7 @@ func BarChart(c *ui.Context, bars []Bar, colors []ui.Color, height float32) {
 				if i%every == 0 {
 					label = b.Label
 				}
-				ui.Text(c.Key(i), label).FontSize(10).TextColor(theme.Muted).SingleLine().Grow(1).MinWidth(0).TextAlign(ui.Start)
+				ui.Text(c.Key(i), label).FontSize(theme.TextLabel).TextColor(theme.Muted).SingleLine().Grow(1).MinWidth(0).TextAlign(ui.Start)
 			}
 		})
 	})

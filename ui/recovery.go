@@ -38,12 +38,12 @@ func (a *App) recoverySection(c *ui.Context, cs *cloudSettings) {
 		if set {
 			msg = "Set. Keep it away from your devices (a password manager, paper). Making a new one replaces it."
 		}
-		ui.Text(c, msg).FontSize(11.5).TextColor(theme.Muted)
+		ui.Text(c, msg).FontSize(theme.TextLabel).TextColor(theme.Muted)
 		if rs.err != "" {
 			widget.Notice(c, icon.Alert, theme.Error, rs.err, "", nil)
 		}
 		if rs.done != "" {
-			ui.Text(c, rs.done).FontSize(12).TextColor(theme.Done)
+			ui.Text(c, rs.done).FontSize(theme.TextLabel).TextColor(theme.Done)
 		}
 		ui.Row(c).Gap(8).Children(func() {
 			label := "Make a recovery key"
@@ -67,7 +67,7 @@ func (a *App) recoverySection(c *ui.Context, cs *cloudSettings) {
 		open := true
 		widget.FormSheet(c, &open, 520, "Your recovery key", "Shown this once. Keep it away from your devices: whoever has it, and signs in as you, gets your teams' keys.", func() {
 			ui.Row(c).FillWidth().Gap(8).AlignItems(ui.Center).Padding(10, 12).Radius(theme.RadiusControl).Background(theme.Sunken).Border(1, theme.Border).Children(func() {
-				ui.Text(c, rs.shown).Font(theme.MonoFont).FontSize(12.5).Grow(1).Shrink(1).MinWidth(0).Selectable()
+				ui.Text(c, rs.shown).Font(theme.MonoFont).FontSize(theme.TextUI).Grow(1).Shrink(1).MinWidth(0).Selectable()
 				widget.CopyIcon(c.Key("rk-copy"), &rs.copied, icon.Copy, "Copy the key", "Copy the recovery key", rs.shown)
 			})
 		}, func() {

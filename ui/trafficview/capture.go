@@ -133,9 +133,9 @@ func (v *View) captureBar(c *ui.Context, o Options) {
 	case proto.CaptureStopped:
 		tip = "Stopped since " + st.Since.Local().Format("15:04") + ": traffic goes through untouched"
 	}
-	ui.Row(c).Height(24).PaddingX(9).Gap(6).Radius(12).Border(1, theme.Border).AlignItems(ui.Center).Tooltip(tip).Label(label).Children(func() {
+	ui.Row(c).Height(24).PaddingX(9).Gap(6).Radius(theme.RadiusSmall).Border(1, theme.Border).AlignItems(ui.Center).Tooltip(tip).Label(label).Children(func() {
 		widget.Dot(c, col, st.State == proto.CaptureStopped, 7)
-		ui.Text(c, label).FontSize(11).TextColor(theme.TextSoft).SingleLine()
+		ui.Text(c, label).FontSize(theme.TextLabel).TextColor(theme.TextSoft).SingleLine()
 	})
 	pauseShortcut := c.Shortcut(ui.Cmd|ui.Alt, ui.KeyP)
 	stopShortcut := c.Shortcut(ui.Cmd|ui.Alt, ui.KeyS)
@@ -234,7 +234,7 @@ func gapRow(c *ui.Context, g proto.TrafficGap) {
 	}
 	text += " —"
 	ui.Row(c).FillWidth().Height(26).Center().Children(func() {
-		ui.Text(c, text).FontSize(11).TextColor(theme.Muted).SingleLine()
+		ui.Text(c, text).FontSize(theme.TextLabel).TextColor(theme.Muted).SingleLine()
 	})
 }
 
@@ -245,7 +245,7 @@ func (v *View) capturePrefsFields(c *ui.Context) {
 		return
 	}
 	ui.Column(c).FillWidth().Gap(8).Children(func() {
-		ui.Text(c, "Pausing").FontSize(12.5).FontWeight(600)
+		ui.Text(c, "Pausing").FontSize(theme.TextUI).FontWeight(600)
 		keep := cs.prefs.Rules != "pause"
 		check(c, &keep, "Rules (mocks, forwards, failures) keep running while recording is paused")
 		cs.prefs.Rules = map[bool]string{true: "keep", false: "pause"}[keep]
@@ -260,7 +260,7 @@ func (v *View) capturePrefsFields(c *ui.Context) {
 				widget.Field(c, "or after (exchanges)", func() { widget.Input(c, &cs.count, "never").FillWidth() })
 			})
 		})
-		ui.Text(c, "These are yours on every host; whether a host records now is its own.").FontSize(11).TextColor(theme.Muted)
+		ui.Text(c, "These are yours on every host; whether a host records now is its own.").FontSize(theme.TextLabel).TextColor(theme.Muted)
 	})
 }
 

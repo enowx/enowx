@@ -55,9 +55,9 @@ func (v *View) briefDialog(c *ui.Context, o Options) {
 			for i, kv := range designbrief.Fields(proto.DesignBrief{}) {
 				heading := kv[0]
 				ui.Column(c.Key(heading)).FillWidth().Gap(4).Children(func() {
-					ui.Text(c, heading).FontSize(12).FontWeight(600)
-					ui.Text(c, designbrief.Asks(heading)).FontSize(11).TextColor(theme.Muted)
-					ui.TextArea(c, &f.values[i]).FillWidth().TextColor(theme.Text).Height(56).Padding(8, 10).Radius(theme.RadiusControl).FontSize(12.5).
+					ui.Text(c, heading).FontSize(theme.TextLabel).FontWeight(600)
+					ui.Text(c, designbrief.Asks(heading)).FontSize(theme.TextLabel).TextColor(theme.Muted)
+					ui.TextArea(c, &f.values[i]).FillWidth().TextColor(theme.Text).Height(56).Padding(8, 10).Radius(theme.RadiusControl).FontSize(theme.TextUI).
 						Background(theme.Sunken).Border(1, theme.BorderStrong).Label(heading)
 				})
 			}

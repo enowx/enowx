@@ -120,7 +120,7 @@ func (f *Picker) View(c *ui.Context, hostName string, pick func(path string)) {
 		f.toolbar(c)
 		f.list(c)
 		if f.err != "" {
-			ui.Text(c, f.err).FontSize(12).TextColor(theme.Error)
+			ui.Text(c, f.err).FontSize(theme.TextLabel).TextColor(theme.Error)
 		}
 		f.footer(c, pick)
 	})
@@ -245,7 +245,7 @@ func (f *Picker) footer(c *ui.Context, pick func(path string)) {
 			if widget.Switch(c, &f.hidden, "Show hidden files") {
 				f.browse(f.listing.Path)
 			}
-			ui.Text(c, "Hidden files").FontSize(12).TextColor(theme.TextSoft)
+			ui.Text(c, "Hidden files").FontSize(theme.TextLabel).TextColor(theme.TextSoft)
 			ui.Box(c).Grow(1)
 			if widget.GhostButton(c, "Cancel").Clicked() {
 				f.open = false
@@ -268,7 +268,7 @@ func (f *Picker) footer(c *ui.Context, pick func(path string)) {
 		if widget.Switch(c, &f.hidden, "Show hidden folders") {
 			f.browse(f.listing.Path)
 		}
-		ui.Text(c, "Hidden folders").FontSize(12).TextColor(theme.TextSoft)
+		ui.Text(c, "Hidden folders").FontSize(theme.TextLabel).TextColor(theme.TextSoft)
 		ui.Box(c).Grow(1)
 		if widget.GhostButton(c, "New folder").Clicked() && f.loaded {
 			f.naming = true

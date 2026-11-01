@@ -108,15 +108,15 @@ func (a *App) kitDefinitions(c *ui.Context, cs *cloudSettings) {
 			}
 		}
 		if len(defs) == 0 {
-			ui.Text(c, "A team project's pipeline dialog shares its stages; an automation of one of the team's projects shares from Settings › Automations; templates are added here.").FontSize(11.5).TextColor(theme.Muted)
+			ui.Text(c, "A team project's pipeline dialog shares its stages; an automation of one of the team's projects shares from Settings › Automations; templates are added here.").FontSize(theme.TextLabel).TextColor(theme.Muted)
 		}
 		for _, it := range defs {
 			ui.Row(c.Key("def:"+it.Kind+":"+it.Name)).FillWidth().Gap(10).AlignItems(ui.Center).Padding(8, 10).Radius(theme.RadiusControl).Background(theme.Sunken).Children(func() {
 				widget.Tag(c, it.Kind, theme.TextSoft)
 				ui.Column(c).Grow(1).Shrink(1).MinWidth(0).Gap(1).Children(func() {
-					ui.Text(c, it.Name).FontSize(12.5).SingleLine()
+					ui.Text(c, it.Name).FontSize(theme.TextUI).SingleLine()
 					if sub := a.kitDefinitionAbout(it); sub != "" {
-						ui.Text(c, sub).FontSize(11).TextColor(theme.Muted).SingleLine()
+						ui.Text(c, sub).FontSize(theme.TextLabel).TextColor(theme.Muted).SingleLine()
 					}
 				})
 				switch it.Kind {

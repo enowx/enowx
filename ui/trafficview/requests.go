@@ -245,9 +245,9 @@ func (v *View) row(c *ui.Context, s proto.TrafficSummary, picked bool) ui.Elemen
 	}
 	return b.Children(func() {
 		status, col := statusText(s)
-		ui.Text(c, status).Font(theme.MonoFont).FontSize(11.5).TextColor(col).Width(42).Shrink(0).SingleLine()
-		ui.Text(c, s.Method).Font(theme.MonoFont).FontSize(11).TextColor(theme.TextSoft).Width(52).Shrink(0).SingleLine()
-		ui.Text(c, hostPath(s)).FontSize(12).SingleLine().Grow(1).Shrink(1).MinWidth(0).Tooltip(s.URL)
+		ui.Text(c, status).Font(theme.MonoFont).FontSize(theme.TextLabel).TextColor(col).Width(42).Shrink(0).SingleLine()
+		ui.Text(c, s.Method).Font(theme.MonoFont).FontSize(theme.TextLabel).TextColor(theme.TextSoft).Width(52).Shrink(0).SingleLine()
+		ui.Text(c, hostPath(s)).FontSize(theme.TextLabel).SingleLine().Grow(1).Shrink(1).MinWidth(0).Tooltip(s.URL)
 		if s.Mocked {
 			widget.Tag(c, "mock", theme.Accent)
 		} else if s.Rule != "" {
@@ -256,7 +256,7 @@ func (v *View) row(c *ui.Context, s proto.TrafficSummary, picked bool) ui.Elemen
 		if s.Kind != proto.TrafficHTTP {
 			widget.Tag(c, s.Kind, theme.Muted)
 		}
-		ui.Text(c, sizeTime(s)).FontSize(10.5).TextColor(theme.Muted).Shrink(0).SingleLine()
+		ui.Text(c, sizeTime(s)).FontSize(theme.TextLabel).TextColor(theme.Muted).Shrink(0).SingleLine()
 	})
 }
 

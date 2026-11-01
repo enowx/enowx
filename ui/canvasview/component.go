@@ -67,10 +67,10 @@ func (v *View) componentBar(c *ui.Context, o Options, s float64, w, h float32) {
 		y = min((cp.box.Y+cp.box.H)*float32(s)+6, h-barH)
 	}
 	bar := ui.Row(c.Key("component-bar")).Absolute().Left(x).Top(max(y, 0)).Width(bw).Height(barH).PaddingX(6).Gap(4).
-		AlignItems(ui.Center).Radius(10).Background(theme.Panel).Border(1, theme.BorderStrong).
+		AlignItems(ui.Center).Radius(theme.RadiusSmall).Background(theme.Panel).Border(1, theme.BorderStrong).
 		Shadow(0, 4, 16, 0, theme.Fade(theme.TextStrong, 0.2))
 	bar.Children(func() {
-		ui.Text(c, "#"+cp.id).FontSize(11).Font(theme.MonoFont).TextColor(theme.Accent).SingleLine().MaxWidth(110).Tooltip("#" + cp.id)
+		ui.Text(c, "#"+cp.id).FontSize(theme.TextLabel).Font(theme.MonoFont).TextColor(theme.Accent).SingleLine().MaxWidth(110).Tooltip("#" + cp.id)
 		hint := "Ask the AI, or say what to change"
 		if cp.note {
 			hint = "A note on it, for later"

@@ -60,7 +60,7 @@ func appendRules(rules, added string) (string, bool) {
 // text (rules of forWhat; path a project's folder).
 func (a *App) rulesDraftBox(c *ui.Context, d *rulesDraft, forWhat, path string, text *string) {
 	widget.Field(c, "Write them with AI", func() {
-		ui.TextArea(c.Key("rules-ask"), &d.ask).Height(64).Padding(8, 10).Radius(theme.RadiusControl).FontSize(12.5).
+		ui.TextArea(c.Key("rules-ask"), &d.ask).Height(64).Padding(8, 10).Radius(theme.RadiusControl).FontSize(theme.TextUI).
 			Background(theme.Sunken).Border(1, theme.BorderStrong).
 			Placeholder("Say what to add, in your own words and any language: it writes clear rules and adds them after those above. To change or remove one, edit the text.")
 	})
@@ -74,9 +74,9 @@ func (a *App) rulesDraftBox(c *ui.Context, d *rulesDraft, forWhat, path string, 
 		switch {
 		case d.drafting:
 			widget.Spinner(c, 12)
-			ui.Text(c, "Writing…").FontSize(11.5).TextColor(theme.Muted)
+			ui.Text(c, "Writing…").FontSize(theme.TextLabel).TextColor(theme.Muted)
 		case d.by != "":
-			ui.Text(c, "Written by "+d.by+": read them, then save.").FontSize(11.5).TextColor(theme.Muted)
+			ui.Text(c, "Written by "+d.by+": read them, then save.").FontSize(theme.TextLabel).TextColor(theme.Muted)
 			ui.Spacer(c)
 			if widget.GhostButton(c, "Undo").Clicked() {
 				*text, d.by, d.conflicts = d.before, "", nil
@@ -115,7 +115,7 @@ func (a *App) rulesVersionsRow(c *ui.Context, d *rulesDraft, forWhat, path strin
 				b := ui.ButtonBase(c.Key("version:"+strconv.Itoa(i))).FillWidth().Padding(4, 6).Radius(theme.RadiusControl).Justify(ui.Start).Cursor(ui.CursorPointer).
 					Label("Bring back the version of " + v.Time.Format("2 Jan 15:04"))
 				b.Children(func() {
-					ui.Text(c, v.Time.Format("2 Jan 15:04")+"  "+textfmt.FirstLine(v.Rules, 70)).FontSize(11.5).TextColor(theme.TextSoft).SingleLine()
+					ui.Text(c, v.Time.Format("2 Jan 15:04")+"  "+textfmt.FirstLine(v.Rules, 70)).FontSize(theme.TextLabel).TextColor(theme.TextSoft).SingleLine()
 				})
 				if b.Clicked() {
 					d.before, d.by, *text = *text, "an earlier version", v.Rules

@@ -139,7 +139,7 @@ func (v *View) compareBar(c *ui.Context, o Options, cv proto.Canvas, list []prot
 			size = 1
 		}
 		st.actual = chosen(widget.Segmented(c.Key("size"), []string{"Fit", "Real size"}, size, nil), size) == 1
-		ui.Text(c, "← → move between them, Enter opens one").FontSize(11).TextColor(theme.Muted)
+		ui.Text(c, "← → move between them, Enter opens one").FontSize(theme.TextLabel).TextColor(theme.Muted)
 		ui.Spacer(c)
 		if run := o.BuildRun; run != nil && run.ID == cv.ID {
 			for _, p := range run.Pairs {
@@ -173,7 +173,7 @@ func frameName(cv proto.Canvas, id string) string {
 // picture fw wide.
 func (v *View) compareColumn(c *ui.Context, o Options, cv proto.Canvas, f proto.CanvasFrame, k int, w, fw float32) {
 	i := slices.IndexFunc(cv.Frames, func(x proto.CanvasFrame) bool { return x.ID == f.ID })
-	col := ui.Column(c.Key(f.ID)).Width(max(w, fw)).Gap(8).Padding(6).Radius(10)
+	col := ui.Column(c.Key(f.ID)).Width(max(w, fw)).Gap(8).Padding(6).Radius(theme.RadiusSmall)
 	if v.cmp.focus == k {
 		col.Border(1, theme.AccentLine)
 	}
@@ -183,7 +183,7 @@ func (v *View) compareColumn(c *ui.Context, o Options, cv proto.Canvas, f proto.
 			if isBaseline(f) {
 				label += " · baseline"
 			}
-			ui.Text(c, label).FontSize(12.5).FontWeight(600).SingleLine().Grow(1).Shrink(1).MinWidth(0)
+			ui.Text(c, label).FontSize(theme.TextUI).FontWeight(600).SingleLine().Grow(1).Shrink(1).MinWidth(0)
 			v.starButton(c, o, f)
 			v.pickButton(c, o, cv, f)
 		})
@@ -195,7 +195,7 @@ func (v *View) compareColumn(c *ui.Context, o Options, cv proto.Canvas, f proto.
 		if f.Direction != nil {
 			directionCard(c, *f.Direction)
 		} else if f.Description != "" {
-			ui.Text(c, f.Description).FontSize(11).TextColor(theme.Muted)
+			ui.Text(c, f.Description).FontSize(theme.TextLabel).TextColor(theme.Muted)
 		}
 	})
 }
@@ -207,7 +207,7 @@ func (v *View) comparePreview(c *ui.Context, o Options, f proto.CanvasFrame, fw 
 		return v.designPreview(c, o, f, fw)
 	}
 	h := fw * float32(max(844, f.Height*phoneWidth/max(f.Width, 1))) / phoneWidth
-	box := ui.Box(c).Size(fw, h).Shrink(0).Radius(4).Clip().Background(color(f.Background, ui.RGB(255, 255, 255)))
+	box := ui.Box(c).Size(fw, h).Shrink(0).Radius(theme.RadiusTail).Clip().Background(color(f.Background, ui.RGB(255, 255, 255)))
 	if img := v.pictureAt(c, o, f, phoneWidth); img != nil {
 		box.Children(func() { ui.Image(c, img).Width(fw).Fit(ui.Contain) })
 	} else {
@@ -221,16 +221,16 @@ func (v *View) comparePreview(c *ui.Context, o Options, f proto.CanvasFrame, fw 
 // directionCard is a direction's card under its design.
 func directionCard(c *ui.Context, d proto.DesignDirection) {
 	ui.Column(c.Key("card")).FillWidth().Gap(4).Children(func() {
-		ui.Text(c, d.NorthStar).FontSize(11.5).TextColor(theme.TextSoft)
-		ui.Text(c, "From "+d.Source).FontSize(10.5).TextColor(theme.Muted)
+		ui.Text(c, d.NorthStar).FontSize(theme.TextLabel).TextColor(theme.TextSoft)
+		ui.Text(c, "From "+d.Source).FontSize(theme.TextLabel).TextColor(theme.Muted)
 		ui.Row(c).FillWidth().Gap(4).AlignItems(ui.Center).Children(func() {
 			for _, hex := range d.Palette {
-				ui.Box(c.Key(hex)).Size(14, 14).Radius(4).Background(ui.Hex(hex)).Border(1, theme.Border).Tooltip(hex)
+				ui.Box(c.Key(hex)).Size(14, 14).Radius(theme.RadiusTail).Background(ui.Hex(hex)).Border(1, theme.Border).Tooltip(hex)
 			}
-			ui.Text(c, d.Type).FontSize(10.5).TextColor(theme.Muted).SingleLine().Shrink(1).MinWidth(0).Margin(0, 0, 0, 4)
+			ui.Text(c, d.Type).FontSize(theme.TextLabel).TextColor(theme.Muted).SingleLine().Shrink(1).MinWidth(0).Margin(0, 0, 0, 4)
 		})
 		if d.Moment != "" {
-			ui.Text(c, "Moment: "+d.Moment).FontSize(10.5).TextColor(theme.Muted)
+			ui.Text(c, "Moment: "+d.Moment).FontSize(theme.TextLabel).TextColor(theme.Muted)
 		}
 	})
 }
@@ -261,11 +261,11 @@ func (v *View) pickDialog(c *ui.Context, o Options, cv proto.Canvas) {
 	widget.FormSheet(c, &p.open, 480, "Pick "+p.name, "The build's agent refines it around what you say; the others stay as designs to go back to.", func() {
 		ui.Column(c).FillWidth().Gap(12).Children(func() {
 			widget.Field(c, "What to keep", func() {
-				ui.TextArea(c, &p.keep).FillWidth().TextColor(theme.Text).Height(56).Padding(8, 10).Radius(theme.RadiusControl).FontSize(12.5).
+				ui.TextArea(c, &p.keep).FillWidth().TextColor(theme.Text).Height(56).Padding(8, 10).Radius(theme.RadiusControl).FontSize(theme.TextUI).
 					Background(theme.Sunken).Border(1, theme.BorderStrong).Label("What to keep").Placeholder("The type, the ledger lines")
 			})
 			widget.Field(c, "What to change", func() {
-				ui.TextArea(c, &p.change).FillWidth().TextColor(theme.Text).Height(56).Padding(8, 10).Radius(theme.RadiusControl).FontSize(12.5).
+				ui.TextArea(c, &p.change).FillWidth().TextColor(theme.Text).Height(56).Padding(8, 10).Radius(theme.RadiusControl).FontSize(theme.TextUI).
 					Background(theme.Sunken).Border(1, theme.BorderStrong).Label("What to change").Placeholder("A warmer accent; the plans easier to tell apart")
 			})
 		})

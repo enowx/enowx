@@ -43,13 +43,13 @@ func (v *View) shareDialog(c *ui.Context, o Options) {
 		widget.DialogHeader(c, "Share a link", "A read-only page of this canvas, as it is when opened; it reloads as the canvas changes.", false)
 		switch {
 		case st.busy:
-			ui.Text(c, "Making the link…").FontSize(12).TextColor(theme.Muted)
+			ui.Text(c, "Making the link…").FontSize(theme.TextLabel).TextColor(theme.Muted)
 		case st.err != "":
-			ui.Text(c, st.err).FontSize(12).TextColor(theme.Error)
+			ui.Text(c, st.err).FontSize(theme.TextLabel).TextColor(theme.Error)
 		case st.link != nil:
 			for _, u := range st.link.URLs {
 				ui.Row(c.Key(u)).FillWidth().Gap(8).AlignItems(ui.Center).Children(func() {
-					ui.Text(c, u).FontSize(12).TextColor(theme.Text).Grow(1).Shrink(1).SingleLine().Selectable()
+					ui.Text(c, u).FontSize(theme.TextLabel).TextColor(theme.Text).Grow(1).Shrink(1).SingleLine().Selectable()
 					label := "Copy"
 					if st.saved == u {
 						label = "Copied"

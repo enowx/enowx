@@ -137,11 +137,11 @@ func (a *App) cloneDialog(c *ui.Context) {
 				}
 				if u := strings.TrimSpace(f.url); u != "" {
 					if err := gitclone.Valid(u); err != nil {
-						ui.Text(c, err.Error()).FontSize(11.5).TextColor(theme.Warning)
+						ui.Text(c, err.Error()).FontSize(theme.TextLabel).TextColor(theme.Warning)
 					}
 				} else if len(f.recent) > 0 && !running {
 					ui.Row(c).FillWidth().Gap(6).Wrap().Children(func() {
-						ui.Text(c, "Lately:").FontSize(11.5).TextColor(theme.Muted)
+						ui.Text(c, "Lately:").FontSize(theme.TextLabel).TextColor(theme.Muted)
 						for i, u := range f.recent[:min(5, len(f.recent))] {
 							if widget.GhostButton(c.Key(i), gitclone.Name(u)).Height(24).Tooltip(u).Clicked() {
 								f.url = u
@@ -170,9 +170,9 @@ func (a *App) cloneDialog(c *ui.Context) {
 				}
 			})
 			target := cloneTarget(f)
-			ui.Text(c, "Clones into "+target).Font(theme.MonoFont).FontSize(11.5).TextColor(theme.TextSoft)
+			ui.Text(c, "Clones into "+target).Font(theme.MonoFont).FontSize(theme.TextLabel).TextColor(theme.TextSoft)
 			if f.taken != "" && f.taken == target {
-				ui.Text(c, "A folder of that name is there already: the clone needs it empty or gone. Pick another name.").FontSize(11.5).TextColor(theme.Warning)
+				ui.Text(c, "A folder of that name is there already: the clone needs it empty or gone. Pick another name.").FontSize(theme.TextLabel).TextColor(theme.Warning)
 			}
 			widget.Field(c, "Branch or tag (optional)", func() {
 				widget.Input(c, &f.branch, "main").FillWidth().Font(theme.MonoFont)
@@ -182,19 +182,19 @@ func (a *App) cloneDialog(c *ui.Context) {
 			if j := f.job; j != nil {
 				ui.Column(c).FillWidth().Gap(6).Children(func() {
 					ui.Row(c).FillWidth().Children(func() {
-						ui.Text(c, j.Phase).FontSize(12).TextColor(theme.Text).Grow(1)
+						ui.Text(c, j.Phase).FontSize(theme.TextLabel).TextColor(theme.Text).Grow(1)
 						if j.Percent > 0 {
-							ui.Text(c, strconv.Itoa(j.Percent)+"%").FontSize(12).TextColor(theme.Muted)
+							ui.Text(c, strconv.Itoa(j.Percent)+"%").FontSize(theme.TextLabel).TextColor(theme.Muted)
 						}
 					})
 					widget.Meter(c, widget.Segment{Fraction: float64(j.Percent) / 100, Color: theme.Accent})
 					if j.Line != "" {
-						ui.Text(c, j.Line).Font(theme.MonoFont).FontSize(11).TextColor(theme.Muted).SingleLine()
+						ui.Text(c, j.Line).Font(theme.MonoFont).FontSize(theme.TextLabel).TextColor(theme.Muted).SingleLine()
 					}
 				})
 			}
 			if f.err != "" {
-				ui.Text(c, f.err).FontSize(12).TextColor(theme.Error)
+				ui.Text(c, f.err).FontSize(theme.TextLabel).TextColor(theme.Error)
 			}
 		}, func() {
 			if f.job != nil {

@@ -162,9 +162,9 @@ func (v *View) nav(c *ui.Context, o Options) {
 			}
 			b.Children(func() {
 				ui.Icon(c, k.svg).FontSize(13)
-				ui.Text(c, k.name).FontSize(12.5).SingleLine().Grow(1)
+				ui.Text(c, k.name).FontSize(theme.TextUI).SingleLine().Grow(1)
 				if n > 0 {
-					ui.Text(c, strconv.Itoa(n)).FontSize(11).TextColor(theme.Muted)
+					ui.Text(c, strconv.Itoa(n)).FontSize(theme.TextLabel).TextColor(theme.Muted)
 				}
 			})
 			if b.Clicked() && !on {
@@ -183,9 +183,9 @@ func (v *View) nav(c *ui.Context, o Options) {
 		}
 		b.Children(func() {
 			ui.Icon(c, icon.Agent("claude")).FontSize(13)
-			ui.Text(c, "Plugins").FontSize(12.5).SingleLine().Grow(1)
+			ui.Text(c, "Plugins").FontSize(theme.TextUI).SingleLine().Grow(1)
 			if n := len(v.plugins.list.Plugins); n > 0 {
-				ui.Text(c, strconv.Itoa(n)).FontSize(11).TextColor(theme.Muted)
+				ui.Text(c, strconv.Itoa(n)).FontSize(theme.TextLabel).TextColor(theme.Muted)
 			}
 		})
 		if b.Clicked() && !on {
@@ -220,7 +220,7 @@ func (v *View) list(c *ui.Context, o Options) {
 		}
 	}
 	ui.Column(c).FillWidth().Padding(12, 12, 8, 12).Gap(8).BorderWidth(0, 0, 1, 0).BorderColor(theme.Border).Children(func() {
-		ui.Text(c, about).FontSize(11.5).TextColor(theme.Muted)
+		ui.Text(c, about).FontSize(theme.TextLabel).TextColor(theme.Muted)
 		ui.Row(c).FillWidth().Gap(6).Children(func() {
 			widget.SearchField(c, &v.filter, "Filter", icon.Search)
 			switch v.kind {
@@ -238,19 +238,19 @@ func (v *View) list(c *ui.Context, o Options) {
 			}
 		})
 		if v.notice != "" {
-			ui.Text(c, v.notice).FontSize(11.5).TextColor(theme.Done)
+			ui.Text(c, v.notice).FontSize(theme.TextLabel).TextColor(theme.Done)
 		}
 	})
 	ui.Scroll(c).Grow(1).FillWidth().Children(func() {
 		ui.Column(c).FillWidth().Padding(8).Gap(2).Children(func() {
 			switch {
 			case v.err != "":
-				ui.Text(c, v.err).FontSize(12).TextColor(theme.Error).Padding(6)
+				ui.Text(c, v.err).FontSize(theme.TextLabel).TextColor(theme.Error).Padding(6)
 				return
 			case !v.loaded:
 				ui.Row(c).Gap(8).Padding(6).Children(func() {
 					widget.Spinner(c, 14)
-					ui.Text(c, "Reading "+o.Host+"…").FontSize(12).TextColor(theme.Muted)
+					ui.Text(c, "Reading "+o.Host+"…").FontSize(theme.TextLabel).TextColor(theme.Muted)
 				})
 				return
 			}
@@ -261,7 +261,7 @@ func (v *View) list(c *ui.Context, o Options) {
 				}
 			}
 			if len(items) == 0 {
-				ui.Text(c, "None on "+o.Host+".").FontSize(12).TextColor(theme.Muted).Padding(6)
+				ui.Text(c, "None on "+o.Host+".").FontSize(theme.TextLabel).TextColor(theme.Muted).Padding(6)
 				return
 			}
 			// By agent, each group folding, so a long list reads.
@@ -306,7 +306,7 @@ func (v *View) row(c *ui.Context, o Options, it proto.EnvItem) {
 	b.Children(func() {
 		ui.Column(c).Grow(1).MinWidth(0).Gap(2).Children(func() {
 			ui.Row(c).FillWidth().Gap(6).Children(func() {
-				ui.Text(c, it.Name).FontSize(12.5).SingleLine().Shrink(1)
+				ui.Text(c, it.Name).FontSize(theme.TextUI).SingleLine().Shrink(1)
 				if len(it.Secrets) > 0 {
 					ui.Icon(c, icon.Lock).FontSize(11).TextColor(theme.Warning)
 				}
@@ -314,7 +314,7 @@ func (v *View) row(c *ui.Context, o Options, it proto.EnvItem) {
 			// A path that only repeats the name (~/.claude/skills/<name>)
 			// says nothing the group doesn't: the detail has it.
 			if it.Detail != "" && !strings.HasSuffix(it.Detail, "/"+it.Name) {
-				ui.Text(c, it.Detail).FontSize(11).TextColor(theme.Muted).SingleLine().Shrink(1)
+				ui.Text(c, it.Detail).FontSize(theme.TextLabel).TextColor(theme.Muted).SingleLine().Shrink(1)
 			}
 		})
 	})

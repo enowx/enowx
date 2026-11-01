@@ -206,15 +206,15 @@ func (t *Tracker) Chip(c *ui.Context, h Host) {
 			Duration: 320 * time.Millisecond, Ease: widget.Out, Enter: &ui.Motion{Y: 8, Opacity: 0},
 		}).Children(func() {
 			widget.Dot(c, col, !ok, 6)
-			ui.Text(c, label).FontSize(11.5).SingleLine()
+			ui.Text(c, label).FontSize(theme.TextLabel).SingleLine()
 			// Every limit, short: "5h 8% · Wk 6% · Fable 0%".
 			for i, w := range acc.Windows {
 				if i > 0 {
-					ui.Text(c, "·").FontSize(11).TextColor(theme.Muted)
+					ui.Text(c, "·").FontSize(theme.TextLabel).TextColor(theme.Muted)
 				}
 				ui.Row(c).Gap(3).Children(func() {
-					ui.Text(c, w.Short()).FontSize(11).TextColor(theme.Muted).SingleLine()
-					ui.Text(c, fmt.Sprintf("%.0f%%", w.Used)).FontSize(11.5).TextColor(levelText(w.Used)).SingleLine()
+					ui.Text(c, w.Short()).FontSize(theme.TextLabel).TextColor(theme.Muted).SingleLine()
+					ui.Text(c, fmt.Sprintf("%.0f%%", w.Used)).FontSize(theme.TextLabel).TextColor(levelText(w.Used)).SingleLine()
 				})
 			}
 		})
@@ -228,8 +228,8 @@ func (t *Tracker) Chip(c *ui.Context, h Host) {
 	ui.PopoverBase(c, b, &t.open, func(panel ui.Element) {
 		widget.Popup(panel.AttachTo(b, ui.AnchorBottomRight, ui.AnchorTopRight).Margin(6, 0, 0, 0).Width(320).Padding(10).Gap(8))
 		ui.Row(c).FillWidth().Gap(8).Children(func() {
-			ui.Text(c, "Credits").FontSize(12.5).Grow(1)
-			ui.Text(c, t.checkedLabel()).FontSize(11).TextColor(theme.Muted).SingleLine()
+			ui.Text(c, "Credits").FontSize(theme.TextUI).Grow(1)
+			ui.Text(c, t.checkedLabel()).FontSize(theme.TextLabel).TextColor(theme.Muted).SingleLine()
 			if widget.IconButton(c, icon.Sync, "Read again", false).Size(26, 26).Clicked() {
 				t.Refresh()
 			}
@@ -262,12 +262,12 @@ func (t *Tracker) checkedLabel() string {
 func (t *Tracker) accounts(c *ui.Context, h Host, cards bool) {
 	switch {
 	case t.err != "":
-		ui.Text(c, t.err).FontSize(12).TextColor(theme.Error)
+		ui.Text(c, t.err).FontSize(theme.TextLabel).TextColor(theme.Error)
 		return
 	case !t.loaded || len(t.report.Accounts) == 0 && t.report.Checking:
 		ui.Row(c).Gap(8).Children(func() {
 			widget.Spinner(c, 14)
-			ui.Text(c, "Reading the accounts on "+h.Name+"…").FontSize(12).TextColor(theme.Muted)
+			ui.Text(c, "Reading the accounts on "+h.Name+"…").FontSize(theme.TextLabel).TextColor(theme.Muted)
 		})
 		return
 	case len(t.report.Accounts) == 0:
@@ -294,13 +294,13 @@ func accountHead(c *ui.Context, h Host, a proto.CreditAccount, size float32) {
 		widget.Avatar(c, icon.Agent(a.Agent), size, theme.Text)
 		ui.Column(c).Gap(1).Grow(1).MinWidth(0).Children(func() {
 			ui.Row(c).Gap(7).MinWidth(0).Children(func() {
-				ui.Text(c, h.AgentName(a.Agent)).FontSize(12.5).SingleLine()
+				ui.Text(c, h.AgentName(a.Agent)).FontSize(theme.TextUI).SingleLine()
 				if a.Plan != "" {
 					widget.Tag(c, a.Plan, theme.TextSoft)
 				}
 			})
 			if a.Account != "" {
-				ui.Text(c, a.Account).FontSize(11).TextColor(theme.Muted).SingleLine().Shrink(1)
+				ui.Text(c, a.Account).FontSize(theme.TextLabel).TextColor(theme.Muted).SingleLine().Shrink(1)
 			}
 		})
 	})
@@ -311,23 +311,23 @@ func accountHead(c *ui.Context, h Host, a proto.CreditAccount, size float32) {
 func window(c *ui.Context, w proto.CreditWindow) {
 	ui.Column(c).FillWidth().Gap(5).Children(func() {
 		ui.Row(c).FillWidth().Gap(8).Children(func() {
-			ui.Text(c, w.Label).FontSize(11.5).TextColor(theme.TextSoft).SingleLine()
+			ui.Text(c, w.Label).FontSize(theme.TextLabel).TextColor(theme.TextSoft).SingleLine()
 			ui.Spacer(c)
-			ui.Text(c, fmt.Sprintf("%.0f%%", w.Used)).FontSize(11.5).TextColor(level(w.Used)).SingleLine()
+			ui.Text(c, fmt.Sprintf("%.0f%%", w.Used)).FontSize(theme.TextLabel).TextColor(level(w.Used)).SingleLine()
 			if !w.ResetsAt.IsZero() {
-				ui.Text(c, "resets in "+textfmt.Until(w.ResetsAt, time.Now())).FontSize(11).TextColor(theme.Muted).SingleLine()
+				ui.Text(c, "resets in "+textfmt.Until(w.ResetsAt, time.Now())).FontSize(theme.TextLabel).TextColor(theme.Muted).SingleLine()
 			}
 		})
 		widget.Meter(c, widget.Segment{Fraction: w.Used / 100, Color: level(w.Used)})
 		if w.Detail != "" {
-			ui.Text(c, w.Detail).FontSize(11).TextColor(theme.Muted).SingleLine()
+			ui.Text(c, w.Detail).FontSize(theme.TextLabel).TextColor(theme.Muted).SingleLine()
 		}
 	})
 }
 
 // accountRow is an account in the popover.
 func accountRow(c *ui.Context, h Host, a proto.CreditAccount) {
-	ui.Column(c).FillWidth().Gap(8).Padding(9).Radius(theme.RadiusControl+2).Background(theme.Raised).
+	ui.Column(c).FillWidth().Gap(8).Padding(9).Radius(theme.RadiusCard).Background(theme.Raised).
 		Border(1, theme.Border).Children(func() {
 		accountHead(c, h, a, 24)
 		problem(c, h, a, false)
@@ -350,7 +350,7 @@ func accountCard(c *ui.Context, h Host, a proto.CreditAccount) {
 				FontSize(11.5).TextColor(theme.Error)
 		}
 		if a.Note != "" {
-			ui.Text(c, a.Note).FontSize(11.5).TextColor(theme.Muted)
+			ui.Text(c, a.Note).FontSize(theme.TextLabel).TextColor(theme.Muted)
 		}
 	})
 }
@@ -361,7 +361,7 @@ func problem(c *ui.Context, h Host, a proto.CreditAccount, offerSignIn bool) {
 		return
 	}
 	ui.Row(c).FillWidth().Gap(8).Children(func() {
-		ui.Text(c, a.Error).FontSize(11.5).TextColor(theme.Warning).Grow(1).Shrink(1)
+		ui.Text(c, a.Error).FontSize(theme.TextLabel).TextColor(theme.Warning).Grow(1).Shrink(1)
 		if offerSignIn && h.SignIn != nil && widget.GhostButton(c, "Sign in").Clicked() {
 			h.SignIn(a.Agent)
 		}
@@ -389,8 +389,8 @@ func (t *Tracker) Page(c *ui.Context, h Host) {
 
 func summaryCard(c *ui.Context, label, value string, col ui.Color) {
 	widget.Card(c).Gap(4).Children(func() {
-		ui.Text(c, label).FontSize(11).TextColor(theme.Muted).SingleLine()
-		ui.Text(c, value).FontSize(15).TextColor(col).SingleLine()
+		ui.Text(c, label).FontSize(theme.TextLabel).TextColor(theme.Muted).SingleLine()
+		ui.Text(c, value).FontSize(theme.TextRead).TextColor(col).SingleLine()
 	})
 }
 

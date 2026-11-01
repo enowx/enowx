@@ -112,16 +112,16 @@ func (v *View) pluginsPanel(c *ui.Context, o Options) {
 		case ps.running != "":
 			ui.Row(c).Gap(8).Children(func() {
 				widget.Spinner(c, 14)
-				ui.Text(c, ps.running+"…").FontSize(12).TextColor(theme.Muted)
+				ui.Text(c, ps.running+"…").FontSize(theme.TextLabel).TextColor(theme.Muted)
 			})
 		case ps.output != "":
 			col := theme.Muted
 			if ps.failed {
 				col = theme.Error
 			}
-			ui.Text(c, ps.output).Font(theme.MonoFont).FontSize(11).TextColor(col).MaxLines(3)
+			ui.Text(c, ps.output).Font(theme.MonoFont).FontSize(theme.TextLabel).TextColor(col).MaxLines(3)
 		case !ps.list.CLI && len(ps.list.Plugins) > 0:
-			ui.Text(c, "Claude Code isn't on "+o.Host+"'s PATH: plugins show, but can't be changed.").FontSize(12).TextColor(theme.Warning)
+			ui.Text(c, "Claude Code isn't on "+o.Host+"'s PATH: plugins show, but can't be changed.").FontSize(theme.TextLabel).TextColor(theme.Warning)
 		}
 	})
 	ui.Scroll(c).Grow(1).FillWidth().Children(func() {
@@ -144,7 +144,7 @@ func (v *View) pluginsPanel(c *ui.Context, o Options) {
 				return
 			}
 			if len(ps.list.Plugins) == 0 {
-				ui.Text(c, "None yet: install one from a marketplace.").FontSize(12).TextColor(theme.Muted).Padding(8)
+				ui.Text(c, "None yet: install one from a marketplace.").FontSize(theme.TextLabel).TextColor(theme.Muted).Padding(8)
 			}
 			for _, p := range ps.list.Plugins {
 				v.pluginRow(c.Key(p.ID), o, p)

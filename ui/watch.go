@@ -336,9 +336,9 @@ func hostUsageRow(c *ui.Context, st hostStatus) {
 		meter := func(label string, fraction float64, value string) {
 			ui.Column(c).Grow(1).MinWidth(0).Gap(4).Children(func() {
 				ui.Row(c).FillWidth().Children(func() {
-					ui.Text(c, label).FontSize(11).TextColor(theme.Muted)
+					ui.Text(c, label).FontSize(theme.TextLabel).TextColor(theme.Muted)
 					ui.Spacer(c)
-					ui.Text(c, value).FontSize(11).TextColor(theme.TextSoft).SingleLine()
+					ui.Text(c, value).FontSize(theme.TextLabel).TextColor(theme.TextSoft).SingleLine()
 				})
 				widget.Meter(c, widget.Segment{Fraction: fraction, Color: widget.Level(fraction)})
 			})
@@ -371,13 +371,13 @@ func (a *App) otherHostsSessions(c *ui.Context) {
 	if len(shown) == 0 {
 		return
 	}
-	ui.Text(c, "ON OTHER HOSTS").FontSize(10.5).TextColor(theme.Idle).Padding(14, 6, 4, 6)
+	ui.Text(c, "ON OTHER HOSTS").FontSize(theme.TextLabel).TextColor(theme.Idle).Padding(14, 6, 4, 6)
 	for _, h := range shown {
 		st, _ := a.statusOfHost(h)
 		ui.Column(c.Key("other:" + h.ID)).FillWidth().Gap(1).Children(func() {
 			ui.Row(c).FillWidth().Gap(6).Padding(4, 6).Children(func() {
 				ui.Icon(c, hostIcon(h)).FontSize(12).TextColor(theme.Muted)
-				ui.Text(c, h.Name).FontSize(11.5).TextColor(theme.TextSoft).SingleLine().Shrink(1)
+				ui.Text(c, h.Name).FontSize(theme.TextLabel).TextColor(theme.TextSoft).SingleLine().Shrink(1)
 			})
 			for _, s := range liveSessions(st, a.filter, a) {
 				a.otherSessionRow(c.Key(s.ID), h, s)
@@ -413,9 +413,9 @@ func (a *App) otherSessionRow(c *ui.Context, h hosts.Host, s proto.SessionInfo) 
 	}
 	row.Children(func() {
 		widget.Dot(c, st.color, st.hollow, 7)
-		ui.Text(c, a.sessionName(s)).FontSize(12).SingleLine().Shrink(1)
+		ui.Text(c, a.sessionName(s)).FontSize(theme.TextLabel).SingleLine().Shrink(1)
 		ui.Spacer(c)
-		ui.Text(c, st.label).FontSize(10.5).TextColor(st.color).SingleLine()
+		ui.Text(c, st.label).FontSize(theme.TextLabel).TextColor(st.color).SingleLine()
 	})
 	if row.Clicked() {
 		a.openSession = s.ID

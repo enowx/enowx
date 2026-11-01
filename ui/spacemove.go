@@ -123,7 +123,7 @@ func (a *App) spaceMoveDialog(c *ui.Context) {
 				})
 			})
 		}
-		ui.Text(c, a.spaceMoveSays(f, what)).FontSize(12).TextColor(theme.TextSoft)
+		ui.Text(c, a.spaceMoveSays(f, what)).FontSize(theme.TextLabel).TextColor(theme.TextSoft)
 		if f.err != "" {
 			widget.Notice(c, icon.Alert, theme.Error, f.err, "", nil)
 		}
@@ -156,14 +156,14 @@ func (a *App) spaceMoveChoice(c *ui.Context, f *spaceMoveForm, sp proto.Space) {
 	}
 	row.Children(func() {
 		if sp.Team == spacePersonal {
-			ui.Box(c).Size(22, 22).Radius(6).Background(theme.Hover).Center().Children(func() {
+			ui.Box(c).Size(22, 22).Radius(theme.RadiusSmall).Background(theme.Hover).Center().Children(func() {
 				ui.Icon(c, icon.Account).FontSize(13).TextColor(theme.TextSoft)
 			})
 		} else {
 			widget.TeamMark(c, sp.Team, sp.Name, 22)
 		}
 		ui.Column(c).Grow(1).Shrink(1).MinWidth(0).Children(func() {
-			ui.Text(c, sp.Name).FontSize(12.5).SingleLine()
+			ui.Text(c, sp.Name).FontSize(theme.TextUI).SingleLine()
 			sub := "Only you, on your devices"
 			if sp.Team != spacePersonal {
 				sub = "Team"
@@ -171,7 +171,7 @@ func (a *App) spaceMoveChoice(c *ui.Context, f *spaceMoveForm, sp proto.Space) {
 					sub = fmt.Sprintf("Team · %d members", len(t.Members))
 				}
 			}
-			ui.Text(c, sub).FontSize(11).TextColor(theme.Muted).SingleLine()
+			ui.Text(c, sub).FontSize(theme.TextLabel).TextColor(theme.Muted).SingleLine()
 		})
 		if on {
 			ui.Icon(c, icon.Check).FontSize(13).TextColor(theme.Accent)

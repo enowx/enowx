@@ -59,7 +59,7 @@ func AskCard(c *ui.Context, ask *Ask, more int, armed bool) {
 			})
 			ui.Row(c).FillWidth().Shrink(0).Padding(0, 16, 14, 16).Gap(8).Wrap().AlignItems(ui.Center).Children(func() {
 				if more > 0 {
-					ui.Text(c, strconv.Itoa(more)+" more waiting").FontSize(11.5).TextColor(theme.Muted).SingleLine()
+					ui.Text(c, strconv.Itoa(more)+" more waiting").FontSize(theme.TextLabel).TextColor(theme.Muted).SingleLine()
 				}
 				ui.Spacer(c)
 				for _, b := range ask.Buttons {
@@ -81,9 +81,9 @@ func askHead(c *ui.Context, ask *Ask) {
 	ui.Row(c).FillWidth().Gap(10).AlignItems(ui.Start).Children(func() {
 		ui.Icon(c, svg).FontSize(15).TextColor(theme.Accent).Margin(2, 0, 0, 0)
 		ui.Column(c).Grow(1).MinWidth(0).Gap(4).Children(func() {
-			ui.Text(c, ask.Title).FontSize(13.5).FontWeight(600).TextColor(theme.TextStrong)
+			ui.Text(c, ask.Title).FontSize(theme.TextUI).FontWeight(600).TextColor(theme.TextStrong)
 			if ask.About != "" {
-				ui.Text(c, ask.About).FontSize(12).TextColor(theme.TextSoft)
+				ui.Text(c, ask.About).FontSize(theme.TextLabel).TextColor(theme.TextSoft)
 			}
 		})
 	})

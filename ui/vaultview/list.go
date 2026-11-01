@@ -27,7 +27,7 @@ func (v *View) row(c *ui.Context, o Options, cr vault.Credential) {
 		Logo(c, p, 34)
 		ui.Column(c).Grow(1).MinWidth(0).Gap(4).Children(func() {
 			ui.Row(c).Gap(8).AlignItems(ui.Center).Children(func() {
-				ui.Text(c, cr.Name).FontSize(13.5).FontWeight(600).TextColor(theme.TextStrong).SingleLine()
+				ui.Text(c, cr.Name).FontSize(theme.TextUI).FontWeight(600).TextColor(theme.TextStrong).SingleLine()
 				if cr.Default {
 					widget.Tag(c, "default", theme.Accent)
 				}
@@ -42,19 +42,19 @@ func (v *View) row(c *ui.Context, o Options, cr vault.Credential) {
 			if h := vault.Hint(mainValue(cr)); h != "" {
 				detail += " · " + h
 			}
-			ui.Text(c, detail).FontSize(11.5).TextColor(theme.Muted).SingleLine()
+			ui.Text(c, detail).FontSize(theme.TextLabel).TextColor(theme.Muted).SingleLine()
 			ui.Row(c).Gap(6).AlignItems(ui.Center).Children(func() {
 				st := cr.State(now)
 				widget.Badge(c, widget.Status{Label: statusLabel(st), Color: statusColor(st), Hollow: st == proto.CredUnchecked})
-				ui.Text(c, "·").FontSize(11).TextColor(theme.Muted)
-				ui.Text(c, whereLabel(cr, o.Hosts)).FontSize(11.5).TextColor(theme.TextSoft).SingleLine()
+				ui.Text(c, "·").FontSize(theme.TextLabel).TextColor(theme.Muted)
+				ui.Text(c, whereLabel(cr, o.Hosts)).FontSize(theme.TextLabel).TextColor(theme.TextSoft).SingleLine()
 				if !cr.Expires.IsZero() && st != proto.CredExpired {
-					ui.Text(c, "·").FontSize(11).TextColor(theme.Muted)
+					ui.Text(c, "·").FontSize(theme.TextLabel).TextColor(theme.Muted)
 					col := theme.TextSoft
 					if cr.ExpiresSoon(now, 7*24*time.Hour) {
 						col = theme.Warning
 					}
-					ui.Text(c, "expires "+cr.Expires.Local().Format("2 Jan 2006")).FontSize(11.5).TextColor(col).SingleLine()
+					ui.Text(c, "expires "+cr.Expires.Local().Format("2 Jan 2006")).FontSize(theme.TextLabel).TextColor(col).SingleLine()
 				}
 			})
 		})
@@ -218,8 +218,8 @@ func (v *View) audit(c *ui.Context, o Options) {
 						col = theme.Error
 					}
 					widget.Dot(c, col, false, 6)
-					ui.Text(c, auditText(e)).FontSize(12).TextColor(theme.Text).SingleLine().Grow(1).MinWidth(0)
-					ui.Text(c, e.Time.Local().Format("2 Jan 15:04")).FontSize(11).TextColor(theme.Muted).SingleLine()
+					ui.Text(c, auditText(e)).FontSize(theme.TextLabel).TextColor(theme.Text).SingleLine().Grow(1).MinWidth(0)
+					ui.Text(c, e.Time.Local().Format("2 Jan 15:04")).FontSize(theme.TextLabel).TextColor(theme.Muted).SingleLine()
 				})
 			}
 		})

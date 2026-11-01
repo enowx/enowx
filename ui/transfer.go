@@ -115,7 +115,7 @@ func (a *App) copyDialog(c *ui.Context) {
 			case busy:
 				ui.Row(c).Gap(8).Children(func() {
 					widget.Spinner(c, 14)
-					ui.Text(c, "Copying…").FontSize(12).TextColor(theme.Muted)
+					ui.Text(c, "Copying…").FontSize(theme.TextLabel).TextColor(theme.Muted)
 				})
 			default:
 				if widget.GhostButton(c, "Cancel").Clicked() {
@@ -148,7 +148,7 @@ func (a *App) copyForm(c *ui.Context, f *copyForm) {
 		ui.Column(c).FillWidth().Gap(5).Children(func() {
 			widget.Input(c, &f.parent, "~/").FillWidth()
 			if d := f.dest(); d != "" {
-				ui.Text(c, "The folder “"+path.Base(f.project.Path)+"” goes there whole: "+d).FontSize(11.5).TextColor(theme.Muted)
+				ui.Text(c, "The folder “"+path.Base(f.project.Path)+"” goes there whole: "+d).FontSize(theme.TextLabel).TextColor(theme.Muted)
 			}
 		})
 	})
@@ -194,8 +194,8 @@ func (a *App) otherHostPicker(c *ui.Context, picked hosts.Host) (hosts.Host, boo
 			}
 			row.Children(func() {
 				ui.Icon(c, hostIcon(h)).FontSize(14)
-				ui.Text(c, h.Name).FontSize(12.5).SingleLine()
-				ui.Text(c, hostDetail(h)).FontSize(11.5).TextColor(theme.Muted).SingleLine().Shrink(1)
+				ui.Text(c, h.Name).FontSize(theme.TextUI).SingleLine()
+				ui.Text(c, hostDetail(h)).FontSize(theme.TextLabel).TextColor(theme.Muted).SingleLine().Shrink(1)
 			})
 			if row.Clicked() {
 				clicked, ok = h, true
@@ -233,7 +233,7 @@ func (a *App) copyProgress(c *ui.Context, f *copyForm) {
 			if !reached || current {
 				col = theme.TextSoft
 			}
-			ui.Text(c, label).FontSize(12.5).TextColor(col)
+			ui.Text(c, label).FontSize(theme.TextUI).TextColor(col)
 		})
 		if current {
 			reached = false
@@ -244,9 +244,9 @@ func (a *App) copyProgress(c *ui.Context, f *copyForm) {
 	}
 	r := f.result
 	ui.Text(c, fmt.Sprintf("“%s” is on %s at %s, with %s.", f.project.Name, f.target.Name, r.Project.Path,
-		textfmt.Plural(len(r.Sessions), "a session", fmt.Sprintf("%d sessions", len(r.Sessions))))).FontSize(12.5)
+		textfmt.Plural(len(r.Sessions), "a session", fmt.Sprintf("%d sessions", len(r.Sessions))))).FontSize(theme.TextUI)
 	for _, n := range r.Notes {
-		ui.Text(c, n).FontSize(11.5).TextColor(theme.Muted)
+		ui.Text(c, n).FontSize(theme.TextLabel).TextColor(theme.Muted)
 	}
 }
 

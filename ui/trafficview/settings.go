@@ -105,7 +105,7 @@ func (v *View) settingsSheet(c *ui.Context, o Options) {
 			widget.Field(c, "Don't check the certificates of", func() {
 				ui.Column(c).FillWidth().Gap(4).Children(func() {
 					widget.Input(c, &s.insecure, "*.test, staging.internal").FillWidth()
-					ui.Text(c, "Development servers that sign their own. Loopback (localhost, 127.0.0.1) is never checked.").FontSize(11).TextColor(theme.Muted)
+					ui.Text(c, "Development servers that sign their own. Loopback (localhost, 127.0.0.1) is never checked.").FontSize(theme.TextLabel).TextColor(theme.Muted)
 				})
 			})
 			widget.Field(c, "Send through a proxy", func() {
@@ -122,7 +122,7 @@ func (v *View) settingsSheet(c *ui.Context, o Options) {
 			area := func(label, hint string, value *string) {
 				ui.Column(c).FillWidth().Gap(4).Children(func() {
 					codeArea(c, label, value, 44)
-					ui.Text(c, hint).FontSize(11).TextColor(theme.Muted)
+					ui.Text(c, hint).FontSize(theme.TextLabel).TextColor(theme.Muted)
 				})
 			}
 			area("Point names elsewhere", "name = address per line, as a hosts file: api.example.com = 127.0.0.1:8080", &s.hosts)
@@ -131,12 +131,12 @@ func (v *View) settingsSheet(c *ui.Context, o Options) {
 		})
 		v.capturePrefsFields(c)
 		ui.Column(c).FillWidth().Gap(6).Children(func() {
-			ui.Text(c, "Certificate authority").FontSize(12.5).FontWeight(600)
+			ui.Text(c, "Certificate authority").FontSize(theme.TextUI).FontWeight(600)
 			if v.status.Fingerprint != "" {
-				ui.Text(c, "SHA-256 "+v.status.Fingerprint).Font(theme.MonoFont).FontSize(10.5).TextColor(theme.Muted).Selectable()
+				ui.Text(c, "SHA-256 "+v.status.Fingerprint).Font(theme.MonoFont).FontSize(theme.TextLabel).TextColor(theme.Muted).Selectable()
 			}
 			ui.Row(c).FillWidth().Gap(8).AlignItems(ui.Center).Children(func() {
-				ui.Text(c, "Making it anew means attaching again what trusted the old one.").FontSize(11).TextColor(theme.Muted).Grow(1).Shrink(1)
+				ui.Text(c, "Making it anew means attaching again what trusted the old one.").FontSize(theme.TextLabel).TextColor(theme.Muted).Grow(1).Shrink(1)
 				if widget.Button(c, widget.Secondary, nil, "Make the CA anew", "").Clicked() {
 					renew := func() {
 						h := o.Host

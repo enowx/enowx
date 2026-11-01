@@ -240,16 +240,16 @@ func (a *App) commandPalette(c *ui.Context) {
 			run = cmds[p.pick].run
 		}
 		if len(cmds) == 0 {
-			ui.Text(c, "Nothing matches.").FontSize(12).TextColor(theme.Muted).Padding(8)
+			ui.Text(c, "Nothing matches.").FontSize(theme.TextLabel).TextColor(theme.Muted).Padding(8)
 		}
 		ui.Column(c).FillWidth().Gap(1).Children(func() {
 			for i, cmd := range cmds {
 				row := ui.ButtonBase(c.Key(cmd.key)).Label(cmd.label).Transition(widget.RowMotion(i))
 				widget.ListRow(c, row, i == p.pick, "palette", func() {
 					ui.Icon(c, cmd.svg).FontSize(14).TextColor(theme.TextSoft)
-					ui.Text(c, cmd.label).FontSize(12.5).SingleLine().Shrink(1)
+					ui.Text(c, cmd.label).FontSize(theme.TextUI).SingleLine().Shrink(1)
 					ui.Spacer(c)
-					ui.Text(c, cmd.detail).FontSize(11).TextColor(theme.Muted).SingleLine().Shrink(1)
+					ui.Text(c, cmd.detail).FontSize(theme.TextLabel).TextColor(theme.Muted).SingleLine().Shrink(1)
 				})
 				if row.Clicked() {
 					run = cmd.run

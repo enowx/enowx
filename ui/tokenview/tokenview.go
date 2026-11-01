@@ -110,7 +110,7 @@ func (v *View) Draw(c *ui.Context, d Data, o Options) {
 			v.tracking(c, d, o)
 		})
 		if d.Err != "" {
-			ui.Text(c, d.Err).FontSize(12).TextColor(theme.Error)
+			ui.Text(c, d.Err).FontSize(theme.TextLabel).TextColor(theme.Error)
 		}
 		switch v.Tab {
 		case TabBudgets:
@@ -135,5 +135,5 @@ func (v *View) tracking(c *ui.Context, d Data, o Options) {
 		st.On = on
 		o.Save(st)
 	}
-	ui.Text(c, "Track on "+o.HostName).FontSize(12).TextColor(theme.TextSoft).SingleLine()
+	ui.Text(c, "Track on "+o.HostName).FontSize(theme.TextLabel).TextColor(theme.TextSoft).SingleLine()
 }

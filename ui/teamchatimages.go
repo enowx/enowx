@@ -157,23 +157,23 @@ func (a *App) pendingImages(c *ui.Context) {
 	}
 	ui.Row(c).FillWidth().Gap(8).PaddingX(4).Wrap().Children(func() {
 		for i, p := range hc.pending {
-			box := ui.Box(c.Key(p.key)).Size(64, 64).Radius(10).Background(theme.Sunken).Border(1, theme.Border).Center()
+			box := ui.Box(c.Key(p.key)).Size(64, 64).Radius(theme.RadiusSmall).Background(theme.Sunken).Border(1, theme.Border).Center()
 			if p.err != "" {
 				box.BorderColor(theme.Error).Tooltip(p.err)
 			}
 			box.Children(func() {
 				switch {
 				case p.preview != nil:
-					ui.Image(c, p.preview).Size(64, 64).Radius(10).Fit(ui.Cover)
+					ui.Image(c, p.preview).Size(64, 64).Radius(theme.RadiusSmall).Fit(ui.Cover)
 				default:
 					ui.Icon(c, icon.Image).FontSize(18).TextColor(theme.Idle)
 				}
 				if p.att == nil && p.err == "" {
-					ui.Box(c).Absolute().Left(0).Top(0).Size(64, 64).Radius(10).Background(theme.Fade(theme.Ground, 0.55)).Center().Children(func() {
+					ui.Box(c).Absolute().Left(0).Top(0).Size(64, 64).Radius(theme.RadiusSmall).Background(theme.Fade(theme.Ground, 0.55)).Center().Children(func() {
 						widget.Spinner(c, 14)
 					})
 				}
-				x := ui.ButtonBase(c).Absolute().Right(-6).Top(-6).Size(20, 20).Radius(10).Center().Background(theme.Dialog).
+				x := ui.ButtonBase(c).Absolute().Right(-6).Top(-6).Size(20, 20).Radius(theme.RadiusSmall).Center().Background(theme.Dialog).
 					Border(1, theme.BorderStrong).Label("Remove " + nonEmptyStr(p.name, "the image")).Cursor(ui.CursorPointer)
 				x.Children(func() { ui.Icon(c, icon.Close).FontSize(10).TextColor(theme.TextSoft) })
 				if x.Clicked() {
@@ -242,16 +242,16 @@ func (a *App) messageImages(c *ui.Context, team string, m proto.ChatMessage) {
 			if len(m.Attachments) > 1 {
 				iw, ih = w, w
 			}
-			b := ui.ButtonBase(c.Key("img:"+att.ID)).Size(iw, ih).Radius(8).Background(theme.Sunken).Center().
+			b := ui.ButtonBase(c.Key("img:"+att.ID)).Size(iw, ih).Radius(theme.RadiusSmall).Background(theme.Sunken).Center().
 				Label("Image " + att.Name).Cursor(ui.CursorPointer)
 			b.Children(func() {
 				switch {
 				case im.bmp != nil:
-					ui.Image(c, im.bmp).Size(iw, ih).Radius(8).Fit(ui.Cover)
+					ui.Image(c, im.bmp).Size(iw, ih).Radius(theme.RadiusSmall).Fit(ui.Cover)
 				case im.err != "":
 					ui.Column(c).Gap(4).Padding(8).AlignItems(ui.Center).Children(func() {
 						ui.Icon(c, icon.Image).FontSize(16).TextColor(theme.Idle)
-						ui.Text(c, im.err).FontSize(10.5).TextColor(theme.Muted).TextAlign(ui.Center).MaxLines(3)
+						ui.Text(c, im.err).FontSize(theme.TextLabel).TextColor(theme.Muted).TextAlign(ui.Center).MaxLines(3)
 					})
 				default:
 					widget.Spinner(c, 14)
@@ -285,16 +285,16 @@ func (a *App) imageViewer(c *ui.Context, team string) {
 		scale := min(maxW/iw, maxH/ih, 1)
 		panel.Gap(10).AlignItems(ui.Center)
 		if im != nil && im.bmp != nil {
-			ui.Image(c, im.bmp).Size(iw*scale, ih*scale).Radius(10)
+			ui.Image(c, im.bmp).Size(iw*scale, ih*scale).Radius(theme.RadiusSmall)
 		}
 		ui.Row(c).Gap(10).AlignItems(ui.Center).Padding(6, 8, 6, 14).Radius(theme.RadiusControl+4).Background(theme.Dialog).Border(1, theme.BorderStrong).Children(func() {
 			ui.Column(c).Gap(1).Shrink(1).MinWidth(0).Children(func() {
-				ui.Text(c, nonEmptyStr(att.Name, "Image")).FontSize(12).FontWeight(600).SingleLine()
+				ui.Text(c, nonEmptyStr(att.Name, "Image")).FontSize(theme.TextLabel).FontWeight(600).SingleLine()
 				detail := m.Name + " · " + m.At.Local().Format("Mon 2 Jan 15:04")
 				if att.Width > 0 {
 					detail += fmt.Sprintf(" · %d×%d · %s", att.Width, att.Height, textfmt.Bytes(uint64(att.Size)))
 				}
-				ui.Text(c, detail).FontSize(11).TextColor(theme.Muted).SingleLine()
+				ui.Text(c, detail).FontSize(theme.TextLabel).TextColor(theme.Muted).SingleLine()
 			})
 			if im != nil && len(im.data) > 0 && widget.IconButton(c, icon.Download, "Save to Downloads", false).Clicked() {
 				name := strings.TrimSuffix(nonEmptyStr(att.Name, "image"), filepath.Ext(att.Name)) + imageExt(att.Type)

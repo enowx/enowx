@@ -191,13 +191,13 @@ func runAsFacts(c *ui.Context, p *runAsPrompt) (submit bool) {
 	if p.choice == "" {
 		submit = widget.Input(c, &p.user, defaultRunAs).FillWidth().Font(theme.MonoFont).Submitted()
 	} else {
-		ui.Text(c, "Agents get "+p.choice+"'s permissions: if it can use sudo, so can they.").FontSize(12).TextColor(theme.Muted)
+		ui.Text(c, "Agents get "+p.choice+"'s permissions: if it can use sudo, so can they.").FontSize(theme.TextLabel).TextColor(theme.Muted)
 	}
 	if p.err != "" {
-		ui.Text(c, p.err).FontSize(12).TextColor(theme.Error)
+		ui.Text(c, p.err).FontSize(theme.TextLabel).TextColor(theme.Error)
 	}
 	ui.Text(c, "Afterwards, sign in to each agent once from a Shell session (it runs as that user), and keep projects in that user's home. "+
-		"Agents installed only for root, for example with nvm, need installing again.").FontSize(12).TextColor(theme.Muted)
+		"Agents installed only for root, for example with nvm, need installing again.").FontSize(theme.TextLabel).TextColor(theme.Muted)
 	return submit
 }
 

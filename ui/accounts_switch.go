@@ -88,7 +88,7 @@ func (a *App) accountAsk(c *ui.Context) *widget.Ask {
 	}
 	return &widget.Ask{Key: fmt.Sprintf("account:%p", f), Icon: icon.Account, Title: a.sessionLabel(f.Session) + ": " + what, About: f.Line,
 		Body: func() {
-			ui.Text(c, "Go on as "+to+"? The session picks up its conversation and is told to go on.").FontSize(12.5).TextColor(theme.TextSoft)
+			ui.Text(c, "Go on as "+to+"? The session picks up its conversation and is told to go on.").FontSize(theme.TextUI).TextColor(theme.TextSoft)
 		},
 		Buttons: []widget.AskButton{
 			{Kind: widget.Secondary, Label: "Not now", Do: done},

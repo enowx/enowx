@@ -152,8 +152,8 @@ func (a *App) hookGroup(c *ui.Context, st *hooksState, title, about string, plac
 	}
 	ui.Column(c).FillWidth().Gap(6).Children(func() {
 		ui.Row(c).FillWidth().Gap(8).AlignItems(ui.Center).Children(func() {
-			ui.Text(c, title).FontSize(12.5).TextColor(theme.TextSoft)
-			ui.Text(c, about).FontSize(11).TextColor(theme.Muted).SingleLine().Shrink(1)
+			ui.Text(c, title).FontSize(theme.TextUI).TextColor(theme.TextSoft)
+			ui.Text(c, about).FontSize(theme.TextLabel).TextColor(theme.Muted).SingleLine().Shrink(1)
 		})
 		for _, h := range list {
 			a.hookRow(c.Key(h.ID), st, place, h)

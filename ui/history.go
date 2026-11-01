@@ -64,10 +64,10 @@ func (a *App) historyDialogView(c *ui.Context) {
 		case h.loading:
 			ui.Row(c).Gap(8).Padding(8).Children(func() {
 				widget.Spinner(c, 13)
-				ui.Text(c, "Reading the conversations…").FontSize(12).TextColor(theme.Muted)
+				ui.Text(c, "Reading the conversations…").FontSize(theme.TextLabel).TextColor(theme.Muted)
 			})
 		case len(h.list) == 0:
-			ui.Text(c, "No conversations here yet.").FontSize(12).TextColor(theme.Muted).Padding(8)
+			ui.Text(c, "No conversations here yet.").FontSize(theme.TextLabel).TextColor(theme.Muted).Padding(8)
 		}
 		ui.Scroll(c).FillWidth().MaxHeight(440).Children(func() {
 			ui.Column(c).FillWidth().Gap(4).Children(func() {
@@ -91,7 +91,7 @@ func (a *App) conversationRow(c *ui.Context, conv proto.Conversation) {
 				if title == "" {
 					title = "(no message)"
 				}
-				ui.Text(c, title).FontSize(12.5).SingleLine()
+				ui.Text(c, title).FontSize(theme.TextUI).SingleLine()
 				var meta []string
 				if conv.Branch != "" {
 					meta = append(meta, conv.Branch)
@@ -103,7 +103,7 @@ func (a *App) conversationRow(c *ui.Context, conv proto.Conversation) {
 					meta = append(meta, conv.Model)
 				}
 				meta = append(meta, textfmt.Age(conv.Updated, time.Now())+" ago")
-				ui.Text(c, strings.Join(meta, " · ")).FontSize(11).TextColor(theme.Muted).SingleLine()
+				ui.Text(c, strings.Join(meta, " · ")).FontSize(theme.TextLabel).TextColor(theme.Muted).SingleLine()
 			})
 			if widget.GhostButton(c, "Resume").Clicked() {
 				a.resumeConversation(conv)

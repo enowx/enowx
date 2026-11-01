@@ -41,8 +41,8 @@ func (a *App) teamProjectsTab(c *ui.Context) {
 	if len(list) == 0 {
 		ui.Column(c).Grow(1).FillWidth().Center().Gap(6).Padding(24).Children(func() {
 			ui.Icon(c, icon.Folder).FontSize(22).TextColor(theme.Idle)
-			ui.Text(c, "No projects yet").FontSize(12.5).TextColor(theme.TextSoft)
-			ui.Text(c, "Admins add them by their Git link, in Settings › Cloud › the team › Projects.").FontSize(11).TextColor(theme.Muted).TextAlign(ui.Center)
+			ui.Text(c, "No projects yet").FontSize(theme.TextUI).TextColor(theme.TextSoft)
+			ui.Text(c, "Admins add them by their Git link, in Settings › Cloud › the team › Projects.").FontSize(theme.TextLabel).TextColor(theme.Muted).TextAlign(ui.Center)
 		})
 		return
 	}
@@ -66,12 +66,12 @@ func (a *App) teamProjectCard(c *ui.Context, p proto.TeamProject) {
 	}
 	ui.Column(c).FillWidth().Radius(theme.RadiusCard).Background(theme.Raised).Border(1, theme.Border).Children(func() {
 		ui.Row(c).FillWidth().Gap(10).Padding(10, 12).AlignItems(ui.Center).Children(func() {
-			ui.Box(c).Size(28, 28).Radius(8).Background(theme.Sunken).Center().Shrink(0).Children(func() {
+			ui.Box(c).Size(28, 28).Radius(theme.RadiusSmall).Background(theme.Sunken).Center().Shrink(0).Children(func() {
 				ui.Icon(c, icon.Folder).FontSize(14).TextColor(theme.TextSoft)
 			})
 			ui.Column(c).Grow(1).Shrink(1).MinWidth(0).Gap(2).Children(func() {
-				ui.Text(c, p.Name).FontSize(13).FontWeight(600).SingleLine()
-				ui.Text(c, strings.TrimPrefix(p.Ref, "git:")).FontSize(11).TextColor(theme.Muted).SingleLine()
+				ui.Text(c, p.Name).FontSize(theme.TextUI).FontWeight(600).SingleLine()
+				ui.Text(c, strings.TrimPrefix(p.Ref, "git:")).FontSize(theme.TextLabel).TextColor(theme.Muted).SingleLine()
 			})
 			if len(p.Here) == 0 {
 				if widget.Button(c, widget.Secondary, icon.Download, "Clone", "").Tooltip("Clone " + p.Repo + " on " + a.host.Name).Clicked() {
@@ -89,7 +89,7 @@ func (a *App) teamProjectCard(c *ui.Context, p proto.TeamProject) {
 			ui.Row(c).FillWidth().Gap(6).Wrap().AlignItems(ui.Center).Children(func() {
 				if len(p.Here) > 0 {
 					widget.Tag(c, "on "+a.host.Name, theme.Done)
-					ui.Text(c, textfmt.TildePath(p.Here[0].Path, a.daemonInfo.Home)).FontSize(10.5).Font(theme.MonoFont).TextColor(theme.Muted).SingleLine().Shrink(1)
+					ui.Text(c, textfmt.TildePath(p.Here[0].Path, a.daemonInfo.Home)).FontSize(theme.TextLabel).Font(theme.MonoFont).TextColor(theme.Muted).SingleLine().Shrink(1)
 				} else {
 					widget.Tag(c, "not on "+a.host.Name, theme.Muted)
 				}
@@ -97,7 +97,7 @@ func (a *App) teamProjectCard(c *ui.Context, p proto.TeamProject) {
 					widget.Tag(c, textfmt.Plural(n, "1 note", fmt.Sprintf("%d notes", n)), theme.TextSoft)
 				}
 				if p.AddedBy != "" {
-					ui.Text(c, "added by "+p.AddedBy).FontSize(10.5).TextColor(theme.Idle).SingleLine()
+					ui.Text(c, "added by "+p.AddedBy).FontSize(theme.TextLabel).TextColor(theme.Idle).SingleLine()
 				}
 			})
 			for _, s := range sessions {
@@ -108,7 +108,7 @@ func (a *App) teamProjectCard(c *ui.Context, p proto.TeamProject) {
 				}
 				row.Children(func() {
 					ui.Icon(c, icon.Terminal).FontSize(12).TextColor(theme.TextSoft)
-					ui.Text(c, a.sessionName(s)).FontSize(12).SingleLine().Shrink(1).Grow(1)
+					ui.Text(c, a.sessionName(s)).FontSize(theme.TextLabel).SingleLine().Shrink(1).Grow(1)
 					if s.Member != nil {
 						memberAvatar(c, s.Member.Account, nonEmptyStr(s.Member.Name, s.Member.GitHub), 16).Tooltip("Started by " + nonEmptyStr(s.Member.Name, "@"+s.Member.GitHub))
 					}
@@ -150,7 +150,7 @@ func (a *App) teamMembersTab(c *ui.Context) {
 	if err := a.chatsOf().membersErr[team]; err != "" && len(members) == 0 {
 		hc := a.chatsOf()
 		ui.Column(c).Grow(1).FillWidth().Center().Gap(8).Padding(24).Children(func() {
-			ui.Text(c, "Couldn't read the team's members: "+err).FontSize(12).TextColor(theme.Muted).TextAlign(ui.Center)
+			ui.Text(c, "Couldn't read the team's members: "+err).FontSize(theme.TextLabel).TextColor(theme.Muted).TextAlign(ui.Center)
 			if widget.Button(c, widget.Secondary, nil, "Try again", "").Clicked() {
 				delete(hc.membersAt, team)
 				hc.membersErr[team] = ""
@@ -161,7 +161,7 @@ func (a *App) teamMembersTab(c *ui.Context) {
 	if len(members) == 0 {
 		ui.Column(c).Grow(1).FillWidth().Center().Gap(6).Padding(24).Children(func() {
 			widget.Spinner(c, 14)
-			ui.Text(c, "Reading the team's members…").FontSize(12).TextColor(theme.Muted)
+			ui.Text(c, "Reading the team's members…").FontSize(theme.TextLabel).TextColor(theme.Muted)
 		})
 		return
 	}
@@ -189,9 +189,9 @@ func (a *App) teamMembersTab(c *ui.Context) {
 					}
 					ui.Column(c).Grow(1).Shrink(1).MinWidth(0).Gap(1).Children(func() {
 						ui.Row(c).Gap(6).AlignItems(ui.Center).Children(func() {
-							ui.Text(c, name).FontSize(12.5).FontWeight(600).SingleLine().Shrink(1)
+							ui.Text(c, name).FontSize(theme.TextUI).FontWeight(600).SingleLine().Shrink(1)
 							if acc.ID == me {
-								ui.Text(c, "you").FontSize(11).TextColor(theme.Muted)
+								ui.Text(c, "you").FontSize(theme.TextLabel).TextColor(theme.Muted)
 							}
 						})
 						sub := m.Role
@@ -206,12 +206,12 @@ func (a *App) teamMembersTab(c *ui.Context) {
 								sub += " · on " + a.host.Name
 							}
 						}
-						ui.Text(c, sub).FontSize(11).TextColor(theme.Muted).SingleLine()
+						ui.Text(c, sub).FontSize(theme.TextLabel).TextColor(theme.Muted).SingleLine()
 					})
 					if vi >= 0 {
-						ui.Box(c).Size(8, 8).Radius(4).Background(theme.Done).Shrink(0).Tooltip("On " + a.host.Name + " now")
+						ui.Box(c).Size(8, 8).Radius(theme.RadiusTail).Background(theme.Done).Shrink(0).Tooltip("On " + a.host.Name + " now")
 					} else if online {
-						ui.Text(c, "online").FontSize(11).TextColor(theme.Done).Shrink(0)
+						ui.Text(c, "online").FontSize(theme.TextLabel).TextColor(theme.Done).Shrink(0)
 					}
 					if acc.ID != me && widget.IconButton(c, icon.AtSign, "Mention "+name+" in the chat", false).Clicked() {
 						a.mentionInChat(team, proto.ChatMention{Kind: proto.MentionUser, ID: acc.ID, Title: name})

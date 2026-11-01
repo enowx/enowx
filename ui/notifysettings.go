@@ -37,7 +37,7 @@ func (a *App) notifySection(c *ui.Context) {
 				st.Volume, changed = v, true
 			}
 			ui.Icon(c, icon.VolumeUp).FontSize(13).TextColor(theme.Muted)
-			ui.Text(c, fmt.Sprintf("%.0f%%", v*100)).FontSize(12).TextColor(theme.TextSoft).Width(40)
+			ui.Text(c, fmt.Sprintf("%.0f%%", v*100)).FontSize(theme.TextLabel).TextColor(theme.TextSoft).Width(40)
 		})
 	})
 	for _, k := range []string{proto.NotifyDone, proto.NotifyInput, proto.NotifyError, proto.NotifyChat} { // agents first
@@ -72,17 +72,17 @@ func (a *App) notifySection(c *ui.Context) {
 	}
 	if st.Quiet {
 		ui.Row(c).FillWidth().Gap(8).AlignItems(ui.Center).Children(func() {
-			ui.Text(c, "From").FontSize(12).TextColor(theme.Muted)
+			ui.Text(c, "From").FontSize(theme.TextLabel).TextColor(theme.Muted)
 			from, to := st.QuietFrom, st.QuietTo
 			if widget.Input(c.Key("from"), &from, "22:00").Width(80).Changed() {
 				st.QuietFrom, changed = from, true
 			}
-			ui.Text(c, "to").FontSize(12).TextColor(theme.Muted)
+			ui.Text(c, "to").FontSize(theme.TextLabel).TextColor(theme.Muted)
 			if widget.Input(c.Key("to"), &to, "07:00").Width(80).Changed() {
 				st.QuietTo, changed = to, true
 			}
 		})
-		ui.Text(c, "The system's Focus and Do Not Disturb silence enowX's banners; its sounds follow these hours.").FontSize(11.5).TextColor(theme.Muted)
+		ui.Text(c, "The system's Focus and Do Not Disturb silence enowX's banners; its sounds follow these hours.").FontSize(theme.TextLabel).TextColor(theme.Muted)
 	}
 	watched := st.Watched
 	if switchRow(c, &watched, "Also for the session I'm looking at", "Off: no sound for a session shown in a focused window.") {
@@ -102,14 +102,14 @@ func (a *App) notifySection(c *ui.Context) {
 		if i := widget.Segmented(c, []string{"Every message", "Mentions of me", "Off"}, cur, nil); i >= 0 && i != cur {
 			st.Chat, changed = modes[i], true
 		}
-		ui.Text(c, "A message from your team, when its chat isn't open: a sound, a card in the window's corner to answer from, and a banner when the window is in the background. Mentions of you and replies to you always notify.").FontSize(11.5).TextColor(theme.Muted)
+		ui.Text(c, "A message from your team, when its chat isn't open: a sound, a card in the window's corner to answer from, and a banner when the window is in the background. Mentions of you and replies to you always notify.").FontSize(theme.TextLabel).TextColor(theme.Muted)
 		for _, sp := range a.spacesOf().list {
 			if sp.Team == "" {
 				continue
 			}
 			team := sp.Team
 			ui.Row(c.Key("chat:" + team)).FillWidth().Gap(8).AlignItems(ui.Center).Children(func() {
-				ui.Text(c, a.spaceName(team)).FontSize(12).TextColor(theme.TextSoft).Grow(1).SingleLine()
+				ui.Text(c, a.spaceName(team)).FontSize(theme.TextLabel).TextColor(theme.TextSoft).Grow(1).SingleLine()
 				modes := []string{"default", "", "mentions", "off"}
 				cur := 0
 				if m, ok := st.ChatTeams[team]; ok {
@@ -156,7 +156,7 @@ func (a *App) notifySection(c *ui.Context) {
 						if s, ok := a.sessionByID(id); ok {
 							name = a.sessionName(s)
 						}
-						ui.Text(c, name).FontSize(12.5).TextColor(theme.Text).Grow(1)
+						ui.Text(c, name).FontSize(theme.TextUI).TextColor(theme.Text).Grow(1)
 						if widget.GhostButton(c, "Unmute").Clicked() {
 							st.MutedSessions, changed = without(st.MutedSessions, id), true
 						}

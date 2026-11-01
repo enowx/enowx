@@ -89,7 +89,7 @@ func (a *App) cloudTeamHosts(c *ui.Context, cs *cloudSettings) {
 	}
 	widget.Field(c, "Shared by "+a.host.Name, func() {
 		if team.Role == api.RoleViewer {
-			ui.Text(c, "Viewers don't share hosts.").FontSize(12).TextColor(theme.Muted)
+			ui.Text(c, "Viewers don't share hosts.").FontSize(theme.TextLabel).TextColor(theme.Muted)
 			return
 		}
 		var shared []string
@@ -99,16 +99,16 @@ func (a *App) cloudTeamHosts(c *ui.Context, cs *cloudSettings) {
 				shared, allow = t.Projects, t.AllowSessions
 			}
 		}
-		ui.Text(c, "The projects picked show to the team: their sessions and files. Members reach "+a.host.Name+" over Tailscale: share its node with their Tailscale accounts.").FontSize(11.5).TextColor(theme.Muted)
+		ui.Text(c, "The projects picked show to the team: their sessions and files. Members reach "+a.host.Name+" over Tailscale: share its node with their Tailscale accounts.").FontSize(theme.TextLabel).TextColor(theme.Muted)
 		switch {
 		case th.share.Err != "" && len(shared) > 0:
 			widget.Notice(c, icon.Alert, theme.Warning, th.share.Err, "", nil)
 		case th.share.Addr != "" && len(shared) > 0:
-			ui.Text(c, "Members reach it at "+th.share.Addr).FontSize(11.5).TextColor(theme.Done)
+			ui.Text(c, "Members reach it at "+th.share.Addr).FontSize(theme.TextLabel).TextColor(theme.Done)
 		}
 		ui.Column(c).FillWidth().Gap(2).Children(func() {
 			if len(a.projects) == 0 {
-				ui.Text(c, a.host.Name+" has no projects yet.").FontSize(12).TextColor(theme.Muted)
+				ui.Text(c, a.host.Name+" has no projects yet.").FontSize(theme.TextLabel).TextColor(theme.Muted)
 			}
 			for _, p := range a.projects {
 				on := slices.Contains(shared, p.Path)
@@ -120,7 +120,7 @@ func (a *App) cloudTeamHosts(c *ui.Context, cs *cloudSettings) {
 						}
 						a.shareHost(team.ID, team.Name, next)
 					}
-					ui.Text(c, textfmt.TildePath(p.Path, a.daemonInfo.Home)).Font(theme.MonoFont).FontSize(11).TextColor(theme.Muted).SingleLine().Shrink(1)
+					ui.Text(c, textfmt.TildePath(p.Path, a.daemonInfo.Home)).Font(theme.MonoFont).FontSize(theme.TextLabel).TextColor(theme.Muted).SingleLine().Shrink(1)
 				})
 			}
 		})
@@ -137,14 +137,14 @@ func (a *App) cloudTeamHosts(c *ui.Context, cs *cloudSettings) {
 			}
 		}
 		if len(list) == 0 {
-			ui.Text(c, "No member shares a host yet.").FontSize(12).TextColor(theme.Muted)
+			ui.Text(c, "No member shares a host yet.").FontSize(theme.TextLabel).TextColor(theme.Muted)
 		}
 		for _, h := range list {
 			ui.Row(c.Key("th:"+h.Device)).FillWidth().Gap(10).AlignItems(ui.Center).Padding(8, 10).Radius(theme.RadiusControl).Background(theme.Sunken).Children(func() {
 				ui.Icon(c, icon.Server).FontSize(14).TextColor(theme.TextSoft)
 				ui.Column(c).Grow(1).Shrink(1).MinWidth(0).Gap(1).Children(func() {
-					ui.Text(c, h.Name).FontSize(12.5).SingleLine()
-					ui.Text(c, fmt.Sprintf("%s's · %s", h.Owner, textfmt.Plural(len(h.Projects), "1 project", fmt.Sprintf("%d projects", len(h.Projects))))).FontSize(11).TextColor(theme.Muted).SingleLine()
+					ui.Text(c, h.Name).FontSize(theme.TextUI).SingleLine()
+					ui.Text(c, fmt.Sprintf("%s's · %s", h.Owner, textfmt.Plural(len(h.Projects), "1 project", fmt.Sprintf("%d projects", len(h.Projects))))).FontSize(theme.TextLabel).TextColor(theme.Muted).SingleLine()
 				})
 				if widget.Button(c, widget.Secondary, nil, "Open", "").Clicked() {
 					cs.teams.open = ""
@@ -202,7 +202,7 @@ func (a *App) teamSessionsSwitch(c *ui.Context, team, name string, shared []stri
 				a.confirm("Let "+name+"'s members start sessions on "+a.host.Name+"?", teamSessionsWarning, "Let them", set)
 			}
 		}
-		ui.Text(c, teamSessionsWarning).FontSize(11.5).TextColor(theme.Warning)
+		ui.Text(c, teamSessionsWarning).FontSize(theme.TextLabel).TextColor(theme.Warning)
 	})
 }
 
@@ -329,11 +329,11 @@ func (a *App) teamHostPage(c *ui.Context) {
 	}
 	ui.Scroll(c).Grow(1).FillWidth().Children(func() {
 		ui.Column(c).FillWidth().Padding(20, 24).Gap(16).Children(func() {
-			ui.Text(c, v.host.Owner+" shares "+v.host.Name+" with "+a.spaceName(v.host.Team)+": these projects and their sessions.").FontSize(12.5).TextColor(theme.TextSoft)
+			ui.Text(c, v.host.Owner+" shares "+v.host.Name+" with "+a.spaceName(v.host.Team)+": these projects and their sessions.").FontSize(theme.TextUI).TextColor(theme.TextSoft)
 			if v.busy != "" {
 				ui.Row(c).Gap(8).AlignItems(ui.Center).Children(func() {
 					widget.Spinner(c, 12)
-					ui.Text(c, v.busy).FontSize(12).TextColor(theme.Muted)
+					ui.Text(c, v.busy).FontSize(theme.TextLabel).TextColor(theme.Muted)
 				})
 			}
 			if v.err != "" {
@@ -359,13 +359,13 @@ func (a *App) teamHostPage(c *ui.Context) {
 						}
 					}
 					if len(in) == 0 {
-						ui.Text(c, "No session now.").FontSize(12).TextColor(theme.Muted)
+						ui.Text(c, "No session now.").FontSize(theme.TextLabel).TextColor(theme.Muted)
 					}
 					for _, s := range in {
 						ui.Row(c.Key("vs:"+s.ID)).FillWidth().Gap(10).AlignItems(ui.Center).Padding(8, 10).Radius(theme.RadiusControl).Background(theme.Sunken).Children(func() {
 							widget.Badge(c, sessionBadge(s))
-							ui.Text(c, nonEmptyName(s)).FontSize(12.5).Grow(1).Shrink(1).MinWidth(0).SingleLine()
-							ui.Text(c, a.agentName(s.Agent)).FontSize(11).TextColor(theme.Muted)
+							ui.Text(c, nonEmptyName(s)).FontSize(theme.TextUI).Grow(1).Shrink(1).MinWidth(0).SingleLine()
+							ui.Text(c, a.agentName(s.Agent)).FontSize(theme.TextLabel).TextColor(theme.Muted)
 							if s.Branch != "" {
 								widget.Tag(c, s.Branch, theme.TextSoft)
 							}

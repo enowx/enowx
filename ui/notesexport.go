@@ -60,12 +60,12 @@ func (a *App) noteExportDialog(c *ui.Context) {
 		if i := widget.Segmented(c, labels, f.format, nil); i >= 0 && !f.busy {
 			f.format = i
 		}
-		ui.Text(c, exportFormats[f.format].about).FontSize(11.5).TextColor(theme.Muted)
+		ui.Text(c, exportFormats[f.format].about).FontSize(theme.TextLabel).TextColor(theme.Muted)
 		if f.busy {
-			ui.Text(c, "Exporting…").FontSize(12).TextColor(theme.TextSoft)
+			ui.Text(c, "Exporting…").FontSize(theme.TextLabel).TextColor(theme.TextSoft)
 		}
 		if f.err != "" {
-			ui.Text(c, f.err).FontSize(12).TextColor(theme.Error)
+			ui.Text(c, f.err).FontSize(theme.TextLabel).TextColor(theme.Error)
 		}
 	}, func() {
 		b := widget.PrimaryButton(c, icon.ArrowUp, "Export…", "")

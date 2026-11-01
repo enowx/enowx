@@ -343,9 +343,9 @@ func (v *View) empty(c *ui.Context, o Options) {
 		if !o.Loaded && o.Err == "" {
 			msg = "Reading the notes…"
 		}
-		ui.Text(c, msg).FontSize(12.5).TextColor(theme.Muted).TextAlign(ui.Center).MaxWidth(420)
+		ui.Text(c, msg).FontSize(theme.TextUI).TextColor(theme.Muted).TextAlign(ui.Center).MaxWidth(420)
 		if o.Err != "" {
-			ui.Text(c, o.Err).FontSize(12).TextColor(theme.Error).TextAlign(ui.Center)
+			ui.Text(c, o.Err).FontSize(theme.TextLabel).TextColor(theme.Error).TextAlign(ui.Center)
 		}
 		if o.Loaded && widget.PrimaryButton(c, icon.Plus, "New page", "").Clicked() {
 			v.newPage(o, "", "")

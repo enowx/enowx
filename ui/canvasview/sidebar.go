@@ -32,7 +32,7 @@ func (v *View) sidebar(c *ui.Context, o Options) {
 	v.listColumn(c).Children(func() {
 		ui.Row(c).FillWidth().Height(44).Shrink(0).PaddingX(10).Gap(6).AlignItems(ui.Center).BorderWidth(0, 0, 1, 0).BorderColor(theme.Border).Children(func() {
 			ui.Column(c).Grow(1).MinWidth(0).Children(func() {
-				ui.Text(c, "Canvas").FontSize(12.5).SingleLine()
+				ui.Text(c, "Canvas").FontSize(theme.TextUI).SingleLine()
 				if len(o.Spaces) > 1 && o.PickSpace != nil {
 					name := o.Space
 					if o.Team == "" {
@@ -42,12 +42,12 @@ func (v *View) sidebar(c *ui.Context, o Options) {
 					return
 				}
 				if o.Team == "" {
-					ui.Text(c, "On "+o.Host).FontSize(10.5).TextColor(theme.Muted).SingleLine().Shrink(1)
+					ui.Text(c, "On "+o.Host).FontSize(theme.TextLabel).TextColor(theme.Muted).SingleLine().Shrink(1)
 					return
 				}
 				ui.Row(c).Gap(5).AlignItems(ui.Center).MinWidth(0).Children(func() {
 					widget.TeamMark(c, o.Team, o.Space, 11)
-					ui.Text(c, o.Space+" · on "+o.Host).FontSize(10.5).TextColor(theme.Muted).SingleLine().Shrink(1)
+					ui.Text(c, o.Space+" · on "+o.Host).FontSize(theme.TextLabel).TextColor(theme.Muted).SingleLine().Shrink(1)
 				})
 			})
 			// Until the list came, a plain button: an accent one faded reads poorly.
@@ -68,7 +68,7 @@ func (v *View) sidebar(c *ui.Context, o Options) {
 		ui.Scroll(c).Grow(1).FillWidth().Children(func() {
 			ui.Column(c).FillWidth().Padding(6).Gap(1).Children(func() {
 				if o.Loaded && len(o.Canvases) == 0 {
-					ui.Text(c, "No canvases yet").FontSize(12).TextColor(theme.Muted).Padding(6)
+					ui.Text(c, "No canvases yet").FontSize(theme.TextLabel).TextColor(theme.Muted).Padding(6)
 				}
 				q := strings.ToLower(strings.TrimSpace(v.filter))
 				var groups []string
@@ -106,7 +106,7 @@ func (v *View) sidebar(c *ui.Context, o Options) {
 }
 
 func (v *View) listRow(c *ui.Context, o Options, cv proto.CanvasInfo) {
-	row := ui.ButtonBase(c).FillWidth().Height(32).PaddingX(8).Gap(8).Radius(6).Cursor(ui.CursorPointer).Label(cv.Title).AlignItems(ui.Center)
+	row := ui.ButtonBase(c).FillWidth().Height(32).PaddingX(8).Gap(8).Radius(theme.RadiusSmall).Cursor(ui.CursorPointer).Label(cv.Title).AlignItems(ui.Center)
 	switch {
 	case cv.ID == v.selected:
 		row.Background(theme.Selected)
@@ -132,7 +132,7 @@ func (v *View) listRow(c *ui.Context, o Options, cv proto.CanvasInfo) {
 	})
 	row.Children(func() {
 		ui.Icon(c, kindIcon(cv.Kind)).FontSize(13).TextColor(theme.Muted)
-		ui.Text(c, cv.Title).FontSize(12.5).TextColor(theme.Text).SingleLine().Grow(1).Shrink(1).MinWidth(0)
+		ui.Text(c, cv.Title).FontSize(theme.TextUI).TextColor(theme.Text).SingleLine().Grow(1).Shrink(1).MinWidth(0)
 		switch {
 		case cv.Paused:
 			ui.Icon(c, icon.Pause).FontSize(11).TextColor(theme.Warning).Tooltip("Agents paused")

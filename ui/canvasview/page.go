@@ -21,7 +21,7 @@ func (v *View) page(c *ui.Context, o Options) {
 	v.agentBar(c, o, *cv)
 	if v.err != "" {
 		ui.Row(c).FillWidth().PaddingX(14).Height(30).AlignItems(ui.Center).Gap(8).Background(theme.Fade(theme.Error, 0.1)).Children(func() {
-			ui.Text(c, v.err).FontSize(12).TextColor(theme.Error).Grow(1).SingleLine()
+			ui.Text(c, v.err).FontSize(theme.TextLabel).TextColor(theme.Error).Grow(1).SingleLine()
 			if widget.IconButton(c, icon.Close, "Dismiss", false).Clicked() {
 				v.err = ""
 			}
@@ -71,13 +71,15 @@ func (v *View) header(c *ui.Context, o Options, cv proto.Canvas) {
 		}
 		ui.Icon(c, kindIcon(cv.Kind)).FontSize(15).TextColor(theme.Accent)
 		t := ui.ButtonBase(c).Label("Title").Cursor(ui.CursorText).Shrink(1).MinWidth(0)
-		t.Children(func() { ui.Text(c, cv.Title).FontSize(14).FontWeight(600).TextColor(theme.TextStrong).SingleLine() })
+		t.Children(func() {
+			ui.Text(c, cv.Title).FontSize(theme.TextUI).FontWeight(600).TextColor(theme.TextStrong).SingleLine()
+		})
 		if t.DoubleClicked() {
 			title := cv.Title
 			v.renaming = &title
 		}
 		if !v.compact() {
-			ui.Text(c, fmt.Sprintf("%s · v%d", cv.Kind, cv.Version)).FontSize(11).TextColor(theme.Muted).SingleLine()
+			ui.Text(c, fmt.Sprintf("%s · v%d", cv.Kind, cv.Version)).FontSize(theme.TextLabel).TextColor(theme.Muted).SingleLine()
 		}
 		ui.Spacer(c)
 		// Undo and redo keep their shortcuts where the room is too short.
@@ -174,7 +176,7 @@ func (v *View) header(c *ui.Context, o Options, cv proto.Canvas) {
 			v.menu.OpenBelow(mk, "make-code", 28)
 			v.menu.Show(c, mk, "make-code", func(done func()) {
 				if len(o.Projects) == 0 {
-					ui.Text(c, "Open a project on this host first").FontSize(12).TextColor(theme.Muted).Padding(8)
+					ui.Text(c, "Open a project on this host first").FontSize(theme.TextLabel).TextColor(theme.Muted).Padding(8)
 				}
 				for _, p := range o.Projects {
 					label := p.Name
@@ -268,7 +270,7 @@ func (v *View) agentBar(c *ui.Context, o Options, cv proto.Canvas) {
 		Background(theme.AccentSoft).BorderWidth(0, 0, 1, 0).BorderColor(theme.AccentLine).Children(func() {
 		if cv.Paused {
 			ui.Icon(c, icon.Pause).FontSize(13).TextColor(theme.Warning)
-			ui.Text(c, "Agents are paused on this canvas: their changes wait until you resume").FontSize(12).TextColor(theme.Text).Grow(1).SingleLine()
+			ui.Text(c, "Agents are paused on this canvas: their changes wait until you resume").FontSize(theme.TextLabel).TextColor(theme.Text).Grow(1).SingleLine()
 			if widget.Button(c, widget.Primary, icon.Play, "Resume", "").Height(26).PaddingX(10).Clicked() {
 				o.Control(cv.ID, proto.CanvasResume, v.reportErr)
 			}
@@ -279,7 +281,7 @@ func (v *View) agentBar(c *ui.Context, o Options, cv proto.Canvas) {
 		if v.last.Element != "" && now.Sub(v.lastAt) < designingFor {
 			what = " · " + v.last.Element
 		}
-		ui.Text(c, who+" is designing"+what).FontSize(12).TextColor(theme.Text).Grow(1).SingleLine()
+		ui.Text(c, who+" is designing"+what).FontSize(theme.TextLabel).TextColor(theme.Text).Grow(1).SingleLine()
 		if widget.Button(c, widget.Secondary, icon.Pause, "Pause", "").Height(26).PaddingX(10).Clicked() {
 			o.Control(cv.ID, proto.CanvasPause, v.reportErr)
 		}

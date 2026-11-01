@@ -56,7 +56,7 @@ func (v *View) inGroup(o Options, group string, shown map[string]bool) int {
 
 // groupHeader is group g's line: a click folds it, a drag moves it.
 func (v *View) groupHeader(c *ui.Context, o Options, g proto.NoteGroup, count int) {
-	row := ui.ButtonBase(c).FillWidth().Height(30).Padding(0, 4, 0, 4).Gap(6).Radius(6).Margin(6, 0, 0, 0).
+	row := ui.ButtonBase(c).FillWidth().Height(30).Padding(0, 4, 0, 4).Gap(6).Radius(theme.RadiusSmall).Margin(6, 0, 0, 0).
 		Cursor(ui.CursorPointer).Label("Group " + g.Name).AlignItems(ui.Center)
 	row.Drag(noteDrag{group: g.Name})
 	if d, ok := ui.Drop[noteDrag](row); ok {
@@ -83,7 +83,7 @@ func (v *View) groupHeader(c *ui.Context, o Options, g proto.NoteGroup, count in
 		}
 		ui.Icon(c, chev).FontSize(10.5).TextColor(theme.Muted).Width(18).Shrink(0)
 		groupMark(c, g)
-		ui.Text(c, g.Name).FontSize(12).FontWeight(650).TextColor(theme.TextSoft).SingleLine().Shrink(1).Grow(1)
+		ui.Text(c, g.Name).FontSize(theme.TextLabel).FontWeight(650).TextColor(theme.TextSoft).SingleLine().Shrink(1).Grow(1)
 		if row.Hovered() {
 			if widget.IconButton(c, icon.Plus, "New page in "+g.Name, false).Clicked() {
 				v.newPage(o, "", g.Name)
@@ -91,7 +91,7 @@ func (v *View) groupHeader(c *ui.Context, o Options, g proto.NoteGroup, count in
 			more := widget.IconButton(c, icon.More, "More for "+g.Name, false)
 			v.menu.OpenBelow(more, "group:"+g.Name, 24)
 		} else {
-			ui.Text(c, strconv.Itoa(count)).FontSize(10.5).TextColor(theme.Muted)
+			ui.Text(c, strconv.Itoa(count)).FontSize(theme.TextLabel).TextColor(theme.Muted)
 		}
 	})
 	key := "group:" + g.Name
@@ -133,7 +133,7 @@ func groupMark(c *ui.Context, g proto.NoteGroup) {
 
 // ungroupedHeader heads the pages in no group, which take pages dropped.
 func (v *View) ungroupedHeader(c *ui.Context, o Options, count int) {
-	row := ui.ButtonBase(c).FillWidth().Height(30).Padding(0, 4, 0, 4).Gap(6).Radius(6).Margin(6, 0, 0, 0).
+	row := ui.ButtonBase(c).FillWidth().Height(30).Padding(0, 4, 0, 4).Gap(6).Radius(theme.RadiusSmall).Margin(6, 0, 0, 0).
 		Cursor(ui.CursorPointer).Label("No group").AlignItems(ui.Center)
 	if d, ok := ui.Drop[noteDrag](row); ok && d.id != "" {
 		o.SetGroup(d.id, "", v.failed)
@@ -149,8 +149,8 @@ func (v *View) ungroupedHeader(c *ui.Context, o Options, count int) {
 			chev = icon.ChevronRight
 		}
 		ui.Icon(c, chev).FontSize(10.5).TextColor(theme.Muted).Width(18).Shrink(0)
-		ui.Text(c, "No group").FontSize(12).FontWeight(650).TextColor(theme.Muted).Grow(1)
-		ui.Text(c, strconv.Itoa(count)).FontSize(10.5).TextColor(theme.Muted)
+		ui.Text(c, "No group").FontSize(theme.TextLabel).FontWeight(650).TextColor(theme.Muted).Grow(1)
+		ui.Text(c, strconv.Itoa(count)).FontSize(theme.TextLabel).TextColor(theme.Muted)
 	})
 	if row.Clicked() {
 		v.ungroupedFolded = !v.ungroupedFolded
@@ -215,7 +215,7 @@ func (v *View) groupDialog(c *ui.Context, o Options) {
 				if f.icon != "" {
 					label = "Change…"
 				}
-				ui.Text(c, label).FontSize(12).TextColor(theme.TextSoft)
+				ui.Text(c, label).FontSize(theme.TextLabel).TextColor(theme.TextSoft)
 			})
 			if b.Clicked() {
 				if f.picking = !f.picking; f.picking {
@@ -232,7 +232,7 @@ func (v *View) groupDialog(c *ui.Context, o Options) {
 		widget.Field(c, "Color", func() {
 			ui.Row(c).Gap(6).Children(func() {
 				for _, col := range append([]string{""}, groupColors...) {
-					b := ui.ButtonBase(c.Key("c"+col)).Size(22, 22).Radius(11).Cursor(ui.CursorPointer).Label("Color " + col)
+					b := ui.ButtonBase(c.Key("c"+col)).Size(22, 22).Radius(theme.RadiusSmall).Cursor(ui.CursorPointer).Label("Color " + col)
 					if col == "" {
 						b.Border(1, theme.BorderStrong)
 					} else {
@@ -248,7 +248,7 @@ func (v *View) groupDialog(c *ui.Context, o Options) {
 			})
 		})
 		if f.err != "" {
-			ui.Text(c, f.err).FontSize(12).TextColor(theme.Error)
+			ui.Text(c, f.err).FontSize(theme.TextLabel).TextColor(theme.Error)
 		}
 	}, func() {
 		label := "Make group"

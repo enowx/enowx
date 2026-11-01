@@ -194,7 +194,7 @@ func (a *App) filePage(c *ui.Context, s proto.SessionInfo, p string, modified ti
 
 func pageNote(c *ui.Context, text string, color ui.Color) {
 	ui.Column(c).Grow(1).FillWidth().Center().Padding(16).Children(func() {
-		ui.Text(c, text).FontSize(12).TextColor(color)
+		ui.Text(c, text).FontSize(theme.TextLabel).TextColor(color)
 	})
 }
 

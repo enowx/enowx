@@ -23,14 +23,14 @@ func needsInstall(ag proto.AgentInfo) bool { return ag.Command != "" && !ag.Inst
 func (a *App) installCard(c *ui.Context, ag proto.AgentInfo) {
 	widget.Notice(c, icon.Alert, theme.Warning, ag.Name+" isn't installed on "+a.host.Name+".", "", func() {
 		if ag.Install == "" {
-			ui.Text(c, "Install "+ag.Command+" there, then pick it again.").FontSize(11.5).TextColor(theme.Muted)
+			ui.Text(c, "Install "+ag.Command+" there, then pick it again.").FontSize(theme.TextLabel).TextColor(theme.Muted)
 			if ag.Homepage != "" {
-				ui.Link(c, "How to install "+ag.Name, ag.Homepage).FontSize(11.5)
+				ui.Link(c, "How to install "+ag.Name, ag.Homepage).FontSize(theme.TextLabel)
 			}
 			return
 		}
-		ui.Text(c, "Install runs its official installer in a session here, as the user enowX runs as:").FontSize(11.5).TextColor(theme.Muted)
-		ui.Text(c, ag.Install).Font(theme.MonoFont).FontSize(11).Padding(8, 10).Radius(7).Background(theme.Sunken).FillWidth()
+		ui.Text(c, "Install runs its official installer in a session here, as the user enowX runs as:").FontSize(theme.TextLabel).TextColor(theme.Muted)
+		ui.Text(c, ag.Install).Font(theme.MonoFont).FontSize(theme.TextLabel).Padding(8, 10).Radius(theme.RadiusSmall).Background(theme.Sunken).FillWidth()
 	})
 }
 

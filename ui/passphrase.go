@@ -97,6 +97,6 @@ func (a *App) passphraseAsk(c *ui.Context) *widget.Ask {
 func passphraseFacts(c *ui.Context, p *passphrasePrompt) {
 	ui.Text(c, "The server accepts this key. Type its passphrase to sign in; enowX doesn't save it.").
 		FontSize(12.5).TextColor(theme.TextSoft)
-	ui.Text(c, textfmt.ShortHome(p.path)).Font(theme.MonoFont).FontSize(12).Padding(10).Radius(theme.RadiusControl).
+	ui.Text(c, textfmt.ShortHome(p.path)).Font(theme.MonoFont).FontSize(theme.TextLabel).Padding(10).Radius(theme.RadiusControl).
 		Background(theme.Sunken).Border(1, theme.Border).FillWidth()
 }

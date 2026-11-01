@@ -42,8 +42,8 @@ func (a *App) agentAccounts(c *ui.Context, st *accountsState, ag proto.AgentInfo
 			ui.Row(c).FillWidth().Gap(10).AlignItems(ui.Center).Children(func() {
 				agentTile(c, ag.ID, 24)
 				ui.Column(c).Grow(1).MinWidth(0).Gap(1).Children(func() {
-					ui.Text(c, ag.Name).FontSize(13)
-					ui.Text(c, "Configs, in the order sessions use them at a limit").FontSize(11).TextColor(theme.Muted).SingleLine()
+					ui.Text(c, ag.Name).FontSize(theme.TextUI)
+					ui.Text(c, "Configs, in the order sessions use them at a limit").FontSize(theme.TextLabel).TextColor(theme.Muted).SingleLine()
 				})
 				if widget.Button(c, widget.Secondary, icon.Plus, "New config", "").Disabled(len(a.configKinds(ag.ID)) == 0).Clicked() {
 					st.edit = a.newConfigForm(ag.ID, proto.Account{})
@@ -73,7 +73,7 @@ func (a *App) accountLine(c *ui.Context, st *accountsState, ag proto.AgentInfo, 
 	status, _ := st.accountStatus(ag.ID, name)
 	ui.Column(c).FillWidth().Gap(4).Padding(6, 8).Radius(theme.RadiusControl).Background(theme.Sunken).Children(func() {
 		ui.Row(c).FillWidth().Gap(8).AlignItems(ui.Center).Children(func() {
-			ui.Text(c, fmt.Sprint(i+1)).Font(theme.MonoFont).FontSize(11).TextColor(theme.Muted).Width(14)
+			ui.Text(c, fmt.Sprint(i+1)).Font(theme.MonoFont).FontSize(theme.TextLabel).TextColor(theme.Muted).Width(14)
 			label, detail := name, configDetail(acc)
 			if !isOther {
 				label, detail = "Official", ag.Name+" as installed: its own sign-in and settings, never changed by enowX"
@@ -83,7 +83,7 @@ func (a *App) accountLine(c *ui.Context, st *accountsState, ag proto.AgentInfo, 
 					if acc.Color != "" {
 						widget.BadgeTag(c, label, acc.Color)
 					} else {
-						ui.Text(c, label).FontSize(12.5)
+						ui.Text(c, label).FontSize(theme.TextUI)
 					}
 					if isOther {
 						widget.Tag(c, configKindLabel(acc), ui.Color{})
@@ -93,12 +93,12 @@ func (a *App) accountLine(c *ui.Context, st *accountsState, ag proto.AgentInfo, 
 					}
 					accountStateTag(c, status)
 				})
-				ui.Text(c, detail).FontSize(11).TextColor(theme.Muted).SingleLine()
+				ui.Text(c, detail).FontSize(theme.TextLabel).TextColor(theme.Muted).SingleLine()
 				if cr := status.Credits; cr != nil {
-					ui.Text(c, creditLine(*cr)).FontSize(11).TextColor(theme.TextSoft).SingleLine()
+					ui.Text(c, creditLine(*cr)).FontSize(theme.TextLabel).TextColor(theme.TextSoft).SingleLine()
 				}
 				if only := pr.Only[name]; len(only) > 0 {
-					ui.Text(c, "Only for "+strings.Join(only, ", ")).FontSize(11).TextColor(theme.TextSoft).SingleLine()
+					ui.Text(c, "Only for "+strings.Join(only, ", ")).FontSize(theme.TextLabel).TextColor(theme.TextSoft).SingleLine()
 				}
 			})
 			if widget.IconButton(c.Key("up"), icon.ChevronUp, "Use it sooner", false).Disabled(i == 0).Clicked() && i > 0 {
@@ -212,7 +212,7 @@ func creditLine(cr proto.CreditAccount) string {
 func (a *App) fallbackControls(c *ui.Context, st *accountsState, ag proto.AgentInfo, pr proto.AccountPrefs) {
 	ui.Column(c).FillWidth().Gap(6).Padding(4, 0, 0, 0).Children(func() {
 		ui.Row(c).FillWidth().Gap(8).AlignItems(ui.Center).Children(func() {
-			ui.Text(c, "At a limit").FontSize(12).TextColor(theme.TextSoft).Width(110)
+			ui.Text(c, "At a limit").FontSize(theme.TextLabel).TextColor(theme.TextSoft).Width(110)
 			modes := []string{proto.FallbackOff, proto.FallbackAsk, proto.FallbackAuto}
 			cur := max(0, slices.Index(modes, pr.Fallback))
 			if i := widget.Segmented(c, []string{"Stop and tell me", "Ask me first", "Go on as the next"}, cur, nil); i >= 0 && i != cur {
@@ -221,7 +221,7 @@ func (a *App) fallbackControls(c *ui.Context, st *accountsState, ag proto.AgentI
 			}
 		})
 		ui.Row(c).FillWidth().Gap(8).AlignItems(ui.Center).Children(func() {
-			ui.Text(c, "Then").FontSize(12).TextColor(theme.TextSoft).Width(110)
+			ui.Text(c, "Then").FontSize(theme.TextLabel).TextColor(theme.TextSoft).Width(110)
 			options, names := []string{""}, map[string]string{"": "nothing more"}
 			for _, other := range a.agents {
 				if other.Installed && other.ID != ag.ID && other.Command != "" && other.ID != "shell" {
@@ -270,12 +270,12 @@ func (a *App) saveAccountPrefs(st *accountsState, agentID string, pr proto.Accou
 // accountHistory is which account each session used, when, and why.
 func (a *App) accountHistory(c *ui.Context, st *accountsState) {
 	if len(st.log) == 0 {
-		ui.Text(c, "Nothing yet: sessions started, switched and fallen back show here.").FontSize(12).TextColor(theme.Muted)
+		ui.Text(c, "Nothing yet: sessions started, switched and fallen back show here.").FontSize(theme.TextLabel).TextColor(theme.Muted)
 		return
 	}
 	for i, e := range st.log[:min(len(st.log), 200)] {
 		ui.Row(c.Key(i)).FillWidth().Gap(10).Padding(6, 8).Radius(theme.RadiusControl).Background(theme.Sunken).AlignItems(ui.Center).Children(func() {
-			ui.Text(c, e.Time.Local().Format("Jan 2 15:04")).Font(theme.MonoFont).FontSize(11).TextColor(theme.Muted).Width(96)
+			ui.Text(c, e.Time.Local().Format("Jan 2 15:04")).Font(theme.MonoFont).FontSize(theme.TextLabel).TextColor(theme.Muted).Width(96)
 			col := theme.TextSoft
 			switch e.Event {
 			case "fallback", "limit":
@@ -283,15 +283,15 @@ func (a *App) accountHistory(c *ui.Context, st *accountsState) {
 			case "back":
 				col = theme.Done
 			}
-			ui.Text(c, e.Event).FontSize(11.5).TextColor(col).Width(64)
+			ui.Text(c, e.Event).FontSize(theme.TextLabel).TextColor(col).Width(64)
 			name := e.Account
 			if name == "" {
 				name = "Official"
 			}
-			ui.Text(c, a.agentName(e.Agent)+" · "+name).FontSize(12).SingleLine().Width(200)
-			ui.Text(c, e.Reason).FontSize(11).TextColor(theme.Muted).SingleLine().Grow(1).Shrink(1)
+			ui.Text(c, a.agentName(e.Agent)+" · "+name).FontSize(theme.TextLabel).SingleLine().Width(200)
+			ui.Text(c, e.Reason).FontSize(theme.TextLabel).TextColor(theme.Muted).SingleLine().Grow(1).Shrink(1)
 			if e.Session != "" {
-				ui.Text(c, a.hookSessionName(e.Session)).FontSize(11).TextColor(theme.Muted).SingleLine().MaxWidth(160)
+				ui.Text(c, a.hookSessionName(e.Session)).FontSize(theme.TextLabel).TextColor(theme.Muted).SingleLine().MaxWidth(160)
 			}
 		})
 	}

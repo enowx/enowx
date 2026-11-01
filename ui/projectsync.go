@@ -141,7 +141,7 @@ func (a *App) projectSyncView(c *ui.Context, f *projectSyncForm, busy bool) {
 		case busy:
 			ui.Row(c).Gap(8).AlignItems(ui.Center).Children(func() {
 				widget.Spinner(c, 14)
-				ui.Text(c, f.doing).FontSize(12).TextColor(theme.Muted).Shrink(1).MinWidth(0)
+				ui.Text(c, f.doing).FontSize(theme.TextLabel).TextColor(theme.Muted).Shrink(1).MinWidth(0)
 			})
 			if link := f.signIn; link != "" && f.step == syncComparing {
 				if widget.PrimaryButton(c, icon.External, "Open link", "").Clicked() {
@@ -195,13 +195,13 @@ func (a *App) syncPick(c *ui.Context, f *projectSyncForm) {
 	widget.Field(c, "Its folder there", func() {
 		ui.Column(c).FillWidth().Gap(5).Children(func() {
 			widget.Input(c, &f.folder, "~/code/app").FillWidth()
-			ui.Text(c, "The project's copy on "+f.target.Name+", from Copy to another host or cloned there.").FontSize(11.5).TextColor(theme.Muted)
+			ui.Text(c, "The project's copy on "+f.target.Name+", from Copy to another host or cloned there.").FontSize(theme.TextLabel).TextColor(theme.Muted)
 		})
 	})
 	ui.Column(c).FillWidth().Gap(4).AlignItems(ui.Start).Children(func() {
 		widget.Checkbox(c, &f.env, "Include .env files")
 		if f.env {
-			ui.Text(c, "They usually hold secrets (keys, passwords): they will go between both hosts.").FontSize(11.5).TextColor(theme.Warning)
+			ui.Text(c, "They usually hold secrets (keys, passwords): they will go between both hosts.").FontSize(theme.TextLabel).TextColor(theme.Warning)
 		}
 	})
 }
@@ -266,7 +266,7 @@ func (a *App) compareSync(f *projectSyncForm) {
 // each conflict's side to pick.
 func (a *App) syncReview(c *ui.Context, f *projectSyncForm) {
 	if f.plan.Empty() {
-		ui.Text(c, "Both copies are the same.").FontSize(12.5)
+		ui.Text(c, "Both copies are the same.").FontSize(theme.TextUI)
 		return
 	}
 	names := [2]string{a.host.Name, f.target.Name}
@@ -332,15 +332,15 @@ func (a *App) syncDirection(c *ui.Context, f *projectSyncForm, from projectsync.
 	}
 	ui.Column(c).FillWidth().Gap(5).Children(func() {
 		ui.Row(c).Gap(6).Children(func() {
-			ui.Text(c, names[from]).FontSize(12.5).FontWeight(600)
+			ui.Text(c, names[from]).FontSize(theme.TextUI).FontWeight(600)
 			ui.Icon(c, icon.ArrowRight).FontSize(12).TextColor(theme.Muted)
-			ui.Text(c, names[from.Other()]).FontSize(12.5).FontWeight(600)
+			ui.Text(c, names[from.Other()]).FontSize(theme.TextUI).FontWeight(600)
 		})
 		if len(lines) == 0 {
-			ui.Text(c, "Nothing").FontSize(12).TextColor(theme.Muted)
+			ui.Text(c, "Nothing").FontSize(theme.TextLabel).TextColor(theme.Muted)
 		}
 		for i, l := range lines {
-			ui.Text(c.Key(fmt.Sprint(i)), l).FontSize(12).TextColor(theme.TextSoft)
+			ui.Text(c.Key(fmt.Sprint(i)), l).FontSize(theme.TextLabel).TextColor(theme.TextSoft)
 		}
 	})
 }
@@ -350,9 +350,9 @@ func (a *App) syncDirection(c *ui.Context, f *projectSyncForm, from projectsync.
 func (a *App) syncConflicts(c *ui.Context, f *projectSyncForm, names [2]string) {
 	options := []string{names[projectsync.Here], names[projectsync.There]}
 	ui.Column(c).FillWidth().Gap(6).Children(func() {
-		ui.Text(c, "Changed on both: keep whose?").FontSize(12.5).FontWeight(600)
+		ui.Text(c, "Changed on both: keep whose?").FontSize(theme.TextUI).FontWeight(600)
 		ui.Row(c).Gap(8).Children(func() {
-			ui.Text(c, "All").FontSize(12).TextColor(theme.Muted)
+			ui.Text(c, "All").FontSize(theme.TextLabel).TextColor(theme.Muted)
 			if i := widget.Segmented(c.Key("all"), options, -1, nil); i >= 0 {
 				for k := range f.plan.Files {
 					if f.plan.Files[k].Conflict {
@@ -388,7 +388,7 @@ func (a *App) syncConflicts(c *ui.Context, f *projectSyncForm, names [2]string) 
 
 func (a *App) syncConflictRow(c *ui.Context, label string, options []string, from *projectsync.Side) {
 	ui.Row(c).FillWidth().Gap(10).Children(func() {
-		ui.Text(c, label).FontSize(12).SingleLine().Shrink(1).Grow(1)
+		ui.Text(c, label).FontSize(theme.TextLabel).SingleLine().Shrink(1).Grow(1)
 		if i := widget.Segmented(c, options, int(*from), nil); i >= 0 {
 			*from = projectsync.Side(i)
 		}
@@ -466,11 +466,11 @@ func (a *App) syncOutcome(c *ui.Context, f *projectSyncForm) {
 	if f.step != syncDone {
 		return
 	}
-	ui.Text(c, "Both copies are the same now.").FontSize(12.5)
+	ui.Text(c, "Both copies are the same now.").FontSize(theme.TextUI)
 	names := [2]string{a.host.Name, f.target.Name}
 	for side, r := range f.result {
 		for i, n := range r.Notes {
-			ui.Text(c.Key(fmt.Sprint(side, i)), names[side]+": "+n).FontSize(11.5).TextColor(theme.Muted)
+			ui.Text(c.Key(fmt.Sprint(side, i)), names[side]+": "+n).FontSize(theme.TextLabel).TextColor(theme.Muted)
 		}
 	}
 }

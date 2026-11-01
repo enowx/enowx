@@ -73,7 +73,7 @@ func (a *App) termSizeSection(c *ui.Context) {
 		if widget.IconButton(c, icon.Minus, "Smaller ("+zoomKey()+"−)", false).Clicked() {
 			a.setTermSize(a.termSize() - 1)
 		}
-		ui.Text(c, fmt.Sprintf("%g", a.termSize())).FontSize(13).FontWeight(600).Width(28).TextAlign(ui.Center)
+		ui.Text(c, fmt.Sprintf("%g", a.termSize())).FontSize(theme.TextUI).FontWeight(600).Width(28).TextAlign(ui.Center)
 		if widget.IconButton(c, icon.Plus, "Larger ("+zoomKey()+"+)", false).Clicked() {
 			a.setTermSize(a.termSize() + 1)
 		}

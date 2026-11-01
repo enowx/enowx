@@ -189,7 +189,7 @@ func (a *App) judgesTab(c *ui.Context, st *decideState) {
 		if before != st.set.Policy && (st.set.Policy != proto.DecideOneProvider || st.set.Provider != "") {
 			a.saveDecide(st)
 		}
-		ui.Text(c, "Local models are always allowed. A judge not allowed for a session is skipped; the next in the order is asked when one fails or takes too long.").FontSize(11.5).TextColor(theme.Muted)
+		ui.Text(c, "Local models are always allowed. A judge not allowed for a session is skipped; the next in the order is asked when one fails or takes too long.").FontSize(theme.TextLabel).TextColor(theme.Muted)
 	})
 	if len(st.judges) == 0 {
 		widget.EmptyState(c, icon.Brain, "No judge on "+a.host.Name, "Install Claude Code or Codex (their own sign-in judges), add an Anthropic, OpenAI, Gemini or OpenRouter key to the vault, or run Ollama or LM Studio.", nil)
@@ -204,10 +204,10 @@ func (a *App) judgeRow(c *ui.Context, st *decideState, i int, j proto.Judge) {
 	off := slices.Contains(st.set.Off, j.ID)
 	widget.Card(c).FillWidth().Padding(10, 12).Children(func() {
 		ui.Row(c).FillWidth().Gap(10).AlignItems(ui.Center).Children(func() {
-			ui.Text(c, strconv.Itoa(i+1)).FontSize(11).TextColor(theme.Muted).Width(14)
+			ui.Text(c, strconv.Itoa(i+1)).FontSize(theme.TextLabel).TextColor(theme.Muted).Width(14)
 			ui.Column(c).Grow(1).MinWidth(0).Gap(2).Children(func() {
 				ui.Row(c).Gap(6).AlignItems(ui.Center).Children(func() {
-					ui.Text(c, j.Label).FontSize(12.5).SingleLine()
+					ui.Text(c, j.Label).FontSize(theme.TextUI).SingleLine()
 					widget.Tag(c, providerNames[j.Provider], theme.Muted)
 					if j.HasKey {
 						widget.Tag(c, "key set here", theme.Muted)
@@ -226,9 +226,9 @@ func (a *App) judgeRow(c *ui.Context, st *decideState, i int, j proto.Judge) {
 						widget.Tag(c, "failed", theme.Error)
 					}
 				})
-				ui.Text(c, judgeHow(j)).FontSize(11).TextColor(theme.Muted).SingleLine()
+				ui.Text(c, judgeHow(j)).FontSize(theme.TextLabel).TextColor(theme.Muted).SingleLine()
 				if !j.OK && j.Error != "" {
-					ui.Text(c, j.Error).FontSize(11).TextColor(theme.Error).MaxLines(2)
+					ui.Text(c, j.Error).FontSize(theme.TextLabel).TextColor(theme.Error).MaxLines(2)
 				}
 			})
 			if widget.IconButton(c.Key("up"), icon.ChevronUp, "Ask it sooner", false).Disabled(i == 0).Clicked() && i > 0 {
@@ -376,8 +376,8 @@ func (a *App) decideLogTab(c *ui.Context, st *decideState) {
 func (a *App) decisionRow(c *ui.Context, st *decideState, d proto.Decision) {
 	widget.Card(c).FillWidth().Padding(10, 12).Gap(4).Children(func() {
 		ui.Row(c).FillWidth().Gap(6).AlignItems(ui.Center).Children(func() {
-			ui.Text(c, d.Time.Local().Format("Jan 2 15:04")).FontSize(11).TextColor(theme.Muted)
-			ui.Text(c, useInfo[d.Use][0]).FontSize(12.5)
+			ui.Text(c, d.Time.Local().Format("Jan 2 15:04")).FontSize(theme.TextLabel).TextColor(theme.Muted)
+			ui.Text(c, useInfo[d.Use][0]).FontSize(theme.TextUI)
 			if d.Judge == "" {
 				widget.Tag(c, "no answer", theme.Muted)
 			} else {
@@ -390,7 +390,7 @@ func (a *App) decisionRow(c *ui.Context, st *decideState, d proto.Decision) {
 				widget.Tag(c, "marked wrong", theme.Warning)
 			}
 			if d.Session != "" {
-				ui.Text(c, a.sessionLabel(d.Session)).FontSize(11).TextColor(theme.Muted).SingleLine().Shrink(1)
+				ui.Text(c, a.sessionLabel(d.Session)).FontSize(theme.TextLabel).TextColor(theme.Muted).SingleLine().Shrink(1)
 			}
 			ui.Spacer(c)
 			if d.Judge != "" {
@@ -407,7 +407,7 @@ func (a *App) decisionRow(c *ui.Context, st *decideState, d proto.Decision) {
 		if d.Judge == "" {
 			why = d.Error
 		}
-		ui.Text(c, why).FontSize(12).TextColor(theme.TextSoft)
+		ui.Text(c, why).FontSize(theme.TextLabel).TextColor(theme.TextSoft)
 		meta := fmt.Sprintf("%s · %d ms", d.Judge, d.Ms)
 		if d.Saved > 0 {
 			meta += fmt.Sprintf(" · %d characters kept from the agent", d.Saved)
@@ -415,7 +415,7 @@ func (a *App) decisionRow(c *ui.Context, st *decideState, d proto.Decision) {
 		if len(d.Tried) > 0 {
 			meta += fmt.Sprintf(" · %d failed first", len(d.Tried))
 		}
-		ui.Text(c, meta).FontSize(11).TextColor(theme.Muted).SingleLine()
+		ui.Text(c, meta).FontSize(theme.TextLabel).TextColor(theme.Muted).SingleLine()
 	})
 }
 
@@ -480,7 +480,7 @@ func (a *App) judgeKeySheet(c *ui.Context, st *decideState) {
 	widget.FormSheet(c, &open, 480, "Key for "+j.Label, about, func() {
 		widget.Input(c.Key("judge-key-input"), &st.keyInput, "sk-…").FillWidth().Password().AutoFocus()
 		if j.HasKey {
-			ui.Text(c, "A key is set here; a new one replaces it.").FontSize(11.5).TextColor(theme.Muted)
+			ui.Text(c, "A key is set here; a new one replaces it.").FontSize(theme.TextLabel).TextColor(theme.Muted)
 		}
 	}, func() {
 		if j.HasKey && widget.DangerButton(c, "Remove the key").Clicked() {

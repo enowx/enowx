@@ -70,14 +70,14 @@ func (a *App) addHostDialog(c *ui.Context) {
 			}
 			b.Children(func() {
 				ui.Icon(c, icon.Plus).FontSize(13)
-				ui.Text(c, "Add a server by address instead").FontSize(12.5)
+				ui.Text(c, "Add a server by address instead").FontSize(theme.TextUI)
 			})
 			if b.Clicked() {
 				f.manual = true
 			}
 			return
 		} else if !hasTailnet && a.peersErr != "" && f.editing.ID == "" {
-			ui.Text(c, a.peersErr).FontSize(12).TextColor(theme.Muted)
+			ui.Text(c, a.peersErr).FontSize(theme.TextLabel).TextColor(theme.Muted)
 		}
 		submit := false
 		if f.editing.ID == "" {
@@ -109,7 +109,7 @@ func (a *App) addHostDialog(c *ui.Context) {
 		switchRow(c, &f.tailnet, "Through enowX's own tailnet", "enowX joins your tailnet as a device of its own, so the server is reached by its tailnet name without Tailscale on this machine. It asks you to sign in once.")
 		if f.editing.PasswordAuth && !f.forgetPassword {
 			ui.Row(c).FillWidth().Gap(8).Children(func() {
-				ui.Text(c, "A password is saved in the keychain for this host.").FontSize(12).TextColor(theme.TextSoft).Grow(1)
+				ui.Text(c, "A password is saved in the keychain for this host.").FontSize(theme.TextLabel).TextColor(theme.TextSoft).Grow(1)
 				if widget.GhostButton(c, "Forget password").Clicked() {
 					f.forgetPassword = true
 				}
@@ -118,7 +118,7 @@ func (a *App) addHostDialog(c *ui.Context) {
 		ui.Text(c, "enowX signs in with your SSH keys and asks for a password if the server wants one. It installs its daemon in ~/"+transport.HomeName+" on the server; sessions keep running there when you disconnect.").
 			FontSize(12).TextColor(theme.Muted)
 		if f.err != "" {
-			ui.Text(c, f.err).FontSize(12).TextColor(theme.Error)
+			ui.Text(c, f.err).FontSize(theme.TextLabel).TextColor(theme.Error)
 		}
 		widget.DialogFooter(c, "", func() {
 			if byAddress && widget.GhostButton(c, "Back to tailnet").Clicked() {
@@ -226,7 +226,7 @@ func (a *App) sshConfigSection(c *ui.Context) {
 				}
 				b.Children(func() {
 					ui.Icon(c, icon.Server).FontSize(12).TextColor(theme.Muted)
-					ui.Text(c, h.Alias).FontSize(12).SingleLine()
+					ui.Text(c, h.Alias).FontSize(theme.TextLabel).SingleLine()
 				})
 				if b.Clicked() {
 					f.address, f.name, f.err = h.Alias, h.Alias, ""

@@ -71,9 +71,9 @@ func (a *App) earlierChats(c *ui.Context, id string) {
 	}
 	msgs = msgs[max(0, len(msgs)-6):]
 	ui.Column(c).FillWidth().Gap(8).Children(func() {
-		ui.Text(c, "Lately, with this note's agent").FontSize(11.5).FontWeight(600).TextColor(theme.Muted)
+		ui.Text(c, "Lately, with this note's agent").FontSize(theme.TextLabel).FontWeight(600).TextColor(theme.Muted)
 		for i, m := range msgs {
-			ui.Column(c.Key(i)).FillWidth().Gap(3).Padding(9, 11).Radius(10).Border(1, theme.Border).Children(func() {
+			ui.Column(c.Key(i)).FillWidth().Gap(3).Padding(9, 11).Radius(theme.RadiusSmall).Border(1, theme.Border).Children(func() {
 				who := "You"
 				if m.Role == proto.TranscriptAssistant {
 					who = a.agentName(m.Agent)
@@ -82,8 +82,8 @@ func (a *App) earlierChats(c *ui.Context, id string) {
 				if m.Host != "" {
 					meta += " · " + m.Host
 				}
-				ui.Text(c, meta).FontSize(10.5).TextColor(theme.Muted).SingleLine()
-				ui.Text(c, m.Text).FontSize(12).TextColor(theme.Text).MaxLines(4)
+				ui.Text(c, meta).FontSize(theme.TextLabel).TextColor(theme.Muted).SingleLine()
+				ui.Text(c, m.Text).FontSize(theme.TextLabel).TextColor(theme.Text).MaxLines(4)
 			})
 		}
 	})

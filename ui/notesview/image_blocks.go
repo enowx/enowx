@@ -112,7 +112,7 @@ func (e *editor) imageBlock(c *ui.Context, i int) {
 						})
 					}
 					ui.Row(c).FillWidth().Gap(6).AlignItems(ui.Center).Children(func() {
-						ui.Text(c, name).FontSize(11).TextColor(theme.Muted).Grow(1)
+						ui.Text(c, name).FontSize(theme.TextLabel).TextColor(theme.Muted).Grow(1)
 						if !e.env.read && widget.IconButton(c, icon.Link, "Mention "+name, false).Clicked() {
 							e.insert(i, block{text: imageReference(name, part.src) + " "})
 							e.openAt(i+1, -1)

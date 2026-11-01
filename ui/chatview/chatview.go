@@ -520,6 +520,6 @@ func (ch *Chat) olderRow(c *ui.Context) {
 	}
 	ui.Row(c).FillWidth().Justify(ui.Center).Gap(8).Padding(4).Children(func() {
 		widget.Spinner(c, 12)
-		ui.Text(c, "Loading earlier messages…").FontSize(12).TextColor(theme.Muted)
+		ui.Text(c, "Loading earlier messages…").FontSize(theme.TextLabel).TextColor(theme.Muted)
 	})
 }

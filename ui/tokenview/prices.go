@@ -34,9 +34,9 @@ func (v *View) prices(c *ui.Context, d Data, o Options) {
 	})
 	widget.Card(c).Children(func() {
 		ui.Row(c).FillWidth().Padding(4, 10).Gap(10).Children(func() {
-			ui.Text(c, "Model").FontSize(11).TextColor(theme.Muted).Grow(1)
+			ui.Text(c, "Model").FontSize(theme.TextLabel).TextColor(theme.Muted).Grow(1)
 			for _, h := range []string{"Input", "Cache read", "Cache write", "Output", ""} {
-				ui.Text(c, h).FontSize(11).TextColor(theme.Muted).Width(74).TextAlign(ui.End)
+				ui.Text(c, h).FontSize(theme.TextLabel).TextColor(theme.Muted).Width(74).TextAlign(ui.End)
 			}
 		})
 		own := 0
@@ -44,7 +44,7 @@ func (v *View) prices(c *ui.Context, d Data, o Options) {
 			key := fmt.Sprintf("p%d", i)
 			ui.Row(c.Key(key)).FillWidth().Padding(6, 10).Gap(10).Children(func() {
 				ui.Row(c).Grow(1).MinWidth(0).Gap(8).Children(func() {
-					ui.Text(c, p.Model).Font(theme.MonoFont).FontSize(11.5).SingleLine().Shrink(1)
+					ui.Text(c, p.Model).Font(theme.MonoFont).FontSize(theme.TextLabel).SingleLine().Shrink(1)
 					note := p.Provider
 					if p.Config != "" {
 						note = "config " + p.Config
@@ -52,10 +52,10 @@ func (v *View) prices(c *ui.Context, d Data, o Options) {
 					if !p.Shipped {
 						note = strings.TrimSpace("yours " + note)
 					}
-					ui.Text(c, note).FontSize(11).TextColor(theme.Muted).SingleLine().Shrink(1)
+					ui.Text(c, note).FontSize(theme.TextLabel).TextColor(theme.Muted).SingleLine().Shrink(1)
 				})
 				for _, x := range []float64{p.Input, p.CacheRead, p.CacheWrite, p.Output} {
-					ui.Text(c, money(x)).FontSize(12).Width(74).TextAlign(ui.End).TextColor(theme.TextSoft).SingleLine()
+					ui.Text(c, money(x)).FontSize(theme.TextLabel).Width(74).TextAlign(ui.End).TextColor(theme.TextSoft).SingleLine()
 				}
 				ui.Row(c).Width(74).Justify(ui.End).Children(func() {
 					if p.Shipped {
@@ -119,7 +119,7 @@ func (v *View) priceSheet(c *ui.Context, d Data, o Options) {
 			}
 		})
 		if f.err != "" {
-			ui.Text(c, f.err).FontSize(12).TextColor(theme.Error)
+			ui.Text(c, f.err).FontSize(theme.TextLabel).TextColor(theme.Error)
 		}
 	}, func() {
 		if widget.PrimaryButton(c, nil, "Save", "").Clicked() {

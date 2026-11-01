@@ -89,10 +89,10 @@ func (a *App) fontList(c *ui.Context, families []ui.FontFamily) {
 		a.fontRow(c, "", "System monospaced font")
 		switch {
 		case !a.fontsLoaded:
-			ui.Text(c, "Looking for the fonts of this device…").FontSize(12).TextColor(theme.Muted)
+			ui.Text(c, "Looking for the fonts of this device…").FontSize(theme.TextLabel).TextColor(theme.Muted)
 			return
 		case len(families) == 0:
-			ui.Text(c, "This device has no other monospaced font.").FontSize(12).TextColor(theme.Muted)
+			ui.Text(c, "This device has no other monospaced font.").FontSize(theme.TextLabel).TextColor(theme.Muted)
 			return
 		}
 		q, shown := strings.ToLower(strings.TrimSpace(a.fontQuery)), 0
@@ -104,7 +104,7 @@ func (a *App) fontList(c *ui.Context, families []ui.FontFamily) {
 			shown++
 		}
 		if shown == 0 {
-			ui.Text(c, "No monospaced font has that name.").FontSize(12).TextColor(theme.Muted)
+			ui.Text(c, "No monospaced font has that name.").FontSize(theme.TextLabel).TextColor(theme.Muted)
 		}
 	})
 }
@@ -122,9 +122,9 @@ func (a *App) fontRow(c *ui.Context, family, label string) {
 	}
 	b.Children(func() {
 		ui.Icon(c, icon.Type).FontSize(13).TextColor(theme.TextSoft)
-		ui.Text(c, label).Font(family).FontSize(12.5).TextColor(theme.Text).SingleLine().Shrink(1)
+		ui.Text(c, label).Font(family).FontSize(theme.TextUI).TextColor(theme.Text).SingleLine().Shrink(1)
 		ui.Spacer(c)
-		ui.Text(c, "Aa 0123").Font(family).FontSize(12).TextColor(theme.Muted)
+		ui.Text(c, "Aa 0123").Font(family).FontSize(theme.TextLabel).TextColor(theme.Muted)
 		if on {
 			ui.Icon(c, icon.Check).FontSize(12).TextColor(theme.Accent)
 		}

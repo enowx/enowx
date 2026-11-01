@@ -69,9 +69,9 @@ func (v *View) projectBadges(c *ui.Context, o Options, n proto.NoteInfo) {
 			v.projectBadge(c.Key(p.Ref), o, n, p, state)
 		}
 		if extra := len(n.Projects) - len(shown); extra > 0 {
-			more := ui.ButtonBase(c).Height(22).PaddingX(8).Radius(11).Border(1, theme.Border).Cursor(ui.CursorPointer).
+			more := ui.ButtonBase(c).Height(22).PaddingX(8).Radius(theme.RadiusSmall).Border(1, theme.Border).Cursor(ui.CursorPointer).
 				Label(fmt.Sprintf("%d more projects", extra))
-			more.Children(func() { ui.Text(c, fmt.Sprintf("+%d", extra)).FontSize(11).TextColor(theme.TextSoft) })
+			more.Children(func() { ui.Text(c, fmt.Sprintf("+%d", extra)).FontSize(theme.TextLabel).TextColor(theme.TextSoft) })
 			if more.Clicked() {
 				if v.allBadges == nil {
 					v.allBadges = map[string]bool{}
@@ -84,13 +84,13 @@ func (v *View) projectBadges(c *ui.Context, o Options, n proto.NoteInfo) {
 			if len(n.Projects) > 0 {
 				label = "Projects…"
 			}
-			add := ui.ButtonBase(c).Height(22).PaddingX(8).Gap(4).Radius(11).Cursor(ui.CursorPointer).Label(label)
+			add := ui.ButtonBase(c).Height(22).PaddingX(8).Gap(4).Radius(theme.RadiusSmall).Cursor(ui.CursorPointer).Label(label)
 			if add.Hovered() {
 				add.Background(theme.Hover)
 			}
 			add.Children(func() {
 				ui.Icon(c, icon.Plus).FontSize(10).TextColor(theme.Muted)
-				ui.Text(c, label).FontSize(11).TextColor(theme.Muted)
+				ui.Text(c, label).FontSize(theme.TextLabel).TextColor(theme.Muted)
 			})
 			if add.Clicked() {
 				o.AttachProjects(n)
@@ -107,13 +107,13 @@ func (v *View) projectBadge(c *ui.Context, o Options, n proto.NoteInfo, p proto.
 	case ProjectBroken:
 		col, tip = theme.Error, "Not on "+p.HostName+" any more: click to attach it again"
 	}
-	b := ui.ButtonBase(c).Height(22).PaddingX(8).Gap(5).Radius(11).Border(1, theme.Fade(col, 0.4)).
+	b := ui.ButtonBase(c).Height(22).PaddingX(8).Gap(5).Radius(theme.RadiusSmall).Border(1, theme.Fade(col, 0.4)).
 		Cursor(ui.CursorPointer).Label("Project " + projectLabel(p)).Tooltip(tip).AlignItems(ui.Center)
 	b.Children(func() {
 		ui.Icon(c, icon.Folder).FontSize(10.5).TextColor(col)
-		ui.Text(c, projectLabel(p)).FontSize(11).TextColor(theme.TextSoft).SingleLine()
+		ui.Text(c, projectLabel(p)).FontSize(theme.TextLabel).TextColor(theme.TextSoft).SingleLine()
 		if state != ProjectOnline {
-			ui.Text(c, state).FontSize(10).TextColor(col)
+			ui.Text(c, state).FontSize(theme.TextLabel).TextColor(col)
 		}
 	})
 	if b.Clicked() {
@@ -231,8 +231,8 @@ func (v *View) byProjectTree(c *ui.Context, o Options, shown map[string]bool) {
 		}
 		ui.Row(c.Key(key)).FillWidth().Height(28).PaddingX(6).Gap(6).AlignItems(ui.Center).Children(func() {
 			ui.Icon(c, svg).FontSize(11).TextColor(theme.Muted)
-			ui.Text(c, title).FontSize(11.5).FontWeight(600).TextColor(theme.TextSoft).SingleLine().Shrink(1)
-			ui.Text(c, fmt.Sprint(len(pages))).FontSize(11).TextColor(theme.Muted)
+			ui.Text(c, title).FontSize(theme.TextLabel).FontWeight(600).TextColor(theme.TextSoft).SingleLine().Shrink(1)
+			ui.Text(c, fmt.Sprint(len(pages))).FontSize(theme.TextLabel).TextColor(theme.Muted)
 		})
 		ui.Column(c.Key(key+":pages")).FillWidth().Gap(1).Padding(0, 0, 0, 8).Children(func() {
 			for _, n := range pages {

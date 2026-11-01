@@ -76,10 +76,10 @@ func (a *App) sessionsTab(c *ui.Context) {
 				widget.Dot(c, col, h.state != hostOnline, 6)
 				widget.SectionLabel(c, h.name, theme.Muted)
 				ui.Spacer(c)
-				ui.Text(c, plural(len(list), "session")).FontSize(11).TextColor(theme.Idle)
+				ui.Text(c, plural(len(list), "session")).FontSize(theme.TextLabel).TextColor(theme.Idle)
 			})
 			if len(list) == 0 {
-				ui.Text(c, "No sessions.").FontSize(11.5).TextColor(theme.Muted).PaddingX(4)
+				ui.Text(c, "No sessions.").FontSize(theme.TextLabel).TextColor(theme.Muted).PaddingX(4)
 				continue
 			}
 			for _, s := range list {
@@ -113,14 +113,14 @@ func (a *App) goaSessionButton(c *ui.Context, host string, s proto.SessionInfo) 
 		widget.Dot(c, st.color, st.hollow, 7)
 		ui.Column(c).Grow(1).MinWidth(0).Gap(2).Children(func() {
 			ui.Row(c).FillWidth().Gap(6).Children(func() {
-				ui.Text(c, a.sessionName(s)).FontSize(12.5).SingleLine().Shrink(1)
-				ui.Text(c, a.agentName(s.Agent)+" · "+st.label).FontSize(11).TextColor(theme.Muted).SingleLine().Shrink(2)
+				ui.Text(c, a.sessionName(s)).FontSize(theme.TextUI).SingleLine().Shrink(1)
+				ui.Text(c, a.agentName(s.Agent)+" · "+st.label).FontSize(theme.TextLabel).TextColor(theme.Muted).SingleLine().Shrink(2)
 			})
 			switch {
 			case t != nil && t.Urgent != "" && t.Status == proto.GOATaskWaiting:
-				ui.Text(c, "Needs you: "+t.Asks).FontSize(11.5).TextColor(theme.Warning).SingleLine()
+				ui.Text(c, "Needs you: "+t.Asks).FontSize(theme.TextLabel).TextColor(theme.Warning).SingleLine()
 			case t != nil:
-				ui.Text(c, t.Title+" · "+t.Status).FontSize(11.5).TextColor(theme.TextSoft).SingleLine()
+				ui.Text(c, t.Title+" · "+t.Status).FontSize(theme.TextLabel).TextColor(theme.TextSoft).SingleLine()
 			}
 			a.sessionFacts(c, s)
 		})
@@ -166,7 +166,7 @@ func (a *App) goaDetailDialog(c *ui.Context) {
 		}
 		a.sessionFacts(c, s)
 		if t == nil {
-			ui.Text(c, "GOD of Agents gave this session no task.").FontSize(12).TextColor(theme.Muted)
+			ui.Text(c, "GOD of Agents gave this session no task.").FontSize(theme.TextLabel).TextColor(theme.Muted)
 			return
 		}
 		a.goaTaskBody(c, *t)
@@ -225,10 +225,10 @@ func (a *App) tasksTab(c *ui.Context) {
 				widget.Tag(c, b.Level, goaLevelColor(b.Level))
 			}
 			ui.Spacer(c)
-			ui.Text(c, plural(len(b.Tasks), "task")).FontSize(11).TextColor(theme.Idle)
+			ui.Text(c, plural(len(b.Tasks), "task")).FontSize(theme.TextLabel).TextColor(theme.Idle)
 		})
 		if len(b.Tasks) == 0 {
-			ui.Text(c, "Tasks GOD of Agents hands to sessions show here, with the model each runs on and why.").FontSize(12).TextColor(theme.Muted).PaddingX(4)
+			ui.Text(c, "Tasks GOD of Agents hands to sessions show here, with the model each runs on and why.").FontSize(theme.TextLabel).TextColor(theme.Muted).PaddingX(4)
 		}
 		for i := len(b.Tasks) - 1; i >= 0; i-- {
 			t := b.Tasks[i]
@@ -272,7 +272,7 @@ func goaStatusColor(t proto.GOATask) ui.Color {
 // effort and why, what it asks, its result.
 func (a *App) goaTaskBody(c *ui.Context, t proto.GOATask) {
 	ui.Row(c).FillWidth().Gap(8).Children(func() {
-		ui.Text(c, t.Title).FontSize(12.5).FontWeight(600).SingleLine().Shrink(1)
+		ui.Text(c, t.Title).FontSize(theme.TextUI).FontWeight(600).SingleLine().Shrink(1)
 		ui.Spacer(c)
 		widget.Tag(c, t.Status, goaStatusColor(t))
 	})
@@ -284,7 +284,7 @@ func (a *App) goaTaskBody(c *ui.Context, t proto.GOATask) {
 	if t.Host != "" {
 		where += " on " + a.goaHostName(t.Host)
 	}
-	ui.Text(c, where+" · "+textfmt.Age(t.Created, time.Now())).FontSize(11).TextColor(theme.Muted).SingleLine()
+	ui.Text(c, where+" · "+textfmt.Age(t.Created, time.Now())).FontSize(theme.TextLabel).TextColor(theme.Muted).SingleLine()
 	s, shown := a.sessionOn(a.goaHostName(t.Host), t.Session)
 	model := taskRanOn(t, s, shown)
 	if t.Config != "" {
@@ -292,23 +292,23 @@ func (a *App) goaTaskBody(c *ui.Context, t proto.GOATask) {
 	}
 	ui.Row(c).FillWidth().Gap(6).Children(func() {
 		ui.Icon(c, icon.Brain).FontSize(11).TextColor(theme.Accent)
-		ui.Text(c, model).FontSize(11.5).Font(theme.MonoFont).TextColor(theme.TextSoft).SingleLine().Shrink(1).Tooltip(strings.Join(t.Ran, " → "))
+		ui.Text(c, model).FontSize(theme.TextLabel).Font(theme.MonoFont).TextColor(theme.TextSoft).SingleLine().Shrink(1).Tooltip(strings.Join(t.Ran, " → "))
 	})
 	projectLine(c, taskProject(t), t.Dir, t.Branch, a.goaHostName(t.Host))
 	if t.Why != "" {
-		ui.Text(c, t.Why).FontSize(11.5).TextColor(theme.Muted)
+		ui.Text(c, t.Why).FontSize(theme.TextLabel).TextColor(theme.Muted)
 	}
 	switch {
 	case t.Urgent != "" && t.Status == proto.GOATaskWaiting:
-		ui.Text(c, "Waits on you ("+t.Urgent+"): "+t.Asks+". Answer it in its session.").FontSize(11.5).TextColor(theme.Warning)
+		ui.Text(c, "Waits on you ("+t.Urgent+"): "+t.Asks+". Answer it in its session.").FontSize(theme.TextLabel).TextColor(theme.Warning)
 	case t.Asks != "" && t.Status == proto.GOATaskWaiting:
-		ui.Text(c, "Asks: "+t.Asks+" (GOD of Agents answers)").FontSize(11.5).TextColor(theme.TextSoft)
+		ui.Text(c, "Asks: "+t.Asks+" (GOD of Agents answers)").FontSize(theme.TextLabel).TextColor(theme.TextSoft)
 	}
 	switch {
 	case t.Result != "":
-		ui.Text(c, textfmt.FirstLine(t.Result, 240)).FontSize(11.5).TextColor(theme.Text)
+		ui.Text(c, textfmt.FirstLine(t.Result, 240)).FontSize(theme.TextLabel).TextColor(theme.Text)
 	case t.Said != "":
-		ui.Text(c, "Last said: "+textfmt.FirstLine(t.Said, 240)).FontSize(11.5).TextColor(theme.TextSoft)
+		ui.Text(c, "Last said: "+textfmt.FirstLine(t.Said, 240)).FontSize(theme.TextLabel).TextColor(theme.TextSoft)
 	}
 }
 

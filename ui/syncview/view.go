@@ -26,7 +26,7 @@ func (d *Dialog) View(c *ui.Context) {
 		case d.loading:
 			ui.Text(c, "Reading both sides…").TextColor(theme.Muted).Padding(24, 0)
 		case d.err != "":
-			ui.Text(c, d.err).FontSize(13).TextColor(theme.Error)
+			ui.Text(c, d.err).FontSize(theme.TextUI).TextColor(theme.Error)
 		default:
 			d.list(c)
 		}
@@ -74,7 +74,7 @@ func (d *Dialog) list(c *ui.Context) {
 		})
 		if same > 0 {
 			widget.Switch(c, &d.showSame, "Show unchanged")
-			ui.Text(c, fmt.Sprintf("Unchanged (%d)", same)).FontSize(12).TextColor(theme.TextSoft)
+			ui.Text(c, fmt.Sprintf("Unchanged (%d)", same)).FontSize(theme.TextLabel).TextColor(theme.TextSoft)
 		}
 	})
 	ui.Scroll(c).FillWidth().Grow(1).MinHeight(120).Children(func() {
@@ -116,13 +116,13 @@ func (d *Dialog) section(c *ui.Context, kind string, idx []int) {
 	widget.Card(c).FillWidth().Padding(0).Gap(0).Children(func() {
 		head := ui.Row(c).FillWidth().Gap(10).Padding(10, 12)
 		head.Children(func() {
-			box := ui.ButtonBase(c).Label("Select all "+kindPlural(kind)).Size(16, 16).Radius(4).Center().
+			box := ui.ButtonBase(c).Label("Select all "+kindPlural(kind)).Size(16, 16).Radius(theme.RadiusTail).Center().
 				Shrink(0).Cursor(ui.CursorPointer).Border(1.5, theme.BorderStrong)
 			switch {
 			case checked > 0 && checked >= eligible:
 				box.Background(theme.Accent).BorderColor(theme.Accent).TextColor(theme.OnAccent).Children(func() { ui.Icon(c, icon.Check).FontSize(11) })
 			case checked > 0:
-				box.BorderColor(theme.Accent).Children(func() { ui.Box(c).Size(8, 2).Radius(1).Background(theme.Accent) })
+				box.BorderColor(theme.Accent).Children(func() { ui.Box(c).Size(8, 2).Radius(theme.RadiusTail).Background(theme.Accent) })
 			}
 			if box.Clicked() && !d.running {
 				all := checked > 0 && checked >= eligible
@@ -141,8 +141,8 @@ func (d *Dialog) section(c *ui.Context, kind string, idx []int) {
 					chev = icon.ChevronRight
 				}
 				ui.Icon(c, chev).FontSize(12).TextColor(theme.Muted)
-				ui.Text(c, kindPlural(kind)).FontSize(12.5)
-				ui.Text(c, fmt.Sprint(len(idx))).FontSize(12).TextColor(theme.Muted)
+				ui.Text(c, kindPlural(kind)).FontSize(theme.TextUI)
+				ui.Text(c, fmt.Sprint(len(idx))).FontSize(theme.TextLabel).TextColor(theme.Muted)
 				ui.Box(c).Grow(1)
 				if n := counts[statusNew]; n > 0 {
 					widget.Tag(c, fmt.Sprintf("%d new", n), theme.Accent)
@@ -150,7 +150,7 @@ func (d *Dialog) section(c *ui.Context, kind string, idx []int) {
 				if n := counts[statusChanged]; n > 0 {
 					widget.Tag(c, fmt.Sprintf("%d changed", n), theme.Warning)
 				}
-				ui.Text(c, fmt.Sprintf("%d selected", checked)).FontSize(12).TextColor(theme.TextSoft)
+				ui.Text(c, fmt.Sprintf("%d selected", checked)).FontSize(theme.TextLabel).TextColor(theme.TextSoft)
 			})
 			if toggle.Clicked() {
 				d.collapsed[kind] = !folded
@@ -173,7 +173,7 @@ func (d *Dialog) rowView(c *ui.Context, r *row) {
 		line.Background(theme.AccentSoft)
 	}
 	line.Children(func() {
-		box := ui.CheckboxBase(c, &r.checked).Label(itemTitle(r.item)).Size(16, 16).Radius(4).Center().
+		box := ui.CheckboxBase(c, &r.checked).Label(itemTitle(r.item)).Size(16, 16).Radius(theme.RadiusTail).Center().
 			Margin(2, 0, 0, 0).Shrink(0).Cursor(ui.CursorPointer).Border(1.5, theme.BorderStrong)
 		if r.checked {
 			box.Background(theme.Accent).BorderColor(theme.Accent).TextColor(theme.OnAccent).Children(func() {
@@ -189,7 +189,7 @@ func (d *Dialog) rowView(c *ui.Context, r *row) {
 			ui.Row(c).FillWidth().Gap(8).Children(func() {
 				ui.Icon(c, agentIcon(r.item.Agent)).FontSize(12).TextColor(theme.TextSoft).Label(d.agentName(r.item.Agent))
 				ui.Text(c, itemTitle(r.item)).SingleLine().Shrink(1)
-				ui.Text(c, d.agentName(r.item.Agent)).FontSize(11).TextColor(theme.Muted).SingleLine()
+				ui.Text(c, d.agentName(r.item.Agent)).FontSize(theme.TextLabel).TextColor(theme.Muted).SingleLine()
 				ui.Box(c).Grow(1)
 				switch r.status {
 				case statusNew:
@@ -201,7 +201,7 @@ func (d *Dialog) rowView(c *ui.Context, r *row) {
 				}
 			})
 			if r.item.Detail != "" {
-				ui.Text(c, r.item.Detail).Font(theme.MonoFont).FontSize(11).TextColor(theme.Muted).SingleLine()
+				ui.Text(c, r.item.Detail).Font(theme.MonoFont).FontSize(theme.TextLabel).TextColor(theme.Muted).SingleLine()
 			}
 			if len(r.item.Secrets) > 0 {
 				what := strings.Join(r.item.Secrets, ", ")
@@ -211,11 +211,11 @@ func (d *Dialog) rowView(c *ui.Context, r *row) {
 				}
 				ui.Row(c).Gap(6).Children(func() {
 					ui.Icon(c, icon.Lock).FontSize(11).TextColor(col)
-					ui.Text(c, msg).FontSize(11).TextColor(col)
+					ui.Text(c, msg).FontSize(theme.TextLabel).TextColor(col)
 				})
 			}
 			for _, w := range r.item.Warnings {
-				ui.Text(c, w).FontSize(11).TextColor(theme.Error)
+				ui.Text(c, w).FontSize(theme.TextLabel).TextColor(theme.Error)
 			}
 		})
 	})
@@ -224,16 +224,16 @@ func (d *Dialog) rowView(c *ui.Context, r *row) {
 func (d *Dialog) footer(c *ui.Context) {
 	switch {
 	case d.running:
-		ui.Text(c, fmt.Sprintf("Syncing %d of %d…", min(d.done+1, d.total), d.total)).FontSize(12).TextColor(theme.TextSoft)
+		ui.Text(c, fmt.Sprintf("Syncing %d of %d…", min(d.done+1, d.total), d.total)).FontSize(theme.TextLabel).TextColor(theme.TextSoft)
 	case d.finished:
 		summary := fmt.Sprintf("Synced %d of %d to %s.", d.total-len(d.failures), d.total, d.destName())
-		ui.Text(c, summary+" Restart running agents there to pick up the changes.").FontSize(12).TextColor(theme.Done)
+		ui.Text(c, summary+" Restart running agents there to pick up the changes.").FontSize(theme.TextLabel).TextColor(theme.Done)
 		ui.Column(c).FillWidth().Gap(3).Children(func() {
 			for _, f := range d.failures {
-				ui.Text(c, f).FontSize(11).TextColor(theme.Error)
+				ui.Text(c, f).FontSize(theme.TextLabel).TextColor(theme.Error)
 			}
 			for _, w := range d.warnings {
-				ui.Text(c, w).FontSize(11).TextColor(theme.Warning)
+				ui.Text(c, w).FontSize(theme.TextLabel).TextColor(theme.Warning)
 			}
 		})
 	default:

@@ -20,7 +20,7 @@ func (a *App) newSessionDialog(c *ui.Context) {
 	widget.Sheet(c, &f.open, 560, func() {
 		ui.Column(c).Gap(5).Grow(1).MinWidth(0).Children(func() {
 			widget.Breadcrumb(c, a.host.Name, f.project.Name, "New session")
-			ui.Text(c, f.project.Path).Font(theme.MonoFont).FontSize(11).TextColor(theme.Muted).SingleLine()
+			ui.Text(c, f.project.Path).Font(theme.MonoFont).FontSize(theme.TextLabel).TextColor(theme.Muted).SingleLine()
 		})
 		if widget.IconButton(c, icon.Close, "Close", false).Clicked() {
 			f.open = false
@@ -76,7 +76,7 @@ func (a *App) newSessionDialog(c *ui.Context) {
 		}
 		a.formError(c)
 	}, func() {
-		ui.Text(c, modKey+"↩ to start · Esc to cancel").FontSize(11.5).TextColor(theme.Muted)
+		ui.Text(c, modKey+"↩ to start · Esc to cancel").FontSize(theme.TextLabel).TextColor(theme.Muted)
 		ui.Spacer(c)
 		if widget.GhostButton(c, "Cancel").Clicked() {
 			f.open = false
@@ -115,7 +115,7 @@ func (a *App) newSessionDialog(c *ui.Context) {
 
 func (a *App) formError(c *ui.Context) {
 	if f := &a.newSession; f.err != "" {
-		ui.Text(c, f.err).FontSize(12).TextColor(theme.Error)
+		ui.Text(c, f.err).FontSize(theme.TextLabel).TextColor(theme.Error)
 	}
 }
 
@@ -126,8 +126,8 @@ func (a *App) signInCard(c *ui.Context, ag proto.AgentInfo) {
 	widget.Card(c).FillWidth().Children(func() {
 		ui.Row(c).FillWidth().Gap(12).Children(func() {
 			ui.Column(c).Gap(3).Grow(1).MinWidth(0).Children(func() {
-				ui.Text(c, "Not signed in yet?").FontSize(12.5)
-				ui.Text(c, ag.SignIn).Font(theme.MonoFont).FontSize(11).TextColor(theme.Muted).SingleLine()
+				ui.Text(c, "Not signed in yet?").FontSize(theme.TextUI)
+				ui.Text(c, ag.SignIn).Font(theme.MonoFont).FontSize(theme.TextLabel).TextColor(theme.Muted).SingleLine()
 			})
 			if widget.GhostButton(c, "Sign in").Disabled(f.busy).Clicked() && !f.busy {
 				a.startSignIn(ag)
@@ -142,7 +142,7 @@ func (a *App) skipPermissionsField(c *ui.Context) {
 	widget.Card(c).FillWidth().Children(func() {
 		ui.Row(c).FillWidth().Gap(12).Children(func() {
 			ui.Column(c).Gap(3).Grow(1).MinWidth(0).Children(func() {
-				ui.Text(c, "Skip permission prompts").FontSize(12.5)
+				ui.Text(c, "Skip permission prompts").FontSize(theme.TextUI)
 				ui.Text(c, "The agent runs commands and edits files without asking, and keeps doing so when enowX continues the session after a restart.").
 					FontSize(11.5).TextColor(theme.Muted)
 			})
@@ -165,12 +165,12 @@ func (a *App) displayField(c *ui.Context) {
 	widget.Card(c).FillWidth().Children(func() {
 		ui.Row(c).FillWidth().Gap(12).Children(func() {
 			ui.Column(c).Gap(3).Grow(1).MinWidth(0).Children(func() {
-				ui.Text(c, "Run with a display").FontSize(12.5)
+				ui.Text(c, "Run with a display").FontSize(theme.TextUI)
 				note := "For desktop apps: their windows open on a display of the session's own, shown in the Browser tool."
 				if !info.Display {
 					note = "For desktop apps; this host " + info.DisplayNote + "."
 				}
-				ui.Text(c, note).FontSize(11.5).TextColor(theme.Muted)
+				ui.Text(c, note).FontSize(theme.TextLabel).TextColor(theme.Muted)
 			})
 			if info.Display {
 				widget.Switch(c, &f.display, "Run with a display")
@@ -179,7 +179,7 @@ func (a *App) displayField(c *ui.Context) {
 			}
 		})
 		if !info.Display && info.DisplayInstall != "" {
-			ui.Text(c, info.DisplayInstall).Font(theme.MonoFont).FontSize(11).Padding(8, 10).Radius(7).Background(theme.Sunken).FillWidth().Margin(10, 0, 0, 0)
+			ui.Text(c, info.DisplayInstall).Font(theme.MonoFont).FontSize(theme.TextLabel).Padding(8, 10).Radius(theme.RadiusSmall).Background(theme.Sunken).FillWidth().Margin(10, 0, 0, 0)
 		}
 	})
 }
@@ -215,7 +215,7 @@ func (a *App) agentPicker(c *ui.Context) {
 			agentTile(c, cur.ID, 26)
 			ui.Text(c, cur.Name).SingleLine()
 			if cur.Command != "" {
-				ui.Text(c, cur.Command).Font(theme.MonoFont).FontSize(11).TextColor(theme.Muted)
+				ui.Text(c, cur.Command).Font(theme.MonoFont).FontSize(theme.TextLabel).TextColor(theme.Muted)
 			}
 			ui.Spacer(c)
 			ui.Icon(c, icon.ChevronDown).FontSize(13).TextColor(theme.Muted)
@@ -266,7 +266,7 @@ func (a *App) agentItem(c *ui.Context, sel ui.SelectParts[string], ag proto.Agen
 			case agent.Custom:
 				sub = "any program"
 			}
-			ui.Text(c, sub).Font(theme.MonoFont).FontSize(11).TextColor(theme.Muted)
+			ui.Text(c, sub).Font(theme.MonoFont).FontSize(theme.TextLabel).TextColor(theme.Muted)
 		})
 		if ag.ID == a.newSession.agent {
 			ui.Icon(c, icon.Check).FontSize(14).TextColor(theme.Accent)
@@ -295,20 +295,20 @@ func (a *App) branchFields(c *ui.Context) {
 		case proto.BranchNew:
 			ui.Grid(c).FillWidth().ColumnTracks(ui.Fr(1), ui.Fixed(180)).Gap(8).Margin(4, 0, 0, 0).Children(func() {
 				ui.Column(c).Gap(6).Children(func() {
-					ui.Text(c, "Branch name").FontSize(11.5).TextColor(theme.Muted)
+					ui.Text(c, "Branch name").FontSize(theme.TextLabel).TextColor(theme.Muted)
 					widget.Input(c, &f.branch, "feat/user-search").FillWidth().Font(theme.MonoFont).AutoFocus()
 				})
 				ui.Column(c).Gap(6).Children(func() {
-					ui.Text(c, "From").FontSize(11.5).TextColor(theme.Muted)
+					ui.Text(c, "From").FontSize(theme.TextLabel).TextColor(theme.Muted)
 					branchSelect(c, &f.base, f.project.Branches)
 				})
 			})
 		case proto.BranchExisting:
 			ui.Column(c).FillWidth().Gap(6).Margin(4, 0, 0, 0).Children(func() {
-				ui.Text(c, "Branch").FontSize(11.5).TextColor(theme.Muted)
+				ui.Text(c, "Branch").FontSize(theme.TextLabel).TextColor(theme.Muted)
 				branchSelect(c, &f.existing, f.project.Branches)
 				if f.existing == f.project.Branch && f.existing != "" {
-					ui.Text(c, "Checked out in the project folder, so the session runs there.").FontSize(11.5).TextColor(theme.Muted)
+					ui.Text(c, "Checked out in the project folder, so the session runs there.").FontSize(theme.TextLabel).TextColor(theme.Muted)
 				}
 			})
 		}
@@ -318,12 +318,12 @@ func (a *App) branchFields(c *ui.Context) {
 // branchSelect is a drop-down of branches.
 func branchSelect(c *ui.Context, value *string, branches []string) {
 	if len(branches) == 0 {
-		ui.Text(c, "No branches yet").FontSize(12).TextColor(theme.Muted)
+		ui.Text(c, "No branches yet").FontSize(theme.TextLabel).TextColor(theme.Muted)
 		return
 	}
 	sel := ui.SelectBase(c, value)
 	widget.Trigger(sel.Trigger, sel.Open()).Label("Branch").Children(func() {
-		ui.Text(c, *value).Font(theme.MonoFont).FontSize(12).SingleLine().Shrink(1)
+		ui.Text(c, *value).Font(theme.MonoFont).FontSize(theme.TextLabel).SingleLine().Shrink(1)
 		ui.Spacer(c)
 		ui.Icon(c, icon.ChevronDown).FontSize(13).TextColor(theme.Muted)
 	})
@@ -333,7 +333,7 @@ func branchSelect(c *ui.Context, value *string, branches []string) {
 			for _, b := range branches {
 				item := sel.Item(b)
 				widget.PopupItem(item, item.Highlighted()).Children(func() {
-					ui.Text(c, b).Font(theme.MonoFont).FontSize(12).Grow(1).SingleLine()
+					ui.Text(c, b).Font(theme.MonoFont).FontSize(theme.TextLabel).Grow(1).SingleLine()
 					if b == *value {
 						ui.Icon(c, icon.Check).FontSize(13).TextColor(theme.Accent)
 					}

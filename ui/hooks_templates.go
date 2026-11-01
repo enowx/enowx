@@ -44,7 +44,7 @@ func (a *App) hookTemplateMenu(c *ui.Context, st *hooksState) {
 	sel := ui.SelectBase(c.Key("hook-templates"), &picked)
 	widget.Trigger(sel.Trigger, sel.Open()).Width(190).Label("From a template").Children(func() {
 		ui.Icon(c, icon.Wand).FontSize(13).TextColor(theme.TextSoft)
-		ui.Text(c, "From a template").FontSize(12.5).SingleLine()
+		ui.Text(c, "From a template").FontSize(theme.TextUI).SingleLine()
 		ui.Spacer(c)
 		ui.Icon(c, icon.ChevronDown).FontSize(12).TextColor(theme.Muted)
 	})
@@ -52,7 +52,7 @@ func (a *App) hookTemplateMenu(c *ui.Context, st *hooksState) {
 		widget.Popup(panel.Margin(6, 0, 0, 0).Width(300))
 		for _, t := range hookTemplates {
 			item := sel.Item(t.name)
-			widget.PopupItem(item, item.Highlighted()).Children(func() { ui.Text(c, t.name).FontSize(12.5) })
+			widget.PopupItem(item, item.Highlighted()).Children(func() { ui.Text(c, t.name).FontSize(theme.TextUI) })
 		}
 	})
 	for _, t := range hookTemplates {

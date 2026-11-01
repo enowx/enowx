@@ -82,10 +82,10 @@ func (v *View) mcpDialog(c *ui.Context, o Options) {
 		}
 		widget.Field(c, "Environment (optional)", func() {
 			ui.TextAreaBase(c, &f.env).FillWidth().MinHeight(56).Padding(8, 10).Radius(theme.RadiusControl).
-				Background(theme.Sunken).Font(theme.MonoFont).FontSize(12).Placeholder("API_KEY=…  one per line").Label("Environment")
+				Background(theme.Sunken).Font(theme.MonoFont).FontSize(theme.TextLabel).Placeholder("API_KEY=…  one per line").Label("Environment")
 		})
 		if f.err != "" {
-			ui.Text(c, f.err).FontSize(12).TextColor(theme.Error)
+			ui.Text(c, f.err).FontSize(theme.TextLabel).TextColor(theme.Error)
 		}
 		widget.DialogFooter(c, "", func() {
 			if widget.GhostButton(c, "Cancel").Clicked() {
@@ -187,7 +187,7 @@ func (v *View) skillDialog(c *ui.Context, o Options) {
 			v.repoSkills(c, o, f)
 		}
 		if f.err != "" {
-			ui.Text(c, f.err).FontSize(12).TextColor(theme.Error)
+			ui.Text(c, f.err).FontSize(theme.TextLabel).TextColor(theme.Error)
 		}
 		widget.DialogFooter(c, "", func() {
 			if widget.GhostButton(c, "Cancel").Clicked() {
@@ -288,7 +288,7 @@ func (v *View) repoSkills(c *ui.Context, o Options, f *skillForm) {
 	case f.fetching:
 		ui.Row(c).Gap(8).Children(func() {
 			widget.Spinner(c, 14)
-			ui.Text(c, "Cloning it on "+o.Host+"…").FontSize(12).TextColor(theme.Muted)
+			ui.Text(c, "Cloning it on "+o.Host+"…").FontSize(theme.TextLabel).TextColor(theme.Muted)
 		})
 	case f.fetch != nil:
 		ui.Column(c).FillWidth().Gap(4).MaxHeight(260).Children(func() {

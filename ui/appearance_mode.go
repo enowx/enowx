@@ -59,7 +59,7 @@ func (a *App) systemAppearanceChanged(dark bool) {
 
 func (a *App) appearanceMode(c *ui.Context) {
 	ui.Column(c.Key("appearance-mode")).FillWidth().Gap(8).AlignItems(ui.Start).Children(func() {
-		ui.Text(c, "Appearance mode").FontSize(14).TextColor(theme.TextStrong)
+		ui.Text(c, "Appearance mode").FontSize(theme.TextUI).TextColor(theme.TextStrong)
 		selected := 0
 		switch a.state.ThemeMode {
 		case "light":
@@ -70,7 +70,7 @@ func (a *App) appearanceMode(c *ui.Context) {
 		if picked := widget.Segmented(c, []string{"Dark", "Light", "System"}, selected, nil); picked >= 0 {
 			a.setAppearanceMode([]string{"dark", "light", "system"}[picked])
 		}
-		ui.Text(c, "System follows your device. Your palette and accent are kept when the mode changes.").FontSize(12).TextColor(theme.Muted)
-		ui.Text(c, "Terminals stay dark to keep CLI text readable.").FontSize(12).TextColor(theme.Muted)
+		ui.Text(c, "System follows your device. Your palette and accent are kept when the mode changes.").FontSize(theme.TextLabel).TextColor(theme.Muted)
+		ui.Text(c, "Terminals stay dark to keep CLI text readable.").FontSize(theme.TextLabel).TextColor(theme.Muted)
 	})
 }

@@ -24,19 +24,19 @@ type compareState struct {
 func (v *View) versions(c *ui.Context, o Options) {
 	h := v.history
 	if h == nil {
-		ui.Text(c, "Loading…").FontSize(12).TextColor(theme.Muted)
+		ui.Text(c, "Loading…").FontSize(theme.TextLabel).TextColor(theme.Muted)
 		return
 	}
 	if cmp := v.compare; cmp != nil {
-		ui.Column(c).FillWidth().Padding(10).Gap(4).Radius(8).Background(theme.Raised).Border(1, theme.Border).Children(func() {
+		ui.Column(c).FillWidth().Padding(10).Gap(4).Radius(theme.RadiusSmall).Background(theme.Raised).Border(1, theme.Border).Children(func() {
 			ui.Row(c).FillWidth().AlignItems(ui.Center).Children(func() {
-				ui.Text(c, fmt.Sprintf("Version %d → %d", cmp.n, h.Head)).FontSize(12).FontWeight(600).Grow(1)
+				ui.Text(c, fmt.Sprintf("Version %d → %d", cmp.n, h.Head)).FontSize(theme.TextLabel).FontWeight(600).Grow(1)
 				if widget.IconButton(c, icon.Close, "Close comparison", false).Clicked() {
 					v.compare = nil
 				}
 			})
 			if len(cmp.changes) == 0 {
-				ui.Text(c, "The same").FontSize(11.5).TextColor(theme.Muted)
+				ui.Text(c, "The same").FontSize(theme.TextLabel).TextColor(theme.Muted)
 			}
 			for i, ch := range cmp.changes {
 				col := map[string]ui.Color{"added": theme.Done, "removed": theme.Error}[ch.Kind]
@@ -44,12 +44,12 @@ func (v *View) versions(c *ui.Context, o Options) {
 					col = theme.Warning
 				}
 				ui.Row(c.Key(i)).FillWidth().Gap(6).Children(func() {
-					ui.Text(c, ch.Kind).FontSize(11).TextColor(col).Width(58)
+					ui.Text(c, ch.Kind).FontSize(theme.TextLabel).TextColor(col).Width(58)
 					what := ch.Element
 					if what == "" {
 						what = "frame " + ch.Frame
 					}
-					ui.Text(c, what).FontSize(11).TextColor(theme.Text).SingleLine().Shrink(1)
+					ui.Text(c, what).FontSize(theme.TextLabel).TextColor(theme.Text).SingleLine().Shrink(1)
 				})
 			}
 		})
@@ -57,7 +57,7 @@ func (v *View) versions(c *ui.Context, o Options) {
 	list := slices.Clone(h.Versions)
 	slices.Reverse(list)
 	for _, ver := range list {
-		ui.Row(c.Key(ver.N)).FillWidth().Padding(6).Gap(8).Radius(6).AlignItems(ui.Center).Children(func() {
+		ui.Row(c.Key(ver.N)).FillWidth().Padding(6).Gap(8).Radius(theme.RadiusSmall).AlignItems(ui.Center).Children(func() {
 			dot := theme.Muted
 			if ver.N == h.Head {
 				dot = theme.Accent
@@ -75,11 +75,11 @@ func (v *View) versions(c *ui.Context, o Options) {
 				if ver.Element != "" {
 					what += " " + ver.Element
 				}
-				ui.Text(c, fmt.Sprintf("v%d · %s", ver.N, what)).FontSize(11.5).SingleLine()
-				ui.Text(c, who+" · "+ago(ver.Time)).FontSize(10.5).TextColor(theme.Muted).SingleLine()
+				ui.Text(c, fmt.Sprintf("v%d · %s", ver.N, what)).FontSize(theme.TextLabel).SingleLine()
+				ui.Text(c, who+" · "+ago(ver.Time)).FontSize(theme.TextLabel).TextColor(theme.Muted).SingleLine()
 			})
 			if ver.N == h.Head {
-				ui.Text(c, "shown").FontSize(10.5).TextColor(theme.Accent)
+				ui.Text(c, "shown").FontSize(theme.TextLabel).TextColor(theme.Accent)
 				return
 			}
 			if widget.IconButton(c.Key("cmp"), icon.Layers, fmt.Sprintf("Compare v%d with the one shown", ver.N), v.compare != nil && v.compare.n == ver.N).Clicked() {

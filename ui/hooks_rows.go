@@ -164,8 +164,8 @@ func (a *App) hookRow(c *ui.Context, st *hooksState, place hookPlace, h proto.Ho
 				if name == "" {
 					name = hookEventNames[h.Event]
 				}
-				ui.Text(c, name).FontSize(12.5).SingleLine()
-				ui.Text(c, hookSummary(h)).FontSize(11).TextColor(theme.Muted).SingleLine()
+				ui.Text(c, name).FontSize(theme.TextUI).SingleLine()
+				ui.Text(c, hookSummary(h)).FontSize(theme.TextLabel).TextColor(theme.Muted).SingleLine()
 			})
 			on := h.On
 			if widget.Switch(c, &on, "On") {
@@ -211,7 +211,7 @@ func (a *App) hookProposal(c *ui.Context, st *hooksState, p proto.HookProposal) 
 	}
 	widget.Notice(c, icon.Wand, theme.Accent, what, body, func() {
 		if detail := hookDetail(p.Hook); detail != "" {
-			ui.Text(c, detail).Font(theme.MonoFont).FontSize(11.5).TextColor(theme.TextSoft).MaxLines(6)
+			ui.Text(c, detail).Font(theme.MonoFont).FontSize(theme.TextLabel).TextColor(theme.TextSoft).MaxLines(6)
 		}
 		ui.Row(c).Gap(8).Children(func() {
 			if widget.Button(c, widget.Secondary, nil, "Reject", "").Disabled(st.busy).Clicked() {
@@ -280,9 +280,9 @@ func (a *App) hookReviewSheet(c *ui.Context, st *hooksState) {
 		"From "+filepath.Join(ph.Dir, ".enowx", "hooks.json")+". Allowed, they run like yours on "+a.host.Name+", commands included.", func() {
 			for _, h := range ph.Hooks {
 				ui.Column(c.Key(h.ID)).FillWidth().Gap(3).Padding(8, 10).Radius(theme.RadiusControl).Background(theme.Sunken).Children(func() {
-					ui.Text(c, hookSummary(h)).FontSize(12)
+					ui.Text(c, hookSummary(h)).FontSize(theme.TextLabel)
 					if d := hookDetail(h); d != "" {
-						ui.Text(c, d).Font(theme.MonoFont).FontSize(11.5).TextColor(theme.TextSoft).MaxLines(6)
+						ui.Text(c, d).Font(theme.MonoFont).FontSize(theme.TextLabel).TextColor(theme.TextSoft).MaxLines(6)
 					}
 				})
 			}
@@ -316,7 +316,7 @@ func (a *App) approveHooks(st *hooksState, ph proto.ProjectHooks) {
 // hookLogList is the latest runs of the host's hooks.
 func (a *App) hookLogList(c *ui.Context, st *hooksState) {
 	if len(st.log) == 0 {
-		ui.Text(c, "No hook has run since "+a.host.Name+"'s daemon started.").FontSize(12).TextColor(theme.Muted)
+		ui.Text(c, "No hook has run since "+a.host.Name+"'s daemon started.").FontSize(theme.TextLabel).TextColor(theme.Muted)
 		return
 	}
 	for i, r := range st.log {
@@ -331,22 +331,22 @@ func (a *App) hookLogList(c *ui.Context, st *hooksState) {
 				case r.Exit != 0:
 					col, label = theme.Error, fmt.Sprintf("exit %d", r.Exit)
 				}
-				ui.Box(c).Size(7, 7).Radius(4).Background(col)
+				ui.Box(c).Size(7, 7).Radius(theme.RadiusTail).Background(col)
 				name := r.Name
 				if name == "" {
 					name = hookEventNames[r.Event]
 				}
-				ui.Text(c, name).FontSize(12).SingleLine().Shrink(1)
-				ui.Text(c, hookEventNames[r.Event]).FontSize(11).TextColor(theme.Muted).SingleLine()
+				ui.Text(c, name).FontSize(theme.TextLabel).SingleLine().Shrink(1)
+				ui.Text(c, hookEventNames[r.Event]).FontSize(theme.TextLabel).TextColor(theme.Muted).SingleLine()
 				ui.Spacer(c)
 				meta := label + " · " + fmt.Sprintf("%d ms", r.Ms)
 				if r.Agent != "" {
 					meta = a.agentName(r.Agent) + " · " + meta
 				}
-				ui.Text(c, meta+" · "+r.Start.Local().Format("15:04:05")).Font(theme.MonoFont).FontSize(10.5).TextColor(theme.Muted).SingleLine()
+				ui.Text(c, meta+" · "+r.Start.Local().Format("15:04:05")).Font(theme.MonoFont).FontSize(theme.TextLabel).TextColor(theme.Muted).SingleLine()
 			})
 			if out := strings.TrimSpace(r.Output); out != "" {
-				ui.Text(c, out).Font(theme.MonoFont).FontSize(11).TextColor(theme.TextSoft).MaxLines(4)
+				ui.Text(c, out).Font(theme.MonoFont).FontSize(theme.TextLabel).TextColor(theme.TextSoft).MaxLines(4)
 			}
 		})
 	}

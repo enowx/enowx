@@ -146,7 +146,7 @@ func (a *App) setupPage(c *ui.Context) {
 	ui.Scroll(c).Grow(1).FillWidth().Children(func() {
 		ui.Column(c).FillWidth().MaxWidth(760).AlignSelf(ui.Center).Padding(20).Gap(14).Children(func() {
 			if a.host.ID == hosts.LocalID {
-				ui.Text(c, "Setup brings a server to what this device has: connect to the server, then open Set up there.").FontSize(12.5).TextColor(theme.Muted)
+				ui.Text(c, "Setup brings a server to what this device has: connect to the server, then open Set up there.").FontSize(theme.TextUI).TextColor(theme.Muted)
 				return
 			}
 			ui.Text(c, "Brings "+p.host.Name+" to what "+p.from+" has: toolchains at the same versions (through mise), git's user, GitHub's CLI signed in, the agents. Each step checks first, so running it again changes nothing. Skills, MCP servers and settings go with Sync environment.").
@@ -157,7 +157,7 @@ func (a *App) setupPage(c *ui.Context) {
 			case !p.scanned:
 				ui.Row(c).Gap(8).Children(func() {
 					widget.Spinner(c, 14)
-					ui.Text(c, "Scanning this device and "+p.host.Name+"…").FontSize(12.5).TextColor(theme.Muted)
+					ui.Text(c, "Scanning this device and "+p.host.Name+"…").FontSize(theme.TextUI).TextColor(theme.Muted)
 				})
 				return
 			}
@@ -174,7 +174,7 @@ func (a *App) setupPage(c *ui.Context) {
 // host has, and how it went.
 func (a *App) setupSteps(c *ui.Context, p *setupPage) {
 	if len(p.steps) == 0 {
-		ui.Text(c, "Nothing to bring: the manifest asks for nothing "+p.host.Name+" could get.").FontSize(12.5).TextColor(theme.Muted)
+		ui.Text(c, "Nothing to bring: the manifest asks for nothing "+p.host.Name+" could get.").FontSize(theme.TextUI).TextColor(theme.Muted)
 		return
 	}
 	widget.Card(c).Children(func() {
@@ -188,7 +188,7 @@ func (a *App) setupSteps(c *ui.Context, p *setupPage) {
 						}
 					} else {
 						setupStateMark(c, p.status[s.ID], p.picked[s.ID])
-						ui.Text(c, s.Title).FontSize(12.5)
+						ui.Text(c, s.Title).FontSize(theme.TextUI)
 					}
 					ui.Spacer(c)
 					col := theme.Muted
@@ -199,10 +199,10 @@ func (a *App) setupSteps(c *ui.Context, p *setupPage) {
 					if s.Asks {
 						detail += " · asks you"
 					}
-					ui.Text(c, detail).FontSize(11.5).TextColor(col).SingleLine().Shrink(1)
+					ui.Text(c, detail).FontSize(theme.TextLabel).TextColor(col).SingleLine().Shrink(1)
 				})
 				if p.commands && p.picked[s.ID] {
-					ui.Text(c, s.Script).Font(theme.MonoFont).FontSize(11).Padding(8, 10).Radius(6).Background(theme.Sunken).FillWidth()
+					ui.Text(c, s.Script).Font(theme.MonoFont).FontSize(theme.TextLabel).Padding(8, 10).Radius(theme.RadiusSmall).Background(theme.Sunken).FillWidth()
 				}
 			})
 		}

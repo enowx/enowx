@@ -189,7 +189,7 @@ func (a *App) discordLoop(want <-chan *discordrpc.Activity) {
 func (a *App) discordSection(c *ui.Context) {
 	sectionIntro(c, "Discord", "Show what you work on in enowX under your name in Discord, as Rich Presence, with a link to get enowX. It goes to the Discord app on this device, while it runs.")
 	if a.discordID() == "" {
-		ui.Text(c, "This build of enowX has no Discord application set.").FontSize(12).TextColor(theme.Muted)
+		ui.Text(c, "This build of enowX has no Discord application set.").FontSize(theme.TextLabel).TextColor(theme.Muted)
 		return
 	}
 	on := !a.state.Discord.Off
@@ -204,5 +204,5 @@ func (a *App) discordSection(c *ui.Context) {
 	if status == "" {
 		status = "Looking for Discord…"
 	}
-	ui.Text(c, status).FontSize(11.5).TextColor(theme.Muted)
+	ui.Text(c, status).FontSize(theme.TextLabel).TextColor(theme.Muted)
 }

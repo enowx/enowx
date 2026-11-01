@@ -42,7 +42,7 @@ func (a *App) windowButtons(c *ui.Context) {
 			if a.blurred && !over {
 				col = theme.Idle
 			}
-			b := ui.ButtonBase(c.Key(label)).Size(12, 12).Radius(6).Shrink(0).Background(col).Label(label).Center()
+			b := ui.ButtonBase(c.Key(label)).Size(12, 12).Radius(theme.RadiusSmall).Shrink(0).Background(col).Label(label).Center()
 			b.Children(func() {
 				if !over {
 					return

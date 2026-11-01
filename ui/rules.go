@@ -72,16 +72,16 @@ func (a *App) rulesDialog(c *ui.Context) {
 			ui.Row(c).Gap(6).AlignItems(ui.Center).Children(func() {
 				widget.TeamTag(c, f.rules.Team, a.spaceName(f.rules.Team))
 				if !f.rules.CanEdit {
-					ui.Text(c, "Edited by the team's admins").FontSize(11.5).TextColor(theme.Muted)
+					ui.Text(c, "Edited by the team's admins").FontSize(theme.TextLabel).TextColor(theme.Muted)
 				}
 			})
 		}
-		area := ui.TextArea(c, &f.text).Height(260).Padding(10, 12).Radius(theme.RadiusControl).Font(theme.MonoFont).FontSize(12.5).
+		area := ui.TextArea(c, &f.text).Height(260).Padding(10, 12).Radius(theme.RadiusControl).Font(theme.MonoFont).FontSize(theme.TextUI).
 			Background(theme.Sunken).Border(1, theme.BorderStrong).Placeholder("- Run the tests before saying it's done\n- Never push to main")
 		if !f.rules.CanEdit {
 			area.Disabled(true)
 		}
-		ui.Text(c, "No credentials here: agents read these, and rules that look like they hold a secret are refused.").FontSize(11.5).TextColor(theme.Muted)
+		ui.Text(c, "No credentials here: agents read these, and rules that look like they hold a secret are refused.").FontSize(theme.TextLabel).TextColor(theme.Muted)
 		if f.rules.CanEdit {
 			a.rulesDraftBox(c, &f.draft, proto.RulesForProject, f.project.Path, &f.text)
 		}
@@ -126,7 +126,7 @@ func rulesNotRead(c *ui.Context, err string) {
 	}
 	ui.Row(c).Gap(8).AlignItems(ui.Center).Children(func() {
 		widget.Spinner(c, 12)
-		ui.Text(c, "Reading them…").FontSize(12).TextColor(theme.Muted)
+		ui.Text(c, "Reading them…").FontSize(theme.TextLabel).TextColor(theme.Muted)
 	})
 }
 

@@ -21,7 +21,7 @@ func (v *View) Draw(c *ui.Context, o Options) {
 		v.toolbar(c, o)
 		if v.err != "" {
 			ui.Row(c).FillWidth().Padding(8, 14).Background(theme.Fade(theme.Error, 0.1)).Children(func() {
-				ui.Text(c, v.err).FontSize(12).TextColor(theme.Error).Shrink(1)
+				ui.Text(c, v.err).FontSize(theme.TextLabel).TextColor(theme.Error).Shrink(1)
 			})
 		}
 		switch {
@@ -65,7 +65,7 @@ func (v *View) showPage(c *ui.Context, o Options) {
 
 func (v *View) note(c *ui.Context, o Options, text string) {
 	ui.Column(c).Grow(1).FillWidth().Center().Padding(24).Gap(12).Children(func() {
-		ui.Text(c, text).FontSize(12.5).TextColor(theme.Muted).TextAlign(ui.Center)
+		ui.Text(c, text).FontSize(theme.TextUI).TextColor(theme.Muted).TextAlign(ui.Center)
 		if !o.Supported && v.port != 0 && widget.Button(c, widget.Secondary, icon.External, "Open in browser", "").Clicked() {
 			o.OpenURL(v.origin + "/")
 		}
@@ -164,7 +164,7 @@ func (v *View) addressField(c *ui.Context, o Options) {
 		if v.port != 0 {
 			placeholder = "localhost" + portLabel(v.port) + "/"
 		}
-		in := ui.TextInputBase(c, &v.address).Grow(1).MinWidth(0).Font(theme.MonoFont).FontSize(11.5).
+		in := ui.TextInputBase(c, &v.address).Grow(1).MinWidth(0).Font(theme.MonoFont).FontSize(theme.TextLabel).
 			Label("Address").Placeholder(placeholder)
 		submitted := in.Submitted()
 		v.editing = in.Focused() && !submitted
@@ -182,13 +182,13 @@ func (v *View) sizeMenu(c *ui.Context) {
 			label = strconv.Itoa(w.width)
 		}
 	}
-	b := ui.ButtonBase(c.Key("size")).Height(26).PaddingX(7).Gap(4).Radius(theme.RadiusControl - 2).Shrink(0).
+	b := ui.ButtonBase(c.Key("size")).Height(26).PaddingX(7).Gap(4).Radius(theme.RadiusControl).Shrink(0).
 		Label("Page width: " + label).Tooltip("Page width").Cursor(ui.CursorPointer)
 	if b.Hovered() {
 		b.Background(theme.Hover)
 	}
 	b.Children(func() {
-		ui.Text(c, label).FontSize(11.5).TextColor(theme.Muted).SingleLine()
+		ui.Text(c, label).FontSize(theme.TextLabel).TextColor(theme.Muted).SingleLine()
 		ui.Icon(c, icon.ChevronDown).FontSize(10).TextColor(theme.Muted)
 	})
 	v.sizes.OpenBelow(b, "sizes", 26)
@@ -220,7 +220,7 @@ func (v *View) portPicker(c *ui.Context, o Options) {
 		}
 	}
 	ui.Row(c).FillWidth().Gap(8).Children(func() {
-		ui.Text(c, strconv.Itoa(len(v.ports))+" ports").FontSize(11).TextColor(theme.Muted).SingleLine()
+		ui.Text(c, strconv.Itoa(len(v.ports))+" ports").FontSize(theme.TextLabel).TextColor(theme.Muted).SingleLine()
 		if i := widget.Segmented(c.Key("ports"), labels, cur, nil); i >= 0 {
 			v.pick(o, v.ports[i])
 		}

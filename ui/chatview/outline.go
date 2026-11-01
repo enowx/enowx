@@ -33,7 +33,7 @@ func (ch *Chat) outline(c *ui.Context, turns []turn, more int) {
 	}
 	ch.outlineFollow()
 	ui.Column(c.Key("outline")).Absolute().Right(16).Top(20).Width(outlineWidth).MaxHeight(420).Gap(0).Children(func() {
-		ui.Text(c, "Your messages").FontSize(11).TextColor(theme.Muted).Padding(0, 0, 6, 0)
+		ui.Text(c, "Your messages").FontSize(theme.TextLabel).TextColor(theme.Muted).Padding(0, 0, 6, 0)
 		ui.Scroll(c.Key("outline-rows")).FillWidth().TrackScroll(&ch.outlineScroll).Children(func() {
 			ui.Column(c).FillWidth().Children(func() {
 				for _, r := range rows {
@@ -49,7 +49,7 @@ func (ch *Chat) outline(c *ui.Context, turns []turn, more int) {
 						col = theme.TextSoft
 					}
 					b.BorderColor(edge).Children(func() {
-						ui.Text(c, firstLine(t.prompt.Text)).FontSize(12).TextColor(col).SingleLine()
+						ui.Text(c, firstLine(t.prompt.Text)).FontSize(theme.TextLabel).TextColor(col).SingleLine()
 					})
 					if b.Clicked() {
 						ch.list.ScrollTo(r, ui.Start)

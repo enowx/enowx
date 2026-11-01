@@ -20,7 +20,7 @@ func (v *View) imageDialog(c *ui.Context, o Options) {
 	w, h := c.Size()
 	widget.Dialog(c, &p.open, min(960, w-40), 12, func() {
 		ui.Row(c).FillWidth().Gap(8).AlignItems(ui.Center).Children(func() {
-			ui.Text(c, p.name).FontSize(16).TextColor(theme.TextStrong).Grow(1)
+			ui.Text(c, p.name).FontSize(theme.TextRead).TextColor(theme.TextStrong).Grow(1)
 			if widget.IconButton(c, icon.Close, "Close image", false).Clicked() {
 				p.open = false
 			}
@@ -33,6 +33,6 @@ func (v *View) imageDialog(c *ui.Context, o Options) {
 		}
 		iw, ih := r.size()
 		scale := min(float32(1), max(1, w-80)/iw, max(1, h-140)/ih)
-		ui.Image(c, r.img).Size(iw*scale, ih*scale).AlignSelf(ui.Center).Radius(6)
+		ui.Image(c, r.img).Size(iw*scale, ih*scale).AlignSelf(ui.Center).Radius(theme.RadiusSmall)
 	})
 }

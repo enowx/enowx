@@ -215,7 +215,7 @@ func (v *View) askDialog(c *ui.Context, o Options) {
 
 func (v *View) askError(c *ui.Context, a *asking) {
 	if a.err != "" {
-		ui.Text(c, a.err).FontSize(12).TextColor(theme.Error)
+		ui.Text(c, a.err).FontSize(theme.TextLabel).TextColor(theme.Error)
 	}
 }
 
@@ -257,8 +257,8 @@ func (v *View) properties(c *ui.Context, a *asking, open *bool) {
 		ui.Column(c).FillWidth().Gap(6).Children(func() {
 			for _, r := range rows {
 				ui.Row(c.Key(r[0])).FillWidth().Gap(12).Children(func() {
-					ui.Text(c, r[0]).FontSize(12).TextColor(theme.Muted).Width(90).Shrink(0)
-					ui.Text(c, r[1]).FontSize(12.5).Selectable().Grow(1).Shrink(1)
+					ui.Text(c, r[0]).FontSize(theme.TextLabel).TextColor(theme.Muted).Width(90).Shrink(0)
+					ui.Text(c, r[1]).FontSize(theme.TextUI).Selectable().Grow(1).Shrink(1)
 				})
 			}
 		})

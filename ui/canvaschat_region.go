@@ -57,7 +57,7 @@ func (a *App) canvasRegionView(c *ui.Context, cv proto.Canvas, hc *hostCanvasCha
 	case p != nil:
 		terminal.View(c.Key("term:"+s.ID), p.term).Grow(1).FillWidth()
 	default:
-		ui.Text(c, "Connecting…").FontSize(12).TextColor(theme.Muted).Padding(16)
+		ui.Text(c, "Connecting…").FontSize(theme.TextLabel).TextColor(theme.Muted).Padding(16)
 	}
 }
 
@@ -83,7 +83,7 @@ func (a *App) regionBar(c *ui.Context, cv proto.Canvas, hc *hostCanvasChat, s pr
 			}
 			back.Children(func() {
 				ui.Icon(c, icon.ArrowLeft).FontSize(13).TextColor(theme.TextSoft)
-				ui.Text(c, "Main agent").FontSize(12).FontWeight(600).TextColor(theme.TextSoft)
+				ui.Text(c, "Main agent").FontSize(theme.TextLabel).FontWeight(600).TextColor(theme.TextSoft)
 			})
 			if back.Clicked() {
 				hc.viewing = ""
@@ -103,14 +103,14 @@ func (a *App) regionBar(c *ui.Context, cv proto.Canvas, hc *hostCanvasChat, s pr
 			widget.Tag(c, label, col)
 		})
 		if !hasRun || len(run.Regions) == 0 {
-			ui.Text(c, s.Name).FontSize(12.5).FontWeight(600).SingleLine()
+			ui.Text(c, s.Name).FontSize(theme.TextUI).FontWeight(600).SingleLine()
 			return
 		}
 		// Every region's agent, the one shown lit: one click to the next.
 		ui.Row(c).FillWidth().Gap(6).Wrap().Children(func() {
 			for i, r := range run.Regions {
 				on := r.Session == s.ID
-				chip := ui.ButtonBase(c.Key("r:"+r.ID)).Height(24).Padding(0, 9, 0, 7).Gap(6).Radius(12).AlignItems(ui.Center).
+				chip := ui.ButtonBase(c.Key("r:"+r.ID)).Height(24).Padding(0, 9, 0, 7).Gap(6).Radius(theme.RadiusSmall).AlignItems(ui.Center).
 					Label("Show the agent of #"+r.ID).Cursor(ui.CursorPointer).Border(1, theme.Border)
 				if on {
 					chip.Background(theme.Fade(theme.Accent, 0.16)).Border(1, theme.AccentLine)
@@ -118,8 +118,8 @@ func (a *App) regionBar(c *ui.Context, cv proto.Canvas, hc *hostCanvasChat, s pr
 					chip.Background(theme.Hover)
 				}
 				chip.Children(func() {
-					ui.Box(c).Size(7, 7).Radius(4).Background(ui.Hex(unslopview.RegionColors[i%len(unslopview.RegionColors)]))
-					ui.Text(c, "#"+r.ID).FontSize(11.5).TextColor(theme.TextSoft).SingleLine()
+					ui.Box(c).Size(7, 7).Radius(theme.RadiusTail).Background(ui.Hex(unslopview.RegionColors[i%len(unslopview.RegionColors)]))
+					ui.Text(c, "#"+r.ID).FontSize(theme.TextLabel).TextColor(theme.TextSoft).SingleLine()
 					if r.Done {
 						ui.Icon(c, icon.Check).FontSize(10).TextColor(theme.Done)
 					}

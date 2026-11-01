@@ -58,7 +58,7 @@ func (a *App) agentsSection(c *ui.Context) {
 				}
 				if rank := agentRank(st, ag); rank != group {
 					group = rank
-					ui.Text(c, "Not installed").FontSize(11).FontWeight(600).TextColor(theme.Muted).Padding(8, 8, 2, 8)
+					ui.Text(c, "Not installed").FontSize(theme.TextLabel).FontWeight(600).TextColor(theme.Muted).Padding(8, 8, 2, 8)
 				}
 				a.agentListItem(c.Key("ag:"+ag.ID), st, ag)
 			}
@@ -87,9 +87,9 @@ func (a *App) agentListItem(c *ui.Context, st *accountsState, ag proto.AgentInfo
 	}
 	b.Children(func() {
 		agentTile(c, ag.ID, 20)
-		ui.Text(c, ag.Name).FontSize(12.5).SingleLine().Grow(1).Shrink(1)
+		ui.Text(c, ag.Name).FontSize(theme.TextUI).SingleLine().Grow(1).Shrink(1)
 		if n := len(st.accountsOfAgent(ag.ID)); n > 0 {
-			ui.Text(c, strconv.Itoa(n)).FontSize(11).TextColor(theme.Muted)
+			ui.Text(c, strconv.Itoa(n)).FontSize(theme.TextLabel).TextColor(theme.Muted)
 		}
 	})
 	if widget.Pressable(b).Clicked() {
@@ -115,8 +115,8 @@ func (a *App) agentPage(c *ui.Context, st *accountsState, apis *agentAPIState, a
 		if info.PerSession {
 			title, about = "Its own settings", "enowX wrote a model API into "+ag.Name+"'s settings before configs: it becomes a config once its key is in the vault (the app asks), and the settings go back to how you had them. Their backups stay here."
 		}
-		ui.Text(c, title).FontSize(12.5).TextColor(theme.TextSoft)
-		ui.Text(c, about).FontSize(11.5).TextColor(theme.Muted)
+		ui.Text(c, title).FontSize(theme.TextUI).TextColor(theme.TextSoft)
+		ui.Text(c, about).FontSize(theme.TextLabel).TextColor(theme.Muted)
 		a.agentAPIRow(c.Key("api"), apis, info)
 	})
 }
@@ -156,16 +156,16 @@ func apiInfoOf(apis *agentAPIState, id string) (proto.AgentAPIInfo, bool) {
 // agentWay says what an agent takes, what it doesn't and how that was checked.
 func (a *App) agentWay(c *ui.Context, ag proto.AgentInfo, way accounts.Way) {
 	ui.Column(c).FillWidth().Gap(4).Children(func() {
-		ui.Text(c, ag.Name+" takes "+way.Says()).FontSize(12.5).TextColor(theme.TextSoft)
+		ui.Text(c, ag.Name+" takes "+way.Says()).FontSize(theme.TextUI).TextColor(theme.TextSoft)
 		if way.Why != "" {
-			ui.Text(c, way.Why).FontSize(11.5).TextColor(theme.Muted)
+			ui.Text(c, way.Why).FontSize(theme.TextLabel).TextColor(theme.Muted)
 		}
 		if why := noConfigWhy(ag, way); why != "" {
-			ui.Text(c, why).FontSize(11.5).TextColor(theme.Warning)
+			ui.Text(c, why).FontSize(theme.TextLabel).TextColor(theme.Warning)
 		} else if way.Account && ag.SignIn == "" {
-			ui.Text(c, "It has no sign-in command: Sign in starts it in the account's own home, and it asks there.").FontSize(11.5).TextColor(theme.Warning)
+			ui.Text(c, "It has no sign-in command: Sign in starts it in the account's own home, and it asks there.").FontSize(theme.TextLabel).TextColor(theme.Warning)
 		}
-		ui.Text(c, wayChecked[way.Checked]).FontSize(10.5).TextColor(theme.Muted)
+		ui.Text(c, wayChecked[way.Checked]).FontSize(theme.TextLabel).TextColor(theme.Muted)
 	})
 }
 

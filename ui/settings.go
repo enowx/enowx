@@ -132,7 +132,7 @@ func (a *App) settingsNavItem(c *ui.Context, name string, narrow bool) {
 	b.TextColor(fg).Children(func() {
 		ui.Icon(c, sectionIcons[name]).FontSize(14)
 		if !narrow {
-			ui.Text(c, name).FontSize(12.5).SingleLine().Shrink(1)
+			ui.Text(c, name).FontSize(theme.TextUI).SingleLine().Shrink(1)
 		}
 	})
 	if widget.Pressable(b).Clicked() && !on {

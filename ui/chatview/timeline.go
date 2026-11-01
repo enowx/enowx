@@ -142,14 +142,14 @@ func (ch *Chat) turnTimeline(c *ui.Context, t turn, running bool) {
 		if thinking {
 			node(c.Key("thinking"), icon.Brain, toneRun, true, func() {
 				ui.Row(c).Height(20).Gap(8).AlignItems(ui.Center).Children(func() {
-					ui.Text(c, "Thinking").FontSize(12.5).TextColor(theme.TextSoft).Italic()
+					ui.Text(c, "Thinking").FontSize(theme.TextUI).TextColor(theme.TextSoft).Italic()
 					widget.Spinner(c, 11)
 				})
 			})
 		}
 		for i, e := range notices {
 			ui.Row(c.Key(fmt.Sprint("notice", i))).FillWidth().Justify(ui.Center).Padding(4, 0).Children(func() {
-				ui.Text(c, e.Text).FontSize(11).TextColor(theme.Muted)
+				ui.Text(c, e.Text).FontSize(theme.TextLabel).TextColor(theme.Muted)
 			})
 		}
 	})
@@ -178,7 +178,7 @@ func (ch *Chat) userNode(c *ui.Context, e proto.TranscriptEntry, running, last b
 			if !e.Time.IsZero() {
 				who += " · " + e.Time.Local().Format("15:04")
 			}
-			ui.Text(c, who).FontSize(11.5).TextColor(theme.Accent).SingleLine()
+			ui.Text(c, who).FontSize(theme.TextLabel).TextColor(theme.Accent).SingleLine()
 			ui.Spacer(c)
 			if ch.editable && (row.Hovered() || editing) {
 				tip := "Edit and send again"
@@ -243,9 +243,9 @@ func (ch *Chat) workNode(c *ui.Context, t turn, open, last bool) {
 			if head.Hovered() {
 				col = theme.Text
 			}
-			ui.Text(c, label).FontSize(12.5).TextColor(col).SingleLine()
+			ui.Text(c, label).FontSize(theme.TextUI).TextColor(col).SingleLine()
 			if len(parts) > 0 {
-				ui.Text(c, "· "+strings.Join(parts, " · ")).FontSize(12).TextColor(theme.Muted).SingleLine().Shrink(1)
+				ui.Text(c, "· "+strings.Join(parts, " · ")).FontSize(theme.TextLabel).TextColor(theme.Muted).SingleLine().Shrink(1)
 			}
 			chev := icon.ChevronRight
 			if open {
@@ -273,7 +273,7 @@ func (ch *Chat) entryNode(c *ui.Context, e proto.TranscriptEntry, latest, last b
 		}
 		node(c, icon.Brain, tn, last, func() {
 			ch.stepLine(c, e.Index, label, "", nil, func() {
-				ui.Text(c, e.Text).FontSize(12).TextColor(theme.Muted).Italic().Selectable()
+				ui.Text(c, e.Text).FontSize(theme.TextLabel).TextColor(theme.Muted).Italic().Selectable()
 			})
 		})
 	case proto.TranscriptAssistant:
@@ -323,11 +323,11 @@ func (ch *Chat) groupNode(c *ui.Context, tools []proto.TranscriptEntry, latest, 
 	node(c, svg, tn, last, func() {
 		status := func() {
 			if added+removed > 0 {
-				ui.Text(c, fmt.Sprintf("+%d", added)).FontSize(11.5).TextColor(theme.Done).SingleLine()
-				ui.Text(c, fmt.Sprintf("−%d", removed)).FontSize(11.5).TextColor(theme.Error).SingleLine()
+				ui.Text(c, fmt.Sprintf("+%d", added)).FontSize(theme.TextLabel).TextColor(theme.Done).SingleLine()
+				ui.Text(c, fmt.Sprintf("−%d", removed)).FontSize(theme.TextLabel).TextColor(theme.Error).SingleLine()
 			}
 			if failed > 0 {
-				ui.Text(c, fmt.Sprintf("%d failed", failed)).FontSize(11.5).TextColor(theme.Error).SingleLine()
+				ui.Text(c, fmt.Sprintf("%d failed", failed)).FontSize(theme.TextLabel).TextColor(theme.Error).SingleLine()
 			}
 		}
 		if stepHead(c, summary(tools), "", status, open).Clicked() {
@@ -363,9 +363,9 @@ func stepHead(c *ui.Context, label, detail string, status func(), open bool) ui.
 		if head.Hovered() {
 			col = theme.Text
 		}
-		ui.Text(c, label).FontSize(12.5).TextColor(col).SingleLine().Shrink(0)
+		ui.Text(c, label).FontSize(theme.TextUI).TextColor(col).SingleLine().Shrink(0)
 		if detail != "" {
-			ui.Text(c, detail).Font(theme.MonoFont).FontSize(11).TextColor(theme.Muted).SingleLine().Shrink(1)
+			ui.Text(c, detail).Font(theme.MonoFont).FontSize(theme.TextLabel).TextColor(theme.Muted).SingleLine().Shrink(1)
 		}
 		ui.Spacer(c)
 		if status != nil {
@@ -384,15 +384,15 @@ func stepHead(c *ui.Context, label, detail string, status func(), open bool) ui.
 func toolStatus(c *ui.Context, e proto.TranscriptEntry, latest bool) {
 	switch {
 	case e.Added+e.Removed > 0:
-		ui.Text(c, fmt.Sprintf("+%d", e.Added)).FontSize(11.5).TextColor(theme.Done).SingleLine()
-		ui.Text(c, fmt.Sprintf("−%d", e.Removed)).FontSize(11.5).TextColor(theme.Error).SingleLine()
+		ui.Text(c, fmt.Sprintf("+%d", e.Added)).FontSize(theme.TextLabel).TextColor(theme.Done).SingleLine()
+		ui.Text(c, fmt.Sprintf("−%d", e.Removed)).FontSize(theme.TextLabel).TextColor(theme.Error).SingleLine()
 	case e.Failed:
-		ui.Text(c, "failed").FontSize(11.5).TextColor(theme.Error).SingleLine()
+		ui.Text(c, "failed").FontSize(theme.TextLabel).TextColor(theme.Error).SingleLine()
 	case latest && !e.Done:
 		widget.Spinner(c, 11)
 	}
 	if e.Done && e.DurationMs > 0 {
-		ui.Text(c, took(e.DurationMs)).FontSize(11).TextColor(theme.Idle).SingleLine()
+		ui.Text(c, took(e.DurationMs)).FontSize(theme.TextLabel).TextColor(theme.Idle).SingleLine()
 	}
 }
 

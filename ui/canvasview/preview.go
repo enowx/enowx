@@ -94,7 +94,7 @@ func (v *View) pictureAt(c *ui.Context, o Options, f proto.CanvasFrame, width in
 func (v *View) designPreview(c *ui.Context, o Options, f proto.CanvasFrame, w float32) ui.Element {
 	s := float64(w) / math.Max(float64(f.Width), 1)
 	h := float32(float64(f.Height) * s)
-	box := ui.Box(c).Size(w, h).Shrink(0).Radius(4).Clip().Background(color(f.Background, ui.RGB(255, 255, 255)))
+	box := ui.Box(c).Size(w, h).Shrink(0).Radius(theme.RadiusTail).Clip().Background(color(f.Background, ui.RGB(255, 255, 255)))
 	if img := v.picture(c, o, f); img != nil {
 		box.Children(func() { ui.Image(c, img).Size(w, h) })
 		return box

@@ -31,17 +31,17 @@ func (v *View) conflictBanner(c *ui.Context, o Options) {
 		ui.Row(c).FillWidth().Gap(8).Children(func() {
 			ui.Icon(c, icon.Alert).FontSize(12).TextColor(col)
 			title := fmt.Sprintf("%d %s also changed in another session", len(o.Conflicts), textfmt.Plural(len(o.Conflicts), "file", "files"))
-			ui.Text(c, title).FontSize(12).TextColor(theme.Text).SingleLine().Shrink(1)
+			ui.Text(c, title).FontSize(theme.TextLabel).TextColor(theme.Text).SingleLine().Shrink(1)
 		})
 		for i, n := range o.Conflicts {
 			b := ui.ButtonBase(c.Key(i)).FillWidth().Height(22).Gap(8).Padding(0, 0, 0, 20).Justify(ui.Start).
 				Cursor(ui.CursorPointer).Label(n.File + " in " + n.With)
 			b.Children(func() {
-				ui.Text(c, n.File).Font(theme.MonoFont).FontSize(11.5).TextColor(theme.TextSoft).SingleLine().Shrink(1)
-				ui.Text(c, "· "+n.With).FontSize(11.5).TextColor(theme.Muted).SingleLine().Shrink(1)
+				ui.Text(c, n.File).Font(theme.MonoFont).FontSize(theme.TextLabel).TextColor(theme.TextSoft).SingleLine().Shrink(1)
+				ui.Text(c, "· "+n.With).FontSize(theme.TextLabel).TextColor(theme.Muted).SingleLine().Shrink(1)
 				ui.Spacer(c)
 				if n.Lines {
-					ui.Text(c, "same lines").FontSize(11).TextColor(theme.Warning).SingleLine().Shrink(0)
+					ui.Text(c, "same lines").FontSize(theme.TextLabel).TextColor(theme.Warning).SingleLine().Shrink(0)
 				}
 			})
 			if b.Clicked() && o.ShowSession != nil {

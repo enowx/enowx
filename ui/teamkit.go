@@ -78,18 +78,18 @@ func (a *App) cloudTeamKit(c *ui.Context, cs *cloudSettings) {
 			mine = append(mine, it)
 		}
 	}
-	ui.Text(c, "Skills, commands and subagents the team shares: every session in its projects is told of them, whatever its agent.").FontSize(12).TextColor(theme.TextSoft)
+	ui.Text(c, "Skills, commands and subagents the team shares: every session in its projects is told of them, whatever its agent.").FontSize(theme.TextLabel).TextColor(theme.TextSoft)
 	if len(mine) == 0 {
-		ui.Text(c, "Nothing shared yet.").FontSize(12).TextColor(theme.Muted)
+		ui.Text(c, "Nothing shared yet.").FontSize(theme.TextLabel).TextColor(theme.Muted)
 	}
 	ui.Column(c).FillWidth().Gap(4).Children(func() {
 		for _, it := range mine {
 			ui.Row(c.Key("kit:"+it.Kind+":"+it.Name)).FillWidth().Gap(10).AlignItems(ui.Center).Padding(8, 10).Radius(theme.RadiusControl).Background(theme.Sunken).Children(func() {
 				widget.Tag(c, it.Kind, theme.TextSoft)
 				ui.Column(c).Grow(1).Shrink(1).MinWidth(0).Gap(1).Children(func() {
-					ui.Text(c, it.Name).FontSize(12.5).SingleLine()
+					ui.Text(c, it.Name).FontSize(theme.TextUI).SingleLine()
 					if it.About != "" {
-						ui.Text(c, it.About).FontSize(11).TextColor(theme.Muted).SingleLine()
+						ui.Text(c, it.About).FontSize(theme.TextLabel).TextColor(theme.Muted).SingleLine()
 					}
 				})
 				if can && widget.IconButton(c, icon.Close, "Take "+it.Name+" out of the kit", false).Clicked() {
@@ -134,7 +134,7 @@ func (a *App) cloudTeamKit(c *ui.Context, cs *cloudSettings) {
 	}
 	widget.Field(c, a.host.Name+"'s agents", func() {
 		if len(tk.items) == 0 {
-			ui.Text(c, "No skills, commands or subagents here.").FontSize(12).TextColor(theme.Muted)
+			ui.Text(c, "No skills, commands or subagents here.").FontSize(theme.TextLabel).TextColor(theme.Muted)
 			return
 		}
 		widget.SearchField(c, &tk.filter, "Filter skills, commands, subagents", icon.Search)
@@ -149,8 +149,8 @@ func (a *App) cloudTeamKit(c *ui.Context, cs *cloudSettings) {
 				shared := slices.ContainsFunc(mine, func(k proto.TeamKitItem) bool { return k.Kind == it.Kind && k.Name == it.Name })
 				ui.Row(c.Key("host:"+it.ID)).FillWidth().Gap(8).AlignItems(ui.Center).Padding(4, 6).Children(func() {
 					widget.Tag(c, it.Kind, theme.TextSoft)
-					ui.Text(c, it.Name).FontSize(12.5).Grow(1).Shrink(1).MinWidth(0).SingleLine()
-					ui.Text(c, a.agentName(it.Agent)).FontSize(11).TextColor(theme.Muted)
+					ui.Text(c, it.Name).FontSize(theme.TextUI).Grow(1).Shrink(1).MinWidth(0).SingleLine()
+					ui.Text(c, a.agentName(it.Agent)).FontSize(theme.TextLabel).TextColor(theme.Muted)
 					switch {
 					case shared:
 						widget.Tag(c, "shared", theme.Done)
@@ -174,7 +174,7 @@ func (a *App) cloudTeamKit(c *ui.Context, cs *cloudSettings) {
 			}
 		})
 		if shown == 0 {
-			ui.Text(c, "Nothing matches “"+tk.filter+"”.").FontSize(12).TextColor(theme.Muted)
+			ui.Text(c, "Nothing matches “"+tk.filter+"”.").FontSize(theme.TextLabel).TextColor(theme.Muted)
 		}
 	})
 }

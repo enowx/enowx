@@ -28,7 +28,7 @@ func (a *App) syncSection(c *ui.Context) {
 			}
 			widget.Dot(c, col, a.dsync.running, 8)
 			ui.Column(c).Grow(1).MinWidth(0).Gap(2).Children(func() {
-				ui.Text(c, summary).FontSize(13).TextColor(theme.TextStrong)
+				ui.Text(c, summary).FontSize(theme.TextUI).TextColor(theme.TextStrong)
 				st := a.dsync.hub
 				if st.ID != "" {
 					ui.Text(c, fmt.Sprintf("This device: %s, %s", textfmt.Plural(st.Files, "1 file", fmt.Sprintf("%d files", st.Files)), textfmt.Bytes(uint64(st.Size)))).
@@ -51,7 +51,7 @@ func (a *App) syncSection(c *ui.Context) {
 				a.syncHostRow(c.Key(h.ID), h)
 			}
 			if !any {
-				ui.Text(c, "No other host yet: add a server or a computer in Hosts, and its notes join these.").FontSize(12).TextColor(theme.Muted)
+				ui.Text(c, "No other host yet: add a server or a computer in Hosts, and its notes join these.").FontSize(theme.TextLabel).TextColor(theme.Muted)
 			}
 		})
 	})
@@ -67,11 +67,11 @@ func (a *App) syncSection(c *ui.Context) {
 	widget.Field(c, "Recently deleted", func() {
 		ui.Column(c).FillWidth().Gap(4).Children(func() {
 			if len(a.dsync.trash) == 0 {
-				ui.Text(c, fmt.Sprintf("Nothing. What's deleted, here or on another host, is kept %d days.", 30)).FontSize(12).TextColor(theme.Muted)
+				ui.Text(c, fmt.Sprintf("Nothing. What's deleted, here or on another host, is kept %d days.", 30)).FontSize(theme.TextLabel).TextColor(theme.Muted)
 			}
 			for i, it := range a.dsync.trash {
 				if i == 20 {
-					ui.Text(c, fmt.Sprintf("and %d more", len(a.dsync.trash)-20)).FontSize(11.5).TextColor(theme.Muted)
+					ui.Text(c, fmt.Sprintf("and %d more", len(a.dsync.trash)-20)).FontSize(theme.TextLabel).TextColor(theme.Muted)
 					break
 				}
 				ui.Row(c.Key(it.ID)).FillWidth().Height(32).Gap(8).AlignItems(ui.Center).Children(func() {
@@ -80,8 +80,8 @@ func (a *App) syncSection(c *ui.Context) {
 					if name == "" {
 						name = it.Path
 					}
-					ui.Text(c, name).FontSize(12.5).TextColor(theme.Text).SingleLine().Shrink(1)
-					ui.Text(c, textfmt.Age(it.Deleted, time.Now())).FontSize(11).TextColor(theme.Muted)
+					ui.Text(c, name).FontSize(theme.TextUI).TextColor(theme.Text).SingleLine().Shrink(1)
+					ui.Text(c, textfmt.Age(it.Deleted, time.Now())).FontSize(theme.TextLabel).TextColor(theme.Muted)
 					ui.Spacer(c)
 					if widget.GhostButton(c, "Restore").Clicked() {
 						a.syncCall(func(hub *client.Client) error { return hub.SyncRestore(it.ID) })
@@ -116,11 +116,11 @@ func (a *App) syncHostRow(c *ui.Context, h hosts.Host) {
 	ui.Row(c).FillWidth().Padding(10).Gap(10).Radius(theme.RadiusControl).Border(1, theme.Border).AlignItems(ui.Center).Children(func() {
 		ui.Icon(c, icon.Server).FontSize(14).TextColor(theme.TextSoft)
 		ui.Column(c).Grow(1).MinWidth(0).Gap(2).Children(func() {
-			ui.Text(c, h.Name).FontSize(12.5).TextColor(theme.Text)
-			ui.Text(c, about).FontSize(11.5).TextColor(theme.Muted).Shrink(1)
+			ui.Text(c, h.Name).FontSize(theme.TextUI).TextColor(theme.Text)
+			ui.Text(c, about).FontSize(theme.TextLabel).TextColor(theme.Muted).Shrink(1)
 		})
 		widget.Dot(c, col, col == (ui.Color{}), 7)
-		ui.Text(c, state).FontSize(11.5).TextColor(theme.TextSoft)
+		ui.Text(c, state).FontSize(theme.TextLabel).TextColor(theme.TextSoft)
 	})
 }
 
@@ -134,11 +134,11 @@ func (a *App) conflictRow(c *ui.Context, cf proto.SyncConflict) {
 			if name == "" {
 				name = cf.Path
 			}
-			ui.Text(c, name).FontSize(13).TextColor(theme.TextStrong).SingleLine().Shrink(1)
+			ui.Text(c, name).FontSize(theme.TextUI).TextColor(theme.TextStrong).SingleLine().Shrink(1)
 			ui.Spacer(c)
-			ui.Text(c, "changed on two hosts "+textfmt.Age(cf.Created, time.Now())).FontSize(11).TextColor(theme.Muted)
+			ui.Text(c, "changed on two hosts "+textfmt.Age(cf.Created, time.Now())).FontSize(theme.TextLabel).TextColor(theme.Muted)
 		})
-		ui.Text(c, "Both changed the same lines. The first version is in place until you pick.").FontSize(11.5).TextColor(theme.Muted)
+		ui.Text(c, "Both changed the same lines. The first version is in place until you pick.").FontSize(theme.TextLabel).TextColor(theme.Muted)
 		ui.Row(c).FillWidth().Gap(6).Wrap().Children(func() {
 			for i, v := range cf.Versions {
 				label := "Keep " + v.Host + "'s"

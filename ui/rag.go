@@ -142,9 +142,9 @@ func (a *App) ragSection(c *ui.Context) {
 			hint = "set on " + a.host.Name + ": type to replace"
 		}
 		a.keyFields(c, "rag-pg", &st.pg, &s.PostgresCred, &st.pgVault, hint)
-		ui.Text(c, "A vault credential holding postgres://user:password@host:5432/db. pgvector must be installed there (enowX creates the extension when its user may); enowX keeps its table enowx_rag_points.").FontSize(11.5).TextColor(theme.Muted)
+		ui.Text(c, "A vault credential holding postgres://user:password@host:5432/db. pgvector must be installed there (enowX creates the extension when its user may); enowX keeps its table enowx_rag_points.").FontSize(theme.TextLabel).TextColor(theme.Muted)
 	} else {
-		ui.Text(c, "One SQLite file in "+a.host.Name+"'s enowX folder: nothing else to run, fast up to around a hundred thousand parts a project.").FontSize(11.5).TextColor(theme.Muted)
+		ui.Text(c, "One SQLite file in "+a.host.Name+"'s enowX folder: nothing else to run, fast up to around a hundred thousand parts a project.").FontSize(theme.TextLabel).TextColor(theme.Muted)
 	}
 	if s.HasKey || s.HasPostgres || st.move.said != "" {
 		a.keysToVaultRow(c, &st.move, a.loadRAGSettings)
@@ -293,7 +293,7 @@ func (a *App) ragAsk(c *ui.Context) *widget.Ask {
 	return &widget.Ask{Key: fmt.Sprintf("rag:%p", p), Icon: icon.Check, Title: "Keep this as a memory of the project?",
 		About: a.sessionLabel(p.Session) + " ended. Agents searching the project will find it; trim it to the decision.",
 		Body: func() {
-			ui.TextAreaBase(c.Key("rag-offer"), &p.Text).FillWidth().MinHeight(90).MaxHeight(240).Padding(9, 11).FontSize(12.5).
+			ui.TextAreaBase(c.Key("rag-offer"), &p.Text).FillWidth().MinHeight(90).MaxHeight(240).Padding(9, 11).FontSize(theme.TextUI).
 				Radius(theme.RadiusControl).Border(1, theme.Border).Label("Memory")
 		},
 		Buttons: []widget.AskButton{
@@ -355,7 +355,7 @@ func (a *App) keysToVaultRow(c *ui.Context, st *keysMove, done func()) {
 		}
 	})
 	if st.said != "" {
-		ui.Text(c, st.said).FontSize(12).TextColor(theme.Muted)
+		ui.Text(c, st.said).FontSize(theme.TextLabel).TextColor(theme.Muted)
 	}
 }
 

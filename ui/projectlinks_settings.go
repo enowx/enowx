@@ -74,7 +74,7 @@ func (a *App) linkSettings(c *ui.Context, f *linksForm) {
 				if widget.Checkbox(c, &follow, "Follow .gitignore") {
 					d.All = !follow
 				}
-				ui.Text(c, "node_modules, target, dist, .venv and other dependencies' folders never go.").FontSize(11).TextColor(theme.Muted)
+				ui.Text(c, "node_modules, target, dist, .venv and other dependencies' folders never go.").FontSize(theme.TextLabel).TextColor(theme.Muted)
 				widget.Checkbox(c, &d.Env, "Include .env files")
 			})
 		})
@@ -89,9 +89,9 @@ func (a *App) linkSettings(c *ui.Context, f *linksForm) {
 		})
 		widget.Field(c, "Large and binary files", func() {
 			ui.Row(c).FillWidth().Gap(8).AlignItems(ui.Center).Children(func() {
-				ui.Text(c, "Large from").FontSize(12).TextColor(theme.Muted)
+				ui.Text(c, "Large from").FontSize(theme.TextLabel).TextColor(theme.Muted)
 				widget.Input(c, &f.fields.largeMB, fmt.Sprint(projectlinks.DefaultLargeMB)).Width(64)
-				ui.Text(c, "MB:").FontSize(12).TextColor(theme.Muted)
+				ui.Text(c, "MB:").FontSize(theme.TextLabel).TextColor(theme.Muted)
 				cur := 0
 				if d.Large == proto.LargeSource {
 					cur = 1
@@ -105,7 +105,7 @@ func (a *App) linkSettings(c *ui.Context, f *linksForm) {
 			ui.Column(c).FillWidth().Gap(6).AlignItems(ui.Start).Children(func() {
 				ui.Row(c).Gap(8).AlignItems(ui.Center).Children(func() {
 					widget.Input(c, &f.fields.bandwidth, "no cap").Width(90)
-					ui.Text(c, "KB/s at most").FontSize(12).TextColor(theme.Muted)
+					ui.Text(c, "KB/s at most").FontSize(theme.TextLabel).TextColor(theme.Muted)
 				})
 				widget.Checkbox(c, &d.PauseBusy, "Wait while a host is busy (CPU over 85%)")
 				widget.Checkbox(c, &d.PauseBattery, "Wait while this computer runs on battery")

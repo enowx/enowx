@@ -120,7 +120,7 @@ func (a *App) noteImportDialog(c *ui.Context) {
 				importProgress(c, f)
 			}
 			if f.err != "" {
-				ui.Text(c, f.err).FontSize(12).TextColor(theme.Error)
+				ui.Text(c, f.err).FontSize(theme.TextLabel).TextColor(theme.Error)
 			}
 		}, func() {
 			switch {
@@ -183,7 +183,7 @@ func (a *App) importSource(c *ui.Context, f *noteImportForm, running bool) {
 				if len(f.paths) > 0 {
 					label, col = f.source(), theme.Text
 				}
-				ui.Text(c, label).FontSize(12).TextColor(col).Grow(1).Shrink(1).SingleLine()
+				ui.Text(c, label).FontSize(theme.TextLabel).TextColor(col).Grow(1).Shrink(1).SingleLine()
 				if widget.Button(c, widget.Secondary, icon.Folder, "Choose…", "").Clicked() && !running {
 					a.localPick.Open("Import notes", "Pick an export, a folder, or files: they are sent to "+a.host.Name+" and read there.", func(paths []string) {
 						if g := a.noteImport; g == f {
@@ -230,7 +230,7 @@ func importProgress(c *ui.Context, f *noteImportForm) {
 		}
 	}
 	ui.Column(c).FillWidth().Gap(6).Children(func() {
-		ui.Text(c, label).FontSize(12).TextColor(theme.Text)
+		ui.Text(c, label).FontSize(theme.TextLabel).TextColor(theme.Text)
 		widget.Meter(c, widget.Segment{Fraction: fraction, Color: theme.Accent})
 	})
 }
@@ -242,26 +242,26 @@ func importPreview(c *ui.Context, pv proto.NoteImportPreview) {
 	if pv.Assets > 0 {
 		summary += " and " + textfmt.Plural(pv.Assets, "a file", fmt.Sprintf("%d files", pv.Assets))
 	}
-	ui.Text(c, summary+" to import, read as "+importFormat(pv.From)+".").FontSize(12.5).TextColor(theme.Text)
+	ui.Text(c, summary+" to import, read as "+importFormat(pv.From)+".").FontSize(theme.TextUI).TextColor(theme.Text)
 	if skipped := len(pv.Notes) - n; skipped > 0 {
-		ui.Text(c, textfmt.Plural(skipped, "One was", fmt.Sprintf("%d were", skipped))+" imported before and stays as it is.").FontSize(11.5).TextColor(theme.Muted)
+		ui.Text(c, textfmt.Plural(skipped, "One was", fmt.Sprintf("%d were", skipped))+" imported before and stays as it is.").FontSize(theme.TextLabel).TextColor(theme.Muted)
 	}
 	if len(pv.Conflicts) > 0 {
-		ui.Text(c, "Titles there already, kept both: "+strings.Join(pv.Conflicts, ", ")).FontSize(11.5).TextColor(theme.Warning)
+		ui.Text(c, "Titles there already, kept both: "+strings.Join(pv.Conflicts, ", ")).FontSize(theme.TextLabel).TextColor(theme.Warning)
 	}
 	ui.Scroll(c).FillWidth().MaxHeight(300).Children(func() {
 		ui.Column(c).FillWidth().Gap(1).Children(func() {
 			for i, e := range pv.Notes {
 				if i == 300 {
-					ui.Text(c, fmt.Sprintf("and %d more", len(pv.Notes)-i)).FontSize(11.5).TextColor(theme.Muted).Padding(4)
+					ui.Text(c, fmt.Sprintf("and %d more", len(pv.Notes)-i)).FontSize(theme.TextLabel).TextColor(theme.Muted).Padding(4)
 					break
 				}
-				ui.Row(c.Key(i)).FillWidth().Height(26).Gap(8).PaddingX(6).AlignItems(ui.Center).Radius(6).Background(theme.Sunken).Children(func() {
+				ui.Row(c.Key(i)).FillWidth().Height(26).Gap(8).PaddingX(6).AlignItems(ui.Center).Radius(theme.RadiusSmall).Background(theme.Sunken).Children(func() {
 					ui.Row(c).Width(float32(len(e.Path)) * 14).Shrink(0)
 					ui.Icon(c, icon.File).FontSize(12).TextColor(theme.Muted)
-					ui.Text(c, e.Title).FontSize(12).TextColor(theme.Text).SingleLine().Shrink(1).Grow(1)
+					ui.Text(c, e.Title).FontSize(theme.TextLabel).TextColor(theme.Text).SingleLine().Shrink(1).Grow(1)
 					if e.Group != "" {
-						ui.Text(c, e.Group).FontSize(11).TextColor(theme.Muted).SingleLine()
+						ui.Text(c, e.Group).FontSize(theme.TextLabel).TextColor(theme.Muted).SingleLine()
 					}
 					if e.Action != "new" {
 						widget.Tag(c, e.Action, theme.Muted)
@@ -302,17 +302,17 @@ func (a *App) importReport(c *ui.Context, st proto.NoteImportStatus) {
 	}
 	widget.Notice(c, icon.Check, theme.Done, "Imported "+textfmt.Plural(r.Imported, "a note", fmt.Sprintf("%d notes", r.Imported))+" from "+st.Source, "", nil)
 	if r.Overwritten > 0 {
-		ui.Text(c, fmt.Sprintf("%d imported before written again.", r.Overwritten)).FontSize(12).TextColor(theme.TextSoft)
+		ui.Text(c, fmt.Sprintf("%d imported before written again.", r.Overwritten)).FontSize(theme.TextLabel).TextColor(theme.TextSoft)
 	}
 	issues := func(title string, list []proto.NoteImportIssue) {
 		if len(list) == 0 {
 			return
 		}
-		ui.Text(c, title).FontSize(12).FontWeight(600).TextColor(theme.Text)
+		ui.Text(c, title).FontSize(theme.TextLabel).FontWeight(600).TextColor(theme.Text)
 		ui.Scroll(c).FillWidth().MaxHeight(140).Children(func() {
 			ui.Column(c).FillWidth().Gap(2).Children(func() {
 				for i, it := range list {
-					ui.Text(c.Key(i), it.Where+": "+it.What).FontSize(11.5).TextColor(theme.Muted)
+					ui.Text(c.Key(i), it.Where+": "+it.What).FontSize(theme.TextLabel).TextColor(theme.Muted)
 				}
 			})
 		})

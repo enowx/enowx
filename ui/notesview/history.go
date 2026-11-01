@@ -70,18 +70,18 @@ func (v *View) historySheet(c *ui.Context, o Options) {
 	w, _ := c.Size()
 	widget.Sheet(c, &h.open, min(820, max(320, w-40)), func() {
 		ui.Column(c).Grow(1).MinWidth(0).Gap(4).Children(func() {
-			ui.Text(c, "Versions of “"+titleOf(h.note)+"”").FontSize(15).TextColor(theme.TextStrong)
-			ui.Text(c, "Kept on this host before each change from another host or an agent, and every 10 minutes while you write.").FontSize(11.5).TextColor(theme.Muted)
+			ui.Text(c, "Versions of “"+titleOf(h.note)+"”").FontSize(theme.TextRead).TextColor(theme.TextStrong)
+			ui.Text(c, "Kept on this host before each change from another host or an agent, and every 10 minutes while you write.").FontSize(theme.TextLabel).TextColor(theme.Muted)
 		})
 		if widget.IconButton(c, icon.Close, "Close", false).Clicked() {
 			h.open = false
 		}
 	}, func() {
 		if h.err != "" {
-			ui.Text(c, h.err).FontSize(12).TextColor(theme.Error)
+			ui.Text(c, h.err).FontSize(theme.TextLabel).TextColor(theme.Error)
 		}
 		if h.loaded && len(h.versions) == 0 {
-			ui.Text(c, "No earlier version yet.").FontSize(12.5).TextColor(theme.Muted)
+			ui.Text(c, "No earlier version yet.").FontSize(theme.TextUI).TextColor(theme.Muted)
 			return
 		}
 		ui.Row(c).FillWidth().Gap(14).AlignItems(ui.Start).Children(func() {
@@ -95,8 +95,8 @@ func (v *View) historySheet(c *ui.Context, o Options) {
 						b.Background(theme.Hover)
 					}
 					b.Children(func() {
-						ui.Text(c, ver.Time.Local().Format("2 Jan 2006, 15:04")).FontSize(12.5).TextColor(theme.Text)
-						ui.Text(c, fmt.Sprintf("%s · %s", textfmt.Age(ver.Time, time.Now()), textfmt.Bytes(uint64(ver.Size)))).FontSize(11).TextColor(theme.Muted)
+						ui.Text(c, ver.Time.Local().Format("2 Jan 2006, 15:04")).FontSize(theme.TextUI).TextColor(theme.Text)
+						ui.Text(c, fmt.Sprintf("%s · %s", textfmt.Age(ver.Time, time.Now()), textfmt.Bytes(uint64(ver.Size)))).FontSize(theme.TextLabel).TextColor(theme.Muted)
 					})
 					if b.Clicked() && ver.ID != h.picked {
 						v.pickVersion(o, h, ver.ID)
@@ -105,10 +105,10 @@ func (v *View) historySheet(c *ui.Context, o Options) {
 			})
 			ui.Column(c).Grow(1).MinWidth(0).Gap(10).Padding(14).Radius(theme.RadiusCard).Border(1, theme.Border).Children(func() {
 				if h.shown == nil {
-					ui.Text(c, "Reading…").FontSize(12).TextColor(theme.Muted)
+					ui.Text(c, "Reading…").FontSize(theme.TextLabel).TextColor(theme.Muted)
 					return
 				}
-				ui.Text(c, titleOf(h.shown.NoteInfo)).FontSize(16).FontWeight(650).TextColor(theme.TextStrong)
+				ui.Text(c, titleOf(h.shown.NoteInfo)).FontSize(theme.TextRead).FontWeight(650).TextColor(theme.TextStrong)
 				widget.Markdown(c, h.shown.Body)
 			})
 		})

@@ -74,12 +74,12 @@ func (v *View) composeSheet(c *ui.Context, o Options) {
 		})
 		if len(f.history) > 0 {
 			ui.Column(c).FillWidth().Gap(2).Children(func() {
-				ui.Text(c, "Sent before").FontSize(11).TextColor(theme.Muted).Margin(0, 0, 4, 0)
+				ui.Text(c, "Sent before").FontSize(theme.TextLabel).TextColor(theme.Muted).Margin(0, 0, 4, 0)
 				for i, h := range f.history {
 					b := ui.ButtonBase(c.Key(fmt.Sprint(i))).FillWidth().Height(26).PaddingX(8).Radius(theme.RadiusControl).Justify(ui.Start).Label(h.method + " " + h.url).Cursor(ui.CursorPointer)
 					b.Children(func() {
-						ui.Text(c, h.method).Font(theme.MonoFont).FontSize(11).TextColor(theme.TextSoft).Width(52).Shrink(0)
-						ui.Text(c, h.url).FontSize(11.5).SingleLine().Shrink(1)
+						ui.Text(c, h.method).Font(theme.MonoFont).FontSize(theme.TextLabel).TextColor(theme.TextSoft).Width(52).Shrink(0)
+						ui.Text(c, h.url).FontSize(theme.TextLabel).SingleLine().Shrink(1)
 					})
 					if b.Clicked() {
 						hist := f.history

@@ -142,7 +142,7 @@ func (a *App) ragConsentDialog(c *ui.Context, p *ragPanelState) {
 		if len(plan.Left) > 0 {
 			widget.Field(c, "Never sent", func() {
 				for _, l := range plan.Left {
-					ui.Text(c, "· "+l).FontSize(12).TextColor(theme.TextSoft)
+					ui.Text(c, "· "+l).FontSize(theme.TextLabel).TextColor(theme.TextSoft)
 				}
 			})
 		}
@@ -209,8 +209,8 @@ func (a *App) ragOn(c *ui.Context, s proto.SessionInfo, p *ragPanelState) {
 	st := p.st
 	ui.Row(c).FillWidth().Gap(8).AlignItems(ui.Center).Children(func() {
 		ui.Column(c).Grow(1).MinWidth(0).Gap(2).Children(func() {
-			ui.Text(c, textfmt.LastPathPart(p.dir)).FontSize(13.5).SingleLine()
-			ui.Text(c, ragStatusLine(st)).FontSize(11.5).TextColor(theme.Muted)
+			ui.Text(c, textfmt.LastPathPart(p.dir)).FontSize(theme.TextUI).SingleLine()
+			ui.Text(c, ragStatusLine(st)).FontSize(theme.TextLabel).TextColor(theme.Muted)
 		})
 		if st.Indexing {
 			widget.Spinner(c, 12)
@@ -239,7 +239,7 @@ func (a *App) ragOn(c *ui.Context, s proto.SessionInfo, p *ragPanelState) {
 		a.ragHitRow(c.Key(fmt.Sprint("hit", i)), s, h)
 	}
 	if p.searched != "" && len(p.hits) == 0 && !p.searching {
-		ui.Text(c, "Nothing found.").FontSize(12).TextColor(theme.Muted)
+		ui.Text(c, "Nothing found.").FontSize(theme.TextLabel).TextColor(theme.Muted)
 	}
 	a.ragMemories(c, p)
 	widget.Field(c, "Agents here", func() {
@@ -319,14 +319,14 @@ func (a *App) ragHitRow(c *ui.Context, s proto.SessionInfo, h proto.RAGHit) {
 	b.Children(func() {
 		ui.Column(c).FillWidth().Gap(4).Children(func() {
 			ui.Row(c).FillWidth().Gap(6).Children(func() {
-				ui.Text(c, where).FontSize(12).Font(theme.MonoFont).SingleLine().Grow(1)
+				ui.Text(c, where).FontSize(theme.TextLabel).Font(theme.MonoFont).SingleLine().Grow(1)
 				widget.Tag(c, h.Source, theme.Muted)
 			})
 			snip := strings.TrimSpace(h.Snippet)
 			if len(snip) > 280 {
 				snip = snip[:280] + "…"
 			}
-			ui.Text(c, snip).FontSize(11.5).TextColor(theme.TextSoft).Font(theme.MonoFont).MaxLines(4)
+			ui.Text(c, snip).FontSize(theme.TextLabel).TextColor(theme.TextSoft).Font(theme.MonoFont).MaxLines(4)
 		})
 	})
 	if widget.Pressable(b).Clicked() && h.File != "" {
@@ -348,8 +348,8 @@ func (a *App) ragMemories(c *ui.Context, p *ragPanelState) {
 					return
 				}
 				ui.Column(c).Grow(1).MinWidth(0).Gap(2).Children(func() {
-					ui.Text(c, m.Text).FontSize(12.5)
-					ui.Text(c, m.By+" · "+m.Time.Local().Format("Jan 2 15:04")).FontSize(11).TextColor(theme.Muted)
+					ui.Text(c, m.Text).FontSize(theme.TextUI)
+					ui.Text(c, m.By+" · "+m.Time.Local().Format("Jan 2 15:04")).FontSize(theme.TextLabel).TextColor(theme.Muted)
 				})
 				if widget.IconButton(c, icon.Pencil, "Change", false).Clicked() {
 					p.editing, p.editText = m.ID, m.Text

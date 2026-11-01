@@ -1,6 +1,7 @@
 package ui
 
 import (
+	"github.com/enowx/enowx/ui/theme"
 	"strings"
 
 	"github.com/egoist/mygo/ui"
@@ -167,8 +168,8 @@ func (a *App) commandDialog(c *ui.Context) {
 					continue
 				}
 				ui.Row(c.Key(cmd.Command)).FillWidth().Gap(8).Children(func() {
-					ui.Text(c, commandLabel(cmd)).FontSize(12).SingleLine().Grow(1).Shrink(1)
-					ui.Text(c, cmd.Source).FontSize(11).SingleLine()
+					ui.Text(c, commandLabel(cmd)).FontSize(theme.TextLabel).SingleLine().Grow(1).Shrink(1)
+					ui.Text(c, cmd.Source).FontSize(theme.TextLabel).SingleLine()
 					if widget.IconButton(c, icon.Close, "Forget it", false).Clicked() {
 						a.saveCommand(f.session, cmd, true)
 					}

@@ -20,7 +20,7 @@ func (v *View) create(c *ui.Context, o Options) {
 				submit = widget.Input(c, &v.confirm, "The same").FillWidth().Password().Submitted()
 			})
 			widget.Switch(c, &v.remember, "Remember on this device")
-			ui.Text(c, rememberNote).FontSize(11.5).TextColor(theme.Muted)
+			ui.Text(c, rememberNote).FontSize(theme.TextLabel).TextColor(theme.Muted)
 			v.errorLine(c)
 			if widget.PrimaryButton(c, icon.Shield, "Make the vault", "").Clicked() || submit {
 				switch {
@@ -35,7 +35,7 @@ func (v *View) create(c *ui.Context, o Options) {
 					}
 				}
 			}
-			ui.Text(c, "There is no way back in without it: enowX can't recover a forgotten master password.").FontSize(11.5).TextColor(theme.Warning)
+			ui.Text(c, "There is no way back in without it: enowX can't recover a forgotten master password.").FontSize(theme.TextLabel).TextColor(theme.Warning)
 		})
 }
 
@@ -64,11 +64,11 @@ func (v *View) unlock(c *ui.Context, o Options) {
 func (v *View) hero(c *ui.Context, svg *ui.SVG, title, about string, body func()) {
 	ui.Column(c).FillWidth().AlignItems(ui.Center).Padding(32, 0).Children(func() {
 		widget.Card(c).Width(440).Padding(24).Gap(14).Children(func() {
-			ui.Row(c).Size(44, 44).Radius(12).Center().Background(theme.AccentSoft).Children(func() {
+			ui.Row(c).Size(44, 44).Radius(theme.RadiusSmall).Center().Background(theme.AccentSoft).Children(func() {
 				ui.Icon(c, svg).FontSize(22).TextColor(theme.Accent)
 			})
-			ui.Text(c, title).FontSize(17).FontWeight(650).TextColor(theme.TextStrong)
-			ui.Text(c, about).FontSize(12.5).TextColor(theme.TextSoft)
+			ui.Text(c, title).FontSize(theme.TextTitle).FontWeight(650).TextColor(theme.TextStrong)
+			ui.Text(c, about).FontSize(theme.TextUI).TextColor(theme.TextSoft)
 			body()
 		})
 	})
@@ -76,7 +76,7 @@ func (v *View) hero(c *ui.Context, svg *ui.SVG, title, about string, body func()
 
 func (v *View) errorLine(c *ui.Context) {
 	if v.err != "" {
-		ui.Text(c, v.err).FontSize(12).TextColor(theme.Error)
+		ui.Text(c, v.err).FontSize(theme.TextLabel).TextColor(theme.Error)
 	}
 }
 
@@ -105,7 +105,7 @@ func (v *View) changeDialog(c *ui.Context, o Options) {
 		widget.Field(c, "New password", func() { widget.Input(c, &f.password, "At least 8 characters").FillWidth().Password() })
 		widget.Field(c, "Again", func() { widget.Input(c, &f.again, "").FillWidth().Password() })
 		if f.err != "" {
-			ui.Text(c, f.err).FontSize(12).TextColor(theme.Error)
+			ui.Text(c, f.err).FontSize(theme.TextLabel).TextColor(theme.Error)
 		}
 	}, func() {
 		if widget.PrimaryButton(c, icon.Check, "Change it", "").Clicked() {

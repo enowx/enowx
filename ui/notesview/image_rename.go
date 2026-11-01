@@ -55,8 +55,8 @@ func (e *editor) imageRenameDialog(c *ui.Context) {
 		return
 	}
 	widget.Dialog(c, &r.open, 420, 12, func() {
-		ui.Text(c, "Rename image").FontSize(16).TextColor(theme.TextStrong)
-		ui.Text(c, "Used under the image and in its mentions on this page.").FontSize(12).TextColor(theme.Muted)
+		ui.Text(c, "Rename image").FontSize(theme.TextRead).TextColor(theme.TextStrong)
+		ui.Text(c, "Used under the image and in its mentions on this page.").FontSize(theme.TextLabel).TextColor(theme.Muted)
 		in := ui.TextInputBase(c, &r.name).FillWidth().Height(theme.ControlHeight).PaddingX(11).
 			Radius(theme.RadiusControl).Background(theme.Sunken).Border(1, theme.BorderStrong).
 			TextColor(theme.Text).Placeholder("Image name").Label("Image name")
@@ -76,7 +76,7 @@ func (e *editor) imageRenameDialog(c *ui.Context) {
 			return false
 		})
 		if r.err != "" {
-			ui.Text(c, r.err).FontSize(12).TextColor(theme.Error).FillWidth()
+			ui.Text(c, r.err).FontSize(theme.TextLabel).TextColor(theme.Error).FillWidth()
 		}
 		widget.DialogFooter(c, "", func() {
 			if widget.GhostButton(c, "Cancel").Clicked() {

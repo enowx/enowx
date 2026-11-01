@@ -55,11 +55,11 @@ func (a *App) videoButtons(c *ui.Context, r *unslopReplay) {
 		return
 	}
 	ui.Column(c).FillWidth().Gap(6).Children(func() {
-		ui.Text(c, "Export the play").FontSize(11).FontWeight(600).TextColor(theme.Muted)
+		ui.Text(c, "Export the play").FontSize(theme.TextLabel).FontWeight(600).TextColor(theme.Muted)
 		if r.video.running {
 			ui.Row(c).Gap(8).AlignItems(ui.Center).Children(func() {
 				widget.Spinner(c, 12)
-				ui.Text(c, r.video.progress).FontSize(11.5).TextColor(theme.TextSoft)
+				ui.Text(c, r.video.progress).FontSize(theme.TextLabel).TextColor(theme.TextSoft)
 			})
 			return
 		}
@@ -82,7 +82,7 @@ func (a *App) videoButtons(c *ui.Context, r *unslopReplay) {
 			}
 		})
 		if ffmpegPath() == "" {
-			ui.Text(c, "Install ffmpeg for an MP4.").FontSize(11).TextColor(theme.Muted)
+			ui.Text(c, "Install ffmpeg for an MP4.").FontSize(theme.TextLabel).TextColor(theme.Muted)
 		}
 	})
 }

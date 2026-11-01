@@ -313,14 +313,14 @@ func hibernatePlanCard(c *ui.Context, pl proto.HibernatePlan) {
 			if name == "" {
 				name = pl.ID
 			}
-			ui.Text(c, name).FontSize(12.5).TextColor(theme.TextStrong).SingleLine().Shrink(1)
+			ui.Text(c, name).FontSize(theme.TextUI).TextColor(theme.TextStrong).SingleLine().Shrink(1)
 			ui.Spacer(c)
 			if pl.Blocked == "" {
-				ui.Text(c, "frees "+textfmt.Bytes(pl.RSS)).FontSize(11).TextColor(theme.Muted)
+				ui.Text(c, "frees "+textfmt.Bytes(pl.RSS)).FontSize(theme.TextLabel).TextColor(theme.Muted)
 			}
 		})
 		line := func(text string, col ui.Color) {
-			ui.Text(c, text).FontSize(11.5).TextColor(col).PaddingX(20)
+			ui.Text(c, text).FontSize(theme.TextLabel).TextColor(col).PaddingX(20)
 		}
 		if pl.Blocked != "" {
 			line("Stays as it is: "+pl.Blocked, theme.Muted)

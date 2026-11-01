@@ -75,9 +75,9 @@ func (v *View) interceptPage(c *ui.Context, o Options) {
 	}
 	ui.Scroll(c).Grow(1).FillWidth().MinHeight(0).Children(func() {
 		ui.Column(c).FillWidth().Padding(12).Gap(12).Children(func() {
-			ui.Text(c, "What runs on "+o.HostName+" can send its HTTP through enowX. Nothing is caught until you attach it.").FontSize(11.5).TextColor(theme.Muted)
+			ui.Text(c, "What runs on "+o.HostName+" can send its HTTP through enowX. Nothing is caught until you attach it.").FontSize(theme.TextLabel).TextColor(theme.Muted)
 			if s.err != "" {
-				ui.Text(c, s.err).FontSize(12).TextColor(theme.Error)
+				ui.Text(c, s.err).FontSize(theme.TextLabel).TextColor(theme.Error)
 			}
 			if len(v.targets) > 0 {
 				section(c, "Attached", func() {
@@ -85,8 +85,8 @@ func (v *View) interceptPage(c *ui.Context, o Options) {
 						ui.Row(c.Key(t.Source)).FillWidth().Gap(8).Children(func() {
 							widget.Dot(c, theme.Done, false, 7)
 							ui.Column(c).Grow(1).MinWidth(0).Children(func() {
-								ui.Text(c, t.Label+" · "+t.Kind).FontSize(12).SingleLine()
-								ui.Text(c, t.Proxy).Font(theme.MonoFont).FontSize(10.5).TextColor(theme.Muted).SingleLine()
+								ui.Text(c, t.Label+" · "+t.Kind).FontSize(theme.TextLabel).SingleLine()
+								ui.Text(c, t.Proxy).Font(theme.MonoFont).FontSize(theme.TextLabel).TextColor(theme.Muted).SingleLine()
 							})
 							if widget.GhostButton(c, "Detach").Clicked() {
 								v.detach(o, t.Source)
@@ -96,7 +96,7 @@ func (v *View) interceptPage(c *ui.Context, o Options) {
 				})
 			}
 			if session == "" {
-				ui.Text(c, "Select a session to attach to it.").FontSize(12).TextColor(theme.Muted)
+				ui.Text(c, "Select a session to attach to it.").FontSize(theme.TextLabel).TextColor(theme.Muted)
 				return
 			}
 			section(c, "Terminals", func() {
@@ -144,7 +144,7 @@ func (v *View) interceptPage(c *ui.Context, o Options) {
 					}
 				}
 				if len(v.status.Browsers) == 0 {
-					ui.Text(c, "No Chrome, Chromium, Edge, Brave or Firefox found on "+o.HostName+".").FontSize(11.5).TextColor(theme.Muted)
+					ui.Text(c, "No Chrome, Chromium, Edge, Brave or Firefox found on "+o.HostName+".").FontSize(theme.TextLabel).TextColor(theme.Muted)
 				}
 				where := "a window of its own"
 				if v.status.Display {
@@ -175,7 +175,7 @@ func (v *View) interceptPage(c *ui.Context, o Options) {
 					})
 				}
 				if o.AndroidNote != "" {
-					ui.Text(c, o.AndroidNote).FontSize(11).TextColor(theme.TextSoft).Margin(0, 0, 0, 25)
+					ui.Text(c, o.AndroidNote).FontSize(theme.TextLabel).TextColor(theme.TextSoft).Margin(0, 0, 0, 25)
 				}
 				targetRow(c, icon.Server, "Docker containers", "Containers this session starts afterwards get the proxy and the CA.", "Attach", s.busy != "", func() {
 					v.attach(o, proto.TrafficAttachParams{Kind: proto.TargetDocker, Session: session})
@@ -262,16 +262,16 @@ func (v *View) interceptSheets(c *ui.Context, o Options) {
 	if s.caOpen {
 		sheet(c, &s.caOpen, 560, "enowX's certificate authority", "Programs that trust it let enowX read their HTTPS. Its key never leaves "+o.HostName+".", func() {
 			if s.ca == nil {
-				ui.Text(c, "Reading…").FontSize(12).TextColor(theme.Muted)
+				ui.Text(c, "Reading…").FontSize(theme.TextLabel).TextColor(theme.Muted)
 				return
 			}
 			widget.Field(c, "SHA-256", func() {
-				ui.Text(c, s.ca.Fingerprint).Font(theme.MonoFont).FontSize(11).Selectable()
+				ui.Text(c, s.ca.Fingerprint).Font(theme.MonoFont).FontSize(theme.TextLabel).Selectable()
 			})
 			widget.Field(c, "On "+o.HostName, func() {
 				ui.Column(c).Gap(2).Children(func() {
-					ui.Text(c, s.ca.File).Font(theme.MonoFont).FontSize(11).Selectable()
-					ui.Text(c, s.ca.Bundle+" (with the system's roots)").Font(theme.MonoFont).FontSize(11).TextColor(theme.Muted).Selectable()
+					ui.Text(c, s.ca.File).Font(theme.MonoFont).FontSize(theme.TextLabel).Selectable()
+					ui.Text(c, s.ca.Bundle+" (with the system's roots)").Font(theme.MonoFont).FontSize(theme.TextLabel).TextColor(theme.Muted).Selectable()
 				})
 			})
 		}, func() {
@@ -304,7 +304,7 @@ func (v *View) attachedTab(tab string) bool {
 
 func section(c *ui.Context, title string, body func()) {
 	ui.Column(c.Key(title)).FillWidth().Gap(8).Children(func() {
-		ui.Text(c, title).FontSize(11).TextColor(theme.Muted).FontWeight(600)
+		ui.Text(c, title).FontSize(theme.TextLabel).TextColor(theme.Muted).FontWeight(600)
 		body()
 	})
 }
@@ -315,8 +315,8 @@ func targetRow(c *ui.Context, svg *ui.SVG, title, body, button string, busy bool
 	ui.Row(c.Key(title)).FillWidth().Gap(10).Children(func() {
 		ui.Icon(c, svg).FontSize(15).TextColor(theme.TextSoft).Shrink(0)
 		ui.Column(c).Grow(1).MinWidth(0).Gap(1).Children(func() {
-			ui.Text(c, title).FontSize(12.5)
-			ui.Text(c, body).FontSize(11).TextColor(theme.Muted)
+			ui.Text(c, title).FontSize(theme.TextUI)
+			ui.Text(c, body).FontSize(theme.TextLabel).TextColor(theme.Muted)
 		})
 		if action != nil && widget.Button(c, widget.Secondary, nil, button, "").Disabled(busy).Clicked() {
 			action()
@@ -350,7 +350,7 @@ func (v *View) pausedList(c *ui.Context, o Options) {
 func (v *View) pausedRow(c *ui.Context, o Options, p proto.TrafficPaused) {
 	ui.Row(c).FillWidth().Gap(8).AlignItems(ui.Center).Children(func() {
 		widget.Tag(c, "paused "+p.Stage, theme.Warning)
-		ui.Text(c, p.Method+" "+p.URL).FontSize(12).SingleLine().Grow(1).Shrink(1).MinWidth(0).Tooltip(p.URL)
+		ui.Text(c, p.Method+" "+p.URL).FontSize(theme.TextLabel).SingleLine().Grow(1).Shrink(1).MinWidth(0).Tooltip(p.URL)
 		if widget.GhostButton(c, "Drop").Clicked() {
 			v.resume(o, proto.TrafficResumeParams{ID: p.ID, Drop: true})
 		}

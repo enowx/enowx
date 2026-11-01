@@ -76,13 +76,13 @@ func (ch *Chat) status(c *ui.Context, o Options, turns []turn) {
 		if o.Working && !ch.ask.waiting {
 			widget.Spinner(c, 11)
 		} else {
-			ui.Box(c).Size(7, 7).Radius(4).Background(dot)
+			ui.Box(c).Size(7, 7).Radius(theme.RadiusTail).Background(dot)
 		}
-		ui.Text(c, text).FontSize(12).TextColor(theme.TextSoft).SingleLine().Shrink(0)
+		ui.Text(c, text).FontSize(theme.TextLabel).TextColor(theme.TextSoft).SingleLine().Shrink(0)
 		// While it works, the step it is at.
 		if l := ch.latestTool; o.Working && !ch.ask.waiting && l != nil {
 			_, verb := toolLook(l.Text)
-			ui.Text(c, verb+" "+l.Detail).Font(theme.MonoFont).FontSize(11).TextColor(theme.Muted).SingleLine().Shrink(1).MaxWidth(360)
+			ui.Text(c, verb+" "+l.Detail).Font(theme.MonoFont).FontSize(theme.TextLabel).TextColor(theme.Muted).SingleLine().Shrink(1).MaxWidth(360)
 		}
 	})
 }
@@ -150,7 +150,7 @@ func (ch *Chat) findField(c *ui.Context, turns []turn, more int) {
 		case len(hits) > 0:
 			count = fmt.Sprintf("%d of %d", ch.findAt+1, len(hits))
 		}
-		ui.Text(c, count).FontSize(11.5).TextColor(theme.Muted).SingleLine().Width(64)
+		ui.Text(c, count).FontSize(theme.TextLabel).TextColor(theme.Muted).SingleLine().Width(64)
 		if widget.IconButton(c.Key("prev"), icon.ChevronUp, "Previous match", false).Clicked() {
 			goTo(ch.findAt - 1)
 		}
@@ -210,14 +210,14 @@ func (ch *Chat) toLatest(c *ui.Context, working bool) {
 		label = "Follow the agent"
 	}
 	ui.Row(c.Key("to-latest")).Absolute().Left(0).Bottom(14).FillWidth().Justify(ui.Center).PassThrough().Children(func() {
-		b := ui.ButtonBase(c.Key("button")).Height(30).Padding(0, 12).Gap(6).Radius(15).AlignItems(ui.Center).
+		b := ui.ButtonBase(c.Key("button")).Height(30).Padding(0, 12).Gap(6).Radius(theme.RadiusCard).AlignItems(ui.Center).
 			Background(theme.Raised).Border(1, theme.BorderStrong).Cursor(ui.CursorPointer).Label(label)
 		if b.Hovered() {
 			b.Background(theme.Hover)
 		}
 		b.Children(func() {
 			ui.Icon(c, icon.ArrowDown).FontSize(12).TextColor(theme.TextSoft)
-			ui.Text(c, label).FontSize(12).TextColor(theme.TextSoft).SingleLine()
+			ui.Text(c, label).FontSize(theme.TextLabel).TextColor(theme.TextSoft).SingleLine()
 		})
 		if b.Clicked() {
 			ch.list.ScrollToEnd()

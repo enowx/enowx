@@ -101,10 +101,10 @@ func (a *App) decisionFields(c *ui.Context, f *judgeForm) {
 	widget.Field(c, "System One address", func() {
 		widget.Input(c, &f.url, "https://decisions.example.com/v1/systemone").FillWidth().Font(theme.MonoFont)
 		if f.provider == proto.ProviderCloudflare {
-			ui.Text(c, "{account} is the credential's account ID, {model} the model.").FontSize(11).TextColor(theme.Muted)
+			ui.Text(c, "{account} is the credential's account ID, {model} the model.").FontSize(theme.TextLabel).TextColor(theme.Muted)
 		}
 		if f.provider == proto.ProviderOpenRouter {
-			ui.Text(c, "OpenRouter's Decisions speak System One; paste the address its docs give.").FontSize(11).TextColor(theme.Muted)
+			ui.Text(c, "OpenRouter's Decisions speak System One; paste the address its docs give.").FontSize(theme.TextLabel).TextColor(theme.Muted)
 		}
 	})
 	if f.provider == "custom" {
@@ -172,6 +172,6 @@ func (a *App) keyFields(c *ui.Context, key string, typed, cred *string, fromVaul
 			return
 		}
 		widget.Input(c.Key(key), typed, hint).FillWidth().Password()
-		ui.Text(c, "Kept on "+a.host.Name+" alone, readable by its user only; never synced or shown again.").FontSize(11).TextColor(theme.Muted)
+		ui.Text(c, "Kept on "+a.host.Name+" alone, readable by its user only; never synced or shown again.").FontSize(theme.TextLabel).TextColor(theme.Muted)
 	})
 }

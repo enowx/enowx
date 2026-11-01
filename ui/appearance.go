@@ -73,7 +73,7 @@ func (a *App) appearancePage(c *ui.Context) {
 				}
 			})
 			ui.Row(c).Gap(10).Children(func() {
-				ui.Text(c, "Custom").FontSize(12).TextColor(theme.TextSoft)
+				ui.Text(c, "Custom").FontSize(theme.TextLabel).TextColor(theme.TextSoft)
 				in := widget.Input(c, &a.accentInput, "#D8C3A0").Width(130).Font(theme.MonoFont)
 				if in.Changed() {
 					if hex, ok := parseAccent(a.accentInput); ok {
@@ -82,7 +82,7 @@ func (a *App) appearancePage(c *ui.Context) {
 				}
 				if a.accentInput != "" {
 					if _, ok := parseAccent(a.accentInput); !ok {
-						ui.Text(c, "Type a color as #RRGGBB.").FontSize(11.5).TextColor(theme.Warning)
+						ui.Text(c, "Type a color as #RRGGBB.").FontSize(theme.TextLabel).TextColor(theme.Warning)
 					}
 				}
 			})
@@ -120,37 +120,37 @@ func (a *App) paletteCard(c *ui.Context, p theme.Palette) bool {
 	}
 	card.Children(func() {
 		ui.Column(c).FillWidth().Children(func() {
-			ui.Row(c).FillWidth().Height(74).Radius(9).Clip().Background(p.Background).Border(1, p.Border).Children(func() {
+			ui.Row(c).FillWidth().Height(74).Radius(theme.RadiusSmall).Clip().Background(p.Background).Border(1, p.Border).Children(func() {
 				ui.Column(c).Width(18).FillHeight().Background(p.Panel).Padding(5, 0).Gap(4).AlignItems(ui.Center).Children(func() {
-					ui.Box(c).Size(9, 9).Radius(3).Background(p.Selected).Border(1, p.Accent)
-					ui.Box(c).Size(9, 9).Radius(3).Background(p.Selected)
+					ui.Box(c).Size(9, 9).Radius(theme.RadiusTail).Background(p.Selected).Border(1, p.Accent)
+					ui.Box(c).Size(9, 9).Radius(theme.RadiusTail).Background(p.Selected)
 				})
 				ui.Column(c).Width(50).FillHeight().Background(p.Panel).Padding(6).Gap(4).
 					BorderWidth(0, 1, 0, 1).BorderColor(p.Border).Children(func() {
 					for i, col := range []ui.Color{p.Working, p.Warning, p.Idle} {
-						row := ui.Row(c.Key(i)).FillWidth().Height(10).Radius(3).Gap(3).PaddingX(3)
+						row := ui.Row(c.Key(i)).FillWidth().Height(10).Radius(theme.RadiusTail).Gap(3).PaddingX(3)
 						if i == 0 {
 							row.Background(p.Selected)
 						}
 						row.Children(func() {
-							ui.Box(c).Size(4, 4).Radius(2).Background(col)
-							ui.Box(c).Height(2).Grow(1).Radius(1).Background(p.Muted)
+							ui.Box(c).Size(4, 4).Radius(theme.RadiusTail).Background(col)
+							ui.Box(c).Height(2).Grow(1).Radius(theme.RadiusTail).Background(p.Muted)
 						})
 					}
 				})
 				ui.Column(c).Grow(1).FillHeight().Padding(7).Gap(4).Children(func() {
-					ui.Box(c).Height(2).Width(44).Radius(1).Background(p.TextSoft)
-					ui.Box(c).Height(2).Width(30).Radius(1).Background(p.Muted)
+					ui.Box(c).Height(2).Width(44).Radius(theme.RadiusTail).Background(p.TextSoft)
+					ui.Box(c).Height(2).Width(30).Radius(theme.RadiusTail).Background(p.Muted)
 					ui.Spacer(c)
 					ui.Row(c).Gap(4).Children(func() {
-						ui.Box(c).Size(30, 10).Radius(3).Background(p.Accent)
-						ui.Box(c).Size(22, 10).Radius(3).Border(1, p.BorderStrong)
+						ui.Box(c).Size(30, 10).Radius(theme.RadiusTail).Background(p.Accent)
+						ui.Box(c).Size(22, 10).Radius(theme.RadiusTail).Border(1, p.BorderStrong)
 					})
 				})
 			})
 		})
 		ui.Row(c).FillWidth().Gap(8).Children(func() {
-			ui.Text(c, p.Name).FontSize(12.5).Grow(1).SingleLine()
+			ui.Text(c, p.Name).FontSize(theme.TextUI).Grow(1).SingleLine()
 			if on {
 				ui.Icon(c, icon.Check).FontSize(13).TextColor(theme.Accent)
 			}
@@ -161,7 +161,7 @@ func (a *App) paletteCard(c *ui.Context, p theme.Palette) bool {
 
 // swatch is one accent to pick; it reports whether it was clicked.
 func (a *App) swatch(c *ui.Context, col ui.Color, on bool, label string) bool {
-	b := ui.ButtonBase(c).Size(30, 30).Radius(15).Center().Shrink(0).Cursor(ui.CursorPointer).Label(label).Tooltip(label)
+	b := ui.ButtonBase(c).Size(30, 30).Radius(theme.RadiusCard).Center().Shrink(0).Cursor(ui.CursorPointer).Label(label).Tooltip(label)
 	if theme.Current().Light {
 		b.Border(1, theme.BorderStrong)
 	}
@@ -172,7 +172,7 @@ func (a *App) swatch(c *ui.Context, col ui.Color, on bool, label string) bool {
 		b.Border(1.5, theme.BorderStrong)
 	}
 	b.Children(func() {
-		ui.Box(c).Size(22, 22).Radius(11).Background(col).InsetShadow(0, 1, 0, 0, ui.RGBA(255, 255, 255, 0.3))
+		ui.Box(c).Size(22, 22).Radius(theme.RadiusSmall).Background(col).InsetShadow(0, 1, 0, 0, ui.RGBA(255, 255, 255, 0.3))
 	})
 	return b.Clicked()
 }

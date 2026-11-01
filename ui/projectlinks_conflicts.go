@@ -37,13 +37,13 @@ func (a *App) linkConflicts(c *ui.Context, f *linksForm, l proto.ProjectLinkStat
 	online := srcOn && dstOn && a.links.running[l.ID] == ""
 	now := time.Now()
 	ui.Column(c).FillWidth().Gap(8).Padding(10, 0, 0, 0).BorderWidth(1, 0, 0, 0).BorderColor(theme.Border).Children(func() {
-		ui.Text(c, "Changed on both since the last sync: keep whose?").FontSize(12.5).FontWeight(600).TextColor(theme.TextStrong)
+		ui.Text(c, "Changed on both since the last sync: keep whose?").FontSize(theme.TextUI).FontWeight(600).TextColor(theme.TextStrong)
 		for _, x := range l.Status.Conflicts {
 			ui.Column(c.Key(x.Path)).FillWidth().Gap(5).Children(func() {
 				ui.Row(c).FillWidth().Gap(8).AlignItems(ui.Center).Children(func() {
 					ui.Icon(c, icon.File).FontSize(12).TextColor(theme.Warning)
-					ui.Text(c, x.Path).FontSize(12).SingleLine().Shrink(1).Grow(1).TextColor(theme.Text)
-					ui.Text(c, "since "+textfmt.Age(x.Found, now)).FontSize(11).TextColor(theme.Muted)
+					ui.Text(c, x.Path).FontSize(theme.TextLabel).SingleLine().Shrink(1).Grow(1).TextColor(theme.Text)
+					ui.Text(c, "since "+textfmt.Age(x.Found, now)).FontSize(theme.TextLabel).TextColor(theme.Muted)
 				})
 				ui.Text(c, sideNote(l.Source.Host, x.Sides[0], x.Gone[0])+" · "+sideNote(l.Target.Host, x.Sides[1], x.Gone[1])).
 					FontSize(11).TextColor(theme.Muted)
@@ -65,7 +65,7 @@ func (a *App) linkConflicts(c *ui.Context, f *linksForm, l proto.ProjectLinkStat
 			})
 		}
 		if !srcOn || !dstOn {
-			ui.Text(c, "Both hosts must be online to settle them.").FontSize(11).TextColor(theme.Muted)
+			ui.Text(c, "Both hosts must be online to settle them.").FontSize(theme.TextLabel).TextColor(theme.Muted)
 		}
 	})
 }
@@ -181,7 +181,7 @@ func (a *App) conflictDiffDialog(c *ui.Context, f *linksForm) {
 						case '+':
 							col, bg = theme.Done, theme.Done.Alpha(0.08)
 						}
-						ui.Text(c.Key(i), string(l.op)+" "+strings.TrimRight(l.text, "\n")).FontSize(11.5).
+						ui.Text(c.Key(i), string(l.op)+" "+strings.TrimRight(l.text, "\n")).FontSize(theme.TextLabel).
 							Font(theme.MonoFont).TextColor(col).Background(bg).FillWidth().PaddingX(6)
 					}
 				})

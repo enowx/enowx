@@ -143,7 +143,7 @@ func (a *App) typingLine(c *ui.Context, team string) {
 	}
 	ui.Row(c).FillWidth().Height(18).Shrink(0).PaddingX(14).AlignItems(ui.Center).Children(func() {
 		if text != "" {
-			ui.Text(c, text).FontSize(11).Italic().TextColor(theme.Muted).SingleLine()
+			ui.Text(c, text).FontSize(theme.TextLabel).Italic().TextColor(theme.Muted).SingleLine()
 		}
 	})
 }

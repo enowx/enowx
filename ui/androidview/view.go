@@ -275,7 +275,7 @@ func (v *View) Draw(c *ui.Context, o Options, wanted func() bool) {
 	ui.Column(c).Grow(1).FillWidth().MinHeight(0).Children(func() {
 		if v.notice != "" {
 			ui.Row(c).FillWidth().Padding(6, 12).Gap(8).Background(theme.Sunken).Children(func() {
-				ui.Text(c, v.notice).FontSize(11.5).TextColor(theme.TextSoft).Grow(1).Shrink(1)
+				ui.Text(c, v.notice).FontSize(theme.TextLabel).TextColor(theme.TextSoft).Grow(1).Shrink(1)
 				if widget.IconButton(c, icon.Close, "Dismiss", false).Clicked() {
 					v.notice = ""
 				}
@@ -312,7 +312,7 @@ func (v *View) Draw(c *ui.Context, o Options, wanted func() bool) {
 func (v *View) hostNotes(c *ui.Context, o Options) {
 	for _, h := range o.Hosts {
 		if err := v.errs[h.ID]; err != "" {
-			ui.Text(c.Key("e"+h.ID), h.Name+": "+err).FontSize(11.5).TextColor(theme.Error)
+			ui.Text(c.Key("e"+h.ID), h.Name+": "+err).FontSize(theme.TextLabel).TextColor(theme.Error)
 			continue
 		}
 		st, ok := v.status[h.ID]
@@ -322,13 +322,13 @@ func (v *View) hostNotes(c *ui.Context, o Options) {
 		switch {
 		case st.SDK == "" || !st.ADB || !st.Emulator:
 			ui.Row(c.Key("s" + h.ID)).FillWidth().Gap(8).Children(func() {
-				ui.Text(c, h.Name+" has no Android SDK yet.").FontSize(11.5).TextColor(theme.Muted).Grow(1).Shrink(1)
+				ui.Text(c, h.Name+" has no Android SDK yet.").FontSize(theme.TextLabel).TextColor(theme.Muted).Grow(1).Shrink(1)
 				if widget.Button(c, widget.Secondary, icon.Android, "Set up Android", "").Disabled(v.busy != "").Clicked() {
 					v.startSetup(o, h)
 				}
 			})
 		case !st.Accel && len(st.AVDs) > 0:
-			ui.Text(c.Key("a"+h.ID), h.Name+"'s emulator is slow: "+st.AccelWhy).FontSize(11).TextColor(theme.Warning)
+			ui.Text(c.Key("a"+h.ID), h.Name+"'s emulator is slow: "+st.AccelWhy).FontSize(theme.TextLabel).TextColor(theme.Warning)
 		}
 	}
 }
@@ -346,7 +346,7 @@ func (v *View) deviceRow(c *ui.Context, o Options) {
 			}
 		}
 		if len(devs) == 0 {
-			ui.Text(c, "No devices: start an emulator after Set up Android, or connect a phone.").FontSize(12).TextColor(theme.Muted).Grow(1).Shrink(1)
+			ui.Text(c, "No devices: start an emulator after Set up Android, or connect a phone.").FontSize(theme.TextLabel).TextColor(theme.Muted).Grow(1).Shrink(1)
 		} else {
 			ui.Column(c).Grow(1).MinWidth(0).Gap(4).Children(func() {
 				for i, label := range labels {
@@ -366,7 +366,7 @@ func (v *View) deviceRow(c *ui.Context, o Options) {
 							col = theme.Warning
 						}
 						widget.Dot(c, col, x.dev.State != "device", 7)
-						ui.Text(c, label).FontSize(12).SingleLine().Grow(1).Shrink(1)
+						ui.Text(c, label).FontSize(theme.TextLabel).SingleLine().Grow(1).Shrink(1)
 						state := x.dev.State
 						if state == "unauthorized" {
 							state = "allow USB debugging on the phone"
@@ -377,7 +377,7 @@ func (v *View) deviceRow(c *ui.Context, o Options) {
 								state = "Android TV · API " + x.dev.API
 							}
 						}
-						ui.Text(c, state).FontSize(10.5).TextColor(theme.Muted).Shrink(0)
+						ui.Text(c, state).FontSize(theme.TextLabel).TextColor(theme.Muted).Shrink(0)
 					})
 					if row.Clicked() {
 						v.picked = x.key()
@@ -470,9 +470,9 @@ func (v *View) runRow(c *ui.Context, o Options) {
 		if v.project.Package != "" {
 			what += " · " + v.project.Package
 		}
-		ui.Text(c, what).FontSize(11).TextColor(theme.Muted)
+		ui.Text(c, what).FontSize(theme.TextLabel).TextColor(theme.Muted)
 		ui.Row(c).FillWidth().Gap(8).Children(func() {
-			widget.Input(c, &v.command, "The command that runs it, $ANDROID_SERIAL its device").Grow(1).Font(theme.MonoFont).FontSize(11.5)
+			widget.Input(c, &v.command, "The command that runs it, $ANDROID_SERIAL its device").Grow(1).Font(theme.MonoFont).FontSize(theme.TextLabel)
 			can := ok && d.dev.State == "device" && strings.TrimSpace(v.command) != "" && v.busy == ""
 			if widget.PrimaryButton(c, icon.Play, "Run app", "").Disabled(!can).Clicked() {
 				v.run(o, d)
@@ -573,7 +573,7 @@ func (v *View) connectSheet(c *ui.Context, o Options) {
 			widget.Input(c, &f.address, "192.168.1.5:41823").FillWidth().Font(theme.MonoFont)
 		})
 		ui.Column(c).FillWidth().Gap(6).Children(func() {
-			ui.Text(c, "The first time, pair it: Pair device with pairing code shows these.").FontSize(11.5).TextColor(theme.Muted)
+			ui.Text(c, "The first time, pair it: Pair device with pairing code shows these.").FontSize(theme.TextLabel).TextColor(theme.Muted)
 			ui.Row(c).FillWidth().Gap(8).Children(func() {
 				ui.Column(c).Grow(1).Children(func() {
 					widget.Field(c, "Pairing address", func() { widget.Input(c, &f.pair, "192.168.1.5:37099").FillWidth().Font(theme.MonoFont) })
@@ -584,7 +584,7 @@ func (v *View) connectSheet(c *ui.Context, o Options) {
 			})
 		})
 		if f.err != "" {
-			ui.Text(c, f.err).FontSize(12).TextColor(theme.Error)
+			ui.Text(c, f.err).FontSize(theme.TextLabel).TextColor(theme.Error)
 		}
 		var session Host
 		for _, h := range o.Hosts {
@@ -594,7 +594,7 @@ func (v *View) connectSheet(c *ui.Context, o Options) {
 		}
 		if session.Client != nil {
 			ui.Row(c).FillWidth().Gap(8).AlignItems(ui.Center).Children(func() {
-				ui.Text(c, "No TV at hand? An emulator of one, on "+session.Name+".").FontSize(11.5).TextColor(theme.Muted).Grow(1).Shrink(1)
+				ui.Text(c, "No TV at hand? An emulator of one, on "+session.Name+".").FontSize(theme.TextLabel).TextColor(theme.Muted).Grow(1).Shrink(1)
 				if widget.Button(c, widget.Secondary, nil, "Make a virtual TV", "").Disabled(v.busy != "").Clicked() {
 					f.open = false
 					v.act(o, "Setting up a virtual Android TV in a tab…", func() error {
@@ -694,7 +694,7 @@ func (v *View) logView(c *ui.Context, o Options) {
 	d, ok := v.pickedDevice(o)
 	if !ok || d.dev.State != "device" {
 		ui.Column(c).Grow(1).FillWidth().Center().Padding(24).Children(func() {
-			ui.Text(c, "The device's log shows here once it runs.").FontSize(12).TextColor(theme.Muted)
+			ui.Text(c, "The device's log shows here once it runs.").FontSize(theme.TextLabel).TextColor(theme.Muted)
 		})
 		return
 	}
@@ -729,10 +729,10 @@ func (v *View) logView(c *ui.Context, o Options) {
 				col = theme.Muted
 			}
 			ui.Row(c).FillWidth().Padding(1, 12).Gap(6).AlignItems(ui.Start).Children(func() {
-				ui.Text(c, l.Time).Font(theme.MonoFont).FontSize(10.5).TextColor(theme.Muted).Shrink(0)
-				ui.Text(c, l.Level).Font(theme.MonoFont).FontSize(10.5).TextColor(col).Shrink(0)
-				ui.Text(c, l.Tag).Font(theme.MonoFont).FontSize(10.5).TextColor(theme.Accent).MaxWidth(110).SingleLine().Shrink(0)
-				ui.Text(c, l.Message).Font(theme.MonoFont).FontSize(10.5).TextColor(col).Grow(1).Shrink(1).MinWidth(0).Selectable()
+				ui.Text(c, l.Time).Font(theme.MonoFont).FontSize(theme.TextLabel).TextColor(theme.Muted).Shrink(0)
+				ui.Text(c, l.Level).Font(theme.MonoFont).FontSize(theme.TextLabel).TextColor(col).Shrink(0)
+				ui.Text(c, l.Tag).Font(theme.MonoFont).FontSize(theme.TextLabel).TextColor(theme.Accent).MaxWidth(110).SingleLine().Shrink(0)
+				ui.Text(c, l.Message).Font(theme.MonoFont).FontSize(theme.TextLabel).TextColor(col).Grow(1).Shrink(1).MinWidth(0).Selectable()
 			})
 		}).Grow(1).FillWidth()
 	})
@@ -858,13 +858,13 @@ func (v *View) startSetup(o Options, h Host) {
 func (v *View) setupView(c *ui.Context, o Options) {
 	s := v.setup
 	ui.Column(c).Grow(1).FillWidth().MinHeight(0).Padding(10, 12).Gap(8).Children(func() {
-		ui.Text(c, "Setting Android up on this machine").FontSize(12.5).FontWeight(600)
+		ui.Text(c, "Setting Android up on this machine").FontSize(theme.TextUI).FontWeight(600)
 		widget.LogView(c, s.text(), 360)
 		s.mu.Lock()
 		done, failed := s.done, s.err
 		s.mu.Unlock()
 		if failed != "" {
-			ui.Text(c, failed).FontSize(12).TextColor(theme.Error)
+			ui.Text(c, failed).FontSize(theme.TextLabel).TextColor(theme.Error)
 		}
 		ui.Row(c).FillWidth().Gap(8).Justify(ui.End).Children(func() {
 			if !done && widget.Button(c, widget.Secondary, icon.Check, "Accept the licenses shown", "").Clicked() {

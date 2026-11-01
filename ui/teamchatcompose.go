@@ -45,7 +45,7 @@ func (a *App) chatComposer(c *ui.Context, team string) {
 		if hc.editing != nil {
 			ui.Row(c).FillWidth().Gap(6).PaddingX(4).AlignItems(ui.Center).Children(func() {
 				ui.Icon(c, icon.Pencil).FontSize(12).TextColor(theme.Accent)
-				ui.Text(c, "Editing your message · Esc to cancel").FontSize(11.5).TextColor(theme.TextSoft).Grow(1).Shrink(1).SingleLine()
+				ui.Text(c, "Editing your message · Esc to cancel").FontSize(theme.TextLabel).TextColor(theme.TextSoft).Grow(1).Shrink(1).SingleLine()
 				if widget.IconButton(c, icon.Close, "Stop editing", false).Clicked() {
 					a.stopEditing()
 				}
@@ -67,14 +67,14 @@ func (a *App) chatComposer(c *ui.Context, team string) {
 		a.pendingImages(c)
 		start, stop, query, typing := -1, -1, "", false
 		var options []mentionOption
-		box := ui.Row(c).FillWidth().Gap(4).Padding(3, 3, 3, 10).Radius(14).Background(theme.Sunken).AlignItems(ui.End)
+		box := ui.Row(c).FillWidth().Gap(4).Padding(3, 3, 3, 10).Radius(theme.RadiusCard).Background(theme.Sunken).AlignItems(ui.End)
 		border := theme.BorderStrong
 		if box.FocusWithin() {
 			border = theme.AccentLine
 		}
 		send := false
 		box.Border(1, widget.Tint(box, "border", border)).Children(func() {
-			in := ui.TextAreaBase(c, &hc.draft).Grow(1).Shrink(1).MinWidth(0).Lines(1, 6).Padding(6, 0).FontSize(12.5).
+			in := ui.TextAreaBase(c, &hc.draft).Grow(1).Shrink(1).MinWidth(0).Lines(1, 6).Padding(6, 0).FontSize(theme.TextUI).
 				Placeholder("Message " + a.spaceName(team) + " · @ to mention").Label("Message").
 				Tooltip("Enter to send · Shift+Enter for a new line")
 			_, caret := in.TextSelection()
@@ -154,7 +154,7 @@ func (a *App) chatComposer(c *ui.Context, team string) {
 			}
 			images, uploading := a.imagesReady()
 			empty := strings.TrimSpace(hc.draft) == "" && len(images) == 0 || uploading
-			b := ui.ButtonBase(c).Size(28, 28).Radius(14).Center().Shrink(0).Label("Send").Tooltip("Send (Enter)").Cursor(ui.CursorPointer).
+			b := ui.ButtonBase(c).Size(28, 28).Radius(theme.RadiusCard).Center().Shrink(0).Label("Send").Tooltip("Send (Enter)").Cursor(ui.CursorPointer).
 				Gradient(theme.AccentHigh, theme.Accent, 180).TextColor(theme.OnAccent)
 			if empty {
 				b.Opacity(0.35).Disabled(true)
@@ -308,7 +308,7 @@ func (a *App) mentionMenu(c *ui.Context, box ui.Element, start, stop int, query 
 				if query == "" {
 					msg = "The team has no members, notes or projects to mention yet"
 				}
-				ui.Text(c, msg).FontSize(12).TextColor(theme.Muted).Padding(8, 10)
+				ui.Text(c, msg).FontSize(theme.TextLabel).TextColor(theme.Muted).Padding(8, 10)
 				return
 			}
 			widget.PopupLabel(c, "MENTION")
@@ -322,8 +322,8 @@ func (a *App) mentionMenu(c *ui.Context, box ui.Element, start, stop int, query 
 							ui.Icon(c, mentionIcon(o.m.Kind)).FontSize(13).TextColor(theme.TextSoft)
 						})
 					}
-					ui.Text(c, o.m.Title).FontSize(12.5).TextColor(theme.Text).SingleLine().Shrink(0).MaxWidth(200)
-					ui.Text(c, o.detail).FontSize(11).TextColor(theme.Muted).SingleLine().Shrink(1).Grow(1)
+					ui.Text(c, o.m.Title).FontSize(theme.TextUI).TextColor(theme.Text).SingleLine().Shrink(0).MaxWidth(200)
+					ui.Text(c, o.detail).FontSize(theme.TextLabel).TextColor(theme.Muted).SingleLine().Shrink(1).Grow(1)
 				})
 				if row.Clicked() {
 					hc.draft = a.pickMention(hc.draft, start, stop, o.m)
