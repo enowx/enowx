@@ -29,6 +29,10 @@ type kind struct {
 	env  string   // the variable naming the home
 	home string   // the default home, under the user's
 	own  []string // what in it is the account's, not shared
+	// docsOnly: read from the agent's docs and never signed in, so a team's
+	// member gets none: a variable it didn't honor would hand them the
+	// host's user's sign-in.
+	docsOnly bool
 }
 
 // kinds are the agents that can have accounts, by base ID.
@@ -37,6 +41,12 @@ var kinds = map[string]kind{
 	// default account's back.
 	"claude": {env: "CLAUDE_CONFIG_DIR", home: ".claude", own: []string{".credentials.json", ".claude.json", ".claude.json.lock", "backups"}},
 	"codex":  {env: "CODEX_HOME", home: ".codex", own: []string{"auth.json"}},
+	// https://www.kimi.com/code/docs/en/kimi-code-cli/configuration/data-locations.html
+	"kimi": {env: "KIMI_CODE_HOME", home: ".kimi-code", own: []string{"credentials"}, docsOnly: true},
+	// https://docs.mistral.ai/mistral-vibe/terminal/configuration
+	"mistral-vibe": {env: "VIBE_HOME", home: ".vibe", own: []string{".env"}, docsOnly: true},
+	// https://github.com/badlogic/pi-mono/blob/main/packages/coding-agent/docs/configuration.md
+	"pi": {env: "PI_CODING_AGENT_DIR", home: filepath.Join(".pi", "agent"), own: []string{"auth.json"}, docsOnly: true},
 }
 
 // Supported reports whether agent (a base ID) can have accounts.
@@ -179,6 +189,9 @@ func (s *Store) AddMember(agent, name, member string) (proto.Account, error) {
 	name = strings.TrimSpace(name)
 	if !Supported(agent) {
 		return proto.Account{}, fmt.Errorf("accounts: %s can't have other accounts", agent)
+	}
+	if kinds[agent].docsOnly {
+		return proto.Account{}, fmt.Errorf("accounts: %s's accounts haven't been tried with a real sign-in, so a team's member can't have one", agent)
 	}
 	if name == "" || member == "" {
 		return proto.Account{}, errors.New("accounts: a member's account needs a label and the member")

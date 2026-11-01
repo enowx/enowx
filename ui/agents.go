@@ -153,8 +153,6 @@ func apiInfoOf(apis *agentAPIState, id string) (proto.AgentAPIInfo, bool) {
 	return apis.list[i], true
 }
 
-// configKinds are the kinds of config agent id can have, as the form
-// offers them.
 // agentWay says what an agent takes, what it doesn't and how that was checked.
 func (a *App) agentWay(c *ui.Context, ag proto.AgentInfo, way accounts.Way) {
 	ui.Column(c).FillWidth().Gap(4).Children(func() {
@@ -164,6 +162,8 @@ func (a *App) agentWay(c *ui.Context, ag proto.AgentInfo, way accounts.Way) {
 		}
 		if why := noConfigWhy(ag, way); why != "" {
 			ui.Text(c, why).FontSize(11.5).TextColor(theme.Warning)
+		} else if way.Account && ag.SignIn == "" {
+			ui.Text(c, "It has no sign-in command: Sign in starts it in the account's own home, and it asks there.").FontSize(11.5).TextColor(theme.Warning)
 		}
 		ui.Text(c, wayChecked[way.Checked]).FontSize(10.5).TextColor(theme.Muted)
 	})
@@ -196,6 +196,8 @@ func agentNameOf(id string) string {
 	return id
 }
 
+// configKinds are the kinds of config agent id can have, as the form
+// offers them.
 func (a *App) configKinds(id string) []string {
 	var out []string
 	if info, ok := apiInfoOf(a.agentAPIsOf(), id); ok && info.PerSession {
