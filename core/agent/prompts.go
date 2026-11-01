@@ -38,7 +38,7 @@ var (
 )
 
 // workingShown are what agents show while they work: no fallback then.
-var workingShown = regexp.MustCompile(`(?i)esc (to )?(interrupt|cancel)|ctrl\+c to (interrupt|cancel|stop)|[⠋⠙⠹⠸⠼⠴⠦⠧⠇⠏]`)
+var workingShown = regexp.MustCompile(`(?i)esc (to )?interrupt|ctrl\+c to (interrupt|stop)|[⠋⠙⠹⠸⠼⠴⠦⠧⠇⠏]`)
 
 // PromptShown reads what screen asks, from its bottom, where an agent asks;
 // ok false when it asks nothing listed.
@@ -50,10 +50,21 @@ func PromptShown(screen string) (ScreenPrompt, bool) {
 	}
 	for i := len(lines) - 1; i >= 0; i-- {
 		if knownPrompts.MatchString(strings.ToLower(lines[i])) {
-			return ScreenPrompt{Text: lines[i], Deadline: deadlineIn(lines), Known: true}, true
+			return ScreenPrompt{Text: askedAbove(lines, i), Deadline: deadlineIn(lines), Known: true}, true
 		}
 	}
 	return ScreenPrompt{}, false
+}
+
+// askedAbove is the question a matched line belongs to: itself, or, for a choice
+// under a question, that question.
+func askedAbove(lines []string, i int) string {
+	for j := i; j >= 0 && j >= i-4; j-- {
+		if strings.HasSuffix(strings.Trim(lines[j], " │|"), "?") {
+			return lines[j]
+		}
+	}
+	return lines[i]
 }
 
 // StalledPrompt is the fallback for prompts nobody listed: a screen that hasn't

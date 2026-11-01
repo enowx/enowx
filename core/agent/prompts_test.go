@@ -16,6 +16,8 @@ func TestPromptShown(t *testing.T) {
 		"You've reached your usage limit. It resets at 5pm\n",
 		"Please sign in: open this url in your browser to sign in\n",
 		"Update available! Press Enter to update\n",
+		// What Claude Code showed in a folder it doesn't know.
+		"Is this a project you created or one you trust?\n ❯ No, exit\n   Yes, I trust this folder\n Enter to confirm · Esc to cancel\n",
 	} {
 		if _, ok := PromptShown(screen); !ok {
 			t.Errorf("not seen: %q", screen)

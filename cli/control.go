@@ -333,6 +333,12 @@ func (r runner) answer(args []string) error {
 			fmt.Fprintf(r.out, "  %d. %s\n", j+1, o)
 		}
 	}
+	if ask.Prompt != "" {
+		fmt.Fprintln(r.out, "Its screen asks: "+ask.Prompt)
+		if ask.Deadline != "" {
+			fmt.Fprintln(r.out, "It gives "+ask.Deadline+".")
+		}
+	}
 	if ask.Reason != "" {
 		fmt.Fprintln(r.out, ask.Reason)
 	}
