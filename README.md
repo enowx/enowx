@@ -50,6 +50,7 @@ So enowX lets the heavy work run somewhere else while it still feels like it run
 - [Why I built it](#why-i-built-it)
 - [What it does](#what-it-does)
   - [Run agents in parallel](#run-agents-in-parallel)
+  - [Let one agent run the others](#let-one-agent-run-the-others)
   - [Talk to them, in a terminal or a chat](#talk-to-them-in-a-terminal-or-a-chat)
   - [Review and ship](#review-and-ship)
   - [See it running](#see-it-running)
@@ -79,7 +80,7 @@ Each session is an agent in a real terminal, on a branch of its own in a git wor
 - **Automations:** a prompt on a schedule, run by the host's daemon whether the app is open or not: weekday triage of new issues, a nightly dependency update ([automations.md](docs/automations.md)).
 - **Agent accounts:** several accounts of Claude Code or Codex on a host, a work and a personal one say, picked per session with no new sign-in ([accounts.md](docs/accounts.md)).
 - **Notes:** pages of notes on each host, nested like a notebook's and written a block at a time with Markdown's shortcuts and `/` for blocks: tabs, toggles, columns, callouts and cards, an outline to jump through, pictures pasted or added beside your text, undo and redo, and every version kept to restore. Groups and order your way, SVG icons (Lucide, Tabler, Phosphor or your own) in any color and size. **Ask an agent** beside a page (Claude Code, Codex or another, picked per note) tidies it, plans it or brainstorms it, its changes yours to accept. A note attaches to projects on any host, and an agent reads them all. Import from Notion (its export or its API, again on a schedule), Obsidian, Evernote, Keep or HTML, with their images; export to Markdown, folders, HTML, PDF or a backup ([notes.md](docs/notes.md)).
-- **Canvas:** mockups in HTML, wireframes, diagrams and boards on each host, which you and agents design together on an endless board: scroll to move it, pinch to zoom, as in a design tool. Watch an agent build a design live, element by element, or ten variations to compare and star; click a component of a mockup to ask the agent about it, have it changed or redesigned, or leave a note on it; lay designs out on a grid; move and edit shapes, pause or stop the agent, restore versions; export PNG, SVG, PDF or HTML, share a read-only link on your tailnet, and have an agent turn a design into code in a project, pixel for pixel. Agents are held to designs no wider than their frame ([canvas.md](docs/canvas.md)).
+- **Canvas:** mockups in HTML, wireframes, diagrams and boards on each host, which you and agents design together on an endless board: scroll to move it, pinch to zoom, as in a design tool. Watch an agent build a design live, element by element, or ten variations to compare and star; click a component of a mockup to ask the agent about it, have it changed or redesigned, or leave a note on it; lay designs out on a grid; move and edit shapes, pause or stop the agent, restore versions; export PNG, SVG, PDF or HTML, link designs into working prototypes that share state; play and scrub motion, with anime.js and three.js built in; share a read-only link on your tailnet, and have an agent turn a design into code in a project, pixel for pixel. Agents are held to designs no wider than their frame ([canvas.md](docs/canvas.md)).
 - **Clone from Git:** paste a repository's address (https or SSH), pick the folder, and the host clones it with its own git credentials, progress shown, then opens it as a project; agents do it with `enowx-app project clone`.
 - **Your order and groups:** drag projects and groups in the session list, or put projects in a group from their menu; the host keeps them, so every device shows the same list.
 - **Side by side:** several sessions in one view (`Ctrl+Shift+L`), each with its terminal, chat and browser.
@@ -90,6 +91,17 @@ Each session is an agent in a real terminal, on a branch of its own in a git wor
 - **Floating control:** a round panel over other apps' windows, summoned from anywhere by `⌘⇧Space` (`Ctrl+Shift+Space` on Windows and Linux), with six actions round its center button and a session menu to choose this PC or a VPS, its server and project, then a session and its status; off by default, and turned on in Settings → Floating control ([floating-control.md](docs/floating-control.md)).
 
 ![Compare: two sessions given the same prompt, each with the files and lines it changed, and a button to keep it](docs/assets/readme/compare.png)
+
+### Let one agent run the others
+
+**GOD of Agents** is one session you drive that handles every other session, on every host ([goa.md](docs/goa.md)):
+
+- **Hands out the work:** it splits what you ask into tasks for each project's own session, queued when that one is busy. A new session starts only if the project has none, or you ask.
+- **Told, not polling:** a worker's turn ending, a prompt, a startup dialog, a limit or a worker that isn't moving reaches it as a line, quoting what's asked. What can't be undone or spends money stays yours.
+- **A board of tasks:** each with its project, path, session and the model it really ran on, chosen per prompt by the judge. Sessions open in tabs beside it.
+- **Sets enowX up with you:** it carries the docs and a guide to every setting, and stops for your keys and your agreement.
+
+**RAG** lets agents find a project's code, docs and notes by meaning, in SQLite or PostgreSQL, asking before a project's text goes to an embedder ([rag.md](docs/rag.md)). **Decisions** has a small model answer instead of guessing: a quiet session's state, approving a command, trimming long output, stopping a loop ([decide.md](docs/decide.md)). **Hooks** run on what happens in any agent, in one format ([hooks.md](docs/hooks.md)).
 
 ### Talk to them, in a terminal or a chat
 
@@ -164,7 +176,7 @@ The **Android** tool runs the session's app (Flutter, Expo, React Native, Capaci
 
 ### Use your own model API
 
-**Settings → Model APIs** points Claude Code, Codex, OpenCode, Gemini CLI, Qwen Code, Droid, Goose, Aider, Kimi, Mistral Vibe, Pi, Continue and more at an API of yours: a company gateway, OpenRouter, a local server ([agent-api.md](docs/agent-api.md)).
+**Settings → Agents** lists all 45 agents, with what each takes or why it can't ([configs.md](docs/configs.md)), and points Claude Code, Codex, OpenCode, Gemini CLI, Qwen Code, Droid, Goose, Aider, Kimi, Mistral Vibe, Pi, Continue and more at an API of yours, per session where the agent can: a company gateway, OpenRouter, a local server ([agent-api.md](docs/agent-api.md)).
 
 - **Written the way each agent takes it**, in its own settings: several models, and where the agent has them, vision, context window, output limit and reasoning effort for each.
 - **Your settings backed up first**, every time; **Restore** puts them back as you had them, byte for byte.

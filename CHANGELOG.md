@@ -2,6 +2,41 @@
 
 Each version's section is also what the app's update dialog shows.
 
+## 0.5.1
+
+- **GOD of Agents knows what it is and what's going on:**
+  - **Who it is:** its prompt says it, and it reads enowX's docs, now inside the app, and a built-in guide for setting up every setting, stopping for your keys and your agreement.
+  - **Told of everything that stops a worker:** prompts no hook reports, startup dialogs, limits, sign-ins and your confirmations in the app, also for an agent run by hand in a shell tab, quoting what's asked and the time a prompt gives. A worker that isn't moving goes to "stalled", with limits you can change and a `session.stalled` hook.
+  - **Keeps to a project's session:** a task goes to the session that knows the project, queued when it's busy, and a new one starts only if there is none or you ask. A session of yours in bypass isn't asked again for what can't be undone.
+  - **Opens any session** in a tab beside it, and says why when it can't. Tasks remember what they asked and how they ended, with their project, path and the model they really ran on.
+- **The model each session really uses:** in the session list and `sessions`, from what the agent reports, with its project and full path.
+- **Canvas:**
+  - **Prototypes:** a canvas's designs linked into pages sharing state, with a Reset, in Interact mode and on the shared page. Designs' scripts are now kept apart from the app and the page around them.
+  - **Motion:** anime.js and three.js built in, so they work offline, with play, pause, restart and a scrubber, and agents check motion from sampled frames.
+  - **Stays where you are:** the zoom holds between designs, Interact mode fits a design in a centered box, the grid hides with a button, and the unslop card scrolls inside itself.
+- **Nothing moves you any more:** agents asking to show a canvas, a browser page or a login raise a card you can click. A dropped connection leaves your page and forms in place.
+- **Settings → Agents lists all 45 agents,** with what each takes or why it can't, and search. Kilo Code, Qwen Code, Goose, Kimi, Continue and Crush take a model API per session; these were read from their docs and not run here.
+- **Fork a session:** a compacted copy goes on in a new session, for Claude Code and Codex.
+- **Notifications say what they're about,** in cards that open the session.
+- **Keep typed keys in the vault,** from RAG and Decisions, so other hosts can use them.
+- **Fixed:**
+  - OpenCode kept asking for permission in GOD of Agents, its workers and the chats of notes and canvases, which never got its `--auto`.
+  - Adding rules with AI could drop your existing rules: it now only adds, and earlier versions are kept.
+  - A daemon dying could leave a terminal stuck that hung every new shell on the Mac until it was cleared.
+  - A decision use has no daily limit by default: `approve` stopped answering at 300 calls.
+  - A session that dies says why, and isn't restarted in a tight loop.
+  - The missing confirmations and other bugs an inventory of the app found.
+
+### Still open
+
+- **Sessions dying with code 129 on an Intel Mac (#12):** the cause isn't found, and it needs macOS 14 on Intel. This release only says why a session died.
+- **Scrolling in OpenCode:** the report couldn't be reproduced here; wheel and trackpad work in a terminal and in the app, on this Mac, including Claude Code, Codex, OMP, Antigravity and CodeBuddy. Kiro CLI, Command Code and Freebuff gave nothing to scroll, Droid, Cursor and Muse need a sign-in, and a remote host wasn't tried.
+- **Dialogs that ask you for something** take the keyboard while you type, and some focus their approving button. Which should change is still to be decided.
+- **The model shown** wasn't tested for real through an account's fallback or a config. `switch --model` on Claude Code also changes its default for new sessions.
+- **Other accounts** for agents besides Claude Code and Codex, which need a real sign-in to check.
+- **Not every interruption** was triggered on a real agent: limits, signing out, updates and the like are recognized by their words only.
+- **Not tried in the real app:** typed keys moving to a real vault on a VPS, and opening a session of a real remote host from GOD of Agents' list. Motion's controls in Interact mode and its Linux and Windows web views are also untested.
+
 ## 0.5.0
 
 - **GOD of Agents:** one session you drive that controls every session on every host. It splits what you ask into tasks and hands each to an existing session or a new one, on any host, agent and config; a board shows each task, its session, status and result. On Claude Code and Codex it is held to this by their hooks, on other agents watched, with each agent's level shown when you pick one.
