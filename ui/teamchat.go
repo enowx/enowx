@@ -38,7 +38,14 @@ const membersRefresh = 15 * time.Second
 type hostChats struct {
 	host   string
 	byTeam map[string][]proto.ChatMessage
-	list   ui.ListState // the messages, following the latest
+	// readGen is the connection a team's chat was last read whole on: what
+	// events alone brought isn't its history, and a connection lost misses
+	// what came. reading and readTried pace the asking.
+	readGen   map[string]int
+	reading   map[string]bool
+	readTried map[string]time.Time
+	readErr   string
+	list      ui.ListState // the messages, following the latest
 	// listFor is the team list shows; shown and wasShown say the chat
 	// was drawn this frame and the last, so it opens at its latest.
 	listFor         string
@@ -88,6 +95,7 @@ type hostChats struct {
 func (a *App) chatsOf() *hostChats {
 	if a.teamChats == nil || a.teamChats.host != a.host.ID {
 		a.teamChats = &hostChats{host: a.host.ID, byTeam: map[string][]proto.ChatMessage{},
+			readGen: map[string]int{}, reading: map[string]bool{}, readTried: map[string]time.Time{},
 			members: map[string][]api.Member{}, membersAt: map[string]time.Time{}, membersErr: map[string]string{}, setCaret: -1,
 			images: map[string]*chatImage{}}
 	}
@@ -114,22 +122,52 @@ func (a *App) chatTeam() string {
 	return ""
 }
 
-// loadChat reads a team's chat from the host.
+// wasRead says team's chat was read whole on connection gen.
+func (hc *hostChats) wasRead(team string, gen int) bool {
+	g, ok := hc.readGen[team]
+	return ok && g == gen
+}
+
+// loadChat reads a team's chat from the host unless it did on this
+// connection, or is, or just failed to.
 func (a *App) loadChat(team string) {
-	hc, cl := a.chatsOf(), a.client
-	if cl == nil {
+	hc, cl, gen := a.chatsOf(), a.client, a.gen
+	if cl == nil || hc.wasRead(team, gen) || hc.reading[team] || time.Since(hc.readTried[team]) < chatRefresh {
 		return
 	}
+	hc.reading[team], hc.readTried[team] = true, time.Now()
 	go func() {
 		list, err := cl.TeamChat(team, 0)
 		a.onMain(func() {
+			hc.reading[team] = false
 			if err != nil {
-				hc.err = client.Explain(err)
+				hc.readErr = client.Explain(err)
+				hc.err = hc.readErr
 				return
 			}
-			hc.byTeam[team] = list
+			if hc.err != "" && hc.err == hc.readErr {
+				hc.err = ""
+			}
+			hc.readGen[team] = gen
+			hc.byTeam[team] = withNewer(list, hc.byTeam[team])
 		})
 	}()
+}
+
+// withNewer is the messages read, then those of have that came after them
+// while they were read.
+func withNewer(read, have []proto.ChatMessage) []proto.ChatMessage {
+	out := slices.Clone(read)
+	last := ""
+	if len(read) > 0 {
+		last = read[len(read)-1].ID
+	}
+	for _, m := range have {
+		if m.ID > last {
+			out = append(out, m)
+		}
+	}
+	return out
 }
 
 // teamMembers is team's members as the cloud last told, read again when
@@ -231,11 +269,8 @@ func (a *App) chatTab(c *ui.Context) {
 		hc.list, hc.listFor = ui.ListState{}, team
 	}
 	hc.shown = true
-	msgs, read := hc.byTeam[team]
-	if !read {
-		hc.byTeam[team] = nil
-		a.loadChat(team)
-	}
+	a.loadChat(team)
+	msgs := hc.byTeam[team]
 	if time.Since(hc.pulled) > chatRefresh {
 		hc.pulled = time.Now()
 		cl := a.client
@@ -249,13 +284,20 @@ func (a *App) chatTab(c *ui.Context) {
 		a.state.ChatRead[team] = msgs[n-1].ID
 	}
 	a.teamHeader(c, team)
-	if len(msgs) == 0 {
+	switch {
+	case len(msgs) == 0 && !hc.wasRead(team, a.gen):
+		// Not "no message yet": they may just not be read, or have come.
+		ui.Column(c).Grow(1).FillWidth().Center().Gap(8).Padding(24).Children(func() {
+			widget.Spinner(c, 14)
+			ui.Text(c, "Reading the chat…").FontSize(12).TextColor(theme.Muted)
+		})
+	case len(msgs) == 0:
 		ui.Column(c).Grow(1).FillWidth().Center().Gap(6).Padding(24).Children(func() {
 			ui.Icon(c, icon.Chat).FontSize(22).TextColor(theme.Idle)
 			ui.Text(c, "No message yet: say hello to "+a.spaceName(team)+".").FontSize(12).TextColor(theme.Muted)
 			ui.Text(c, "Type @ to mention a member, a note or a file.").FontSize(11).TextColor(theme.Idle)
 		})
-	} else {
+	default:
 		a.chatMessages(c, team, msgs)
 	}
 	a.typingLine(c, team)

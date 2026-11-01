@@ -358,6 +358,12 @@ func (ts *teamSync) pull(ctx context.Context) error {
 				return err
 			}
 		}
+		// What came shows as it comes, a long first sync or a push after it
+		// not holding a chat back.
+		if len(ts.chats) > 0 {
+			ts.srv.chatCame(ts.team, ts.chats)
+			ts.chats = nil
+		}
 		after = page.Seq
 		ts.state.Seq = max(ts.state.Seq, page.Seq)
 		if !page.More {

@@ -247,3 +247,57 @@ func TestTeamChatInTheSidePanel(t *testing.T) {
 	}
 	settle("the members, who is online", func() bool { return tt.HasText("Bob") && tt.HasText("online") })
 }
+
+// A message coming before the chat was ever opened isn't its history: the
+// chat still reads what came before it, and says so while it reads.
+func TestTeamChatReadsItsHistoryAfterAnEvent(t *testing.T) {
+	dir := t.TempDir()
+	const team = "0123456789abcdef"
+	hostauth.Open(filepath.Join(dir, "cloud")).Put(hostauth.State{URL: "https://cloud.test", Token: "enxc_test", AccountID: "acc1", Account: "Ada"})
+	os.MkdirAll(filepath.Join(dir, "teams", team, "chat"), 0o700)
+	os.WriteFile(filepath.Join(dir, "teams", team, "team.json"), []byte(`{"team":"`+team+`","name":"Design","role":"owner","account":"acc1"}`), 0o600)
+	at := time.Now().Add(-20 * time.Minute).UTC().Format(time.RFC3339)
+	os.WriteFile(filepath.Join(dir, "teams", team, "chat", "0000000000000000001-aaaaaaaa.json"), []byte(`{"at":"`+at+`","account":"acc2","name":"Bob","text":"the old message"}`), 0o600)
+	srv, err := daemon.NewServer(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(srv.Close)
+	app := New(Options{})
+	var mu sync.Mutex
+	var later []func()
+	app.onMain = func(fn func()) { mu.Lock(); later = append(later, fn); mu.Unlock() }
+	a, b := net.Pipe()
+	go srv.ServeConn(a)
+	cl, err := client.New(b, func(proto.Event) {})
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { cl.Close() })
+	app.gen, app.client = 1, cl
+	app.host = hosts.Host{ID: hosts.LocalID, Name: "this Mac"}
+	app.state.Space = team
+	app.teamChatEvent([]byte(`[{"id":"0000000000000000002-bbbbbbbb","team":"` + team + `","account":"acc2","name":"Bob","text":"the new message"}]`))()
+	tt := ui.NewTester(func(c *ui.Context) {
+		c.SetTheme(theme.Window())
+		ui.Column(c).Width(460).Height(640).Background(theme.Background).TextColor(theme.Text).Children(func() { app.chatTab(c) })
+	}, 460, 640)
+	deadline := time.Now().Add(10 * time.Second)
+	for !(tt.HasText("the old message") && tt.HasText("the new message")) {
+		tt.Frame()
+		mu.Lock()
+		fns := later
+		later = nil
+		mu.Unlock()
+		for _, fn := range fns {
+			fn()
+		}
+		if time.Now().After(deadline) {
+			t.Fatalf("the history never read: %q", tt.Texts())
+		}
+		time.Sleep(10 * time.Millisecond)
+	}
+	if got := app.chatsOf().byTeam[team]; len(got) != 2 || got[0].Text != "the old message" {
+		t.Fatalf("the messages: %+v", got)
+	}
+}
