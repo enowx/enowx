@@ -59,7 +59,7 @@ func (v *View) stage(c *ui.Context, o Options) {
 		}
 	}
 	if v.mode == modeInteract && hasHTML && o.Web != nil {
-		v.interactStage(c, o, float32(width))
+		v.interactStage(c, o, float32(width), float32(height))
 		return
 	}
 	// The zoom's controls sit beside the board, over it, so its pointer
@@ -74,8 +74,7 @@ func (v *View) stage(c *ui.Context, o Options) {
 			c.After(time.Millisecond)
 			return
 		}
-		v.cam.fitWidth(b.W, float32(width))
-		v.cam.key = key
+		v.cam.place(v.selected, f.ID, key, b.W, float32(width))
 	}
 	v.scale = v.cam.z
 	s := float64(v.cam.z)
@@ -169,20 +168,38 @@ func (v *View) deselect(o Options) {
 
 // interactStage shows the mockup as a page to use: as wide as the stage
 // lets it (its own width at most), scrolled as a browser scrolls.
-func (v *View) interactStage(c *ui.Context, o Options, width float32) {
+func (v *View) interactStage(c *ui.Context, o Options, width, height float32) {
 	area := ui.Box(c.Key("stage")).Grow(1).FillWidth().MinHeight(0).Background(theme.Sunken).Clip()
 	b := area.Bounds()
-	z := float32(1)
-	if b.W > 0 {
-		z = min(max((b.W-48)/width, minZoom), 1)
-	}
-	v.scale = z
+	box := interactBox(b.W, b.H, width, height)
+	v.scale = box.Zoom
 	area.Children(func() {
 		if b.W > 0 {
-			o.Web.view(c.Key("web"), width*z, b.H, float64(z)).Absolute().Left((b.W - width*z) / 2).Top(0)
+			o.Web.view(c.Key("web"), box.W, box.H, float64(box.Zoom)).Absolute().Left(box.X).Top(box.Y)
 		}
 	})
 	o.Web.pollGoto(c, v.followLink)
+}
+
+// interactMargin is what Interact mode leaves around a design.
+const interactMargin = 24
+
+// interactPlace is where Interact mode shows a design, in stage pixels.
+type interactPlace struct {
+	X, Y, W, H, Zoom float32
+}
+
+// interactBox fits a design width×height in a stage aw×ah: whole, centered,
+// its margin all round, never above its own size, so its page's 100vh is its
+// frame's height. A web view zoomed out too far lays its page out anew, so it
+// stops at liveZoom: what doesn't fit then is cut by the box, and the page
+// scrolls to it.
+func interactBox(aw, ah, width, height float32) interactPlace {
+	room := max(aw-2*interactMargin, 1)
+	tall := max(ah-2*interactMargin, 1)
+	z := max(min(room/width, tall/height, 1), liveZoom)
+	w, h := min(width*z, room), min(height*z, tall)
+	return interactPlace{X: (aw - w) / 2, Y: (ah - h) / 2, W: w, H: h, Zoom: z}
 }
 
 // mockup is the frame's HTML: in a web view, or, where there is none,

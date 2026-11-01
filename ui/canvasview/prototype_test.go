@@ -137,3 +137,63 @@ func TestInteractResetsThePrototype(t *testing.T) {
 		t.Fatal("the page was loaded with the old state")
 	}
 }
+
+// Moving between designs keeps the zoom the user set, whatever their sizes,
+// both ways, with the new design in view; a canvas's first design fits, and
+// coming back to a canvas finds its zoom.
+func TestCameraKeepsTheZoom(t *testing.T) {
+	var cam camera
+	cam.place("c1", "a", "a/1440", 1200, 1440)
+	first := cam.z
+	if first >= 1 {
+		t.Fatalf("a canvas's first design should fit: %v", first)
+	}
+	cam.z = 1 // the user's 100%
+	cam.place("c1", "b", "b/390", 1200, 390)
+	if cam.z != 1 || cam.x != (1200-390)/2 || cam.y != 40 {
+		t.Fatalf("narrow design: %+v", cam)
+	}
+	cam.place("c1", "a", "a/1440", 1200, 1440)
+	if cam.z != 1 {
+		t.Fatalf("back: %v", cam.z)
+	}
+	if cam.x != (1200-1440)/2 {
+		t.Fatalf("wider than the stage, it should stay centered: %v", cam.x)
+	}
+	cam.place("c1", "a", "a/768", 1200, 768) // a preview's width
+	if cam.z != 1 && cam.z != min((1200-96)/float32(768), 1) {
+		t.Fatalf("preview: %v", cam.z)
+	}
+	cam.z = 0.7
+	cam.place("c2", "x", "x/1440", 1200, 1440)
+	if cam.z == 0.7 {
+		t.Fatal("another canvas fits, the first time")
+	}
+	cam.place("c1", "a", "a/1440", 1200, 1440)
+	if cam.z != 0.7 {
+		t.Fatalf("coming back: %v", cam.z)
+	}
+}
+
+// Interact mode's box: whole and centered with its margin, at a small, default
+// and large window, for a desktop and a phone design; never above 100%.
+func TestInteractBox(t *testing.T) {
+	for _, tc := range []struct{ aw, ah, w, h float32 }{
+		{700, 400, 1440, 900}, {1200, 700, 1440, 900}, {2400, 1300, 1440, 900},
+		{700, 400, 390, 844}, {1200, 700, 390, 844}, {2400, 1300, 390, 844},
+	} {
+		b := interactBox(tc.aw, tc.ah, tc.w, tc.h)
+		if b.X < interactMargin || b.Y < interactMargin || b.X+b.W > tc.aw-interactMargin+0.01 || b.Y+b.H > tc.ah-interactMargin+0.01 {
+			t.Errorf("%+v: %+v touches the stage's edge", tc, b)
+		}
+		if b.Zoom > 1 || b.Zoom < liveZoom {
+			t.Errorf("%+v: zoom %v", tc, b.Zoom)
+		}
+		if b.Zoom > liveZoom && (b.W/b.H-tc.w/tc.h > 0.01 || tc.w/tc.h-b.W/b.H > 0.01) {
+			t.Errorf("%+v: lost its proportions: %+v", tc, b)
+		}
+	}
+	if b := interactBox(2400, 1300, 1440, 900); b.W != 1440 || b.H != 900 {
+		t.Errorf("large window: %+v", b)
+	}
+}

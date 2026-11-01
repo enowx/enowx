@@ -28,11 +28,13 @@ const (
 // camera is where the design shows on the stage: its top left corner at
 // x, y, zoom z.
 type camera struct {
-	x, y, z float32
-	key     string // the design and width it was placed for
-	panning bool   // a drag moving the board
-	moved   bool   // it moved since the press
-	px, py  float32
+	x, y, z       float32
+	key           string             // the design and width it was placed for
+	canvas, frame string             // the canvas and design it was placed for
+	zooms         map[string]float32 // the zooms left on other canvases, this run
+	panning       bool               // a drag moving the board
+	moved         bool               // it moved since the press
+	px, py        float32
 }
 
 // zoomAt zooms by factor, keeping the point under x, y where it is.
@@ -42,6 +44,34 @@ func (cam *camera) zoomAt(x, y, factor float32) {
 	cam.x = x - (x-cam.x)*f
 	cam.y = y - (y-cam.y)*f
 	cam.z = z
+}
+
+// place puts the camera on design frame of canvas in a stage aw wide, on
+// key's change: the first design of a canvas fits, as does a design at another
+// width (a preview's); moving to another keeps the zoom the user set, and
+// comes to the new design, centered, from its top. Coming back to a canvas in
+// this run finds its zoom as it was.
+func (cam *camera) place(canvas, frame, key string, aw, width float32) {
+	defer func() { cam.key, cam.canvas, cam.frame = key, canvas, frame }()
+	if cam.canvas != canvas {
+		if cam.canvas != "" && cam.z > 0 {
+			if cam.zooms == nil {
+				cam.zooms = map[string]float32{}
+			}
+			cam.zooms[cam.canvas] = cam.z
+		}
+		z, ok := cam.zooms[canvas]
+		if !ok {
+			cam.fitWidth(aw, width)
+			return
+		}
+		cam.z = z
+	} else if cam.frame == frame {
+		cam.fitWidth(aw, width)
+		return
+	}
+	cam.x = (aw - width*cam.z) / 2
+	cam.y = 40
 }
 
 // fitWidth shows the design's whole width (never larger than its own
