@@ -125,7 +125,7 @@ func (a *App) noteImportDialog(c *ui.Context) {
 		}, func() {
 			switch {
 			case done:
-				if widget.PrimaryButton(c, icon.Check, "Done", "").Clicked() {
+				if widget.PrimaryButton(c, nil, "Done", "").Clicked() {
 					if r := j.Report; r != nil && len(r.Notes) > 0 {
 						a.notes.Select(a.notesOptions(), r.Notes[0])
 					}
@@ -137,18 +137,18 @@ func (a *App) noteImportDialog(c *ui.Context) {
 					go cl.CancelNoteImport(id)
 				}
 			case previewed:
-				if widget.Button(c, widget.Secondary, icon.ArrowLeft, "Back", "").Clicked() {
+				if widget.Button(c, widget.Secondary, nil, "Back", "").Clicked() {
 					f.job = nil
 				}
 				label := "Import " + textfmt.Plural(importCount(*j.Preview), "a note", fmt.Sprintf("%d notes", importCount(*j.Preview)))
-				b := widget.PrimaryButton(c, icon.ArrowDown, label, "")
+				b := widget.PrimaryButton(c, nil, label, "")
 				if importCount(*j.Preview) == 0 {
 					b.Disabled(true).Opacity(0.45)
 				} else if b.Clicked() {
 					a.runNoteImport(f, false)
 				}
 			default:
-				b := widget.PrimaryButton(c, icon.Search, "Preview", "")
+				b := widget.PrimaryButton(c, nil, "Preview", "")
 				if len(f.paths) == 0 && !(f.notionAPI && a.notionToken(f) != "") {
 					b.Disabled(true).Opacity(0.45)
 				} else if b.Clicked() {
@@ -178,12 +178,14 @@ func (a *App) importSource(c *ui.Context, f *noteImportForm, running bool) {
 		a.notionTokenField(c, f)
 	} else {
 		widget.Field(c, "Files", func() {
-			ui.Row(c).FillWidth().Gap(8).AlignItems(ui.Center).Children(func() {
-				label, col := "A Notion export (.zip), a vault or folder, .md, .enex, Keep's Takeout, .html, a backup", theme.Muted
+			ui.Row(c).FillWidth().Gap(theme.S2).AlignItems(ui.Center).Children(func() {
+				label, col := "A Notion export (.zip), a vault or folder, .md, .enex, Keep's Takeout, .html, a backup", theme.TextSoft
 				if len(f.paths) > 0 {
 					label, col = f.source(), theme.Text
 				}
-				ui.Text(c, label).FontSize(theme.TextLabel).TextColor(col).Grow(1).Shrink(1).SingleLine()
+				ui.Row(c).Grow(1).MinWidth(0).Children(func() {
+					widget.Running(c, label, widget.RunStyle{Size: theme.TextLabel, Color: col})
+				})
 				if widget.Button(c, widget.Secondary, icon.Folder, "Choose…", "").Clicked() && !running {
 					a.localPick.Open("Import notes", "Pick an export, a folder, or files: they are sent to "+a.host.Name+" and read there.", func(paths []string) {
 						if g := a.noteImport; g == f {
@@ -199,11 +201,11 @@ func (a *App) importSource(c *ui.Context, f *noteImportForm, running bool) {
 	})
 	if len(a.projects) > 0 {
 		widget.Field(c, "For a project (optional)", func() {
-			ui.Row(c).FillWidth().Gap(6).Wrap().Children(func() {
+			ui.Row(c).FillWidth().Gap(theme.S2).Wrap().Children(func() {
 				for _, p := range append([]proto.ProjectInfo{{Name: "None"}}, a.projects...) {
-					b := widget.Button(c.Key("p:"+p.Path), widget.Secondary, nil, p.Name, "").Height(26).PaddingX(10)
+					b := widget.Button(c.Key("p:"+p.Path), widget.Secondary, nil, p.Name, "").MaxWidth(240)
 					if f.project == p.Path {
-						b.Background(theme.Selected).Border(1, theme.AccentLine)
+						b.Background(theme.Selected)
 					}
 					if b.Clicked() {
 						f.project = p.Path
@@ -229,9 +231,9 @@ func importProgress(c *ui.Context, f *noteImportForm) {
 			fraction = float64(j.Done) / float64(j.Total)
 		}
 	}
-	ui.Column(c).FillWidth().Gap(6).Children(func() {
-		ui.Text(c, label).FontSize(theme.TextLabel).TextColor(theme.Text)
-		widget.Meter(c, widget.Segment{Fraction: fraction, Color: theme.Accent})
+	ui.Column(c).FillWidth().Gap(theme.S1).Children(func() {
+		widget.Running(c, label, widget.RunStyle{Size: theme.TextLabel})
+		widget.Meter(c, widget.Segment{Fraction: fraction, Color: theme.Now})
 	})
 }
 
@@ -244,7 +246,7 @@ func importPreview(c *ui.Context, pv proto.NoteImportPreview) {
 	}
 	ui.Text(c, summary+" to import, read as "+importFormat(pv.From)+".").FontSize(theme.TextUI).TextColor(theme.Text)
 	if skipped := len(pv.Notes) - n; skipped > 0 {
-		ui.Text(c, textfmt.Plural(skipped, "One was", fmt.Sprintf("%d were", skipped))+" imported before and stays as it is.").FontSize(theme.TextLabel).TextColor(theme.Muted)
+		ui.Text(c, textfmt.Plural(skipped, "One was", fmt.Sprintf("%d were", skipped))+" imported before and stays as it is.").FontSize(theme.TextLabel).TextColor(theme.TextSoft)
 	}
 	if len(pv.Conflicts) > 0 {
 		ui.Text(c, "Titles there already, kept both: "+strings.Join(pv.Conflicts, ", ")).FontSize(theme.TextLabel).TextColor(theme.Warning)
@@ -253,18 +255,21 @@ func importPreview(c *ui.Context, pv proto.NoteImportPreview) {
 		ui.Column(c).FillWidth().Gap(1).Children(func() {
 			for i, e := range pv.Notes {
 				if i == 300 {
-					ui.Text(c, fmt.Sprintf("and %d more", len(pv.Notes)-i)).FontSize(theme.TextLabel).TextColor(theme.Muted).Padding(4)
+					ui.Text(c, fmt.Sprintf("and %d more", len(pv.Notes)-i)).FontSize(theme.TextLabel).TextColor(theme.TextSoft).Padding(theme.S1, theme.S3)
 					break
 				}
-				ui.Row(c.Key(i)).FillWidth().Height(26).Gap(8).PaddingX(6).AlignItems(ui.Center).Radius(theme.RadiusSmall).Background(theme.Sunken).Children(func() {
-					ui.Row(c).Width(float32(len(e.Path)) * 14).Shrink(0)
-					ui.Icon(c, icon.File).FontSize(12).TextColor(theme.Muted)
-					ui.Text(c, e.Title).FontSize(theme.TextLabel).TextColor(theme.Text).SingleLine().Shrink(1).Grow(1)
+				ui.Row(c.Key(i)).FillWidth().Height(theme.ControlHeight).Shrink(0).Gap(theme.S2).Padding(0, theme.S3, 0, theme.S3+min(float32(len(e.Path))*theme.S3, 120)).Children(func() {
+					ui.Icon(c, icon.File).FontSize(12).TextColor(theme.TextSoft)
+					ui.Row(c).Grow(1).MinWidth(0).Children(func() {
+						widget.Running(c, e.Title, widget.RunStyle{})
+					})
 					if e.Group != "" {
-						ui.Text(c, e.Group).FontSize(theme.TextLabel).TextColor(theme.Muted).SingleLine()
+						ui.Row(c).MinWidth(0).Shrink(100).MaxWidth(120).Children(func() {
+							widget.Running(c.Key("group"), e.Group, widget.RunStyle{Size: theme.TextLabel, Color: theme.TextSoft})
+						})
 					}
 					if e.Action != "new" {
-						widget.Tag(c, e.Action, theme.Muted)
+						widget.Tag(c, e.Action, theme.TextSoft)
 					}
 				})
 			}
@@ -308,11 +313,11 @@ func (a *App) importReport(c *ui.Context, st proto.NoteImportStatus) {
 		if len(list) == 0 {
 			return
 		}
-		ui.Text(c, title).FontSize(theme.TextLabel).FontWeight(600).TextColor(theme.Text)
+		ui.Text(c, title).FontSize(theme.TextLabel).FontWeight(500).TextColor(theme.TextSoft)
 		ui.Scroll(c).FillWidth().MaxHeight(140).Children(func() {
 			ui.Column(c).FillWidth().Gap(2).Children(func() {
 				for i, it := range list {
-					ui.Text(c.Key(i), it.Where+": "+it.What).FontSize(theme.TextLabel).TextColor(theme.Muted)
+					ui.Text(c.Key(i), it.Where+": "+it.What).FontSize(theme.TextUI).TextColor(theme.Text)
 				}
 			})
 		})

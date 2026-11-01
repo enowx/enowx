@@ -86,8 +86,8 @@ func TestNotesAgentProposesAndTheUserAccepts(t *testing.T) {
 	}
 	settle("the notes listed", func() bool { return app.noteList.loaded })
 	app.notes.Select(app.notesOptions(), n.ID)
-	settle("the page open", func() bool { return tt.HasText("Ask an agent") })
-	if err := tt.Click("Ask an agent"); err != nil {
+	settle("the page open", func() bool { return tt.HasText("Note agent") })
+	if err := tt.Click("Note agent"); err != nil {
 		t.Fatal(err)
 	}
 	settle("the panel", func() bool { return tt.HasText(notesSuggestions[0].title) })

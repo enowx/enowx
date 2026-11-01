@@ -46,8 +46,8 @@ func (a *App) attachDialog(c *ui.Context) {
 		a.attaching = nil
 		return
 	}
-	widget.FormSheet(c, &f.open, 560, "Attach “"+noteTitle(f.note)+"” to projects",
-		"Projects of every host: the plan shows on each, and agents working in them find it.", func() {
+	widget.FormSheet(c, &f.open, 560, "Attach to projects",
+		"“"+noteTitle(f.note)+"”, with projects of every host: the plan shows on each, and agents working in them find it.", func() {
 			widget.SearchField(c, &f.filter, "Filter projects", icon.Search)
 			q := strings.ToLower(strings.TrimSpace(f.filter))
 			listed := map[string]bool{}
@@ -110,13 +110,13 @@ func (a *App) attachDialog(c *ui.Context) {
 				})
 			}
 			if len(a.catalogs.list) == 0 {
-				ui.Text(c, "Reading the hosts' projects…").FontSize(theme.TextLabel).TextColor(theme.Muted)
+				ui.Text(c, "Reading the hosts' projects…").FontSize(theme.TextUI).TextColor(theme.TextSoft)
 			}
 			if f.err != "" {
 				ui.Text(c, f.err).FontSize(theme.TextLabel).TextColor(theme.Error)
 			}
 		}, func() {
-			b := widget.PrimaryButton(c, nil, "Save", "")
+			b := widget.PrimaryButton(c, nil, "Done", "")
 			if f.saving {
 				b.Disabled(true).Opacity(0.5)
 			} else if b.Clicked() {
@@ -127,15 +127,18 @@ func (a *App) attachDialog(c *ui.Context) {
 
 func (a *App) attachRow(c *ui.Context, f *noteAttachForm, p proto.NoteProject) {
 	_, on := f.picked[p.Ref]
-	ui.Row(c).FillWidth().Gap(8).AlignItems(ui.Center).Children(func() {
-		if widget.Checkbox(c, &on, p.Name) {
+	ui.Row(c).FillWidth().MinHeight(36).Shrink(0).Padding(theme.S1, theme.S3).Gap(theme.S2).Children(func() {
+		ui.Column(c).Grow(1).MinWidth(0).Children(func() {
+			widget.Running(c, p.Name, widget.RunStyle{})
+			widget.Running(c.Key("path"), p.Path, widget.RunStyle{Size: theme.TextLabel, Color: theme.TextSoft})
+		})
+		if widget.Switch(c, &on, p.Name) {
 			if on {
 				f.picked[p.Ref] = p
 			} else {
 				delete(f.picked, p.Ref)
 			}
 		}
-		ui.Text(c, p.Path).Font(theme.MonoFont).FontSize(theme.TextLabel).TextColor(theme.Muted).SingleLine().Shrink(1)
 	})
 }
 

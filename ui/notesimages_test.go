@@ -156,12 +156,12 @@ func TestNoteImageDeletionSavesBody(t *testing.T) {
 		note, _ := h.cl.Note(n.ID)
 		return !strings.Contains(note.Body, "![Image]") && note.Body == "- [ ] Keep this task\n"
 	})
-	h.tt.Click("Read mode")
+	h.tt.Click("Read")
 	h.tt.Frame()
 	if h.tt.HasText("Delete Image 1") || !h.tt.HasText("Keep this task") {
 		t.Fatalf("deleted image stayed visible: %q", h.tt.Texts())
 	}
-	h.tt.Click("Edit mode")
+	h.tt.Click("Edit")
 	h.tt.Frame()
 	if err := h.tt.Click("Undo edit"); err != nil {
 		t.Fatal(err)

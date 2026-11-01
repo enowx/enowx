@@ -98,45 +98,54 @@ func (a *App) proposalsEvent(data json.RawMessage) func() {
 func (a *App) notesAssistant(c *ui.Context, n proto.NoteInfo) {
 	agentID := a.notesAgentOf(n.ID)
 	s, ok := a.notesSession(n.ID, agentID)
-	ui.Row(c).FillWidth().Height(44).Shrink(0).PaddingX(12).Gap(8).AlignItems(ui.Center).BorderWidth(0, 0, 1, 0).BorderColor(theme.Border).Children(func() {
-		pick := ui.ButtonBase(c).Height(30).PaddingX(10).Gap(7).Radius(theme.RadiusCard).Border(1, theme.Border).Cursor(ui.CursorPointer).Label("Agent").Tooltip("The agent this page talks to")
-		if pick.Hovered() {
-			pick.Background(theme.Hover)
-		}
-		pick.Children(func() {
-			ui.Icon(c, icon.Agent(agentID)).FontSize(14)
-			ui.Text(c, a.agentName(agentID)).FontSize(theme.TextUI).TextColor(theme.Text)
-			ui.Icon(c, icon.ChevronDown).FontSize(10).TextColor(theme.Muted)
+	ui.Row(c).FillWidth().Height(52).Shrink(0).Padding(0, theme.S2, 0, theme.S4).Gap(theme.S2).Children(func() {
+		ui.Row(c).Grow(1).Basis(0).MinWidth(0).Children(func() {
+			widget.Running(c, "Note agent", widget.RunStyle{Size: theme.TextTitle, Weight: 600})
 		})
-		a.menu.OpenBelow(pick, "notes-agent", 30)
-		a.menu.Show(c, pick, "notes-agent", func(done func()) {
-			for _, ag := range a.notesAgents() {
-				if widget.MenuItem(c.Key(ag.ID), icon.Agent(ag.ID), ag.Name, false) {
-					if a.state.NotesAgents == nil {
-						a.state.NotesAgents = map[string]string{}
+		ui.Row(c).Width(148).Shrink(0).Children(func() {
+			pick := ui.ButtonBase(c).Label("Agent").Tooltip("The agent this page talks to")
+			widget.Trigger(pick, false)
+			pick.Children(func() {
+				ui.Icon(c, icon.Agent(agentID)).FontSize(14).Shrink(0)
+				ui.Row(c).Grow(1).MinWidth(0).Children(func() { widget.Running(c, a.agentName(agentID), widget.RunStyle{}) })
+				ui.Icon(c, icon.ChevronDown).FontSize(12).TextColor(theme.TextSoft).Shrink(0)
+			})
+			a.menu.OpenBelow(pick, "notes-agent", theme.ControlHeight)
+			a.menu.Show(c, pick, "notes-agent", func(done func()) {
+				for _, ag := range a.notesAgents() {
+					if widget.MenuItem(c.Key(ag.ID), icon.Agent(ag.ID), ag.Name, false) {
+						if a.state.NotesAgents == nil {
+							a.state.NotesAgents = map[string]string{}
+						}
+						a.state.NotesAgents[n.ID] = ag.ID
+						if cl := a.client; cl != nil {
+							id, agent := n.ID, ag.ID
+							go func() { _, _ = cl.SetNoteAgent(id, agent) }() // older daemons: kept here alone
+						}
+						done()
 					}
-					a.state.NotesAgents[n.ID] = ag.ID
-					if cl := a.client; cl != nil {
-						id, agent := n.ID, ag.ID
-						go func() { _, _ = cl.SetNoteAgent(id, agent) }() // older daemons: kept here alone
-					}
-					done()
 				}
-			}
+			})
 		})
-		ui.Spacer(c)
-		if ok {
-			st := statusOf(s)
-			widget.Dot(c, st.color, st.hollow, 7)
-			ui.Text(c, st.label).FontSize(theme.TextLabel).TextColor(theme.Muted).SingleLine()
+		if widget.IconButton(c, icon.Close, "Close the note agent", false).Clicked() {
+			a.notes.SetAssistant(false)
+		}
+	})
+	if ok {
+		st := statusOf(s)
+		ui.Row(c).FillWidth().Height(theme.ControlHeight).Shrink(0).Padding(0, theme.S2, 0, theme.S4).Gap(theme.S2).Children(func() {
+			widget.Dot(c, st.color, st.hollow, 8)
+			ui.Row(c).Grow(1).MinWidth(0).Children(func() {
+				widget.Running(c, st.label, widget.RunStyle{Size: theme.TextLabel, Color: theme.TextSoft})
+			})
 			if widget.IconButton(c, icon.Plus, "New conversation", false).Clicked() {
 				a.endNotesSession(s)
 			}
-		}
-	})
+		})
+	}
 	a.notesContextRow(c, n)
 	if agentID == "" {
-		ui.Text(c, "No agent is installed on "+a.host.Name+".").FontSize(theme.TextLabel).TextColor(theme.Muted).Padding(16)
+		ui.Text(c, "No agent is installed on "+a.host.Name+".").FontSize(theme.TextUI).TextColor(theme.TextSoft).Padding(theme.S2, theme.S4)
 		return
 	}
 	if !ok {
@@ -150,7 +159,7 @@ func (a *App) notesAssistant(c *ui.Context, n proto.NoteInfo) {
 	case p != nil:
 		terminal.View(c.Key("term:"+s.ID), p.term).Grow(1).FillWidth()
 	default:
-		ui.Text(c, "Connecting…").FontSize(theme.TextLabel).TextColor(theme.Muted).Padding(16)
+		ui.Text(c, "Connecting…").FontSize(theme.TextUI).TextColor(theme.TextSoft).Padding(theme.S2, theme.S4)
 	}
 }
 
@@ -205,25 +214,15 @@ func setPick(m map[string]string, key, id string) map[string]string {
 
 // notesIntro is what the agent is for, and asks to start from.
 func (a *App) notesIntro(c *ui.Context, n proto.NoteInfo, title, agentID string) {
-	ui.Column(c).FillWidth().Gap(18).Padding(24, 0, 8, 0).Children(func() {
-		ui.Column(c).FillWidth().Center().Gap(8).Children(func() {
-			ui.Row(c).Size(48, 48).Radius(theme.RadiusCard).Center().Background(theme.AccentSoft).Children(func() {
-				ui.Icon(c, icon.Agent(agentID)).FontSize(24).TextColor(theme.Accent)
-			})
-			ui.Text(c, "Ask "+a.agentName(agentID)).FontSize(theme.TextTitle).FontWeight(650).TextColor(theme.TextStrong)
-			ui.Text(c, "About “"+title+"”").FontSize(theme.TextLabel).TextColor(theme.Muted).SingleLine().MaxWidth(320)
-			tip := "It works on your notes only: no project, no files, no commands. What it writes shows above the page for you to accept or reject."
-			if agentID != "claude" {
-				tip = "It runs in an empty folder and is asked to keep to your notes (Claude Code is held to them). What it writes shows above the page for you to accept or reject."
-			}
-			ui.Row(c).Height(24).PaddingX(10).Gap(6).Radius(theme.RadiusSmall).Border(1, theme.Border).AlignItems(ui.Center).Tooltip(tip).Children(func() {
-				ui.Icon(c, icon.Lock).FontSize(11).TextColor(theme.Muted)
-				ui.Text(c, "Notes only · you approve changes").FontSize(theme.TextLabel).TextColor(theme.TextSoft)
-			})
-		})
-		ui.Column(c).FillWidth().Gap(8).Children(func() {
+	tip := "It works on your notes only: no project, no files, no commands. What it writes shows above the page for you to accept or reject."
+	if agentID != "claude" {
+		tip = "It runs in an empty folder and is asked to keep to your notes (Claude Code is held to them). What it writes shows above the page for you to accept or reject."
+	}
+	ui.Column(c).FillWidth().Gap(theme.S3).Padding(0, 0, theme.S2, 0).Children(func() {
+		ui.Text(c, "Ask about this page. Changes come back as proposals, for you to accept.").FontSize(theme.TextUI).TextColor(theme.TextSoft).Tooltip(tip)
+		ui.Column(c).FillWidth().Gap(theme.S2).Children(func() {
 			for row := 0; row < len(notesSuggestions); row += 2 {
-				ui.Row(c.Key(row)).FillWidth().Gap(8).AlignItems(ui.Stretch).Children(func() {
+				ui.Row(c.Key(row)).FillWidth().Gap(theme.S2).AlignItems(ui.Stretch).Children(func() {
 					for _, sug := range notesSuggestions[row:min(row+2, len(notesSuggestions))] {
 						a.suggestionCard(c.Key(sug.title), n, agentID, sug)
 					}
@@ -236,15 +235,15 @@ func (a *App) notesIntro(c *ui.Context, n proto.NoteInfo, title, agentID string)
 
 // suggestionCard is an ask to start from, half the panel wide.
 func (a *App) suggestionCard(c *ui.Context, n proto.NoteInfo, agentID string, sug notesSuggestion) {
-	card := ui.ButtonBase(c).Grow(1).Basis(0).MinWidth(0).Padding(12).Gap(6).Radius(theme.RadiusSmall).Border(1, theme.Border).
-		Background(theme.Raised).Cursor(ui.CursorPointer).Label(sug.ask).Column().AlignItems(ui.Start)
+	card := widget.Raise(ui.ButtonBase(c).Grow(1).Basis(0).MinWidth(0).Padding(theme.S3).Gap(theme.S1).Radius(theme.RadiusCard).
+		Background(theme.Raised).Cursor(ui.CursorPointer).Label(sug.ask).Column().AlignItems(ui.Start).Justify(ui.Start))
 	if card.Hovered() {
-		card.Border(1, theme.AccentLine).Background(theme.Hover)
+		card.Background(theme.Hover)
 	}
 	card.Children(func() {
-		ui.Icon(c, sug.svg).FontSize(15).TextColor(theme.Accent)
-		ui.Text(c, sug.title).FontSize(theme.TextUI).FontWeight(600).TextColor(theme.TextStrong)
-		ui.Text(c, sug.about).FontSize(theme.TextLabel).TextColor(theme.Muted)
+		ui.Icon(c, sug.svg).FontSize(14).TextColor(theme.TextSoft)
+		ui.Text(c, sug.title).FontSize(theme.TextUI).FontWeight(500).TextColor(theme.TextStrong)
+		ui.Text(c, sug.about).FontSize(theme.TextLabel).TextColor(theme.TextSoft)
 	})
 	if card.Clicked() {
 		a.notesAsk(n, agentID, sug.ask)

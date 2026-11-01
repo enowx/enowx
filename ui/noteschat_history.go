@@ -9,6 +9,7 @@ import (
 	"github.com/enowx/enowx/proto"
 	"github.com/enowx/enowx/ui/textfmt"
 	"github.com/enowx/enowx/ui/theme"
+	"github.com/enowx/enowx/ui/widget"
 )
 
 // A note's conversations with its agent are kept with the note, on every
@@ -70,10 +71,10 @@ func (a *App) earlierChats(c *ui.Context, id string) {
 		return
 	}
 	msgs = msgs[max(0, len(msgs)-6):]
-	ui.Column(c).FillWidth().Gap(8).Children(func() {
-		ui.Text(c, "Lately, with this note's agent").FontSize(theme.TextLabel).FontWeight(600).TextColor(theme.Muted)
+	ui.Column(c).FillWidth().Gap(theme.S2).Children(func() {
+		ui.Text(c, "Lately, with this note's agent").FontSize(theme.TextLabel).FontWeight(500).TextColor(theme.TextSoft)
 		for i, m := range msgs {
-			ui.Column(c.Key(i)).FillWidth().Gap(3).Padding(9, 11).Radius(theme.RadiusSmall).Border(1, theme.Border).Children(func() {
+			ui.Column(c.Key(i)).FillWidth().Gap(theme.S1).Padding(theme.S2, theme.S3).Radius(theme.RadiusCard).Background(theme.Sunken).Children(func() {
 				who := "You"
 				if m.Role == proto.TranscriptAssistant {
 					who = a.agentName(m.Agent)
@@ -82,8 +83,8 @@ func (a *App) earlierChats(c *ui.Context, id string) {
 				if m.Host != "" {
 					meta += " · " + m.Host
 				}
-				ui.Text(c, meta).FontSize(theme.TextLabel).TextColor(theme.Muted).SingleLine()
-				ui.Text(c, m.Text).FontSize(theme.TextLabel).TextColor(theme.Text).MaxLines(4)
+				widget.Running(c, meta, widget.RunStyle{Size: theme.TextLabel, Color: theme.TextSoft})
+				ui.Text(c, m.Text).FontSize(theme.TextUI).TextColor(theme.Text).MaxLines(4)
 			})
 		}
 	})

@@ -8,7 +8,6 @@ import (
 	"github.com/egoist/mygo/ui"
 
 	"github.com/enowx/enowx/proto"
-	"github.com/enowx/enowx/ui/icon"
 	"github.com/enowx/enowx/ui/notesview"
 	"github.com/enowx/enowx/ui/textfmt"
 	"github.com/enowx/enowx/ui/theme"
@@ -52,23 +51,25 @@ func (a *App) noteExportDialog(c *ui.Context) {
 		a.noteExport = nil
 		return
 	}
-	widget.FormSheet(c, &f.open, 520, "Export “"+f.pick.Title+"”", "Written on "+a.host.Name+", then saved on this device where you pick.", func() {
+	widget.FormSheet(c, &f.open, 520, "Export notes", "“"+f.pick.Title+"”, written on "+a.host.Name+", then saved on this device where you pick.", func() {
 		labels := make([]string, len(exportFormats))
 		for i, ef := range exportFormats {
 			labels[i] = ef.label
 		}
-		if i := widget.Segmented(c, labels, f.format, nil); i >= 0 && !f.busy {
-			f.format = i
-		}
-		ui.Text(c, exportFormats[f.format].about).FontSize(theme.TextLabel).TextColor(theme.Muted)
+		widget.Field(c, "As", func() {
+			if i := widget.Segmented(c, labels, f.format, nil); i >= 0 && !f.busy {
+				f.format = i
+			}
+		})
+		ui.Text(c, exportFormats[f.format].about).FontSize(theme.TextLabel).TextColor(theme.TextSoft)
 		if f.busy {
-			ui.Text(c, "Exporting…").FontSize(theme.TextLabel).TextColor(theme.TextSoft)
+			ui.Text(c, "Exporting…").FontSize(theme.TextUI).TextColor(theme.TextSoft)
 		}
 		if f.err != "" {
 			ui.Text(c, f.err).FontSize(theme.TextLabel).TextColor(theme.Error)
 		}
 	}, func() {
-		b := widget.PrimaryButton(c, icon.ArrowUp, "Export…", "")
+		b := widget.PrimaryButton(c, nil, "Export", "")
 		if f.busy {
 			b.Disabled(true).Opacity(0.45)
 		} else if b.Clicked() {

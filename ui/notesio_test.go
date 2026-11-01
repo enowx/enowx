@@ -104,10 +104,10 @@ func TestImportAndExportInTheNotesPage(t *testing.T) {
 	saved := filepath.Join(t.TempDir(), "notes.zip")
 	app.saveAs = func(name string) (string, error) { return saved, nil }
 	click("Import and export")
-	settle("the menu", func() bool { return tt.HasText("Export all…") })
-	click("Export all…")
-	settle("the export dialog", func() bool { return tt.HasText("Export “All notes”") })
+	settle("the menu", func() bool { return tt.HasText("Export…") })
 	click("Export…")
+	settle("the export dialog", func() bool { return tt.HasText("Export notes") })
+	click("Export")
 	settle("the export saved", func() bool { return app.noteExport == nil })
 	zr, err := zip.OpenReader(saved)
 	if err != nil {
