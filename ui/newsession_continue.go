@@ -91,33 +91,35 @@ func (a *App) sessionField(c *ui.Context) {
 		return
 	}
 	widget.Field(c, "Session", func() {
-		label, svg := "New session", icon.Plus
+		label := "New session"
 		if f.cont != nil {
-			label, svg = f.cont.name, icon.Agent(f.cont.agent)
+			label = f.cont.name
 		}
-		b := ui.ButtonBase(c.Key("session-pick")).FillWidth().Height(34).PaddingX(10).Gap(8).Radius(theme.RadiusControl).
-			Background(theme.Sunken).Border(1, theme.BorderStrong).Cursor(ui.CursorPointer).Label("Session: " + label)
+		b := widget.Trigger(ui.ButtonBase(c.Key("session-pick")), f.contOpen).Label("Session: " + label)
 		b.Children(func() {
-			ui.Icon(c, svg).FontSize(14).TextColor(theme.TextSoft)
-			ui.Text(c, label).FontSize(theme.TextUI).TextColor(theme.Text).SingleLine().Grow(1).Shrink(1).MinWidth(0)
-			if f.cont != nil {
-				ui.Text(c, f.cont.where+" · "+f.cont.status).FontSize(theme.TextLabel).TextColor(theme.Muted).SingleLine()
-			} else {
-				ui.Text(c, textfmt.Plural(len(choices), "1 in this project", strconv.Itoa(len(choices))+" in this project")).FontSize(theme.TextLabel).TextColor(theme.Muted)
-			}
-			ui.Icon(c, icon.ChevronDown).FontSize(12).TextColor(theme.Muted)
+			ui.Row(c).Grow(1).MinWidth(0).Gap(theme.S2).Children(func() {
+				ui.Row(c).MinWidth(0).Shrink(1).Children(func() { widget.Running(c, label, widget.RunStyle{}) })
+				sub := textfmt.Plural(len(choices), "1 in this project", strconv.Itoa(len(choices))+" in this project")
+				if f.cont != nil {
+					sub = f.cont.where + " · " + f.cont.status
+				}
+				ui.Row(c).MinWidth(0).Shrink(100).Children(func() {
+					widget.Running(c.Key("sub"), sub, widget.RunStyle{Color: theme.TextSoft})
+				})
+			})
+			ui.Icon(c, icon.ChevronDown).FontSize(12).TextColor(theme.TextSoft)
 		})
-		if widget.Pressable(b).Clicked() {
+		if b.Clicked() {
 			f.contOpen = !f.contOpen
 		}
 		if !f.contOpen {
 			return
 		}
-		ui.Column(c.Key("session-list")).FillWidth().Gap(4).Padding(6).Radius(theme.RadiusControl).Background(theme.Panel).
-			Border(1, theme.Border).Children(func() {
-			widget.SearchField(c, &f.contFilter, "Find a session by name or branch", nil)
-			ui.Scroll(c).FillWidth().MaxHeight(240).Children(func() {
-				ui.Column(c).FillWidth().Gap(2).Children(func() {
+		ui.PopoverBase(c, b, &f.contOpen, func(panel ui.Element) {
+			widget.Popup(panel.AttachTo(b, ui.AnchorTopLeft, ui.AnchorBottomLeft).Margin(theme.S1, 0, 0, 0).Width(592)).Gap(theme.S1)
+			widget.SearchField(c, &f.contFilter, "Find a session by name or branch", icon.Search)
+			ui.Scroll(c).FillWidth().MaxHeight(280).Children(func() {
+				ui.Column(c).FillWidth().Children(func() {
 					if a.choiceRow(c, nil) {
 						f.cont, f.contOpen = nil, false
 					}
@@ -141,7 +143,7 @@ func (a *App) sessionField(c *ui.Context) {
 // reports a click.
 func (a *App) choiceRow(c *ui.Context, ch *sessionChoice) bool {
 	f := &a.newSession
-	key, name, svg, sub := "new", "New session", icon.Plus, "its own, with the fields below"
+	key, name, svg, sub := "new", "New session", icon.Plus, "Its own, with the fields below"
 	if ch != nil {
 		key, name, svg = ch.key, ch.name, icon.Agent(ch.agent)
 		sub = a.agentName(ch.agent) + " · " + ch.where + " · " + ch.status
@@ -150,18 +152,19 @@ func (a *App) choiceRow(c *ui.Context, ch *sessionChoice) bool {
 		}
 	}
 	picked := ch == nil && f.cont == nil || ch != nil && f.cont != nil && f.cont.key == ch.key
-	row := ui.ButtonBase(c.Key(key)).FillWidth().Padding(6, 8).Gap(8).Radius(theme.RadiusSmall).Cursor(ui.CursorPointer).Label(name)
+	row := ui.ButtonBase(c.Key(key)).FillWidth().MinHeight(44).Padding(theme.S1, theme.S3).Gap(theme.S2).Radius(theme.RadiusCard).Justify(ui.Start).Cursor(ui.CursorPointer).Label(name)
+	bg := theme.Fade(theme.Selected, 0)
 	switch {
 	case picked:
-		row.Background(theme.Selected)
+		bg = theme.Selected
 	case row.Hovered():
-		row.Background(theme.Hover)
+		bg = theme.Hover
 	}
-	row.Children(func() {
+	row.Background(widget.QuickTint(row, "bg", bg)).Children(func() {
 		ui.Icon(c, svg).FontSize(14).TextColor(theme.TextSoft)
-		ui.Column(c).Grow(1).Shrink(1).MinWidth(0).Children(func() {
-			ui.Text(c, name).FontSize(theme.TextUI).TextColor(theme.Text).SingleLine()
-			ui.Text(c, sub).FontSize(theme.TextLabel).TextColor(theme.Muted).SingleLine()
+		ui.Column(c).Grow(1).MinWidth(0).Children(func() {
+			widget.Running(c, name, widget.RunStyle{Always: picked})
+			widget.Running(c.Key("sub"), sub, widget.RunStyle{Size: theme.TextLabel, Color: theme.TextSoft})
 		})
 	})
 	return widget.Pressable(row).Clicked()
@@ -222,5 +225,5 @@ func (a *App) continuingCard(c *ui.Context, ch sessionChoice) {
 	case ch.session != nil:
 		what = "Opens it, in " + ch.where
 	}
-	widget.Notice(c, icon.Agent(ch.agent), ui.Color{}, a.agentName(ch.agent)+" · "+ch.status, what+"; the prompt below, if any, is sent to it.", nil)
+	widget.Notice(c, icon.Agent(ch.agent), ui.Color{}, a.agentName(ch.agent)+" · "+ch.status, what+"; the message below, if any, is sent to it.", nil)
 }

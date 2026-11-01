@@ -84,9 +84,12 @@ func TestFanOutFromNewSessionAndKeepOne(t *testing.T) {
 		}
 	}
 	tt.Frame()
-	if err := tt.Click("Codex"); err != nil {
-		t.Fatalf("%v: %q", err, tt.Texts())
+	// Its switch, at the row's end of the 640 wide dialog in this 900 wide window.
+	also, ok := tt.Find("Also give it to Codex")
+	if !ok {
+		t.Fatalf("no row: %q", tt.Texts())
 	}
+	tt.ClickAt(730, also.Y+also.H/2)
 	tt.Frame()
 	shot(t, tt, "fan-out-form.png")
 	if err := tt.Click("Start session"); err != nil {

@@ -28,34 +28,19 @@ func (a *App) alsoField(c *ui.Context) {
 	if _, ok := agent.Find(f.agent); !ok || f.branchMode != proto.BranchNew {
 		return
 	}
-	widget.Field(c, "Also give it to (optional)", func() {
-		ui.Text(c, "Each agent works on a branch of its own, named after it, to compare them and keep the best.").
-			FontSize(11.5).TextColor(theme.Muted)
-		ui.Row(c).FillWidth().Wrap().Gap(6).Children(func() {
-			for _, ag := range a.agents {
-				if !ag.Installed || ag.Command == "" {
-					continue
-				}
-				on := slices.Contains(f.also, ag.ID)
-				b := ui.ButtonBase(c.Key(ag.ID)).Gap(6).Padding(4, 9).Radius(theme.RadiusControl).Cursor(ui.CursorPointer).
-					Border(1, theme.Border).Label(ag.Name)
-				if on {
-					b.Border(1, theme.Accent).Background(theme.AccentSoft)
-				}
-				b.Children(func() {
-					agentTile(c, ag.ID, 16)
-					ui.Text(c, ag.Name).FontSize(theme.TextLabel)
-				})
-				if b.Clicked() {
-					if on {
-						f.also = slices.DeleteFunc(f.also, func(id string) bool { return id == ag.ID })
-					} else {
-						f.also = append(f.also, ag.ID)
-					}
-				}
+	for _, ag := range a.agents {
+		if !ag.Installed || ag.Command == "" {
+			continue
+		}
+		on := slices.Contains(f.also, ag.ID)
+		if widget.SwitchRow(c.Key("also:"+ag.ID), "Also give it to "+ag.Name, "Fan out, then compare the results", on) {
+			if on {
+				f.also = slices.DeleteFunc(f.also, func(id string) bool { return id == ag.ID })
+			} else {
+				f.also = append(f.also, ag.ID)
 			}
-		})
-	})
+		}
+	}
 }
 
 // startFanOut starts the form's sessions, one per agent, then compares them.
@@ -133,22 +118,22 @@ func (a *App) compareDialogView(c *ui.Context) {
 		return
 	}
 	list := a.groupSessions(d.group)
-	widget.Dialog(c, &d.open, 640, 12, func() {
+	widget.Dialog(c, &d.open, 640, theme.S3, func() {
 		widget.DialogHeader(c, "Compare", "One prompt, given to each of these agents on a branch of its own. Look at each, then keep the one you like: the others are discarded, with their worktrees and branches.", false)
 		if d.err != "" {
 			widget.Notice(c, icon.Alert, theme.Error, d.err, "", nil)
 		}
 		if len(list) == 0 {
-			ui.Text(c, "These sessions are gone.").FontSize(theme.TextLabel).TextColor(theme.Muted)
+			ui.Text(c, "These sessions are gone.").FontSize(theme.TextUI).TextColor(theme.TextSoft)
 		}
 		for _, s := range list {
 			a.compareRow(c.Key(s.ID), s, list)
 		}
 		widget.DialogFooter(c, "", func() {
-			if widget.GhostButton(c, "Refresh").Clicked() {
+			if widget.Button(c, widget.Secondary, nil, "Refresh", "").Clicked() {
 				a.loadCompare()
 			}
-			if widget.GhostButton(c, "Close").Clicked() {
+			if widget.Button(c, widget.Secondary, nil, "Close", "").Clicked() {
 				d.open = false
 			}
 		})
@@ -157,35 +142,33 @@ func (a *App) compareDialogView(c *ui.Context) {
 
 func (a *App) compareRow(c *ui.Context, s proto.SessionInfo, group []proto.SessionInfo) {
 	d := &a.compare
-	widget.Card(c).FillWidth().Children(func() {
-		ui.Row(c).FillWidth().Gap(10).Children(func() {
-			agentTile(c, s.Agent, 26)
-			ui.Column(c).Grow(1).MinWidth(0).Gap(2).Children(func() {
-				ui.Text(c, a.agentName(s.Agent)+" · "+s.Branch).FontSize(theme.TextUI).SingleLine()
-				var detail []string
-				if s.State != "" {
-					detail = append(detail, string(s.State))
-				}
-				if diff, ok := d.diffs[s.ID]; ok {
-					added, removed := 0, 0
-					for _, f := range diff.Files {
-						added, removed = added+f.Added, removed+f.Removed
-					}
-					detail = append(detail, fmt.Sprintf("%d %s, +%d −%d", len(diff.Files), textfmt.Plural(len(diff.Files), "file", "files"), added, removed))
-				}
-				if s.Note != "" {
-					detail = append(detail, s.Note)
-				}
-				ui.Text(c, strings.Join(detail, " · ")).FontSize(theme.TextLabel).TextColor(theme.Muted).SingleLine()
-			})
-			if widget.GhostButton(c, "Show").Clicked() {
-				d.open = false
-				a.selectSession(s)
+	widget.Raise(ui.Row(c).FillWidth().Shrink(0).MinHeight(52).Padding(theme.S2, theme.S3).Gap(theme.S2).Radius(theme.RadiusCard).Background(theme.Raised)).Children(func() {
+		agentTile(c, s.Agent, 24)
+		ui.Column(c).Grow(1).MinWidth(0).Children(func() {
+			widget.Running(c, a.agentName(s.Agent)+" · "+s.Branch, widget.RunStyle{})
+			var detail []string
+			if s.State != "" {
+				detail = append(detail, string(s.State))
 			}
-			if widget.PrimaryButton(c, icon.Check, "Keep", "").Disabled(d.busy).Clicked() && !d.busy {
-				a.askKeep(s, group)
+			if diff, ok := d.diffs[s.ID]; ok {
+				added, removed := 0, 0
+				for _, f := range diff.Files {
+					added, removed = added+f.Added, removed+f.Removed
+				}
+				detail = append(detail, fmt.Sprintf("%d %s, +%d −%d", len(diff.Files), textfmt.Plural(len(diff.Files), "file", "files"), added, removed))
 			}
+			if s.Note != "" {
+				detail = append(detail, s.Note)
+			}
+			widget.Running(c.Key("detail"), strings.Join(detail, " · "), widget.RunStyle{Size: theme.TextLabel, Color: theme.TextSoft})
 		})
+		if widget.Button(c, widget.Secondary, nil, "Show", "").Clicked() {
+			d.open = false
+			a.selectSession(s)
+		}
+		if widget.PrimaryButton(c, icon.Check, "Keep", "").Disabled(d.busy).Clicked() && !d.busy {
+			a.askKeep(s, group)
+		}
 	})
 }
 

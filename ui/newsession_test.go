@@ -45,12 +45,13 @@ func TestNewSessionFitsSmallWindow(t *testing.T) {
 			}
 			footer, _ := tt.Find("Start session")
 			tt.Scroll(float32(size[0])/2, float32(size[1])/2, 0, 10000)
-			prompt, ok := tt.Find("First prompt (optional)")
-			if !ok || prompt.Y < 0 || prompt.Y+prompt.H > footer.Y {
-				t.Fatalf("prompt not reachable by scrolling: %+v", prompt)
-			}
 			if got, _ := tt.Find("Start session"); got != footer {
 				t.Fatalf("scroll moved the footer: %+v to %+v", footer, got)
+			}
+			tt.Scroll(float32(size[0])/2, float32(size[1])/2, 0, -10000)
+			prompt, ok := tt.Find("Prompt")
+			if !ok || prompt.Y < 0 || prompt.Y+prompt.H > footer.Y {
+				t.Fatalf("prompt not reachable by scrolling: %+v", prompt)
 			}
 			tt.ClickAt(prompt.X+10, prompt.Y+35)
 			tt.Type("Inspect the project")

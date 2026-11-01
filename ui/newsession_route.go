@@ -55,40 +55,45 @@ func (a *App) routeField(c *ui.Context) {
 		*r = routeForm{on: true} // another agent: its models differ
 	}
 	prompt := strings.TrimSpace(f.prompt)
-	ui.Row(c.Key("route")).FillWidth().Gap(8).AlignItems(ui.Center).Children(func() {
-		switch {
-		case r.asking:
+	plate := func(text string, action func()) {
+		widget.Notice(c, nil, ui.Color{}, "Judge suggests", text, action)
+	}
+	switch {
+	case r.asking:
+		ui.Row(c.Key("route")).FillWidth().Gap(theme.S2).Children(func() {
 			widget.Spinner(c, 12)
-			ui.Text(c, "The judge weighs the prompt…").FontSize(theme.TextLabel).TextColor(theme.Muted)
-		case r.applied:
-			widget.Tag(c, routeLabel(s, *r.choice), theme.Done)
-			ui.Text(c, r.choice.Why).FontSize(theme.TextLabel).TextColor(theme.TextSoft).Shrink(1).MaxLines(2)
-			ui.Spacer(c)
-			if widget.GhostButton(c.Key("undo"), "Its own model").Clicked() {
-				r.applied = false
-			}
-		case r.err != "" && r.asked == prompt:
-			ui.Text(c, r.err).FontSize(theme.TextLabel).TextColor(theme.Error).Shrink(1)
-		case r.choice != nil && r.asked == prompt:
-			if r.choice.Model == "" && r.choice.Effort == "" {
-				why := r.choice.Why
-				if r.choice.Error != "" {
-					why = "No answer: " + r.choice.Error
+			ui.Text(c, "The judge weighs the prompt…").FontSize(theme.TextUI).TextColor(theme.TextSoft)
+		})
+	case r.applied:
+		plate(routeLabel(s, *r.choice)+": "+r.choice.Why, func() {
+			ui.Row(c).FillWidth().Gap(theme.S2).Wrap().Children(func() {
+				widget.Tag(c, "Used", theme.Done)
+				if widget.Button(c.Key("undo"), widget.Secondary, nil, "Its own model", "").Clicked() {
+					r.applied = false
 				}
-				ui.Text(c, why+" Its own model is kept.").FontSize(theme.TextLabel).TextColor(theme.Muted).Shrink(1)
-				return
+			})
+		})
+	case r.err != "" && r.asked == prompt:
+		ui.Text(c.Key("route"), r.err).FontSize(theme.TextUI).TextColor(theme.Error)
+	case r.choice != nil && r.asked == prompt:
+		if r.choice.Model == "" && r.choice.Effort == "" {
+			why := r.choice.Why
+			if r.choice.Error != "" {
+				why = "No answer: " + r.choice.Error
 			}
-			ui.Text(c, "Suggested: "+routeLabel(s, *r.choice)+". "+r.choice.Why).FontSize(theme.TextLabel).TextColor(theme.TextSoft).Shrink(1).MaxLines(2)
-			ui.Spacer(c)
-			if widget.Button(c.Key("use"), widget.Secondary, icon.Check, "Use it", "").Height(26).Clicked() {
+			ui.Text(c.Key("route"), why+" Its own model is kept.").FontSize(theme.TextUI).TextColor(theme.TextSoft)
+			return
+		}
+		plate(routeLabel(s, *r.choice)+": "+r.choice.Why, func() {
+			if widget.Button(c.Key("use"), widget.Secondary, icon.Check, "Use it", "").Clicked() {
 				r.applied = true
 			}
-		case prompt != "":
-			if widget.GhostButton(c.Key("ask"), "Suggest a model for this prompt").Tooltip("The judge says how hard it is; the cheapest model that fits").Clicked() {
-				a.askRoute(prompt)
-			}
+		})
+	case prompt != "":
+		if widget.GhostButton(c.Key("ask"), "Suggest a model for this prompt").Tooltip("The judge says how hard it is; the cheapest model that fits").Clicked() {
+			a.askRoute(prompt)
 		}
-	})
+	}
 }
 
 // askRoute asks the host's judge for prompt's model and effort.
