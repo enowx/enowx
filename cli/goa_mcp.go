@@ -2,6 +2,10 @@ package cli
 
 // goaTools are GOD of Agents' commands as MCP tools (feature "goa").
 var goaTools = []mcpTool{
+	{name: "goa_skill", description: "A built-in guide of GOD of Agents: setup (doing every setting of enowX with the user, stopping for what needs them), features (every feature).",
+		props:    map[string]mcpProp{"name": {"string", "setup or features"}},
+		required: []string{"name"},
+		args:     func(a map[string]any) []string { return []string{"skill", str(a, "name")} }},
 	{name: "goa_board", description: "GOD of Agents' task board as JSON: each task, the session (and host) it went to, its model and effort and why, its status (working, waiting, done, failed, stopped), its result, what it asks and whether that is urgent (the user's to answer).",
 		args: func(map[string]any) []string { return []string{"board", "--json"} }},
 	{name: "goa_delegate", description: "Hand a task to a session and put it on the board: an existing session (session, host) or a new one (agent, project, branch, host). The judge picks the prompt's model and effort (cheaper near a token budget) unless model/effort/config are given or no_route is true. Returns the task as JSON with model, effort and why: tell the user. You are told when it finishes or asks something; don't poll.",

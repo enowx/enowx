@@ -10,6 +10,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"runtime"
+	"slices"
 	"strings"
 	"time"
 
@@ -17,7 +18,7 @@ import (
 	"github.com/enowx/enowx/proto"
 )
 
-const decideUsage = `usage: enowx-app decide [status | test [JUDGE] | log [--use USE] [--last N] | mark ID [--right] [--note TEXT] | ask USE --command CMD | trim -- COMMAND | route [--agent A] [--project DIR] [--json] PROMPT]`
+const decideUsage = `usage: enowx-app decide [status | settings | use USE on|off [--sure N] [--calls N] [--judge J] | test [JUDGE] | log [--use USE] [--last N] | mark ID [--right] [--note TEXT] | ask USE --command CMD | trim -- COMMAND | route [--agent A] [--project DIR] [--json] PROMPT]`
 
 // ExitError is a command's exit code to pass on (decide trim's): the
 // program exits with it, saying nothing more.
@@ -50,6 +51,9 @@ func (r runner) decideCmd(args []string) error {
 	agentID := fs.String("agent", "", "")
 	project := fs.String("project", "", "")
 	asJSON := fs.Bool("json", false, "")
+	sure := fs.Float64("sure", -1, "")
+	calls := fs.Int("calls", -1, "")
+	judge := fs.String("judge", "", "")
 	sub := args[0]
 	var words []string
 	rest := args[1:]
@@ -63,6 +67,43 @@ func (r runner) decideCmd(args []string) error {
 		}
 	}
 	switch sub {
+	case "settings":
+		var st proto.DecideSettings
+		if err := r.c.Call(proto.MethodDecideSettings, nil, &st); err != nil {
+			return err
+		}
+		return writeJSON(r.out, st)
+	case "use":
+		if len(words) != 2 || words[1] != "on" && words[1] != "off" {
+			return errors.New(decideUsage)
+		}
+		var st proto.DecideSettings
+		if err := r.c.Call(proto.MethodDecideSettings, nil, &st); err != nil {
+			return err
+		}
+		if !slices.Contains(proto.DecideUses, words[0]) {
+			return fmt.Errorf("decide: no use %q: %s", words[0], strings.Join(proto.DecideUses, ", "))
+		}
+		u := st.Uses[words[0]]
+		u.On = words[1] == "on"
+		if *sure >= 0 {
+			u.MinConfidence = *sure
+		}
+		if *calls >= 0 {
+			u.DailyCalls = *calls
+		}
+		if *judge != "" {
+			u.Judge = *judge
+		}
+		if st.Uses == nil {
+			st.Uses = map[string]proto.DecideUse{}
+		}
+		st.Uses[words[0]] = u
+		if err := r.c.Call(proto.MethodDecideSetSettings, st, &st); err != nil {
+			return err
+		}
+		fmt.Fprintf(r.out, "%s: %s\n", words[0], words[1])
+		return nil
 	case "status", "judges":
 		var st proto.DecideSettings
 		var judges []proto.Judge

@@ -7,12 +7,13 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 
 	"github.com/enowx/enowx/proto"
 )
 
-const ragUsage = `usage: enowx-app rag [search QUERY [--k N] [--scope code,docs,notes,memory] | remember TEXT | memories | forget ID | status | index] [--project DIR]`
+const ragUsage = `usage: enowx-app rag [search QUERY [--k N] [--scope code,docs,notes,memory] | remember TEXT | memories | forget ID | status | index | plan | settings | set FIELD=VALUE… | project on agreed|off] [--project DIR]`
 
 // ragCmd runs `enowx rag …`: the project found by meaning. In a session,
 // its own project; elsewhere, the current folder's (or --project's).
@@ -104,6 +105,18 @@ func (r runner) ragCmd(args []string) error {
 			return errors.New(ragUsage)
 		}
 		return r.c.RAG(proto.MethodRAGForget, proto.RAGForgetParams{RAGRef: ref, ID: words[0]}, nil)
+	case "settings":
+		return r.ragSettingsShow()
+	case "set":
+		return r.ragSettingsSet(words)
+	case "plan":
+		var plan proto.RAGPlan
+		if err := r.c.RAG(proto.MethodRAGPlan, ref, &plan); err != nil {
+			return err
+		}
+		return writeJSON(r.out, plan)
+	case "project":
+		return r.ragProject(ref, words)
 	case "status", "index":
 		var st proto.RAGStatus
 		method := proto.MethodRAGStatus
@@ -153,4 +166,81 @@ var ragTools = []mcpTool{
 		args: func(a map[string]any) []string { return []string{"remember", str(a, "text")} }},
 	{name: "rag_status", description: "Whether this session's project is indexed, how much, and when last.",
 		args: func(map[string]any) []string { return []string{"status"} }},
+}
+
+// ragSettingsShow prints the host's RAG settings: no key's value is in them.
+func (r runner) ragSettingsShow() error {
+	var st proto.RAGSettings
+	if err := r.c.RAG(proto.MethodRAGSettings, nil, &st); err != nil {
+		return err
+	}
+	return writeJSON(r.out, st)
+}
+
+// ragSettingsSet changes settings by field: never a key, only a credential's name.
+func (r runner) ragSettingsSet(fields []string) error {
+	var st proto.RAGSettings
+	if err := r.c.RAG(proto.MethodRAGSettings, nil, &st); err != nil {
+		return err
+	}
+	if len(fields) == 0 {
+		return errors.New(ragUsage)
+	}
+	for _, f := range fields {
+		k, v, ok := strings.Cut(f, "=")
+		if !ok {
+			return errors.New(ragUsage)
+		}
+		switch k {
+		case "embedder":
+			st.Embedder = v
+		case "model":
+			st.Model = v
+		case "dim":
+			n, err := strconv.Atoi(v)
+			if err != nil {
+				return fmt.Errorf("rag: dim: %w", err)
+			}
+			st.Dim = n
+		case "base_url":
+			st.BaseURL = v
+		case "key_cred":
+			st.KeyCred = v
+		case "store":
+			st.Store = v
+		case "postgres_cred":
+			st.PostgresCred = v
+		default:
+			return fmt.Errorf("rag: no setting %q: embedder, model, dim, base_url, key_cred, store, postgres_cred. A key's value is typed in the app", k)
+		}
+	}
+	if err := r.c.RAG(proto.MethodRAGSetSettings, st, &st); err != nil {
+		return err
+	}
+	return writeJSON(r.out, st)
+}
+
+// ragProject turns a project's index on or off. On sends its files to the
+// embedder: the agent asks the user first, as its guide says.
+func (r runner) ragProject(ref proto.RAGRef, words []string) error {
+	if len(words) == 0 || words[0] != "on" && words[0] != "off" {
+		return errors.New(ragUsage)
+	}
+	if words[0] == "on" && (len(words) != 2 || words[1] != "agreed") {
+		return errors.New("rag: on sends the project's files to the embedder: ask the user, then: rag project on agreed --project DIR")
+	}
+	var st proto.RAGStatus
+	if err := r.c.RAG(proto.MethodRAGStatus, ref, &st); err != nil {
+		return err
+	}
+	set := st.Settings
+	set.On = words[0] == "on"
+	if set.On {
+		set.Consent = st.Embedder
+	}
+	if err := r.c.RAG(proto.MethodRAGSetProject, proto.RAGProjectParams{Project: st.Project, Settings: set}, &st); err != nil {
+		return err
+	}
+	fmt.Fprintf(r.out, "%s: RAG %s\n", st.Project, words[0])
+	return nil
 }

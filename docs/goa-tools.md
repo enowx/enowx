@@ -161,10 +161,15 @@ This follows the agent's mode; it isn't a boundary against the agent. A command 
 | The agents it runs on, their level | `goa agents` (`goa_agents`) | | this host | ✅ |
 | What a watched GOA did itself | `goa flags` | reverting: the user's, in the app | this host | — the user's |
 
+## Built-in skills
+
+`goa skill` (`goa_skill`) prints guides that ship in the program, on every host and for any agent, which GOA's prompt points at: `setup`, doing every setting with the user and stopping for what needs them, and `features`, every feature from the registry (`core/agent.Features`), so it can't fall behind. A test checks every command they and the prompt name exists. Decisions' and RAG's settings are now reachable: `rag settings`, `rag set`, `rag project on agreed|off`, `rag plan`, `decide settings`, `decide use`, on this host; keys stay typed in the app or named from the vault.
+
 ## Gaps left, in order of use
 
 1. Checks (`checks.list`, `checks.run`) and review comments: a reviewer GOA would use them.
-2. Decisions' and RAG's settings (their policy, judges, server, consent): they name vault credentials, so they need care.
 3. The agents' library (`env.*`): skills and MCP servers copied between homes.
 4. A session's budget, privacy, slash commands; pipelines cancelled; projects arranged and removed on another host.
 5. The daemon's log; setup and VPS creation; resource usage.
+
+Still only in the app, which `goa skill setup` says: adding, connecting and removing a host, Appearance, the floating control, terminal fonts, Discord, the keyboard shortcuts, the cloud's sign-in and a team's members.

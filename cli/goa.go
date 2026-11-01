@@ -10,6 +10,7 @@ import (
 	"text/tabwriter"
 	"time"
 
+	"github.com/enowx/enowx/core/agent"
 	"github.com/enowx/enowx/proto"
 )
 
@@ -17,6 +18,7 @@ import (
 // settling them, its own RAG collection, the agents it can run on.
 
 const goaUsage = `usage: enowx-app goa COMMAND
+  skill [NAME]                     GOA's built-in guides: setup (every setting), features (every feature)
   board [--json]                   the tasks, the session each went to, status and result
   delegate [flags] PROMPT          hand a task to the project's session, queued if it's busy; a new one only if it has none
       --session S      an existing session (else a new one:)
@@ -46,6 +48,17 @@ func (r runner) goaCmd(args []string) error {
 	}
 	sub, rest := args[0], args[1:]
 	switch sub {
+	case "skill":
+		if len(args) < 2 {
+			fmt.Fprintln(r.out, "Skills: "+strings.Join(agent.GOASkillNames(), ", ")+`: enowx-app goa skill NAME`)
+			return nil
+		}
+		text, err := agent.GOASkill(args[1])
+		if err != nil {
+			return err
+		}
+		fmt.Fprint(r.out, text)
+		return nil
 	case "board":
 		return r.goaBoard(rest)
 	case "delegate":
