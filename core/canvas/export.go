@@ -129,7 +129,7 @@ func FrameDocument(f proto.CanvasFrame, assets Assets) string {
 	if usesPrototype(f.HTML) {
 		base += prototypeRuntime
 	}
-	page := inlineAssets(f.HTML, assets)
+	page := inlineLibraries(inlineAssets(f.HTML, assets))
 	if strings.Contains(strings.ToLower(page), "</body>") {
 		i := strings.LastIndex(strings.ToLower(page), "</body>")
 		page = page[:i] + overlay + page[i:]
