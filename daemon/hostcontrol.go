@@ -122,6 +122,9 @@ func (c *conn) hostCall(p proto.HostCallParams) (result any, err error) {
 	if local {
 		p.Host = s.daemonID // the app asks the user, then does it here
 	}
+	if confirm {
+		defer s.sessionAwaitsUser(p.From, p.Method)()
+	}
 	rep, err := s.askAppReply("host.call", p, timeout)
 	if rep.Bypassed {
 		unasked = p.Bypass
@@ -135,6 +138,22 @@ func (c *conn) hostCall(p proto.HostCallParams) (result any, err error) {
 		return nil, err
 	}
 	return json.RawMessage(rep.Result), nil
+}
+
+// sessionAwaitsUser has session id wait while the app asks the user to allow
+// method: nothing on its screen says so, as its agent sits in a tool call. The
+// function it returns is for when they've answered.
+func (s *Server) sessionAwaitsUser(id, method string) func() {
+	sess, err := s.sessions.Get(id)
+	if err != nil {
+		return func() {}
+	}
+	s.controlAsks.Store(id, method)
+	_ = s.sessions.SetState(sess, proto.StateWaiting)
+	return func() {
+		s.controlAsks.Delete(id)
+		_ = s.sessions.SetState(sess, proto.StateWorking)
+	}
 }
 
 // projectOf is the project of this host at path.

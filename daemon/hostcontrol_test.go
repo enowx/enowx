@@ -417,3 +417,43 @@ func TestAgentInBypassOnAnotherHost(t *testing.T) {
 		t.Fatalf("the log: %+v", last)
 	}
 }
+
+// A session waiting for the user's yes in the app shows as waiting, says what
+// for and that it's the user's, and goes on once they've answered.
+func TestConfirmationShowsAsWaiting(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("uses cat")
+	}
+	srv := startServer(t)
+	answer := make(chan bool)
+	standInApp(t, srv, map[string]*client.Client{srv.daemonID: connect(t, srv, nil)}, func(proto.HostCallParams) bool { return <-answer })
+	c := connect(t, srv, nil)
+	asker, err := srv.sessions.Create(session.Spec{Command: []string{"cat"}, Dir: t.TempDir(), Cols: 80, Rows: 24, Meta: session.Meta{Agent: "claude"}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	other, err := srv.sessions.Create(sessionSpec(t, "cat"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	params, _ := json.Marshal(proto.SessionRef{ID: other.ID()})
+	done := make(chan error, 1)
+	go func() {
+		done <- c.Call(proto.MethodHostCall, proto.HostCallParams{Method: proto.MethodSessionKill, Params: params, From: asker.ID()}, nil)
+	}()
+	waitFor(t, "it waiting", func() bool { return asker.Info().State == proto.StateWaiting })
+	var ask proto.SessionAsk
+	if err := c.Call(proto.MethodSessionAsk, proto.SessionRef{ID: asker.ID()}, &ask); err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(ask.Prompt, proto.MethodSessionKill) || ask.Urgent == "" {
+		t.Fatalf("ask: %+v", ask)
+	}
+	answer <- true
+	if err := <-done; err != nil {
+		t.Fatal(err)
+	}
+	if st := asker.Info().State; st != proto.StateWorking {
+		t.Fatalf("after answering: %q", st)
+	}
+}

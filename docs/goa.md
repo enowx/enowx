@@ -115,3 +115,5 @@ Across a daemon restart, a stalled task stays stalled and GOA, whose waiting lin
 GOA's prompt is 5.2 KB, and goes into every turn; `goa skill setup` (4 KB), `goa skill features` (4 KB) and the docs (`goa doc`: a 10 KB list, each doc when asked for) are read when needed. With the prompt and those, a small model named a real command for each of the 29 features, and said who it is from the prompt alone.
 
 Asked one question per doc (39 on 2026-11-02, Haiku, the prompt and `goa doc` its only tools, no code), it got 36 right at first. The three misses taught the prompt that a question means enowX unless the user says otherwise, that `goa doc cli` has every command, and to search before saying enowX can't; after those, all 39 hold the fact and name commands that exist. The questions check one fact each, not a whole answer.
+
+A session waiting for the user's yes in the app, on what can't be undone, shows as waiting too, its line saying it's the user's to answer.

@@ -46,6 +46,9 @@ func (s *Server) watchPrompts(done <-chan struct{}) {
 			if info.State == proto.StateDone {
 				continue
 			}
+			if _, asked := s.controlAsks.Load(info.ID); asked {
+				continue
+			}
 			seen[info.ID] = true
 			f := follows[info.ID]
 			if f == nil {

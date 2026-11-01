@@ -36,6 +36,10 @@ func (s *Server) sessionAsk(id string) (proto.SessionAsk, error) {
 		return proto.SessionAsk{}, nil
 	}
 	out := proto.SessionAsk{Waiting: true, Urgent: s.goaUrgentOf(id)}
+	if method, ok := s.controlAsks.Load(id); ok {
+		out.Prompt, out.Urgent = "the enowX app asks the user to allow "+method.(string), "enowX's confirmation"
+		return out, nil
+	}
 	screen := sess.Terminal().Text()
 	if p, ok := agent.PromptShown(screen); ok {
 		out.Prompt, out.Deadline = withoutSecrets(p.Text), p.Deadline
