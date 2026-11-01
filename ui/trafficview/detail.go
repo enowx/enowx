@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/url"
+	"slices"
 	"strings"
 	"unicode/utf8"
 
@@ -50,16 +51,38 @@ const (
 	tabTiming
 )
 
-// open reads exchange id for the detail below the list.
-func (v *View) open(o Options, id int64) {
-	d := &detail{id: id, tab: tabResponse, images: map[string]*ui.Bitmap{}}
-	if v.detail != nil && v.detail.id != id {
-		d.tab, d.reveal = v.detail.tab, v.detail.reveal
-	} else if v.detail != nil {
-		d = v.detail
+// detailOf is exchange id as read for its viewer, read the first time; a new
+// viewer opens the way the last one was left.
+func (v *View) detailOf(o Options, id int64) *detail {
+	d := v.details[id]
+	if d != nil {
+		return d
 	}
-	v.detail = d
+	d = &detail{id: id, tab: tabResponse, images: map[string]*ui.Bitmap{}}
+	if v.lastRead != nil {
+		d.tab, d.reveal = v.lastRead.tab, v.lastRead.reveal
+	}
+	v.details[id], v.lastRead = d, d
 	v.read(o, d)
+	return d
+}
+
+// ForgetExchange drops what was read for exchange id, whose viewer closed.
+func (v *View) ForgetExchange(id int64) {
+	if v.lastRead != nil && v.lastRead.id == id {
+		last := *v.lastRead
+		v.lastRead = &detail{tab: last.tab, reveal: last.reveal}
+	}
+	delete(v.details, id)
+}
+
+// ExchangeColor is the color of how exchange id went, for its tab's dot.
+func (v *View) ExchangeColor(id int64) ui.Color {
+	if i, ok := v.index[id]; ok {
+		_, col := statusText(v.list[i])
+		return col
+	}
+	return theme.Idle
 }
 
 func (v *View) read(o Options, d *detail) {
@@ -93,156 +116,186 @@ func (v *View) read(o Options, d *detail) {
 	}()
 }
 
-func (v *View) detailView(c *ui.Context, o Options) {
-	d := v.detail
+// DrawExchange is the viewer of exchange id, in the center: a bar with where it
+// went and how it went, its tabs, and what can be done with it.
+func (v *View) DrawExchange(c *ui.Context, o Options, id int64) {
+	v.load(o)
+	d := v.detailOf(o, id)
 	if d.stale {
 		v.read(o, d)
 	}
-	ui.Column(c).Grow(1.2).FillWidth().MinHeight(160).BorderWidth(1, 0, 0, 0).BorderColor(theme.BorderStrong).Children(func() {
-		ui.Row(c).FillWidth().Shrink(0).Padding(8, 8, 6, 12).Gap(6).Children(func() {
-			ex := d.ex
-			ui.Text(c, ex.Method).Font(theme.MonoFont).FontSize(theme.TextLabel).TextColor(theme.TextSoft).Shrink(0)
-			ui.Text(c, ex.URL).FontSize(theme.TextLabel).SingleLine().Grow(1).Shrink(1).MinWidth(0).Tooltip(ex.URL)
-			if widget.IconButton(c, icon.Close, "Close", false).Clicked() {
-				v.detail, v.selected = nil, -1
+	title, facts := d.ex.URL, ""
+	if i, ok := v.index[id]; ok {
+		title, facts = hostPath(v.list[i]), exchangeFacts(v.list[i])
+	}
+	ui.Column(c).Grow(1).FillWidth().MinHeight(0).Children(func() {
+		widget.ViewerBar(c, icon.Traffic, title, func() {
+			if facts != "" {
+				ui.Text(c, facts).FontSize(theme.TextLabel).TextColor(theme.TextSoft).SingleLine().Shrink(0)
 			}
 		})
-		if d.err != "" {
-			note(c, d.err, theme.Error)
-			return
-		}
-		if d.ex.ID == 0 {
-			note(c, "Reading…", theme.Muted)
-			return
-		}
-		v.detailActions(c, o, d)
-		tabs := []string{"Request", "Response"}
-		if d.ex.Messages > 0 {
-			tabs = append(tabs, fmt.Sprintf("Messages (%d)", d.ex.Messages))
-		} else {
-			tabs = append(tabs, "Messages")
-		}
-		tabs = append(tabs, "Timing")
-		ui.Row(c).FillWidth().Shrink(0).Padding(4, 12).Children(func() {
-			if i := widget.Segmented(c, tabs, d.tab, func(i int) bool { return i == tabMessages && d.ex.Messages == 0 }); i >= 0 {
-				d.tab = i
+		ui.Column(c).Grow(1).FillWidth().MinHeight(0).Padding(theme.S3, theme.S4).Gap(theme.S2).Children(func() {
+			v.noticeBanner(c)
+			switch {
+			case d.err != "":
+				note(c, d.err, theme.Error)
+				return
+			case d.ex.ID == 0:
+				note(c, "Reading…", theme.TextSoft)
+				return
 			}
-		})
-		ui.Scroll(c).Grow(1).FillWidth().MinHeight(0).Children(func() {
-			ui.Column(c).FillWidth().Padding(6, 12, 12, 12).Gap(10).Children(func() {
-				switch d.tab {
-				case tabRequest:
-					headersView(c, d.ex.ReqHeaders)
-					bodyView(c, d, "request", d.req)
-				case tabResponse:
-					if d.ex.Error != "" {
-						ui.Text(c, d.ex.Error).FontSize(theme.TextLabel).TextColor(theme.Error)
-					}
-					if d.ex.Status != 0 {
-						ui.Text(c, fmt.Sprintf("%d %s", d.ex.Status, d.ex.Proto)).Font(theme.MonoFont).FontSize(theme.TextLabel)
-					}
-					headersView(c, d.ex.ResHeaders)
-					bodyView(c, d, "response", d.res)
-					if len(d.ex.Trailers) > 0 {
-						ui.Text(c, "Trailers").FontSize(theme.TextLabel).TextColor(theme.Muted)
-						headersView(c, d.ex.Trailers)
-					}
-				case tabMessages:
-					messagesView(c, d.msgs)
-				case tabTiming:
-					timingView(c, d.ex)
+			tabs := []string{"Request", "Response", "Messages", "Timing"}
+			if d.ex.Messages > 0 {
+				tabs[tabMessages] = fmt.Sprintf("Messages (%d)", d.ex.Messages)
+			}
+			ui.Row(c).FillWidth().Shrink(0).Children(func() {
+				if i := widget.Segmented(c, tabs, d.tab, func(i int) bool { return i == tabMessages && d.ex.Messages == 0 }); i >= 0 {
+					d.tab = i
 				}
 			})
+			switch d.tab {
+			case tabRequest:
+				widget.CodeWell(c, func() {
+					codeText(c, d.ex.Method+" "+d.ex.URL+"\n"+headerText(d.ex.ReqHeaders))
+					bodyView(c, d, "request", d.req)
+				})
+			case tabResponse:
+				widget.CodeWell(c, func() { responseView(c, d) })
+			case tabMessages:
+				messagesView(c, d.msgs)
+			case tabTiming:
+				timingView(c, d.ex)
+			}
+			v.detailActions(c, o, d)
 		})
 	})
+	if !o.ToolShown {
+		v.sheets(c, o)
+	}
+}
+
+// responseView is how an exchange was answered: its error, status and protocol,
+// headers, body and trailers.
+func responseView(c *ui.Context, d *detail) {
+	if d.ex.Error != "" {
+		codeText(c, d.ex.Error).TextColor(widget.CodeError)
+	}
+	var head []string
+	if d.ex.Status != 0 {
+		head = append(head, fmt.Sprintf("%s %d", d.ex.Proto, d.ex.Status))
+	}
+	if h := headerText(d.ex.ResHeaders); h != "" {
+		head = append(head, h)
+	}
+	if len(head) > 0 {
+		codeText(c, strings.Join(head, "\n"))
+	}
+	bodyView(c, d, "response", d.res)
+	if len(d.ex.Trailers) > 0 {
+		ui.Text(c, "Trailers").FontSize(theme.TextLabel).TextColor(widget.CodeDim)
+		codeText(c, headerText(d.ex.Trailers))
+	}
+}
+
+// codeText is text on the code's ground, to select.
+func codeText(c *ui.Context, text string) ui.Element {
+	return ui.Text(c, text).Font(theme.MonoFont).FontSize(theme.TextUI).Selectable()
 }
 
 // detailActions are what can be done with the exchange.
 func (v *View) detailActions(c *ui.Context, o Options, d *detail) {
 	ex := d.ex
-	ui.Row(c).FillWidth().Shrink(0).Padding(0, 10, 4, 12).Gap(6).Children(func() {
-		if widget.Button(c, widget.Secondary, icon.Plus, "Mock this", "").Tooltip("Answer requests like this from a mock").Clicked() {
-			v.rules.startNew(ruleFromExchange(ex, d.res, proto.ActionMock), o)
-		}
-		if widget.Button(c, widget.Secondary, icon.Send, "Edit and send", "").Tooltip("Change this request and send it again").Clicked() {
-			v.compose.fill(ex, d.req)
-			v.compose.open = true
-		}
-		if o.SendToAgent != nil && widget.Button(c, widget.Secondary, icon.Chat, "To the agent", "").Tooltip("Send this exchange to the session's agent, secrets masked").Clicked() {
-			o.SendToAgent(exchangeText(ex, d.req, d.res))
-			v.notice = "Sent to the agent, secrets masked."
-		}
-		ui.Spacer(c)
-		ui.Text(c, "Secrets").FontSize(theme.TextLabel).TextColor(theme.Muted).Shrink(0)
-		if widget.Switch(c, &d.reveal, "Show secrets") {
-			v.read(o, d)
-		}
-		more := widget.IconButton(c.Key("more:exchange"), icon.More, "More for this request", false)
-		d.menu.OpenBelow(more, "exchange", 24)
-		d.menu.Show(c, more, "exchange", func(done func()) {
-			if widget.MenuItemTip(c, icon.Stop, "Breakpoint…", "Pause requests like this one, to change them before they go", false) {
-				v.rules.startNew(ruleFromExchange(ex, d.res, proto.ActionBreakpoint), o)
-				done()
+	ui.Row(c).FillWidth().Shrink(0).Gap(theme.S2).Children(func() {
+		ui.Row(c).Grow(1).Basis(0).MinWidth(0).Wrap().Gap(theme.S2).Children(func() {
+			if widget.Button(c, widget.Secondary, nil, "Mock", "").Tooltip("Answer requests like this from a mock").Clicked() {
+				v.rules.startNew(ruleFromExchange(ex, d.res, proto.ActionMock), o)
 			}
-			pin := "Pin (kept when cleared)"
-			if ex.Pinned {
-				pin = "Unpin"
+			if widget.Button(c, widget.Secondary, nil, "Replay", "").Tooltip("Change this request and send it again").Clicked() {
+				v.compose.fill(ex, d.req)
+				v.compose.open = true
 			}
-			if widget.MenuItem(c, icon.Target, pin, false) {
-				id, pinned := ex.ID, !ex.Pinned
-				run(o, func() error { return o.Host.TrafficPin([]int64{id}, pinned) }, func(error) {})
-				d.ex.Pinned = pinned
-				done()
+			if slices.ContainsFunc(v.paused, func(p proto.TrafficPaused) bool { return p.ID == ex.ID }) &&
+				widget.Button(c, widget.Secondary, nil, "Resume", "").Tooltip("Let it go on as it is").Clicked() {
+				v.resume(o, proto.TrafficResumeParams{ID: ex.ID})
 			}
-			widget.MenuSeparator(c)
-			widget.PopupLabel(c, "Copy as")
-			for _, lang := range intercept.SnippetLanguages {
-				if widget.MenuItem(c, icon.Copy, lang, false) {
-					code, err := intercept.Snippet(lang, ex.Method, ex.URL, ex.ReqHeaders, d.req.Data)
-					if err == nil && o.CopyText != nil {
-						o.CopyText(code)
-						v.notice = "Copied as " + lang + "."
-					}
-					done()
-				}
+			if o.SendToAgent != nil && widget.Button(c, widget.Secondary, nil, "To the agent", "").Tooltip("Send this exchange to the session's agent, secrets masked").Clicked() {
+				o.SendToAgent(exchangeText(ex, d.req, d.res))
+				v.notice = "Sent to the agent, secrets masked."
 			}
-			widget.MenuSeparator(c)
-			if o.OpenInBrowser != nil && ex.Method == "GET" && widget.MenuItemTip(c, icon.Browser, "Open in Browser", "Open the URL in the Browser tool", false) {
-				o.OpenInBrowser(ex.URL)
-				done()
+		})
+		ui.Row(c).Shrink(0).Gap(theme.S2).Children(func() {
+			ui.Text(c, "Secrets").FontSize(theme.TextLabel).TextColor(theme.TextSoft).Shrink(0)
+			if widget.Switch(c, &d.reveal, "Show secrets") {
+				v.read(o, d)
 			}
-			if widget.MenuItem(c, icon.Copy, "Copy URL", false) {
-				if o.CopyText != nil {
-					o.CopyText(ex.URL)
-				}
-				done()
-			}
-			if widget.MenuItem(c, icon.Copy, "Copy response body", false) {
-				if o.CopyText != nil {
-					o.CopyText(string(d.res.Data))
-				}
-				done()
-			}
-			if widget.MenuItem(c, icon.ArrowUp, "Export as HAR…", false) {
-				v.export(o, []int64{ex.ID})
-				done()
-			}
+			v.exchangeMenu(c, o, d)
 		})
 	})
 }
 
-func headersView(c *ui.Context, hs []proto.Header) {
-	if len(hs) == 0 {
-		return
-	}
-	ui.Column(c).FillWidth().Gap(2).Children(func() {
-		for i, h := range hs {
-			ui.Row(c.Key(fmt.Sprint(i))).FillWidth().Gap(8).AlignItems(ui.Start).Children(func() {
-				ui.Text(c, h.Name).Font(theme.MonoFont).FontSize(theme.TextLabel).TextColor(theme.Muted).Width(150).Shrink(0).SingleLine().Tooltip(h.Name)
-				ui.Text(c, h.Value).Font(theme.MonoFont).FontSize(theme.TextLabel).Grow(1).Shrink(1).MinWidth(0).Selectable()
-			})
+// exchangeMenu is the rest of what can be done with the exchange.
+func (v *View) exchangeMenu(c *ui.Context, o Options, d *detail) {
+	ex := d.ex
+	more := widget.IconButton(c.Key("more:exchange"), icon.More, "More for this request", false)
+	d.menu.OpenBelow(more, "exchange", theme.ControlHeight)
+	d.menu.Show(c, more, "exchange", func(done func()) {
+		if widget.MenuItemTip(c, icon.Stop, "Breakpoint…", "Pause requests like this one, to change them before they go", false) {
+			v.rules.startNew(ruleFromExchange(ex, d.res, proto.ActionBreakpoint), o)
+			done()
+		}
+		pin := "Pin (kept when cleared)"
+		if ex.Pinned {
+			pin = "Unpin"
+		}
+		if widget.MenuItem(c, icon.Target, pin, false) {
+			id, pinned := ex.ID, !ex.Pinned
+			run(o, func() error { return o.Host.TrafficPin([]int64{id}, pinned) }, func(error) {})
+			d.ex.Pinned = pinned
+			done()
+		}
+		widget.MenuSeparator(c)
+		widget.PopupLabel(c, "Copy as")
+		for _, lang := range intercept.SnippetLanguages {
+			if widget.MenuItem(c, icon.Copy, lang, false) {
+				code, err := intercept.Snippet(lang, ex.Method, ex.URL, ex.ReqHeaders, d.req.Data)
+				if err == nil && o.CopyText != nil {
+					o.CopyText(code)
+					v.notice = "Copied as " + lang + "."
+				}
+				done()
+			}
+		}
+		widget.MenuSeparator(c)
+		if o.OpenInBrowser != nil && ex.Method == "GET" && widget.MenuItemTip(c, icon.Browser, "Open in Browser", "Open the URL in the Browser tool", false) {
+			o.OpenInBrowser(ex.URL)
+			done()
+		}
+		if widget.MenuItem(c, icon.Copy, "Copy URL", false) {
+			if o.CopyText != nil {
+				o.CopyText(ex.URL)
+			}
+			done()
+		}
+		if widget.MenuItem(c, icon.Copy, "Copy response body", false) {
+			if o.CopyText != nil {
+				o.CopyText(string(d.res.Data))
+			}
+			done()
+		}
+		if widget.MenuItem(c, icon.ArrowUp, "Export as HAR…", false) {
+			v.export(o, []int64{ex.ID})
+			done()
 		}
 	})
+}
+
+// headerText is headers as a request or a response writes them.
+func headerText(hs []proto.Header) string {
+	lines := make([]string, len(hs))
+	for i, h := range hs {
+		lines[i] = h.Name + ": " + h.Value
+	}
+	return strings.Join(lines, "\n")
 }
 
 // bodyView shows a body by its kind: JSON pretty, code highlighted,
@@ -250,18 +303,18 @@ func headersView(c *ui.Context, hs []proto.Header) {
 func bodyView(c *ui.Context, d *detail, which string, b proto.TrafficBody) {
 	if b.Total == 0 {
 		if b.ContentType != "" {
-			ui.Text(c, "No body").FontSize(theme.TextLabel).TextColor(theme.Muted)
+			ui.Text(c, "No body").FontSize(theme.TextLabel).TextColor(widget.CodeDim)
 		}
 		return
 	}
 	kind := kindOf(b.ContentType)
-	ui.Row(c).Gap(6).Children(func() {
-		ui.Text(c, strings.TrimSpace(b.ContentType+" · "+textfmt.Bytes(uint64(b.Total)))).FontSize(theme.TextLabel).TextColor(theme.Muted)
+	ui.Row(c).FillWidth().Wrap().Gap(theme.S2).Children(func() {
+		ui.Text(c, strings.TrimSpace(b.ContentType+" · "+textfmt.Bytes(uint64(b.Total)))).FontSize(theme.TextLabel).TextColor(widget.CodeDim)
 		if b.Encoding != "" {
-			widget.Tag(c, b.Encoding+" (not decoded)", theme.Warning)
+			widget.Tag(c, b.Encoding+" (not decoded)", widget.CodeWarn)
 		}
 		if b.Truncated {
-			widget.Tag(c, "only the first part was kept", theme.Warning)
+			widget.Tag(c, "only the first part was kept", widget.CodeWarn)
 		}
 	})
 	data := b.Data
@@ -284,18 +337,18 @@ func bodyView(c *ui.Context, d *detail, which string, b proto.TrafficBody) {
 					hs = append(hs, proto.Header{Name: k, Value: x})
 				}
 			}
-			headersView(c, hs)
+			codeText(c, headerText(hs))
 			return
 		}
 	}
 	if strings.Contains(b.ContentType, "protobuf") {
 		if pb, ok := intercept.DecodeProtobuf(data); ok {
-			ui.Text(c, pb).Font(theme.MonoFont).FontSize(theme.TextLabel).Selectable()
+			codeText(c, pb)
 			return
 		}
 	}
 	if !utf8.Valid(data) {
-		ui.Text(c, hexDump(data)).Font(theme.MonoFont).FontSize(theme.TextLabel).Selectable()
+		codeText(c, hexDump(data))
 		return
 	}
 	text, lang := string(data), ""
@@ -318,12 +371,12 @@ func bodyView(c *ui.Context, d *detail, which string, b proto.TrafficBody) {
 		lang = "graphql"
 	}
 	if lang != "" && len(text) <= highlightMax {
-		widget.CodeBlock(c, lang, text)
+		widget.CodeOnGround(c, lang, text)
 		return
 	}
-	ui.Text(c, text).Font(theme.MonoFont).FontSize(theme.TextLabel).Selectable()
+	codeText(c, text)
 	if b.Total > int64(len(data)) {
-		ui.Text(c, "… "+textfmt.Bytes(uint64(b.Total-int64(len(data))))+" more: export it to see all").FontSize(theme.TextLabel).TextColor(theme.Muted)
+		ui.Text(c, "… "+textfmt.Bytes(uint64(b.Total-int64(len(data))))+" more: export it to see all").FontSize(theme.TextLabel).TextColor(widget.CodeDim)
 	}
 }
 
@@ -354,29 +407,32 @@ func hexDump(b []byte) string {
 
 func messagesView(c *ui.Context, msgs []proto.TrafficMessage) {
 	if len(msgs) == 0 {
-		ui.Text(c, "No messages yet.").FontSize(theme.TextLabel).TextColor(theme.Muted)
+		note(c, "No messages yet.", theme.TextSoft)
 		return
 	}
-	for i, m := range msgs {
-		ui.Row(c.Key(fmt.Sprint(i))).FillWidth().Gap(8).AlignItems(ui.Start).Children(func() {
-			dir, col := "↓", theme.Done
-			if m.Sent {
-				dir, col = "↑", theme.Accent
-			}
-			ui.Text(c, dir).FontSize(theme.TextLabel).TextColor(col).Width(12).Shrink(0)
-			ui.Text(c, m.Time.Format("15:04:05.000")).Font(theme.MonoFont).FontSize(theme.TextLabel).TextColor(theme.Muted).Shrink(0)
-			label := m.Kind
-			if m.Event != "" {
-				label = m.Event
-			}
-			if m.Mocked {
-				label += " · mock"
-			}
-			ui.Text(c, label).FontSize(theme.TextLabel).TextColor(theme.Muted).Width(70).Shrink(0).SingleLine()
-			text := messageText(m)
-			ui.Text(c, text).Font(theme.MonoFont).FontSize(theme.TextLabel).Grow(1).Shrink(1).MinWidth(0).Selectable()
-		})
-	}
+	widget.CodeWell(c, func() {
+		for i, m := range msgs {
+			ui.Row(c.Key(fmt.Sprint(i))).FillWidth().Gap(theme.S2).AlignItems(ui.Start).Children(func() {
+				dir, col := "↓", widget.CodeText
+				if m.Sent {
+					dir, col = "↑", widget.CodeDim
+				}
+				ui.Text(c, dir).FontSize(theme.TextUI).TextColor(col).Width(12).Shrink(0)
+				ui.Text(c, m.Time.Format("15:04:05.000")).Font(theme.MonoFont).FontSize(theme.TextLabel).TextColor(widget.CodeDim).Shrink(0)
+				label := m.Kind
+				if m.Event != "" {
+					label = m.Event
+				}
+				if m.Mocked {
+					label += " · mock"
+				}
+				ui.Row(c).Width(72).Shrink(0).Children(func() {
+					widget.Running(c, label, widget.RunStyle{Size: theme.TextLabel, Color: widget.CodeDim})
+				})
+				codeText(c, messageText(m)).Grow(1).Basis(0).MinWidth(0)
+			})
+		}
+	})
 }
 
 func timingView(c *ui.Context, ex proto.TrafficExchange) {
@@ -384,29 +440,25 @@ func timingView(c *ui.Context, ex proto.TrafficExchange) {
 	rows := []struct {
 		label string
 		ms    int64
-	}{{"Connected", t.Connect}, {"TLS done", t.TLS}, {"Request sent", t.Sent}, {"First byte", t.FirstByte}, {"Done", t.Done}}
-	total := max(t.Done, ex.Duration, 1)
-	for i, r := range rows {
-		if r.ms == 0 {
-			continue
-		}
-		ui.Row(c.Key(fmt.Sprint(i))).FillWidth().Gap(8).Children(func() {
-			ui.Text(c, r.label).FontSize(theme.TextLabel).TextColor(theme.TextSoft).Width(100).Shrink(0)
-			ui.Row(c).Grow(1).Height(6).Radius(theme.RadiusTail).Background(theme.Sunken).Children(func() {
-				ui.Box(c).Height(6).Radius(theme.RadiusTail).Background(theme.Accent).Width(float32(r.ms) / float32(total) * 220)
-			})
-			ui.Text(c, fmt.Sprintf("%d ms", r.ms)).Font(theme.MonoFont).FontSize(theme.TextLabel).Width(64).Shrink(0)
+	}{{"Connect", t.Connect}, {"TLS", t.TLS}, {"Sent", t.Sent}, {"First byte", t.FirstByte}, {"Total", t.Done}}
+	ui.Scroll(c.Key("timing")).Grow(1).FillWidth().MinHeight(0).Children(func() {
+		ui.Column(c).FillWidth().Gap(theme.S1).Padding(theme.S2, 0).Children(func() {
+			for _, r := range rows {
+				if r.ms != 0 {
+					widget.KV(c, r.label, millis(r.ms), false)
+				}
+			}
+			if ex.TLS != nil {
+				widget.KV(c, "Client TLS", fmt.Sprintf("%s, %s, %s", ex.TLS.Version, ex.TLS.Cipher, ex.TLS.ALPN), false)
+			}
+			if ex.Remote != "" {
+				widget.KV(c, "Server", ex.Remote, false)
+			}
+			if ex.Rule != "" {
+				widget.KV(c, "Rule", ex.Rule, false)
+			}
 		})
-	}
-	if ex.TLS != nil {
-		ui.Text(c, fmt.Sprintf("Client TLS: %s, %s, %s", ex.TLS.Version, ex.TLS.Cipher, ex.TLS.ALPN)).FontSize(theme.TextLabel).TextColor(theme.Muted)
-	}
-	if ex.Remote != "" {
-		ui.Text(c, "Server: "+ex.Remote).FontSize(theme.TextLabel).TextColor(theme.Muted)
-	}
-	if ex.Rule != "" {
-		ui.Text(c, "Rule: "+ex.Rule).FontSize(theme.TextLabel).TextColor(theme.Muted)
-	}
+	})
 }
 
 // exchangeText is an exchange for an agent to read, secrets masked.

@@ -28,13 +28,13 @@ const (
 	filterAgain = time.Second
 )
 
-// requestsPage is the list of exchanges, the filter over it, the paused
-// ones on top and the one picked below.
+// requestsPage is the list of exchanges, the filter over it and the paused
+// ones on top; one picked opens in the center.
 func (v *View) requestsPage(c *ui.Context, o Options) {
 	v.poke = func() { o.Update(func() {}) }
 	v.queryFilter(o)
 	v.computeShown(o)
-	ui.Column(c).Grow(1).FillWidth().MinHeight(0).Children(func() {
+	ui.Column(c).Grow(1).FillWidth().MinHeight(0).Gap(theme.S2).Children(func() {
 		v.filterBar(c, o)
 		if len(v.paused) > 0 {
 			v.pausedList(c, o)
@@ -47,16 +47,16 @@ func (v *View) requestsPage(c *ui.Context, o Options) {
 			if v.filterErr != "" {
 				msg = v.filterErr
 			}
-			note(c, msg, theme.Muted)
+			note(c, msg, theme.TextSoft)
 			return
 		}
-		grow := float32(1)
-		if v.detail != nil {
-			grow = 0.8
-		}
-		ui.Column(c.Key("list")).Grow(grow).FillWidth().MinHeight(90).Children(func() {
+		ui.Column(c.Key("list")).Grow(1).FillWidth().MinHeight(90).Children(func() {
 			v.rows = v.gapRows()
 			gaps := v.gaps()
+			current := int64(0)
+			if o.Current != nil {
+				current = o.Current()
+			}
 			ui.List(c.Key("rows"), &v.listState, len(v.rows), func(i int) {
 				r := v.rows[i]
 				if r < 0 {
@@ -64,14 +64,11 @@ func (v *View) requestsPage(c *ui.Context, o Options) {
 					return
 				}
 				s := v.list[v.shown[r]]
-				if v.row(c, s, r == v.selected).Clicked() {
-					v.open(o, s.ID)
+				if v.row(c, s, s.ID == current).Clicked() {
+					v.open(o, s)
 				}
 			}).Grow(1).FillWidth()
 		})
-		if v.detail != nil {
-			v.detailView(c.Key("detail"), o)
-		}
 	})
 }
 
@@ -87,14 +84,6 @@ func (v *View) computeShown(o Options) {
 			continue
 		}
 		v.shown = append(v.shown, i)
-	}
-	if v.detail != nil {
-		v.selected = -1
-		for row, i := range v.shown {
-			if v.list[i].ID == v.detail.id {
-				v.selected = row
-			}
-		}
 	}
 }
 
@@ -145,15 +134,17 @@ func (v *View) queryFilter(o Options) {
 }
 
 func (v *View) filterBar(c *ui.Context, o Options) {
-	ui.Row(c).FillWidth().Shrink(0).Padding(8, 10, 8, 12).Gap(6).BorderWidth(0, 0, 1, 0).BorderColor(theme.Border).Children(func() {
+	ui.Row(c.Key("filter")).FillWidth().Shrink(0).Gap(theme.S2).Children(func() {
 		before := v.filter
-		ui.Row(c).Grow(1).MinWidth(0).Children(func() {
-			widget.SearchField(c, &v.filter, "domain:example.com status:4xx type:json …", icon.Search)
-		})
+		widget.Input(c, &v.filter, "Filter by URL, method or status").Grow(1).Basis(0).MinWidth(0).
+			Tooltip("By URL, method or status; or domain:example.com status:4xx type:json …")
 		if v.filter != before {
 			v.queryAt = time.Now()
 			time.AfterFunc(filterDelay+20*time.Millisecond, func() { o.Update(func() {}) })
 		}
+		v.captureButtons(c, o)
+	})
+	ui.Row(c.Key("scope")).FillWidth().Shrink(0).Gap(theme.S2).Children(func() {
 		scope := 0
 		if v.all {
 			scope = 1
@@ -161,6 +152,7 @@ func (v *View) filterBar(c *ui.Context, o Options) {
 		if i := widget.Segmented(c, []string{"Session", "All"}, scope, nil); i >= 0 {
 			v.all = i == 1
 		}
+		ui.Spacer(c)
 		v.domainMenu(c, o)
 		v.rules.load(o)
 		widget.MoreMenu(c, &v.menu, "requests", func(done func()) {
@@ -234,30 +226,52 @@ func (v *View) export(o Options, ids []int64) {
 	}()
 }
 
-// row is one exchange in the list, lit when picked.
+// row is one exchange in the list, lit when picked: its dot in the color of how
+// it ended, where it went, and how it went.
 func (v *View) row(c *ui.Context, s proto.TrafficSummary, picked bool) ui.Element {
-	b := ui.ButtonBase(c).FillWidth().Height(30).Padding(0, 12).Gap(8).Justify(ui.Start).Label(s.Method + " " + s.URL)
-	switch {
-	case picked:
-		b.Background(theme.Selected)
-	case b.Hovered():
-		b.Background(theme.Fade(theme.Selected, 0.5))
+	_, col := statusText(s)
+	var tags func()
+	if s.Mocked || s.Rule != "" || s.Kind != proto.TrafficHTTP {
+		tags = func() {
+			if s.Mocked {
+				widget.Tag(c, "mock", theme.Accent)
+			} else if s.Rule != "" {
+				widget.Tag(c, "rule", theme.Accent)
+			}
+			if s.Kind != proto.TrafficHTTP {
+				widget.Tag(c, s.Kind, theme.TextSoft)
+			}
+		}
 	}
-	return b.Children(func() {
-		status, col := statusText(s)
-		ui.Text(c, status).Font(theme.MonoFont).FontSize(theme.TextLabel).TextColor(col).Width(42).Shrink(0).SingleLine()
-		ui.Text(c, s.Method).Font(theme.MonoFont).FontSize(theme.TextLabel).TextColor(theme.TextSoft).Width(52).Shrink(0).SingleLine()
-		ui.Text(c, hostPath(s)).FontSize(theme.TextLabel).SingleLine().Grow(1).Shrink(1).MinWidth(0).Tooltip(s.URL)
-		if s.Mocked {
-			widget.Tag(c, "mock", theme.Accent)
-		} else if s.Rule != "" {
-			widget.Tag(c, "rule", theme.Accent)
-		}
-		if s.Kind != proto.TrafficHTTP {
-			widget.Tag(c, s.Kind, theme.Muted)
-		}
-		ui.Text(c, sizeTime(s)).FontSize(theme.TextLabel).TextColor(theme.Muted).Shrink(0).SingleLine()
-	})
+	return widget.ItemRow(c.Key(s.ID), widget.Item{Dot: col, Title: hostPath(s), Sub: exchangeFacts(s), Mono: true, On: picked, Label: s.Method + " " + s.URL}, tags)
+}
+
+// open shows an exchange in the center.
+func (v *View) open(o Options, s proto.TrafficSummary) {
+	if o.OpenExchange != nil {
+		o.OpenExchange(s.ID, hostPath(s))
+	}
+}
+
+// exchangeFacts are an exchange in a few words: method, status, size and time;
+// there is no size or time before it ends.
+func exchangeFacts(s proto.TrafficSummary) string {
+	status, _ := statusText(s)
+	switch s.State {
+	case proto.TrafficHeld:
+		return s.Method + " · … · paused"
+	case proto.TrafficPending:
+		return s.Method + " · …"
+	}
+	return s.Method + " · " + status + " · " + textfmt.Bytes(uint64(s.ResSize)) + " · " + millis(s.Duration)
+}
+
+// millis is a time in milliseconds as it reads best.
+func millis(ms int64) string {
+	if ms < 1000 {
+		return strconv.FormatInt(ms, 10) + " ms"
+	}
+	return strconv.FormatFloat(float64(ms)/1000, 'f', 1, 64) + " s"
 }
 
 func statusText(s proto.TrafficSummary) (string, ui.Color) {
@@ -278,13 +292,6 @@ func statusText(s proto.TrafficSummary) (string, ui.Color) {
 		return strconv.Itoa(s.Status), theme.Muted
 	}
 	return strconv.Itoa(s.Status), theme.Done
-}
-
-func sizeTime(s proto.TrafficSummary) string {
-	if s.State == proto.TrafficPending || s.State == proto.TrafficHeld {
-		return ""
-	}
-	return textfmt.Bytes(uint64(s.ResSize)) + " · " + fmt.Sprint(s.Duration) + "ms"
 }
 
 func itoa(n int) string { return strconv.Itoa(n) }

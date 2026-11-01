@@ -102,11 +102,21 @@ func TestTrafficTool(t *testing.T) {
 	}
 
 	v = New()
-	o := Options{Host: cl, HostName: "This PC", Session: sess, Update: func(fn func()) { queue <- fn }, CopyText: func(string) {}}
+	// What a row opens shows beside the list, as the center does.
+	var front int64
+	o := Options{Host: cl, HostName: "This PC", Session: sess, Update: func(fn func()) { queue <- fn }, CopyText: func(string) {},
+		OpenExchange: func(id int64, _ string) { front = id }, Current: func() int64 { return front }, ToolShown: true}
 	tt := ui.NewTester(func(c *ui.Context) {
 		c.SetTheme(theme.Window())
-		ui.Column(c).Width(520).Height(760).Background(theme.Background).TextColor(theme.Text).Children(func() { v.Draw(c, o) })
-	}, 520, 760)
+		ui.Row(c).Width(1000).Height(760).Background(theme.Background).TextColor(theme.Text).AlignItems(ui.Stretch).Children(func() {
+			ui.Column(c).Width(320).Shrink(0).Children(func() { v.Draw(c, o) })
+			ui.Column(c).Grow(1).Basis(0).MinWidth(0).Children(func() {
+				if front != 0 {
+					v.DrawExchange(c, o, front)
+				}
+			})
+		})
+	}, 1000, 760)
 	drain := func(until func() bool, what string) {
 		t.Helper()
 		deadline := time.Now().Add(10 * time.Second)
@@ -137,9 +147,11 @@ func TestTrafficTool(t *testing.T) {
 	}, "the filter")
 	v.filter = ""
 
-	// Pick one: its response shows.
+	// Pick one: its response shows, and its row is lit.
 	drain(func() bool { return len(v.shown) == 3 }, "unfiltered")
-	v.open(o, v.list[v.shown[0]].ID)
+	if err := tt.Click("GET " + v.list[v.shown[0]].URL); err != nil {
+		t.Fatal(err)
+	}
 	drain(func() bool { return tt.HasText(`"name": "Ada"`) || tt.HasText("Ada") }, "the response body")
 	shot(t, tt, "traffic-detail.png")
 
@@ -165,7 +177,7 @@ func TestTrafficTool(t *testing.T) {
 		t.Fatal(err)
 	}
 	drain(func() bool { return tt.HasText("Certificate authority") }, "the settings")
-	tt.Scroll(260, 380, 0, 800)
+	tt.Scroll(500, 380, 0, 800)
 	tt.Frame()
 	if err := tt.Click("Make the CA anew"); err != nil {
 		t.Fatal(err)
@@ -177,8 +189,8 @@ func TestTrafficTool(t *testing.T) {
 	v.settings.open = false
 	tt.Frame()
 
-	// Mock this, then save the rule: the next request is mocked.
-	if err := tt.Click("Mock this"); err != nil {
+	// Mock, then save the rule: the next request is mocked.
+	if err := tt.Click("Mock"); err != nil {
 		t.Fatal(err)
 	}
 	drain(func() bool { return v.rules.loaded && v.rules.edit != nil }, "the rule form")
@@ -202,7 +214,10 @@ func TestTrafficTool(t *testing.T) {
 	if err := tt.Click("Send"); err != nil {
 		t.Fatal(err)
 	}
-	drain(func() bool { return !v.compose.open && v.detail != nil && v.detail.ex.Status == 200 }, "the composed request")
+	drain(func() bool {
+		d := v.details[front]
+		return !v.compose.open && d != nil && d.ex.Status == 200 && strings.HasSuffix(d.ex.URL, "/compose")
+	}, "the composed request")
 
 	v.settings.open = true
 	drain(func() bool { return tt.HasText("Don't check the certificates of") && v.settings.loaded }, "the settings")

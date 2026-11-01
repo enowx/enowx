@@ -29,6 +29,7 @@ type rulesState struct {
 	list    []proto.TrafficRule
 	filters []string // saved with the project
 	edit    *ruleForm
+	menus   map[string]*widget.ContextMenu // each row's, by rule
 }
 
 // ruleForm is a rule being written: its fields as typed.
@@ -301,26 +302,29 @@ func (v *View) rulesPage(c *ui.Context, o Options) {
 	if r.project != projectOf(o) {
 		r.loaded = false
 	}
-	ui.Column(c).Grow(1).FillWidth().MinHeight(0).Children(func() {
-		ui.Row(c).FillWidth().Shrink(0).Padding(8, 10, 8, 12).Gap(8).BorderWidth(0, 0, 1, 0).BorderColor(theme.Border).Children(func() {
+	ui.Column(c).Grow(1).FillWidth().MinHeight(0).Gap(theme.S2).Children(func() {
+		ui.Row(c).FillWidth().Shrink(0).Gap(theme.S2).Children(func() {
+			if widget.PrimaryButton(c, icon.Plus, "New rule", "").Clicked() {
+				r.edit = formOf(proto.TrafficRule{Enabled: true, Action: proto.TrafficAction{Kind: proto.ActionMock, Status: 200}})
+				r.edit.index = -1
+			}
 			where := "This host's rules"
 			if r.project != "" {
 				where = "Rules of " + baseName(r.project) + " (.enowx/traffic.json)"
 			}
-			ui.Text(c, where).FontSize(theme.TextLabel).TextColor(theme.Muted).Grow(1).Shrink(1).SingleLine()
-			if widget.Button(c, widget.Secondary, icon.Plus, "Add rule", "").Clicked() {
-				r.edit = formOf(proto.TrafficRule{Enabled: true, Action: proto.TrafficAction{Kind: proto.ActionMock, Status: 200}})
-				r.edit.index = -1
-			}
+			ui.Row(c).Grow(1).Basis(0).MinWidth(0).Children(func() {
+				widget.Running(c, where, widget.RunStyle{Size: theme.TextLabel, Color: theme.TextSoft})
+			})
 		})
 		if r.err != "" {
-			ui.Text(c, r.err).FontSize(theme.TextLabel).TextColor(theme.Error).Margin(8, 12)
+			ui.Text(c, r.err).FontSize(theme.TextUI).TextColor(theme.Error)
+		}
+		if len(r.list) == 0 && r.loaded {
+			note(c, "No rules: everything passes through. Mock on a request, or New rule, answers, changes, slows or pauses requests.", theme.TextSoft)
+			return
 		}
 		ui.Scroll(c).Grow(1).FillWidth().MinHeight(0).Children(func() {
-			ui.Column(c).FillWidth().Padding(4, 0, 12, 0).Children(func() {
-				if len(r.list) == 0 && r.loaded {
-					note(c, "No rules: everything passes through. Mock this on a request, or Add rule, answers, changes, slows or pauses requests.", theme.Muted)
-				}
+			ui.Column(c).FillWidth().Children(func() {
 				for i := range r.list {
 					v.ruleRow(c.Key(r.list[i].ID), o, i)
 				}
@@ -329,47 +333,59 @@ func (v *View) rulesPage(c *ui.Context, o Options) {
 	})
 }
 
+// ruleRow is a rule: picking it edits it; beside it, moving it up or deleting
+// it, and turning it on or off.
 func (v *View) ruleRow(c *ui.Context, o Options, i int) {
 	r := &v.rules
 	rule := r.list[i]
-	ui.Row(c).FillWidth().Padding(8, 10, 8, 12).Gap(8).BorderWidth(0, 0, 1, 0).BorderColor(theme.Border).Children(func() {
+	title := intercept.Describe(rule)
+	if rule.Name != "" {
+		title = rule.Name + ": " + title
+	}
+	it := widget.Item{Title: title, Sub: fmt.Sprintf("%d hits", rule.Hits), Mono: true}
+	if !rule.Enabled {
+		it.TitleColor = theme.TextSoft
+	}
+	if rule.Problem != "" {
+		it.Sub, it.SubColor = rule.Problem, theme.Error
+	}
+	b := widget.ItemRow(c, it, func() {
+		if r.menus == nil {
+			r.menus = map[string]*widget.ContextMenu{}
+		}
+		m := r.menus[rule.ID]
+		if m == nil {
+			m = &widget.ContextMenu{}
+			r.menus[rule.ID] = m
+		}
+		widget.MoreMenu(c, m, "rule", func(done func()) {
+			if i > 0 && widget.MenuItemTip(c, icon.ArrowUp, "Move up", "Rules apply first to last", false) {
+				list := slices.Clone(r.list)
+				list[i-1], list[i] = list[i], list[i-1]
+				r.save(o, list, nil)
+				done()
+			}
+			if widget.MenuItem(c, icon.Pencil, "Edit", false) {
+				r.edit = formOf(rule)
+				r.edit.index = i
+				done()
+			}
+			if widget.MenuItem(c, icon.Trash, "Delete", true) {
+				r.save(o, slices.Delete(slices.Clone(r.list), i, i+1), nil)
+				done()
+			}
+		})
 		on := rule.Enabled
-		if widget.Switch(c, &on, "On") {
+		if widget.Switch(c, &on, "Rule on") {
 			list := slices.Clone(r.list)
 			list[i].Enabled = on
 			r.save(o, list, nil)
 		}
-		ui.Column(c).Grow(1).MinWidth(0).Gap(2).Children(func() {
-			title := intercept.Describe(rule)
-			if rule.Name != "" {
-				title = rule.Name + ": " + title
-			}
-			col := theme.Text
-			if !rule.Enabled {
-				col = theme.Muted
-			}
-			ui.Text(c, title).FontSize(theme.TextLabel).TextColor(col).Shrink(1)
-			info := fmt.Sprintf("%d hits", rule.Hits)
-			if rule.Problem != "" {
-				ui.Text(c, rule.Problem).FontSize(theme.TextLabel).TextColor(theme.Error)
-			} else {
-				ui.Text(c, info).FontSize(theme.TextLabel).TextColor(theme.Muted)
-			}
-		})
-		if i > 0 && widget.IconButton(c, icon.ArrowUp, "Move up: rules apply first to last", false).Clicked() {
-			list := slices.Clone(r.list)
-			list[i-1], list[i] = list[i], list[i-1]
-			r.save(o, list, nil)
-		}
-		if widget.IconButton(c, icon.Pencil, "Edit", false).Clicked() {
-			r.edit = formOf(rule)
-			r.edit.index = i
-		}
-		if widget.IconButton(c, icon.Trash, "Delete", false).Clicked() {
-			list := slices.Delete(slices.Clone(r.list), i, i+1)
-			r.save(o, list, nil)
-		}
 	})
+	if b.Clicked() {
+		r.edit = formOf(rule)
+		r.edit.index = i
+	}
 }
 
 // ruleSheet is the rule being written, as a dialog over the tool.
@@ -392,23 +408,23 @@ func (v *View) ruleSheet(c *ui.Context, o Options) {
 	}
 	open := true
 	sheet(c, &open, 560, title, where, func() {
-		ui.Column(c).FillWidth().Gap(10).Children(func() {
-			ui.Text(c, "When a request matches").FontSize(theme.TextUI).FontWeight(600)
+		ui.Column(c).FillWidth().Gap(theme.S3).Children(func() {
+			ui.Text(c, "When a request matches").FontSize(theme.TextUI).FontWeight(500)
 			field("Name (optional)", &f.rule.Name, "Login fails")
 			ui.Row(c).FillWidth().Gap(8).Children(func() {
 				ui.Column(c).Width(120).Children(func() { field("Methods", &f.methods, "GET,POST") })
-				ui.Column(c).Grow(1).Children(func() { field("Host", &f.host, "api.example.com or *.example.com") })
+				ui.Column(c).Grow(1).Basis(0).MinWidth(0).Children(func() { field("Host", &f.host, "api.example.com or *.example.com") })
 			})
 			ui.Row(c).FillWidth().Gap(8).AlignItems(ui.End).Children(func() {
-				ui.Column(c).Grow(1).Children(func() { field("Path", &f.path, "/api/login") })
+				ui.Column(c).Grow(1).Basis(0).MinWidth(0).Children(func() { field("Path", &f.path, "/api/login") })
 				if i := widget.Segmented(c, pathModes, f.pathMode, nil); i >= 0 {
 					f.pathMode = i
 				}
 			})
 			field("Body contains (optional)", &f.body, "")
 		})
-		ui.Column(c).FillWidth().Gap(10).Children(func() {
-			ui.Text(c, "Then").FontSize(theme.TextUI).FontWeight(600)
+		ui.Column(c).FillWidth().Gap(theme.S3).Children(func() {
+			ui.Text(c, "Then").FontSize(theme.TextUI).FontWeight(500)
 			if i := widget.Segmented(c, actions, f.action, nil); i >= 0 {
 				f.action = i
 			}
@@ -432,8 +448,8 @@ func (v *View) ruleSheet(c *ui.Context, o Options) {
 				field("Response: remove headers", &f.resRemove, "")
 				field("Response: status", &f.resStatus, "unchanged")
 				ui.Row(c).FillWidth().Gap(8).Children(func() {
-					ui.Column(c).Grow(1).Children(func() { field("Response: replace", &f.replaceFrom, "") })
-					ui.Column(c).Grow(1).Children(func() { field("with", &f.replaceTo, "") })
+					ui.Column(c).Grow(1).Basis(0).MinWidth(0).Children(func() { field("Response: replace", &f.replaceFrom, "") })
+					ui.Column(c).Grow(1).Basis(0).MinWidth(0).Children(func() { field("with", &f.replaceTo, "") })
 				})
 				codeArea(c, "Response JSON: field = value per line", &f.jsonPatch, 36)
 			case proto.ActionFail:
@@ -442,7 +458,7 @@ func (v *View) ruleSheet(c *ui.Context, o Options) {
 				}
 			case proto.ActionBreakpoint:
 				ui.Row(c).Gap(8).AlignItems(ui.Center).Children(func() {
-					ui.Text(c, "Pause the").FontSize(theme.TextLabel).TextColor(theme.TextSoft)
+					ui.Text(c, "Pause the").FontSize(theme.TextUI).TextColor(theme.TextSoft)
 					if i := widget.Segmented(c, stages, f.stage, nil); i >= 0 {
 						f.stage = i
 					}
@@ -460,7 +476,7 @@ func (v *View) ruleSheet(c *ui.Context, o Options) {
 		if r.saving {
 			label = "Saving…"
 		}
-		if widget.PrimaryButton(c, icon.Check, label, "").Disabled(r.saving).Clicked() {
+		if widget.PrimaryButton(c, nil, label, "").Disabled(r.saving).Clicked() {
 			rule, err := f.build()
 			if err != nil {
 				f.err = err.Error()

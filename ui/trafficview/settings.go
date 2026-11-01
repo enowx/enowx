@@ -9,7 +9,6 @@ import (
 
 	"github.com/enowx/enowx/client"
 	"github.com/enowx/enowx/proto"
-	"github.com/enowx/enowx/ui/icon"
 	"github.com/enowx/enowx/ui/theme"
 	"github.com/enowx/enowx/ui/widget"
 )
@@ -101,42 +100,42 @@ func (v *View) settingsSheet(c *ui.Context, o Options) {
 	v.loadSettings(o)
 	desc := "The interceptor on " + o.HostName + ", for every session there."
 	sheet(c, &s.open, 560, "Traffic settings", desc, func() {
-		ui.Column(c).FillWidth().Gap(12).Children(func() {
+		ui.Column(c).FillWidth().Gap(theme.S3).Children(func() {
 			widget.Field(c, "Don't check the certificates of", func() {
-				ui.Column(c).FillWidth().Gap(4).Children(func() {
+				ui.Column(c).FillWidth().Gap(theme.S1).Children(func() {
 					widget.Input(c, &s.insecure, "*.test, staging.internal").FillWidth()
-					ui.Text(c, "Development servers that sign their own. Loopback (localhost, 127.0.0.1) is never checked.").FontSize(theme.TextLabel).TextColor(theme.Muted)
+					ui.Text(c, "Development servers that sign their own. Loopback (localhost, 127.0.0.1) is never checked.").FontSize(theme.TextLabel).TextColor(theme.TextSoft)
 				})
 			})
 			widget.Field(c, "Send through a proxy", func() {
 				widget.Input(c, &s.upstream, "http://proxy.company:3128 (none by default)").FillWidth()
 			})
-			ui.Row(c).FillWidth().Gap(10).Children(func() {
-				ui.Column(c).Grow(1).Children(func() {
+			ui.Row(c).FillWidth().Gap(theme.S3).Children(func() {
+				ui.Column(c).Grow(1).Basis(0).MinWidth(0).Children(func() {
 					widget.Field(c, "Keep at most (exchanges)", func() { widget.Input(c, &s.maxEx, "2000").FillWidth() })
 				})
-				ui.Column(c).Grow(1).Children(func() {
+				ui.Column(c).Grow(1).Basis(0).MinWidth(0).Children(func() {
 					widget.Field(c, "Bodies at most (MB)", func() { widget.Input(c, &s.maxMB, "256").FillWidth() })
 				})
 			})
 			area := func(label, hint string, value *string) {
-				ui.Column(c).FillWidth().Gap(4).Children(func() {
+				ui.Column(c).FillWidth().Gap(theme.S1).Children(func() {
 					codeArea(c, label, value, 44)
-					ui.Text(c, hint).FontSize(theme.TextLabel).TextColor(theme.Muted)
+					ui.Text(c, hint).FontSize(theme.TextLabel).TextColor(theme.TextSoft)
 				})
 			}
 			area("Point names elsewhere", "name = address per line, as a hosts file: api.example.com = 127.0.0.1:8080", &s.hosts)
 			area("Client certificates", "host cert.pem key.pem per line, files on "+o.HostName+", for servers that ask for one", &s.certs)
-			check(c, &s.st.NotifyErrors, "Tell me when an app's request fails or is answered 5xx")
+			widget.ToggleRow(c, "Tell me when an app's request fails", "Or is answered 5xx", &s.st.NotifyErrors)
 		})
 		v.capturePrefsFields(c)
-		ui.Column(c).FillWidth().Gap(6).Children(func() {
-			ui.Text(c, "Certificate authority").FontSize(theme.TextUI).FontWeight(600)
+		ui.Column(c).FillWidth().Gap(theme.S2).Children(func() {
+			ui.Text(c, "Certificate authority").FontSize(theme.TextUI).FontWeight(500)
 			if v.status.Fingerprint != "" {
-				ui.Text(c, "SHA-256 "+v.status.Fingerprint).Font(theme.MonoFont).FontSize(theme.TextLabel).TextColor(theme.Muted).Selectable()
+				ui.Text(c, "SHA-256 "+v.status.Fingerprint).Font(theme.MonoFont).FontSize(theme.TextLabel).TextColor(theme.TextSoft).Selectable()
 			}
-			ui.Row(c).FillWidth().Gap(8).AlignItems(ui.Center).Children(func() {
-				ui.Text(c, "Making it anew means attaching again what trusted the old one.").FontSize(theme.TextLabel).TextColor(theme.Muted).Grow(1).Shrink(1)
+			ui.Row(c).FillWidth().Gap(theme.S2).AlignItems(ui.Center).Children(func() {
+				ui.Text(c, "Making it anew means attaching again what trusted the old one.").FontSize(theme.TextLabel).TextColor(theme.TextSoft).Grow(1).Basis(0).MinWidth(0)
 				if widget.Button(c, widget.Secondary, nil, "Make the CA anew", "").Clicked() {
 					renew := func() {
 						h := o.Host
@@ -167,7 +166,7 @@ func (v *View) settingsSheet(c *ui.Context, o Options) {
 		if s.saving {
 			label = "Saving…"
 		}
-		if widget.PrimaryButton(c, icon.Check, label, "").Disabled(s.saving).Clicked() {
+		if widget.PrimaryButton(c, nil, label, "").Disabled(s.saving).Clicked() {
 			v.saveSettings(o)
 		}
 	})

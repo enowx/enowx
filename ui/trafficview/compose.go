@@ -10,7 +10,6 @@ import (
 
 	"github.com/enowx/enowx/client"
 	"github.com/enowx/enowx/proto"
-	"github.com/enowx/enowx/ui/icon"
 	"github.com/enowx/enowx/ui/theme"
 	"github.com/enowx/enowx/ui/widget"
 )
@@ -61,7 +60,7 @@ func (v *View) composeSheet(c *ui.Context, o Options) {
 		f.method = "GET"
 	}
 	sheet(c, &f.open, 600, "Send a request", "Sent from "+o.HostName+" and recorded with the rest.", func() {
-		ui.Column(c).FillWidth().Gap(10).Children(func() {
+		ui.Column(c).FillWidth().Gap(theme.S3).Children(func() {
 			i := slices.Index(methods, f.method)
 			if k := widget.Segmented(c, methods, i, nil); k >= 0 {
 				f.method = methods[k]
@@ -73,14 +72,10 @@ func (v *View) composeSheet(c *ui.Context, o Options) {
 			errorText(c, f.err)
 		})
 		if len(f.history) > 0 {
-			ui.Column(c).FillWidth().Gap(2).Children(func() {
-				ui.Text(c, "Sent before").FontSize(theme.TextLabel).TextColor(theme.Muted).Margin(0, 0, 4, 0)
+			ui.Column(c).FillWidth().Gap(theme.S1).Children(func() {
+				widget.SectionLabel(c, "Sent before", theme.TextSoft)
 				for i, h := range f.history {
-					b := ui.ButtonBase(c.Key(fmt.Sprint(i))).FillWidth().Height(26).PaddingX(8).Radius(theme.RadiusControl).Justify(ui.Start).Label(h.method + " " + h.url).Cursor(ui.CursorPointer)
-					b.Children(func() {
-						ui.Text(c, h.method).Font(theme.MonoFont).FontSize(theme.TextLabel).TextColor(theme.TextSoft).Width(52).Shrink(0)
-						ui.Text(c, h.url).FontSize(theme.TextLabel).SingleLine().Shrink(1)
-					})
+					b := widget.ItemRow(c.Key(fmt.Sprint(i)), widget.Item{Title: h.url, Sub: h.method, Mono: true, Label: h.method + " " + h.url}, nil)
 					if b.Clicked() {
 						hist := f.history
 						*f = h
@@ -94,7 +89,7 @@ func (v *View) composeSheet(c *ui.Context, o Options) {
 		if f.sending {
 			label = "Sending…"
 		}
-		if widget.PrimaryButton(c, icon.ArrowRight, label, "").Disabled(f.sending || strings.TrimSpace(f.url) == "").Clicked() {
+		if widget.PrimaryButton(c, nil, label, "").Disabled(f.sending || strings.TrimSpace(f.url) == "").Clicked() {
 			v.send(o)
 		}
 	})
@@ -126,7 +121,7 @@ func (v *View) send(o Options) {
 			v.Apply(sum)
 			f.open = false
 			v.page, v.all, v.filter = pageRequests, true, ""
-			v.open(o, sum.ID)
+			v.open(o, sum)
 		})
 	}()
 }
