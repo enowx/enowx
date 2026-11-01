@@ -77,7 +77,7 @@ func newVaultHarness(t *testing.T) *vaultHarness {
 	h.tt = ui.NewTester(func(c *ui.Context) {
 		ui.Column(c).Width(1000).Height(720).Background(theme.Background).TextColor(theme.Text).Children(func() {
 			h.app.vaultPage(c)
-			h.app.vaultAskDialog(c)
+			h.app.asksView(c)
 		})
 	}, 1000, 720)
 	return h
@@ -218,6 +218,9 @@ func TestVaultLendsAfterTheUserAllowsTheHost(t *testing.T) {
 	got = ask()
 	h.settle("unlock first", func() bool { return h.tt.HasText("Unlock the vault") && h.tt.HasText("Unlock the vault to answer") })
 	shot(t, h.tt, "vault-ask-locked.png")
+	if h.tt.Focused("Unlock the vault to answer") {
+		t.Fatal("the password field took the keyboard unasked")
+	}
 	h.click("Unlock the vault to answer")
 	h.tt.Type("correct horse")
 	h.click("Unlock and answer")

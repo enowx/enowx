@@ -39,7 +39,7 @@ func (s *Server) setTokenSettings(p proto.TokensSettings) (proto.TokensSettings,
 		return st, err
 	}
 	if st.On && !was.On {
-		go s.backfillTokens(time.Time{})
+		s.background.start(func() { s.backfillTokens(time.Time{}) })
 	}
 	return s.tok.settings.Get(), nil
 }

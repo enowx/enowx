@@ -80,35 +80,32 @@ func nonEmpty(a, b string) string {
 	return b
 }
 
-// takeoverDialog asks the host's user, one ask at a time.
-func (a *App) takeoverDialog(c *ui.Context) {
+// takeoverAsk asks the host's user, one ask at a time.
+func (a *App) takeoverAsk(*ui.Context) *widget.Ask {
 	if a.presence == nil || len(a.presence.asks) == 0 {
-		return
+		return nil
 	}
 	hp := a.presence
 	ask := hp.asks[0]
-	open := true
 	who := visitorName(ask.Visitor)
-	msg := who + " (" + ask.Visitor.Role + " of " + a.spaceName(ask.Visitor.Team) + ") watches “" + nonEmpty(ask.Name, ask.Session) +
-		"” and asks to type into it, as you would. You see what they do, and take it back any time."
-	answer := func(allow bool) {
-		hp.asks = hp.asks[1:]
-		cl := a.client
-		go func() {
-			if err := cl.AnswerTakeover(ask.Session, ask.Visitor.Account, allow); err != nil {
-				a.onMain(func() { a.status = client.Explain(err) })
-			}
-		}()
+	answer := func(allow bool) func() {
+		return func() {
+			hp.asks = hp.asks[1:]
+			cl := a.client
+			go func() {
+				if err := cl.AnswerTakeover(ask.Session, ask.Visitor.Account, allow); err != nil {
+					a.onMain(func() { a.status = client.Explain(err) })
+				}
+			}()
+		}
 	}
-	switch ui.AlertDialog(c, &open, who+" asks to take over", msg, "Not now", "Let them type") {
-	case 1:
-		answer(true)
-	case 0, ui.AlertDismissed:
-		answer(false)
-	}
-	if !open && len(hp.asks) > 0 && hp.asks[0].Session == ask.Session && hp.asks[0].Visitor.Account == ask.Visitor.Account {
-		answer(false)
-	}
+	return &widget.Ask{Key: "takeover:" + ask.Session + ":" + ask.Visitor.Account, Icon: icon.Eye, Title: who + " asks to take over",
+		About: who + " (" + ask.Visitor.Role + " of " + a.spaceName(ask.Visitor.Team) + ") watches “" + nonEmpty(ask.Name, ask.Session) +
+			"” and asks to type into it, as you would. You see what they do, and take it back any time.",
+		Buttons: []widget.AskButton{
+			{Kind: widget.Secondary, Label: "Not now", Do: answer(false)},
+			{Kind: widget.Primary, Label: "Let them type", Do: answer(true)},
+		}}
 }
 
 // sessionPresence shows, in a session's header, the members watching it

@@ -226,7 +226,7 @@ func (s *Server) browserUnslop(p proto.BrowserUnslopParams) (proto.CanvasUnslop,
 		s.broadcast(proto.EventBrowserUnslop, run)
 		out.Run = &run
 		if done && run.Done {
-			go s.reviewPage(p.Session, u)
+			s.background.start(func() { s.reviewPage(p.Session, u) })
 		}
 	}
 	return out, nil

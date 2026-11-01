@@ -61,6 +61,7 @@ func newCanvasHarness(t *testing.T) *canvasHarness {
 		ui.Row(c).Width(1280).Height(800).Background(theme.Background).Children(func() {
 			ui.Column(c).Grow(1).MinWidth(0).FillHeight().Children(func() { h.app.canvasPage(c) })
 			h.app.canvasAgentPanel(c)
+			h.app.asksView(c)
 		})
 	}, 1280, 800)
 	h.settle("the canvases listed", func() bool { return h.app.canvasList.loaded })

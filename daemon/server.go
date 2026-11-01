@@ -67,6 +67,7 @@ type Server struct {
 	syncPeers         syncPeers
 	catalogMu         sync.Mutex     // one catalog written at a time
 	catalogs          sync.WaitGroup // catalogs being written
+	background        backgroundWork // what requests left running that writes here; Close waits for it
 	clonePrefsMu      sync.Mutex     // one settings/clone.json written at a time
 	dataDir           string
 	clones            clones
@@ -266,7 +267,7 @@ func newServer(dir, hookBin string) (*Server, error) {
 	go s.watchLimitsLoop(s.done)
 	go s.runAutopushes(s.done)
 	go s.sweepNoteAssets(s.done)
-	go s.runTokens(s.done)
+	s.background.start(func() { s.runTokens(s.done) })
 	return s, nil
 }
 
@@ -313,6 +314,8 @@ func (s *Server) serveConn(nc net.Conn, remote bool) {
 func (s *Server) Close() {
 	s.closeOnce.Do(func() {
 		close(s.done)
+		// First: a review being started is a session CloseAll must see.
+		s.background.stop(closeWait)
 		s.stopSharing()
 		s.clones.stopAll() // half-made clones go with them
 		s.noteIO.stopAll()

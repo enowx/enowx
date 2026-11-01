@@ -137,51 +137,56 @@ type App struct {
 	quitting           bool
 	library            *libraryview.View // the Settings page's library, for libraryHost
 	libraryHost        string
-	setup              *setupPage                // the Setup page, for the host it was opened on
-	setupPolled        time.Time                 // when the setup's status was last read
-	drift              map[string]int            // steps a host lacks to be what this device is, by host ID
-	watches            map[string]*hostWatch     // the hosts not shown, by ID
-	dsync              dataSync                  // the user's data synced between hosts
-	feats              *hostFeatures             // the connected host's feature switches
-	noteChatsRead      noteChats                 // notes' conversations with their agents
-	featAsks           []featureAsk              // agents asking to turn a feature on
-	ntf                notifyState               // the sounds played (notifysound.go)
-	chooseRunAs        string                    // the host whose next connection asks which user to run as
-	emptyProject       string                    // the project whose empty view shows, until the user picks
-	connectLink        string                    // a link the server gave while signing in: a Tailscale SSH check
-	openSession        string                    // a session to show once the host connected lists it
-	openProject        string                    // a project to show once the host connected shows it
-	copying            *copyForm                 // the Copy to another host dialog
-	cloningTo          *cloneToForm              // the Clone on another host dialog
-	projectSyncing     *projectSyncForm          // the Sync with another host dialog
-	syncPairs          *projectsync.Store        // projects synced between hosts, and their base
-	links              autoSync                  // links between hosts' copies of projects (autosync.go)
-	notionRunning      map[string]bool           // Notion imports made again now, by notionSync ID
-	linksForm          *linksForm                // the Sync & push dialog of a project
-	vlt                *vaultApp                 // the credential vault (vault.go)
-	piping             *pipelineForm             // the New pipeline dialog
-	creating           *vpsForm                  // the Create a server dialog
-	quick              quickOpen                 // the Go to file dialog
-	issues             issuePicker               // the New session dialog's issues
-	unread             map[string]bool           // sessions whose agent finished or asked unseen
-	history            historyDialog             // the Past conversations dialog
-	compare            compareDialog             // a fan-out's sessions, to keep one
-	accts              accountsState             // Settings → Agent accounts
-	localPick          localpicker.Picker        // picks this device's files to add to a session
-	autos              automationsState          // Settings → Automations
-	hooks              hooksState                // Settings → Hooks
-	ragSet             ragSettingsState          // Settings → RAG (rag.go)
-	ragPanel           ragPanelState             // the side panel's Index (rag_panel.go)
-	ragOffer           *proto.RAGRememberParams  // a session's decision offered as a memory
-	decideSet          decideState               // Settings → Decisions (decide.go)
-	decision           *proto.Decision           // the judge stopped an agent or refused its command (decide_uses.go)
-	chatToasts         []*chatToast              // team chat messages, in the corner (teamchatnotify.go)
-	acctAsk            *proto.AccountFallback    // an account at its limit, asking to switch (accounts_switch.go)
-	browserNews        bool                      // the Browser opened a page while the user was at something else
-	deletingServer     *hosts.Host               // the server whose deletion is asked about
-	clearingHost       *hosts.Host               // the host whose synced data's clearing is asked about
-	picked             map[string]bool           // sessions picked with ⌘ or ⇧ clicks, for Hibernate
-	hibernating        *hibernateForm            // hibernating sessions that would lose work, asked about
+	setup              *setupPage                 // the Setup page, for the host it was opened on
+	setupPolled        time.Time                  // when the setup's status was last read
+	drift              map[string]int             // steps a host lacks to be what this device is, by host ID
+	watches            map[string]*hostWatch      // the hosts not shown, by ID
+	dsync              dataSync                   // the user's data synced between hosts
+	feats              *hostFeatures              // the connected host's feature switches
+	noteChatsRead      noteChats                  // notes' conversations with their agents
+	featAsks           []featureAsk               // agents asking to turn a feature on
+	ntf                notifyState                // the sounds played (notifysound.go)
+	chooseRunAs        string                     // the host whose next connection asks which user to run as
+	emptyProject       string                     // the project whose empty view shows, until the user picks
+	connectLink        string                     // a link the server gave while signing in: a Tailscale SSH check
+	openSession        string                     // a session to show once the host connected lists it
+	openProject        string                     // a project to show once the host connected shows it
+	copying            *copyForm                  // the Copy to another host dialog
+	cloningTo          *cloneToForm               // the Clone on another host dialog
+	projectSyncing     *projectSyncForm           // the Sync with another host dialog
+	syncPairs          *projectsync.Store         // projects synced between hosts, and their base
+	links              autoSync                   // links between hosts' copies of projects (autosync.go)
+	notionRunning      map[string]bool            // Notion imports made again now, by notionSync ID
+	linksForm          *linksForm                 // the Sync & push dialog of a project
+	vlt                *vaultApp                  // the credential vault (vault.go)
+	piping             *pipelineForm              // the New pipeline dialog
+	creating           *vpsForm                   // the Create a server dialog
+	quick              quickOpen                  // the Go to file dialog
+	issues             issuePicker                // the New session dialog's issues
+	unread             map[string]bool            // sessions whose agent finished or asked unseen
+	history            historyDialog              // the Past conversations dialog
+	compare            compareDialog              // a fan-out's sessions, to keep one
+	accts              accountsState              // Settings → Agent accounts
+	localPick          localpicker.Picker         // picks this device's files to add to a session
+	autos              automationsState           // Settings → Automations
+	hooks              hooksState                 // Settings → Hooks
+	ragSet             ragSettingsState           // Settings → RAG (rag.go)
+	ragPanel           ragPanelState              // the side panel's Index (rag_panel.go)
+	ragOffers          []*proto.RAGRememberParams // sessions' decisions offered as memories
+	decideSet          decideState                // Settings → Decisions (decide.go)
+	decisions          []*proto.Decision          // the judge stopped an agent or refused its command (decide_uses.go)
+	chatToasts         []*chatToast               // team chat messages, in the corner (teamchatnotify.go)
+	acctAsks           []*proto.AccountFallback   // accounts at their limit, asking to switch (accounts_switch.go)
+	browserNews        bool                       // the Browser opened a page while the user was at something else
+	deletingServer     *hosts.Host                // the server whose deletion is asked about
+	clearingHost       *hosts.Host                // the host whose synced data's clearing is asked about
+	picked             map[string]bool            // sessions picked with ⌘ or ⇧ clicks, for Hibernate
+	hibernating        *hibernateForm             // hibernating sessions that would lose work, asked about
+	hibernateAsks      []*hibernateForm           // agents asking to hibernate sessions
+	hostAsks           []*hostAsk                 // sessions asking to do what can't be undone (hostcontrol.go)
+	hostAskKey         int
+	asks               askLine                   // the cards waiting (asks.go)
+	connectByApp       bool                      // this connection isn't the user's doing: what it asks comes as cards
 	pipelines          []proto.Pipeline          // the connected host's
 	tabs               map[string]string         // the tab each session shows in front, by session ID
 	installs           map[string]func()         // install sessions, by session ID: what to check once each ends
@@ -387,6 +392,7 @@ func (a *App) Open() *mygo.Window {
 	a.reloadHosts()
 	go a.loadPeers()
 	a.connect(a.opts.Start)
+	a.connectByApp = true
 	a.startUpdates()
 	a.startAutoSync()
 	go func() {

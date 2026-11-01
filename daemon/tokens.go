@@ -87,7 +87,11 @@ func (s *Server) runTokens(done <-chan struct{}) {
 			return
 		case <-tick.C:
 		case <-s.tok.poke:
-			time.Sleep(2 * time.Second) // the agent finishes writing
+			select { // the agent finishes writing
+			case <-done:
+				return
+			case <-time.After(2 * time.Second):
+			}
 		}
 		if s.tokensOn() {
 			s.scanTokens(time.Time{})

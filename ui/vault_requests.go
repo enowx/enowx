@@ -15,6 +15,7 @@ import (
 	"github.com/enowx/enowx/core/vault"
 	"github.com/enowx/enowx/proto"
 	"github.com/enowx/enowx/ui/vaultview"
+	"github.com/enowx/enowx/ui/widget"
 )
 
 // A host's request for a credential comes to the app holding the vault:
@@ -22,8 +23,8 @@ import (
 // is asked (Allow once, Always on the host, Refuse), unlocking the vault
 // first if it is locked. Adding or removing one asks the user too.
 
-// vaultAsk is a request waiting for the user.
-type vaultAsk struct {
+// vaultRequestAsk is a request waiting for the user.
+type vaultRequestAsk struct {
 	cl    *client.Client
 	host  hosts.Host
 	req   proto.VaultRequest
@@ -31,6 +32,7 @@ type vaultAsk struct {
 	lend  proto.VaultLend
 	ask   vaultview.Ask
 	done  func(answer int) // after the user answered; nil for lending creds
+	until time.Time        // past it, the host waits no more
 }
 
 // vaultEvent hands a host's request (on connection cl to h) to the vault.
@@ -57,7 +59,7 @@ func (a *App) vaultEvent(cl *client.Client, h hosts.Host, req proto.VaultRequest
 	}
 	a.vaultFromKeychain(func() {
 		if v.key == nil {
-			a.vaultQueue(&vaultAsk{cl: cl, host: h, req: req, ask: vaultview.Ask{Locked: true,
+			a.vaultQueue(&vaultRequestAsk{cl: cl, host: h, req: req, ask: vaultview.Ask{Locked: true,
 				Title: "Unlock the vault", About: a.vaultWho(h, req) + " asks for " + vaultWhat(req) + "."}})
 			return
 		}
@@ -118,7 +120,7 @@ func (a *App) vaultDecide(cl *client.Client, h hosts.Host, req proto.VaultReques
 		reply(proto.VaultLend{Message: "Asked the user to log in to " + vault.Lookup(req.Platform).Name + " in enowX: creds list shows it once they have."}, nil)
 		return
 	case proto.VaultAdd:
-		a.vaultQueue(&vaultAsk{cl: cl, host: h, req: req, ask: vaultview.Ask{Title: "Keep " + req.Name + " in the vault?",
+		a.vaultQueue(&vaultRequestAsk{cl: cl, host: h, req: req, ask: vaultview.Ask{Title: "Keep " + req.Name + " in the vault?",
 			About: a.vaultWho(h, req) + " asks to keep a new " + vault.Lookup(req.Platform).Name + " credential, " + req.Name + "."},
 			done: func(answer int) {
 				if answer != vaultview.AnswerOnce {
@@ -138,7 +140,7 @@ func (a *App) vaultDecide(cl *client.Client, h hosts.Host, req proto.VaultReques
 			reply(proto.VaultLend{}, fmt.Errorf("vault: no credential %q", req.Name))
 			return
 		}
-		a.vaultQueue(&vaultAsk{cl: cl, host: h, req: req, ask: vaultview.Ask{Title: "Remove " + req.Name + " from the vault?", Danger: true,
+		a.vaultQueue(&vaultRequestAsk{cl: cl, host: h, req: req, ask: vaultview.Ask{Title: "Remove " + req.Name + " from the vault?", Danger: true,
 			About: a.vaultWho(h, req) + " asks to remove it. Hosts can't use it afterwards."},
 			done: func(answer int) {
 				if answer != vaultview.AnswerOnce {
@@ -189,7 +191,7 @@ func (a *App) vaultDecide(cl *client.Client, h hosts.Host, req proto.VaultReques
 	if req.Command != "" {
 		about += ", for " + req.Command
 	}
-	a.vaultQueue(&vaultAsk{cl: cl, host: h, req: req, creds: ask, lend: lend, ask: vaultview.Ask{Always: true, Host: h.Name,
+	a.vaultQueue(&vaultRequestAsk{cl: cl, host: h, req: req, creds: ask, lend: lend, ask: vaultview.Ask{Always: true, Host: h.Name,
 		Title: "Let " + h.Name + " use " + strings.Join(names, ", ") + "?", About: about + ". The values go to that session only."}})
 }
 
@@ -262,10 +264,10 @@ func (a *App) vaultAddLend(lend *proto.VaultLend, c *vault.Credential, req proto
 
 // vaultQueue puts a question to the user, telling them when the window
 // isn't in front.
-func (a *App) vaultQueue(q *vaultAsk) {
+func (a *App) vaultQueue(q *vaultRequestAsk) {
 	v := a.vaultOf()
+	q.until = askUntil(vaultAskLife)
 	v.asks = append(v.asks, q)
-	v.askOpen = true
 	if a.win != nil && !a.win.IsFocused() && !a.state.NotifyOff {
 		n := mygo.NewNotification(mygo.NotificationOptions{ID: "vault", Title: q.ask.Title, Body: q.ask.About})
 		n.OnClick(func() { a.showWindow() })
@@ -277,7 +279,7 @@ func (a *App) vaultQueue(q *vaultAsk) {
 // unlock.
 func (a *App) vaultAnswerWaiting() {
 	v := a.vaultOf()
-	var keep []*vaultAsk
+	var keep []*vaultRequestAsk
 	waiting := v.asks
 	v.asks = nil
 	for _, q := range waiting {
@@ -293,32 +295,35 @@ func (a *App) vaultAnswerWaiting() {
 			}
 			go func() { _ = cl.VaultReply(r) }()
 		})
+		// What it asks now ends when it does: the host's wait began with it.
+		for _, later := range v.asks {
+			if later.req.ID == req.ID {
+				later.until = q.until
+			}
+		}
 	}
 	v.asks = append(keep, v.asks...)
-	v.askOpen = len(v.asks) > 0
 }
 
-// vaultAskDialog shows the first question waiting, and answers it.
-func (a *App) vaultAskDialog(c *ui.Context) {
+// vaultAsk is the card of the first question waiting.
+func (a *App) vaultAsk(c *ui.Context) *widget.Ask {
 	v := a.vlt
 	if v == nil || len(v.asks) == 0 {
-		return
+		return nil
 	}
 	q := v.asks[0]
-	v.askOpen = true
-	answer := v.view.AskDialog(c.Key(q.req.ID), &v.askOpen, q.ask, func(password string) error {
+	return v.view.AskCard(c, "vault:"+q.req.ID, q.ask, func(password string) error {
 		return a.vaultUnlock(password, a.state.VaultRemember)
+	}, func(answer int) {
+		if len(v.asks) > 0 && v.asks[0] == q {
+			v.asks = v.asks[1:]
+			a.vaultAnswer(q, answer)
+		}
 	})
-	if answer == vaultview.AnswerNone || len(v.asks) == 0 || v.asks[0] != q {
-		return
-	}
-	v.asks = v.asks[1:]
-	v.askOpen = len(v.asks) > 0
-	a.vaultAnswer(q, answer)
 }
 
 // vaultAnswer replies to q as the user answered.
-func (a *App) vaultAnswer(q *vaultAsk, answer int) {
+func (a *App) vaultAnswer(q *vaultRequestAsk, answer int) {
 	if q.done != nil {
 		q.done(answer)
 		return

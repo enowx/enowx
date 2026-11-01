@@ -140,68 +140,37 @@ const (
 	AnswerAlways
 )
 
-// AskDialog shows ask while *open; it returns the user's answer, unlocking
-// the vault first with unlock when it is locked.
-func (v *View) AskDialog(c *ui.Context, open *bool, ask Ask, unlock func(password string) error) int {
-	answer := AnswerNone
-	widget.Dialog(c, open, 460, 14, func() {
-		ui.Row(c).Gap(12).AlignItems(ui.Start).Children(func() {
-			ui.Row(c).Size(36, 36).Shrink(0).Radius(10).Center().Background(theme.AccentSoft).Children(func() {
-				ui.Icon(c, icon.Key).FontSize(18).TextColor(theme.Accent)
-			})
-			ui.Column(c).Grow(1).MinWidth(0).Gap(5).Children(func() {
-				ui.Text(c, ask.Title).FontSize(15).FontWeight(600).TextColor(theme.TextStrong)
-				ui.Text(c, ask.About).FontSize(12.5).TextColor(theme.TextSoft)
-			})
-		})
-		if ask.Locked {
-			submit := false
+// AskCard is ask as a card for the app to float: answer takes the user's
+// answer. Unlocking waits for a click into the password field: the card must
+// never take the keyboard (widget.AskCard).
+func (v *View) AskCard(c *ui.Context, key string, ask Ask, unlock func(password string) error, answer func(int)) *widget.Ask {
+	card := &widget.Ask{Key: key, Icon: icon.Key, Title: ask.Title, About: ask.About}
+	refuse := widget.AskButton{Kind: widget.Secondary, Label: "Refuse", Do: func() { answer(AnswerDeny) }}
+	try := func() {
+		v.err = errText(unlock(v.password))
+		if v.err == "" {
+			v.password = ""
+		}
+	}
+	switch {
+	case ask.Locked:
+		card.Body = func() {
 			widget.Field(c, "Master password", func() {
-				submit = widget.Input(c, &v.password, "Unlock the vault to answer").FillWidth().Password().AutoFocus().Submitted()
+				if widget.Input(c, &v.password, "Unlock the vault to answer").FillWidth().Password().Submitted() {
+					try()
+				}
 			})
 			v.errorLine(c)
-			ui.Row(c).FillWidth().Gap(8).Children(func() {
-				ui.Spacer(c)
-				if widget.Button(c, widget.Secondary, nil, "Refuse", "").Clicked() {
-					answer = AnswerDeny
-				}
-				if widget.PrimaryButton(c, icon.Lock, "Unlock and answer", "").Clicked() || submit {
-					v.err = errText(unlock(v.password))
-					if v.err == "" {
-						v.password = ""
-					}
-				}
-			})
-			return
 		}
-		ui.Row(c).FillWidth().Gap(8).Children(func() {
-			ui.Spacer(c)
-			if widget.Button(c, widget.Secondary, nil, "Refuse", "").Clicked() {
-				answer = AnswerDeny
-			}
-			if ask.Always {
-				if widget.Button(c, widget.Secondary, nil, "Allow once", "").Clicked() {
-					answer = AnswerOnce
-				}
-				if widget.PrimaryButton(c, icon.Check, "Always on "+ask.Host, "").Clicked() {
-					answer = AnswerAlways
-				}
-				return
-			}
-			label := "Allow"
-			if ask.Danger {
-				if widget.DangerButton(c, "Remove").Clicked() {
-					answer = AnswerOnce
-				}
-				return
-			}
-			if widget.PrimaryButton(c, icon.Check, label, "").Clicked() {
-				answer = AnswerOnce
-			}
-		})
-	})
-	if !*open && answer == AnswerNone {
-		answer = AnswerDeny // closed: refused
+		card.Buttons = []widget.AskButton{refuse, {Kind: widget.Primary, Icon: icon.Lock, Label: "Unlock and answer", Do: try}}
+	case ask.Always:
+		card.Buttons = []widget.AskButton{refuse,
+			{Kind: widget.Secondary, Label: "Allow once", Do: func() { answer(AnswerOnce) }},
+			{Kind: widget.Primary, Icon: icon.Check, Label: "Always on " + ask.Host, Do: func() { answer(AnswerAlways) }}}
+	case ask.Danger:
+		card.Buttons = []widget.AskButton{refuse, {Kind: widget.Danger, Label: "Remove", Do: func() { answer(AnswerOnce) }}}
+	default:
+		card.Buttons = []widget.AskButton{refuse, {Kind: widget.Primary, Icon: icon.Check, Label: "Allow", Do: func() { answer(AnswerOnce) }}}
 	}
-	return answer
+	return card
 }

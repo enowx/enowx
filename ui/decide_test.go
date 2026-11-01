@@ -58,7 +58,7 @@ func TestDecisionsSection(t *testing.T) {
 		ui.Column(c).Width(900).Height(900).Background(theme.Background).TextColor(theme.Text).Children(func() {
 			app.decideSection(c)
 			app.confirmDialog(c)
-			app.decisionDialog(c)
+			app.asksView(c)
 		})
 	}, 900, 900)
 	frames := func(until func() bool, what string) {
@@ -140,7 +140,7 @@ func TestDecisionsSection(t *testing.T) {
 	}
 
 	// A loop the judge stopped: the user lets the agent go on.
-	app.decision = &proto.Decision{ID: d.ID, Use: proto.DecideLoop, Session: "s1", Verdict: proto.VerdictLooping, Why: "The same failing test five times.", Acted: proto.ActedPaused}
+	app.decisions = []*proto.Decision{{ID: d.ID, Use: proto.DecideLoop, Session: "s1", Verdict: proto.VerdictLooping, Why: "The same failing test five times.", Acted: proto.ActedPaused}}
 	tt.Frame()
 	if !hasText(tt, "it seemed to loop") {
 		t.Fatalf("no dialog: %q", tt.Texts())
@@ -149,7 +149,7 @@ func TestDecisionsSection(t *testing.T) {
 		t.Fatal(err)
 	}
 	tt.Frame()
-	if app.decision != nil || strings.Contains(strings.Join(tt.Texts(), " "), "it seemed to loop") {
+	if len(app.decisions) > 0 || strings.Contains(strings.Join(tt.Texts(), " "), "it seemed to loop") {
 		t.Fatal("the dialog stayed")
 	}
 }
