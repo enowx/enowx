@@ -7,7 +7,6 @@ import (
 	"github.com/egoist/mygo/ui"
 
 	"github.com/enowx/enowx/proto"
-	"github.com/enowx/enowx/ui/icon"
 	"github.com/enowx/enowx/ui/textfmt"
 	"github.com/enowx/enowx/ui/theme"
 	"github.com/enowx/enowx/ui/widget"
@@ -69,11 +68,7 @@ func (v *View) historySheet(c *ui.Context, o Options) {
 	}
 	w, _ := c.Size()
 	widget.Sheet(c, &h.open, min(820, max(320, w-40)), func() {
-		ui.Column(c).Grow(1).MinWidth(0).Gap(4).Children(func() {
-			ui.Text(c, "Versions of “"+titleOf(h.note)+"”").FontSize(theme.TextRead).TextColor(theme.TextStrong)
-			ui.Text(c, "Kept on this host before each change from another host or an agent, and every 10 minutes while you write.").FontSize(theme.TextLabel).TextColor(theme.Muted)
-		})
-		if widget.IconButton(c, icon.Close, "Close", false).Clicked() {
+		if widget.DialogHeader(c, "Version history", "Versions of “"+titleOf(h.note)+"”, kept on this host before each change from another host or an agent, and every 10 minutes while you write.", true) {
 			h.open = false
 		}
 	}, func() {
@@ -81,43 +76,32 @@ func (v *View) historySheet(c *ui.Context, o Options) {
 			ui.Text(c, h.err).FontSize(theme.TextLabel).TextColor(theme.Error)
 		}
 		if h.loaded && len(h.versions) == 0 {
-			ui.Text(c, "No earlier version yet.").FontSize(theme.TextUI).TextColor(theme.Muted)
+			ui.Text(c, "No earlier version yet.").FontSize(theme.TextUI).TextColor(theme.TextSoft)
 			return
 		}
-		ui.Row(c).FillWidth().Gap(14).AlignItems(ui.Start).Children(func() {
+		ui.Row(c).FillWidth().Gap(theme.S3).AlignItems(ui.Start).Children(func() {
 			ui.Column(c).Width(220).Shrink(0).Gap(2).Children(func() {
 				for _, ver := range h.versions {
-					b := ui.ButtonBase(c.Key(ver.ID)).FillWidth().Padding(8, 10).Radius(theme.RadiusControl).Column().AlignItems(ui.Start).Gap(2).
-						Cursor(ui.CursorPointer).Label(ver.Time.Local().Format("2 Jan 15:04"))
-					if ver.ID == h.picked {
-						b.Background(theme.Selected)
-					} else if b.Hovered() {
-						b.Background(theme.Hover)
-					}
-					b.Children(func() {
-						ui.Text(c, ver.Time.Local().Format("2 Jan 2006, 15:04")).FontSize(theme.TextUI).TextColor(theme.Text)
-						ui.Text(c, fmt.Sprintf("%s · %s", textfmt.Age(ver.Time, time.Now()), textfmt.Bytes(uint64(ver.Size)))).FontSize(theme.TextLabel).TextColor(theme.Muted)
-					})
-					if b.Clicked() && ver.ID != h.picked {
+					sub := fmt.Sprintf("%s · %s", textfmt.Age(ver.Time, time.Now()), textfmt.Bytes(uint64(ver.Size)))
+					if widget.ListItem(c.Key(ver.ID), ui.Color{}, ver.Time.Local().Format("2 Jan 2006, 15:04"), sub, ver.ID == h.picked, nil).Clicked() && ver.ID != h.picked {
 						v.pickVersion(o, h, ver.ID)
 					}
 				}
 			})
-			ui.Column(c).Grow(1).MinWidth(0).Gap(10).Padding(14).Radius(theme.RadiusCard).Border(1, theme.Border).Children(func() {
+			widget.Card(c).Grow(1).Children(func() {
 				if h.shown == nil {
-					ui.Text(c, "Reading…").FontSize(theme.TextLabel).TextColor(theme.Muted)
+					ui.Text(c, "Reading…").FontSize(theme.TextUI).TextColor(theme.TextSoft)
 					return
 				}
-				ui.Text(c, titleOf(h.shown.NoteInfo)).FontSize(theme.TextRead).FontWeight(650).TextColor(theme.TextStrong)
+				ui.Text(c, titleOf(h.shown.NoteInfo)).FontSize(theme.TextTitle).FontWeight(600).TextColor(theme.TextStrong)
 				widget.Markdown(c, h.shown.Body)
 			})
 		})
 	}, func() {
-		ui.Spacer(c)
-		if widget.GhostButton(c, "Close").Clicked() {
+		if widget.GhostButton(c, "Cancel").Clicked() {
 			h.open = false
 		}
-		b := widget.PrimaryButton(c, nil, "Restore this version", "")
+		b := widget.PrimaryButton(c, nil, "Restore", "")
 		if h.shown == nil {
 			b.Disabled(true).Opacity(0.5)
 		} else if b.Clicked() {

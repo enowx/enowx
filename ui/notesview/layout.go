@@ -10,6 +10,7 @@ import (
 	"github.com/enowx/enowx/proto"
 	"github.com/enowx/enowx/ui/icon"
 	"github.com/enowx/enowx/ui/theme"
+	"github.com/enowx/enowx/ui/widget"
 )
 
 // A page's layout blocks (core/noteblocks) as the page shows them: tabs,
@@ -35,7 +36,7 @@ type pageEnv struct {
 func (e *editor) layoutView(c *ui.Context, i int) {
 	b := e.blocks[i]
 	nodes := noteblocks.Parse(b.text)
-	ui.Column(c).FillWidth().Gap(6).Children(func() {
+	ui.Column(c).FillWidth().MinWidth(0).Gap(theme.S2).Children(func() {
 		for k, n := range nodes {
 			e.nodeView(c.Key(k), i, n)
 		}
@@ -60,8 +61,8 @@ func (e *editor) nodeView(c *ui.Context, i int, n noteblocks.Node) {
 	case n.Name == "cards":
 		e.cardsView(c, i, n)
 	default:
-		ui.Column(c).FillWidth().Gap(4).Padding(10, 12).Radius(theme.RadiusSmall).Border(1, theme.Border).Children(func() {
-			ui.Text(c, n.Name+" "+n.Args).Font(theme.MonoFont).FontSize(theme.TextLabel).TextColor(theme.Muted)
+		widget.Card(c).FillWidth().Children(func() {
+			ui.Text(c, n.Name+" "+n.Args).FontSize(theme.TextLabel).TextColor(theme.TextSoft)
 			for _, p := range n.Parts {
 				e.partView(c.Key(p.Line), i, p)
 			}
@@ -96,7 +97,7 @@ func (e *editor) runView(c *ui.Context, i int, n noteblocks.Node) {
 			case kTable:
 				tableView(cc, b.text, nil, e.env.openLink)
 			case kDivider:
-				ui.Box(cc).FillWidth().Height(1).Margin(8, 0).Background(theme.Border)
+				ui.Box(cc).FillWidth().Height(0.5).Margin(theme.S2, 0).Background(theme.Border)
 			default:
 				if b.kind == kText && strings.TrimSpace(b.text) == "" {
 					ui.Box(cc).Height(6)
@@ -107,7 +108,7 @@ func (e *editor) runView(c *ui.Context, i int, n noteblocks.Node) {
 					t := e.label(cc, b.text).FontSize(size).FontWeight(weight).FillWidth()
 					switch {
 					case b.kind == kTodo && b.done:
-						t.TextColor(theme.Muted)
+						t.TextColor(theme.TextSoft)
 					case b.kind == kQuote:
 						t.TextColor(theme.TextSoft).Italic()
 					case b.kind != kText:
@@ -177,33 +178,35 @@ func (e *editor) tabsView(c *ui.Context, i int, n noteblocks.Node) {
 			at = k
 		}
 	}
-	ui.Column(c).FillWidth().Radius(theme.RadiusSmall).Border(1, theme.Border).Clip().Children(func() {
-		ui.Row(c).FillWidth().Gap(2).PaddingX(6).BorderWidth(0, 0, 1, 0).BorderColor(theme.Border).Background(theme.Raised).Children(func() {
-			for k, p := range n.Parts {
-				title := p.Title
-				if title == "" {
-					title = "Tab " + strconv.Itoa(k+1)
-				}
-				tab := ui.ButtonBase(c.Key(k)).Height(34).PaddingX(12).Center().Cursor(ui.CursorPointer).Label("Tab " + title)
-				if k == at {
-					tab.BorderWidth(0, 0, 2, 0).BorderColor(theme.Accent)
-				} else if tab.Hovered() {
-					tab.Background(theme.Hover)
-				}
-				tab.Children(func() {
-					t := ui.Text(c, title).FontSize(theme.TextUI).SingleLine()
-					if k == at {
-						t.FontWeight(600).TextColor(theme.TextStrong)
-					} else {
-						t.TextColor(theme.Muted)
+	widget.Raise(ui.Column(c).FillWidth().MinWidth(0).Radius(theme.RadiusCard).Background(theme.Raised)).Children(func() {
+		ui.Row(c).FillWidth().Padding(theme.S1).Children(func() {
+			ui.Row(c).MinWidth(0).Shrink(1).Padding(theme.S1).Gap(0).Radius(theme.RadiusFull).Background(theme.Sunken).Clip().Children(func() {
+				for k, p := range n.Parts {
+					title := p.Title
+					if title == "" {
+						title = "Tab " + strconv.Itoa(k+1)
 					}
-				})
-				if tab.Clicked() {
-					e.keep(key, p.Title)
+					tab := ui.ButtonBase(c.Key(k)).Height(28).PaddingX(theme.S3).Radius(theme.RadiusFull).MinWidth(0).Shrink(1).Center().Cursor(ui.CursorPointer).Label("Tab " + title)
+					switch {
+					case k == at:
+						tab.Background(theme.Selected)
+					case tab.Hovered():
+						tab.Background(theme.Hover)
+					}
+					tab.Children(func() {
+						st := widget.RunStyle{Color: theme.TextSoft}
+						if k == at {
+							st = widget.RunStyle{Color: theme.TextStrong, Weight: 500}
+						}
+						widget.Running(c, title, st)
+					})
+					if tab.Clicked() {
+						e.keep(key, p.Title)
+					}
 				}
-			}
+			})
 		})
-		ui.Column(c).FillWidth().Padding(10, 12).Children(func() { e.partView(c.Key(at), i, n.Parts[at]) })
+		ui.Column(c).FillWidth().Padding(theme.S2, theme.S4, theme.S3, theme.S4).Children(func() { e.partView(c.Key(at), i, n.Parts[at]) })
 	})
 }
 
@@ -216,8 +219,8 @@ func (e *editor) toggleView(c *ui.Context, i int, n noteblocks.Node) {
 	if title == "" {
 		title = "Details"
 	}
-	ui.Column(c).FillWidth().Gap(2).Children(func() {
-		head := ui.ButtonBase(c).FillWidth().Height(30).PaddingX(6).Gap(6).Radius(theme.RadiusSmall).AlignItems(ui.Center).Cursor(ui.CursorPointer).Label("Toggle " + title)
+	ui.Column(c).FillWidth().MinWidth(0).Gap(2).Children(func() {
+		head := ui.ButtonBase(c).FillWidth().MinHeight(theme.ControlHeight).Gap(theme.S2).Radius(theme.RadiusSmall).Justify(ui.Start).AlignItems(ui.Center).Cursor(ui.CursorPointer).Label("Toggle " + title)
 		if head.Hovered() {
 			head.Background(theme.Hover)
 		}
@@ -226,8 +229,8 @@ func (e *editor) toggleView(c *ui.Context, i int, n noteblocks.Node) {
 			if open {
 				chev = icon.ChevronDown
 			}
-			ui.Icon(c, chev).FontSize(13).TextColor(theme.Muted)
-			e.label(c, title).FontSize(theme.TextUI).FontWeight(600).TextColor(theme.TextStrong).Grow(1)
+			ui.Icon(c, chev).FontSize(14).TextColor(theme.TextSoft)
+			e.label(c, title).FontSize(theme.TextRead).FontWeight(500).Grow(1).MinWidth(0)
 		})
 		if head.Clicked() {
 			v := "open"
@@ -237,7 +240,7 @@ func (e *editor) toggleView(c *ui.Context, i int, n noteblocks.Node) {
 			e.keep(key, v)
 		}
 		if open && len(n.Parts) > 0 {
-			ui.Column(c).FillWidth().Padding(0, 0, 4, 26).Children(func() { e.partView(c, i, n.Parts[0]) })
+			ui.Column(c).FillWidth().Padding(0, 0, theme.S1, 0).Children(func() { e.partView(c, i, n.Parts[0]) })
 		}
 	})
 }
@@ -247,8 +250,8 @@ var calloutKinds = map[string]struct {
 	svg   *ui.SVG
 	color func() ui.Color
 }{
-	"info":    {icon.Info, func() ui.Color { return theme.Accent }},
-	"note":    {icon.Info, func() ui.Color { return theme.Accent }},
+	"info":    {icon.Info, func() ui.Color { return theme.Text }},
+	"note":    {icon.Info, func() ui.Color { return theme.Text }},
 	"tip":     {icon.Lightbulb, func() ui.Color { return theme.Done }},
 	"success": {icon.Check, func() ui.Color { return theme.Done }},
 	"warning": {icon.Alert, func() ui.Color { return theme.Warning }},
@@ -269,11 +272,11 @@ func (e *editor) calloutView(c *ui.Context, i int, n noteblocks.Node) {
 	kind, title := calloutOf(n.Args)
 	k := calloutKinds[kind]
 	col := k.color()
-	ui.Row(c).FillWidth().Gap(10).Padding(12, 14).Radius(theme.RadiusSmall).Background(theme.Fade(col, 0.1)).Border(1, theme.Fade(col, 0.35)).AlignItems(ui.Start).Children(func() {
+	ui.Row(c).FillWidth().MinWidth(0).Gap(theme.S3).Padding(theme.S3, theme.S4).Radius(theme.RadiusCard).Background(theme.Sunken).AlignItems(ui.Start).Children(func() {
 		ui.Icon(c, k.svg).FontSize(16).TextColor(col).Margin(2, 0, 0, 0)
-		ui.Column(c).Grow(1).MinWidth(0).Gap(2).Children(func() {
+		ui.Column(c).Grow(1).MinWidth(0).Gap(theme.S1).Children(func() {
 			if title != "" {
-				e.label(c, title).FontSize(theme.TextUI).FontWeight(650).TextColor(theme.TextStrong)
+				e.label(c, title).FontSize(theme.TextRead).FontWeight(500).TextColor(col)
 			}
 			for _, p := range n.Parts {
 				e.partView(c.Key(p.Line), i, p)
@@ -291,9 +294,9 @@ func (e *editor) columnsView(c *ui.Context, i int, n noteblocks.Node) {
 	narrow := e.narrow()
 	var box ui.Element
 	if narrow {
-		box = ui.Column(c).FillWidth().Gap(8)
+		box = ui.Column(c).FillWidth().MinWidth(0).Gap(theme.S2)
 	} else {
-		box = ui.Row(c).FillWidth().Gap(16).AlignItems(ui.Start)
+		box = ui.Row(c).FillWidth().MinWidth(0).Gap(theme.S4).AlignItems(ui.Start)
 	}
 	box.Children(func() {
 		for _, p := range n.Parts {
@@ -305,7 +308,7 @@ func (e *editor) columnsView(c *ui.Context, i int, n noteblocks.Node) {
 			}
 			col.Children(func() {
 				if p.Title != "" {
-					e.label(c, p.Title).FontSize(theme.TextUI).FontWeight(650).TextColor(theme.TextStrong)
+					e.label(c, p.Title).FontSize(theme.TextRead).FontWeight(500).TextColor(theme.TextStrong)
 				}
 				e.partView(c, i, p)
 			})
@@ -319,19 +322,18 @@ func (e *editor) cardsView(c *ui.Context, i int, n noteblocks.Node) {
 	if e.env.width > 0 {
 		per = max(1, min(4, int(e.env.width/220)))
 	}
-	ui.Column(c).FillWidth().Gap(10).Children(func() {
+	ui.Column(c).FillWidth().MinWidth(0).Gap(theme.S3).Children(func() {
 		for row := 0; row < len(n.Parts); row += per {
-			ui.Row(c.Key(row)).FillWidth().Gap(10).AlignItems(ui.Stretch).Children(func() {
+			ui.Row(c.Key(row)).FillWidth().MinWidth(0).Gap(theme.S3).AlignItems(ui.Stretch).Children(func() {
 				for k := row; k < row+per; k++ {
 					if k >= len(n.Parts) {
 						ui.Box(c.Key(k)).Grow(1).Basis(0)
 						continue
 					}
 					p := n.Parts[k]
-					ui.Column(c.Key(k)).Grow(1).Basis(0).MinWidth(0).Gap(4).Padding(12, 14).Radius(theme.RadiusSmall).
-						Border(1, theme.Border).Background(theme.Raised).Children(func() {
+					widget.Card(c.Key(k)).Grow(1).Basis(0).Gap(theme.S1).Padding(theme.S3, theme.S4).Children(func() {
 						if p.Title != "" {
-							e.label(c, p.Title).FontSize(theme.TextUI).FontWeight(650).TextColor(theme.TextStrong)
+							e.label(c, p.Title).FontSize(theme.TextRead).FontWeight(500).TextColor(theme.TextStrong)
 						}
 						e.partView(c, i, p)
 					})

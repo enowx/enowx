@@ -11,6 +11,7 @@ import (
 
 	"github.com/enowx/enowx/ui/icon"
 	"github.com/enowx/enowx/ui/theme"
+	"github.com/enowx/enowx/ui/widget"
 )
 
 type noteImage struct{ name, ref string }
@@ -139,24 +140,18 @@ func (e *editor) imageMentionMenu(c *ui.Context, in ui.Element, text string, set
 	}
 	e.mentionPick = min(e.mentionPick, len(matches)-1)
 	ui.Overlay(c, func() {
-		menu := ui.Column(c).AttachTo(in, ui.AnchorBottomStart, ui.AnchorTopStart).Width(260).MaxHeight(260).
-			Padding(4).Gap(1).Margin(4, 0, 0, 0).Radius(theme.RadiusSmall).Background(theme.Raised).Border(1, theme.Border).
-			Shadow(0, 8, 24, 0, ui.RGBA(0, 0, 0, 0.35))
+		menu := widget.Popup(ui.Column(c).AttachTo(in, ui.AnchorBottomStart, ui.AnchorTopStart).Width(264).MaxHeight(280).Margin(theme.S1, 0, 0, 0))
 		e.menuIn = e.menuIn || menu.Hovered()
 		menu.Children(func() {
-			ui.Text(c, "Mention an image").FontSize(theme.TextLabel).TextColor(theme.Muted).Padding(4, 8)
-			ui.Scroll(c).FillWidth().Shrink(1).MinHeight(0).MaxHeight(220).Children(func() {
+			widget.PopupLabel(c, "Mention an image")
+			ui.Scroll(c).FillWidth().Shrink(1).MinHeight(0).Children(func() {
 				for j, img := range matches {
-					row := ui.ButtonBase(c.Key(img.ref)).FillWidth().Padding(6, 8).Gap(8).Radius(theme.RadiusSmall).
-						AlignItems(ui.Center).Cursor(ui.CursorPointer).Label("Choose image " + img.name)
-					if j == e.mentionPick || row.Hovered() {
-						row.Background(theme.Hover)
-					}
-					row.Children(func() {
-						ui.Icon(c, icon.Image).FontSize(14).TextColor(theme.Muted)
+					row := ui.ButtonBase(c.Key(img.ref)).Justify(ui.Start).AlignItems(ui.Center).Cursor(ui.CursorPointer).Label("Choose image " + img.name)
+					widget.PopupItem(row, j == e.mentionPick || row.Hovered()).Children(func() {
+						ui.Icon(c, icon.Image).FontSize(14).TextColor(theme.TextSoft)
 						ui.Column(c).Grow(1).MinWidth(0).Children(func() {
-							ui.Text(c, img.name).FontSize(theme.TextUI).TextColor(theme.Text).SingleLine()
-							ui.Text(c, path.Base(img.ref)).FontSize(theme.TextLabel).TextColor(theme.Muted).SingleLine()
+							widget.Running(c, img.name, widget.RunStyle{})
+							widget.Running(c.Key("file"), path.Base(img.ref), widget.RunStyle{Size: theme.TextLabel, Color: theme.TextSoft})
 						})
 					})
 					if row.Clicked() {

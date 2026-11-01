@@ -5,8 +5,8 @@ import (
 
 	"github.com/enowx/enowx/core/noteblocks"
 	"github.com/enowx/enowx/proto"
-	"github.com/enowx/enowx/ui/icon"
 	"github.com/enowx/enowx/ui/theme"
+	"github.com/enowx/enowx/ui/widget"
 )
 
 // A page is edited a block at a time where it shows (Edit), read with
@@ -18,37 +18,14 @@ const (
 	modeSource
 )
 
-var modes = []struct {
-	name, tip string
-	svg       *ui.SVG
-}{
-	{"Edit", "Edit the page where it shows", icon.Pencil},
-	{"Read", "Read the page: clicks follow links, open tabs and toggles", icon.Notebook},
-	{"Markdown", "The page's Markdown, to write as text", icon.Code},
-}
+// modeNames are the modes as the switch says them.
+var modeNames = []string{"Edit", "Read", "Markdown"}
 
 // modeSwitch is the page's modes, the one it is in lit.
 func (v *View) modeSwitch(c *ui.Context, p *page) {
-	ui.Row(c).Height(28).Padding(2).Gap(2).Radius(theme.RadiusSmall).Border(1, theme.Border).AlignItems(ui.Center).Children(func() {
-		for k, m := range modes {
-			b := ui.ButtonBase(c.Key(k)).Height(22).PaddingX(7).Gap(5).Radius(theme.RadiusSmall).AlignItems(ui.Center).Cursor(ui.CursorPointer).
-				Label(m.name + " mode").Tooltip(m.tip)
-			if p.mode == k {
-				b.Background(theme.Selected)
-			} else if b.Hovered() {
-				b.Background(theme.Hover)
-			}
-			b.Children(func() {
-				ui.Icon(c, m.svg).FontSize(12).TextColor(theme.TextSoft)
-				if p.mode == k {
-					ui.Text(c, m.name).FontSize(theme.TextLabel).TextColor(theme.Text)
-				}
-			})
-			if b.Clicked() && p.mode != k {
-				v.setMode(p, k)
-			}
-		}
-	})
+	if k := widget.Segmented(c, modeNames, p.mode, nil); k >= 0 {
+		v.setMode(p, k)
+	}
 }
 
 // setMode shows page p in mode.
@@ -67,8 +44,9 @@ func (v *View) setMode(p *page, mode int) {
 
 // sourceView is the page's Markdown, written as text.
 func (v *View) sourceView(c *ui.Context, o Options, p *page) {
-	in := ui.TextAreaBase(c, &p.src).FillWidth().Lines(16, 100000).Font(theme.MonoFont).FontSize(theme.TextUI).Padding(14, 16).
-		Radius(10).Background(theme.Sunken).Border(1, theme.Border).Label("Markdown")
+	in := ui.TextAreaBase(c, &p.src).FillWidth().Lines(16, 100000).Font(theme.MonoFont).FontSize(theme.TextUI).Padding(theme.S3, theme.S4).Label("Markdown").
+		Radius(theme.RadiusCard)
+	widget.Well(in, in.Focused())
 	in.OnPaste(func(text string) bool { return text == "" && v.pasteImage(o, p) })
 	in.OnTextKey(func(k ui.TextKey) bool {
 		if _, ok := editShortcut(k.Mods, k.Key); !ok {

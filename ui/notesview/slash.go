@@ -6,6 +6,7 @@ import (
 	"github.com/egoist/mygo/ui"
 
 	"github.com/enowx/enowx/ui/theme"
+	"github.com/enowx/enowx/ui/widget"
 )
 
 // The slash menu: "/" typed in an empty text block lists the kinds of
@@ -83,24 +84,26 @@ func (e *editor) slashMenu(c *ui.Context, in ui.Element, i int) {
 	}
 	e.slash = min(e.slash, len(items)-1)
 	ui.Overlay(c, func() {
-		menu := ui.Column(c).AttachTo(in, ui.AnchorBottomStart, ui.AnchorTopStart).Width(240).Padding(4).Gap(1).
-			Margin(4, 0, 0, 0).Radius(theme.RadiusSmall).Background(theme.Raised).Border(1, theme.Border).Shadow(0, 8, 24, 0, ui.RGBA(0, 0, 0, 0.35))
+		h := float32(420)
+		if _, wh := c.Size(); wh > 0 {
+			h = min(h, wh-120)
+		}
+		menu := widget.Popup(ui.Column(c).AttachTo(in, ui.AnchorBottomStart, ui.AnchorTopStart).Width(264).MaxHeight(h).Margin(theme.S1, 0, 0, 0))
 		e.menuIn = menu.Hovered()
 		menu.Children(func() {
-			ui.Text(c, "Blocks").FontSize(theme.TextLabel).TextColor(theme.Muted).Padding(4, 8)
-			for j, it := range items {
-				row := ui.ButtonBase(c.Key(it.name)).FillWidth().Height(30).PaddingX(8).Gap(8).Radius(theme.RadiusSmall).Cursor(ui.CursorPointer).Label(it.name)
-				if j == e.slash || row.Hovered() {
-					row.Background(theme.Hover)
+			widget.PopupLabel(c, "Blocks")
+			ui.Scroll(c).FillWidth().Shrink(1).MinHeight(0).Children(func() {
+				for j, it := range items {
+					row := ui.ButtonBase(c.Key(it.name)).Justify(ui.Start).AlignItems(ui.Center).Cursor(ui.CursorPointer).Label(it.name)
+					widget.PopupItem(row, j == e.slash || row.Hovered()).Children(func() {
+						ui.Row(c).Grow(1).MinWidth(0).Children(func() { widget.Running(c, it.name, widget.RunStyle{}) })
+						ui.Text(c, it.hint).FontSize(theme.TextLabel).TextColor(theme.TextSoft).Shrink(0)
+					})
+					if row.Clicked() {
+						e.makeBlock(i, it)
+					}
 				}
-				row.Children(func() {
-					ui.Text(c, it.name).FontSize(theme.TextUI).TextColor(theme.Text).Grow(1)
-					ui.Text(c, it.hint).Font(theme.MonoFont).FontSize(theme.TextLabel).TextColor(theme.Muted)
-				})
-				if row.Clicked() {
-					e.makeBlock(i, it)
-				}
-			}
+			})
 		})
 	})
 }

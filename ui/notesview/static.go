@@ -18,15 +18,16 @@ import (
 // click on them opens them as text.
 
 func codeView(c *ui.Context, lang, code string) {
-	ui.Column(c).FillWidth().Radius(theme.RadiusSmall).Background(theme.Sunken).Border(1, theme.Border).Children(func() {
+	ui.Column(c).FillWidth().MinWidth(0).Gap(theme.S1).Padding(theme.S3, theme.S4).Radius(theme.RadiusCard).Background(widget.CodeGround).
+		InsetShadow(0, 0, 0, 0.5, theme.Border).Children(func() {
 		if lang != "" {
-			ui.Text(c, lang).Font(theme.MonoFont).FontSize(theme.TextLabel).TextColor(theme.Muted).Padding(8, 12, 0, 12)
+			ui.Text(c, lang).FontSize(theme.TextLabel).TextColor(widget.CodeText).Opacity(0.6)
 		}
 		text := code
 		if text == "" {
 			text = " "
 		}
-		ui.Text(c, text).Font(theme.MonoFont).FontSize(theme.TextUI).TextColor(theme.Text).Padding(10, 12).FillWidth()
+		ui.Text(c, text).Font(theme.MonoFont).FontSize(theme.TextUI).TextColor(widget.CodeText).FillWidth()
 	})
 }
 
@@ -67,7 +68,7 @@ func drawingView(c *ui.Context, code string) {
 		drawings[code] = svg
 	}
 	if svg == nil {
-		ui.Column(c).FillWidth().Gap(4).Children(func() {
+		ui.Column(c).FillWidth().Gap(theme.S1).Children(func() {
 			codeView(c, "svg", code)
 			ui.Text(c, "This SVG doesn't draw: fix its code.").FontSize(theme.TextLabel).TextColor(theme.Error)
 		})
@@ -77,12 +78,16 @@ func drawingView(c *ui.Context, code string) {
 	if w <= 0 || h <= 0 {
 		w, h = 24, 24
 	}
-	// As large as it says, at most the page's width.
-	const most = 640
+	// As large as it says, at most 640 and the room the page has.
+	row := ui.Row(c).FillWidth().Padding(6, 0)
+	most := float32(640)
+	if room := row.Bounds().W; room > 0 {
+		most = min(most, room)
+	}
 	if w > most {
 		w, h = most, h*most/w
 	}
-	ui.Row(c).FillWidth().Padding(6, 0).Children(func() {
+	row.Children(func() {
 		ui.Image(c, svg).Size(w, h).TextColor(theme.Text)
 	})
 }
@@ -151,23 +156,15 @@ func tableView(c *ui.Context, src string, st *tableState, open widget.LinkOpener
 	for _, r := range rows {
 		cols = max(cols, len(r))
 	}
-	ui.Column(c).FillWidth().Gap(6).Children(func() {
+	ui.Column(c).FillWidth().MinWidth(0).Gap(theme.S2).Children(func() {
 		if st != nil && len(all) > 6 {
-			ui.Row(c).Width(240).Height(28).PaddingX(8).Gap(6).Radius(theme.RadiusSmall).Border(1, theme.Border).AlignItems(ui.Center).Children(func() {
-				ui.Icon(c, icon.Search).FontSize(12).TextColor(theme.Muted)
-				ui.TextInputBase(c, &st.filter).Grow(1).FontSize(theme.TextLabel).Placeholder("Filter rows").Label("Filter rows")
+			ui.Row(c).Width(240).MaxWidth(280).Shrink(1).Children(func() {
+				widget.SearchField(c, &st.filter, "Filter rows", icon.Search)
 			})
 		}
-		ui.Column(c).FillWidth().Radius(theme.RadiusSmall).Border(1, theme.Border).Clip().Children(func() {
+		ui.Column(c).FillWidth().MinWidth(0).Children(func() {
 			for i, r := range rows {
-				row := ui.Row(c.Key(i)).FillWidth()
-				if i == 0 {
-					row.Background(theme.Raised)
-				}
-				if i > 0 {
-					row.BorderWidth(1, 0, 0, 0).BorderColor(theme.Border)
-				}
-				row.Children(func() {
+				ui.Row(c.Key(i)).FillWidth().MinWidth(0).AlignItems(ui.Stretch).BorderWidth(0, 0, 0.5, 0).BorderColor(theme.Border).Children(func() {
 					for j := range cols {
 						cell := ""
 						if j < len(r) {
@@ -177,15 +174,15 @@ func tableView(c *ui.Context, src string, st *tableState, open widget.LinkOpener
 							headerCell(c.Key(j), cell, j, st, open)
 							continue
 						}
-						t := widget.NoteLabel(c.Key(j), open, cell).FontSize(theme.TextUI).Grow(1).Basis(0).Padding(7, 10)
+						t := widget.NoteLabel(c.Key(j), open, cell).FontSize(theme.TextUI).Grow(1).Basis(0).MinWidth(0).Padding(theme.S1, theme.S2)
 						if i == 0 {
-							t.FontWeight(600)
+							t.FontWeight(500).TextColor(theme.TextSoft)
 						}
 					}
 				})
 			}
 			if len(rows) == 1 && len(all) > 1 {
-				ui.Text(c, "No row has “"+st.filter+"”").FontSize(theme.TextLabel).TextColor(theme.Muted).Padding(8, 10)
+				ui.Text(c, "No row has “"+st.filter+"”").FontSize(theme.TextUI).TextColor(theme.TextSoft).Padding(theme.S2)
 			}
 		})
 	})
@@ -193,18 +190,18 @@ func tableView(c *ui.Context, src string, st *tableState, open widget.LinkOpener
 
 // headerCell is column j's header, which sorts the table by it.
 func headerCell(c *ui.Context, text string, j int, st *tableState, open widget.LinkOpener) {
-	b := ui.ButtonBase(c).Grow(1).Basis(0).Padding(7, 10).Gap(4).Justify(ui.Start).AlignItems(ui.Center).Cursor(ui.CursorPointer).Label("Sort by " + text)
+	b := ui.ButtonBase(c).Grow(1).Basis(0).MinWidth(0).Padding(theme.S1, theme.S2).Gap(theme.S1).Justify(ui.Start).AlignItems(ui.Center).Cursor(ui.CursorPointer).Label("Sort by " + text)
 	if b.Hovered() {
 		b.Background(theme.Hover)
 	}
 	b.Children(func() {
-		widget.NoteLabel(c, open, text).FontSize(theme.TextUI).FontWeight(600).Shrink(1)
+		widget.NoteLabel(c, open, text).FontSize(theme.TextUI).FontWeight(500).TextColor(theme.TextSoft).Shrink(1)
 		if st.by == j+1 {
 			arrow := icon.ArrowUp
 			if st.desc {
 				arrow = icon.ArrowDown
 			}
-			ui.Icon(c, arrow).FontSize(11).TextColor(theme.Accent)
+			ui.Icon(c, arrow).FontSize(12).TextColor(theme.TextSoft)
 		}
 	})
 	if b.Clicked() {

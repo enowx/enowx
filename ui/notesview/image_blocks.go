@@ -62,7 +62,7 @@ func imageParts(text string) []imagePart {
 func (e *editor) imageBlock(c *ui.Context, i int) {
 	e.menuIn = false
 	parts, _ := imageBlockParts(e.blocks[i])
-	outer := ui.Column(c).FillWidth().Gap(8).Padding(4, 6)
+	outer := ui.Column(c).FillWidth().MinWidth(0).Gap(theme.S2).Padding(theme.S1, 6)
 	e.bounds[i] = outer.Bounds()
 	outer.Children(func() {
 		if strings.TrimSpace(parts[0].raw) != "" {
@@ -74,7 +74,7 @@ func (e *editor) imageBlock(c *ui.Context, i int) {
 			if width <= 0 {
 				width = 600
 			}
-			row := ui.Row(c.Key(j)).FillWidth().Gap(16).AlignItems(ui.Start)
+			row := ui.Row(c.Key(j)).FillWidth().MinWidth(0).Gap(theme.S4).AlignItems(ui.Start)
 			wide := width >= 480
 			imageWidth := width - 12
 			if wide {
@@ -87,7 +87,7 @@ func (e *editor) imageBlock(c *ui.Context, i int) {
 				imageWidth = min(imageWidth, w)
 			}
 			row.Children(func() {
-				ui.Column(c).Width(imageWidth).Shrink(0).Gap(4).Children(func() {
+				ui.Column(c).Width(imageWidth).Shrink(0).Gap(theme.S1).Children(func() {
 					name := e.imageName(part.src)
 					anchor := ui.ButtonBase(c).FillWidth().Column().Cursor(ui.CursorText).Label("Block " + strconv.Itoa(i+1))
 					anchor.Children(func() {
@@ -111,8 +111,10 @@ func (e *editor) imageBlock(c *ui.Context, i int) {
 							}
 						})
 					}
-					ui.Row(c).FillWidth().Gap(6).AlignItems(ui.Center).Children(func() {
-						ui.Text(c, name).FontSize(theme.TextLabel).TextColor(theme.Muted).Grow(1)
+					ui.Row(c).FillWidth().Gap(theme.S1).AlignItems(ui.Center).Children(func() {
+						ui.Row(c).Grow(1).MinWidth(0).Children(func() {
+							widget.Running(c, name, widget.RunStyle{Size: theme.TextLabel, Color: theme.TextSoft})
+						})
 						if !e.env.read && widget.IconButton(c, icon.Link, "Mention "+name, false).Clicked() {
 							e.insert(i, block{text: imageReference(name, part.src) + " "})
 							e.openAt(i+1, -1)
