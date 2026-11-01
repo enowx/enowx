@@ -13,7 +13,10 @@ import (
 //
 // /bin/sh runs the wrapper whatever the user's shell is (fish takes no
 // "$@"). Its INT trap keeps it alive when Ctrl+C kills argv; a trapped
-// signal, unlike an ignored one, is back to default in argv.
+// signal, unlike an ignored one, is back to default in argv. Its HUP trap
+// ends it when the terminal goes (its daemon died): a login shell started on a
+// terminal hung up gets stuck leaving, and holds that terminal's /dev node, and
+// then every program on the machine asking its terminal's name hangs too.
 func thenShell(argv []string) []string {
 	if len(argv) == 0 {
 		return nil
@@ -28,7 +31,7 @@ func thenShell(argv []string) []string {
 			shell = "/bin/zsh"
 		}
 	}
-	return append([]string{"/bin/sh", "-c", `trap : INT; "$@"; exec "$0" -l`, shell}, argv...)
+	return append([]string{"/bin/sh", "-c", `trap : INT; trap 'exit 129' HUP; "$@"; exec "$0" -l`, shell}, argv...)
 }
 
 // scriptArgv runs a shell script: a project's worktree setup, say.

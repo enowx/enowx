@@ -144,10 +144,12 @@ func TestRestoredSessionKnowsTheDaemon(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	w := watch(st)
+	w.waitFor(t, "$ ") // the shell's prompt: typing sooner may be dropped
 	if _, err := st.Write([]byte("echo bin=$ENOWX_BIN\r")); err != nil {
 		t.Fatal(err)
 	}
-	watch(st).waitFor(t, "bin=/opt/enowx-test")
+	w.waitFor(t, "bin=/opt/enowx-test")
 }
 
 // An ended session continues in place: same session, its screen kept, its
@@ -173,6 +175,7 @@ func TestContinueAnEndedSession(t *testing.T) {
 		t.Fatal(err)
 	}
 	w := watch(st)
+	w.waitFor(t, "$ ") // the shell's prompt: typing sooner may be dropped
 	if _, err := st.Write([]byte("echo before-exit; exit 3\r")); err != nil {
 		t.Fatal(err)
 	}

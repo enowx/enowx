@@ -122,6 +122,7 @@ Every change must respect these (see `docs/PLAN.md` §2):
 
 - Test behavior, not implementation details. Prefer end-to-end tests through the daemon protocol (`daemon/server_test.go`) over mocks.
 - Tests that need `libghostty-vt` download it on first run into the user cache (needs network once).
+- Sessions in tests run under `SHELL=/bin/sh` (each `TestMain`), never the user's login shell. By hand, a throwaway daemon stops with `enowxd stop`; a `kill` of it or of a session's processes, or a crash, hangs up live terminals, which can leave a stuck `/dev/ttysN` that hangs every new shell on the Mac until the process holding it is gone (`stat /dev/ttys*` finds it).
 - Don't check in low-value tests (trivial getters, tests that restate the code).
 
 ## Commits
