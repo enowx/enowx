@@ -43,3 +43,31 @@ func Choice(c *ui.Context, label string, options []string, current int, width fl
 	}
 	return -1
 }
+
+// SegmentedFill is Segmented taking the width it is given, its options sharing
+// it evenly: their words run when too long, so it never leaves its frame.
+func SegmentedFill(c *ui.Context, options []string, current int) int {
+	clicked := -1
+	ui.Row(c).FillWidth().MinWidth(0).Padding(theme.S1).Radius(theme.RadiusFull).Background(theme.Sunken).Children(func() {
+		for i, label := range options {
+			b := ui.ButtonBase(c.Key(label)).Grow(1).Basis(0).MinWidth(0).Height(28).PaddingX(theme.S1).Radius(theme.RadiusFull).Label(label)
+			bg, fg, weight := theme.Fade(theme.Selected, 0), theme.TextSoft, 400
+			switch {
+			case i == current:
+				bg, fg, weight = theme.Selected, theme.TextStrong, 500
+			case b.Hovered():
+				bg, fg = theme.Hover, theme.Text
+			}
+			if i != current {
+				b.Cursor(ui.CursorPointer)
+			}
+			b.Background(QuickTint(b, "bg", bg)).Children(func() {
+				Running(c, label, RunStyle{Color: fg, Weight: weight})
+			})
+			if i != current && b.Clicked() {
+				clicked = i
+			}
+		}
+	})
+	return clicked
+}

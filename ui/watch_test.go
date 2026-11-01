@@ -33,7 +33,7 @@ func TestOtherHostsShowTheirSessions(t *testing.T) {
 	}
 	tt := ui.NewTester(func(c *ui.Context) { a.otherHostsSessions(c) }, 260, 300)
 	tt.Frame()
-	for _, want := range []string{"ON OTHER HOSTS", "enowxlabs", "Fix login", "needs input"} {
+	for _, want := range []string{"On other hosts", "enowxlabs", "Fix login", "needs input"} {
 		if !tt.HasText(want) {
 			t.Fatalf("missing %q in %q", want, tt.Texts())
 		}

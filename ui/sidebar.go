@@ -26,7 +26,7 @@ func (a *App) sessionsBody(c *ui.Context) {
 			if a.state.SessionsByProject {
 				current = 1
 			}
-			if i := widget.Segmented(c.Key("list-mode"), []string{"Sessions only", "By project"}, current, nil); i >= 0 {
+			if i := widget.SegmentedFill(c.Key("list-mode"), []string{"Sessions only", "By project"}, current); i >= 0 {
 				a.state.SessionsByProject = i == 1
 			}
 		})
