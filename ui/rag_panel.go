@@ -78,16 +78,16 @@ func (a *App) loadRAGPanel() {
 
 func (a *App) indexTab(c *ui.Context, s proto.SessionInfo) {
 	p := a.ragPanelOf(s)
-	ui.Scroll(c).Grow(1).FillWidth().Children(func() {
-		ui.Column(c).FillWidth().Padding(14, 16).Gap(14).Children(func() {
+	ui.Scroll(c).Grow(1).FillWidth().MinHeight(0).Children(func() {
+		ui.Column(c).FillWidth().Padding(0, theme.S3, theme.S3, theme.S3).Gap(theme.S3).Children(func() {
 			switch {
 			case p.err != "":
 				widget.Notice(c, icon.Alert, theme.Error, p.err, "", nil)
 			case !p.loaded:
-				widget.Spinner(c, 14)
+				ui.Row(c).FillWidth().Justify(ui.Center).Padding(theme.S5).Children(func() { widget.Spinner(c, 14) })
 			case !p.st.Ready:
 				widget.EmptyState(c, icon.Search, "No embedder set", "Pick the embedder a project's text goes to in Settings → RAG, then turn the project on here.", func() {
-					if widget.GhostButton(c, "Open Settings").Clicked() {
+					if widget.Button(c, widget.Secondary, nil, "Open Settings", "").Clicked() {
 						a.page, a.settingsSection = pageSettings, sectionRAG
 					}
 				})
@@ -136,7 +136,7 @@ func (a *App) ragConsentDialog(c *ui.Context, p *ragPanelState) {
 	}
 	plan := *p.plan
 	open := true
-	widget.Dialog(c, &open, 500, 12, func() {
+	widget.Dialog(c, &open, 500, theme.S3, func() {
 		widget.DialogHeader(c, "Send this project's text to "+plan.Host+"?", "To index “"+textfmt.LastPathPart(p.dir)+"”, enowX sends its text to "+plan.Embedder+" to be embedded, again as it changes. The index stays on "+a.host.Name+".", false)
 		widget.Row(c, "Files", "", fmt.Sprintf("%d, about %s tokens", plan.Files, count(plan.Tokens)), nil)
 		if len(plan.Left) > 0 {
@@ -149,12 +149,11 @@ func (a *App) ragConsentDialog(c *ui.Context, p *ragPanelState) {
 		widget.Field(c, "Leave out too (paths or globs, comma-separated)", func() {
 			widget.Input(c, &p.exclude, "fixtures/, *.min.js").FillWidth().Font(theme.MonoFont)
 		})
-		ui.Row(c).FillWidth().Gap(8).Children(func() {
-			ui.Spacer(c)
-			if widget.GhostButton(c, "Cancel").Clicked() {
+		widget.DialogFooter(c, "", func() {
+			if widget.Button(c, widget.Secondary, nil, "Cancel", "").Clicked() {
 				p.plan = nil
 			}
-			if widget.PrimaryButton(c, icon.Check, "Agree and index", "").Clicked() {
+			if widget.PrimaryButton(c, nil, "Agree and index", "").Clicked() {
 				p.plan = nil
 				set := p.st.Settings
 				set.On, set.Consent, set.Exclude = true, plan.Host, splitList(p.exclude)
@@ -204,42 +203,60 @@ func (a *App) setRAGProject(p *ragPanelState, set proto.RAGProject, index bool) 
 	}()
 }
 
-// ragOn is an indexed project: its state, search, memories, settings.
+// ragOn is an indexed project: its search, its state, memories, settings.
 func (a *App) ragOn(c *ui.Context, s proto.SessionInfo, p *ragPanelState) {
 	st := p.st
-	ui.Row(c).FillWidth().Gap(8).AlignItems(ui.Center).Children(func() {
-		ui.Column(c).Grow(1).MinWidth(0).Gap(2).Children(func() {
-			ui.Text(c, textfmt.LastPathPart(p.dir)).FontSize(theme.TextUI).SingleLine()
-			ui.Text(c, ragStatusLine(st)).FontSize(theme.TextLabel).TextColor(theme.Muted)
-		})
-		if st.Indexing {
-			widget.Spinner(c, 12)
-		} else if widget.GhostButton(c, "Reindex").Disabled(p.busy).Clicked() {
-			a.setRAGProject(p, st.Settings, true)
+	ui.Row(c).FillWidth().Gap(theme.S2).Children(func() {
+		widget.Input(c, &p.query, "Search the project by meaning").Grow(1).Basis(0).MinWidth(0)
+		if widget.PrimaryButton(c, nil, "Search", "").Clicked() {
+			p.searched = "" // again, as what is indexed may have changed
 		}
+	})
+	if q := strings.TrimSpace(p.query); q != "" && q != p.searched && !p.searching {
+		a.searchRAG(p, q)
+	}
+	if len(p.hits) > 0 {
+		ui.Column(c).FillWidth().Gap(2).Children(func() {
+			for i, h := range p.hits {
+				a.ragHitRow(c.Key(fmt.Sprint("hit", i)), s, h)
+			}
+		})
+	}
+	if p.searched != "" && len(p.hits) == 0 && !p.searching {
+		ui.Text(c, "Nothing found.").FontSize(theme.TextUI).TextColor(theme.TextSoft).PaddingX(theme.S3)
+	}
+	ui.Column(c).FillWidth().Gap(theme.S1).Children(func() {
+		widget.ToolHeader(c, func() {
+			word := "Indexed"
+			if st.Indexing {
+				word = "Indexing"
+			}
+			ui.Text(c, word).FontSize(theme.TextUI).FontWeight(500).SingleLine().Shrink(0)
+			ui.Row(c).Grow(1).MinWidth(0).Justify(ui.End).Children(func() {
+				widget.Running(c, ragStatusLine(st), widget.RunStyle{Size: theme.TextLabel, Color: theme.TextSoft})
+			})
+			if st.Indexing {
+				widget.Spinner(c, 12)
+			} else if widget.IconButton(c, icon.Sync, "Reindex", false).Disabled(p.busy).Clicked() {
+				a.setRAGProject(p, st.Settings, true)
+			}
+		})
+		// How far it got is unknown until it ends: only done fills it.
+		fill := 1.0
+		if st.Indexing {
+			fill = 0
+		}
+		widget.Meter(c, widget.Segment{Fraction: fill, Color: theme.Done})
 	})
 	if st.Error != "" {
 		widget.Notice(c, icon.Alert, theme.Error, "The last index failed", st.Error, nil)
 	}
 	if st.Settings.Consent != st.Embedder {
 		widget.Notice(c, icon.Alert, theme.Warning, "The embedder changed to "+st.Embedder, "Agree again to send this project's text there before it is indexed.", func() {
-			if widget.GhostButton(c, "Review…").Clicked() {
+			if widget.Button(c, widget.Secondary, nil, "Review…", "").Clicked() {
 				a.planRAG(p)
 			}
 		})
-	}
-	// Search.
-	ui.Row(c).FillWidth().Gap(6).Children(func() {
-		widget.SearchField(c, &p.query, "Search by meaning: where are invoices totalled", icon.Search)
-	})
-	if q := strings.TrimSpace(p.query); q != "" && q != p.searched && !p.searching {
-		a.searchRAG(p, q)
-	}
-	for i, h := range p.hits {
-		a.ragHitRow(c.Key(fmt.Sprint("hit", i)), s, h)
-	}
-	if p.searched != "" && len(p.hits) == 0 && !p.searching {
-		ui.Text(c, "Nothing found.").FontSize(theme.TextLabel).TextColor(theme.Muted)
 	}
 	a.ragMemories(c, p)
 	widget.Field(c, "Agents here", func() {
@@ -249,16 +266,13 @@ func (a *App) ragOn(c *ui.Context, s proto.SessionInfo, p *ragPanelState) {
 			a.setRAGProject(p, set, false)
 		}
 	})
-	ui.Row(c).FillWidth().Children(func() {
-		ui.Spacer(c)
-		if widget.DangerButton(c, "Turn off and delete the index").Disabled(p.busy).Clicked() {
-			a.confirm("Turn off project search?", "The index of “"+textfmt.LastPathPart(p.dir)+"” on "+a.host.Name+" is deleted and agents here stop finding the project by meaning. Its memories stay.", "Turn off", func() {
-				set := p.st.Settings
-				set.On, set.Consent = false, ""
-				a.setRAGProject(p, set, false)
-			})
-		}
-	})
+	if widget.DangerButton(c, "Turn off and delete the index").Disabled(p.busy).Clicked() {
+		a.confirm("Turn off project search?", "The index of “"+textfmt.LastPathPart(p.dir)+"” on "+a.host.Name+" is deleted and agents here stop finding the project by meaning. Its memories stay.", "Turn off", func() {
+			set := p.st.Settings
+			set.On, set.Consent = false, ""
+			a.setRAGProject(p, set, false)
+		})
+	}
 }
 
 func ragStatusLine(st proto.RAGStatus) string {
@@ -268,7 +282,7 @@ func ragStatusLine(st proto.RAGStatus) string {
 	case st.Indexing:
 		return "Indexing…"
 	}
-	line := fmt.Sprintf("%s parts", count(st.Chunks))
+	line := fmt.Sprintf("%s chunks", count(st.Chunks))
 	if st.Files > 0 {
 		line += fmt.Sprintf(" of %s files", count(st.Files))
 	}
@@ -312,24 +326,20 @@ func (a *App) ragHitRow(c *ui.Context, s proto.SessionInfo, h proto.RAGHit) {
 	if where == "" {
 		where = h.Source
 	}
-	b := ui.ButtonBase(c).FillWidth().Padding(8, 10).Radius(theme.RadiusControl).Border(1, theme.Border).Cursor(ui.CursorPointer).Label(where)
+	b := ui.ButtonBase(c).FillWidth().MinHeight(36).Padding(theme.S1, theme.S3).Gap(theme.S2).Radius(theme.RadiusCard).Justify(ui.Start).
+		Cursor(ui.CursorPointer).Label(where)
+	bg := theme.Fade(theme.Selected, 0)
 	if b.Hovered() {
-		b.Background(theme.Hover)
+		bg = theme.Hover
 	}
-	b.Children(func() {
-		ui.Column(c).FillWidth().Gap(4).Children(func() {
-			ui.Row(c).FillWidth().Gap(6).Children(func() {
-				ui.Text(c, where).FontSize(theme.TextLabel).Font(theme.MonoFont).SingleLine().Grow(1)
-				widget.Tag(c, h.Source, theme.Muted)
-			})
-			snip := strings.TrimSpace(h.Snippet)
-			if len(snip) > 280 {
-				snip = snip[:280] + "…"
-			}
-			ui.Text(c, snip).FontSize(theme.TextLabel).TextColor(theme.TextSoft).Font(theme.MonoFont).MaxLines(4)
+	b.Background(widget.QuickTint(b, "bg", bg)).Children(func() {
+		ui.Column(c).Grow(1).MinWidth(0).Children(func() {
+			widget.Running(c, where, widget.RunStyle{Mono: true})
+			widget.Running(c.Key("snippet"), textfmt.FirstLine(strings.TrimSpace(h.Snippet), 280), widget.RunStyle{Size: theme.TextLabel, Color: theme.TextSoft})
 		})
+		ui.Text(c, fmt.Sprintf("%.2f", h.Score)).FontSize(theme.TextLabel).TextColor(theme.TextSoft).SingleLine().Shrink(0).Tooltip(h.Source)
 	})
-	if widget.Pressable(b).Clicked() && h.File != "" {
+	if b.Clicked() && h.File != "" {
 		a.openFileAt(s, h.File, h.Start, h.End)
 	}
 }
@@ -338,18 +348,18 @@ func (a *App) ragHitRow(c *ui.Context, s proto.SessionInfo, h proto.RAGHit) {
 func (a *App) ragMemories(c *ui.Context, p *ragPanelState) {
 	widget.Field(c, fmt.Sprintf("Memories (%d)", len(p.mems)), func() {
 		for _, m := range p.mems {
-			ui.Row(c.Key(m.ID)).FillWidth().Gap(6).AlignItems(ui.Start).Children(func() {
+			ui.Row(c.Key(m.ID)).FillWidth().Gap(theme.S1).AlignItems(ui.Start).Children(func() {
 				if p.editing == m.ID {
-					widget.Input(c, &p.editText, "").Grow(1).AutoFocus()
-					if widget.GhostButton(c, "Save").Clicked() {
+					widget.Input(c, &p.editText, "").Grow(1).Basis(0).MinWidth(0).AutoFocus()
+					if widget.Button(c, widget.Secondary, nil, "Save", "").Clicked() {
 						a.forgetRAG(p, m.ID, strings.TrimSpace(p.editText))
 						p.editing = ""
 					}
 					return
 				}
-				ui.Column(c).Grow(1).MinWidth(0).Gap(2).Children(func() {
+				ui.Column(c).Grow(1).Basis(0).MinWidth(0).Children(func() {
 					ui.Text(c, m.Text).FontSize(theme.TextUI)
-					ui.Text(c, m.By+" · "+m.Time.Local().Format("Jan 2 15:04")).FontSize(theme.TextLabel).TextColor(theme.Muted)
+					ui.Text(c, m.By+" · "+m.Time.Local().Format("Jan 2 15:04")).FontSize(theme.TextLabel).TextColor(theme.TextSoft)
 				})
 				if widget.IconButton(c, icon.Pencil, "Change", false).Clicked() {
 					p.editing, p.editText = m.ID, m.Text
@@ -360,9 +370,9 @@ func (a *App) ragMemories(c *ui.Context, p *ragPanelState) {
 				}
 			})
 		}
-		ui.Row(c).FillWidth().Gap(6).Children(func() {
-			widget.Input(c, &p.newMem, "A decision or gotcha agents should know").Grow(1)
-			if widget.GhostButton(c, "Keep").Disabled(strings.TrimSpace(p.newMem) == "").Clicked() {
+		ui.Row(c).FillWidth().Gap(theme.S2).Children(func() {
+			widget.Input(c, &p.newMem, "A decision or gotcha agents should know").Grow(1).Basis(0).MinWidth(0)
+			if widget.Button(c, widget.Secondary, nil, "Keep", "").Disabled(strings.TrimSpace(p.newMem) == "").Clicked() {
 				a.rememberRAG(proto.RAGRememberParams{RAGRef: proto.RAGRef{Project: p.dir}, Text: strings.TrimSpace(p.newMem)})
 				p.newMem = ""
 			}

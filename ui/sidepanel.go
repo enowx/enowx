@@ -2,6 +2,7 @@ package ui
 
 import (
 	"slices"
+	"strconv"
 
 	"github.com/egoist/mygo/ui"
 
@@ -33,17 +34,17 @@ const (
 
 var panelTools = []panelTool{
 	{panelChanges, "Git", icon.Git},
-	{panelChecks, "Checks", icon.Check},
+	{panelChecks, "Checks", icon.ListChecks},
 	{panelFiles, "Files", icon.Folder},
 	{panelIndex, "Index", icon.Search},
-	{panelPorts, "Ports", icon.Globe},
-	{panelBrowser, "Browser", icon.Browser},
+	{panelPorts, "Ports", icon.Link},
+	{panelBrowser, "Browser", icon.Globe},
 	{panelTraffic, "Traffic", icon.Traffic},
 	{panelAndroid, "Android", icon.Android},
-	{panelActivity, "Activity", icon.List},
-	{panelChat, "Chat", icon.Chat},
-	{panelTeamProjects, "Projects", icon.Folder},
-	{panelTeamMembers, "Members", icon.Users},
+	{panelActivity, "Activity", icon.History},
+	{panelChat, "Team chat", icon.Chat},
+	{panelTeamProjects, "Team projects", icon.Folder},
+	{panelTeamMembers, "Team members", icon.Users},
 	{panelSessions, "Sessions", icon.Bot},
 	{panelTasks, "Tasks", icon.List},
 }
@@ -174,9 +175,6 @@ func (a *App) sidePanelView(c *ui.Context) {
 	width := a.state.Panel.Width
 	if width <= 0 {
 		width = defaultPanelWidth
-		if t := a.panelTab(); t == panelBrowser || t == panelTraffic || t == panelAndroid {
-			width = 436 // what they hold doesn't fit a list's width yet
-		}
 	}
 	widget.Bento(ui.Column(c.Key("side-panel")).Width(width).MinWidth(minPanelWidth).Shrink(1).FillHeight(), theme.Fade(theme.Panel, 0.94)).
 		Transition(widget.PanelMotion(24)).Children(func() {
@@ -207,7 +205,7 @@ func (a *App) sidePanelView(c *ui.Context) {
 			// A web view shows in one place: the session shows it.
 			panelNote(c, "The preview shows as “"+a.sessionName(s)+"”'s view. Switch it to Terminal or Chat to have it here.")
 		case tool == panelBrowser:
-			a.browserTab(c.Key("browser:"+s.ID), s)
+			a.browserPages(c.Key("browser:"+s.ID), s)
 		case tool == panelAndroid:
 			a.androidTab(c.Key("android"), s)
 		case tool == panelTraffic && a.state.TrafficViews[s.ID]:
@@ -279,14 +277,25 @@ func (a *App) toolsDock(c *ui.Context) {
 		front = a.panelTab()
 	}
 	first := dockFirst
-	var rest []panelTool
-	for _, g := range a.shownGroups() {
+	if a.goaOn() {
+		first = append([]string{panelSessions, panelTasks}, first...)
+	}
+	// What isn't in the dock shows in its menu, under the group it is of.
+	rest := map[string][]panelTool{}
+	groups := a.shownGroups()
+	inMenu := false
+	for _, g := range groups {
 		for _, id := range g.tools {
 			if !slices.Contains(first, id) {
 				t, _ := findTool(id)
-				rest = append(rest, t)
+				rest[g.id] = append(rest[g.id], t)
+				inMenu = inMenu || id == front
 			}
 		}
+	}
+	unread := 0
+	if len(rest["team"]) > 0 {
+		unread, _ = a.chatUnreadAll()
 	}
 	ui.Column(c.Key("dock-room")).Width(44).Shrink(0).FillHeight().Justify(ui.Center).Children(func() {
 		widget.Glass(ui.Column(c.Key("dock")).FillWidth().Padding(theme.S1, 0).Gap(theme.S1).Radius(theme.RadiusFull).AlignItems(ui.Center)).Children(func() {
@@ -296,13 +305,26 @@ func (a *App) toolsDock(c *ui.Context) {
 					a.toggleTool(id)
 				}
 			}
-			more := dockFace(c.Key("tool-more"), icon.More, "More tools", slices.ContainsFunc(rest, func(t panelTool) bool { return t.id == front }))
+			more := dockFace(c.Key("tool-more"), icon.More, "More tools", inMenu)
+			if unread > 0 {
+				dockDot(c, more)
+			}
 			a.menu.OpenBelow(more, "tool-more", 36)
 			a.menu.Show(c, more, "tool-more", func(done func()) {
-				for _, t := range rest {
-					if widget.MenuItem(c.Key(t.id), t.svg, t.name, false) {
-						a.openPanel(t.id)
-						done()
+				for _, g := range groups {
+					if len(rest[g.id]) == 0 {
+						continue
+					}
+					widget.PopupLabel(c.Key("group:"+g.id), g.name)
+					for _, t := range rest[g.id] {
+						label := t.name
+						if t.id == panelChat && unread > 0 {
+							label += " · " + strconv.Itoa(unread) + " unread"
+						}
+						if widget.MenuItem(c.Key(t.id), t.svg, label, false) {
+							a.openPanel(t.id)
+							done()
+						}
 					}
 				}
 			})
@@ -327,9 +349,14 @@ func dockFace(c *ui.Context, svg *ui.SVG, label string, on bool) ui.Element {
 func (a *App) dockButton(c *ui.Context, t panelTool, front bool) ui.Element {
 	b := dockFace(c, t.svg, t.name, front)
 	if t.id == panelBrowser && a.browserNews && !front {
-		ui.Box(c).Size(8, 8).AttachTo(b, ui.AnchorTopRight, ui.AnchorTopRight).Margin(4, 4, 0, 0).Radius(theme.RadiusFull).Background(theme.Now)
+		dockDot(c, b)
 	}
 	return b
+}
+
+// dockDot says a dock's entry has something new.
+func dockDot(c *ui.Context, b ui.Element) {
+	ui.Box(c.Key("news")).Size(8, 8).AttachTo(b, ui.AnchorTopRight, ui.AnchorTopRight).Margin(4, 4, 0, 0).Radius(theme.RadiusFull).Background(theme.Now)
 }
 
 func panelNote(c *ui.Context, text string) {

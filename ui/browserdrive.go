@@ -51,6 +51,7 @@ func (a *App) driveBrowser(req proto.BrowserRequest) {
 			return
 		}
 		if a.selected == s.ID && !a.state.BrowserViews[s.ID] {
+			a.browserTabBehind(s)
 			a.showBrowserSoon() // the user sees what the agent opened, unless at something else
 		}
 	} else if v.Page() == nil {

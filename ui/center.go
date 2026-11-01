@@ -8,6 +8,7 @@ import (
 	"github.com/egoist/mygo/ui"
 
 	"github.com/enowx/enowx/proto"
+	"github.com/enowx/enowx/ui/androidview"
 	"github.com/enowx/enowx/ui/icon"
 	"github.com/enowx/enowx/ui/theme"
 	"github.com/enowx/enowx/ui/widget"
@@ -20,10 +21,9 @@ import (
 const (
 	centerDiff     = "diff:"     // a changed file's path
 	centerCheck    = "check:"    // a check's name
-	centerExchange = "exchange:" // a request's ID
+	centerExchange = "exchange:" // a request's ID, then its name
 	centerBrowser  = "browser:"  // the session's page
 	centerAndroid  = "android:"  // the phone's screen
-	centerActivity = "activity:" // an entry of the activity
 	centerGOA      = "goa:"      // a session opened from GOD of Agents' Sessions tool (goa_tabs.go)
 )
 
@@ -79,6 +79,14 @@ func (a *App) closeCenter(id, tab string) {
 	if key, ok := strings.CutPrefix(tab, centerGOA); ok {
 		a.dropGOATab(key)
 	}
+	if what, ok := strings.CutPrefix(tab, centerExchange); ok {
+		if n, ok := exchangeID(what); ok {
+			a.trafficOf().ForgetExchange(n)
+		}
+	}
+	if tab == centerAndroid+androidview.ViewScreen {
+		a.androidOf().CloseScreen()
+	}
 }
 
 // centerFront is the viewer in front of session s, "" for none.
@@ -123,12 +131,28 @@ func centerName(tab string) string {
 		return path.Base(what)
 	case centerDiff:
 		return path.Base(what) + " · diff"
+	case centerExchange:
+		_, name, _ := strings.Cut(what, " ")
+		return name
 	case centerBrowser:
 		return nonEmpty(what, "Browser")
 	case centerAndroid:
-		return nonEmpty(what, "Phone")
+		if what == androidview.ViewScreen {
+			return "Screen"
+		}
+		return "Logcat"
 	}
 	return what
+}
+
+// centerLabel is a tab's label, by what shows now: a device's screen says whose.
+func (a *App) centerLabel(tab string) string {
+	if tab == centerAndroid+androidview.ViewScreen {
+		if name := a.androidOf().PickedName(); name != "" {
+			return name + " screen"
+		}
+	}
+	return centerName(tab)
 }
 
 // centerIcon is a tab's icon.
@@ -138,23 +162,35 @@ func centerIcon(tab string) *ui.SVG {
 	case centerDiff:
 		return icon.Git
 	case centerCheck:
-		return icon.Check
+		return icon.ListChecks
 	case centerExchange:
 		return icon.Traffic
 	case centerBrowser:
 		return icon.Globe
 	case centerAndroid:
 		return icon.Android
-	case centerActivity:
-		return icon.List
 	}
 	return icon.File
 }
 
 // centerDot is the color of a tab's status dot: what is changing moves.
 func (a *App) centerDot(s proto.SessionInfo, tab string) ui.Color {
-	if strings.HasPrefix(tab, centerDiff) {
+	switch {
+	case strings.HasPrefix(tab, centerDiff):
 		return theme.Working
+	case strings.HasPrefix(tab, centerCheck):
+		name, _ := strings.CutPrefix(tab, centerCheck)
+		return a.checkViewOf(s.ID).Color(name)
+	case strings.HasPrefix(tab, centerBrowser):
+		return a.browserOf(s.ID).Color()
+	case strings.HasPrefix(tab, centerExchange):
+		if n, ok := exchangeID(strings.TrimPrefix(tab, centerExchange)); ok {
+			return a.trafficOf().ExchangeColor(n)
+		}
+	case strings.HasPrefix(tab, centerAndroid):
+		if a.androidOf().Online() {
+			return theme.Done
+		}
 	}
 	return theme.Idle
 }
@@ -165,7 +201,7 @@ func (a *App) centerTabButton(c *ui.Context, s proto.SessionInfo, tab string, fr
 		a.goaTabButton(c, s, key, front)
 		return
 	}
-	a.tabFace(c.Key("v:"+tab), centerName(tab), tab, front, true, a.centerDot(s, tab), false, centerIcon(tab),
+	a.tabFace(c.Key("v:"+tab), a.centerLabel(tab), tab, front, true, a.centerDot(s, tab), false, centerIcon(tab),
 		func() { a.centerOf(s.ID).front = tab },
 		func() { a.closeCenter(s.ID, tab) })
 }
@@ -224,27 +260,12 @@ func (a *App) centerBody(c *ui.Context, s proto.SessionInfo, tab string) {
 	case centerExchange:
 		a.exchangeTab(c.Key("exchange:"+tab), s, what)
 	case centerBrowser:
+		a.browserNews = false // looked at
 		a.browserTab(c.Key("browser:"+s.ID), s)
 	case centerAndroid:
-		a.androidTab(c.Key("android"), s)
-	case centerActivity:
-		a.activityEntryTab(c.Key("activity:"+tab), s, what)
+		a.androidCenter(c.Key("android:"+what), s, what)
 	case centerGOA:
 		a.goaTabView(c, what)
 	}
 }
 
-// checkTab draws a check's output, in the center.
-func (a *App) checkTab(c *ui.Context, s proto.SessionInfo, name string) {
-	a.checksTab(c, s)
-}
-
-// exchangeTab draws a request of the traffic, in the center.
-func (a *App) exchangeTab(c *ui.Context, s proto.SessionInfo, id string) {
-	a.trafficTab(c, s)
-}
-
-// activityEntryTab draws an entry of the activity, in the center.
-func (a *App) activityEntryTab(c *ui.Context, s proto.SessionInfo, what string) {
-	a.activityTab(c, s)
-}
