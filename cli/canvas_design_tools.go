@@ -5,7 +5,7 @@ import "fmt"
 var designProp = mcpProp{"string", "The design: its number (from 1), name or ID"}
 
 // canvasTools are the canvases as MCP tools, their designs' included.
-var canvasTools = append(append(append(append(canvasCoreTools, designTools...), chatTools...), gridTools...), buildTools...)
+var canvasTools = append(append(append(append(append(canvasCoreTools, designTools...), chatTools...), gridTools...), buildTools...), framesTool)
 
 // designTools are a canvas's designs as MCP tools.
 var designTools = []mcpTool{
@@ -65,6 +65,18 @@ var designTools = []mcpTool{
 		props: map[string]mcpProp{"canvas": canvasProp, "design": designProp}, required: []string{"canvas", "design"},
 		args: func(a map[string]any) []string { return []string{"rm-design", str(a, "canvas"), str(a, "design")} }},
 }
+
+// framesTool samples a design's animation, as a still catches one moment of it.
+var framesTool = mcpTool{name: "canvas_frames", description: "Moments of a design's animation, to check motion a screenshot can't show: one image of them all in order, left to right, with how long it runs and what moved. Seeks the design's own clock, so a moment looks the same each time. at: percents of its length or times, as 0,25,50,75,100 or 1500ms.",
+	props:    map[string]mcpProp{"canvas": canvasProp, "design": designProp, "at": {"string", "The moments, comma-separated (0,25,50,75,100)"}, "path": {"string", "Where to write the image (optional)"}},
+	required: []string{"canvas"}, image: true,
+	args: func(a map[string]any) []string {
+		args := []string{"frames", str(a, "canvas")}
+		if d := str(a, "design"); d != "" {
+			args = append(args, d)
+		}
+		return withFlag(withFlag(args, a, "at", "at"), a, "path", "sheet")
+	}}
 
 // gridTools are a design's layout grid and mockups' icons as MCP tools.
 var gridTools = []mcpTool{

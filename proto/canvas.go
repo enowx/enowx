@@ -337,6 +337,16 @@ type CanvasRenderParams struct {
 	// to compare designs at it), its height scaled. Older daemons ignore
 	// it.
 	Width int `json:"width,omitempty"`
+	// At, when set, has a design's motion stand at that moment for a still:
+	// "25" (percent of its length) or "1500ms". Older daemons ignore it.
+	At string `json:"at,omitempty"`
+}
+
+// CanvasMotion is a design's motion as a render found it, in milliseconds: how
+// long it is, and the moment the picture shows.
+type CanvasMotion struct {
+	Duration float64 `json:"duration"`
+	At       float64 `json:"at"`
 }
 
 // CanvasRendered is a frame rendered: by the daemon ("daemon") or the app
@@ -351,6 +361,9 @@ type CanvasRendered struct {
 	// in pixels: a horizontal scroll it mustn't have. The app measures it
 	// as it renders the page.
 	Wider int `json:"wider,omitempty"`
+	// Motion says the picture is one moment of a design that moves; nil for a
+	// still design, and from older apps.
+	Motion *CanvasMotion `json:"motion,omitempty"`
 }
 
 // CanvasRenderRequest asks the app to render HTML, a page of Width×Height,
@@ -374,6 +387,8 @@ type CanvasRenderReply struct {
 	Error string `json:"error,omitempty"`
 	Wider int    `json:"wider,omitempty"` // CanvasRendered.Wider
 	Text  string `json:"text,omitempty"`  // the value of the request's Script
+	// Motion is CanvasRendered.Motion.
+	Motion *CanvasMotion `json:"motion,omitempty"`
 }
 
 // CanvasGrid is a design's layout grid, as CSS grid lays it out: Cols

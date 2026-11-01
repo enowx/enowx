@@ -498,7 +498,10 @@ field CanvasMatch.worst []string
 field CanvasMatchParams.frame string
 field CanvasMatchParams.id string
 field CanvasMatchParams.image string
+field CanvasMotion.at float64
+field CanvasMotion.duration float64
 field CanvasRef.id string
+field CanvasRenderParams.at string
 field CanvasRenderParams.format string
 field CanvasRenderParams.frame string
 field CanvasRenderParams.id string
@@ -506,6 +509,7 @@ field CanvasRenderParams.width int
 field CanvasRenderReply.data []byte
 field CanvasRenderReply.error string
 field CanvasRenderReply.id string
+field CanvasRenderReply.motion *CanvasMotion
 field CanvasRenderReply.text string
 field CanvasRenderReply.wider int
 field CanvasRenderRequest.format string
@@ -518,6 +522,7 @@ field CanvasRendered.by string
 field CanvasRendered.data []byte
 field CanvasRendered.format string
 field CanvasRendered.height int
+field CanvasRendered.motion *CanvasMotion
 field CanvasRendered.wider int
 field CanvasRendered.width int
 field CanvasShare.canvas string

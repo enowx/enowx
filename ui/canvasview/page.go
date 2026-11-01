@@ -6,6 +6,7 @@ import (
 
 	"github.com/egoist/mygo/ui"
 
+	"github.com/enowx/enowx/core/canvas"
 	"github.com/enowx/enowx/proto"
 	"github.com/enowx/enowx/ui/icon"
 	"github.com/enowx/enowx/ui/theme"
@@ -142,9 +143,14 @@ func (v *View) header(c *ui.Context, o Options, cv proto.Canvas) {
 		v.menu.OpenBelow(exp, "export", 28)
 		v.menu.Show(c, exp, "export", func(done func()) {
 			f := v.frameOf()
+			// A still of a moving design is one moment of it; only HTML moves.
+			still, moving := "", ""
+			if canvas.UsesMotion(f.HTML) {
+				still, moving = " (one frame)", " (keeps the motion)"
+			}
 			for _, e := range []struct{ label, format, frame string }{
-				{"PNG of " + f.Name, proto.RenderPNG, f.ID}, {"SVG of " + f.Name, proto.RenderSVG, f.ID},
-				{"PDF of " + f.Name, proto.RenderPDF, f.ID}, {"HTML of " + f.Name, proto.RenderHTML, f.ID},
+				{"PNG of " + f.Name + still, proto.RenderPNG, f.ID}, {"SVG of " + f.Name + still, proto.RenderSVG, f.ID},
+				{"PDF of " + f.Name + still, proto.RenderPDF, f.ID}, {"HTML of " + f.Name + moving, proto.RenderHTML, f.ID},
 				{"Share as a page (read-only HTML)…", proto.RenderHTML, ""},
 			} {
 				if widget.MenuItem(c.Key(e.label), icon.Download, e.label, false) {

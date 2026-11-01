@@ -577,6 +577,18 @@ func (r runner) mcp(in io.Reader, out io.Writer) error {
 	return sc.Err()
 }
 
+// besidesWrote is what a command that wrote an image said about it, past where
+// it wrote it: a warning, or that a picture is one moment of a moving design.
+func besidesWrote(text string) string {
+	var keep []string
+	for _, line := range strings.Split(text, "\n") {
+		if !strings.HasPrefix(line, "Wrote ") && line != "Done." {
+			keep = append(keep, line)
+		}
+	}
+	return strings.TrimSpace(strings.Join(keep, "\n"))
+}
+
 // callTool runs a tool's command line and says what it printed, with the
 // image it wrote for a tool that makes one.
 func (r runner) callTool(t mcpTool, run func(runner, []string) error, a map[string]any) map[string]any {
@@ -616,9 +628,11 @@ func (r runner) callTool(t mcpTool, run func(runner, []string) error, a map[stri
 	if tmp != "" && err == nil {
 		png, rerr := os.ReadFile(tmp)
 		if rerr == nil && len(png) > 0 {
-			return map[string]any{"content": []any{
-				map[string]any{"type": "image", "data": base64.StdEncoding.EncodeToString(png), "mimeType": "image/png"},
-			}, "isError": false}
+			content := []any{map[string]any{"type": "image", "data": base64.StdEncoding.EncodeToString(png), "mimeType": "image/png"}}
+			if said := besidesWrote(text); said != "" {
+				content = append(content, map[string]any{"type": "text", "text": said})
+			}
+			return map[string]any{"content": content, "isError": false}
 		}
 	}
 	return result(text, err != nil)
