@@ -25,7 +25,7 @@ func sheet(c *ui.Context) {
 				PrimaryButton(c.Key("mcp"), icon.Plus, "Add an MCP server", "")
 			})
 			PageBody(c, true, func() {
-				Figs(c, []Fig{{"Memory", "14.2 of 24 GB"}, {"CPU", "3.0 of 8 cores"}, {"Sessions here", "8"}})
+				Figs(c, []Fig{{Label: "Memory", Value: "14.2 of 24 GB"}, {Label: "CPU", Value: "3.0 of 8 cores"}, {Label: "Sessions here", Value: "8"}})
 				ui.Row(c).FillWidth().Gap(theme.S3).Wrap().Children(func() {
 					PrimaryButton(c.Key("p"), nil, "Primary", "")
 					GhostButton(c.Key("s"), "Secondary")
