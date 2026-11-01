@@ -56,6 +56,8 @@ func (a *App) trafficTab(c *ui.Context, s proto.SessionInfo) {
 				a.selectSession(t)
 			}
 		},
+		OpenInBrowser: a.trafficOpenInBrowser(top),
+		Confirm:       a.confirm,
 	})
 }
 
@@ -186,4 +188,19 @@ func (a *App) androidTargets(s proto.SessionInfo) []trafficview.AndroidDevice {
 		out = append(out, trafficview.AndroidDevice{Key: d.Key, Label: d.Label, Caught: d.Caught})
 	}
 	return out
+}
+
+// trafficOpenInBrowser opens a URL in session s's Browser tool; nil where
+// there is no web view to show it.
+func (a *App) trafficOpenInBrowser(s proto.SessionInfo) func(string) {
+	if !webViewAvailable() {
+		return nil
+	}
+	return func(url string) {
+		if err := a.browserOf(s.ID).Open(a.browserOptions(s), url); err != nil {
+			a.status = err.Error()
+			return
+		}
+		a.openPanel(panelBrowser)
+	}
 }

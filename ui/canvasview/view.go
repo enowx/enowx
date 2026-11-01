@@ -59,6 +59,9 @@ type Options struct {
 	// Share makes canvas id's read-only link, or stops it (nil: no
 	// sharing).
 	Share func(id string, stop bool, done func(proto.CanvasShare, error))
+	// Confirm does do once the user agrees (title, what is lost, the
+	// action); nil does it at once.
+	Confirm func(title, msg, action string, do func())
 	// AgentName names the agent of a session.
 	AgentName func(session string) string
 	// Web shows a mockup's HTML: nil where this device has no web view.

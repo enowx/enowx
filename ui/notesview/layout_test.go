@@ -239,3 +239,20 @@ func TestColumnsStackWhenNarrow(t *testing.T) {
 	}
 	shot(t, tt, "notes-layout-narrow.png")
 }
+
+// Pages inside show a page's SVG icon as an icon, not its name, and one with
+// no icon as a file.
+func TestPagesInsideShowIcons(t *testing.T) {
+	e := &editor{}
+	e.env.children = []proto.NoteInfo{{ID: "a", Title: "With an icon", Icon: "lucide:rocket"}, {ID: "b", Title: "With none"}}
+	tt := ui.NewTester(func(c *ui.Context) {
+		ui.Column(c).Width(600).Height(300).Background(theme.Background).Children(func() { e.pagesView(c) })
+	}, 600, 300)
+	frames(tt, 2)
+	if tt.HasText("lucide:rocket") {
+		t.Fatalf("the icon's name shows as text: %q", tt.Texts())
+	}
+	if !tt.HasText("With an icon") || !tt.HasText("With none") {
+		t.Fatalf("the pages: %q", tt.Texts())
+	}
+}

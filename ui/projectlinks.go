@@ -234,7 +234,7 @@ func (a *App) linkCard(c *ui.Context, f *linksForm, l proto.ProjectLinkState) {
 					done()
 				}
 				if widget.MenuItemTip(c, icon.Trash, "Unlink", "Stop syncing them; both copies stay", true) {
-					a.unlink(f, l.ProjectLink)
+					a.askUnlink(f, l.ProjectLink)
 					done()
 				}
 			})
@@ -346,6 +346,11 @@ func (a *App) saveLink(f *linksForm, l proto.ProjectLink) {
 }
 
 // unlink forgets l on the hosts reached; both copies stay.
+// askUnlink unlinks l once the user agrees.
+func (a *App) askUnlink(f *linksForm, l proto.ProjectLink) {
+	a.confirm("Unlink these copies?", "They stop syncing with each other, on their own and when asked. Both copies stay as they are on "+l.Source.Host+" and "+l.Target.Host+".", "Unlink", func() { a.unlink(f, l) })
+}
+
 func (a *App) unlink(f *linksForm, l proto.ProjectLink) {
 	delete(a.links.links, l.ID)
 	for _, id := range []string{l.Source.Daemon, l.Target.Daemon} {

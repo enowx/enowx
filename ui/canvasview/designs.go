@@ -198,7 +198,9 @@ func (v *View) designItems(c *ui.Context, o Options, f proto.CanvasFrame, done f
 	if len(cv.Frames) > 1 {
 		widget.MenuSeparator(c)
 		if widget.MenuItem(c.Key("rm"), icon.Trash, "Delete design", true) {
-			v.edit(o, proto.CanvasEdit{Op: proto.CanvasOpFrameRemove, Frame: f.ID})
+			confirmed(o, "Delete “"+f.Name+"”?", "The design leaves this canvas. An earlier version in History still holds it.", "Delete", func() {
+				v.edit(o, proto.CanvasEdit{Op: proto.CanvasOpFrameRemove, Frame: f.ID})
+			})
 			done()
 		}
 	}
@@ -327,4 +329,13 @@ func (v *View) describeDialog(c *ui.Context, o Options) {
 	if !f.open {
 		v.descr = nil
 	}
+}
+
+// confirmed does do once the user agrees, through the app's dialog.
+func confirmed(o Options, title, msg, action string, do func()) {
+	if o.Confirm == nil {
+		do()
+		return
+	}
+	o.Confirm(title, msg, action, do)
 }

@@ -177,7 +177,9 @@ func (v *View) detailActions(c *ui.Context, o Options, d *detail) {
 		if widget.Switch(c, &d.reveal, "Show secrets") {
 			v.read(o, d)
 		}
-		widget.MoreMenu(c, &d.menu, "exchange", func(done func()) {
+		more := widget.IconButton(c.Key("more:exchange"), icon.More, "More for this request", false)
+		d.menu.OpenBelow(more, "exchange", 24)
+		d.menu.Show(c, more, "exchange", func(done func()) {
 			if widget.MenuItemTip(c, icon.Stop, "Breakpoint…", "Pause requests like this one, to change them before they go", false) {
 				v.rules.startNew(ruleFromExchange(ex, d.res, proto.ActionBreakpoint), o)
 				done()

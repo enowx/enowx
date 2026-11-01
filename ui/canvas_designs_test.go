@@ -113,3 +113,46 @@ func (h *canvasHarness) dragTo(from, to string) {
 	h.tt.Release(x1, y1)
 	h.tt.Frame()
 }
+
+// Deleting a design asks first, and it stays until the user agrees.
+func TestDeletingADesignAsksFirst(t *testing.T) {
+	h := newCanvasHarness(t)
+	cv, _ := h.cl.CreateCanvas(proto.CanvasCreateParams{Title: "Two pages", Kind: proto.CanvasWireframe, Frames: []proto.CanvasFrame{{Name: "First"}}})
+	h.settle("the canvas open", func() bool { return h.app.canvases.Selected() == cv.ID })
+	if _, err := h.cl.EditCanvas(proto.CanvasEdit{ID: cv.ID, Op: proto.CanvasOpFrameAdd, FrameInfo: &proto.CanvasFrame{Name: "Second"}}); err != nil {
+		t.Fatal(err)
+	}
+	h.settle("both designs", func() bool { return h.tt.HasText("Second") })
+	frames := func() int {
+		got, err := h.cl.Canvas(cv.ID)
+		if err != nil {
+			t.Fatal(err)
+		}
+		return len(got.Frames)
+	}
+	label := ""
+	for _, name := range []string{"Second", "First"} {
+		if _, ok := h.tt.Find("Design " + name); ok {
+			label = "Design " + name
+			break
+		}
+	}
+	if label == "" {
+		t.Fatalf("no design menu: %q", h.tt.Texts())
+	}
+	if err := h.tt.Click(label); err != nil {
+		t.Fatal(err)
+	}
+	h.settle("its menu", func() bool { return h.tt.HasText("Delete design") })
+	if err := h.tt.Click("Delete design"); err != nil {
+		t.Fatal(err)
+	}
+	h.tt.Frame()
+	if h.app.confirming == nil || frames() != 2 {
+		t.Fatalf("asked %v, %d designs", h.app.confirming, frames())
+	}
+	q := h.app.confirming
+	h.app.confirming = nil
+	q.do()
+	h.settle("deleted once agreed", func() bool { return frames() == 1 })
+}

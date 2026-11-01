@@ -228,7 +228,7 @@ func (a *App) hostCard(c *ui.Context, h hosts.Host) {
 						done()
 					}
 					if widget.MenuItem(c, icon.Trash, "Remove from the list", true) {
-						a.removeHost(h)
+						a.askRemoveHost(h)
 						done()
 					}
 					if h.ID != hosts.LocalID && widget.MenuItemTip(c, icon.Trash, "Remove & clear…", "Remove it from the list and clear the data synced to it", true) {

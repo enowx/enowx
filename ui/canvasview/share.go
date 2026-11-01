@@ -65,12 +65,14 @@ func (v *View) shareDialog(c *ui.Context, o Options) {
 		}
 		widget.DialogFooter(c, "", func() {
 			if st.link != nil && widget.Button(c, widget.Danger, nil, "Stop sharing", "").Clicked() {
-				o.Share(st.id, true, func(_ proto.CanvasShare, err error) {
-					if err != nil {
-						st.err = err.Error()
-						return
-					}
-					v.sharing = nil
+				confirmed(o, "Stop sharing this canvas?", "Its link stops working for whoever has it. Sharing again makes a new link.", "Stop sharing", func() {
+					o.Share(st.id, true, func(_ proto.CanvasShare, err error) {
+						if err != nil {
+							st.err = err.Error()
+							return
+						}
+						v.sharing = nil
+					})
 				})
 			}
 			if widget.GhostButton(c, "Done").Clicked() {

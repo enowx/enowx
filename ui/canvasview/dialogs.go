@@ -6,7 +6,6 @@ import (
 	"github.com/egoist/mygo/ui"
 
 	"github.com/enowx/enowx/proto"
-	"github.com/enowx/enowx/ui/theme"
 	"github.com/enowx/enowx/ui/widget"
 )
 
@@ -126,5 +125,4 @@ func (v *View) renameDialog(c *ui.Context, o Options) {
 	if !open {
 		v.renaming = nil
 	}
-	_ = theme.Muted
 }

@@ -10,7 +10,9 @@ import (
 	"os/exec"
 	"path/filepath"
 	"strings"
+	"sync/atomic"
 	"testing"
+	"unicode/utf8"
 
 	"github.com/enowx/enowx/proto"
 )
@@ -172,5 +174,79 @@ func TestTypedEmbedderKey(t *testing.T) {
 	data, _ := os.ReadFile(filepath.Join(home, "settings", "rag.json"))
 	if strings.Contains(string(data), "sk-typed") {
 		t.Fatal("the key is in the synced settings")
+	}
+}
+
+// Files like google-services.json stay out by their names, and a Firebase key
+// in any file by its look; a file on one long line is cut, not one huge
+// chunk, and what tools generate stays out.
+func TestLeftOutAndCut(t *testing.T) {
+	for _, name := range []string{"android/app/google-services.json", "ios/GoogleService-Info.plist", "keys/firebase-adminsdk-x1.json"} {
+		if !IsSecret(name) {
+			t.Errorf("%s isn't kept out", name)
+		}
+	}
+	if IsSecret("android/app/build.gradle") {
+		t.Error("an ordinary file kept out")
+	}
+	if !HoldsSecret("\"current_key\": \"AIzaSyA1234567890abcdefghijklmnopqrstuv\"") {
+		t.Error("a Google API key isn't seen")
+	}
+	for _, name := range []string{"public/app.js.map", "dist/x.min.js", "package-lock.json"} {
+		if !IsGenerated(name) {
+			t.Errorf("%s isn't seen as generated", name)
+		}
+	}
+	long := strings.Repeat("{\"a\":\"é\"},", 50000)
+	parts := chunkFile(long, "data.json", chunkChars)
+	if len(parts) < 100 {
+		t.Fatalf("%d chunks of a long line", len(parts))
+	}
+	joined := ""
+	for _, p := range parts {
+		if len(p.text) > chunkChars {
+			t.Fatalf("a chunk of %d", len(p.text))
+		}
+		if !utf8.ValidString(p.text) {
+			t.Fatal("a character cut in two")
+		}
+		joined += p.text
+	}
+	if joined != long {
+		t.Fatal("text lost in cutting")
+	}
+}
+
+// A batch stays within what an embedder takes, however many long texts come.
+func TestEmbedBatchesBySize(t *testing.T) {
+	var most atomic.Int64
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		var in struct {
+			Input []string `json:"input"`
+		}
+		json.NewDecoder(r.Body).Decode(&in)
+		size := 0
+		data := []map[string]any{}
+		for i, s := range in.Input {
+			size += len(s)
+			data = append(data, map[string]any{"embedding": []float32{1}, "index": i})
+		}
+		if int64(size) > most.Load() {
+			most.Store(int64(size))
+		}
+		json.NewEncoder(w).Encode(map[string]any{"data": data})
+	}))
+	defer srv.Close()
+	h := &httpEmbedder{kind: proto.RAGOpenAI, url: srv.URL + "/embeddings", model: "m", batch: 96}
+	texts := make([]string, 200)
+	for i := range texts {
+		texts[i] = strings.Repeat("x", 10000)
+	}
+	vecs, err := h.embed(t.Context(), texts, false)
+	if err != nil || len(vecs) != len(texts) {
+		t.Fatalf("%d vectors: %v", len(vecs), err)
+	}
+	if most.Load() > embedBatchBytes {
+		t.Fatalf("a batch of %d bytes", most.Load())
 	}
 }

@@ -52,6 +52,16 @@ func TestCanvasShareLinkDialog(t *testing.T) {
 	click("Copy")
 	h.settle("copied", func() bool { return h.tt.HasText("Copied") })
 	click("Stop sharing")
+	// It asks first: the link holds until the user says yes.
+	q := h.app.confirming
+	if q == nil {
+		t.Fatal("stopped sharing without asking")
+	}
+	if list, _ := h.cl.CanvasShares(); len(list) != 1 {
+		t.Fatalf("stopped before the answer: %+v", list)
+	}
+	h.app.confirming = nil
+	q.do()
 	h.settle("the dialog gone", func() bool { return !h.tt.HasText("Share a link") })
 	if list, _ := h.cl.CanvasShares(); len(list) != 0 {
 		t.Fatalf("still shared: %+v", list)

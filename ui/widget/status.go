@@ -46,8 +46,3 @@ func Tag(c *ui.Context, label string, col ui.Color) {
 		ui.Text(c, label).FontSize(10.5).TextColor(col).SingleLine()
 	})
 }
-
-// Chip is a small colored tag.
-//
-// Deprecated: use Tag; Chip remains for views not yet moved to it.
-func Chip(c *ui.Context, label string, fg, _ ui.Color) { Tag(c, label, fg) }

@@ -9,6 +9,7 @@ import (
 	"github.com/enowx/enowx/core/noteblocks"
 	"github.com/enowx/enowx/ui/icon"
 	"github.com/enowx/enowx/ui/theme"
+	"github.com/enowx/enowx/ui/widget"
 )
 
 // The directives standing alone: a table of contents, a progress bar, the
@@ -128,11 +129,7 @@ func (e *editor) pagesView(c *ui.Context) {
 				b.Background(theme.Hover)
 			}
 			b.Children(func() {
-				if n.Icon != "" {
-					ui.Text(c, n.Icon).FontSize(14)
-				} else {
-					ui.Icon(c, icon.File).FontSize(14).TextColor(theme.Muted)
-				}
+				widget.NoteIcon(c, n.Icon, 14, theme.Muted, icon.File)
 				ui.Text(c, titleOf(n)).FontSize(13.5).TextColor(theme.Text).Underline().SingleLine()
 			})
 			if b.Clicked() && e.env.openNote != nil {

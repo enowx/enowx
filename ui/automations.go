@@ -122,7 +122,7 @@ func (a *App) automationRow(c *ui.Context, st *automationsState, au proto.Automa
 					done()
 				}
 				if widget.MenuItem(c, icon.Trash, "Remove", true) {
-					a.removeAutomation(au)
+					a.askRemoveAutomation(au)
 					done()
 				}
 			})
@@ -247,6 +247,11 @@ func (a *App) runAutomation(au proto.Automation) {
 			a.notify(au.Name + " started at " + time.Now().Format("15:04"))
 		})
 	}()
+}
+
+// askRemoveAutomation removes au once the user agrees.
+func (a *App) askRemoveAutomation(au proto.Automation) {
+	a.confirm("Remove “"+au.Name+"”?", "It stops running on its schedule, and its settings go. Sessions it already started stay.", "Remove", func() { a.removeAutomation(au) })
 }
 
 func (a *App) removeAutomation(au proto.Automation) {

@@ -4,6 +4,7 @@ import (
 	"path"
 	"regexp"
 	"strings"
+	"unicode/utf8"
 )
 
 // chunkChars bounds a chunk's text, so with its header it stays under
@@ -86,8 +87,12 @@ func chunkFile(text, name string, max int) []chunk {
 	var out []chunk
 	emit := func(s, e int, symbol string) {
 		body := strings.Join(lines[s:e], "\n")
-		if strings.TrimSpace(body) != "" {
-			out = append(out, chunk{text: body, start: s + 1, end: e, symbol: symbol})
+		if strings.TrimSpace(body) == "" {
+			return
+		}
+		// A single line can hold a whole file, as minified ones and data do.
+		for _, part := range cutChars(body, max) {
+			out = append(out, chunk{text: part, start: s + 1, end: e, symbol: symbol})
 		}
 	}
 	packS, packE, packSym := -1, -1, ""
@@ -116,6 +121,25 @@ func chunkFile(text, name string, max int) []chunk {
 		packE = sg.end
 	}
 	flush()
+	return out
+}
+
+// cutChars cuts text into parts of at most max bytes, whole characters each.
+func cutChars(text string, max int) []string {
+	var out []string
+	for len(text) > max {
+		i := max
+		for i > 0 && !utf8.RuneStart(text[i]) {
+			i--
+		}
+		if strings.TrimSpace(text[:i]) != "" {
+			out = append(out, text[:i])
+		}
+		text = text[i:]
+	}
+	if strings.TrimSpace(text) != "" {
+		out = append(out, text)
+	}
 	return out
 }
 
@@ -154,14 +178,21 @@ func linesSize(lines []string) int {
 }
 
 // secretName finds files that hold secrets, never indexed.
-var secretName = regexp.MustCompile(`(?i)(^|/)(\.env(\..*)?|\.envrc|\.npmrc|\.netrc|\.pypirc|\.git-credentials|id_(rsa|dsa|ecdsa|ed25519)(\.pub)?|.*\.(pem|key|p12|pfx|jks|keystore|crt|cer|der|kdbx|ovpn)|credentials(\.\w+)?|.*secrets?\.(json|ya?ml|toml|env)|service[-_]account.*\.json)$`)
+var secretName = regexp.MustCompile(`(?i)(^|/)(\.env(\..*)?|\.envrc|\.npmrc|\.netrc|\.pypirc|\.git-credentials|id_(rsa|dsa|ecdsa|ed25519)(\.pub)?|.*\.(pem|key|p12|pfx|jks|keystore|crt|cer|der|kdbx|ovpn)|credentials(\.\w+)?|.*secrets?\.(json|ya?ml|toml|env)|service[-_]account.*\.json|google-services\.json|googleservice-info\.plist|firebase[-_]adminsdk.*\.json)$`)
 
 // secretText finds text that holds a secret: a private key, a cloud key, a
 // token.
-var secretText = regexp.MustCompile(`-----BEGIN [A-Z ]*PRIVATE KEY-----|\bAKIA[0-9A-Z]{16}\b|\bgh[pousr]_[A-Za-z0-9]{30,}\b|\bsk-[A-Za-z0-9_-]{20,}\b|\bxox[abpr]-[A-Za-z0-9-]{10,}\b`)
+var secretText = regexp.MustCompile(`-----BEGIN [A-Z ]*PRIVATE KEY-----|\bAKIA[0-9A-Z]{16}\b|\bgh[pousr]_[A-Za-z0-9]{30,}\b|\bsk-[A-Za-z0-9_-]{20,}\b|\bxox[abpr]-[A-Za-z0-9-]{10,}\b|\bAIza[0-9A-Za-z_-]{35}\b`)
 
 // HoldsSecret says text holds a secret, by what keeps a chunk from the index.
 func HoldsSecret(text string) bool { return secretText.MatchString(text) }
+
+// generatedName finds what tools made for machines, worth nothing to search and
+// costly to embed: source maps, minified files, lockfiles.
+var generatedName = regexp.MustCompile(`(?i)(\.map|\.min\.(js|css)|\.bundle\.js|package-lock\.json|pnpm-lock\.yaml|yarn\.lock|go\.sum)$`)
+
+// IsGenerated reports whether the file at name is made by a tool, by its name.
+func IsGenerated(name string) bool { return generatedName.MatchString(name) }
 
 // IsSecret reports whether the file at name (relative, with slashes) holds
 // secrets, by its name.

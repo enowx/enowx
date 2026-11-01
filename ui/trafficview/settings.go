@@ -138,19 +138,26 @@ func (v *View) settingsSheet(c *ui.Context, o Options) {
 			ui.Row(c).FillWidth().Gap(8).AlignItems(ui.Center).Children(func() {
 				ui.Text(c, "Making it anew means attaching again what trusted the old one.").FontSize(11).TextColor(theme.Muted).Grow(1).Shrink(1)
 				if widget.Button(c, widget.Secondary, nil, "Make the CA anew", "").Clicked() {
-					h := o.Host
-					go func() {
-						ca, err := h.TrafficNewCA()
-						o.Update(func() {
-							if err != nil {
-								s.err = client.Explain(err)
-								return
-							}
-							v.status.Fingerprint = ca.Fingerprint
-							v.inter.ca = nil
-							v.notice = "A new CA: browsers, devices and containers attached before must be attached again to trust it."
-						})
-					}()
+					renew := func() {
+						h := o.Host
+						go func() {
+							ca, err := h.TrafficNewCA()
+							o.Update(func() {
+								if err != nil {
+									s.err = client.Explain(err)
+									return
+								}
+								v.status.Fingerprint = ca.Fingerprint
+								v.inter.ca = nil
+								v.notice = "A new CA: browsers, devices and containers attached before must be attached again to trust it."
+							})
+						}()
+					}
+					if o.Confirm != nil {
+						o.Confirm("Make the CA anew?", "The old certificate authority goes: whatever trusts it, a system, a browser, a phone, stops trusting what enowX catches until it's attached again.", "Make it anew", renew)
+					} else {
+						renew()
+					}
 				}
 			})
 		})

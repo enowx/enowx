@@ -188,6 +188,11 @@ func (a *App) clearHost(h hosts.Host) {
 
 // removeHost removes host h from the list, here and on the user's other
 // devices.
+// askRemoveHost removes h from the list once the user agrees.
+func (a *App) askRemoveHost(h hosts.Host) {
+	a.confirm("Remove “"+h.Name+"” from the list?", "This device stops connecting to it and showing its sessions. Nothing on the host changes: its daemon and sessions go on, and adding it again brings them back.", "Remove", func() { a.removeHost(h) })
+}
+
 func (a *App) removeHost(h hosts.Host) {
 	if err := a.opts.Hosts.Remove(h.ID); err != nil {
 		a.status = err.Error()

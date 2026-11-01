@@ -347,7 +347,7 @@ func embedAll(ctx context.Context, emb embedder, s store, key string, pts []poin
 
 // filePoints are file f of dir's chunks, unless it is no text to index.
 func filePoints(dir, f string) ([]point, bool) {
-	if IsSecret(f) || !textFile(f) {
+	if IsSecret(f) || IsGenerated(f) || !textFile(f) {
 		return nil, false
 	}
 	full := filepath.Join(dir, filepath.FromSlash(f))

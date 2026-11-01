@@ -53,12 +53,23 @@ type httpEmbedder struct {
 	used                  atomic.Int64
 }
 
+// embedBatchBytes bounds a batch's text, about 100,000 tokens: below what the
+// embedders take at once.
+const embedBatchBytes = 300 << 10
+
 func (h *httpEmbedder) tokens() int64 { return h.used.Load() }
 
 func (h *httpEmbedder) embed(ctx context.Context, texts []string, query bool) ([][]float32, error) {
 	out := make([][]float32, 0, len(texts))
-	for i := 0; i < len(texts); i += h.batch {
-		part := texts[i:min(len(texts), i+h.batch)]
+	for i := 0; i < len(texts); {
+		// As many as fit: services limit a batch's tokens too.
+		end, size := i+1, len(texts[i])
+		for end < len(texts) && end-i < h.batch && size+len(texts[end]) <= embedBatchBytes {
+			size += len(texts[end])
+			end++
+		}
+		part := texts[i:end]
+		i = end
 		vecs, err := h.call(ctx, part, query)
 		if err != nil {
 			return nil, err

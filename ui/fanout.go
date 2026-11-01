@@ -3,6 +3,7 @@ package ui
 import (
 	"fmt"
 	"slices"
+	"strconv"
 	"strings"
 
 	"github.com/egoist/mygo/ui"
@@ -182,10 +183,16 @@ func (a *App) compareRow(c *ui.Context, s proto.SessionInfo, group []proto.Sessi
 				a.selectSession(s)
 			}
 			if widget.PrimaryButton(c, icon.Check, "Keep", "").Disabled(d.busy).Clicked() && !d.busy {
-				a.keepFromGroup(s, group)
+				a.askKeep(s, group)
 			}
 		})
 	})
+}
+
+// askKeep keeps s from group once the user agrees.
+func (a *App) askKeep(s proto.SessionInfo, group []proto.SessionInfo) {
+	n := len(group) - 1
+	a.confirm("Keep “"+a.sessionName(s)+"”?", textfmt.Plural(n, "The other session", "The "+strconv.Itoa(n)+" other sessions")+" of this Compare, with their worktrees, branches and uncommitted changes, are discarded for good.", "Keep and discard", func() { a.keepFromGroup(s, group) })
 }
 
 // keepFromGroup discards the group's other sessions, with their worktrees

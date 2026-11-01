@@ -143,6 +143,40 @@ func TestTrafficTool(t *testing.T) {
 	drain(func() bool { return tt.HasText(`"name": "Ada"`) || tt.HasText("Ada") }, "the response body")
 	shot(t, tt, "traffic-detail.png")
 
+	// Its menu opens a GET in the Browser tool.
+	opened := ""
+	o.OpenInBrowser = func(url string) { opened = url }
+	tt.Frame()
+	if err := tt.Click("More for this request"); err != nil {
+		t.Fatal(err)
+	}
+	drain(func() bool { return tt.HasText("Open in Browser") }, "the menu's item")
+	if err := tt.Click("Open in Browser"); err != nil {
+		t.Fatal(err)
+	}
+	drain(func() bool { return strings.Contains(opened, "/api/") || strings.Contains(opened, "/health") }, "opened")
+	tt.Frame()
+
+	// Making the CA anew asks first; not agreeing leaves it.
+	var askedCA string
+	o.Confirm = func(title, _, _ string, _ func()) { askedCA = title }
+	before, _ := cl.TrafficStatus()
+	if err := tt.Click("Traffic settings"); err != nil {
+		t.Fatal(err)
+	}
+	drain(func() bool { return tt.HasText("Certificate authority") }, "the settings")
+	tt.Scroll(260, 380, 0, 800)
+	tt.Frame()
+	if err := tt.Click("Make the CA anew"); err != nil {
+		t.Fatal(err)
+	}
+	tt.Frame()
+	if after, _ := cl.TrafficStatus(); askedCA == "" || after.Fingerprint != before.Fingerprint {
+		t.Fatalf("the CA: asked %q, %q then %q", askedCA, before.Fingerprint, after.Fingerprint)
+	}
+	v.settings.open = false
+	tt.Frame()
+
 	// Mock this, then save the rule: the next request is mocked.
 	if err := tt.Click("Mock this"); err != nil {
 		t.Fatal(err)

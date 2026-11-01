@@ -5,10 +5,11 @@ Agents find a project's code, docs, attached notes and memories by meaning, with
 ## How it works
 
 1. **Files:** git's tracked and untracked files, so `.gitignore` is honored; outside a repository, a walk that skips `node_modules`, `vendor`, `dist` and the like. Text files up to 500 KB.
-2. **Never sent:** files that hold secrets by their name (`.env`, keys, certificates, credentials), and any chunk whose text holds a private key or a token.
-3. **Chunks:** a file is cut at its top-level declarations (functions, types, classes, Markdown headings), each with the comments above it; small ones are packed together and long ones are cut at blank lines. A chunk is at most 1000 characters and keeps its lines and its symbol.
-4. **Embedding:** each chunk is embedded with a header naming its file, lines and symbol.
-5. **Incremental:** a chunk's ID is its file and its text's hash. Text that didn't change is never embedded again; when lines are added above it, it only moves.
+2. **Never sent:** files that hold secrets by their name (`.env`, keys, certificates, credentials), and any chunk whose text holds a private key or a token. Files with such keys inside by nature stay out by name too (`google-services.json`, `GoogleService-Info.plist`, `firebase-adminsdk*.json`).
+3. **Left out as worth nothing to search:** what tools generate (source maps, minified files, bundles, lockfiles). A file on one long line is cut like any other, and a batch never goes past what an embedder takes at once.
+4. **Chunks:** a file is cut at its top-level declarations (functions, types, classes, Markdown headings), each with the comments above it; small ones are packed together and long ones are cut at blank lines. A chunk is at most 1000 characters and keeps its lines and its symbol.
+5. **Embedding:** each chunk is embedded with a header naming its file, lines and symbol.
+6. **Incremental:** a chunk's ID is its file and its text's hash. Text that didn't change is never embedded again; when lines are added above it, it only moves.
 6. **Search:** by meaning (cosine over the vectors) and by words (full-text search), fused by rank, so an exact name and a description both find their code.
 
 ## Consent first

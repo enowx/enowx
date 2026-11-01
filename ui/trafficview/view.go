@@ -67,6 +67,9 @@ type Options struct {
 	// OpenInBrowser opens a URL in the session's Browser tool; nil without
 	// one.
 	OpenInBrowser func(url string)
+	// Confirm does do once the user agrees (title, what is lost, the
+	// action); nil does it at once.
+	Confirm func(title, msg, action string, do func())
 	// Android are the devices whose traffic can be caught; CatchAndroid
 	// catches one's, or stops.
 	Android      []AndroidDevice
