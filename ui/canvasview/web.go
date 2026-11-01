@@ -55,6 +55,7 @@ type Web struct {
 	loads   int // documents composed, so an old page's answer isn't taken for this one's
 	polled  time.Time
 	design  bool // the page shows whole on the board: no scrolling of its own
+	motionControl
 	// wider is how far the page reaches past its frame's width, in CSS
 	// pixels: a horizontal scroll the design mustn't have.
 	wider     int
@@ -157,15 +158,16 @@ var errNoAsset = errors.New("canvas: no such asset")
 const gotoScript = `<script>document.addEventListener('click',function(e){var a=e.target.closest&&e.target.closest('[data-goto],a[href^="#"]');if(!a)return;var t=a.getAttribute('data-goto')||a.getAttribute('href').slice(1);if(!t)return;e.preventDefault();window.__enowxGoto=t},true)</script>`
 
 // pageGoto is what a page says: the design a link clicked went to, "" for none,
-// its prototype's state, and which load it is.
+// its prototype's state, which load it is, and where its motion is.
 type pageGoto struct {
 	T, S string
 	L    int
+	M    *pageMotion
 }
 
 // takeGoto asks the page; it waits for it, so it runs off the main thread.
 func takeGoto(page Page) pageGoto {
-	v, err := page.Eval("(function(){var t=window.__enowxGoto||'';window.__enowxGoto='';return JSON.stringify({t:t,s:window.__enowxState||'',l:window.__enowxLoad||0})})()")
+	v, err := page.Eval("(function(){var t=window.__enowxGoto||'';window.__enowxGoto='';var m=window.enowx&&window.enowx.motion;return JSON.stringify({t:t,s:window.__enowxState||'',l:window.__enowxLoad||0,m:m?m.state():null})})()")
 	if err != nil {
 		return pageGoto{}
 	}
@@ -201,6 +203,7 @@ func (w *Web) pollGoto(c *ui.Context, done func(target string)) {
 			if got.S != "" {
 				w.state = got.S
 			}
+			w.setMotion(got.M)
 			if got.T != "" {
 				done(got.T)
 			}
@@ -228,12 +231,13 @@ func (w *Web) setDesign(on bool) {
 		return
 	}
 	page := w.page
-	code := "document.documentElement.classList.toggle('enowx-design'," + map[bool]string{true: "true", false: "false"}[on] + ");window.scrollTo(0,0)"
+	flag := map[bool]string{true: "true", false: "false"}[on]
+	code := "document.documentElement.classList.toggle('enowx-design'," + flag + ");window.scrollTo(0,0);if(window.enowx&&window.enowx.motion)window.enowx.motion.hold(" + flag + ")"
 	go func() { _, _ = page.Eval(code) }()
 }
 
 func (w *Web) setDoc(doc string) {
-	w.pending, w.wider = doc, 0
+	w.pending, w.wider, w.motion = doc, 0, nil
 	if w.page != nil {
 		w.page.LoadHTML(w.compose())
 	}
@@ -248,6 +252,9 @@ func (w *Web) compose() string {
 		seed = ""
 	}
 	doc := canvas.WithHead(w.pending, canvas.PrototypeSeed(seed))
+	if w.design {
+		doc = canvas.HoldMotion(doc)
+	}
 	w.loads++
 	mode := fmt.Sprintf("<script>window.__enowxLoad=%d;document.documentElement.classList.remove('enowx-design')</script>", w.loads)
 	if w.design {
@@ -282,7 +289,9 @@ func (w *Web) apply(c proto.Canvas, f proto.CanvasFrame, _ *proto.Canvas, ch pro
 		code = "(function(){var e=document.getElementById(" + js(ch.Element) + ");if(e)e.remove();return true})()"
 	case proto.CanvasOpHTMLPatch, proto.CanvasOpHTMLText:
 		outer, err := canvas.ElementHTML(f.HTML, ch.Element)
-		if err != nil || strings.Contains(outer, "assets/") {
+		// Scripts put in by outerHTML don't run, and a new animation has to reach
+		// the runtime: those take the page anew.
+		if err != nil || strings.Contains(outer, "assets/") || strings.Contains(outer, "<script") || strings.Contains(outer, "@keyframes") {
 			w.load(c, f)
 			return
 		}

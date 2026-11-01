@@ -171,11 +171,18 @@ func (v *View) deselect(o Options) {
 func (v *View) interactStage(c *ui.Context, o Options, width, height float32) {
 	area := ui.Box(c.Key("stage")).Grow(1).FillWidth().MinHeight(0).Background(theme.Sunken).Clip()
 	b := area.Bounds()
-	box := interactBox(b.W, b.H, width, height)
+	// A moving design keeps room for its controls from the start, so it doesn't
+	// shift once its page says it has motion.
+	room := float32(0)
+	if canvas.UsesMotion(v.frameOf().HTML) {
+		room = motionBarRoom
+	}
+	box := interactBox(b.W, b.H-room, width, height)
 	v.scale = box.Zoom
 	area.Children(func() {
 		if b.W > 0 {
 			o.Web.view(c.Key("web"), box.W, box.H, float64(box.Zoom)).Absolute().Left(box.X).Top(box.Y)
+			o.Web.motionBar(c, b.W, b.H)
 		}
 	})
 	o.Web.pollGoto(c, v.followLink)
