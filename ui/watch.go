@@ -254,7 +254,7 @@ func (a *App) watchEvent(w *hostWatch, ev proto.Event) {
 		old := w.status.sessions[i]
 		w.status.sessions[i] = info
 		a.goaRelay(w.host.Name, info) // GOA's worker there, maybe
-		a.soundFor(old, info, false)
+		a.soundFor(old, info, false, w.host.Name)
 		if old.State != proto.StateWaiting && info.State == proto.StateWaiting {
 			a.notify(a.sessionName(info) + " on " + w.host.Name + " needs input")
 		}

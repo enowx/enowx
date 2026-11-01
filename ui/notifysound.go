@@ -16,7 +16,8 @@ import (
 
 // Sounds the app plays when an agent finishes its turn, asks for input or
 // fails, on the host shown or one watched, and when an agent asks for
-// one: by the user's settings, kept with their synced data (core/notify)
+// one, each with a card saying what it is about (sessiontoast.go): by the
+// user's settings, kept with their synced data (core/notify)
 // on this device's daemon. Sounds close together play as one, the most
 // urgent of them.
 
@@ -146,6 +147,9 @@ func (a *App) notifyEvent(ev proto.Event, host string) {
 				return
 			}
 			a.queueSound(p.Kind)
+			if p.Kind != proto.NotifyChat {
+				a.toastAsked(p, host)
+			}
 			if p.Text != "" && !st.NoBanner {
 				a.banner("enowX", host, p.Text)
 			}
@@ -156,7 +160,7 @@ func (a *App) notifyEvent(ev proto.Event, host string) {
 // soundFor plays the sound of the change from old to info, a session of
 // the host shown (shown) or of one watched: its agent finished its turn,
 // asks for input, or ended in failure.
-func (a *App) soundFor(old, info proto.SessionInfo, shown bool) {
+func (a *App) soundFor(old, info proto.SessionInfo, shown bool, host string) {
 	kind := soundKind(old, info)
 	if kind == "" {
 		return
@@ -166,6 +170,7 @@ func (a *App) soundFor(old, info proto.SessionInfo, shown bool) {
 		return
 	}
 	a.queueSound(kind)
+	a.toastChange(kind, host, info)
 	a.updateBadge()
 }
 

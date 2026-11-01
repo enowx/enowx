@@ -3,6 +3,7 @@ package ui
 import (
 	"encoding/json"
 	"net"
+	"os"
 	"sync"
 	"testing"
 	"time"
@@ -95,7 +96,7 @@ func TestNotificationSounds(t *testing.T) {
 	change := func(info proto.SessionInfo) {
 		old := s
 		s = info
-		app.soundFor(old, info, true)
+		app.soundFor(old, info, true, "this Mac")
 	}
 	working := s
 	done := s
@@ -199,4 +200,103 @@ func TestRemoteAgentDoneSoundsOnce(t *testing.T) {
 	if got := snd.take(); len(got) != 1 {
 		t.Fatalf("an agent done on a server played %d sounds", len(got))
 	}
+}
+
+// A notification shows what it is about: its kind, session, host and a short
+// message, several stacked, each leaving on its own or kept while hovered; a
+// click opens the session, in a tab in GOD of Agents' mode.
+func TestNotificationsShowWhatTheyAreAbout(t *testing.T) {
+	catchSounds(t)
+	srv, err := daemon.NewServer(t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(srv.Close)
+	a1, b1 := net.Pipe()
+	go srv.ServeConn(a1)
+	cl, err := client.New(b1, func(proto.Event) {})
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { cl.Close() })
+	app := New(Options{})
+	posted := make(chan func(), 64)
+	app.onMain = func(fn func()) { posted <- fn }
+	app.client, app.host = cl, hosts.Host{ID: hosts.LocalID, Name: "this Mac"}
+	worker, err := cl.CreateSession(proto.SessionCreateParams{Name: "Fix the totals", Command: []string{"cat"}, Dir: t.TempDir(), Cols: 80, Rows: 24})
+	if err != nil {
+		t.Fatal(err)
+	}
+	worker.Agent = "claude"
+	app.sessions = []proto.SessionInfo{worker}
+	tt := ui.NewTester(func(c *ui.Context) {
+		c.SetTheme(theme.Window())
+		ui.Column(c).Fill().Background(theme.Background).TextColor(theme.Text).Children(func() { app.chatToastsView(c) })
+	}, 900, 700)
+
+	change := func(state string, exited bool, code int) {
+		old, info := worker, worker
+		old.State, info.State, info.Exited, info.ExitCode = proto.StateWorking, state, exited, code
+		app.soundFor(old, info, true, "this Mac")
+	}
+	change(proto.StateDone, false, 0)
+	tt.Frame()
+	for _, want := range []string{"Done", "Fix the totals", "this Mac", "It finished its turn"} {
+		if !tt.HasText(want) {
+			t.Fatalf("no %q: %q", want, tt.Texts())
+		}
+	}
+	change(proto.StateWaiting, false, 0)
+	change(proto.StateDone, true, 2)
+	app.toastAsked(proto.NotifySoundParams{Kind: proto.NotifyInput, Session: "gone", Text: "A worker needs you: git push"}, "enowxlabs")
+	tt.Frame()
+	for _, want := range []string{"Needs you", "Failed", "It ended with exit code 2", "enowxlabs", "A worker needs you: git push"} {
+		if !tt.HasText(want) {
+			t.Fatalf("stacked, no %q: %q", want, tt.Texts())
+		}
+	}
+	if os.Getenv("SHOTS") != "" {
+		for range 6 {
+			tt.Advance(100 * time.Millisecond)
+			tt.Frame()
+		}
+		shot(t, tt, "notification-cards.png")
+	}
+	// A newer one of the same kind replaces it; the most are kept, the
+	// oldest going first.
+	change(proto.StateDone, false, 0)
+	if n := len(app.sessionToasts); n != 4 {
+		t.Fatalf("%d cards", n)
+	}
+	for i := range 3 {
+		app.toastSession(proto.NotifyDone, "this Mac", "s"+string(rune('a'+i)), "another", "")
+	}
+	if n := len(app.sessionToasts); n != sessionToastMax {
+		t.Fatalf("%d cards, at most %d", n, sessionToastMax)
+	}
+	// Each leaves on its own, not before its time.
+	for _, card := range app.sessionToasts {
+		card.shown = time.Now().Add(-sessionToastLife - time.Second)
+	}
+	tt.Frame()
+	if len(app.sessionToasts) != 0 {
+		t.Fatalf("still shown: %d", len(app.sessionToasts))
+	}
+
+	// A click opens it: the session here, in a tab in GOA's mode.
+	app.toastSession(proto.NotifyDone, "this Mac", worker.ID, "Fix the totals", "")
+	app.openToast(app.sessionToasts[0])
+	if app.selected != worker.ID || len(app.sessionToasts) != 0 {
+		t.Fatalf("opened: selected %q, cards %d", app.selected, len(app.sessionToasts))
+	}
+	app.state.GOA, app.goa.host, app.goa.board.Session = true, hosts.LocalID, "goa"
+	app.toastSession(proto.NotifyDone, "this Mac", worker.ID, "Fix the totals", "")
+	app.openToast(app.sessionToasts[0])
+	if len(app.goa.tabs) != 1 || app.goa.tabs[0].id != worker.ID || app.goa.shown == "" || !app.goaOn() {
+		t.Fatalf("in GOA: tabs %+v shown %q", app.goa.tabs, app.goa.shown)
+	}
+	for app.goa.tabs[0].term == nil && app.goa.tabs[0].err == "" {
+		(<-posted)()
+	}
+	app.closeGOATabs()
 }

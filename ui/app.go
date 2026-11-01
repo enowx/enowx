@@ -59,10 +59,12 @@ type App struct {
 	client          *client.Client
 	gen             int
 	host            hosts.Host
-	connecting      string // progress while connecting; "" once connected
-	connErr         string // why the last connection failed
-	connFail        error  // the same, to tell what kind of failure it was
-	notice          string // a.status is news, not a problem, while it equals this
+	connecting      string          // progress while connecting; "" once connected
+	connErr         string          // why the last connection failed
+	connFail        error           // the same, to tell what kind of failure it was
+	notice          string          // a.status is news, not a problem, while it equals this
+	sessionToasts   []*sessionToast // what notifications are about (sessiontoast.go)
+	sessionToastKey int
 	trust           *trustPrompt
 	runAs           *runAsPrompt
 	menu            widget.ContextMenu
@@ -427,7 +429,7 @@ func (a *App) handleEvent(gen int, ev proto.Event) {
 			if i >= 0 {
 				a.alert(old, info)
 				a.markUnread(old, info)
-				a.soundFor(old, info, true)
+				a.soundFor(old, info, true, a.host.Name)
 			}
 		}
 	case proto.EventBrowserRequest:

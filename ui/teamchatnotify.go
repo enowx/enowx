@@ -105,10 +105,11 @@ func (a *App) chatToastsView(c *ui.Context) {
 	a.chatToasts = slices.DeleteFunc(a.chatToasts, func(t *chatToast) bool {
 		return !t.replying && !t.sending && now.Sub(t.shown) > chatToastLife
 	})
-	if len(a.chatToasts) == 0 {
+	if len(a.chatToasts) == 0 && len(a.sessionToasts) == 0 {
 		return
 	}
 	ui.Column(c.Key("chat-toasts")).Absolute().Top(52).Right(16).Width(360).Gap(8).TextColor(theme.Text).Children(func() {
+		a.sessionToastsView(c, now)
 		for _, t := range slices.Clone(a.chatToasts) {
 			a.chatToastCard(c.Key("toast:"+t.msg.ID), t, now)
 		}
