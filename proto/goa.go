@@ -79,6 +79,7 @@ const (
 	GOATaskWorking = "working"
 	GOATaskWaiting = "waiting" // its session asks something
 	GOATaskQueued  = "queued"  // its session is busy: delivered at its turn's end
+	GOATaskStalled = "stalled" // not moving: GOA was told how
 	// GOATaskTurnEnded: its agent finished a turn, which may be mid-work.
 	// GOA reads it and settles the task, or sends more.
 	GOATaskTurnEnded = "turn-ended"

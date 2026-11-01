@@ -257,6 +257,7 @@ func newServer(dir, hookBin string) (*Server, error) {
 	go s.watchGit(s.done)
 	go s.watchModels(s.done)
 	go s.watchPrompts(s.done)
+	go s.watchStalls(s.done)
 	go s.runSchedules(s.done)
 	go s.goBackLoop(s.done)
 	go s.watchLimitsLoop(s.done)

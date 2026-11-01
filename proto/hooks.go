@@ -45,6 +45,7 @@ const (
 	HookAnswered  = "permission.answer" // the user allowed (Allowed) or denied what the agent asked
 	HookCompact   = "compact"           // the agent is about to compact its context
 	HookError     = "error"             // its program ended with an error (Exit)
+	HookStalled   = "session.stalled"   // an open GOA task isn't moving
 	HookHibernate = "session.hibernate" // the daemon stopped the idle agent
 	HookWake      = "session.wake"      // a hibernated agent was continued
 	// Git: before a commit, push or merge (Op), refusable, from the agent
@@ -62,7 +63,7 @@ const (
 )
 
 // HookEvents are the events, in the order they're offered.
-var HookEvents = []string{HookSessionStart, HookPromptStart, HookWorking, HookToolBefore, HookToolAfter, HookPermission, HookAnswered, HookWaiting, HookCompact, HookTurnDone, HookFileChanged, HookGitBefore, HookCommit, HookPush, HookMerge, HookConflict, HookError, HookHibernate, HookWake, HookSessionEnd, HookPort, HookSync, HookNotify, HookSchedule, HookFallback}
+var HookEvents = []string{HookStalled, HookSessionStart, HookPromptStart, HookWorking, HookToolBefore, HookToolAfter, HookPermission, HookAnswered, HookWaiting, HookCompact, HookTurnDone, HookFileChanged, HookGitBefore, HookCommit, HookPush, HookMerge, HookConflict, HookError, HookHibernate, HookWake, HookSessionEnd, HookPort, HookSync, HookNotify, HookSchedule, HookFallback}
 
 // Hook actions: what a hook does.
 const (

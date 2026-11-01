@@ -154,7 +154,7 @@ func marshal(v any) string {
 // goes quiet, files changed, Git, and the host's own.
 var outsideEvents = []string{proto.HookSessionStart, proto.HookPromptStart, proto.HookWorking, proto.HookTurnDone, proto.HookFileChanged,
 	proto.HookCommit, proto.HookPush, proto.HookMerge, proto.HookConflict, proto.HookError, proto.HookHibernate, proto.HookWake,
-	proto.HookSessionEnd, proto.HookPort, proto.HookSync, proto.HookNotify, proto.HookSchedule, proto.HookFallback}
+	proto.HookSessionEnd, proto.HookStalled, proto.HookPort, proto.HookSync, proto.HookNotify, proto.HookSchedule, proto.HookFallback}
 
 // HookSupport is how agent id gets each event (proto.HookInAgent,
 // proto.HookOutside); an event missing it doesn't get.

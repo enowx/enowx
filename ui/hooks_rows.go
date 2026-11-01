@@ -41,6 +41,7 @@ var hookEventNames = map[string]string{
 	proto.HookNotify:       "Notification sent",
 	proto.HookSchedule:     "On a schedule",
 	proto.HookFallback:     "Account switched at its limit",
+	proto.HookStalled:      "A GOD of Agents task isn't moving",
 }
 
 // hookActionNames name the actions.

@@ -199,3 +199,11 @@ func TitleOf(prompt string) string {
 	}
 	return line
 }
+
+// Later is the later of two times.
+func Later(a, b time.Time) time.Time {
+	if a.After(b) {
+		return a
+	}
+	return b
+}
