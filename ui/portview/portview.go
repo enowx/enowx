@@ -100,25 +100,18 @@ func (v *View) follow(o Options) {
 	}()
 }
 
-// Draw shows the ports, each with what opens it.
+// Draw shows the ports, each with what opens it, and how they behave.
 func (v *View) Draw(c *ui.Context, o Options) {
 	v.follow(o)
-	ui.Column(c).Grow(1).FillWidth().MinHeight(0).Children(func() {
-		ui.Row(c).Height(42).Shrink(0).FillWidth().Padding(0, 10, 0, 14).Gap(8).
-			BorderWidth(0, 0, 1, 0).BorderColor(theme.Border).Children(func() {
+	ui.Column(c).Grow(1).FillWidth().MinHeight(0).Padding(0, theme.S3, theme.S3, theme.S3).Gap(theme.S2).Children(func() {
+		widget.ToolHeader(c, func() {
 			where := "Listening on this machine"
 			if o.Client != nil && o.Client.Remote() {
 				where = "Listening on " + o.Host
 			}
-			ui.Text(c, where).FontSize(theme.TextLabel).TextColor(theme.Muted).SingleLine().Shrink(1)
-			ui.Spacer(c)
-			if o.Capture != nil {
-				on := o.Captured
-				if widget.Switch(c, &on, "Through Traffic") {
-					o.Capture(on)
-				}
-				ui.Text(c, "Through Traffic").FontSize(theme.TextLabel).TextColor(theme.Muted).Tooltip("What opens or previews these ports goes through Traffic's interceptor, recorded")
-			}
+			ui.Row(c).Grow(1).MinWidth(0).Children(func() {
+				widget.Running(c, where, widget.RunStyle{Weight: 500})
+			})
 			if widget.IconButton(c, icon.Sync, "Look again", false).Clicked() {
 				select {
 				case v.refresh <- struct{}{}:
@@ -128,84 +121,89 @@ func (v *View) Draw(c *ui.Context, o Options) {
 		})
 		switch {
 		case v.err != "":
-			note(c, v.err, theme.Error)
+			widget.Notice(c, nil, theme.Del, v.err, "", nil)
+			ui.Spacer(c)
 		case !v.loaded:
-			note(c, "Looking for ports…", theme.Muted)
+			note(c, "Looking for ports…")
 		case !v.ports.Supported:
-			note(c, "This host can't tell which ports a session listens on.", theme.Muted)
+			note(c, "This host can't tell which ports a session listens on.")
 		case len(v.ports.Ports) == 0:
-			note(c, "No ports open. A dev server the session starts shows here.", theme.Muted)
+			note(c, "No ports open. A dev server the session starts shows here.")
 		default:
 			ui.Scroll(c).Grow(1).FillWidth().MinHeight(0).Children(func() {
-				ui.Column(c).FillWidth().Padding(6, 0).Children(func() {
+				ui.Column(c).FillWidth().Gap(2).Children(func() {
 					for _, p := range v.ports.Ports {
 						v.portRow(c.Key(strconv.Itoa(p.Port)+"/"+strconv.Itoa(p.PID)), o, p)
 					}
 				})
 			})
 		}
+		if o.Capture != nil {
+			on := o.Captured
+			if widget.ToggleRow(c, "Through Traffic", "What opens or previews these ports is recorded in Traffic.", &on) {
+				o.Capture(on)
+			}
+		}
 		if o.SetOffers != nil {
-			ui.Row(c).FillWidth().Shrink(0).Padding(8, 12, 8, 14).Gap(8).AlignItems(ui.Center).
-				BorderWidth(1, 0, 0, 0).BorderColor(theme.Border).Children(func() {
-				on := o.Offers
-				if widget.Switch(c, &on, "Pop up when a port opens") {
-					o.SetOffers(on)
-				}
-				ui.Text(c, "Pop up when a session opens a port").FontSize(theme.TextLabel).TextColor(theme.TextSoft).Grow(1).Shrink(1)
-			})
+			on := o.Offers
+			if widget.ToggleRow(c, "Pop up when a session opens a port", "", &on) {
+				o.SetOffers(on)
+			}
 		}
 	})
 }
 
-func note(c *ui.Context, text string, col ui.Color) {
-	ui.Column(c).Grow(1).FillWidth().Center().Padding(24).Children(func() {
-		ui.Text(c, text).FontSize(theme.TextUI).TextColor(col).TextAlign(ui.Center)
+func note(c *ui.Context, text string) {
+	ui.Column(c).Grow(1).FillWidth().Center().Padding(theme.S5).Children(func() {
+		ui.Text(c, text).FontSize(theme.TextUI).TextColor(theme.TextSoft).TextAlign(ui.Center)
 	})
 }
 
-// portRow is a port: the number, who listens, where, and what opens it.
+// portRow is a port: the number, who listens and who can reach it, which run
+// when too long, then what opens it.
 func (v *View) portRow(c *ui.Context, o Options, p proto.Port) {
 	remote := o.Client != nil && o.Client.Remote()
 	local, forwarded := "", false
 	if remote {
 		local, forwarded = o.Forwarded(p.Port)
 	}
-	ui.Row(c).FillWidth().Padding(8, 12, 8, 14).Gap(10).BorderWidth(0, 0, 1, 0).BorderColor(theme.Border).Children(func() {
-		ui.Column(c).Grow(1).MinWidth(0).Gap(2).Children(func() {
-			ui.Row(c).Gap(8).Children(func() {
-				ui.Text(c, ":"+strconv.Itoa(p.Port)).Font(theme.MonoFont).FontSize(theme.TextUI).SingleLine()
-				reach, col := "localhost only", theme.Muted
-				if !loopback(p.Addr) {
-					reach, col = "all addresses", theme.Warning
-				}
-				widget.Tag(c, reach, col)
-			})
+	ui.Row(c).FillWidth().MinHeight(36).Padding(theme.S1, theme.S1, theme.S1, theme.S3).Gap(theme.S1).Children(func() {
+		ui.Column(c).Grow(1).MinWidth(0).Children(func() {
+			widget.Running(c, ":"+strconv.Itoa(p.Port), widget.RunStyle{Mono: true})
 			who := fmt.Sprintf("%s · pid %d", p.Process, p.PID)
 			if forwarded {
 				who += " · forwarded to " + local
 			}
-			ui.Text(c, who).FontSize(theme.TextLabel).TextColor(theme.Muted).SingleLine().Shrink(1)
+			ui.Row(c).FillWidth().Children(func() {
+				widget.Running(c.Key("who"), who+" · ", widget.RunStyle{Size: theme.TextLabel, Color: theme.TextSoft})
+				if loopback(p.Addr) {
+					ui.Text(c, "only this host").FontSize(theme.TextLabel).TextColor(theme.TextSoft).SingleLine().Shrink(0)
+				} else {
+					ui.Text(c, "every address").FontSize(theme.TextLabel).TextColor(theme.Warning).SingleLine().Shrink(0).
+						Tooltip("Other machines that reach this host can reach this port")
+				}
+			})
 		})
 		if o.OpenWindow != nil && p.Process == "display" && widget.IconButton(c, icon.AppWindow, "Open the app in a window", false).Clicked() {
 			o.OpenWindow(p)
 		}
-		if o.Preview != nil && widget.IconButton(c, icon.Browser, "Preview", false).Clicked() {
+		if o.Preview != nil && widget.IconButton(c, icon.Globe, "Preview", false).Clicked() {
 			o.Preview(p)
 		}
 		switch {
 		case !remote:
-			if widget.Button(c, widget.Secondary, icon.Globe, "Open", "").Clicked() {
+			if widget.Button(c, widget.Secondary, nil, "Open", "").Clicked() {
 				o.OpenURL("http://localhost:" + strconv.Itoa(p.Port))
 			}
 		case forwarded:
 			if widget.IconButton(c, icon.Stop, "Stop forwarding", false).Clicked() {
 				o.Unforward(p.Port)
 			}
-			if widget.Button(c, widget.Secondary, icon.Globe, "Open", "").Clicked() {
+			if widget.Button(c, widget.Secondary, nil, "Open", "").Clicked() {
 				o.OpenURL("http://" + local)
 			}
 		default:
-			if widget.Button(c, widget.Secondary, icon.ArrowUp, "Forward", "").Clicked() {
+			if widget.Button(c, widget.Secondary, nil, "Forward", "").Clicked() {
 				o.Forward(p)
 			}
 		}
