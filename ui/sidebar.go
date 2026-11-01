@@ -315,13 +315,13 @@ func (a *App) removeProjectDialog(c *ui.Context) {
 	if running > 0 {
 		msg := fmt.Sprintf("%d %s still running in it. Delete %s first.", running,
 			textfmt.Plural(running, "session is", "sessions are"), textfmt.Plural(running, "it", "them"))
-		if ui.AlertDialog(c, &open, "Can't remove “"+p.Name+"” yet", msg, "OK") != -1 || !open {
+		if widget.AlertDialog(c, &open, "Can't remove “"+p.Name+"” yet", msg, "OK") != -1 || !open {
 			a.removing = nil
 		}
 		return
 	}
 	msg := "The folder and its worktrees stay on disk. Open it again to bring it back."
-	switch ui.AlertDialog(c, &open, "Remove “"+p.Name+"” from enowX?", msg, "Cancel", "Remove") {
+	switch widget.AlertDialog(c, &open, "Remove “"+p.Name+"” from enowX?", msg, "Cancel", "Remove") {
 	case 1:
 		a.removeProject(p)
 		a.removing = nil

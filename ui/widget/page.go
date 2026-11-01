@@ -86,11 +86,11 @@ type Fig struct {
 
 // Figs is a row of figures on one well, divided by hairlines.
 func Figs(c *ui.Context, figs []Fig) {
-	ui.Row(c.Key("figs")).FillWidth().Shrink(0).Radius(theme.RadiusCard).Clip().Background(ui.RGBA(20, 22, 32, 0.34)).AlignItems(ui.Stretch).Children(func() {
+	ui.Row(c.Key("figs")).FillWidth().Shrink(0).Radius(theme.RadiusCard).Clip().Background(figGround()).AlignItems(ui.Stretch).Children(func() {
 		for i, f := range figs {
 			cell := ui.Column(c.Key(f.Label)).Grow(1).Basis(0).MinWidth(0).Padding(theme.S3, theme.S4)
 			if i > 0 {
-				cell.BorderWidth(0, 0, 0, 0.5).BorderColor(ui.RGBA(255, 255, 255, 0.14))
+				cell.BorderWidth(0, 0, 0, 0.5).BorderColor(theme.Fade(theme.Border, 0.14))
 			}
 			cell.Children(func() { figFace(c, f) })
 		}
@@ -101,12 +101,12 @@ func Figs(c *ui.Context, figs []Fig) {
 // or -1.
 func FigsNav(c *ui.Context, figs []Fig, current int) int {
 	clicked := -1
-	ui.Row(c.Key("figs")).FillWidth().Shrink(0).Radius(theme.RadiusCard).Clip().Background(ui.RGBA(20, 22, 32, 0.34)).AlignItems(ui.Stretch).Children(func() {
+	ui.Row(c.Key("figs")).FillWidth().Shrink(0).Radius(theme.RadiusCard).Clip().Background(figGround()).AlignItems(ui.Stretch).Children(func() {
 		for i, f := range figs {
 			b := ui.ButtonBase(c.Key(f.Label)).Grow(1).Basis(0).MinWidth(0).Padding(theme.S3, theme.S4).Justify(ui.Start).AlignItems(ui.Start).
 				Label(f.Label).Cursor(ui.CursorPointer)
 			if i > 0 {
-				b.BorderWidth(0, 0, 0, 0.5).BorderColor(ui.RGBA(255, 255, 255, 0.14))
+				b.BorderWidth(0, 0, 0, 0.5).BorderColor(theme.Fade(theme.Border, 0.14))
 			}
 			switch {
 			case i == current:
@@ -123,6 +123,14 @@ func FigsNav(c *ui.Context, figs []Fig, current int) int {
 		}
 	})
 	return clicked
+}
+
+// figGround is the well figures sit in, lighter than an input's.
+func figGround() ui.Color {
+	if theme.Current().Light {
+		return theme.Sunken
+	}
+	return ui.RGBA(20, 22, 32, 0.34)
 }
 
 func figFace(c *ui.Context, f Fig) {

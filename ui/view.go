@@ -248,7 +248,7 @@ func (a *App) deleteDialog(c *ui.Context) {
 	if !s.Exited {
 		msg = "The agent stops. " + msg
 	}
-	switch ui.AlertDialog(c, &open, "Delete “"+a.sessionName(s)+"”?", msg, "Cancel", "Delete") {
+	switch widget.AlertDialog(c, &open, "Delete “"+a.sessionName(s)+"”?", msg, "Cancel", "Delete") {
 	case 1:
 		a.killSession(s.ID)
 		a.deleting = nil

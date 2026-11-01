@@ -120,7 +120,7 @@ func Window() *ui.Theme {
 	if current.Light {
 		t = *ui.LightTheme()
 	}
-	t.Background = Background
+	t.Background = Solid(Dialog) // what the toolkit's own panels fill with
 	t.Surface = Selected
 	t.SurfaceHover = Hover
 	t.SurfacePressed = Selected

@@ -432,7 +432,7 @@ func (v *View) deleteDialog(c *ui.Context, o Options) {
 		msg = "The pages under it go too. It can't be brought back."
 	}
 	open := true
-	switch ui.AlertDialog(c, &open, "Delete “"+titleOf(n)+"”?", msg, "Cancel", "Delete") {
+	switch widget.AlertDialog(c, &open, "Delete “"+titleOf(n)+"”?", msg, "Cancel", "Delete") {
 	case 1:
 		if v.page != nil && v.page.id == n.ID {
 			v.page, v.selected = nil, ""

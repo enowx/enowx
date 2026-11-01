@@ -380,7 +380,7 @@ func (v *View) mergeDialog(c *ui.Context, o Options) {
 	st := v.status
 	msg := fmt.Sprintf("Merges the %d %s of %s into %s in the project folder. A merge that conflicts is undone.",
 		st.Ahead, textfmt.Plural(st.Ahead, "commit", "commits"), st.Branch, st.Base)
-	switch ui.AlertDialog(c, &v.merging, "Merge "+st.Branch+" into "+st.Base+"?", msg, "Cancel", "Merge") {
+	switch widget.AlertDialog(c, &v.merging, "Merge "+st.Branch+" into "+st.Base+"?", msg, "Cancel", "Merge") {
 	case 1:
 		v.merging = false
 		v.run(o, "Merging", func(cl *client.Client) error {

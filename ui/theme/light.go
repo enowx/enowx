@@ -22,7 +22,7 @@ func LookupAppearance(id string, accent ui.Color, light bool) Palette {
 	p := Palette{
 		ID: dark.ID, Name: dark.Name, Light: true,
 		Ground: ui.Hex("#E9EDF5"), Wall: wall,
-		Background: ui.Hex("#F4F6F9"), Panel: white(0.62), Raised: white(0.62), Sunken: black(0.06),
+		Background: ui.Hex("#F4F6F9"), Panel: white(0.62), Raised: black(0.035), Sunken: black(0.06),
 		Frame: white(0.88), Popover: ui.RGBA(252, 252, 254, 0.98),
 		Hover: black(0.05), Selected: black(0.1), Dialog: ui.RGBA(252, 252, 254, 0.98),
 		Border: black(0.12), BorderStrong: ui.Hex("#778497"),

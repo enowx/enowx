@@ -3,6 +3,7 @@ package ui
 import (
 	"context"
 	"fmt"
+	"github.com/enowx/enowx/ui/widget"
 	"net"
 	"os"
 	"strings"
@@ -96,7 +97,7 @@ func (a *App) deleteServerDialog(c *ui.Context) {
 	p, _ := vps.Find(h.Provider)
 	open := true
 	msg := "Its disk and everything on it go for good, sessions included, and " + p.Name + " stops billing for it. enowX removes it from your hosts."
-	switch ui.AlertDialog(c, &open, "Delete "+h.Name+" at "+p.Name+"?", msg, "Cancel", "Delete the server") {
+	switch widget.AlertDialog(c, &open, "Delete "+h.Name+" at "+p.Name+"?", msg, "Cancel", "Delete the server") {
 	case 1:
 		a.deleteServer(*h)
 		a.deletingServer = nil

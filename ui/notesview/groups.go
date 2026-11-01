@@ -298,7 +298,7 @@ func (v *View) deleteGroupDialog(c *ui.Context, o Options) {
 		msg = "Its " + strconv.Itoa(n) + " pages stay, in no group."
 	}
 	open := true
-	switch ui.AlertDialog(c, &open, "Delete the group “"+g.Name+"”?", msg, "Cancel", "Delete group") {
+	switch widget.AlertDialog(c, &open, "Delete the group “"+g.Name+"”?", msg, "Cancel", "Delete group") {
 	case 1:
 		if v.groupFilter == g.Name {
 			v.groupFilter = ""

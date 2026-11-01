@@ -1,6 +1,9 @@
 package ui
 
-import "github.com/egoist/mygo/ui"
+import (
+	"github.com/egoist/mygo/ui"
+	"github.com/enowx/enowx/ui/widget"
+)
 
 // A destructive action the user just asked for (signing out, removing someone,
 // leaving) asks first: confirm sets what to ask, confirmDialog asks it over
@@ -22,7 +25,7 @@ func (a *App) confirmDialog(c *ui.Context) {
 		return
 	}
 	open := true
-	switch ui.AlertDialog(c, &open, q.title, q.msg, "Cancel", q.action) {
+	switch widget.AlertDialog(c, &open, q.title, q.msg, "Cancel", q.action) {
 	case 1:
 		a.confirming = nil
 		q.do()
