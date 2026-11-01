@@ -35,6 +35,7 @@ func init() {
 	adapters["openclaude"] = openClaude
 	adapters["continue"] = continueCLI
 	adapters["pi"] = pi
+	adapters["crush"] = crush
 }
 
 // Caps most agents with a list of models have.

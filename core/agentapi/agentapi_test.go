@@ -20,7 +20,7 @@ var userFiles = map[string]string{
 	".factory/settings.json":         "{\"customModels\": [{\"model\": \"theirs\", \"displayName\": \"Theirs\"}]}\n",
 	".config/goose/config.yaml":      "GOOSE_MODE: auto\nextensions:\n  dev:\n    enabled: true\n",
 	".aider.conf.yml":                "dark-mode: true\n",
-	".kimi/config.toml":              "theme = \"dark\"\n\n[providers.kimi]\ntype = \"kimi\"\n",
+	".kimi-code/config.toml":         "theme = \"dark\"\n\n[providers.kimi]\ntype = \"kimi\"\n",
 	".vibe/config.toml":              "theme = \"x\"\n\n[[providers]]\nname = \"mistral\"\napi_base = \"https://api.mistral.ai/v1\"\n",
 	".pi/agent/settings.json":        "{\"theme\": \"light\"}\n",
 }
@@ -113,6 +113,36 @@ func slicesContains(list []string, s string) bool {
 		}
 	}
 	return false
+}
+
+// Kimi's settings are in ~/.kimi-code now; what enowX wrote in ~/.kimi before
+// is still found, and taken out, leaving the user's own.
+func TestKimiFindsWhatWasWrittenInItsOldFolder(t *testing.T) {
+	home := t.TempDir()
+	old := filepath.Join(home, ".kimi", "config.toml")
+	os.MkdirAll(filepath.Dir(old), 0o700)
+	os.WriteFile(old, []byte("theme = \"dark\"\ndefault_model = \"enowx-m\"\n\n[providers.enowx]\ntype = \"openai_legacy\"\nbase_url = \"https://gw.example.com/v1\"\napi_key = \"fake-kimi\"\n\n[models.enowx-m]\nprovider = \"enowx\"\nmodel = \"m\"\nmax_context_size = 131072\n"), 0o600)
+	got, err := Of(home, "kimi")
+	if err != nil || got.Current == nil || got.Current.Protocol != OpenAI || got.Current.Model != "m" || got.Current.APIKey != "fake-kimi" {
+		t.Fatalf("read %+v, %v", got.Current, err)
+	}
+	if err := Clear(home, "kimi"); err != nil {
+		t.Fatal(err)
+	}
+	data, _ := os.ReadFile(old)
+	if strings.Contains(string(data), "fake-kimi") || !strings.Contains(string(data), "dark") {
+		t.Fatalf("cleared:\n%s", data)
+	}
+	if _, err := os.Stat(filepath.Join(home, kimiFile)); err == nil {
+		t.Error("clearing made a config in its new folder")
+	}
+	if err := Set(home, "kimi", API{BaseURL: "https://gw.example.com/v1", APIKey: "fake-kimi", Model: "m"}); err != nil {
+		t.Fatal(err)
+	}
+	data, _ = os.ReadFile(filepath.Join(home, kimiFile))
+	if !strings.Contains(string(data), `type = "openai"`) {
+		t.Fatalf("written:\n%s", data)
+	}
 }
 
 func TestSessionsGetTheKeysOfAgentsThatReadThemFromTheEnvironment(t *testing.T) {

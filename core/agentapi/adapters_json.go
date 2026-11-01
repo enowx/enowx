@@ -243,10 +243,9 @@ func sortModels(api *API) {
 const qwenKeyVar = "ENOWX_QWEN_API_KEY"
 
 var qwenCode = adapter{
-	protocols: []string{OpenAI, OpenAIResponses, Anthropic},
+	// What its sessions take (qwenSession): one model, by its variables.
+	protocols: []string{OpenAI, Anthropic},
 	files:     []string{".qwen/settings.json"},
-	small:     true,
-	caps:      withEfforts(listCaps, "model", "low", "medium", "high", "xhigh", "max"),
 	note:      "It needs the model's name.",
 	read: func(home string) (API, bool, error) {
 		const f = ".qwen/settings.json"

@@ -88,49 +88,37 @@ var codex = adapter{
 }
 
 // Kimi: a provider of its config, a model table for each model, with its
-// context and images, the default's its default.
+// context and images, the default's its default. Its config moved to
+// ~/.kimi-code: what enowX wrote in ~/.kimi before is still found, to be
+// taken out.
+const (
+	kimiFile    = ".kimi-code/config.toml"
+	kimiOldFile = ".kimi/config.toml"
+)
+
 var kimi = adapter{
-	protocols: []string{OpenAI, OpenAIResponses, Anthropic, Gemini},
-	files:     []string{".kimi/config.toml"},
-	caps:      Caps{Multi: true, Vision: true, Context: "model"},
-	note:      "It needs the model's name. Each model's context window is required: 131072 when not given.",
+	// What its sessions take (kimiSession): one model, by two protocols.
+	protocols: []string{OpenAI, Anthropic},
+	files:     []string{kimiFile, kimiOldFile},
+	caps:      Caps{Vision: true, Context: "model"},
+	note:      "It needs the model's name and a key.",
 	read: func(home string) (API, bool, error) {
-		data, err := readFile(home, ".kimi/config.toml")
-		if err != nil {
-			return API{}, false, err
-		}
-		text := string(data)
-		p := tomlTable(text, "providers."+ourName)
-		if p == nil {
-			return API{}, false, nil
-		}
-		api := API{BaseURL: p["base_url"], APIKey: p["api_key"]}
-		for proto, typ := range kimiTypes {
-			if typ == p["type"] {
-				api.Protocol = proto
+		for _, file := range []string{kimiFile, kimiOldFile} {
+			data, err := readFile(home, file)
+			if err != nil {
+				return API{}, false, err
+			}
+			if api, ok := kimiRead(string(data)); ok {
+				return api, true, nil
 			}
 		}
-		def := tomlTop(text, "default_model")
-		for _, name := range tomlTableNames(text, "models."+ourName+"-") {
-			t := tomlTable(text, name)
-			ctx, _ := strconv.Atoi(t["max_context_size"])
-			m := Model{ID: t["model"], Context: ctx, Vision: strings.Contains(tomlRawValue(text, name, "capabilities"), `"image_in"`)}
-			if m.Context == 131072 {
-				m.Context = 0 // enowX's stand-in
-			}
-			if strings.TrimPrefix(name, "models.") == def {
-				api.Model = m.ID
-			}
-			api.Models = append(api.Models, m)
-		}
-		sortModels(&api)
-		return api, true, nil
+		return API{}, false, nil
 	},
 	write: func(home string, api API) error {
 		if api.Model == "" {
 			return fmt.Errorf("agentapi: Kimi needs the model's name")
 		}
-		data, err := readFile(home, ".kimi/config.toml")
+		data, err := readFile(home, kimiFile)
 		if err != nil {
 			return err
 		}
@@ -144,23 +132,66 @@ var kimi = adapter{
 			}
 			text = tomlSetTable(text, "models."+ourName+"-"+slug(m.ID), body)
 		}
-		return writeFile(home, ".kimi/config.toml", []byte(text))
+		return writeFile(home, kimiFile, []byte(text))
 	},
 	clear: func(home string) error {
-		data, err := readFile(home, ".kimi/config.toml")
-		if err != nil {
-			return err
+		for _, file := range []string{kimiFile, kimiOldFile} {
+			data, err := readFile(home, file)
+			if err != nil {
+				return err
+			}
+			text := string(data)
+			if tomlTable(text, "providers."+ourName) == nil {
+				continue // nothing of enowX's: a file that isn't there stays so
+			}
+			if strings.HasPrefix(tomlTop(text, "default_model"), ourName+"-") {
+				text = tomlSetTop(text, [][2]string{{"default_model", ""}})
+			}
+			text = tomlRemoveTables(tomlSetTable(text, "providers."+ourName, ""), "models."+ourName+"-")
+			if err := writeFile(home, file, []byte(text)); err != nil {
+				return err
+			}
 		}
-		text := string(data)
-		if strings.HasPrefix(tomlTop(text, "default_model"), ourName+"-") {
-			text = tomlSetTop(text, [][2]string{{"default_model", ""}})
-		}
-		text = tomlRemoveTables(tomlSetTable(text, "providers."+ourName, ""), "models."+ourName+"-")
-		return writeFile(home, ".kimi/config.toml", []byte(text))
+		return nil
 	},
 }
 
-var kimiTypes = map[string]string{OpenAI: "openai_legacy", OpenAIResponses: "openai_responses", Anthropic: "anthropic", Gemini: "gemini"}
+// kimiRead is the API a Kimi config holds of enowX's, ok false for none.
+func kimiRead(text string) (API, bool) {
+	p := tomlTable(text, "providers."+ourName)
+	if p == nil {
+		return API{}, false
+	}
+	api := API{BaseURL: p["base_url"], APIKey: p["api_key"]}
+	for _, types := range []map[string]string{kimiTypes, kimiOldTypes} {
+		for proto, typ := range types {
+			if typ == p["type"] {
+				api.Protocol = proto
+			}
+		}
+	}
+	def := tomlTop(text, "default_model")
+	for _, name := range tomlTableNames(text, "models."+ourName+"-") {
+		t := tomlTable(text, name)
+		ctx, _ := strconv.Atoi(t["max_context_size"])
+		m := Model{ID: t["model"], Context: ctx, Vision: strings.Contains(tomlRawValue(text, name, "capabilities"), `"image_in"`)}
+		if m.Context == 131072 {
+			m.Context = 0 // enowX's stand-in
+		}
+		if strings.TrimPrefix(name, "models.") == def {
+			api.Model = m.ID
+		}
+		api.Models = append(api.Models, m)
+	}
+	sortModels(&api)
+	return api, true
+}
+
+var (
+	kimiTypes = map[string]string{OpenAI: "openai", OpenAIResponses: "openai_responses", Anthropic: "anthropic", Gemini: "google-genai"}
+	// kimiOldTypes are the names enowX wrote in ~/.kimi.
+	kimiOldTypes = map[string]string{OpenAI: "openai_legacy", Gemini: "gemini"}
+)
 
 // Mistral Vibe: a provider of its config, a model for each model (alias
 // "enowx-<model>") with its images, limits and thinking, the default's
@@ -270,8 +301,9 @@ const gooseProvider = ".config/goose/custom_providers/enowx.json"
 var goose = adapter{
 	protocols: []string{OpenAI, Anthropic},
 	files:     []string{".config/goose/config.yaml", gooseProvider, envFile("goose")},
-	caps:      withEfforts(Caps{Multi: true, Vision: true, Context: "model", Output: "global"}, "global", "off", "low", "medium", "high", "max"),
-	note:      "It needs the model's name. Its key reaches the sessions enowX starts.",
+	// What its sessions take (gooseSession): one model, by its variables.
+	caps: Caps{Context: "global", Output: "global"},
+	note: "It needs the model's name.",
 	read: func(home string) (API, bool, error) {
 		data, err := readFile(home, ".config/goose/config.yaml")
 		if err != nil || yamlTop(string(data), "GOOSE_PROVIDER") != ourName {

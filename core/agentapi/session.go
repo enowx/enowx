@@ -33,11 +33,17 @@ var sessionAdapters = map[string]sessionFunc{
 	"claude":      claudeSession,
 	"codex":       codexSession,
 	"opencode":    openCodeSession,
-	"copilot":     envSession(copilot),
+	"copilot":     copilotSession,
 	"openclaude":  envSession(openClaude),
-	"antigravity": envSession(antigravity),
+	"antigravity": antigravitySession,
 	"gemini":      geminiSession,
 	"aider":       aiderSession,
+	"kilo":        kiloSession,
+	"qwen-code":   qwenSession,
+	"kimi":        kimiSession,
+	"continue":    continueSession,
+	"crush":       crushSession,
+	"goose":       gooseSession,
 }
 
 // PerSession says agent id (a preset) can take an API per session.
@@ -57,6 +63,11 @@ func Prepare(id string, api API) (API, error) {
 	api.Model, api.SmallModel = strings.TrimSpace(api.Model), strings.TrimSpace(api.SmallModel)
 	if api.BaseURL == "" || !(strings.HasPrefix(api.BaseURL, "http://") || strings.HasPrefix(api.BaseURL, "https://")) {
 		return API{}, errors.New("agentapi: the API's address is an http:// or https:// URL")
+	}
+	if a.checkURL != nil {
+		if err := a.checkURL(api.BaseURL); err != nil {
+			return API{}, fmt.Errorf("agentapi: %s: %w", id, err)
+		}
 	}
 	if api.Protocol == "" {
 		api.Protocol = a.protocols[0]
@@ -199,15 +210,11 @@ const openCodeKeyVar = "ENOWX_OPENCODE_API_KEY"
 // openCodeSession: a config of the session's own, which OpenCode merges
 // over the user's (OPENCODE_CONFIG), its key named from the environment.
 func openCodeSession(api API, dir string) (Launch, error) {
-	if err := os.MkdirAll(dir, 0o700); err != nil {
+	path, err := sessionConfig("opencode", "{env:"+openCodeKeyVar+"}", api, dir)
+	if err != nil {
 		return Launch{}, err
 	}
-	keyed := api
-	keyed.APIKey = "{env:" + openCodeKeyVar + "}"
-	if err := adapters["opencode"].write(dir, keyed); err != nil {
-		return Launch{}, err
-	}
-	return Launch{Env: kv([2]string{"OPENCODE_CONFIG", filepath.Join(dir, adapters["opencode"].files[0])}, [2]string{openCodeKeyVar, api.APIKey})}, nil
+	return Launch{Env: kv([2]string{"OPENCODE_CONFIG", path}, [2]string{openCodeKeyVar, api.APIKey})}, nil
 }
 
 // envSession is an agent that takes its API from the environment only.
@@ -218,6 +225,30 @@ func envSession(a adapter) sessionFunc {
 		}
 		return Launch{Env: kv(a.env(api)...)}, nil
 	}
+}
+
+// copilotSession: its variables, and an empty providers file of the session's
+// own: the user's providers.json, when it lists anything, wins over them.
+// The key can't go in that file: it takes $VAR as literal text.
+func copilotSession(api API, dir string) (Launch, error) {
+	if err := os.MkdirAll(dir, 0o700); err != nil {
+		return Launch{}, err
+	}
+	path := filepath.Join(dir, "copilot-providers.json")
+	if err := os.WriteFile(path, []byte(`{"providers":[],"models":[]}`+"\n"), 0o600); err != nil {
+		return Launch{}, err
+	}
+	return Launch{Env: append(kv(copilot.env(api)...), "COPILOT_PROVIDERS_CONFIG="+path)}, nil
+}
+
+// antigravitySession: the variables of its API, and the model by its
+// --model, when one is named.
+func antigravitySession(api API, _ string) (Launch, error) {
+	l := Launch{Env: kv(antigravity.env(api)...)}
+	if api.Model != "" {
+		l.Args = []string{"--model", api.Model}
+	}
+	return l, nil
 }
 
 // geminiSession: the variables Gemini CLI reads its key and address
