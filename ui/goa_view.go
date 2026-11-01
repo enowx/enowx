@@ -76,6 +76,9 @@ func (a *App) goaNav(c *ui.Context) {
 		if n := a.goaNeedsYou(); n > 0 {
 			widget.Tag(c, strconv.Itoa(n)+" "+textfmt.Plural(n, "task needs you", "tasks need you"), theme.Warning)
 		}
+		if widget.GhostButton(c, "Rules").Tooltip("What GOD of Agents follows, written by you or with AI").Clicked() {
+			a.openGOARules()
+		}
 		if widget.GhostButton(c, "Leave").Tooltip("Back to the projects and their sessions; GOD of Agents keeps running").Clicked() {
 			a.confirmLeaveGOA(nil)
 		}

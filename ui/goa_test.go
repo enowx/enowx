@@ -131,6 +131,21 @@ func TestGOAMode(t *testing.T) {
 	if app.page != "" {
 		t.Fatalf("back to GOA: page %q", app.page)
 	}
+	// Its rules: written in their dialog from the strip, saved on the host.
+	click("Rules")
+	frames("the rules dialog", func() bool {
+		return app.goa.rules != nil && app.goa.rules.loaded && tt.HasText("Rules of GOD of Agents") && tt.HasText("Write with AI")
+	})
+	app.goa.rules.text = "- Ask me before merging"
+	tt.Frame()
+	shot(t, tt, "goa-rules.png")
+	click("Save")
+	frames("the rules saved", func() bool { return app.goa.rules == nil })
+	var rules proto.GOARules
+	if err := cl.Call(proto.MethodGOARules, nil, &rules); err != nil || rules.Rules != "- Ask me before merging" {
+		t.Fatalf("the rules kept: %+v %v", rules, err)
+	}
+
 	click("Leave")
 	if !app.goaOn() || app.confirming == nil {
 		t.Fatal("left GOA mode without asking first")

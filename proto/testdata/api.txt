@@ -1088,6 +1088,7 @@ field GOARememberParams.kind string
 field GOARememberParams.session string
 field GOARememberParams.text string
 field GOARevertParams.id string
+field GOARules.rules string
 field GOATask.agent string
 field GOATask.asks string
 field GOATask.config string
@@ -1731,6 +1732,12 @@ field RouteChoice.error string
 field RouteChoice.model string
 field RouteChoice.switch []string
 field RouteChoice.why string
+field RulesDraft.by string
+field RulesDraft.rules string
+field RulesDraftParams.ask string
+field RulesDraftParams.current string
+field RulesDraftParams.for string
+field RulesDraftParams.path string
 field RunCommand.command string
 field RunCommand.name string
 field RunCommand.source string
@@ -2671,6 +2678,8 @@ method goa.override
 method goa.recall
 method goa.remember
 method goa.revert
+method goa.rules
+method goa.rules.save
 method goa.task
 method goa.worker
 method hooks.approve
@@ -2785,6 +2794,7 @@ method review.merge
 method review.pr
 method review.push
 method review.status
+method rules.draft
 method session.answer
 method session.ask
 method session.attach
@@ -3217,6 +3227,8 @@ value RenderPNG=png
 value RenderSVG=svg
 value RulesByAdmins=admins
 value RulesByMembers=members
+value RulesForGOA=goa
+value RulesForProject=project
 value ShapeArrow=arrow
 value ShapeDiamond=diamond
 value ShapeEllipse=ellipse

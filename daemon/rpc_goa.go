@@ -27,6 +27,10 @@ var goaHandlers = map[string]handler{
 		return c.srv.goaRemember(p)
 	}),
 	proto.MethodGOARecall: with(func(c *conn, p proto.GOARecallParams) (any, error) { return c.srv.goaRecall(p) }),
+	proto.MethodGOARules:  bare(func(c *conn) (any, error) { return c.srv.goaRules(), nil }),
+	proto.MethodGOARulesSave: with(func(c *conn, p proto.GOARules) (any, error) {
+		return c.srv.saveGOARules(p)
+	}),
 }
 
 func init() {

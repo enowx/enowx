@@ -96,6 +96,13 @@ func (c *Client) SaveProjectRules(r proto.ProjectRules) (proto.ProjectRules, err
 	return out, err
 }
 
+// DraftRules has the host's AI write rules; nothing is saved.
+func (c *Client) DraftRules(p proto.RulesDraftParams) (proto.RulesDraft, error) {
+	var out proto.RulesDraft
+	err := c.Call(proto.MethodRulesDraft, p, &out)
+	return out, err
+}
+
 // SessionsEverywhere lists the sessions of the host and of every host
 // the app reaches.
 func (c *Client) SessionsEverywhere() ([]proto.HostSessions, error) {

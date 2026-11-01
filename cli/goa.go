@@ -32,6 +32,7 @@ const goaUsage = `usage: enowx-app goa COMMAND
                                    keep it in GOA's own collection
   recall QUERY [--project P [--host H]]...
                                    search GOA's collection, and projects read-only
+  rules                            the user's rules for GOA, which they edit in the app
   agents                           the agents GOA can run on, and how far each holds it
   flags                            what a GOA only watched did itself
   start [--agent A]                start GOD of Agents on this host`
@@ -54,6 +55,17 @@ func (r runner) goaCmd(args []string) error {
 		return r.goaRemember(rest)
 	case "recall":
 		return r.goaRecall(rest)
+	case "rules":
+		var rules proto.GOARules
+		if err := r.c.Call(proto.MethodGOARules, nil, &rules); err != nil {
+			return err
+		}
+		if rules.Rules == "" {
+			fmt.Fprintln(r.out, "The user set no rules for GOD of Agents.")
+			return nil
+		}
+		fmt.Fprintln(r.out, rules.Rules)
+		return nil
 	case "agents":
 		return r.goaAgents()
 	case "flags":

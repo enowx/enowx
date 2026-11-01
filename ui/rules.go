@@ -25,6 +25,7 @@ type rulesForm struct {
 	loaded  bool
 	saving  bool
 	err     string
+	draft   rulesDraft
 }
 
 var rulesEditors = []string{proto.RulesByMembers, proto.RulesByAdmins}
@@ -84,6 +85,9 @@ func (a *App) rulesDialog(c *ui.Context) {
 			area.Disabled(true)
 		}
 		ui.Text(c, "No credentials here: agents read these, and rules that look like they hold a secret are refused.").FontSize(11.5).TextColor(theme.Muted)
+		if f.rules.CanEdit {
+			a.rulesDraftBox(c, &f.draft, proto.RulesForProject, f.project.Path, &f.text)
+		}
 		if f.rules.Team != "" && a.isAdminOf(f.rules.Team) {
 			widget.Field(c, "Who edits them", func() {
 				ui.Row(c).FillWidth().Children(func() {
@@ -98,7 +102,7 @@ func (a *App) rulesDialog(c *ui.Context) {
 		}
 	}, func() {
 		b := widget.PrimaryButton(c, nil, "Save", "")
-		if f.saving || !f.loaded || !f.rules.CanEdit && !a.isAdminOf(f.rules.Team) {
+		if f.saving || !f.loaded || f.draft.drafting || !f.rules.CanEdit && !a.isAdminOf(f.rules.Team) {
 			b.Disabled(true)
 		} else if b.Clicked() {
 			a.saveRules(f)

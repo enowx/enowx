@@ -24,7 +24,8 @@ type goaApp struct {
 	agents   []proto.GOAAgent
 	start    *goaStartForm
 	override *goaOverrideForm
-	detail   *goaDetail // a session's details, from the Sessions tool
+	detail   *goaDetail    // a session's details, from the Sessions tool
+	rules    *goaRulesForm // its rules being edited (goa_rules.go)
 	err      string
 	// chatSet is the GOA session last opened on its chat, once: the user's
 	// own choice of view is kept after.

@@ -90,6 +90,7 @@ func (a *App) view(c *ui.Context) {
 	a.goaStartDialog(c)
 	a.goaDetailDialog(c)
 	a.goaOverrideDialog(c)
+	a.goaRulesDialog(c)
 	a.unslopCompareDialog(c)
 	a.unslopChoiceDialog(c)
 	a.replayDialog(c)

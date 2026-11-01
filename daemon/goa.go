@@ -32,6 +32,9 @@ type goaState struct {
 	urgent map[string]string // worker session → why the user answers what it asks
 	flags  []proto.GOAFlag
 	watch  map[string]*goaWatch // watched GOA sessions, by ID (goa_watch.go)
+	// rulesGiven is the hash of the rules each GOA session was last given
+	// (goa_rules.go).
+	rulesGiven map[string]string
 }
 
 func (s *Server) newGOA(dir string) {
@@ -86,7 +89,7 @@ func (s *Server) goaCreate(p *proto.SessionCreateParams, meta *session.Meta) (st
 func (s *Server) goaChat(chat chatFor, meta session.Meta) chatFor {
 	if meta.GOA {
 		chat.goa = true
-		chat.guide = agent.GOAGuide + chat.guide
+		chat.guide = agent.GOAGuide + goaRulesGuide(s.goaRules().Rules) + chat.guide
 	}
 	return chat
 }

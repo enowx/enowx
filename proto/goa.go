@@ -39,6 +39,11 @@ const (
 	// MethodGOARecall searches GOA's collection, and projects' read-only:
 	// GOARecallParams → []RAGHit.
 	MethodGOARecall = "goa.recall"
+	// MethodGOARules are the user's rules for GOA: → GOARules.
+	MethodGOARules = "goa.rules"
+	// MethodGOARulesSave keeps them (synced, every host's GOA reads
+	// them): GOARules → GOARules.
+	MethodGOARulesSave = "goa.rules.save"
 
 	// EventGOABoard is GOA's board changed: GOABoard.
 	EventGOABoard = "goa.changed"
@@ -210,4 +215,10 @@ type GOARecallParams struct {
 type GOAProject struct {
 	Host string `json:"host,omitempty"`
 	Path string `json:"path"`
+}
+
+// GOARules are the user's rules for GOD of Agents, Markdown: how it
+// delegates, what it leaves to the user, what it tells its workers.
+type GOARules struct {
+	Rules string `json:"rules"`
 }

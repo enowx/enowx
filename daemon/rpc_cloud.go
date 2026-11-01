@@ -28,6 +28,7 @@ var cloudHandlers = map[string]handler{
 		return ok, c.srv.removeFromKit(p)
 	}),
 	proto.MethodProjectRules: with(func(c *conn, p proto.ProjectRulesRef) (any, error) { return c.srv.projectRules(p.Path) }),
+	proto.MethodRulesDraft:   with(func(c *conn, p proto.RulesDraftParams) (any, error) { return c.srv.draftRules(p) }),
 	proto.MethodProjectRulesSave: with(func(c *conn, p proto.ProjectRules) (any, error) {
 		return c.srv.saveProjectRules(p)
 	}),
