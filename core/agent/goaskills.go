@@ -33,7 +33,7 @@ func GOASkill(name string) (string, error) {
 // fall behind: what each does, and where its how-to is.
 func goaFeaturesSkill() string {
 	var b strings.Builder
-	b.WriteString("# enowX's features\n\nWhat each does; `\"$ENOWX_BIN\" help ID` prints how to use it, on or off, with its commands. Answer from that, not from memory; say what you can't confirm.\n\n")
+	b.WriteString("# enowX's features\n\nWhat each does; `\"$ENOWX_BIN\" help ID` prints how to use it, on or off, with its commands; `\"$ENOWX_BIN\" goa doc` lists the docs on how each works. Answer from those, not from memory; say what you can't confirm.\n\n")
 	for _, f := range Features {
 		fmt.Fprintf(&b, "- **%s** (`%s`, %s): %s\n", f.Name, f.ID, f.Group, f.About)
 	}
