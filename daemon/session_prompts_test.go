@@ -142,3 +142,15 @@ while read -r line; do [ -n "$line" ] && say $line; done
 		t.Fatalf("stopped: %q last %v", got.Model, got.ModelLast)
 	}
 }
+
+// An agent with another account but no sign-in command starts itself to sign in,
+// as it asks on its first run; one with no account route still says it can't.
+func TestSignInWithNoCommand(t *testing.T) {
+	l, err := launchFor(proto.SessionCreateParams{Agent: "kimi", SignIn: true}, chatFor{})
+	if err != nil || !slices.Contains(l.command, "kimi") || l.name != "Sign in to Kimi" {
+		t.Fatalf("%+v %v", l, err)
+	}
+	if _, err := launchFor(proto.SessionCreateParams{Agent: "grok", SignIn: true}, chatFor{}); err == nil {
+		t.Fatal("an agent with no sign-in and no accounts was started to sign in")
+	}
+}

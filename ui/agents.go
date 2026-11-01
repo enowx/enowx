@@ -163,7 +163,7 @@ func (a *App) agentWay(c *ui.Context, ag proto.AgentInfo, way accounts.Way) {
 		if why := noConfigWhy(ag, way); why != "" {
 			ui.Text(c, why).FontSize(11.5).TextColor(theme.Warning)
 		} else if way.Account && ag.SignIn == "" {
-			ui.Text(c, "enowX has no command to sign it in: another account saves without signing in, then signs in from a session started on it.").FontSize(11.5).TextColor(theme.Warning)
+			ui.Text(c, "It has no sign-in command: Sign in starts it in the account's own home, and it asks there.").FontSize(11.5).TextColor(theme.Warning)
 		}
 		ui.Text(c, wayChecked[way.Checked]).FontSize(10.5).TextColor(theme.Muted)
 	})

@@ -312,6 +312,10 @@ func launchFor(p proto.SessionCreateParams, chat chatFor) (launch, error) {
 	prompt := strings.TrimSpace(p.Prompt)
 	if p.SignIn {
 		preset, ok := agent.Find(p.Agent)
+		if ok && len(preset.SignIn) == 0 && accounts.Supported(preset.ID) {
+			// No sign-in command: the agent asks as it starts, in its own home.
+			return launch{command: thenShell(preset.Argv(agent.Launch{})), name: "Sign in to " + preset.Name}, nil
+		}
 		if !ok || len(preset.SignIn) == 0 {
 			return launch{}, fmt.Errorf("enowX doesn't know how to sign in to %q", p.Agent)
 		}
