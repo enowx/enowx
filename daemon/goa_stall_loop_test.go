@@ -241,6 +241,104 @@ func mustRead(path string) string {
 	return string(data)
 }
 
+// A task on another host is watched the same, through the app: stalled on GOA's
+// board, GOA told where and the hook fired on GOA's host, back to working when the
+// screen there moves, a process at work there left alone. Those looks stay out of
+// the log of what sessions did. With the host out of reach, nothing is concluded.
+func TestGOAStalledTaskOnAnotherHost(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("uses sh")
+	}
+	heard := stallStandIn(t)
+	a, b := startServer(t), startServer(t)
+	ca, cb := connect(t, a, nil), connect(t, b, nil)
+	standInApp(t, a, map[string]*client.Client{b.daemonID: cb}, func(proto.HostCallParams) bool { return true })
+	fired := stallHookFile(t, a)
+	if err := ca.Call(proto.MethodGOAStallSave, proto.GOAStall{Blank: 2, Idle: 2, Stuck: 2}, nil); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := ca.CreateSession(proto.SessionCreateParams{Agent: "claude", GOA: true, Cols: 200, Rows: 40}); err != nil {
+		t.Fatal(err)
+	}
+	blank := stallDelegate(t, ca, proto.GOADelegateParams{Host: b.daemonID, Title: "far", Prompt: "STANDIN-SILENT"})
+	busy := stallDelegate(t, ca, proto.GOADelegateParams{Host: b.daemonID, Title: "far build", Prompt: "STANDIN-BUSYBLANK"})
+	if _, err := a.sessions.Get(blank.Session); err == nil {
+		t.Fatal("the worker is on A")
+	}
+	unreached, err := a.goa.board.Add(proto.GOATask{Prompt: "out of reach", Host: "nowhere", Session: "abc"})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	waitFor(t, "told", func() bool { return len(stallLinesOf(heard, blank.ID)) == 1 })
+	line := stallLinesOf(heard, blank.ID)[0]
+	for _, want := range []string{"on " + b.daemonID, "never started", "Its screen is blank.", "--host " + b.daemonID} {
+		if !strings.Contains(line, want) {
+			t.Errorf("no %q in: %s", want, line)
+		}
+	}
+	if st := stallStatus(t, ca, blank.ID); st != proto.GOATaskStalled {
+		t.Fatalf("told, and the board says %s", st)
+	}
+	waitFor(t, "the hook", func() bool { return len(stallFired(t, fired, blank.Session)) == 1 })
+	if st := stallStatus(t, ca, busy.ID); st != proto.GOATaskWorking {
+		t.Fatalf("a process at work there was taken for stalled: %s", st)
+	}
+	if st := stallStatus(t, ca, unreached.ID); st != proto.GOATaskWorking {
+		t.Fatalf("a host out of reach counted as stalled: %s", st)
+	}
+	log, err := ca.ControlLog()
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, e := range log {
+		if e.Method == proto.MethodSessionScreen || e.Method == proto.MethodDaemonStats {
+			t.Fatalf("the daemon's looks in the log: %+v", e)
+		}
+	}
+	if err := cb.Input(blank.Session, "go on", false, true); err != nil {
+		t.Fatal(err)
+	}
+	waitFor(t, "working again", func() bool { return stallStatus(t, ca, blank.ID) == proto.GOATaskWorking })
+}
+
+// A hibernated session and one gone both count as idle, each told once with
+// what became of it, and the hook has what it knows of a session gone.
+func TestGOAStalledSessionHibernatedOrGone(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("uses sh")
+	}
+	heard := stallStandIn(t)
+	srv := startServer(t)
+	c := connect(t, srv, nil)
+	fired := stallHookFile(t, srv)
+	if err := c.Call(proto.MethodGOAStallSave, proto.GOAStall{Blank: 60, Idle: 2, Stuck: 60}, nil); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := c.CreateSession(proto.SessionCreateParams{Agent: "claude", GOA: true, Cols: 200, Rows: 40}); err != nil {
+		t.Fatal(err)
+	}
+	asleep := stallDelegate(t, c, proto.GOADelegateParams{Title: "asleep", Prompt: "STANDIN-READY"})
+	gone := stallDelegate(t, c, proto.GOADelegateParams{Title: "gone", Prompt: "STANDIN-READY"})
+	waitScreen(t, c, asleep.Session, "ready for it")
+	if res, err := c.HibernateSessions(proto.SessionHibernateParams{IDs: []string{asleep.Session}}); err != nil || len(res.Hibernated) != 1 {
+		t.Fatalf("hibernating: %+v %v", res, err)
+	}
+	if err := srv.deleteSession(gone.Session); err != nil {
+		t.Fatal(err)
+	}
+	for _, c := range []struct {
+		task proto.GOATask
+		says string
+	}{{asleep, "idle: its session is hibernated"}, {gone, "idle: its session is gone"}} {
+		waitFor(t, c.says, func() bool { return len(stallLinesOf(heard, c.task.ID)) == 1 })
+		if line := stallLinesOf(heard, c.task.ID)[0]; !strings.Contains(line, c.says) {
+			t.Errorf("its line: %s", line)
+		}
+		waitFor(t, c.says+": the hook", func() bool { return len(stallFired(t, fired, c.task.Session)) == 1 })
+	}
+}
+
 // Settled while stalled, a task stays settled and nothing more is said of it.
 func TestGOASettlingAStalledTask(t *testing.T) {
 	if runtime.GOOS == "windows" {

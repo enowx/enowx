@@ -18,9 +18,10 @@ import (
 // only of changes, would wait for ever, and the board go on saying working.
 
 const (
-	stallEvery   = 15 * time.Second
-	stallCPUIdle = 1.0 // percent of a core a tree working uses at least
-	stallAgain   = 3   // a further line after this many times the limit
+	stallEvery       = 15 * time.Second
+	stallCPUIdle     = 1.0              // percent of a core a tree working uses at least
+	stallAgain       = 3                // a further line after this many times the limit
+	stallCallTimeout = 20 * time.Second // another host's answer, through the app
 )
 
 // goaStallFile keeps the limits apart from the synced settings: how long a
@@ -122,7 +123,7 @@ type stallHost struct {
 // stallWatch is what watchStalls keeps between looks.
 type stallWatch struct {
 	follows map[string]*stallFollow // by task
-	sampled bool                    // CPU use is measured between two samples
+	sampled map[string]bool         // hosts ("" this one) sampled, as CPU use is measured between two
 }
 
 // stallTick is how often to look: often enough for the shortest limit, with
@@ -135,7 +136,7 @@ func stallTick(lim proto.GOAStall) time.Duration {
 // watchStalls looks at the tasks not settled until done closes; new limits
 // take at once.
 func (s *Server) watchStalls(done <-chan struct{}) {
-	w := &stallWatch{follows: map[string]*stallFollow{}}
+	w := &stallWatch{follows: map[string]*stallFollow{}, sampled: map[string]bool{}}
 	for {
 		select {
 		case <-done:
@@ -148,29 +149,44 @@ func (s *Server) watchStalls(done <-chan struct{}) {
 	}
 }
 
-// stallPass looks once at every task said to be running.
+// stallPass looks once at every task said to be running. A host that can't be
+// reached says nothing of its tasks, which wait as they are.
 func (s *Server) stallPass(w *stallWatch) {
 	lim := s.goaStall()
 	var open []proto.GOATask
 	for _, t := range s.goa.board.Working() {
-		if t.Session != "" && (t.Status == proto.GOATaskWorking || t.Status == proto.GOATaskStalled) && s.thisHost(t.Host) {
+		if t.Session != "" && (t.Status == proto.GOATaskWorking || t.Status == proto.GOATaskStalled) {
 			open = append(open, t)
 		}
 	}
 	if len(open) == 0 {
-		w.sampled = false
+		clear(w.sampled)
 		clear(w.follows)
 		return
 	}
-	h := s.stallThisHost()
-	if !w.sampled {
-		w.sampled = true
-		return // what this sample says of the CPU counts from the next
-	}
+	hosts := map[string]*stallHost{}
 	seen := map[string]bool{}
 	for _, t := range open {
 		seen[t.ID] = true
-		s.stallCheck(w, t, h, lim)
+		key := t.Host
+		if s.thisHost(key) {
+			key = ""
+		}
+		h, looked := hosts[key]
+		if !looked {
+			h = s.stallHostNow(key)
+			if h != nil && !w.sampled[key] {
+				// What this sample says of the CPU counts from the next.
+				w.sampled[key] = true
+				h = nil
+			} else if h == nil {
+				delete(w.sampled, key)
+			}
+			hosts[key] = h
+		}
+		if h != nil {
+			s.stallCheck(w, t, *h, lim)
+		}
 	}
 	for id := range w.follows {
 		if !seen[id] {
@@ -273,6 +289,59 @@ func stallLine(t proto.GOATask, why, text string) string {
 	}
 	return fmt.Sprintf("[enowX GOA] Task %s %q (%s) isn't moving: %s. %s Read it (read %s%s), then restart or move the task and tell the user; don't repeat what already failed.",
 		t.ID, t.Title, where, why, shows, t.Session, hostFlag)
+}
+
+// stallHostNow is what host ("" this one) says of its sessions now, nil when it
+// can't be reached.
+func (s *Server) stallHostNow(host string) *stallHost {
+	if host != "" {
+		return s.stallOtherHost(host)
+	}
+	h := s.stallThisHost()
+	return &h
+}
+
+// stallCall reads method from another host, through the app as goaCall does and
+// with the app's same checks. Not goaCall itself: the daemon is looking, no
+// session is acting, and these reads, every few seconds, would soon fill the
+// log of what sessions did (200 entries); nor may an app not answering hold up
+// the look at every other task for its two minutes.
+func (s *Server) stallCall(host, method string, params, out any) error {
+	raw, err := json.Marshal(params)
+	if err != nil {
+		return err
+	}
+	rep, err := s.askAppReply("host.call", proto.HostCallParams{Host: host, Method: method, Params: raw}, stallCallTimeout)
+	if err != nil {
+		return err
+	}
+	return json.Unmarshal(rep.Result, out)
+}
+
+// stallOtherHost is what another host says of its sessions now, nil when it
+// can't be reached. A daemon or app too old to measure leaves the CPU unknown.
+func (s *Server) stallOtherHost(host string) *stallHost {
+	var list []proto.SessionInfo
+	if err := s.stallCall(host, proto.MethodSessionList, nil, &list); err != nil {
+		return nil
+	}
+	h := &stallHost{infos: map[string]proto.SessionInfo{}}
+	for _, info := range list {
+		h.infos[info.ID] = info
+	}
+	var st proto.DaemonStats
+	h.cpuKnown = s.stallCall(host, proto.MethodDaemonStats, nil, &st) == nil && st.Supported
+	tree := map[string]float64{}
+	for _, u := range st.Sessions {
+		tree[u.ID] = u.CPU
+	}
+	h.cpuOf = func(id string) float64 { return tree[id] }
+	h.screen = func(id string) (string, error) {
+		var sc proto.SessionScreen
+		err := s.stallCall(host, proto.MethodSessionScreen, proto.SessionRef{ID: id}, &sc)
+		return sc.Text, err
+	}
+	return h
 }
 
 // stallThisHost is what this host says of its sessions now.

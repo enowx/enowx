@@ -47,6 +47,7 @@ func (l Level) String() string {
 // credential's value is never read, and those changes stay the user's.
 var methods = map[string]Level{
 	proto.MethodDaemonInfo:           Read,
+	proto.MethodDaemonStats:          Read,
 	proto.MethodAgentList:            Read,
 	proto.MethodAccountList:          Read,
 	proto.MethodSessionList:          Read,
