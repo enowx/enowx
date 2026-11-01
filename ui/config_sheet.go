@@ -85,12 +85,13 @@ func (a *App) configSheet(c *ui.Context, st *accountsState) {
 		st.edit = nil
 		return
 	}
-	title := a.agentName(f.agent) + ": a new config"
+	title := "New config of " + a.agentName(f.agent)
+	about := "Another account, a model API or a key. The official config stays as it is."
 	if f.id != "" {
-		title = a.agentName(f.agent) + ": " + f.name
+		title = "Change " + f.name
+		about = "A config of " + a.agentName(f.agent) + ", the same on every host of yours. The official config stays as it is."
 	}
-	about := "Saved apart from " + a.agentName(f.agent) + "'s own settings, which stay as they are; a session runs with it when picked at New session. Configs are the same on every host of yours."
-	widget.FormSheet(c, &f.open, 600, title, about, func() {
+	widget.FormSheet(c, &f.open, 640, title, about, func() {
 		if len(f.kinds) > 1 {
 			widget.Field(c, "Kind", func() {
 				ui.Row(c).Children(func() {
@@ -100,21 +101,25 @@ func (a *App) configSheet(c *ui.Context, st *accountsState) {
 				})
 			})
 		}
-		widget.Field(c, "Name", func() { widget.Input(c, &f.name, "GLM via OpenRouter").FillWidth().AutoFocus() })
+		widget.Field(c, "Name", func() { widget.Input(c, &f.name, "Work account").FillWidth().AutoFocus() })
 		switch f.kindName() {
 		case kindAPI:
 			a.configAPIFields(c, f)
 		case kindAccount:
-			ui.Text(c, "Its own sign-in, in a home of its own sharing "+a.agentName(f.agent)+"'s settings, skills and conversations. Once saved, it signs in on "+a.host.Name+"; on another host, sign it in there from its menu.").FontSize(theme.TextLabel).TextColor(theme.Muted)
+			line := "It signs in on " + a.host.Name + ", in a session of its own, once saved."
+			if f.id != "" {
+				line = "Its own sign-in, in a home of its own sharing " + a.agentName(f.agent) + "'s settings, skills and conversations. On another host, sign it in there from its menu."
+			}
+			widget.CardNote(c, line, 0)
 		case kindKey:
 			widget.Field(c, "The vault's credential", func() {
-				widget.Input(c, &f.cred, "anthropic-work").FillWidth().Font(theme.MonoFont)
+				widget.Input(c, &f.cred, "ANTHROPIC_API_KEY").FillWidth().Font(theme.MonoFont)
 			})
-			ui.Text(c, "Its value stays in the vault: sessions on this config get it as the vault lends credentials, never shown.").FontSize(theme.TextLabel).TextColor(theme.Muted)
+			widget.CardNote(c, "Kept in the vault, on this device. The session gets it when it starts, never shown.", 0)
 		}
 		a.configExtras(c, f)
 		if f.err != "" {
-			ui.Text(c, f.err).FontSize(theme.TextLabel).TextColor(theme.Error)
+			widget.Notice(c, icon.Alert, theme.Error, f.err, "", nil)
 		}
 	}, func() {
 		label := "Save"
@@ -131,33 +136,57 @@ func (a *App) configSheet(c *ui.Context, st *accountsState) {
 // key's credential, its models.
 func (a *App) configAPIFields(c *ui.Context, f *configForm) {
 	ag := f.api.agent
-	widget.Field(c, "Base URL", func() {
-		widget.Input(c, &f.api.url, "https://openrouter.ai/api").FillWidth().Font(theme.MonoFont)
+	widget.Field(c, "Address", func() {
+		widget.Input(c, &f.api.url, "https://api.example.com/v1").FillWidth().Font(theme.MonoFont)
 	})
 	if len(ag.Protocols) > 1 {
-		widget.Field(c, "It speaks", func() {
-			labels := make([]string, len(ag.Protocols))
-			for i, p := range ag.Protocols {
-				labels[i] = map[string]string{"anthropic": "Anthropic", "openai": "OpenAI (chat)", "openai-responses": "OpenAI (responses)", "gemini": "Gemini"}[p]
-			}
-			ui.Row(c).Children(func() {
-				if i := widget.Segmented(c, labels, f.api.protocol, nil); i >= 0 {
-					f.api.protocol = i
-				}
-			})
-		})
+		protocolField(c, ag.Protocols, &f.api.protocol)
 	}
 	widget.Field(c, "Its key: the vault's credential", func() {
 		widget.Input(c, &f.keyCred, "openrouter").FillWidth().Font(theme.MonoFont)
 		a.vaultKeyNames(c, &f.keyCred)
 	})
-	if !ag.NoModel {
-		a.agentAPIModels(c, f.api)
-	}
-	if ag.Small {
+	quick := func() {
 		widget.Field(c, "Model for quick work (optional)", func() { widget.Input(c, &f.api.small, "").FillWidth().Font(theme.MonoFont) })
 	}
+	switch {
+	case ag.NoModel:
+		if ag.Small {
+			quick()
+		}
+	case oneModelOnly(ag.Caps) && ag.Small && len(f.api.models) == 1:
+		widget.Cols(c, 2).Children(func() {
+			widget.Field(c, "Model", func() { widget.Input(c, &f.api.models[0].id, "qwen3:8b").FillWidth().Font(theme.MonoFont) })
+			quick()
+		})
+	default:
+		a.agentAPIModels(c, f.api)
+		if ag.Small {
+			quick()
+		}
+	}
 }
+
+// protocolField picks how an API is spoken, among those the agent speaks.
+func protocolField(c *ui.Context, protocols []string, index *int) {
+	names := map[string]string{}
+	for _, p := range protocols {
+		names[p] = protocolNames[p]
+	}
+	cur := ""
+	if *index >= 0 && *index < len(protocols) {
+		cur = protocols[*index]
+	}
+	widget.Field(c, "Protocol", func() {
+		hookSelect(c.Key("protocol"), "Protocol", &cur, protocols, names)
+	})
+	if i := slices.Index(protocols, cur); i >= 0 {
+		*index = i
+	}
+}
+
+// protocolNames are the ways to speak to an API, as they read.
+var protocolNames = map[string]string{"anthropic": "Anthropic", "openai": "OpenAI (chat)", "openai-responses": "OpenAI (responses)", "gemini": "Gemini"}
 
 // vaultKeyNames offers the vault's API keys' names for value.
 func (a *App) vaultKeyNames(c *ui.Context, value *string) {
@@ -170,13 +199,13 @@ func (a *App) vaultKeyNames(c *ui.Context, value *string) {
 		}
 	}
 	if len(names) == 0 {
-		ui.Text(c, "Keep the key in the vault first (Vault → Add), then name it here: its value never leaves the vault but for the session.").FontSize(theme.TextLabel).TextColor(theme.Muted)
+		widget.CardNote(c, "Keep the key in the vault first (Vault → Add), then name it here: its value never leaves the vault but for the session.", 0)
 		return
 	}
-	ui.Row(c).FillWidth().Wrap().Gap(6).AlignItems(ui.Center).Children(func() {
-		ui.Text(c, "In the vault:").FontSize(theme.TextLabel).TextColor(theme.Muted)
+	ui.Row(c).FillWidth().Wrap().Gap(theme.S1).AlignItems(ui.Center).Children(func() {
+		ui.Text(c, "In the vault:").FontSize(theme.TextLabel).TextColor(theme.TextSoft)
 		for _, n := range names {
-			b := ui.ButtonBase(c.Key("cred:"+n)).Height(24).PaddingX(8).Radius(theme.RadiusSmall).Border(1, theme.Border).Cursor(ui.CursorPointer).Label("Use " + n)
+			b := ui.ButtonBase(c.Key("cred:"+n)).Height(24).PaddingX(theme.S2).Radius(theme.RadiusFull).Background(theme.Sunken).Cursor(ui.CursorPointer).Label("Use " + n)
 			if *value == n {
 				b.Background(theme.Selected)
 			} else if b.Hovered() {
@@ -211,11 +240,11 @@ func (a *App) configExtras(c *ui.Context, f *configForm) {
 			})
 		})
 	}
-	widget.Field(c, "Variables its sessions get (NAME=VALUE, a line each)", func() {
-		ui.TextAreaBase(c, &f.env).FillWidth().MinHeight(48).MaxHeight(140).Padding(9, 11).FontSize(theme.TextLabel).Font(theme.MonoFont).
-			Label("Variables").Radius(theme.RadiusControl).Background(theme.Sunken).Border(1, theme.Border).Placeholder("DISABLE_TELEMETRY=1")
+	widget.Field(c, "Environment (optional)", func() {
+		ui.TextAreaBase(c, &f.env).FillWidth().MinHeight(48).MaxHeight(140).Padding(theme.S2, theme.S3).FontSize(theme.TextLabel).Font(theme.MonoFont).
+			Label("Environment").Radius(theme.RadiusSmall).Background(theme.Sunken).Border(1, theme.Border).Placeholder("NAME=value, one per line")
 	})
-	widget.Field(c, "Flags added to its command line", func() {
+	widget.Field(c, "Arguments (optional)", func() {
 		widget.Input(c, &f.args, "--verbose").FillWidth().Font(theme.MonoFont)
 	})
 	widget.Field(c, "Badge", func() { widget.Swatches(c, widget.SwatchColors, &f.color) })

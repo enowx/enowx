@@ -78,7 +78,11 @@ func TestMakeAModelAPIConfig(t *testing.T) {
 	if err := tt.Click("New config"); err != nil {
 		t.Fatalf("%v: %q", err, tt.Texts())
 	}
-	frames(func() bool { return tt.HasText("Base URL") }, "the dialog")
+	frames(func() bool { return app.accts.edit != nil && tt.HasText("Kind") }, "the dialog")
+	if err := tt.Click("Model API"); err != nil {
+		t.Fatalf("%v: %q", err, tt.Texts())
+	}
+	frames(func() bool { return tt.HasText("Address") }, "a model API's fields")
 	f := app.accts.edit
 	if f.agent != "claude" || f.kindName() != kindAPI {
 		t.Fatalf("the dialog: %s, %s", f.agent, f.kindName())
@@ -158,7 +162,7 @@ func TestModelAPIInAnAgentsOwnSettings(t *testing.T) {
 	if err := tt.Click("Use an API…"); err != nil {
 		t.Fatalf("%v: %q", err, tt.Texts())
 	}
-	frames(func() bool { return tt.HasText("Base URL") && app.agentAPIs.edit != nil }, "the dialog")
+	frames(func() bool { return tt.HasText("Address") && app.agentAPIs.edit != nil }, "the dialog")
 	f := app.agentAPIs.edit
 	f.url, f.key = "https://gw.example.com/v1", "fake-key-9876"
 	f.models[0].id = "gw-model"

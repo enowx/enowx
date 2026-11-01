@@ -30,6 +30,9 @@ type accountsState struct {
 	only   map[string]*string // account ID → its projects, being set
 	edit   *configForm        // a config being made or changed
 	busy   bool
+	// What the agent's page holds around its cards, as last laid out: the cards
+	// share the rest of its height.
+	aboveH, belowH float32
 }
 
 func (a *App) accountsOf() *accountsState {
