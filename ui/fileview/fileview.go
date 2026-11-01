@@ -40,6 +40,10 @@ type Options struct {
 	// a folder of the session's folder ("" is the folder itself), wherever
 	// the session runs, and calls done after; nil hides it.
 	AddFiles func(folder string, done func())
+	// GoToFile finds a file by name; Current is the file in front, to mark it
+	// in the tree.
+	GoToFile func()
+	Current  func() string
 }
 
 // Added reads the folder again and unfolds it: files were added to it.

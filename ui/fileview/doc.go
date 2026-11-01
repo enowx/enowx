@@ -156,30 +156,37 @@ func (d *Doc) Draw(c *ui.Context, o Options) {
 	ui.Column(c).Grow(1).FillWidth().MinHeight(0).Children(func() {
 		d.bar(c, o)
 		if d.err != "" {
-			ui.Row(c).FillWidth().Padding(8, 14).Background(theme.Fade(theme.Error, 0.1)).Children(func() {
-				ui.Text(c, d.err).FontSize(12).TextColor(theme.Error).Shrink(1)
+			ui.Row(c).FillWidth().Shrink(0).Padding(theme.S3, theme.S4, 0, theme.S4).Children(func() {
+				widget.Notice(c, nil, theme.Del, d.err, "", nil)
 			})
 		}
 		if (d.page || d.pdf) && o.Page != nil && d.content != nil {
 			o.Page(c, d.path, d.content.Modified)
 			return
 		}
-		d.text(c)
+		ui.Column(c).Grow(1).FillWidth().MinHeight(0).Background(codeGround(d)).Children(func() { d.text(c) })
 	})
+}
+
+// codeGround is what a file shows on: code on its dark ground in every
+// palette, a rendered page on the frame itself.
+func codeGround(d *Doc) ui.Color {
+	if d.markdown && !d.raw {
+		return ui.Transparent
+	}
+	return ui.RGBA(10, 11, 18, 0.94)
 }
 
 // bar is the file's path, its size, and copying it or opening it in the
 // editor.
 func (d *Doc) bar(c *ui.Context, o Options) {
-	ui.Row(c).Height(42).Shrink(0).FillWidth().Padding(0, 10, 0, 14).Gap(8).
-		BorderWidth(0, 0, 1, 0).BorderColor(theme.Border).Children(func() {
-		dir, name := path.Split(d.path)
-		ui.Row(c).Grow(1).MinWidth(0).Children(func() {
-			if dir != "" {
-				ui.Text(c, dir).Font(theme.MonoFont).FontSize(12).TextColor(theme.Muted).SingleLine().Shrink(1)
-			}
-			ui.Text(c, name).Font(theme.MonoFont).FontSize(12).SingleLine().Shrink(0)
+	ui.Row(c).Height(44).Shrink(0).FillWidth().Padding(0, theme.S2, 0, theme.S4).Gap(theme.S2).Clip().
+		BorderWidth(0, 0, 0.5, 0).BorderColor(theme.Border).Children(func() {
+		ui.Icon(c, icon.File).FontSize(14).TextColor(theme.TextSoft)
+		ui.Row(c).MinWidth(64).Shrink(1).Children(func() {
+			widget.Running(c, d.path, widget.RunStyle{Size: theme.TextLabel, Mono: true, Always: true})
 		})
+		ui.Spacer(c)
 		if d.markdown && d.content != nil && !d.content.Binary {
 			cur := 0
 			if d.raw {
@@ -203,7 +210,7 @@ func (d *Doc) bar(c *ui.Context, o Options) {
 			if d.imgW > 0 {
 				size = strconv.Itoa(d.imgW) + "×" + strconv.Itoa(d.imgH) + " · " + size
 			}
-			ui.Text(c, size).FontSize(11).TextColor(theme.Muted).SingleLine().Shrink(0)
+			ui.Text(c, size).FontSize(theme.TextLabel).TextColor(theme.TextSoft).SingleLine().Shrink(0)
 		}
 		abs := ""
 		if o.Session.Dir != "" {
@@ -252,7 +259,7 @@ func (d *Doc) text(c *ui.Context) {
 	if f.Truncated {
 		n++
 	}
-	width := float32(len(strconv.Itoa(len(lines))))*7.5 + 16
+	width := max(float32(len(strconv.Itoa(len(lines))))*8+theme.S4, 44)
 	if d.goTo {
 		d.goTo = false
 		d.list.ScrollTo(min(d.from, len(lines))-1, ui.Center)
@@ -269,7 +276,7 @@ func (d *Doc) text(c *ui.Context) {
 			row.Background(theme.Selected)
 		}
 		row.Children(func() {
-			ui.Text(c, strconv.Itoa(i+1)).Font(theme.MonoFont).FontSize(11).TextColor(theme.Idle).Width(width).PaddingX(6).
+			ui.Text(c, strconv.Itoa(i+1)).Font(theme.MonoFont).FontSize(theme.TextUI).TextColor(ui.Hex("#6E7386")).Width(width).PaddingX(6).
 				TextAlign(ui.End).SingleLine().Shrink(0)
 			var spans []widget.Span
 			if i < len(d.spans) {
@@ -278,7 +285,7 @@ func (d *Doc) text(c *ui.Context) {
 					spans = []widget.Span{} // an empty line
 				}
 			}
-			widget.CodeSpans(c, spans, lines[i]).Font(theme.MonoFont).FontSize(12).SingleLine().Shrink(1)
+			widget.CodeSpans(c, spans, lines[i]).Font(theme.MonoFont).FontSize(theme.TextUI).TextColor(ui.Hex("#E4E6EE")).SingleLine().Shrink(1)
 		})
 	}).Grow(1).FillWidth().MinHeight(0).Padding(6, 0)
 }

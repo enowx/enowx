@@ -156,10 +156,7 @@ func TestAddFilesFromTheTree(t *testing.T) {
 	choose(func() error { return tt.RightClick("docs") }, "Add files to docs…")
 	choose(func() error { return tt.RightClick("README.md") }, "Add files to the project folder…")
 	choose(func() error { tt.RightClickAt(240, 300); return nil }, "Add files to the project folder…")
-	if err := tt.Click("Add files from this device"); err != nil {
-		t.Fatal(err)
-	}
-	tt.Frame()
+	choose(func() error { return tt.Click("More") }, "Add files from this device")
 	want := []string{"docs", "", "", ""}
 	if !slices.Equal(adds, want) {
 		t.Fatalf("added into %q, want %q", adds, want)
