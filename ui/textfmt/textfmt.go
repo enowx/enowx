@@ -5,6 +5,7 @@ package textfmt
 import (
 	"fmt"
 	"os"
+	"regexp"
 	"strings"
 	"time"
 )
@@ -118,4 +119,28 @@ func ShortHome(path string) string {
 		return "~" + path[len(home):]
 	}
 	return path
+}
+
+var userHome = regexp.MustCompile(`^(/Users/[^/]+|/home/[^/]+|/root)(/|$)`)
+
+// ShortPath is p to read in a narrow place: its home as ~ on any host, then
+// cut in the middle to about n characters, its first folder and its end kept.
+func ShortPath(p string, n int) string {
+	if m := userHome.FindStringSubmatch(p); m != nil {
+		p = "~" + p[len(m[1]):]
+	}
+	r := []rune(p)
+	if len(r) <= n || n < 8 {
+		return p
+	}
+	tail := n * 2 / 3
+	return string(r[:n-tail-1]) + "…" + string(r[len(r)-tail:])
+}
+
+// ShortModel is a model's name to read in a narrow place: its maker left out.
+func ShortModel(model string) string {
+	if i := strings.LastIndexByte(model, '/'); i >= 0 {
+		model = model[i+1:]
+	}
+	return strings.TrimPrefix(model, "claude-")
 }

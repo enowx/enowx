@@ -77,6 +77,30 @@ func (r runner) goaCmd(args []string) error {
 	return errors.New(goaUsage)
 }
 
+// taskModel is what a task really ran on, as its agent said; else what it
+// was asked to run on, marked so; else unknown.
+func taskModel(t proto.GOATask) string {
+	if n := len(t.Ran); n > 0 {
+		return t.Ran[n-1]
+	}
+	if t.Model != "" {
+		return t.Model + " · " + nonEmpty(t.Effort, "unknown") + " (asked)"
+	}
+	return "unknown"
+}
+
+// taskPlace is a task's project: its name and path, "no project" for a session
+// outside any, and "unknown" for a task from before it kept them.
+func taskPlace(t proto.GOATask) string {
+	switch {
+	case t.Project != "":
+		return filepath.Base(t.Project) + " " + t.Project
+	case t.Dir != "":
+		return "no project"
+	}
+	return "unknown"
+}
+
 func (r runner) goaBoard(args []string) error {
 	var b proto.GOABoard
 	if err := r.c.Call(proto.MethodGOABoard, nil, &b); err != nil {
@@ -95,13 +119,16 @@ func (r runner) goaBoard(args []string) error {
 		return nil
 	}
 	w := tabwriter.NewWriter(r.out, 0, 2, 2, ' ', 0)
-	fmt.Fprintln(w, "TASK\tSTATUS\tSESSION\tMODEL · EFFORT\tTITLE")
+	fmt.Fprintln(w, "TASK\tSTATUS\tSESSION\tMODEL · EFFORT\tPROJECT\tTITLE")
 	for _, t := range b.Tasks {
 		where := short(t.Session)
 		if t.Host != "" {
 			where += "@" + t.Host
 		}
-		fmt.Fprintf(w, "%s\t%s\t%s\t%s · %s\t%s\n", t.ID, t.Status, where, nonEmpty(t.Model, "own"), nonEmpty(t.Effort, "own"), t.Title)
+		if t.SessionName != "" {
+			where = t.SessionName + " " + where
+		}
+		fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%s\t%s\n", t.ID, t.Status, where, taskModel(t), taskPlace(t), t.Title)
 	}
 	w.Flush()
 	for _, t := range b.Tasks {
@@ -159,7 +186,7 @@ func (r runner) goaDelegate(args []string) error {
 		where += ", brought back"
 	}
 	fmt.Fprintf(r.out, "Task %s → %s (%s)\n", t.ID, where, t.Agent)
-	fmt.Fprintf(r.out, "model: %s · effort: %s", nonEmpty(t.Model, "its own"), nonEmpty(t.Effort, "its own"))
+	fmt.Fprintf(r.out, "asked for model: %s · effort: %s", nonEmpty(t.Model, "its own"), nonEmpty(t.Effort, "its own"))
 	if t.Config != "" {
 		fmt.Fprintf(r.out, " · config: %s", t.Config)
 	}

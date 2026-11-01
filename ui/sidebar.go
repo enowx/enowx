@@ -326,6 +326,7 @@ func (a *App) sessionRow(c *ui.Context, i int, s proto.SessionInfo) {
 					widget.BadgeTag(c, cfg.Name, cfg.Color) // the config it runs with
 				}
 			})
+			a.sessionFacts(c, s)
 		})
 		a.conflictMark(c, s)
 		if a.unread[s.ID] {

@@ -60,6 +60,8 @@ type Meta struct {
 	SkipPermissions bool
 	// SkipUnheard: proto.SessionInfo.SkipUnheard.
 	SkipUnheard bool
+	// Model and Effort: what its agent last said it runs on.
+	Model, Effort string
 	// Conversation is its agent's conversation, by the id the agent
 	// resumes it with: it goes on with its own, not the folder's latest.
 	Conversation string
@@ -211,6 +213,9 @@ func (s *Session) Info() proto.SessionInfo {
 		State:           s.stateLocked(time.Now()),
 		SkipPermissions: s.meta.SkipPermissions,
 		SkipUnheard:     s.meta.SkipUnheard,
+		Model:           s.meta.Model,
+		Effort:          s.meta.Effort,
+		ModelLast:       s.meta.Model != "" && (s.exited || s.meta.Hibernated),
 		Restored:        s.meta.Restored,
 		Exited:          s.exited,
 		ExitCode:        s.code,

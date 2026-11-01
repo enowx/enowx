@@ -200,7 +200,7 @@ func TestGOAMode(t *testing.T) {
 	}
 	app.showView(g0, viewChat)
 	click("Tasks")
-	frames("the task on the board", func() bool { return tt.HasText("Fix the totals") && tt.HasText("its own · its own") })
+	frames("the task on the board", func() bool { return tt.HasText("Fix the totals") && tt.HasText("unknown") })
 	shot(t, tt, "goa-mode.png")
 
 	// GOA opens on its chat, its agent having one; the strip's Browser shows

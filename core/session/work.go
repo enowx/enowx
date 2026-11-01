@@ -104,6 +104,14 @@ func (m *Manager) SetNote(s *Session, note string) {
 	m.notify(s)
 }
 
+// SetModel records what session s's agent last said it runs on.
+func (m *Manager) SetModel(s *Session, model, effort string) {
+	s.mu.Lock()
+	s.meta.Model, s.meta.Effort = model, effort
+	s.mu.Unlock()
+	m.notify(s)
+}
+
 // nameMax bounds a session's name: a line in the session list.
 const nameMax = 80
 

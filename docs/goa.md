@@ -89,3 +89,5 @@ GOA's collection is its folder's (`rag.ProjectID` of GOA's folder), apart from e
 - The app shows GOA of the host it shows; a GOA on a host the app only watches isn't shown in the mode.
 - A watched GOA's changes are found by looking (every 5 s), not prevented.
 - Workers' permission prompts of agents without hooks aren't judged: GOA reads their screen and answers.
+
+A task shows its project's name, path and host, kept from when it was delegated so they outlive its session ("no project" for a session outside any, "unknown" for a task older than this), its session's name beside its ID, and the model it really ran on: what its agent says in its transcript, every change kept (`GOATask.Ran`). What was only asked for reads "(asked)"; nothing known reads "unknown". On another host a task's model is read from the live session list, in the app only.

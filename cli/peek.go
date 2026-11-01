@@ -5,9 +5,11 @@ import (
 	"flag"
 	"fmt"
 	"io"
+	"path/filepath"
 	"strings"
 	"text/tabwriter"
 
+	"github.com/enowx/enowx/core/agent"
 	"github.com/enowx/enowx/proto"
 )
 
@@ -18,6 +20,22 @@ const peekUsage = `usage: enowx-app sessions               the sessions of every
 Only when the user asks: another session is theirs to share`
 
 // sessionsEverywhere lists the sessions of every host the app reaches.
+// sessionModel is what a session's agent says it runs on, "unknown" when it
+// says nothing, "-" for what runs no agent.
+func sessionModel(s proto.SessionInfo) string {
+	if _, ok := agent.Find(s.Agent); !ok || s.Agent == agent.Shell {
+		return "-"
+	}
+	if s.Model == "" {
+		return "unknown"
+	}
+	out := s.Model + " · " + nonEmpty(s.Effort, "unknown")
+	if s.ModelLast {
+		out += " (last)"
+	}
+	return out
+}
+
 func (r runner) sessionsEverywhere(args []string) error {
 	if len(args) > 0 {
 		return errors.New(peekUsage)
@@ -27,7 +45,7 @@ func (r runner) sessionsEverywhere(args []string) error {
 		return err
 	}
 	w := tabwriter.NewWriter(r.out, 0, 4, 2, ' ', 0)
-	fmt.Fprintln(w, "HOST\tSESSION\tNAME\tAGENT\tSTATE\tPROJECT")
+	fmt.Fprintln(w, "HOST\tSESSION\tNAME\tAGENT\tSTATE\tMODEL\tPROJECT\tPATH")
 	for _, h := range hosts {
 		if h.Err != "" {
 			fmt.Fprintf(w, "%s\t-\t(%s)\t\t\t\n", h.HostName, h.Err)
@@ -41,11 +59,15 @@ func (r runner) sessionsEverywhere(args []string) error {
 			if s.Exited {
 				state = "ended"
 			}
-			fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%s\t%s\n", h.HostName, s.ID, s.Name, s.Agent, state, s.Dir)
+			project := "no project"
+			if s.Project != "" {
+				project = filepath.Base(s.Project)
+			}
+			fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n", h.HostName, s.ID, s.Name, s.Agent, state, sessionModel(s), project, s.Dir)
 		}
 	}
 	if len(hosts) == 1 {
-		fmt.Fprintln(w, "(only this host: open the enowX app to reach the others)\t\t\t\t\t")
+		fmt.Fprintln(w, "(only this host: open the enowX app to reach the others)\t\t\t\t\t\t\t")
 	}
 	return w.Flush()
 }

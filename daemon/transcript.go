@@ -67,6 +67,9 @@ func (t *transcripts) claim(id, path, old string) bool {
 	if owner, ok := t.files[path]; ok && owner != id {
 		return false
 	}
+	if t.files == nil {
+		t.files = map[string]string{}
+	}
 	delete(t.files, old)
 	t.files[path] = id
 	return true

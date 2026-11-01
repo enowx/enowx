@@ -1094,9 +1094,11 @@ field GOARules.clear bool
 field GOARules.rules string
 field GOATask.agent string
 field GOATask.asks string
+field GOATask.branch string
 field GOATask.config string
 field GOATask.created time.Time
 field GOATask.difficulty string
+field GOATask.dir string
 field GOATask.effort string
 field GOATask.host string
 field GOATask.id string
@@ -1104,10 +1106,12 @@ field GOATask.model string
 field GOATask.override bool
 field GOATask.project string
 field GOATask.prompt string
+field GOATask.ran []string
 field GOATask.result string
 field GOATask.reused bool
 field GOATask.said string
 field GOATask.session string
+field GOATask.sessionName string
 field GOATask.status string
 field GOATask.title string
 field GOATask.updated time.Time
@@ -1847,6 +1851,7 @@ field SessionInfo.creds []string
 field SessionInfo.dir string
 field SessionInfo.display int
 field SessionInfo.displayScale int
+field SessionInfo.effort string
 field SessionInfo.exitCode int
 field SessionInfo.exited bool
 field SessionInfo.goa bool
@@ -1856,6 +1861,8 @@ field SessionInfo.hibernated bool
 field SessionInfo.hibernatedHow *HibernateState
 field SessionInfo.id string
 field SessionInfo.member *SessionMember
+field SessionInfo.model string
+field SessionInfo.modelLast bool
 field SessionInfo.name string
 field SessionInfo.noAutoHibernate bool
 field SessionInfo.note string

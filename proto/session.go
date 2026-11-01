@@ -127,6 +127,11 @@ type SessionInfo struct {
 	State string `json:"state,omitempty"`
 	// SkipPermissions: the agent runs tools without asking.
 	SkipPermissions bool `json:"skipPermissions,omitempty"`
+	// Model and Effort are what its agent last said it runs on, "" when it
+	// says nothing; ModelLast: the agent isn't running, so this was the last.
+	Model     string `json:"model,omitempty"`
+	Effort    string `json:"effort,omitempty"`
+	ModelLast bool   `json:"modelLast,omitempty"`
 	// SkipUnheard is SessionCreateParams.SkipUnheard: for GOD of Agents,
 	// what its workers follow.
 	SkipUnheard bool `json:"skipUnheard,omitempty"`

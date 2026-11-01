@@ -120,9 +120,8 @@ func (a *App) goaSessionButton(c *ui.Context, host string, s proto.SessionInfo) 
 				ui.Text(c, "Needs you: "+t.Asks).FontSize(11.5).TextColor(theme.Warning).SingleLine()
 			case t != nil:
 				ui.Text(c, t.Title+" · "+t.Status).FontSize(11.5).TextColor(theme.TextSoft).SingleLine()
-			case s.Project != "":
-				ui.Text(c, filepath.Base(s.Project)).FontSize(11.5).TextColor(theme.Idle).SingleLine()
 			}
+			a.sessionFacts(c, s)
 		})
 	})
 	if row.Clicked() {
@@ -160,9 +159,7 @@ func (a *App) goaDetailDialog(c *ui.Context) {
 	s := d.session
 	t := a.goaTaskOf(s.ID)
 	widget.FormSheet(c, &d.open, 520, a.sessionName(s), a.agentName(s.Agent)+" on "+d.host+" · "+statusOf(s).label, func() {
-		if s.Project != "" {
-			widget.Field(c, "Project", func() { ui.Text(c, s.Project).FontSize(12).Font(theme.MonoFont).TextColor(theme.TextSoft) })
-		}
+		a.sessionFacts(c, s)
 		if t == nil {
 			ui.Text(c, "GOD of Agents gave this session no task.").FontSize(12).TextColor(theme.Muted)
 			return
@@ -243,19 +240,25 @@ func (a *App) goaTaskBody(c *ui.Context, t proto.GOATask) {
 		ui.Spacer(c)
 		widget.Tag(c, t.Status, goaStatusColor(t))
 	})
-	where := a.agentName(t.Agent) + " · session " + shortID(t.Session)
+	where := a.agentName(t.Agent) + " · "
+	if t.SessionName != "" {
+		where += t.SessionName + " "
+	}
+	where += shortID(t.Session)
 	if t.Host != "" {
 		where += " on " + a.goaHostName(t.Host)
 	}
 	ui.Text(c, where+" · "+textfmt.Age(t.Created, time.Now())).FontSize(11).TextColor(theme.Muted).SingleLine()
-	model := orOwn(t.Model) + " · " + orOwn(t.Effort)
+	s, shown := a.sessionOn(a.goaHostName(t.Host), t.Session)
+	model := taskRanOn(t, s, shown)
 	if t.Config != "" {
 		model += " · " + t.Config
 	}
 	ui.Row(c).FillWidth().Gap(6).Children(func() {
 		ui.Icon(c, icon.Brain).FontSize(11).TextColor(theme.Accent)
-		ui.Text(c, model).FontSize(11.5).Font(theme.MonoFont).TextColor(theme.TextSoft).SingleLine().Shrink(1)
+		ui.Text(c, model).FontSize(11.5).Font(theme.MonoFont).TextColor(theme.TextSoft).SingleLine().Shrink(1).Tooltip(strings.Join(t.Ran, " → "))
 	})
+	projectLine(c, taskProject(t), t.Dir, t.Branch, a.goaHostName(t.Host))
 	if t.Why != "" {
 		ui.Text(c, t.Why).FontSize(11.5).TextColor(theme.Muted)
 	}
@@ -284,11 +287,27 @@ func (a *App) goaHostName(host string) string {
 	return host
 }
 
-func orOwn(s string) string {
-	if s == "" {
-		return "its own"
+// taskRanOn is what a task really runs on: what its agent said, a session on
+// another host read live; else what was asked, marked so; else unknown.
+func taskRanOn(t proto.GOATask, s proto.SessionInfo, shown bool) string {
+	switch n := len(t.Ran); {
+	case n > 0:
+		return textfmt.ShortModel(t.Ran[n-1])
+	case shown && s.Model != "":
+		return textfmt.ShortModel(s.Model) + " · " + nonEmpty(s.Effort, "unknown")
+	case t.Model != "":
+		return textfmt.ShortModel(t.Model) + " · " + nonEmpty(t.Effort, "unknown") + " (asked)"
 	}
-	return s
+	return "unknown"
+}
+
+// taskProject is a task's project, or what to say for none: "" with a session
+// place known is no project, and with none known it can't be said.
+func taskProject(t proto.GOATask) string {
+	if t.Project == "" && t.Dir == "" {
+		return "unknown"
+	}
+	return t.Project
 }
 
 func shortID(id string) string {
@@ -384,4 +403,12 @@ func (a *App) goaOverrideDialog(c *ui.Context) {
 	f.open = false
 	var out proto.GOATask
 	a.goaCall(proto.MethodGOAOverride, proto.GOAOverrideParams{ID: f.task.ID, Model: strings.TrimSpace(f.model), Effort: f.effort}, &out, nil)
+}
+
+// orOwn says what is asked of a task: "" keeps the agent's own.
+func orOwn(s string) string {
+	if s == "" {
+		return "its own"
+	}
+	return s
 }

@@ -142,6 +142,16 @@ func mergeWorker(d, w proto.HookDecision) proto.HookDecision {
 // goaBoard is the board as the app shows it.
 func (s *Server) goaBoard() proto.GOABoard {
 	b := proto.GOABoard{Tasks: s.goa.board.List()}
+	// Tasks from before they kept their session's place: as it is, if it is.
+	for i, t := range b.Tasks {
+		if t.Dir == "" && t.Host == "" && t.Session != "" {
+			if sess, err := s.sessions.Get(t.Session); err == nil {
+				info := sess.Info()
+				b.Tasks[i].Dir, b.Tasks[i].Branch, b.Tasks[i].SessionName = info.Dir, info.Branch, info.Name
+				b.Tasks[i].Project = nonEmpty(t.Project, info.Project)
+			}
+		}
+	}
 	if g, ok := s.goaSession(); ok {
 		b.Session, b.Agent = g.ID, agent.Base(g.Agent)
 		b.Level, _ = goa.LevelOf(b.Agent)
@@ -166,7 +176,27 @@ func (s *Server) goaSeen(info proto.SessionInfo) {
 		s.goaClearUrgent(info.ID) // its turn is over (its next tool clears it too)
 	}
 	if s.goa.board.Has(info.ID) {
+		s.goaRanOn(info)
 		go s.goaWorkerChanged(info)
+	}
+}
+
+// goaRanOn records the model a task's session says it runs on, each change, on
+// the tasks not settled.
+func (s *Server) goaRanOn(info proto.SessionInfo) {
+	if info.Model == "" {
+		return
+	}
+	ran := info.Model + " · " + nonEmpty(info.Effort, "unknown")
+	changed := s.goa.board.Of(info.ID, func(t *proto.GOATask) bool {
+		if goa.Settled(t.Status) || len(t.Ran) > 0 && t.Ran[len(t.Ran)-1] == ran {
+			return false
+		}
+		t.Ran = append(t.Ran, ran)
+		return true
+	})
+	if len(changed) > 0 {
+		s.goaChanged()
 	}
 }
 

@@ -358,9 +358,13 @@ func (r runner) list(args []string) error {
 		return writeJSON(r.out, list)
 	}
 	w := tabwriter.NewWriter(r.out, 0, 4, 2, ' ', 0)
-	fmt.Fprintln(w, "ID\tAGENT\tSTATE\tPROJECT\tBRANCH\tNAME\tNOTE")
+	fmt.Fprintln(w, "ID\tAGENT\tSTATE\tMODEL\tPROJECT\tPATH\tBRANCH\tNAME\tNOTE")
 	for _, s := range list {
-		fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%s\t%s\t%s\n", s.ID, orDash(s.Agent), State(s), orDash(filepath.Base(s.Project)), orDash(s.Branch), orDash(sessionName(s)), orDash(s.Note))
+		project := "no project"
+		if s.Project != "" {
+			project = filepath.Base(s.Project)
+		}
+		fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n", s.ID, orDash(s.Agent), State(s), sessionModel(s), project, orDash(s.Dir), orDash(s.Branch), orDash(sessionName(s)), orDash(s.Note))
 	}
 	return w.Flush()
 }

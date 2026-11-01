@@ -2,6 +2,7 @@ package transcript
 
 import (
 	"bufio"
+	"bytes"
 	"encoding/json"
 	"os"
 	"path/filepath"
@@ -120,6 +121,10 @@ func NewClaudeReader(path string) *Reader { return newReader(path, newClaudePars
 // Records chain by parentUuid; when the user rewinds and sends a message
 // again, the new message's parent is a record before the messages it
 // replaces, which stay in the file.
+// modelSet is /model's answer in a user record: "Set model to Haiku 5.5", its
+// name maybe in backticks or a terminal's bold.
+var modelSet = regexp.MustCompile(`local-command-stdout>Set model to (?:\\u001b\[\d+m|\x60)*([\w .()-]+?)(?:\\u001b|\x60| and | for |<|\\n)`)
+
 type claudeParser struct {
 	at   map[string]int // record → how many entries there were after it
 	last string         // the record read last
@@ -189,6 +194,12 @@ func (p *claudeParser) parse(line []byte, r *Reader) {
 			if n := u.Input + u.CacheRead + u.CacheCreate + u.Output; n > 0 {
 				r.Context = n
 			}
+		}
+	}
+	// /model answers before the next message says it.
+	if rec.Type == "user" {
+		if m := modelSet.FindSubmatch(line); m != nil {
+			r.Model = string(bytes.TrimSpace(m[1]))
 		}
 	}
 	if rec.IsMeta {

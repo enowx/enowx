@@ -96,6 +96,14 @@ type GOATask struct {
 	Host    string `json:"host,omitempty"`
 	Session string `json:"session,omitempty"`
 	Agent   string `json:"agent,omitempty"`
+	// SessionName, Dir and Branch are its session's as delegated, kept for
+	// when it has gone; Project below is its project, "" for none.
+	SessionName string `json:"sessionName,omitempty"`
+	Dir         string `json:"dir,omitempty"`
+	Branch      string `json:"branch,omitempty"`
+	// Ran are the models it really ran on ("model · effort"), oldest first,
+	// as its agent said them; Model and Effort are only what was asked.
+	Ran []string `json:"ran,omitempty"`
 	// Model, Effort and Config are what the prompt runs with ("" the
 	// agent's own); Why says why, Difficulty how hard the judge found it.
 	Model      string `json:"model,omitempty"`

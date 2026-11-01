@@ -146,6 +146,10 @@ It goes the way each agent takes standing instructions, and adds to the user's o
 
 Files are written, or brought up to date, when the daemon starts the agent. enowX's own files (`enowx.md`) hold the whole guide. In a file of the user's, enowX keeps only a short block between `<!-- enowX: … -->` lines, saying to run `"$ENOWX_BIN" guide`, and leaves the rest as it is; deleting the block is undone at the agent's next start. Both apply only when `ENOWX_SESSION` is set, since the agent reads them outside enowX too. The places are those the agents' documentation or source gives, not all checked by running them.
 
+## The model a session runs on
+
+The session list, `sessions` and `ls` show each agent session's project, path and model. The model is what the agent writes in its transcript with each answer, looked at every few seconds, so `/model`, a switch, a fallback and a config all show, Claude Code's `/model` at once and others with their next answer. An agent enowX reads no transcript of, or one that hasn't answered yet, reads "unknown model"; a stopped session shows the last it said, marked "(last)". A program started by hand in a shell tab is listed as the shell, with no model.
+
 ## Skipping permission prompts
 
 New session's **Skip permission prompts** starts an agent in its mode that asks nothing. Sessions the user doesn't start by hand follow it only where nothing would hear a prompt: an agent with no hooks (OpenCode and most others; every agent on Windows), started as GOD of Agents, its worker, or the chat of a note or a canvas (`SkipUnheard`). Claude Code and Codex tell enowX they are asking, so GOA's workers of them stay as `goa delegate` said (`--yolo`), and GOA answers. `goa start --yolo` is the same default on the command line.

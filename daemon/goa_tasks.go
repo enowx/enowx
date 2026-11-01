@@ -105,9 +105,13 @@ func (s *Server) goaDelegate(p proto.GOADelegateParams) (proto.GOATask, error) {
 		if err != nil {
 			return t, err
 		}
-		t.Session = info.ID
+		t.Session, target = info.ID, info
 	}
 	t.Project = nonEmpty(p.Project, target.Project)
+	t.SessionName, t.Dir, t.Branch = target.Name, target.Dir, target.Branch
+	if target.Model != "" {
+		t.Ran = []string{target.Model + " · " + nonEmpty(target.Effort, "unknown")}
+	}
 	t, err := s.goa.board.Add(t)
 	if err != nil {
 		return t, err
