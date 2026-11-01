@@ -4,17 +4,37 @@ Each version's section is also what the app's update dialog shows.
 
 ## 0.5.0
 
-- **GOD of Agents:** one session you drive that controls every session on every host. It splits what you ask into tasks, hands each to a session with a model and effort picked for it, follows them on a board, and reads files and writes what is small itself. Its mode keeps Sessions and Tasks beside it, with Notes, Canvas and Browser a click away. Give it rules of your own, written by you or by an AI from what you say, and drag a session into a chat or terminal to point an agent at it.
-- **RAG, built in:** agents find a project's code, docs, notes and memories by meaning. Indexed by enowX itself in SQLite or PostgreSQL with pgvector, with Voyage, an OpenAI-compatible or a TEI embedder. A project is indexed only after you agree to send its text to the embedder; secrets and ignored files never are.
-- **Decision models:** a small model answers instead of guessing: allow a command or leave it to you, is a quiet session waiting, what of a long output the agent needs, is it looping, which model a prompt needs. It uses an agent you have signed in, a model API, a local server or a decision model (Jev, Clef, Neuralwatt). A failure never blocks an agent.
-- **On by default:** RAG, Decisions and their uses start on, and approving commands and trimming long output run without a hook, which costs a little time per command and some of the judge's quota. Turn any of them off in Settings → Decisions and Features.
-- **Hooks:** every event, condition and action, on every agent, from the host, a project or a session.
-- **Token usage:** what each agent, model, project and session used, with costs and budgets, in Resource usage and on the command line.
-- **Agents' configs:** other accounts and model APIs per agent, picked per session, with fallback in your order at a limit.
-- **Control from any session:** agents stop, answer, switch and review sessions on any host the app reaches; what can't be undone asks you.
+- **GOD of Agents:** one session you drive that controls every session on every host. It splits what you ask into tasks and hands each to an existing session or a new one, on any host, agent and config; a board shows each task, its session, status and result. On Claude Code and Codex it is held to this by their hooks, on other agents watched, with each agent's level shown when you pick one.
+  - **Its mode:** the session list folds away, Sessions and Tasks stay in the side panel, a strip on top reaches Browser, Notes, Canvas, Usage, Hosts and Settings. Leaving asks first.
+  - **Model per task:** the judge picks each prompt's model and effort, or a cheaper provider's config, with why, cheaper near a budget. Change model overrides it.
+  - **Its workers' permission prompts:** the judge and GOA answer them; what can't be undone, spends money, publishes or touches secrets comes to you with a sound and a banner.
+  - **Rules:** tell it how to work, in the app, written by you or by an AI from your own words. Projects' rules can be written with AI too.
+  - **Its own memory:** a RAG collection of tasks, outcomes, decisions and your preferences, and read-only search of projects. It reads files and writes what is small itself.
+  - **Point at a session:** drag one from Sessions into a chat or terminal, for the agent to read it.
+- **RAG, built in:** agents find a project's code, docs, attached notes and memories by meaning and by words (`rag search`, `rag remember`).
+  - **Stored** in SQLite, or PostgreSQL with pgvector; embedded by Voyage, an OpenAI-compatible service or TEI. Keys from the vault or typed in Settings.
+  - **Consent first:** before a project's first index, a dialog says which service gets its text, roughly how many tokens and what stays out. Secrets and ignored files never go.
+  - **Kept up to date** as sessions change files, in the background, unchanged parts skipped.
+  - **In the side panel:** status, Reindex, a search box whose results open the file at their lines, memories to edit, and turning it off, which deletes the index after asking.
+  - **For prompts:** the parts that bear on a prompt added as context, and an offer to keep a session's decisions as memories.
+- **Decision models:** a small model answers instead of guessing. enowX finds what can judge on the host: agents you have signed in (`claude -p`, `codex exec`), model APIs, local servers (Ollama, LM Studio), and decision models (Jev, Clef, Neuralwatt, OpenAI's). A failure never blocks an agent.
+  - **Its uses:** a quiet session's state; approving a command, with the reason shown; trimming long output to what matters, the whole kept in a file; stopping a loop before more tokens go; a prompt's model; RAG's context and memories; a team message's urgency; a flaky or real test failure.
+  - **Settings → Decisions:** the judges with a Test, the provider policy (the session's own, one provider, any, or local only), the fallback order, each use's switch, confidence and daily limit, per-project overrides, and a log to mark what was wrong.
+- **On by default:** RAG, Decisions and their uses start on, and approving commands and trimming run without a hook, which costs a little time per command and some of the judge's quota. Turn any of them off in Settings → Decisions and Features. RAG still indexes nothing until you agree per project.
+- **Hooks for every agent:** one format, installed into agents' own hook systems without touching your config, and detected from outside for agents without one; each agent's support is shown.
+  - **Events:** sessions, prompts, tools, permissions, files, Git, status, ports, sync, notifications and schedules.
+  - **Conditions:** agent, project, host, branch, tool, file, text, combined with AND, OR and NOT, with limits, hours and order.
+  - **Actions:** run a command, add context, refuse, change the command, ask the judge, trim output, notify, a webhook, an enowX command.
+  - **Settings → Hooks:** a builder and direct editing, templates, Test, a log; for the host, a project or a session. A project's hooks don't run until you allow them, and agents can only propose them.
+- **Token usage:** a Tokens tab in Resource usage: each agent, model, project, session, config and host, per day, with input, cached and output, costs, prices you can edit, and budgets. Tracked from agents' own records, their traffic or their screen, with each agent's coverage shown, and never prompts or answers. Also `usage` on the command line.
+- **Agents' configs:** other accounts and model APIs (Claude Code on a third-party model, say) saved apart from an agent's official config and picked per session at New session, shown as a badge, switched mid-session, and never written to the agent's own files. Model APIs set before move over, their files restored.
+- **Accounts:** several per provider, in the order you set; at a limit, out of credits or signed out, a session goes on with the next, another provider's too, automatically or after asking. Their state, limits and a log of who was used and why.
+- **Control from any session:** agents interrupt, stop, continue, rename, answer, switch model and review sessions on any host the app reaches, and change settings and project settings. What can't be undone asks you in the app, and a credential's value is never read.
+- **Canvas:** a redesign's steps are kept, measured and played back, before and after, and exported as a video. Designs stay where you scrolled them while an agent works. Unslop also reads a page in the Browser for what makes it look AI-made.
+- **Team chat:** a new message notifies with a sound, a banner and a card to answer from; unread counts; per team, all, mentions or nothing; quiet hours kept.
+- **Delete a team:** its owner alone, typing its name; members' copies go at their next sync, and they are told.
 - **Keys typed in Settings:** a judge's or RAG's key can stay on the host alone, without the vault.
-- **Team chat:** notifications with a sound and a card to answer from, unread counts, and owners can delete a team.
-- Fixed: a team chat that showed only new messages until later; an agent resumed with no conversation to continue failing to start; a wait on an SSH agent that hangs.
+- Fixed: a team chat showed only new messages until later, and said it was empty while reading; an agent with no conversation to continue failed to start; waiting on an SSH agent that hangs; Gemini CLI's sign-in with a config's key; a team's pull losing its place.
 
 ## 0.4.2
 
