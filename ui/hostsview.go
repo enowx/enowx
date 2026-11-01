@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"strconv"
 	"strings"
 
 	"github.com/egoist/mygo"
@@ -33,8 +34,6 @@ func (a *App) connectionState() (ui.Color, string) {
 	return theme.Done, "SSH · " + a.host.Address
 }
 
-func hostTile(c *ui.Context, h hosts.Host) { widget.Avatar(c, hostIcon(h), 30, theme.TextSoft) }
-
 // peerColor is a tailnet device's dot: online or not.
 func peerColor(online bool) ui.Color {
 	if online {
@@ -56,8 +55,8 @@ func hostDetail(h hosts.Host) string {
 func (a *App) connectionView(c *ui.Context) bool {
 	switch {
 	case a.connecting != "":
-		a.viewHeader(c, func() { widget.Breadcrumb(c, a.host.Name, "Connecting") })
-		ui.Column(c).Grow(1).FillWidth().Center().Children(func() {
+		widget.PageHeader(c, a.host.Name, "Connecting", nil)
+		ui.Column(c).Grow(1).FillWidth().Center().Padding(theme.S5).Children(func() {
 			var buttons func()
 			if link := a.connectLink; link != "" {
 				buttons = func() {
@@ -76,8 +75,8 @@ func (a *App) connectionView(c *ui.Context) bool {
 		if strings.HasPrefix(a.connErr, "Disconnected from ") {
 			title, crumb = "Disconnected from "+a.host.Name, "Not connected"
 		}
-		a.viewHeader(c, func() { widget.Breadcrumb(c, a.host.Name, crumb) })
-		ui.Column(c).Grow(1).FillWidth().Center().Children(func() {
+		widget.PageHeader(c, a.host.Name, crumb, nil)
+		ui.Column(c).Grow(1).FillWidth().Center().Padding(theme.S5).Children(func() {
 			widget.StateCard(c, theme.Error, icon.Alert, title, a.connErr, nil, func() {
 				var refusal *transport.AuthError
 				if errors.As(a.connFail, &refusal) && widget.GhostButton(c, "Sign in…").Clicked() {
@@ -106,151 +105,287 @@ func hostIcon(h hosts.Host) *ui.SVG {
 	return icon.Server
 }
 
-// hostsPage lists the saved servers and the tailnet's other devices.
+// hostsPage lists the saved servers and, in a card of its own, the tailnet's
+// other devices.
 func (a *App) hostsPage(c *ui.Context) {
-	a.viewHeader(c, func() {
-		ui.Row(c).Grow(1).MinWidth(0).Children(func() { widget.Breadcrumb(c, "Hosts", "All devices") })
+	widget.PageHeader(c, "Hosts", "All devices, saved on this device", func() {
 		if a.opts.Hosts != nil {
-			if widget.GhostButton(c, "Import…").Clicked() {
-				go a.importHosts()
+			b := widget.IconButton(c, icon.More, "Import and export", false)
+			a.menu.OpenBelow(b, "hosts-list", theme.ControlHeight)
+			a.menu.Show(c, b, "hosts-list", func(done func()) {
+				if widget.MenuItem(c, icon.Download, "Import…", false) {
+					go a.importHosts()
+					done()
+				}
+				if widget.MenuItem(c, icon.External, "Export…", false) {
+					go a.exportHosts()
+					done()
+				}
+			})
+			if widget.GhostButton(c, "Create a server…").Tooltip("At Hetzner, DigitalOcean or Vultr, with your own API token").Clicked() {
+				a.openCreateServer()
 			}
-			if widget.GhostButton(c, "Export…").Clicked() {
-				go a.exportHosts()
-			}
-		}
-		if a.opts.Hosts != nil && widget.GhostButton(c, "Create a server…").Tooltip("At Hetzner, DigitalOcean or Vultr, with your own API token").Clicked() {
-			a.openCreateServer()
 		}
 		if widget.PrimaryButton(c, icon.Plus, "Add VPS", "").Clicked() {
 			a.openAddHost()
-		}
-		if widget.IconButton(c, icon.Close, "Back to sessions", false).Clicked() {
-			a.page = ""
 		}
 	})
 	if !a.hostsPageShown {
 		a.hostsPageShown = true
 		go a.loadPeers()
 	}
-	ui.Scroll(c).Grow(1).FillWidth().Children(func() {
-		ui.Column(c).FillWidth().Padding(16).Gap(12).Children(func() {
-			widget.SectionLabel(c, "HOSTS", theme.Muted)
-			ui.Text(c, "Saved on this device in ~/"+transport.HomeName+"/hosts.json. Removing a host leaves its server and sessions untouched.").
-				FontSize(12).TextColor(theme.Muted)
-			widget.FitGrid(c, 340, 3).Gap(8).Children(func() {
-				for _, h := range a.allHosts() {
-					a.hostCard(c.Key(h.ID), h)
-				}
-			})
-			widget.SectionLabel(c, "ON YOUR TAILNET", theme.Muted).Margin(10, 0, 0, 0)
-			if note := a.tailnetNote(); note != "" {
-				ui.Text(c, note).FontSize(theme.TextLabel).TextColor(theme.Muted)
-			}
-			widget.FitGrid(c, 340, 3).Gap(8).Children(func() {
-				for _, p := range a.newPeers() {
-					widget.Card(c.Key(p.Address())).Children(func() {
-						ui.Row(c).FillWidth().Gap(10).Children(func() {
-							widget.Avatar(c, icon.Tailscale, 30, theme.TextSoft)
-							ui.Column(c).Gap(1).Grow(1).MinWidth(0).Children(func() {
-								ui.Text(c, p.HostName).SingleLine()
-								ui.Text(c, p.OS+" · "+p.Address()).Font(theme.MonoFont).FontSize(theme.TextLabel).TextColor(theme.Muted).SingleLine()
-							})
-							widget.Dot(c, peerColor(p.Online), !p.Online, 6)
-							if widget.GhostButton(c, "Connect").Clicked() {
-								a.page = ""
-								a.connectPeer(p)
-							}
-						})
-					})
-				}
-			})
-		})
+	list := a.allHosts()
+	widget.FigsBand(c, a.hostsFigures(list))
+	widget.FillGrid(c, 3, len(list)+1, hostCardMinHeight, func() {
+		for _, h := range list {
+			a.hostCard(c.Key(h.ID), h)
+		}
+		a.tailnetCard(c.Key("tailnet"))
+	})
+}
+
+// hostCardMinHeight is what a host's card needs: its status, its figures and
+// its actions. Under two rows' worth of frame the page scrolls.
+const hostCardMinHeight = 228
+
+// hostsFigures sums the hosts up.
+func (a *App) hostsFigures(list []hosts.Host) []widget.Fig {
+	connected, sessions, failed := 0, 0, 0
+	for _, h := range list {
+		if a.hostFaceOf(h).failed {
+			failed++
+		}
+		if st, ok := a.statusOfHost(h); ok && st.state == hostOnline {
+			connected++
+			sessions += sessionCount(st)
+		}
+	}
+	return []widget.Fig{
+		{Label: "Hosts", Value: strconv.Itoa(len(list))},
+		{Label: "Connected", Value: strconv.Itoa(connected)},
+		{Label: "Sessions", Value: strconv.Itoa(sessions)},
+		{Label: "Couldn't connect", Value: strconv.Itoa(failed)},
+		{Label: "On your tailnet", Value: strconv.Itoa(len(a.newPeers()))},
+	}
+}
+
+func sessionCount(st hostStatus) int {
+	n := 0
+	for _, s := range st.sessions {
+		if !s.Exited {
+			n++
+		}
+	}
+	return n
+}
+
+// hostFace is how a host's card reads now.
+type hostFace struct {
+	color  ui.Color
+	state  string
+	tip    string
+	failed bool
+	err    string
+}
+
+// hostFaceOf says how host h is: from the connection shown for the current
+// host, else from its watch.
+func (a *App) hostFaceOf(h hosts.Host) hostFace {
+	if h.ID == a.host.ID {
+		switch {
+		case a.connecting != "":
+			return hostFace{color: theme.Warning, state: "Connecting…"}
+		case a.client != nil:
+			return hostFace{color: theme.Done, state: "Connected"}
+		case a.connErr != "" && !strings.HasPrefix(a.connErr, "Disconnected from "):
+			return hostFace{color: theme.Error, state: "Couldn't connect", failed: true, err: a.connErr}
+		case a.connErr != "":
+			return hostFace{color: theme.Idle, state: "Not connected", err: a.connErr}
+		}
+		return hostFace{color: theme.Idle, state: "Not connected"}
+	}
+	st, ok := a.statusOfHost(h)
+	if !ok {
+		return hostFace{color: theme.Idle, state: "Not connected"}
+	}
+	switch st.state {
+	case hostOnline:
+		return hostFace{color: hostColor(st), state: "Connected", tip: hostState(st)}
+	case hostConnecting:
+		return hostFace{color: theme.Warning, state: "Connecting…"}
+	case hostNeedsYou:
+		return hostFace{color: theme.Warning, state: "Not connected", tip: hostState(st)}
+	}
+	if st.err != "" {
+		return hostFace{color: theme.Error, state: "Couldn't connect", failed: true, err: st.err, tip: hostState(st)}
+	}
+	return hostFace{color: theme.Idle, state: "Not connected", tip: hostState(st)}
+}
+
+// hostLine is where a host is and how the app gets there.
+func hostLine(h hosts.Host) string {
+	if h.ID == hosts.LocalID {
+		return "Local"
+	}
+	return "SSH · " + h.Address
+}
+
+// hostDaemon is the version of the daemon on host h, once known.
+func (a *App) hostDaemon(h hosts.Host) string {
+	if h.ID == a.host.ID {
+		return a.daemonInfo.Version
+	}
+	if w := a.watches[h.ID]; w != nil {
+		return w.info.Version
+	}
+	return ""
+}
+
+// hostFigures are a connected host's figures and how full its memory is; its
+// CPU and disk show in the meter's tooltip.
+func (a *App) hostFigures(c *ui.Context, h hosts.Host, st hostStatus) {
+	u := st.usage
+	memory, used := "-", 0.0
+	if u.MemTotal > 0 {
+		used = float64(u.MemUsed) / float64(u.MemTotal)
+		memory = fmt.Sprintf("%.0f%%", used*100)
+	}
+	version := a.hostDaemon(h)
+	if version == "" {
+		version = "-"
+	}
+	widget.CardStats(c, []widget.Stat{
+		{Value: strconv.Itoa(sessionCount(st)), Label: "sessions"},
+		{Value: memory, Label: "memory"},
+		{Value: version, Label: "daemon"},
+	})
+	ui.Column(c.Key("meter")).FillWidth().Shrink(0).Tooltip(hostUsageTip(u)).Children(func() {
+		widget.Meter(c, widget.Segment{Fraction: used, Color: theme.Working})
 	})
 }
 
 // hostCard is a host of the Hosts page with what can be done to it.
 func (a *App) hostCard(c *ui.Context, h hosts.Host) {
 	current := h.ID == a.host.ID
-	card := widget.Card(c)
-	if current {
-		card.Border(1, theme.AccentLine)
+	face := a.hostFaceOf(h)
+	card := widget.GridCard(c)
+	if face.failed {
+		card.Background(theme.Fade(theme.Error, 0.13))
 	}
 	card.Children(func() {
-		ui.Row(c).FillWidth().Gap(10).Children(func() {
-			hostTile(c, h)
-			ui.Column(c).Gap(1).Grow(1).MinWidth(0).Children(func() {
-				ui.Text(c, h.Name).SingleLine()
-				ui.Text(c, hostDetail(h)).Font(theme.MonoFont).FontSize(theme.TextLabel).TextColor(theme.Muted).SingleLine()
-				if note := runAsNote(h); note != "" {
-					ui.Text(c, note).FontSize(theme.TextLabel).TextColor(theme.TextSoft).SingleLine()
+		widget.CardTitle(c, hostIcon(h), h.Name, nil)
+		status := ui.Row(c.Key("status")).FillWidth().Shrink(0)
+		if face.tip != "" {
+			status.Tooltip(face.tip)
+		}
+		status.Children(func() { widget.StatusLine(c, face.color, false, face.state) })
+		if face.err != "" {
+			widget.CardNote(c.Key("err"), face.err, 2).Shrink(0)
+		} else {
+			widget.CardNote(c.Key("line"), hostLine(h), 1).Shrink(0)
+		}
+		if note := runAsNote(h); note != "" {
+			widget.CardNote(c.Key("run-as"), note, 1).Shrink(0)
+		}
+		if st, ok := a.statusOfHost(h); ok && st.state == hostOnline {
+			a.hostFigures(c, h, st)
+		}
+		ui.Spacer(c)
+		widget.CardFoot(c, func() { a.hostActions(c, h, current, face) })
+	})
+}
+
+// hostActions are a host card's buttons, then what is done now and then behind
+// its More.
+func (a *App) hostActions(c *ui.Context, h hosts.Host, current bool, face hostFace) {
+	if current && h.ID != hosts.LocalID && a.client != nil {
+		label := "Set up…"
+		if n := a.drift[h.ID]; n > 0 {
+			label = fmt.Sprintf("Set up · %d to bring", n)
+		}
+		if widget.GhostButton(c, label).Tooltip("Bring it to what this device has: toolchains, git, gh, agents").Clicked() {
+			a.openSetup()
+		}
+		if widget.GhostButton(c, "Sync environment").Tooltip("Skills, subagents, commands, MCP servers and settings").Clicked() {
+			a.openSync()
+		}
+	}
+	_, saved := a.storedHost(h.ID)
+	switch {
+	case face.failed:
+		if widget.PrimaryButton(c, nil, "Retry", "").Clicked() {
+			a.page = ""
+			a.connect(h)
+		}
+		if saved && widget.GhostButton(c, "Edit host…").Clicked() {
+			a.openEditHost(h)
+		}
+	case !current:
+		var b ui.Element
+		if st, ok := a.statusOfHost(h); ok && st.state == hostOnline {
+			b = widget.GhostButton(c, "Connect")
+		} else {
+			b = widget.PrimaryButton(c, nil, "Connect", "")
+		}
+		if b.Clicked() {
+			a.page = ""
+			a.connect(h)
+		}
+	}
+	ui.Spacer(c)
+	if saved {
+		widget.MoreMenu(c, &a.menu, "host:"+h.ID, func(done func()) { a.hostMenu(c, h, done) })
+	}
+}
+
+func (a *App) hostMenu(c *ui.Context, h hosts.Host, done func()) {
+	if widget.MenuItem(c, icon.Pencil, "Edit…", false) {
+		a.openEditHost(h)
+		done()
+	}
+	if (h.RunAs != "" || h.KeepRoot) && widget.MenuItemTip(c, icon.Agent("shell"), "Choose user again", "Ask which user to run as at the next connection", false) {
+		h.RunAs, h.KeepRoot = "", false
+		a.chooseRunAs = h.ID // the next connection asks, rather than picking
+		if err := a.opts.Hosts.Update(h); err != nil {
+			a.status = err.Error()
+		}
+		a.reloadHosts()
+		done()
+	}
+	widget.MenuSeparator(c)
+	if p, ok := vps.Find(h.Provider); ok && h.ProviderID != "" && widget.MenuItemTip(c, icon.Trash, "Delete server…", "Delete the server at "+p.Name+": it and its disk are gone", true) {
+		a.deletingServer = &h
+		done()
+	}
+	if widget.MenuItem(c, icon.Trash, "Remove from the list", true) {
+		a.askRemoveHost(h)
+		done()
+	}
+	if h.ID != hosts.LocalID && widget.MenuItemTip(c, icon.Trash, "Remove & clear…", "Remove it from the list and clear the data synced to it", true) {
+		a.clearingHost = &h
+		done()
+	}
+}
+
+// tailnetCard lists the tailnet's devices not saved yet, or why there are none.
+func (a *App) tailnetCard(c *ui.Context) {
+	widget.GridCard(c).Children(func() {
+		widget.CardTitle(c, nil, "On your tailnet", nil)
+		if note := a.tailnetNote(); note != "" {
+			widget.CardNote(c.Key("note"), note, 0)
+		}
+		ui.Scroll(c.Key("peers")).Grow(1).FillWidth().MinHeight(0).Children(func() {
+			widget.CardLines(c, func() {
+				for i, p := range a.newPeers() {
+					widget.CardLine(c.Key(p.Address()), i == 0, p.HostName, p.Address()+" · "+p.OS, func() {
+						widget.Dot(c, peerColor(p.Online), !p.Online, 8)
+						if widget.GhostButton(c, "Connect").Clicked() {
+							a.page = ""
+							a.connectPeer(p)
+						}
+					})
 				}
 			})
-			if current {
-				col, state := a.connectionState()
-				ui.Row(c).Gap(6).Shrink(0).Children(func() {
-					widget.Dot(c, col, false, 6)
-					ui.Text(c, state).FontSize(theme.TextLabel).TextColor(theme.Muted).SingleLine().MaxWidth(160)
-				})
-			} else if st, ok := a.statusOfHost(h); ok {
-				ui.Row(c).Gap(6).Shrink(0).Children(func() {
-					col := hostColor(st)
-					widget.Dot(c, col, col == (ui.Color{}), 6)
-					ui.Text(c, hostState(st)).FontSize(theme.TextLabel).TextColor(theme.Muted).SingleLine().MaxWidth(200)
-				})
-			}
-		})
-		if st, ok := a.statusOfHost(h); ok && st.state == hostOnline {
-			hostUsageRow(c, st)
-		} else if ok && st.err != "" && st.state != hostConnecting {
-			ui.Text(c, st.err).FontSize(theme.TextLabel).TextColor(theme.Muted).MaxLines(2)
-		}
-		ui.Row(c).FillWidth().Gap(6).Justify(ui.End).Children(func() {
-			// What is done now and then waits behind ⋯; the card keeps
-			// what it is for.
-			if _, saved := a.storedHost(h.ID); saved {
-				widget.MoreMenu(c, &a.menu, "host:"+h.ID, func(done func()) {
-					if widget.MenuItem(c, icon.Pencil, "Edit…", false) {
-						a.openEditHost(h)
-						done()
-					}
-					if (h.RunAs != "" || h.KeepRoot) && widget.MenuItemTip(c, icon.Agent("shell"), "Choose user again", "Ask which user to run as at the next connection", false) {
-						h.RunAs, h.KeepRoot = "", false
-						a.chooseRunAs = h.ID // the next connection asks, rather than picking
-						if err := a.opts.Hosts.Update(h); err != nil {
-							a.status = err.Error()
-						}
-						a.reloadHosts()
-						done()
-					}
-					widget.MenuSeparator(c)
-					if p, ok := vps.Find(h.Provider); ok && h.ProviderID != "" && widget.MenuItemTip(c, icon.Trash, "Delete server…", "Delete the server at "+p.Name+": it and its disk are gone", true) {
-						a.deletingServer = &h
-						done()
-					}
-					if widget.MenuItem(c, icon.Trash, "Remove from the list", true) {
-						a.askRemoveHost(h)
-						done()
-					}
-					if h.ID != hosts.LocalID && widget.MenuItemTip(c, icon.Trash, "Remove & clear…", "Remove it from the list and clear the data synced to it", true) {
-						a.clearingHost = &h
-						done()
-					}
-				})
-			}
-			ui.Spacer(c)
-			if current && h.ID != hosts.LocalID && a.client != nil {
-				label := "Set up…"
-				if n := a.drift[h.ID]; n > 0 {
-					label = fmt.Sprintf("Set up · %d to bring", n)
-				}
-				if widget.GhostButton(c, label).Tooltip("Bring it to what this device has: toolchains, git, gh, agents").Clicked() {
-					a.openSetup()
-				}
-			}
-			if !current && widget.GhostButton(c, "Connect").Clicked() {
-				a.page = ""
-				a.connect(h)
-			}
 		})
 	})
 }

@@ -328,34 +328,19 @@ func hostSummary(st hostStatus) string {
 	return "offline"
 }
 
-// hostUsageRow is a host's CPU, memory and disk, each a small meter, and
-// its sessions running.
-func hostUsageRow(c *ui.Context, st hostStatus) {
-	u := st.usage
-	ui.Row(c).FillWidth().Gap(14).Children(func() {
-		meter := func(label string, fraction float64, value string) {
-			ui.Column(c).Grow(1).MinWidth(0).Gap(4).Children(func() {
-				ui.Row(c).FillWidth().Children(func() {
-					ui.Text(c, label).FontSize(theme.TextLabel).TextColor(theme.Muted)
-					ui.Spacer(c)
-					ui.Text(c, value).FontSize(theme.TextLabel).TextColor(theme.TextSoft).SingleLine()
-				})
-				widget.Meter(c, widget.Segment{Fraction: fraction, Color: widget.Level(fraction)})
-			})
-		}
-		if u.CPUs > 0 {
-			meter("CPU", u.CPU/100, fmt.Sprintf("%.0f%% of %d", u.CPU, u.CPUs))
-		}
-		if u.MemTotal > 0 {
-			meter("Memory", float64(u.MemUsed)/float64(u.MemTotal), textfmt.Bytes(u.MemUsed)+" / "+textfmt.Bytes(u.MemTotal))
-		}
-		if u.DiskTotal > 0 {
-			meter("Disk", float64(u.DiskUsed)/float64(u.DiskTotal), textfmt.Bytes(u.DiskUsed)+" / "+textfmt.Bytes(u.DiskTotal))
-		}
-	})
-	working, waiting := st.running()
-	ui.Text(c, fmt.Sprintf("%s · %d working · %d need input", textfmt.Plural(len(st.sessions), "a session", fmt.Sprintf("%d sessions", len(st.sessions))), working, waiting)).
-		FontSize(11).TextColor(theme.Muted)
+// hostUsageTip is a host's CPU, memory and disk in words.
+func hostUsageTip(u proto.HostUsage) string {
+	var lines []string
+	if u.CPUs > 0 {
+		lines = append(lines, fmt.Sprintf("CPU %.0f%% of %d", u.CPU, u.CPUs))
+	}
+	if u.MemTotal > 0 {
+		lines = append(lines, "Memory "+textfmt.Bytes(u.MemUsed)+" / "+textfmt.Bytes(u.MemTotal))
+	}
+	if u.DiskTotal > 0 {
+		lines = append(lines, "Disk "+textfmt.Bytes(u.DiskUsed)+" / "+textfmt.Bytes(u.DiskTotal))
+	}
+	return strings.Join(lines, "\n")
 }
 
 // otherHostsSessions lists, under the shown host's projects, the sessions
