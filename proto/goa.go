@@ -78,9 +78,12 @@ type GOAAgent struct {
 const (
 	GOATaskWorking = "working"
 	GOATaskWaiting = "waiting" // its session asks something
-	GOATaskDone    = "done"
-	GOATaskFailed  = "failed"
-	GOATaskStopped = "stopped"
+	// GOATaskTurnEnded: its agent finished a turn, which may be mid-work.
+	// GOA reads it and settles the task, or sends more.
+	GOATaskTurnEnded = "turn-ended"
+	GOATaskDone      = "done"
+	GOATaskFailed    = "failed"
+	GOATaskStopped   = "stopped"
 )
 
 // GOATask is a task on GOA's board: the session it went to, how it was
@@ -107,7 +110,12 @@ type GOATask struct {
 	Reused bool   `json:"reused,omitempty"`
 	Woken  bool   `json:"woken,omitempty"`
 	Status string `json:"status"`
+	// Project is the project its session works in, when it has one.
+	Project string `json:"project,omitempty"`
+	// Result is how it ended, once settled. Said is what its agent last
+	// said as a turn ended, no outcome until GOA says so.
 	Result string `json:"result,omitempty"`
+	Said   string `json:"said,omitempty"`
 	// Asks is what its session waits on; Urgent, why the user answers it
 	// rather than GOA (it can't be undone, money, publishing, secrets,
 	// the judge unsure).

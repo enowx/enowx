@@ -160,6 +160,9 @@ var secretName = regexp.MustCompile(`(?i)(^|/)(\.env(\..*)?|\.envrc|\.npmrc|\.ne
 // token.
 var secretText = regexp.MustCompile(`-----BEGIN [A-Z ]*PRIVATE KEY-----|\bAKIA[0-9A-Z]{16}\b|\bgh[pousr]_[A-Za-z0-9]{30,}\b|\bsk-[A-Za-z0-9_-]{20,}\b|\bxox[abpr]-[A-Za-z0-9-]{10,}\b`)
 
+// HoldsSecret says text holds a secret, by what keeps a chunk from the index.
+func HoldsSecret(text string) bool { return secretText.MatchString(text) }
+
 // IsSecret reports whether the file at name (relative, with slashes) holds
 // secrets, by its name.
 func IsSecret(name string) bool { return secretName.MatchString(name) }

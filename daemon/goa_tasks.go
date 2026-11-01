@@ -106,10 +106,12 @@ func (s *Server) goaDelegate(p proto.GOADelegateParams) (proto.GOATask, error) {
 		}
 		t.Session = info.ID
 	}
+	t.Project = nonEmpty(p.Project, target.Project)
 	t, err := s.goa.board.Add(t)
 	if err != nil {
 		return t, err
 	}
+	s.goaRememberDelegation(t)
 	s.goaChanged()
 	return t, nil
 }
@@ -198,10 +200,10 @@ func (s *Server) goaWorkerChanged(info proto.SessionInfo) {
 		}
 		head := fmt.Sprintf("[enowX GOA] Task %s %q (%s)", t.ID, t.Title, where)
 		switch status {
-		case proto.GOATaskDone:
-			result := s.goaResult(t)
-			t, _ = s.goa.board.Update(t.ID, func(t *proto.GOATask) { t.Result = result })
-			s.goaTell(head + " finished its turn: " + clip(oneLine(result), 400) + " Check it (chat " + t.Session + hostFlag + "), then settle it: goa task " + t.ID + " --status done|failed --result \"…\".")
+		case proto.GOATaskTurnEnded:
+			said := s.goaResult(t)
+			t, _ = s.goa.board.Update(t.ID, func(t *proto.GOATask) { t.Said = said })
+			s.goaTell(head + " finished a turn, which may be mid-work: " + clip(oneLine(said), 400) + " Check it (chat " + t.Session + hostFlag + "), then settle it: goa task " + t.ID + " --status done|failed --result \"…\".")
 		case proto.GOATaskWaiting:
 			ask := s.goaAskOf(t)
 			t, _ = s.goa.board.Update(t.ID, func(t *proto.GOATask) { t.Asks, t.Urgent = askLine(ask), ask.Urgent })
@@ -211,8 +213,10 @@ func (s *Server) goaWorkerChanged(info proto.SessionInfo) {
 				s.goaTell(head + " asks: " + nonEmpty(t.Asks, "something its screen shows (read "+t.Session+hostFlag+")") + ". Answer it: answer " + t.Session + hostFlag + " allow|deny|N.")
 			}
 		case proto.GOATaskFailed:
+			s.goaRememberOutcome(t)
 			s.goaTell(head + " failed: its agent ended with an error. Read it (read " + t.Session + hostFlag + ").")
 		case proto.GOATaskStopped:
+			s.goaRememberOutcome(t)
 			s.goaTell(head + " stopped: its agent ended.")
 		}
 	}
@@ -275,15 +279,22 @@ func (s *Server) goaSetTask(p proto.GOATaskParams) (proto.GOATask, error) {
 	default:
 		return proto.GOATask{}, fmt.Errorf("goa: a task is working, waiting, done, failed or stopped, not %q", p.Status)
 	}
+	settles := false
 	t, err := s.goa.board.Update(p.ID, func(t *proto.GOATask) {
 		if p.Status != "" {
+			settles = goa.Settled(p.Status) && !goa.Settled(t.Status)
 			t.Status = p.Status
 		}
 		if p.Result != "" {
 			t.Result = clip(p.Result, goaResultMax)
+		} else if settles && t.Result == "" {
+			t.Result = t.Said // what it last said is all that says how it ended
 		}
 	})
 	if err == nil {
+		if settles {
+			s.goaRememberOutcome(t)
+		}
 		s.goaChanged()
 	}
 	return t, err

@@ -97,9 +97,9 @@ func TestGOAControlsAnotherHostEndToEnd(t *testing.T) {
 	if err := ca.Call(proto.MethodGOAWorker, proto.GOAWorkerParams{Host: b.daemonID, Session: worker.Info()}, nil); err != nil {
 		t.Fatal(err)
 	}
-	waitFor(t, "the task done, with its result", func() bool {
+	waitFor(t, "the turn ended, no outcome yet", func() bool {
 		tasks := goaBoardOf(t, ca).Tasks
-		return len(tasks) == 1 && tasks[0].Status == proto.GOATaskDone && strings.Contains(tasks[0].Result, "heard: and add a test")
+		return len(tasks) == 1 && tasks[0].Status == proto.GOATaskTurnEnded && tasks[0].Result == "" && strings.Contains(tasks[0].Said, "heard: and add a test")
 	})
 	waitScreen(t, ca, g.ID, "[enowX GOA] Task "+task.ID)
 
@@ -563,5 +563,124 @@ func TestGOABringsSessionsBack(t *testing.T) {
 	}
 	if n := len(a.goa.board.List()); n != before {
 		t.Fatalf("on the board all the same: %d, was %d", n, before)
+	}
+}
+
+// What GOA hands out and how it truly ended is in its collection with no one
+// saving it: found by words with RAG off, on this host's tasks and another's,
+// after a restart. A turn ending isn't an outcome; a secret isn't kept; no
+// project's collection is touched; and an entry can be deleted.
+func TestGOARemembersItsTasks(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("uses sh")
+	}
+	fakeAgents(t, "claude")
+	dataDir := t.TempDir()
+	a, err := NewServer(dataDir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(a.Close)
+	b := startServer(t)
+	ca, cb := connect(t, a, nil), connect(t, b, nil)
+	standInApp(t, a, map[string]*client.Client{b.daemonID: cb}, func(proto.HostCallParams) bool { return true })
+	g, err := a.sessions.Create(session.Spec{Command: []string{"cat"}, Dir: a.goaDir(), Cols: 80, Rows: 24, Meta: session.Meta{Agent: "claude", GOA: true}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	here, there := gitRepo(t), gitRepo(t)
+	delegate := func(p proto.GOADelegateParams) proto.GOATask {
+		t.Helper()
+		var task proto.GOATask
+		p.NoRoute, p.From, p.Agent, p.Branch = true, g.ID(), "claude", ""
+		if err := ca.Call(proto.MethodGOADelegate, p, &task); err != nil {
+			t.Fatal(err)
+		}
+		return task
+	}
+	recall := func(q string) string {
+		t.Helper()
+		var hits []proto.RAGHit
+		if err := ca.Call(proto.MethodGOARecall, proto.GOARecallParams{Session: g.ID(), Query: q}, &hits); err != nil {
+			t.Fatal(err)
+		}
+		var out []string
+		for _, h := range hits {
+			out = append(out, h.Snippet)
+		}
+		return strings.Join(out, "\n")
+	}
+	task := delegate(proto.GOADelegateParams{Project: here, Title: "Merge the totals", Prompt: "Merge the invoice totals branch"})
+	if got := recall("merge invoice totals"); !strings.Contains(got, "[delegation]") || !strings.Contains(got, task.Session) || !strings.Contains(got, here) || !strings.Contains(got, "Merge the invoice totals branch") {
+		t.Fatalf("the delegation: %q", got)
+	}
+	far := delegate(proto.GOADelegateParams{Host: b.daemonID, Project: there, Title: "Rotate the logs", Prompt: "Rotate the server logs weekly"})
+	if got := recall("rotate logs"); !strings.Contains(got, b.daemonID) || !strings.Contains(got, far.Session) {
+		t.Fatalf("on another host: %q", got)
+	}
+
+	// A turn ends: no outcome, and the board doesn't say done.
+	worker, _ := a.sessions.Get(task.Session)
+	if err := a.sessions.SetState(worker, proto.StateDone); err != nil {
+		t.Fatal(err)
+	}
+	waitFor(t, "the turn ended", func() bool {
+		for _, x := range a.goa.board.List() {
+			if x.ID == task.ID {
+				return x.Status == proto.GOATaskTurnEnded
+			}
+		}
+		return false
+	})
+	if got := recall("merge invoice totals"); strings.Contains(got, "[outcome]") {
+		t.Fatalf("a turn's end kept as its outcome: %q", got)
+	}
+	// Settled: the outcome, with what it names.
+	report := "Merged in abc1234, https://github.com/shop/api/pull/42"
+	if err := ca.Call(proto.MethodGOATask, proto.GOATaskParams{ID: task.ID, Status: proto.GOATaskDone, Result: report}, nil); err != nil {
+		t.Fatal(err)
+	}
+	if err := ca.Call(proto.MethodGOATask, proto.GOATaskParams{ID: far.ID, Status: proto.GOATaskDone, Result: "Logs rotate on Mondays"}, nil); err != nil {
+		t.Fatal(err)
+	}
+	if got := recall("merge totals abc1234"); !strings.Contains(got, "[outcome]") || !strings.Contains(got, "ended done") || !strings.Contains(got, "pull/42") {
+		t.Fatalf("the outcome: %q", got)
+	}
+	// Settled again says nothing new.
+	before := len(a.ragSettings.Memories(rag.ProjectID(a.goaDir())))
+	if err := ca.Call(proto.MethodGOATask, proto.GOATaskParams{ID: task.ID, Status: proto.GOATaskDone}, nil); err != nil {
+		t.Fatal(err)
+	}
+	if n := len(a.ragSettings.Memories(rag.ProjectID(a.goaDir()))); n != before {
+		t.Fatalf("kept twice: %d, was %d", n, before)
+	}
+	// A secret stays out.
+	const secret = "ghp_abcdefghijklmnopqrstuvwxyz0123456789"
+	leak := delegate(proto.GOADelegateParams{Project: here, Title: "Use the token", Prompt: "Use the token " + secret})
+	if err := ca.Call(proto.MethodGOATask, proto.GOATaskParams{ID: leak.ID, Status: proto.GOATaskDone, Result: "Used " + secret}, nil); err != nil {
+		t.Fatal(err)
+	}
+	mems := a.ragSettings.Memories(rag.ProjectID(a.goaDir()))
+	for _, m := range mems {
+		if strings.Contains(m.Text, secret) {
+			t.Fatalf("a secret kept: %q", m.Text)
+		}
+	}
+	// Only GOA's collection, and nothing was sent: RAG is off for it.
+	if n := len(a.ragSettings.Memories(rag.ProjectID(here))); n != 0 {
+		t.Fatalf("%d memories in a project's collection", n)
+	}
+	// Deleted by the commands that delete memories.
+	var listed []proto.RAGMemory
+	if err := ca.Call(proto.MethodRAGMemories, proto.RAGRef{Session: g.ID()}, &listed); err != nil || len(listed) != len(mems) {
+		t.Fatalf("listed %d of %d: %v", len(listed), len(mems), err)
+	}
+	if err := ca.Call(proto.MethodRAGForget, proto.RAGForgetParams{RAGRef: proto.RAGRef{Session: g.ID()}, ID: listed[0].ID}, nil); err != nil {
+		t.Fatal(err)
+	}
+	// After a restart, still there.
+	again := rag.OpenSettings(dataDir).Memories(rag.ProjectID(a.goaDir()))
+	if len(again) != len(mems)-1 {
+		t.Fatalf("after a restart: %d, want %d", len(again), len(mems)-1)
 	}
 }

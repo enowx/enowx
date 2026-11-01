@@ -1101,9 +1101,11 @@ field GOATask.host string
 field GOATask.id string
 field GOATask.model string
 field GOATask.override bool
+field GOATask.project string
 field GOATask.prompt string
 field GOATask.result string
 field GOATask.reused bool
+field GOATask.said string
 field GOATask.session string
 field GOATask.status string
 field GOATask.title string
@@ -3125,6 +3127,7 @@ value GOALimited=limited
 value GOATaskDone=done
 value GOATaskFailed=failed
 value GOATaskStopped=stopped
+value GOATaskTurnEnded=turn-ended
 value GOATaskWaiting=waiting
 value GOATaskWorking=working
 value GOAWatched=watched

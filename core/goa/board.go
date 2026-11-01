@@ -161,7 +161,7 @@ func WorkerStatus(info proto.SessionInfo) string {
 	case info.State == proto.StateWaiting:
 		return proto.GOATaskWaiting
 	case info.State == proto.StateDone:
-		return proto.GOATaskDone
+		return proto.GOATaskTurnEnded // over or mid-work: GOA's to say
 	case info.State == proto.StateWorking:
 		return proto.GOATaskWorking
 	}

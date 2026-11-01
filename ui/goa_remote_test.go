@@ -141,13 +141,13 @@ func TestGOAFollowsAWorkerOnAnotherHost(t *testing.T) {
 		if clA.Call(proto.MethodGOABoard, nil, &b) != nil {
 			return false
 		}
-		return len(b.Tasks) == 1 && b.Tasks[0].Status == proto.GOATaskDone
+		return len(b.Tasks) == 1 && b.Tasks[0].Status == proto.GOATaskTurnEnded
 	})
 	frames("GOA told, in its conversation", func() bool {
 		text, err := clA.Screen(g.ID)
 		return err == nil && strings.Contains(text, "[enowX GOA] Task "+task.ID)
 	})
-	frames("the Sessions tool says done", func() bool { return tt.HasText("Fix the totals · done") })
+	frames("the Sessions tool says its turn ended", func() bool { return tt.HasText("Fix the totals · turn-ended") })
 	shot(t, tt, "goa-remote-worker.png")
 
 	// The app misses B's updates (closed, or B's link down): another
@@ -183,7 +183,7 @@ func TestGOAFollowsAWorkerOnAnotherHost(t *testing.T) {
 		if clA.Call(proto.MethodGOABoard, nil, &b) != nil {
 			return false
 		}
-		return len(b.Tasks) == 2 && b.Tasks[1].Status == proto.GOATaskDone
+		return len(b.Tasks) == 2 && b.Tasks[1].Status == proto.GOATaskTurnEnded
 	})
 	frames("GOA told of the second", func() bool {
 		text, err := clA.Screen(g.ID)

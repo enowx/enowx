@@ -225,6 +225,8 @@ func goaStatusColor(t proto.GOATask) ui.Color {
 		return theme.Warning
 	case t.Status == proto.GOATaskWorking:
 		return theme.Working
+	case t.Status == proto.GOATaskTurnEnded:
+		return theme.Accent
 	case t.Status == proto.GOATaskDone:
 		return theme.Done
 	case t.Status == proto.GOATaskFailed:
@@ -263,8 +265,11 @@ func (a *App) goaTaskBody(c *ui.Context, t proto.GOATask) {
 	case t.Asks != "" && t.Status == proto.GOATaskWaiting:
 		ui.Text(c, "Asks: "+t.Asks+" (GOD of Agents answers)").FontSize(11.5).TextColor(theme.TextSoft)
 	}
-	if t.Result != "" {
+	switch {
+	case t.Result != "":
 		ui.Text(c, textfmt.FirstLine(t.Result, 240)).FontSize(11.5).TextColor(theme.Text)
+	case t.Said != "":
+		ui.Text(c, "Last said: "+textfmt.FirstLine(t.Said, 240)).FontSize(11.5).TextColor(theme.TextSoft)
 	}
 }
 

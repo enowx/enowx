@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"regexp"
 	"slices"
 	"strings"
 	"time"
@@ -17,7 +18,8 @@ import (
 // and the user's preferences, kept as memories. It is searched by meaning
 // once the user turns RAG on for it, else by words, nothing sent. GOA may
 // also search any project's collection, read-only: the one exception to a
-// session searching its own project only (ragDir).
+// session searching its own project only (ragDir). What it delegates and how
+// that ended goes in on its own: prompts and reports, not conversations.
 
 // goaRAGKinds are what GOA keeps.
 var goaRAGKinds = []string{proto.GOAKindTask, proto.GOAKindDelegation, proto.GOAKindOutcome, proto.GOAKindDecision, proto.GOAKindPreference}
@@ -150,4 +152,59 @@ func wordMatch(list []proto.RAGMemory, query string, k int) []proto.RAGHit {
 		hits = hits[:k]
 	}
 	return hits
+}
+
+// goaMemoryMax bounds what a task keeps of a prompt or a report.
+const goaMemoryMax = 8000
+
+// goaRefs finds the commits and pull requests a report names.
+var goaRefs = regexp.MustCompile(`https?://\S+/(?:pull|merge_requests)/\d+|\b[0-9a-f]{7,40}\b`)
+
+// goaKeep keeps text of its kind in GOA's collection, by the host's GOA,
+// unasked: for the user to delete with rag forget. Words are searched at once;
+// an embedder gets it only once the user agreed to it for the collection.
+func (s *Server) goaKeep(kind, text string) {
+	dir := s.goaDir()
+	if _, err := s.ragSettings.Remember(rag.ProjectID(dir), "["+kind+"] "+text, "GOD of Agents"); err != nil {
+		s.logger().Warn("goa: keeping a task", "kind", kind, "err", err)
+		return
+	}
+	s.ragSoon(dir)
+}
+
+// goaSafeText is text as a task's memory may hold it: what was lent masked,
+// and none of it when it holds a secret, by the check project indexing uses.
+func (s *Server) goaSafeText(what, text string) string {
+	text = s.maskLent(strings.TrimSpace(text))
+	if rag.HoldsSecret(text) {
+		return "(its " + what + " held a secret, so it isn't kept)"
+	}
+	return clip(text, goaMemoryMax)
+}
+
+// goaTaskLine says which task t is: who has it, where, for what project.
+func goaTaskLine(t proto.GOATask) string {
+	line := fmt.Sprintf("Task %s %q: session %s, agent %s", t.ID, t.Title, t.Session, t.Agent)
+	if t.Host != "" {
+		line += ", host " + t.Host
+	}
+	if t.Project != "" {
+		line += ", project " + t.Project
+	}
+	return line
+}
+
+// goaRememberDelegation keeps what task t asks of whom.
+func (s *Server) goaRememberDelegation(t proto.GOATask) {
+	s.goaKeep(proto.GOAKindDelegation, goaTaskLine(t)+", on "+t.Created.Format("2006-01-02 15:04")+". Asked: "+s.goaSafeText("prompt", t.Prompt))
+}
+
+// goaRememberOutcome keeps how task t ended, once it truly has.
+func (s *Server) goaRememberOutcome(t proto.GOATask) {
+	report := s.goaSafeText("report", nonEmpty(t.Result, t.Said))
+	line := goaTaskLine(t) + ", ended " + t.Status + " on " + t.Updated.Format("2006-01-02 15:04") + ". Report: " + report
+	if refs := slices.Compact(goaRefs.FindAllString(report, 20)); len(refs) > 0 {
+		line += ". Commits and pull requests: " + strings.Join(refs, ", ")
+	}
+	s.goaKeep(proto.GOAKindOutcome, line)
 }
