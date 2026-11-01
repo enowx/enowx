@@ -1883,6 +1883,7 @@ field SessionInfo.restored bool
 field SessionInfo.skipPermissions bool
 field SessionInfo.skipUnheard bool
 field SessionInfo.state string
+field SessionInfo.stateStale bool
 field SessionInfo.title string
 field SessionInfo.worked int64
 field SessionInfo.worktree bool

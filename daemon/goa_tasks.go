@@ -265,6 +265,9 @@ func (s *Server) goaWorkerChanged(info proto.SessionInfo) {
 		if t.Status == status || t.Status == proto.GOATaskQueued {
 			return false
 		}
+		if t.Status == proto.GOATaskStalled && status == proto.GOATaskWorking {
+			return false // working is what it said while stalled: watchStalls sees it move
+		}
 		t.Status = status
 		if status != proto.GOATaskWaiting {
 			t.Asks, t.Urgent = "", ""
@@ -272,14 +275,7 @@ func (s *Server) goaWorkerChanged(info proto.SessionInfo) {
 		return true
 	})
 	for _, t := range changed {
-		where := "session " + t.Session
-		if t.Host != "" {
-			where += " on " + t.Host
-		}
-		hostFlag := ""
-		if t.Host != "" {
-			hostFlag = " --host " + t.Host
-		}
+		where, hostFlag := goaTaskPlace(t)
 		head := fmt.Sprintf("[enowX GOA] Task %s %q (%s)", t.ID, t.Title, where)
 		switch status {
 		case proto.GOATaskTurnEnded:
@@ -305,6 +301,17 @@ func (s *Server) goaWorkerChanged(info proto.SessionInfo) {
 	if len(changed) > 0 {
 		s.goaChanged()
 	}
+}
+
+// goaTaskPlace is where task t's session is, in GOA's words, and the flag its
+// commands need to reach it.
+func goaTaskPlace(t proto.GOATask) (where, hostFlag string) {
+	where = "session " + t.Session
+	if t.Host != "" {
+		where += " on " + t.Host
+		hostFlag = " --host " + t.Host
+	}
+	return where, hostFlag
 }
 
 // goaResult is what task t's session said last, or its screen's end.

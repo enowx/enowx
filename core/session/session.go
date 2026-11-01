@@ -218,6 +218,7 @@ func (s *Session) Info() proto.SessionInfo {
 		Created:         s.created,
 		Active:          s.active,
 		State:           s.stateLocked(time.Now()),
+		StateStale:      !s.exited && s.state == proto.StateWorking && s.stateLocked(time.Now()) == "",
 		SkipPermissions: s.meta.SkipPermissions,
 		SkipUnheard:     s.meta.SkipUnheard,
 		ExitWhy:         s.exitWhy,

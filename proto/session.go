@@ -125,6 +125,9 @@ type SessionInfo struct {
 	// State is what the agent's hooks last said (StateWorking, …), "" when
 	// it has none or they went stale.
 	State string `json:"state,omitempty"`
+	// StateStale: its hooks last said working, and went stale as its screen
+	// stood still, which isn't the same as never having been at work.
+	StateStale bool `json:"stateStale,omitempty"`
 	// SkipPermissions: the agent runs tools without asking.
 	SkipPermissions bool `json:"skipPermissions,omitempty"`
 	// ExitWhy says in a line why it ended, when it wasn't clean.
