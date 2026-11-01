@@ -35,7 +35,7 @@ var sessionAdapters = map[string]sessionFunc{
 	"opencode":    openCodeSession,
 	"copilot":     copilotSession,
 	"openclaude":  envSession(openClaude),
-	"antigravity": envSession(antigravity),
+	"antigravity": antigravitySession,
 	"gemini":      geminiSession,
 	"aider":       aiderSession,
 }
@@ -237,6 +237,16 @@ func copilotSession(api API, dir string) (Launch, error) {
 		return Launch{}, err
 	}
 	return Launch{Env: append(kv(copilot.env(api)...), "COPILOT_PROVIDERS_CONFIG="+path)}, nil
+}
+
+// antigravitySession: the variables of its API, and the model by its
+// --model, when one is named.
+func antigravitySession(api API, _ string) (Launch, error) {
+	l := Launch{Env: kv(antigravity.env(api)...)}
+	if api.Model != "" {
+		l.Args = []string{"--model", api.Model}
+	}
+	return l, nil
 }
 
 // geminiSession: the variables Gemini CLI reads its key and address

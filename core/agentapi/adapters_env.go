@@ -131,13 +131,11 @@ var openClaude = envOnly("openclaude", []string{OpenAI, Anthropic}, Caps{}, func
 	return [][2]string{{"CLAUDE_CODE_USE_OPENAI", "1"}, {"OPENAI_BASE_URL", api.BaseURL}, {"OPENAI_API_KEY", api.APIKey}, {"OPENAI_MODEL", api.Model}}
 }, "OpenClaude takes it from the environment: the sessions enowX starts of it get it.")
 
-var antigravity = func() adapter {
-	a := envOnly("antigravity", []string{Gemini}, Caps{}, func(api API) [][2]string {
-		return [][2]string{{"GEMINI_API_KEY", api.APIKey}, {"GOOGLE_GEMINI_BASE_URL", api.BaseURL}}
-	}, "Antigravity speaks Gemini's API only, with its own models; the sessions enowX starts of it get it.")
-	a.noModel = true
-	return a
-}()
+// Antigravity's model goes on its command line (--model, antigravitySession):
+// the variable only records it, for reading it back.
+var antigravity = envOnly("antigravity", []string{Gemini}, Caps{}, func(api API) [][2]string {
+	return [][2]string{{"GEMINI_API_KEY", api.APIKey}, {"GOOGLE_GEMINI_BASE_URL", api.BaseURL}, {"ENOWX_ANTIGRAVITY_MODEL", api.Model}}
+}, "Antigravity speaks Gemini's API only; the model is optional. The sessions enowX starts of it get it.")
 
 // httpsUnlessLocal is the rule Gemini CLI holds its address to: it refuses
 // plain http anywhere but on this machine.

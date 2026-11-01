@@ -51,6 +51,21 @@ func TestCopilotSessionDoesNotReadTheUsersProviders(t *testing.T) {
 	}
 }
 
+// agy --help shows --model: a config's model reaches it, and it stays optional.
+func TestAntigravitySessionTakesAModel(t *testing.T) {
+	l, err := SessionLaunch("antigravity", API{BaseURL: "https://gw.example.com", APIKey: routeKey, Model: "m"}, t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if strings.Join(l.Args, " ") != "--model m" || !contains(l.Env, "GEMINI_API_KEY="+routeKey) {
+		t.Fatalf("args %q, env %q", l.Args, l.Env)
+	}
+	l, err = SessionLaunch("antigravity", API{BaseURL: "https://gw.example.com", APIKey: routeKey}, t.TempDir())
+	if err != nil || len(l.Args) != 0 {
+		t.Fatalf("no model: args %q, %v", l.Args, err)
+	}
+}
+
 // Gemini CLI refuses plain http anywhere but on this machine: a config says so
 // when it's made, not when its session fails to start.
 func TestGeminiAddressIsHTTPSUnlessLocal(t *testing.T) {
