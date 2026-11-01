@@ -19,7 +19,8 @@ func TestChecksShowHowTheyWent(t *testing.T) {
 			{Name: "test", State: proto.CheckFailed, ExitCode: 2, Duration: 3 * time.Second, Output: "--- FAIL: TestX\nFAIL\n"},
 		},
 	}
-	tt := ui.NewTester(func(c *ui.Context) { v.Draw(c, Options{}) }, 520, 600)
+	var opened string
+	tt := ui.NewTester(func(c *ui.Context) { v.Draw(c, Options{OpenOutput: func(name string) { opened = name }}) }, 520, 600)
 	tt.Frame()
 	for _, want := range []string{"Found in the project's files", "Run all", "passed · 1.2s", "failed (exit 2) · 3s", "not run", "make test"} {
 		if !tt.HasText(want) {
@@ -27,21 +28,32 @@ func TestChecksShowHowTheyWent(t *testing.T) {
 		}
 	}
 	if tt.HasText("--- FAIL: TestX\nFAIL") {
-		t.Error("a folded check shows its output")
+		t.Error("the panel's list shows a check's output")
 	}
+	// A check opens in the center, where its output shows.
 	if err := tt.Click("test"); err != nil {
 		t.Fatal(err)
 	}
-	tt.Frame()
-	if !tt.HasText("--- FAIL: TestX\nFAIL") {
-		t.Fatalf("unfolded: %q", tt.Texts())
+	if opened != "test" {
+		t.Fatalf("opened %q", opened)
+	}
+	output := ui.NewTester(func(c *ui.Context) { v.DrawOutput(c, Options{}, "test") }, 700, 400)
+	output.Frame()
+	for _, want := range []string{"$ make test", "--- FAIL: TestX\nFAIL", "exit status 2", "failed (exit 2) · 3s", "Run again"} {
+		if !output.HasText(want) {
+			t.Errorf("no %q in %q", want, output.Texts())
+		}
 	}
 
-	// While one runs, Stop replaces Run all.
+	// While one runs, Stop replaces Run all, and no check starts on its own.
 	v.info.Runs[1] = proto.CheckRun{Name: "test", State: proto.CheckRunning, Started: time.Now()}
 	tt.Frame()
 	if !tt.HasText("Stop") || tt.HasText("Run all") {
 		t.Fatalf("running: %q", tt.Texts())
+	}
+	output.Frame()
+	if output.HasText("Run again") {
+		t.Fatalf("running, it offers to run: %q", output.Texts())
 	}
 
 	// Edit opens the project's checks to change.
