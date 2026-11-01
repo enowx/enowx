@@ -22,10 +22,11 @@ import (
 // navWidth is the sidebar's width.
 const navWidth = 284
 
-// navShown says the sidebar shows unfolded: wide, unless the user folded
+// navShown says the sidebar shows unfolded (never in GOD of Agents' mode,
+// so Notes and Canvas draw their lists themselves): wide, unless the user folded
 // it or the window is too narrow for it beside a page.
 func (a *App) navShown() bool {
-	return a.state.RailWide && !a.sessionsHidden() && !(a.page != "" && a.winW > 0 && a.winW < 1100)
+	return a.state.RailWide && !a.goaOn() && !a.sessionsHidden() && !(a.page != "" && a.winW > 0 && a.winW < 1100)
 }
 
 func (a *App) navSidebar(c *ui.Context) {

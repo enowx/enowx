@@ -127,6 +127,20 @@ func TestGOAMode(t *testing.T) {
 		t.Fatalf("Notes from GOA mode: page %q", app.page)
 	}
 	frames("the strip on the Notes page", func() bool { return tt.HasText("Leave") })
+	// With no session list, Notes and Canvas show their own lists.
+	if app.notesOptions().ListOutside {
+		t.Fatal("Notes in GOA mode leaves its list to a sidebar that isn't there")
+	}
+	click("Canvas")
+	if app.page != pageCanvas || app.canvasOptions().ListOutside {
+		t.Fatalf("Canvas in GOA mode: page %q, its list left out", app.page)
+	}
+	// Their lists bring the choice of the user's own or a team's space.
+	app.spacesOf().list = []proto.Space{{Team: "t1", Name: "Design"}}
+	frames("the space to pick", func() bool { return tt.HasText("Personal") })
+	shot(t, tt, "goa-canvas.png")
+	app.spacesOf().list = nil
+	click("Notes")
 	click("GOD of Agents")
 	if app.page != "" {
 		t.Fatalf("back to GOA: page %q", app.page)

@@ -8,6 +8,7 @@ The title bar's **GOD of Agents** chip (or ⌘K, "Enter or leave GOD of Agents")
 
 - GOA's session is the main view, alone; the session list is folded away.
 - A strip on top reaches GOD of Agents, **Browser** (GOA session's browser in the main view), Notes, Canvas, Usage, Hosts and Settings, and **Leave** goes back (GOA keeps running; the chip, now "Leave GOD of Agents", does the same).
+- Notes and Canvas show their own lists beside the page, with the choice of the user's own or a team's space, as the session list that holds them elsewhere is folded away.
 - GOA's session opens on its **chat** when its agent has one (Claude Code, Codex…), once; Terminal, Chat and Traffic stay in its header (its browser is the strip's), and the view picked is kept.
 - The side panel stays, its **GOA** group first:
   - **Sessions**: every session on every host the app reaches, its state and the task GOA gave it; a session that waits on the user says so. Clicking one shows its task, and opens it (leaving the mode) when it is on the host shown.
