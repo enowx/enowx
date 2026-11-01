@@ -119,6 +119,26 @@ func TestGOAMode(t *testing.T) {
 		t.Fatalf("the drag clicked: detail %+v", app.goa.detail)
 	}
 	shot(t, tt, "goa-pointer.png")
+	// A worker's details: its buttons inside the dialog's frame.
+	for _, s := range app.sessions {
+		if s.ID == task.Session {
+			app.goa.detail = &goaDetail{open: true, host: "this Mac", session: s}
+		}
+	}
+	frames("the worker's details", func() bool { return tt.HasText("Open the session") })
+	for range 6 {
+		tt.Advance(100 * time.Millisecond)
+		tt.Frame()
+	}
+	shot(t, tt, "goa-worker-details.png")
+	const dialogRight = (1400 + 520) / 2
+	for _, label := range []string{"Cancel", "Change model", "Open the session", "Leaves GOD of Agents and shows it"} {
+		if b, ok := tt.Find(label); ok && b.X+b.W > dialogRight {
+			t.Errorf("%q ends at %.0f, past the dialog's %d", label, b.X+b.W, dialogRight)
+		}
+	}
+	app.goa.detail = nil
+	tt.Frame()
 	// In its terminal, typed where the prompt is, not sent.
 	app.showView(g0, viewTerminal)
 	frames("GOA's terminal", func() bool { return app.panes[g0.ID] != nil })

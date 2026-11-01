@@ -158,7 +158,7 @@ func (a *App) goaDetailDialog(c *ui.Context) {
 			a.openGOAOverride(*t)
 		}
 		if d.host == a.host.ID || d.host == a.host.Name {
-			if widget.PrimaryButton(c, nil, "Open the session", "Leaves GOD of Agents and shows it").Clicked() {
+			if widget.PrimaryButton(c, nil, "Open the session", "").Tooltip("Leaves GOD of Agents and shows it").Clicked() {
 				d.open = false
 				a.confirmLeaveGOA(func() { a.selectSession(s) })
 			}
@@ -353,7 +353,7 @@ func (a *App) goaOverrideDialog(c *ui.Context) {
 			})
 		}
 	}, func() {
-		if widget.PrimaryButton(c, nil, "Switch", "Switches its session now and keeps it on the board").Clicked() {
+		if widget.PrimaryButton(c, nil, "Switch", "").Tooltip("Switches its session now and keeps it on the board").Clicked() {
 			save = true
 		}
 	})

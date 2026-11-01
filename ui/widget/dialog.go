@@ -45,7 +45,8 @@ func Sheet(c *ui.Context, open *bool, width float32, header, body, footer func()
 		ui.Scroll(c).FillWidth().Shrink(1).MinHeight(0).Children(func() {
 			ui.Column(c).FillWidth().Padding(18, 20, 20, 20).Gap(18).Children(body)
 		})
-		ui.Row(c).FillWidth().Shrink(0).Padding(14, 20).Gap(8).BorderWidth(1, 0, 0, 0).BorderColor(theme.Border).Children(footer)
+		// Buttons that don't fit go to another line, rather than past the frame.
+		ui.Row(c).FillWidth().Shrink(0).Padding(14, 20).Gap(8).Wrap().Justify(ui.End).BorderWidth(1, 0, 0, 0).BorderColor(theme.Border).Children(footer)
 	})
 }
 
@@ -73,7 +74,7 @@ func DialogHeader(c *ui.Context, title, description string, closeable bool, crum
 // DialogFooter puts a dialog's buttons at its bottom right, after an
 // optional note on the left.
 func DialogFooter(c *ui.Context, note string, buttons func()) {
-	ui.Row(c).FillWidth().Gap(8).Margin(4, 0, 0, 0).Children(func() {
+	ui.Row(c).FillWidth().Gap(8).Wrap().Margin(4, 0, 0, 0).Children(func() {
 		if note != "" {
 			ui.Text(c, note).FontSize(11.5).TextColor(theme.Muted).Shrink(1)
 		}
@@ -99,7 +100,6 @@ func FormSheet(c *ui.Context, open *bool, width float32, title, description stri
 			*open = false
 		}
 	}, body, func() {
-		ui.Spacer(c)
 		if GhostButton(c, "Cancel").Clicked() {
 			*open = false
 		}
