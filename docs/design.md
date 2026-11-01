@@ -57,6 +57,8 @@ The panel lists the steps and what each changed. **Replay** plays them back:
   - At most five steps (`unslop.StoryGroup`), 2.2 s each, ending on the score.
   - Played in a hidden window and captured frame by frame at 15 fps.
 
+Its card keeps to the area it is over: its title and score stay in place, the rest scrolls inside it, new rows leaving what's being read where it is, and a button folds it to its head to free the design.
+
 ## Independent review
 
 When an unslop or a build is done, the daemon starts a fresh agent (`core/designreview`, `daemon/design_review.go`). It gets a folder holding only the screenshots and the brief.

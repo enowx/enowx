@@ -25,6 +25,7 @@ import (
 
 // Panel is what the panel animates. It belongs to the main thread.
 type Panel struct {
+	folded bool    // the card shows its head alone
 	shown  float64 // the score as it shows, counting to the run's
 	at     time.Time
 	frame  string // the run's design or page, its own count
@@ -78,8 +79,7 @@ func (p *Panel) Draw(c *ui.Context, run *proto.CanvasUnslopRun, o PanelOptions) 
 		counts[fd.Pass]++
 	}
 	col := scoreColor(int(math.Round(h.shown)))
-	ui.Column(c.Key("unslop-hud")).Absolute().Right(12).Top(12).Width(264).Padding(12).Gap(10).Radius(12).
-		Background(theme.Dialog).Border(1, theme.BorderStrong).Children(func() {
+	hudCard(c, "unslop-hud", func() {
 		ui.Row(c).FillWidth().Gap(8).AlignItems(ui.Center).Children(func() {
 			ui.Icon(c, icon.Wand).FontSize(14).TextColor(theme.Accent)
 			label := "Unslop"
@@ -100,6 +100,13 @@ func (p *Panel) Draw(c *ui.Context, run *proto.CanvasUnslopRun, o PanelOptions) 
 					o.Compare()
 				}
 			}
+			fold, tip := icon.ChevronDown, "Fold this card to its head"
+			if h.folded {
+				fold, tip = icon.ChevronRight, "Unfold this card"
+			}
+			if widget.IconButton(c, fold, tip, false).Clicked() {
+				h.folded = !h.folded
+			}
 			if run.Done && widget.IconButton(c, icon.Close, "Close", false).Clicked() {
 				h.closed = run.Frame + "true"
 			}
@@ -112,6 +119,10 @@ func (p *Panel) Draw(c *ui.Context, run *proto.CanvasUnslopRun, o PanelOptions) 
 				ui.Text(c, fmt.Sprintf("from %d", run.From)).FontSize(11.5).TextColor(theme.Muted).Margin(0, 0, 6, 0)
 			}
 		})
+	}, func() {
+		if h.folded {
+			return
+		}
 		if run.Branch != "" {
 			// Where a project's code is redesigned: going back undoes it.
 			ui.Row(c).FillWidth().Gap(6).AlignItems(ui.Center).Tooltip("Switch back to " + run.Base + " to undo it all; each pass is a commit of its own").Children(func() {
@@ -275,6 +286,31 @@ func scoreColor(score int) ui.Color {
 	return theme.Error
 }
 
+// hudMargin is what a card leaves around it in the element it is over.
+const hudMargin = 12
+
+// hudCard is a panel's card at the top right of the element it is in: head
+// always in view, body scrolling inside it once they'd pass the element's
+// height. The pointer's scrolling and zooming over it stay with it, not the
+// board below.
+func hudCard(c *ui.Context, key string, head, body func()) {
+	room := ui.Box(c.Key(key + ":room")).Absolute().Top(0).Bottom(0).Right(0).Width(0).Bounds().H
+	card := ui.Column(c.Key(key)).Absolute().Right(hudMargin).Top(hudMargin).Width(264).Padding(12, 0).Gap(10).Radius(12).Clip().
+		Background(theme.Dialog).Border(1, theme.BorderStrong)
+	if room > 0 {
+		card.MaxHeight(max(room-2*hudMargin, 80))
+	}
+	// The nearest element handling input gets a scroll first, so without this
+	// the board around would take it. Not taken here, it scrolls the body.
+	card.HandleInput(func(ev ui.InputEvent) bool { return ev.Kind == ui.InputZoom })
+	card.Children(func() {
+		ui.Column(c).FillWidth().PaddingX(12).Gap(10).Shrink(0).Children(head)
+		ui.Scroll(c.Key("body")).FillWidth().Shrink(1).MinHeight(0).Children(func() {
+			ui.Column(c).FillWidth().Padding(0, 12, 2, 12).Gap(10).Children(body)
+		})
+	})
+}
+
 // DrawStarting is the panel while an unslop starts, before its first read
 // is in: what it is doing, a spinner.
 func DrawStarting(c *ui.Context, doing string) {
@@ -297,7 +333,9 @@ func DrawError(c *ui.Context, msg string, dismiss func()) {
 		ui.Icon(c, icon.Alert).FontSize(14).TextColor(theme.Error).Margin(1, 0, 0, 0)
 		ui.Column(c).Grow(1).Shrink(1).MinWidth(0).Gap(2).Children(func() {
 			ui.Text(c, "Unslop didn't start").FontSize(12.5).FontWeight(600)
-			ui.Text(c, msg).FontSize(11.5).TextColor(theme.TextSoft)
+			ui.Scroll(c.Key("msg")).FillWidth().MaxHeight(200).Children(func() {
+				ui.Text(c, msg).FontSize(11.5).TextColor(theme.TextSoft)
+			})
 		})
 		if dismiss != nil && widget.IconButton(c, icon.Close, "Dismiss", false).Clicked() {
 			dismiss()
