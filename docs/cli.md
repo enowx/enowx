@@ -135,9 +135,10 @@ GOA's commands ([goa.md](goa.md)): a session handing tasks to others, on any hos
 | `goa task ID [--status S] [--result TEXT]` | Settles a task, or says where it stands. |
 | `goa remember [--kind task\|delegation\|outcome\|decision\|preference] TEXT` | Keeps it in GOA's own RAG collection, never a project's. |
 | `goa recall QUERY [--project P [--host H]]...` | Searches GOA's collection (by meaning once indexed, else by words), and projects' read-only. |
+| `goa stall [--blank D] [--idle D] [--stuck D]` | How long a task may not move before GOA is told, on this host ([goa.md](goa.md)); a limit given changes it: `90s`, `10m`, `1h`, or `0` for its default. |
 | `goa agents` | The agents GOA can run on and how far each holds it: enforced, limited, watched. |
 | `goa flags` | What a watched GOA did itself: programs it ran, files it changed in projects. |
 | `goa start [--agent A]` | Starts GOA on this host (the app's GOD of Agents does the same). |
 
-MCP: `goa_board`, `goa_delegate`, `goa_task`, `goa_remember`, `goa_recall`, `goa_agents` (Settings → Features, GOD of Agents; always on in GOA's session).
+MCP: `goa_board`, `goa_delegate`, `goa_task`, `goa_remember`, `goa_recall`, `goa_stall`, `goa_agents` (Settings → Features, GOD of Agents; always on in GOA's session).
 

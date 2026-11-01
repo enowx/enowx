@@ -35,6 +35,7 @@ The **Log** tab shows the latest 200 runs since the daemon started, with what ea
 | `error` | its program ended with an exit code (`exit`) | from outside | from outside |
 | `session.hibernate`, `session.wake` | the daemon stopped the idle agent; it was continued | from outside | from outside |
 | `session.end` | its program ended | in the agent | from outside |
+| `session.stalled` | an open GOD of Agents task isn't moving (`text` says how and for how long), once per stall, on GOA's host even for a task on another ([goa.md](goa.md)) | from outside | from outside |
 | `port.open` | a session started listening on `port` | the host | the host |
 | `sync.done` | a sync of the user's data brought changes (`paths`) | the host | the host |
 | `notify` | a notification was sent to the apps (`kind`, `text`), as `enowx notify sound` does | the host | the host |

@@ -96,6 +96,20 @@ A session is also read for what stops it, every few seconds, whatever started it
 
 A task for a project goes to that project's own session, even busy, asking, hibernated or started with other permissions (`goa delegate --project`, `core/goa.PickSession`). A busy one has it queued, shown so on the board, delivered at its turn's end, oldest first; if the session ends first the task fails with that said. A new session starts only when the project has none, or on `--branch` or a named `--config`, what the user asked for, and delegate says so. Worktrees and shell tabs don't take a project's tasks.
 
-A task that isn't moving goes to `stalled` on the board until it moves, and GOA gets one line naming how (never started: a blank screen after a minute; idle: hibernated, or no agent at work for 2 minutes; stuck: working, its screen still for 10 minutes and its processes using no CPU), a further one only after three times that, and the hook event `session.stalled` fires. A long build uses the CPU, so doesn't count. The limits are fixed for now, and tasks on other hosts aren't watched.
+A task that isn't moving goes to `stalled` on the board until its screen moves, and GOA gets one line naming how, for how long and what the screen shows; a further one comes only after three times the limit, and again each time that passes while it stays stalled. The hook event `session.stalled` fires once per stall, with no hook needed for GOA to be told.
+
+| Case | What it is | Limit, by default |
+|---|---|---|
+| Never started | its screen is still blank after the task | `blank`, 1 minute |
+| Idle | its session is hibernated or gone, or its agent isn't at work (no state, or done with a turn before this task) with its screen still | `idle`, 2 minutes |
+| Stuck | its agent last said it works, but its screen has stood still | `stuck`, 10 minutes |
+
+A session's processes using the CPU (over 1% of a core, its whole process tree) keep a task from counting as never started, idle or stuck, so a long build or test run isn't taken for one; a slow model's reply shows the agent's own timer, which moves the screen. That timer also hides an agent hung with its spinner still turning: nothing here reads its transcript. Where a host can't measure processes (Windows, or an older app or daemon on the way), the line says so, as it may be a long build. A session waiting for its turn to start (at the host's limit of agents) doesn't count.
+
+The limits are each host's, for its own GOA, from a second to a day: **Stall limits** in GOA's strip, Settings → New sessions, or `enowx-app goa stall --blank 90s --idle 5m --stuck 30m` (`goa_stall`), `0` putting one back to its default. They are kept in `goa-stall.json` in the host's data folder, and apply at once.
+
+Tasks on other hosts are watched the same, through the app, which is what reaches them: every few seconds GOA's host reads their sessions, screens and CPU. With no app connected, or the host out of reach, their tasks stay as they are until it can look. Those reads aren't in `control log`, as no session made them. The hook runs on GOA's host, not the worker's.
+
+Across a daemon restart, a stalled task stays stalled and GOA, whose waiting lines went with the daemon, hears again; the hook doesn't fire again for the same stall. A session that ended while the daemon was down settles its task as failed or stopped.
 
 GOA's prompt is 4.7 KB, and goes into every turn; `goa skill setup` (4 KB) and `goa skill features` (4 KB) are read when needed. With the prompt and those, a small model named a real command for each of the 29 features, and said who it is from the prompt alone.
