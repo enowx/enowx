@@ -183,6 +183,8 @@ func codexSession(api API, _ string) (Launch, error) {
 	p := "model_providers." + ourName + "."
 	args := slices.Concat(c("model_provider", tomlQuote(ourName)), c(p+"name", tomlQuote("enowX: "+api.BaseURL)),
 		c(p+"base_url", tomlQuote(api.BaseURL)), c(p+"env_key", tomlQuote(codexKeyVar)), c(p+"wire_api", tomlQuote("responses")))
+	// Its shell snapshots hold the environment, the key among it, in its home.
+	args = append(args, c("features.shell_snapshot", "false")...)
 	if api.Model != "" {
 		args = append(args, c("model", tomlQuote(api.Model))...)
 	}

@@ -209,7 +209,7 @@ func TestCodexSessionRunsWithItsConfig(t *testing.T) {
 	args, env := started(t, out, custom.ID)
 	line := strings.Join(args, " ")
 	for _, want := range []string{`model_provider="enowx"`, `model_providers.enowx.base_url="https://gw.example.com/v1"`, `model_providers.enowx.env_key="ENOWX_CODEX_API_KEY"`,
-		`model="gpt-oss-200b"`, `model_reasoning_effort="high"`, `model_context_window=200000`} {
+		`model="gpt-oss-200b"`, `model_reasoning_effort="high"`, `model_context_window=200000`, `features.shell_snapshot=false`} {
 		if !strings.Contains(line, want) {
 			t.Fatalf("custom's command line lacks %s: %q", want, args)
 		}
