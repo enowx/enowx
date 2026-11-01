@@ -64,7 +64,7 @@ func TestHooksSection(t *testing.T) {
 	}
 	tt.Frame()
 	frames(func() bool { return app.hooks.loaded }, "the hooks")
-	if !hasText(tt, "has 1 hook of its own") {
+	if !hasText(tt, "has a hook waiting to be allowed") {
 		t.Fatalf("no pending project hooks: %q", tt.Texts())
 	}
 	if err := tt.Click("Add a hook"); err != nil {

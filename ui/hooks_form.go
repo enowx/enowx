@@ -91,42 +91,39 @@ func (a *App) hookFormSheet(c *ui.Context, st *hooksState) {
 	if !f.open {
 		return
 	}
-	title := "New hook"
+	title, about := "Add a hook", "Kept on "+a.host.Name+" or in a project."
 	if !f.adding {
-		title = "Edit hook"
+		title, about = "Edit hook", "Runs on "+a.host.Name+", for every agent that sees the event."
 	}
-	widget.FormSheet(c, &f.open, 640, title, "Runs on "+a.host.Name+", for every agent that sees the event.", func() {
+	widget.FormSheet(c, &f.open, 640, title, about, func() {
 		if f.err != "" {
 			widget.Notice(c, icon.Alert, theme.Error, f.err, "", nil)
 		}
-		ui.Row(c).FillWidth().Gap(8).AlignItems(ui.Center).Children(func() {
-			if f.adding {
-				a.hookPlacePicker(c, f)
-			}
+		ui.Row(c).FillWidth().Shrink(0).Gap(theme.S2).Children(func() {
 			ui.Spacer(c)
 			mode := 0
 			if f.asJSON {
 				mode = 1
 			}
-			if i := widget.Segmented(c, []string{"Form", "JSON"}, mode, nil); i >= 0 && i != mode {
+			if i := widget.Segmented(c, []string{"Fields", "JSON"}, mode, nil); i >= 0 && i != mode {
 				f.toggleJSON()
 			}
 		})
 		if f.asJSON {
-			ui.TextAreaBase(c, &f.json).FillWidth().MinHeight(320).MaxHeight(520).Padding(9, 11).FontSize(theme.TextLabel).Font(theme.MonoFont).
-				Label("The hook as JSON").Radius(theme.RadiusControl).Background(theme.Sunken).Border(1, theme.Border)
-			ui.Text(c, "Fields as in docs/hooks.md: event, action, command, context, reason, find, replace, url, message, agents, projects, tool, paths, text, branches, hosts, any, not, once, max, every, hours, schedule, background, timeout.").
-				FontSize(11).TextColor(theme.Muted)
+			hookArea(c, &f.json, "The hook as JSON", "", true).MinHeight(320).MaxHeight(520)
+			widget.CardNote(c, "Fields as in docs/hooks.md: event, action, command, context, reason, find, replace, url, message, agents, projects, tool, paths, text, branches, hosts, any, not, once, max, every, hours, schedule, background, timeout.", 0)
 		} else {
 			a.hookFields(c, st, f)
 		}
+		ui.Row(c).FillWidth().Shrink(0).Children(func() {
+			if widget.Button(c, widget.Secondary, icon.Play, "Test", "").Disabled(f.testing).Clicked() {
+				a.testHookForm(f)
+			}
+		})
 		if r := f.tested; r != nil {
 			a.hookTestResult(c, r)
 		}
 	}, func() {
-		if widget.Button(c, widget.Secondary, icon.Play, "Test", "").Disabled(f.testing).Clicked() {
-			a.testHookForm(f)
-		}
 		if widget.PrimaryButton(c, icon.Check, "Save", "").Disabled(st.busy).Clicked() {
 			h, err := f.built()
 			if err != nil {
@@ -139,6 +136,15 @@ func (a *App) hookFormSheet(c *ui.Context, st *hooksState) {
 	})
 }
 
+// hookArea is a text area of the form, a well like its inputs.
+func hookArea(c *ui.Context, value *string, label, placeholder string, mono bool) ui.Element {
+	t := ui.TextAreaBase(c, value).FillWidth().Padding(theme.S2, theme.S3).FontSize(theme.TextUI).Label(label).Radius(theme.RadiusSmall).Placeholder(placeholder)
+	if mono {
+		t.Font(theme.MonoFont)
+	}
+	return widget.Well(t, t.Focused())
+}
+
 // hookPlacePicker picks where a new hook is kept: this host, a project
 // or a session.
 func (a *App) hookPlacePicker(c *ui.Context, f *hookForm) {
@@ -146,11 +152,11 @@ func (a *App) hookPlacePicker(c *ui.Context, f *hookForm) {
 	label := func(p hookPlace) string {
 		switch p.scope {
 		case proto.HookScopeProject:
-			return "Project " + filepath.Base(p.dir)
+			return "In project " + filepath.Base(p.dir)
 		case proto.HookScopeSession:
-			return "Session " + a.hookSessionName(p.session)
+			return "In session " + a.hookSessionName(p.session)
 		}
-		return "This host (synced)"
+		return "On " + a.host.Name
 	}
 	places := []hookPlace{hostPlace}
 	for _, p := range a.projects {
@@ -163,18 +169,19 @@ func (a *App) hookPlacePicker(c *ui.Context, f *hookForm) {
 	}
 	cur := key(f.place)
 	sel := ui.SelectBase(c, &cur)
-	widget.Trigger(sel.Trigger, sel.Open()).Width(260).Label("Kept").Children(func() {
-		ui.Text(c, label(f.place)).FontSize(theme.TextUI).SingleLine().Shrink(1)
-		ui.Spacer(c)
-		ui.Icon(c, icon.ChevronDown).FontSize(12).TextColor(theme.Muted)
+	widget.Trigger(sel.Trigger, sel.Open()).Label("Kept").Children(func() {
+		ui.Row(c).Grow(1).Basis(0).MinWidth(0).Children(func() { widget.Running(c, label(f.place), widget.RunStyle{}) })
+		ui.Icon(c, icon.ChevronDown).FontSize(12).TextColor(theme.TextSoft)
 	})
 	sel.Popup(func(panel ui.Element) {
-		widget.Popup(panel.Margin(6, 0, 0, 0).Width(320))
+		widget.Popup(panel.Margin(theme.S1, 0, 0, 0).Width(320))
 		ui.Scroll(c).FillWidth().MaxHeight(320).Children(func() {
 			ui.Column(c).FillWidth().Children(func() {
 				for _, p := range places {
 					item := sel.Item(key(p))
-					widget.PopupItem(item, item.Highlighted()).Children(func() { ui.Text(c, label(p)).FontSize(theme.TextUI) })
+					widget.PopupItem(item, item.Highlighted()).Children(func() {
+						ui.Row(c).Grow(1).Basis(0).MinWidth(0).Children(func() { widget.Running(c, label(p), widget.RunStyle{}) })
+					})
 				}
 			})
 		})
@@ -198,11 +205,7 @@ func (a *App) testHookForm(f *hookForm) {
 		return
 	}
 	h.On = true
-	ev := proto.HookEvent{Event: h.Event, Session: "test", Agent: "claude", Prompt: "Fix the login redirect", Tool: "Bash", Command: "go test ./...",
-		Paths: []string{"main.go"}, Op: "commit", Time: time.Now()}
-	if p, ok := a.currentProject(); ok {
-		ev.Dir, ev.Project = p.Path, p.Path
-	}
+	ev := a.hookSampleEvent(h)
 	f.testing, f.tested = true, nil
 	go func() {
 		r, err := cl.TestHook(proto.HookTest{Hook: h, Event: ev})
@@ -217,20 +220,35 @@ func (a *App) testHookForm(f *hookForm) {
 	}()
 }
 
-func (a *App) hookTestResult(c *ui.Context, r *proto.HookRun) {
-	col, what := theme.Done, "Ran in "+strconv.FormatInt(r.Ms, 10)+" ms"
+// hookSampleEvent is what a test runs hook h on.
+func (a *App) hookSampleEvent(h proto.Hook) proto.HookEvent {
+	ev := proto.HookEvent{Event: h.Event, Session: "test", Agent: "claude", Prompt: "Fix the login redirect", Tool: "Bash", Command: "go test ./...",
+		Paths: []string{"main.go"}, Op: "commit", Time: time.Now()}
+	if p, ok := a.currentProject(); ok {
+		ev.Dir, ev.Project = p.Path, p.Path
+	}
+	return ev
+}
+
+// hookTestWords says how a test went.
+func hookTestWords(r proto.HookRun) (ui.Color, string) {
 	switch {
 	case r.Error != "":
-		col, what = theme.Error, r.Error
+		return theme.Error, r.Error
 	case r.Blocked:
-		col, what = theme.Warning, "Refused"
+		return theme.Warning, "Refused"
 	case r.Exit != 0:
-		col, what = theme.Error, "Exited with "+strconv.Itoa(r.Exit)
+		return theme.Error, "Exited with " + strconv.Itoa(r.Exit)
 	}
-	ui.Column(c).FillWidth().Gap(4).Padding(8, 10).Radius(theme.RadiusControl).Background(theme.Sunken).Children(func() {
-		ui.Text(c, "Test: "+what).FontSize(theme.TextLabel).TextColor(col)
+	return theme.Done, "Ran in " + strconv.FormatInt(r.Ms, 10) + " ms"
+}
+
+func (a *App) hookTestResult(c *ui.Context, r *proto.HookRun) {
+	col, what := hookTestWords(*r)
+	ui.Column(c).FillWidth().Shrink(0).Gap(theme.S1).Padding(theme.S2, theme.S3).Radius(theme.RadiusSmall).Background(theme.Sunken).Children(func() {
+		ui.Text(c, "Test: "+what).FontSize(theme.TextLabel).TextColor(col).FillWidth().MinWidth(0)
 		if out := strings.TrimSpace(r.Output); out != "" {
-			ui.Text(c, out).Font(theme.MonoFont).FontSize(theme.TextLabel).TextColor(theme.TextSoft).MaxLines(8)
+			ui.Text(c, out).Font(theme.MonoFont).FontSize(theme.TextLabel).TextColor(theme.TextSoft).FillWidth().MinWidth(0).MaxLines(8)
 		}
 	})
 }
