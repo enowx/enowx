@@ -48,8 +48,8 @@ func TestMockupShrinksWholeWhenZoomedOut(t *testing.T) {
 	v := &View{}
 	v.Open(o, "c1")
 	tt := ui.NewTester(func(c *ui.Context) {
-		ui.Column(c).Width(1280).Height(800).Children(func() { v.Draw(c, o) })
-	}, 1280, 800)
+		ui.Column(c).Width(1800).Height(800).Children(func() { v.Draw(c, o) })
+	}, 1800, 800)
 	frames := func(n int) {
 		for range n {
 			tt.Frame()

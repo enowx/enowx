@@ -6,6 +6,8 @@ import (
 	"github.com/egoist/mygo/ui"
 
 	"github.com/enowx/enowx/proto"
+	"github.com/enowx/enowx/ui/icon"
+	"github.com/enowx/enowx/ui/theme"
 	"github.com/enowx/enowx/ui/widget"
 )
 
@@ -15,6 +17,8 @@ type createForm struct {
 	title string
 	kind  int
 	group string
+	// project is the project it belongs to, "" none.
+	project string
 }
 
 var kinds = []struct{ id, name, about string }{
@@ -29,27 +33,27 @@ func (v *View) createDialog(c *ui.Context, o Options) {
 	if f == nil {
 		return
 	}
-	widget.Dialog(c, &f.open, 480, 14, func() {
+	widget.Dialog(c, &f.open, 440, theme.S3, func() {
 		widget.DialogHeader(c, "New canvas", "You and agents design it together; they see it on this host.", false)
 		widget.Field(c, "Title", func() {
-			widget.Input(c, &f.title, "Checkout flow").AutoFocus().Label("Title")
+			widget.Input(c, &f.title, "Checkout").AutoFocus().Label("Title")
 		})
-		// Two cards a row, one in a narrow window: their text never squeezes.
-		widget.FitGrid(c, 190, 2).Gap(8).Children(func() {
-			for i, k := range kinds {
-				if widget.OptionCard(c.Key(k.id), f.kind == i, k.name, k.about) {
-					f.kind = i
-				}
-			}
-		})
-		widget.Field(c, "Group (optional)", func() { widget.Input(c, &f.group, "Ideas").Label("Group") })
+		widget.Field(c, "Kind", func() { v.kindSelect(c, f) })
+		if len(o.Projects) > 0 {
+			widget.Field(c, "Project", func() { v.projectSelect(c, o, f) })
+		}
+		widget.Field(c, "Group", func() { widget.Input(c, &f.group, "Ideas").Label("Group") })
 		widget.DialogFooter(c, "", func() {
 			if widget.GhostButton(c, "Cancel").Clicked() {
 				f.open = false
 			}
-			if widget.Button(c, widget.Primary, nil, "Make canvas", "").Clicked() {
+			if widget.Button(c, widget.Primary, nil, "Create", "").Label("Create canvas").Clicked() {
 				f.open = false
-				o.Create(proto.CanvasCreateParams{Title: f.title, Kind: kinds[f.kind].id, Group: strings.TrimSpace(f.group)}, func(cv proto.Canvas, err error) {
+				p := proto.CanvasCreateParams{Title: f.title, Kind: kinds[f.kind].id, Group: strings.TrimSpace(f.group)}
+				if f.project != "" {
+					p.Projects = []string{f.project}
+				}
+				o.Create(p, func(cv proto.Canvas, err error) {
 					if err != nil {
 						v.err = err.Error()
 						return
@@ -66,13 +70,59 @@ func (v *View) createDialog(c *ui.Context, o Options) {
 	}
 }
 
+// kindSelect picks the new canvas's kind.
+func (v *View) kindSelect(c *ui.Context, f *createForm) {
+	t := widget.Trigger(ui.ButtonBase(c.Key("kind")).Label("Kind"), false)
+	t.Children(func() {
+		ui.Text(c, kinds[f.kind].name).FontSize(theme.TextUI).TextColor(theme.Text).Grow(1).Shrink(1).MinWidth(0).SingleLine()
+		ui.Icon(c, icon.ChevronDown).FontSize(12).TextColor(theme.TextSoft)
+	})
+	v.menu.OpenBelow(t, "new-kind", theme.ControlHeight)
+	v.menu.Show(c, t, "new-kind", func(done func()) {
+		for i, k := range kinds {
+			if widget.MenuItemSub(c.Key(k.id), nil, k.name, k.about, false) {
+				f.kind = i
+				done()
+			}
+		}
+	})
+}
+
+// projectSelect picks the project the new canvas belongs to, if any.
+func (v *View) projectSelect(c *ui.Context, o Options, f *createForm) {
+	name := "No project"
+	for _, p := range o.Projects {
+		if p.Path == f.project {
+			name = p.Name
+		}
+	}
+	t := widget.Trigger(ui.ButtonBase(c.Key("project")).Label("Project"), false)
+	t.Children(func() {
+		ui.Row(c).Grow(1).MinWidth(0).Children(func() { widget.Running(c, name, widget.RunStyle{}) })
+		ui.Icon(c, icon.ChevronDown).FontSize(12).TextColor(theme.TextSoft)
+	})
+	v.menu.OpenBelow(t, "new-project", theme.ControlHeight)
+	v.menu.Show(c, t, "new-project", func(done func()) {
+		if widget.MenuItem(c.Key("none"), nil, "No project", false) {
+			f.project = ""
+			done()
+		}
+		for _, p := range o.Projects {
+			if widget.MenuItem(c.Key(p.Path), icon.Folder, p.Name, false) {
+				f.project = p.Path
+				done()
+			}
+		}
+	})
+}
+
 func (v *View) deleteDialog(c *ui.Context, o Options) {
 	d := v.deleting
 	if d == nil {
 		return
 	}
 	open := true
-	widget.Dialog(c, &open, 420, 14, func() {
+	widget.Dialog(c, &open, 420, theme.S3, func() {
 		widget.DialogHeader(c, "Delete “"+d.Title+"”?", "Its frames, versions, comments and images go; this can't be undone.", false)
 		widget.DialogFooter(c, "", func() {
 			if widget.GhostButton(c, "Cancel").Clicked() {
@@ -108,7 +158,7 @@ func (v *View) renameDialog(c *ui.Context, o Options) {
 		return
 	}
 	open := true
-	widget.Dialog(c, &open, 400, 14, func() {
+	widget.Dialog(c, &open, 400, theme.S3, func() {
 		widget.DialogHeader(c, "Rename canvas", "", false)
 		in := widget.Input(c, title, "Title").AutoFocus().Label("New title")
 		widget.DialogFooter(c, "", func() {

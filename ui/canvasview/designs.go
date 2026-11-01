@@ -3,7 +3,6 @@ package canvasview
 import (
 	"fmt"
 	"slices"
-	"strings"
 	"time"
 
 	"github.com/egoist/mygo/ui"
@@ -66,31 +65,26 @@ func (v *View) step(by int) {
 // designNav is the design shown, with the one before and after.
 func (v *View) designNav(c *ui.Context, o Options, cv proto.Canvas) {
 	i, n := v.designIndex(), len(cv.Frames)
-	prev := widget.IconButton(c, icon.ChevronLeft, "Design before (←)", false)
+	prev := widget.IconButton(c.Key("prev"), icon.ChevronLeft, "Design before (←)", false)
 	if i == 0 {
-		prev.Disabled(true).Opacity(0.4)
+		prev.Disabled(true)
 	} else if prev.Clicked() {
 		v.step(-1)
 	}
 	f := v.frameOf()
-	label := fmt.Sprintf("Design %d of %d · %s  %d×%d", i+1, n, f.Name, f.Width, f.Height)
+	label := fmt.Sprintf("Design %d of %d", i+1, n)
 	if v.compact() {
 		label = fmt.Sprintf("%d / %d", i+1, n)
 	}
-	t := ui.Text(c, label).FontSize(theme.TextLabel).TextColor(theme.Text).SingleLine().Tooltip(f.Name)
-	if v.compact() {
-		t.Shrink(0)
-	} else {
-		t.Shrink(1).MinWidth(0)
-	}
-	next := widget.IconButton(c, icon.ChevronRight, "Design after (→)", false)
+	ui.Text(c.Key("at"), label).FontSize(theme.TextLabel).TextColor(theme.TextSoft).SingleLine().Shrink(0).Tooltip(f.Name)
+	next := widget.IconButton(c.Key("next"), icon.ChevronRight, "Design after (→)", false)
 	if i >= n-1 {
-		next.Disabled(true).Opacity(0.4)
+		next.Disabled(true)
 	} else if next.Clicked() {
 		v.step(1)
 	}
-	add := widget.IconButton(c, icon.Plus, "Add a design", false)
-	v.menu.OpenBelow(add, "add-frame", 28)
+	add := widget.IconButton(c.Key("add"), icon.Plus, "Add a design", false)
+	v.menu.OpenBelow(add, "add-frame", theme.ControlHeight)
 	v.menu.Show(c, add, "add-frame", func(done func()) {
 		if widget.MenuItem(c.Key("blank"), icon.Plus, "New design", false) {
 			v.edit(o, proto.CanvasEdit{Op: proto.CanvasOpFrameAdd, FrameInfo: &proto.CanvasFrame{Name: fmt.Sprintf("Design %d", n+1), Width: f.Width, Height: f.Height}})
@@ -110,25 +104,31 @@ func (v *View) designNav(c *ui.Context, o Options, cv proto.Canvas) {
 	})
 }
 
-// designLine is the shown design's name and what it tries, with its star
-// and the winner's mark.
+// designLine is under the stage: the shown design's name and size and what it
+// tries, with its star and the winner's mark.
 func (v *View) designLine(c *ui.Context, o Options) {
 	f, cv := v.frameOf(), v.canvas
 	if len(cv.Frames) < 2 && f.Description == "" {
 		return
 	}
-	ui.Row(c).FillWidth().Height(36).Shrink(0).PaddingX(14).Gap(8).AlignItems(ui.Center).BorderWidth(0, 0, 1, 0).BorderColor(theme.Border).Children(func() {
-		ui.Text(c, fmt.Sprintf("%d · %s", v.designIndex()+1, f.Name)).FontSize(theme.TextUI).FontWeight(600).TextColor(theme.TextStrong).SingleLine()
+	ui.Row(c.Key("design-line")).FillWidth().MinHeight(theme.ControlHeight).Shrink(0).Padding(theme.S1, 0, 0, theme.S1).Gap(theme.S2).AlignItems(ui.Center).Children(func() {
+		ui.Row(c.Key("name")).MinWidth(0).Shrink(1).Children(func() {
+			widget.Running(c, fmt.Sprintf("%d %s · %s", v.designIndex()+1, f.Name, sizeOf(f)), widget.RunStyle{Size: theme.TextLabel, Color: theme.TextSoft})
+		})
 		if g := groupOf(f); g != "" {
-			widget.Tag(c, g, theme.Muted)
+			widget.Tag(c.Key("group"), g, theme.Muted)
 		}
 		if cv.Winner == f.ID {
-			widget.Tag(c, "Winner", theme.Done)
+			widget.Tag(c.Key("winner"), "Winner", theme.Done)
 		}
-		ui.Text(c, f.Description).FontSize(theme.TextLabel).TextColor(theme.Muted).SingleLine().Shrink(1).Grow(1).MinWidth(0)
+		ui.Row(c.Key("about")).Grow(1).Basis(0).MinWidth(0).Children(func() {
+			if f.Description != "" {
+				widget.Running(c, f.Description, widget.RunStyle{Size: theme.TextLabel, Color: theme.Muted})
+			}
+		})
 		v.starButton(c, o, f)
-		more := widget.IconButton(c, icon.More, "Design "+f.Name, false)
-		v.menu.OpenBelow(more, "design-more", 28)
+		more := widget.IconButton(c.Key("more"), icon.More, "Design "+f.Name, false)
+		v.menu.OpenBelow(more, "design-more", theme.ControlHeight)
 		v.menu.Show(c, more, "design-more", func(done func()) { v.designItems(c, o, f, done) })
 	})
 }
@@ -206,26 +206,31 @@ func (v *View) designItems(c *ui.Context, o Options, f proto.CanvasFrame, done f
 	}
 }
 
-// strip is every design, small, by page: a click shows one, a drag puts it
-// before another; the one an agent works on is marked.
+// Sizes of the strip's items: a picture of any shape fits a fixed box, and
+// the box never grows with it.
+const (
+	thumbW = 128
+	thumbH = 80
+)
+
+// strip is every design, small, by page, under the stage: a click shows one, a
+// drag puts it before another; the one an agent works on is marked.
 func (v *View) strip(c *ui.Context, o Options, cv proto.Canvas) {
-	ui.Column(c.Key("strip")).Width(176).Shrink(0).FillHeight().Background(theme.Panel).BorderWidth(0, 1, 0, 0).BorderColor(theme.Border).Children(func() {
-		ui.Scroll(c).Grow(1).FillWidth().Children(func() {
-			ui.Column(c).FillWidth().Padding(10).Gap(10).Children(func() {
-				page := "\x00"
-				for i, f := range cv.Frames {
-					if f.Page != page && (f.Page != "" || page != "\x00") {
-						name := f.Page
-						if name == "" {
-							name = "Other"
-						}
-						widget.SectionLabel(c.Key("page:"+f.ID), strings.ToUpper(name), theme.Muted)
-					}
-					page = f.Page
-					v.stripItem(c.Key(f.ID), o, cv, i, f)
+	ui.ScrollHorizontal(c.Key("strip")).FillWidth().Shrink(0).Padding(theme.S1, 0, 0, 0).Gap(theme.S2).AlignItems(ui.Center).Children(func() {
+		page := "\x00"
+		for i, f := range cv.Frames {
+			if f.Page != page && (f.Page != "" || page != "\x00") {
+				name := f.Page
+				if name == "" {
+					name = "Other"
 				}
-			})
-		})
+				ui.Row(c.Key("page:" + f.ID)).MaxWidth(96).Shrink(0).Children(func() {
+					widget.Running(c, name, widget.RunStyle{Size: theme.TextLabel, Weight: 500, Color: theme.TextSoft})
+				})
+			}
+			page = f.Page
+			v.stripItem(c.Key(f.ID), o, cv, i, f)
+		}
 	})
 }
 
@@ -236,10 +241,10 @@ func (v *View) working(f proto.CanvasFrame) bool {
 
 func (v *View) stripItem(c *ui.Context, o Options, cv proto.Canvas, i int, f proto.CanvasFrame) {
 	label := fmt.Sprintf("Design %d", i+1)
-	item := ui.ButtonBase(c).FillWidth().Padding(6).Gap(5).Radius(theme.RadiusSmall).Column().Cursor(ui.CursorPointer).Label(label)
+	item := ui.ButtonBase(c).Width(thumbW + 2*theme.S1).Shrink(0).Padding(theme.S1).Gap(theme.S1).Radius(theme.RadiusSmall).Column().Cursor(ui.CursorPointer).Label(label)
 	switch {
 	case f.ID == v.frame:
-		item.Background(theme.Selected).Border(1, theme.AccentLine)
+		item.Background(theme.Selected)
 	case item.Hovered():
 		item.Background(theme.Hover)
 	}
@@ -248,7 +253,7 @@ func (v *View) stripItem(c *ui.Context, o Options, cv proto.Canvas, i int, f pro
 		v.edit(o, proto.CanvasEdit{Op: proto.CanvasOpFrameMove, Frame: d.id, Before: f.ID})
 	}
 	if d, ok := ui.DragOver[designDrag](item); ok && d.id != f.ID {
-		item.BorderWidth(2, 0, 0, 0).BorderColor(theme.Accent)
+		item.BorderWidth(0, 0, 0, 2).BorderColor(theme.Accent) // it goes before this one
 	}
 	if item.Clicked() {
 		v.frame, v.sel, v.preview = f.ID, "", 0
@@ -256,19 +261,26 @@ func (v *View) stripItem(c *ui.Context, o Options, cv proto.Canvas, i int, f pro
 	v.menu.Open(item, "design:"+f.ID)
 	v.menu.Show(c, item, "design:"+f.ID, func(done func()) { v.designItems(c, o, f, done) })
 	item.Children(func() {
-		v.designPreview(c.Key("pv"), o, f, 152)
-		ui.Row(c).FillWidth().Gap(4).AlignItems(ui.Center).Children(func() {
-			ui.Text(c, fmt.Sprintf("%d", i+1)).FontSize(theme.TextLabel).FontWeight(600).TextColor(theme.Muted)
-			ui.Text(c, f.Name).FontSize(theme.TextLabel).TextColor(theme.Text).SingleLine().Shrink(1).Grow(1).MinWidth(0)
+		ui.Row(c.Key("box")).Size(thumbW, thumbH).Shrink(0).Radius(theme.RadiusTail).Clip().Background(theme.Sunken).Center().Children(func() {
+			w := float32(thumbW)
+			if f.Width > 0 && f.Height > 0 {
+				w = min(w, thumbH*float32(f.Width)/float32(f.Height))
+			}
+			v.designPreview(c.Key("pv"), o, f, w)
+		})
+		ui.Row(c.Key("cap")).FillWidth().Gap(theme.S1).AlignItems(ui.Center).Children(func() {
+			ui.Row(c).Grow(1).MinWidth(0).Children(func() {
+				widget.Running(c, fmt.Sprintf("%d %s", i+1, f.Name), widget.RunStyle{Size: theme.TextLabel})
+			})
 			if v.working(f) {
-				widget.Dot(c, theme.Accent, false, 6)
+				widget.Dot(c.Key("working"), theme.Accent, false, 6)
 				c.After(designingFor)
 			}
 			if f.Favorite {
-				ui.Icon(c, icon.Star).FontSize(11).TextColor(theme.Warning)
+				ui.Icon(c.Key("fav"), icon.Star).FontSize(12).TextColor(theme.Warning)
 			}
 			if cv.Winner == f.ID {
-				ui.Icon(c, icon.Award).FontSize(11).TextColor(theme.Done)
+				ui.Icon(c.Key("won"), icon.Award).FontSize(12).TextColor(theme.Done)
 			}
 		})
 	})
@@ -304,15 +316,15 @@ func (v *View) describeDialog(c *ui.Context, o Options) {
 	if f == nil {
 		return
 	}
-	widget.Dialog(c, &f.open, 440, 14, func() {
+	widget.Dialog(c, &f.open, 440, theme.S3, func() {
 		widget.DialogHeader(c, "Name and describe the design", "", false)
 		widget.Field(c, "Name", func() { widget.Input(c, &f.name, "Hero B").AutoFocus().Label("Design name") })
 		widget.Field(c, "What it tries", func() { widget.Input(c, &f.description, "Big type, one call to action").Label("Design description") })
-		ui.Row(c).FillWidth().Gap(10).Children(func() {
-			ui.Column(c).Grow(1).Basis(0).Children(func() {
+		ui.Row(c).FillWidth().Gap(theme.S2).Children(func() {
+			ui.Column(c).Grow(1).Basis(0).MinWidth(0).Children(func() {
 				widget.Field(c, "Page", func() { widget.Input(c, &f.page, "Home").Label("Design page") })
 			})
-			ui.Column(c).Grow(1).Basis(0).Children(func() {
+			ui.Column(c).Grow(1).Basis(0).MinWidth(0).Children(func() {
 				widget.Field(c, "Variant", func() { widget.Input(c, &f.variant, "B").Label("Design variant") })
 			})
 		})

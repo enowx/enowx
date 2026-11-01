@@ -6,47 +6,38 @@ import (
 
 	"github.com/egoist/mygo/ui"
 
-	"github.com/enowx/enowx/core/canvas"
 	"github.com/enowx/enowx/proto"
 	"github.com/enowx/enowx/ui/icon"
 	"github.com/enowx/enowx/ui/theme"
 	"github.com/enowx/enowx/ui/widget"
 )
 
-// page is the canvas open: its header, the agent's bar while one designs
-// it, the tools, the stage, and the panel beside it.
+// page is the canvas open: its header; under it the agent's bar while one
+// designs it, the tools, the stage and the designs' strip; the panel beside.
 func (v *View) page(c *ui.Context, o Options) {
 	cv := v.canvas
 	v.header(c, o, *cv)
-	v.agentBar(c, o, *cv)
-	if v.err != "" {
-		ui.Row(c).FillWidth().PaddingX(14).Height(30).AlignItems(ui.Center).Gap(8).Background(theme.Fade(theme.Error, 0.1)).Children(func() {
-			ui.Text(c, v.err).FontSize(theme.TextLabel).TextColor(theme.Error).Grow(1).SingleLine()
-			if widget.IconButton(c, icon.Close, "Dismiss", false).Clicked() {
-				v.err = ""
-			}
-		})
-	}
-	// Keyed: the agent's bar and an error come and go above it, and
-	// without a key what it holds (the strip's and grid's scroll) would
+	// Keyed: the agent's bar and an error come and go above what's under them,
+	// and without a key what it holds (the strip's and grid's scroll) would
 	// start over each time.
 	ui.Row(c.Key("canvas-body")).Grow(1).FillWidth().MinHeight(0).Children(func() {
-		ui.Column(c).Grow(1).MinWidth(0).FillHeight().Children(func() {
+		ui.Column(c.Key("canvas-main")).Grow(1).MinWidth(0).FillHeight().Padding(theme.S3).Gap(theme.S2).Children(func() {
+			v.agentBar(c, o, *cv)
+			v.errorBar(c)
 			v.toolbar(c, o, *cv)
-			ui.Row(c).Grow(1).FillWidth().MinHeight(0).Children(func() {
+			ui.Row(c.Key("canvas-views")).Grow(1).FillWidth().MinHeight(0).Children(func() {
 				switch v.view {
 				case viewGrid:
 					v.grid(c, o, *cv)
 				case viewCompare:
 					v.compareView(c, o, *cv)
 				default:
-					v.palette(c, o)
-					if len(cv.Frames) > 1 && v.stageRoom() >= stripRoom {
-						v.strip(c, o, *cv)
-					}
-					ui.Column(c.Key("stage-column")).Grow(1).MinWidth(0).FillHeight().Children(func() { // the strip comes and goes before it
-						v.designLine(c, o)
+					ui.Column(c.Key("stage-column")).Grow(1).MinWidth(0).FillHeight().Children(func() {
 						v.stage(c, o)
+						v.designLine(c, o)
+						if len(cv.Frames) > 1 && v.stageRoom() >= stripRoom {
+							v.strip(c, o, *cv)
+						}
 					})
 				}
 				v.buildHUD(c, o, *cv)
@@ -60,182 +51,22 @@ func (v *View) page(c *ui.Context, o Options) {
 	v.designKeys(c)
 }
 
-// header is the canvas's title, its frames and what is done with it.
-func (v *View) header(c *ui.Context, o Options, cv proto.Canvas) {
-	ui.Row(c).FillWidth().Height(44).Shrink(0).PaddingX(14).Gap(8).AlignItems(ui.Center).BorderWidth(0, 0, 1, 0).BorderColor(theme.Border).Children(func() {
-		if !v.listShown() || v.listOpen {
-			// The canvases' list, hidden in a narrow page, a click away.
-			if widget.IconButton(c.Key("list"), icon.Sidebar, "Canvases", v.listOpen).Clicked() {
-				v.listOpen = !v.listOpen
-			}
+// sizeOf is a design's size, as its caption and the header say it.
+func sizeOf(f proto.CanvasFrame) string { return fmt.Sprintf("%d×%d", f.Width, f.Height) }
+
+// raised is what floats over the stage or the page's views: a pane of the
+// menus' material with glass's edge.
+func raised(e ui.Element) ui.Element { return widget.Rim(e.Background(theme.Popover)) }
+
+// errorBar says what failed last, until dismissed.
+func (v *View) errorBar(c *ui.Context) {
+	if v.err == "" {
+		return
+	}
+	widget.Banner(c.Key("canvas-error"), theme.Error, v.err, func() {
+		if widget.IconButton(c, icon.Close, "Dismiss", false).Clicked() {
+			v.err = ""
 		}
-		ui.Icon(c, kindIcon(cv.Kind)).FontSize(15).TextColor(theme.Accent)
-		t := ui.ButtonBase(c).Label("Title").Cursor(ui.CursorText).Shrink(1).MinWidth(0)
-		t.Children(func() {
-			ui.Text(c, cv.Title).FontSize(theme.TextUI).FontWeight(600).TextColor(theme.TextStrong).SingleLine()
-		})
-		if t.DoubleClicked() {
-			title := cv.Title
-			v.renaming = &title
-		}
-		if !v.compact() {
-			ui.Text(c, fmt.Sprintf("%s · v%d", cv.Kind, cv.Version)).FontSize(theme.TextLabel).TextColor(theme.Muted).SingleLine()
-		}
-		ui.Spacer(c)
-		// Undo and redo keep their shortcuts where the room is too short.
-		if v.stageRoom() >= 520 {
-			if widget.IconButton(c, icon.Undo, "Undo ("+modKey+"Z)", false).Clicked() {
-				v.undo(o, false)
-			}
-			if widget.IconButton(c, icon.Redo, "Redo (Shift+"+modKey+"Z)", false).Clicked() {
-				v.undo(o, true)
-			}
-		}
-		for _, p := range []struct {
-			id    string
-			svg   *ui.SVG
-			label string
-		}{{"layers", icon.Layers, "Layers"}, {"comments", icon.Comment, "Comments"}, {"versions", icon.History, "Versions"}} {
-			label := p.label
-			if p.id == "comments" {
-				if n := v.openComments(); n > 0 {
-					label = fmt.Sprintf("Comments (%d open)", n)
-				}
-			}
-			if widget.IconButton(c.Key(p.id), p.svg, label, v.panel == p.id).Clicked() {
-				v.togglePanel(o, p.id)
-			}
-		}
-		if cv.Kind == proto.CanvasMockup || cv.Kind == proto.CanvasWireframe {
-			v.briefButton(c, cv)
-		}
-		if cv.Kind == proto.CanvasMockup && o.Build != nil && o.CanAsk {
-			v.buildButton(c, o)
-		}
-		if f := v.frameOf(); o.Unslop != nil && o.CanAsk && f.HTML != "" {
-			tip := "Unslop: find what makes this design look AI-made, and have the agent redesign a copy of it, pass by pass"
-			var b ui.Element
-			if v.compact() {
-				b = widget.IconButton(c.Key("unslop"), icon.Wand, tip, false)
-			} else {
-				b = widget.Button(c.Key("unslop"), widget.Secondary, icon.Wand, "Unslop", "").Height(28).PaddingX(10).Tooltip(tip)
-			}
-			if o.Unslopping {
-				b.Disabled(true)
-			} else if b.Clicked() {
-				o.Unslop(f.ID)
-				v.assistant, v.panel = true, ""
-			}
-			if o.UnslopChoose != nil && !o.Unslopping && widget.IconButton(c.Key("unslop-passes"), icon.ChevronDown, "Unslop with the passes you pick…", false).Clicked() {
-				o.UnslopChoose(f.ID)
-			}
-		}
-		if o.CanAsk && widget.IconButton(c, icon.Chat, "Ask an agent", v.assistant).Clicked() {
-			v.assistant = !v.assistant
-			if v.assistant {
-				v.panel = "" // room for the agent
-			}
-		}
-		var exp ui.Element
-		if v.compact() {
-			exp = widget.IconButton(c.Key("export"), icon.Download, "Export", false)
-		} else {
-			exp = widget.Button(c.Key("export"), widget.Secondary, icon.Download, "Export", "").Height(28).PaddingX(10)
-		}
-		v.menu.OpenBelow(exp, "export", 28)
-		v.menu.Show(c, exp, "export", func(done func()) {
-			f := v.frameOf()
-			// A still of a moving design is one moment of it; only HTML moves.
-			still, moving := "", ""
-			if canvas.UsesMotion(f.HTML) {
-				still, moving = " (one frame)", " (keeps the motion)"
-			}
-			for _, e := range []struct{ label, format, frame string }{
-				{"PNG of " + f.Name + still, proto.RenderPNG, f.ID}, {"SVG of " + f.Name + still, proto.RenderSVG, f.ID},
-				{"PDF of " + f.Name + still, proto.RenderPDF, f.ID}, {"HTML of " + f.Name + moving, proto.RenderHTML, f.ID},
-				{"Share as a page (read-only HTML)…", proto.RenderHTML, ""},
-			} {
-				if widget.MenuItem(c.Key(e.label), icon.Download, e.label, false) {
-					v.export(o, cv, e.frame, e.format)
-					done()
-				}
-			}
-			if o.Share != nil && widget.MenuItem(c.Key("share-link"), icon.Link, "Share a link…", false) {
-				v.openShare(o, cv.ID)
-				done()
-			}
-		})
-		if o.MakeCode != nil {
-			var mk ui.Element
-			if v.compact() {
-				mk = widget.IconButton(c.Key("make-code"), icon.Code, "Make code", false)
-			} else {
-				mk = widget.Button(c.Key("make-code"), widget.Primary, icon.Code, "Make code", "").Height(28).PaddingX(10).
-					Tooltip("Have an agent build it in a project, as components")
-			}
-			v.menu.OpenBelow(mk, "make-code", 28)
-			v.menu.Show(c, mk, "make-code", func(done func()) {
-				if len(o.Projects) == 0 {
-					ui.Text(c, "Open a project on this host first").FontSize(theme.TextLabel).TextColor(theme.Muted).Padding(8)
-				}
-				for _, p := range o.Projects {
-					label := p.Name
-					if containsPath(cv.Projects, p.Path) {
-						label += " · attached"
-					}
-					if widget.MenuItem(c.Key(p.Path), icon.Folder, label, false) {
-						o.MakeCode(cv, p.Path)
-						if !containsPath(cv.Projects, p.Path) {
-							projects := append(append([]string{}, cv.Projects...), p.Path)
-							v.edit(o, proto.CanvasEdit{Op: proto.CanvasOpMeta, Projects: &projects})
-						}
-						done()
-					}
-				}
-			})
-		}
-		more := widget.IconButton(c, icon.More, "More", false)
-		v.menu.OpenBelow(more, "more", 28)
-		v.menu.Show(c, more, "more", func(done func()) {
-			if widget.MenuItem(c.Key("rename"), icon.Pencil, "Rename…", false) {
-				title := cv.Title
-				v.renaming = &title
-				done()
-			}
-			for _, p := range o.Projects {
-				on := containsPath(cv.Projects, p.Path)
-				label := "Attach to " + p.Name
-				if on {
-					label = "Detach from " + p.Name
-				}
-				if widget.MenuItem(c.Key("attach:"+p.Path), icon.Folder, label, false) {
-					var projects []string
-					for _, x := range cv.Projects {
-						if x != p.Path {
-							projects = append(projects, x)
-						}
-					}
-					if !on {
-						projects = append(projects, p.Path)
-					}
-					v.edit(o, proto.CanvasEdit{Op: proto.CanvasOpMeta, Projects: &projects})
-					done()
-				}
-			}
-			if o.MoveSpace != nil {
-				widget.MenuSeparator(c)
-				if widget.MenuItem(c.Key("space"), icon.ArrowRight, "Move or copy to a space…", false) {
-					o.MoveSpace(cv.CanvasInfo)
-					done()
-				}
-			}
-			widget.MenuSeparator(c)
-			if widget.MenuItem(c.Key("delete"), icon.Trash, "Delete…", true) {
-				info := cv.CanvasInfo
-				v.deleting = &info
-				done()
-			}
-		})
 	})
 }
 
@@ -266,26 +97,32 @@ func (v *View) agentBar(c *ui.Context, o Options, cv proto.Canvas) {
 	if o.AgentName != nil && cv.Agent != "" {
 		who = o.AgentName(cv.Agent)
 	}
-	ui.Row(c.Key("agent-bar")).FillWidth().Height(36).Shrink(0).PaddingX(14).Gap(8).AlignItems(ui.Center).
-		Background(theme.AccentSoft).BorderWidth(0, 0, 1, 0).BorderColor(theme.AccentLine).Children(func() {
+	bar := ui.Row(c.Key("agent-bar")).FillWidth().Shrink(0).MinHeight(40).Padding(0, theme.S1, 0, theme.S4).Gap(theme.S2).Radius(theme.RadiusFull).
+		Background(theme.Fade(theme.Accent, 0.14))
+	if cv.Paused {
+		bar.Background(theme.Fade(theme.Warning, 0.14))
+	}
+	bar.Children(func() {
 		if cv.Paused {
-			ui.Icon(c, icon.Pause).FontSize(13).TextColor(theme.Warning)
-			ui.Text(c, "Agents are paused on this canvas: their changes wait until you resume").FontSize(theme.TextLabel).TextColor(theme.Text).Grow(1).SingleLine()
-			if widget.Button(c, widget.Primary, icon.Play, "Resume", "").Height(26).PaddingX(10).Clicked() {
+			ui.Icon(c, icon.Pause).FontSize(14).TextColor(theme.Warning)
+			ui.Row(c).Grow(1).MinWidth(0).Children(func() {
+				widget.Running(c, "Agents are paused on this canvas: their changes wait until you resume", widget.RunStyle{})
+			})
+			if widget.Button(c, widget.Primary, icon.Play, "Resume", "").Clicked() {
 				o.Control(cv.ID, proto.CanvasResume, v.reportErr)
 			}
 			return
 		}
-		widget.Spinner(c, 12)
+		widget.Spinner(c, 14)
 		what := ""
 		if v.last.Element != "" && now.Sub(v.lastAt) < designingFor {
 			what = " · " + v.last.Element
 		}
-		ui.Text(c, who+" is designing"+what).FontSize(theme.TextLabel).TextColor(theme.Text).Grow(1).SingleLine()
-		if widget.Button(c, widget.Secondary, icon.Pause, "Pause", "").Height(26).PaddingX(10).Clicked() {
+		ui.Row(c).Grow(1).MinWidth(0).Children(func() { widget.Running(c, who+" is designing"+what, widget.RunStyle{}) })
+		if widget.Button(c, widget.Secondary, icon.Pause, "Pause", "").Clicked() {
 			o.Control(cv.ID, proto.CanvasPause, v.reportErr)
 		}
-		if widget.Button(c, widget.Secondary, icon.Stop, "Stop", "").Height(26).PaddingX(10).Tooltip("Interrupt the agent, and pause").Clicked() {
+		if widget.Button(c, widget.Secondary, icon.Stop, "Stop", "").Tooltip("Interrupt the agent, and pause").Clicked() {
 			o.Control(cv.ID, proto.CanvasStop, v.reportErr)
 		}
 	})
@@ -332,11 +169,16 @@ func (v *View) export(o Options, cv proto.Canvas, frame, format string) {
 
 func (v *View) togglePanel(o Options, id string) {
 	if v.panel == id {
-		v.panel = ""
+		v.panelBack, v.panel = id, ""
 		return
 	}
 	v.panel = id
-	switch id {
+	v.togglePanelLoad(o)
+}
+
+// togglePanelLoad reads what the panel now shown lists.
+func (v *View) togglePanelLoad(o Options) {
+	switch v.panel {
 	case "comments":
 		v.loadComments(o)
 	case "versions":

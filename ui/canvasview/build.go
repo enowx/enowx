@@ -53,9 +53,9 @@ func (v *View) buildButton(c *ui.Context, o Options) {
 	tip := "Build a UI: from a brief to a finished design, one direction or several to compare"
 	var b ui.Element
 	if v.compact() {
-		b = widget.IconButton(c.Key("build"), icon.Palette, tip, false)
+		b = widget.IconButton(c.Key("build"), icon.Palette, tip, false).Label("Build a UI")
 	} else {
-		b = widget.Button(c.Key("build"), widget.Secondary, icon.Palette, "Build", "").Height(28).PaddingX(10).Tooltip(tip).Label("Build a UI")
+		b = widget.GhostButton(c.Key("build"), "Build").Tooltip(tip).Label("Build a UI")
 	}
 	if o.Building {
 		b.Disabled(true)
@@ -74,16 +74,15 @@ func (v *View) buildDialog(c *ui.Context, o Options) {
 		return
 	}
 	widget.FormSheet(c, &f.open, 560, "Build a UI", "The canvas's agent writes the brief, then designs; you follow it here and pick.", func() {
-		col := ui.Column(c.Key("build-form")).FillWidth().Gap(14)
+		col := ui.Column(c.Key("build-form")).FillWidth().Gap(theme.S3)
 		if files := col.DroppedFiles(); len(files) > 0 {
 			f.setImage(readImage(files[0]))
 			f.from = 3
 		}
 		col.Children(func() {
 			widget.Field(c, "What to build", func() {
-				ui.TextArea(c, &f.what).FillWidth().TextColor(theme.Text).Height(72).Padding(8, 10).Radius(theme.RadiusControl).FontSize(theme.TextUI).
-					Background(theme.Sunken).Border(1, theme.BorderStrong).Label("What to build").
-					Placeholder("A pricing page for a ledger app small shops use")
+				widget.Well(ui.TextArea(c, &f.what).FillWidth().TextColor(theme.Text).Height(80).Padding(theme.S2, theme.S3).Radius(theme.RadiusCard).FontSize(theme.TextUI).
+					Label("What to build").Placeholder("A pricing page for a ledger app small shops use"), false)
 			})
 			widget.Field(c, "From", func() {
 				f.from = chosen(widget.Segmented(c.Key("from"), labels(buildFroms), f.from, func(i int) bool {
@@ -97,25 +96,25 @@ func (v *View) buildDialog(c *ui.Context, o Options) {
 				f.screenshotField(c)
 			}
 			widget.Field(c, "Devices", func() {
-				ui.Row(c).Gap(16).Children(func() {
+				ui.Row(c.Key("devices")).Gap(theme.S4).Children(func() {
 					widget.Checkbox(c.Key("desktop"), &f.desktop, "Desktop")
 					widget.Checkbox(c.Key("mobile"), &f.mobile, "Phone")
 				})
 			})
 			if f.lookIsOpen() {
 				widget.Field(c, "Directions", func() {
-					f.count = chosen(widget.Segmented(c.Key("count"), []string{"One, recommended", "2 to compare", "3", "4"}, f.count, nil), f.count)
+					v.countSelect(c, f)
 				})
 				if f.count == 0 {
 					widget.Checkbox(c.Key("confirm"), &f.confirm, "Show me the direction before building it")
 				}
 			}
 			if f.imageErr != "" {
-				ui.Text(c, f.imageErr).FontSize(theme.TextLabel).TextColor(theme.Error)
+				ui.Text(c.Key("image-err"), f.imageErr).FontSize(theme.TextUI).TextColor(theme.Error)
 			}
 		})
 	}, func() {
-		b := widget.PrimaryButton(c, icon.Palette, "Build", "").Label("Start the build")
+		b := widget.PrimaryButton(c, nil, "Start", "").Label("Start the build")
 		if !f.ready(o) {
 			b.Disabled(true)
 		} else if b.Clicked() {
@@ -125,35 +124,66 @@ func (v *View) buildDialog(c *ui.Context, o Options) {
 	})
 }
 
-func (v *View) buildProjectFields(c *ui.Context, o Options, f *buildForm) {
-	widget.Field(c, "Project", func() {
-		names := make([]string, len(o.Projects))
-		for i, p := range o.Projects {
-			names[i] = p.Name
-		}
-		if len(names) > 0 {
-			f.project = chosen(widget.Segmented(c.Key("project"), names, min(f.project, len(names)-1), nil), f.project)
+// countSelect picks how many directions to design.
+func (v *View) countSelect(c *ui.Context, f *buildForm) {
+	names := []string{"One, recommended", "2 to compare", "3", "4"}
+	t := widget.Trigger(ui.ButtonBase(c.Key("count")).Label("Directions"), false)
+	t.Children(func() {
+		ui.Text(c, names[f.count]).FontSize(theme.TextUI).TextColor(theme.Text).Grow(1).Shrink(1).MinWidth(0).SingleLine()
+		ui.Icon(c, icon.ChevronDown).FontSize(12).TextColor(theme.TextSoft)
+	})
+	v.menu.OpenBelow(t, "build-count", theme.ControlHeight)
+	v.menu.Show(c, t, "build-count", func(done func()) {
+		for i, name := range names {
+			if widget.MenuItem(c.Key(name), nil, name, false) {
+				f.count = i
+				done()
+			}
 		}
 	})
+}
+
+func (v *View) buildProjectFields(c *ui.Context, o Options, f *buildForm) {
+	widget.Field(c, "Project", func() {
+		if len(o.Projects) == 0 {
+			return
+		}
+		cur := min(f.project, len(o.Projects)-1)
+		t := widget.Trigger(ui.ButtonBase(c.Key("project")).Label("Project"), false)
+		t.Children(func() {
+			ui.Row(c).Grow(1).MinWidth(0).Children(func() { widget.Running(c, o.Projects[cur].Name, widget.RunStyle{}) })
+			ui.Icon(c, icon.ChevronDown).FontSize(12).TextColor(theme.TextSoft)
+		})
+		v.menu.OpenBelow(t, "build-project", theme.ControlHeight)
+		v.menu.Show(c, t, "build-project", func(done func()) {
+			for i, p := range o.Projects {
+				if widget.MenuItem(c.Key(p.Path), icon.Folder, p.Name, false) {
+					f.project = i
+					done()
+				}
+			}
+		})
+	})
 	widget.Field(c, "The work", func() {
-		ui.Column(c).FillWidth().Gap(6).Children(func() {
+		ui.Column(c).FillWidth().Gap(theme.S1).Children(func() {
 			f.work = chosen(widget.Segmented(c.Key("work"), labels3(buildWorks), f.work, nil), f.work)
-			ui.Text(c, buildWorks[f.work].about).FontSize(theme.TextLabel).TextColor(theme.Muted)
+			ui.Text(c.Key("about"), buildWorks[f.work].about).FontSize(theme.TextLabel).TextColor(theme.TextSoft)
 		})
 	})
 }
 
 func (f *buildForm) screenshotField(c *ui.Context) {
 	widget.Field(c, "Screenshot", func() {
-		box := ui.Row(c.Key("shot")).FillWidth().Height(96).Gap(12).Padding(10).Radius(theme.RadiusControl).
-			Background(theme.Sunken).Border(1, theme.BorderStrong).AlignItems(ui.Center)
+		box := widget.Well(ui.Row(c.Key("shot")).FillWidth().Height(96).Shrink(0).Gap(theme.S3).Padding(theme.S2, theme.S3).Radius(theme.RadiusCard).Clip().AlignItems(ui.Center), false)
 		box.Children(func() {
 			if f.preview != nil {
 				w, h := f.preview.Size()
-				ui.Image(c, f.preview).Size(float32(76*w/max(h, 1)), 76).Radius(theme.RadiusSmall)
+				ui.Image(c.Key("pv"), f.preview).Size(min(float32(76*w/max(h, 1)), 200), 76).Shrink(0).Fit(ui.Contain).Radius(theme.RadiusSmall)
 			}
-			ui.Column(c).Grow(1).Shrink(1).MinWidth(0).Gap(4).Children(func() {
-				ui.Text(c, "Drop a picture here, or paste one").FontSize(theme.TextLabel).TextColor(theme.TextSoft)
+			ui.Column(c.Key("how")).Grow(1).Shrink(1).MinWidth(0).Gap(theme.S1).AlignItems(ui.Start).Children(func() {
+				ui.Row(c.Key("say")).FillWidth().MinWidth(0).Children(func() {
+					widget.Running(c, "Drop a picture here, or paste one", widget.RunStyle{Color: theme.TextSoft})
+				})
 				if widget.GhostButton(c.Key("paste"), "Paste from the clipboard").Clicked() {
 					f.setImage(mygo.Clipboard.ReadImage(), nil)
 				}

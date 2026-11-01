@@ -165,13 +165,13 @@ func (v *View) dots(c *ui.Context) {
 // zoomBar is the zoom's controls, at the stage's bottom right: out, the
 // zoom (a click shows the design at its own size), in, and fit.
 func (v *View) zoomBar(c *ui.Context, aw, ah, width, height float32) {
-	ui.Row(c.Key("zoom")).Absolute().Right(12).Bottom(12).Height(32).PaddingX(4).Gap(2).AlignItems(ui.Center).
-		Radius(8).Background(theme.Panel).Border(1, theme.Border).Children(func() {
+	raised(ui.Row(c.Key("zoom")).Absolute().Right(theme.S2).Bottom(theme.S2).Height(40).PaddingX(theme.S1).Gap(theme.S1).AlignItems(ui.Center).
+		Radius(theme.RadiusFull)).Children(func() {
 		if widget.IconButton(c.Key("out"), icon.Minus, "Zoom out", false).Clicked() {
 			v.cam.zoomAt(aw/2, ah/2, 1/1.25)
 		}
-		pct := widget.Button(c.Key("pct"), widget.Secondary, nil, fmt.Sprintf("%d%%", int(math.Round(float64(v.cam.z*100)))), "").
-			Height(26).PaddingX(8).Tooltip("Show it at its own size").Label("Show it at its own size")
+		pct := widget.GhostButton(c.Key("pct"), fmt.Sprintf("%d%%", int(math.Round(float64(v.cam.z*100))))).
+			Tooltip("Show it at its own size").Label("Show it at its own size")
 		if pct.Clicked() {
 			v.cam.zoomAt(aw/2, ah/2, 1/v.cam.z)
 		}

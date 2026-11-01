@@ -65,7 +65,7 @@ func TestBuildAPage(t *testing.T) {
 	v.CompareDesigns(o, "c1", []string{"f2", "f1", "f3"})
 	tt.Frame()
 	shot(t, tt, "build-compare.png")
-	if !tt.HasText("1 · Current · baseline") || !tt.HasText("From ruled paper") {
+	if !tt.HasText("1 Current · baseline") || !tt.HasText("From ruled paper") {
 		t.Fatalf("compare: %q", tt.Texts())
 	}
 	if err := tt.Click("Pick Direction A"); err != nil {

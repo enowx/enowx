@@ -28,7 +28,16 @@ func (v *View) briefButton(c *ui.Context, cv proto.Canvas) {
 	if cv.Brief != nil {
 		label = "Brief: " + designbrief.Summary(*cv.Brief)
 	}
-	if widget.IconButton(c.Key("brief"), icon.Target, label, cv.Brief != nil).Clicked() {
+	var btn ui.Element
+	if v.compact() {
+		btn = widget.IconButton(c.Key("brief"), icon.Target, label, cv.Brief != nil)
+	} else {
+		btn = widget.GhostButton(c.Key("brief"), "Brief").Label(label).Tooltip(label)
+		if cv.Brief != nil {
+			btn.Background(theme.Selected) // lit: it has one
+		}
+	}
+	if btn.Clicked() {
 		b := proto.DesignBrief{}
 		if cv.Brief != nil {
 			b = *cv.Brief
@@ -51,14 +60,14 @@ func (v *View) briefDialog(c *ui.Context, o Options) {
 		return
 	}
 	widget.FormSheet(c, &f.open, 560, "Brief", "What the canvas's designs are for. Agents write it before designing and judge every design against it.", func() {
-		ui.Column(c).FillWidth().Gap(12).Children(func() {
+		ui.Column(c).FillWidth().Gap(theme.S3).Children(func() {
 			for i, kv := range designbrief.Fields(proto.DesignBrief{}) {
 				heading := kv[0]
-				ui.Column(c.Key(heading)).FillWidth().Gap(4).Children(func() {
-					ui.Text(c, heading).FontSize(theme.TextLabel).FontWeight(600)
-					ui.Text(c, designbrief.Asks(heading)).FontSize(theme.TextLabel).TextColor(theme.Muted)
-					ui.TextArea(c, &f.values[i]).FillWidth().TextColor(theme.Text).Height(56).Padding(8, 10).Radius(theme.RadiusControl).FontSize(theme.TextUI).
-						Background(theme.Sunken).Border(1, theme.BorderStrong).Label(heading)
+				ui.Column(c.Key(heading)).FillWidth().Gap(theme.S1).Children(func() {
+					widget.Field(c, heading, func() {
+						widget.Well(ui.TextArea(c, &f.values[i]).FillWidth().TextColor(theme.Text).Height(60).Padding(theme.S2, theme.S3).Radius(theme.RadiusCard).FontSize(theme.TextUI).
+							Label(heading).Placeholder(designbrief.Asks(heading)), false)
+					})
 				})
 			}
 		})

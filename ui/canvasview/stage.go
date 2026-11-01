@@ -12,6 +12,7 @@ import (
 	"github.com/enowx/enowx/proto"
 	"github.com/enowx/enowx/ui/icon"
 	"github.com/enowx/enowx/ui/theme"
+	"github.com/enowx/enowx/ui/widget"
 )
 
 // The stage shows the frame open, scaled to fit: its mockup in a web view,
@@ -66,7 +67,9 @@ func (v *View) stage(c *ui.Context, o Options) {
 	// handling never takes their clicks.
 	wrap := ui.Box(c.Key("stage-wrap")).Grow(1).FillWidth().MinHeight(0)
 	var area ui.Element
-	wrap.Children(func() { area = ui.Box(c.Key("stage")).FillWidth().FillHeight().Background(theme.Sunken).Clip() })
+	wrap.Children(func() {
+		area = ui.Box(c.Key("stage")).FillWidth().FillHeight().Background(theme.Sunken).Radius(theme.RadiusCard).Clip()
+	})
 	b := area.Bounds()
 	if key := fmt.Sprintf("%s/%v", f.ID, width); v.cam.key != key {
 		if b.W <= 0 {
@@ -138,17 +141,20 @@ func (v *View) stage(c *ui.Context, o Options) {
 		})
 	})
 	wrap.Children(func() {
+		v.palette(c, o)
 		v.zoomBar(c, b.W, b.H, float32(width), float32(height))
 		v.unslopHUD(c, o, f)
 		if hasHTML && o.Web != nil {
 			o.Web.measureWidth(c)
 			if n := o.Web.Wider(); n > 0 {
-				ui.Row(c.Key("wider")).Absolute().Left(12).Top(12).Height(28).PaddingX(10).Gap(6).AlignItems(ui.Center).
-					Radius(8).Background(theme.Fade(theme.Warning, 0.15)).Border(1, theme.Fade(theme.Warning, 0.4)).
-					Tooltip("Something sticks out past the design's width, so its page scrolls sideways: fix it, or ask the agent to").
+				// Past the palette, which keeps the stage's corner in Edit mode.
+				raised(ui.Row(c.Key("wider")).Absolute().Left(theme.S6+theme.S5).Top(theme.S2).Right(theme.S2).MaxWidth(420).Height(theme.ControlHeight).Padding(0, theme.S3).Gap(theme.S2).AlignItems(ui.Center).
+					Radius(theme.RadiusFull)).Tooltip("Something sticks out past the design's width, so its page scrolls sideways: fix it, or ask the agent to").
 					Children(func() {
-						ui.Icon(c, icon.Alert).FontSize(13).TextColor(theme.Warning)
-						ui.Text(c, fmt.Sprintf("Wider than its frame by %d px: it scrolls sideways", n)).FontSize(theme.TextLabel).TextColor(theme.Warning).SingleLine()
+						ui.Icon(c, icon.Alert).FontSize(14).TextColor(theme.Warning)
+						ui.Row(c).Grow(1).MinWidth(0).Children(func() {
+							widget.Running(c, fmt.Sprintf("Wider than its frame by %d px: it scrolls sideways", n), widget.RunStyle{Size: theme.TextLabel, Color: theme.Warning})
+						})
 					})
 			}
 		}
@@ -169,7 +175,7 @@ func (v *View) deselect(o Options) {
 // interactStage shows the mockup as a page to use: as wide as the stage
 // lets it (its own width at most), scrolled as a browser scrolls.
 func (v *View) interactStage(c *ui.Context, o Options, width, height float32) {
-	area := ui.Box(c.Key("stage")).Grow(1).FillWidth().MinHeight(0).Background(theme.Sunken).Clip()
+	area := ui.Box(c.Key("stage")).Grow(1).FillWidth().MinHeight(0).Background(theme.Sunken).Radius(theme.RadiusCard).Clip()
 	b := area.Bounds()
 	// A moving design keeps room for its controls from the start, so it doesn't
 	// shift once its page says it has motion.
@@ -416,7 +422,8 @@ func (v *View) handlePointer(c *ui.Context, o Options, box ui.Element, el proto.
 			v.edit(o, proto.CanvasEdit{Op: proto.CanvasOpElementSet, Element: &arrow})
 			return
 		}
-		v.sel, v.panel = el.ID, "layers"
+		v.sel = el.ID
+		v.showLayers()
 	}
 }
 
@@ -486,7 +493,8 @@ func (v *View) arrowHandle(c *ui.Context, o Options, f proto.CanvasFrame, el pro
 	if v.mode == modeDesign {
 		label.Cursor(ui.CursorPointer)
 		if label.Clicked() {
-			v.sel, v.panel = el.ID, "layers"
+			v.sel = el.ID
+			v.showLayers()
 		}
 	}
 	label.Children(func() {

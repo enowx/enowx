@@ -59,18 +59,19 @@ func (v *View) componentBar(c *ui.Context, o Options, s float64, w, h float32) {
 		v.comp = nil
 		return
 	}
-	const barW, barH = float32(460), float32(40)
+	const barW, barH = float32(460), float32(48)
 	bw := min(barW, w)
 	x := min(max(cp.box.X*float32(s), 0), max(w-bw, 0))
 	y := cp.box.Y*float32(s) - barH - 6
 	if y < 0 {
 		y = min((cp.box.Y+cp.box.H)*float32(s)+6, h-barH)
 	}
-	bar := ui.Row(c.Key("component-bar")).Absolute().Left(x).Top(max(y, 0)).Width(bw).Height(barH).PaddingX(6).Gap(4).
-		AlignItems(ui.Center).Radius(theme.RadiusSmall).Background(theme.Panel).Border(1, theme.BorderStrong).
-		Shadow(0, 4, 16, 0, theme.Fade(theme.TextStrong, 0.2))
+	bar := raised(ui.Row(c.Key("component-bar")).Absolute().Left(x).Top(max(y, 0)).Width(bw).Height(barH).PaddingX(theme.S2).Gap(theme.S1).
+		AlignItems(ui.Center).Radius(theme.RadiusFull))
 	bar.Children(func() {
-		ui.Text(c, "#"+cp.id).FontSize(theme.TextLabel).Font(theme.MonoFont).TextColor(theme.Accent).SingleLine().MaxWidth(110).Tooltip("#" + cp.id)
+		ui.Row(c.Key("id")).MaxWidth(110).MinWidth(0).Shrink(1).Padding(0, 0, 0, theme.S2).Children(func() {
+			widget.Running(c, "#"+cp.id, widget.RunStyle{Size: theme.TextLabel, Color: theme.Accent})
+		})
 		hint := "Ask the AI, or say what to change"
 		if cp.note {
 			hint = "A note on it, for later"
@@ -78,12 +79,12 @@ func (v *View) componentBar(c *ui.Context, o Options, s float64, w, h float32) {
 		if cp.said != "" && cp.text == "" {
 			hint = cp.said
 		}
-		in := widget.Input(c.Key("ask"), &cp.text, hint).Grow(1).Shrink(1).MinWidth(0).Height(28).Label("About #" + cp.id)
+		in := widget.Input(c.Key("ask"), &cp.text, hint).Grow(1).Shrink(1).MinWidth(0).Label("About #" + cp.id)
 		if in.Submitted() && strings.TrimSpace(cp.text) != "" {
 			v.componentSend(o, cp, strings.TrimSpace(cp.text))
 		}
 		if !cp.note && o.SendAgent != nil {
-			rd := widget.Button(c.Key("redesign"), widget.Secondary, nil, "Redesign", "").Height(28).PaddingX(8).
+			rd := widget.GhostButton(c.Key("redesign"), "Redesign").
 				Tooltip("Have the AI redesign this component alone, in the design's style")
 			if rd.Clicked() {
 				v.componentSend(o, cp, "Redesign this component: a better take that keeps the design's style, colors and type. Change only it, then look at it.")
@@ -120,6 +121,6 @@ func (v *View) componentSend(o Options, cp *componentSel, text string) {
 		return
 	}
 	o.SendAgent("@#" + cp.id + " " + text)
-	v.assistant, v.panel = true, "" // the agent's answer shows beside
+	v.OpenAssistant() // the agent's answer shows beside
 	cp.said = "Sent to the AI"
 }
