@@ -82,6 +82,9 @@ func (a *App) goaNav(c *ui.Context) {
 		if widget.GhostButton(c, "Rules").Tooltip("What GOD of Agents follows, written by you or with AI").Clicked() {
 			a.openGOARules()
 		}
+		if widget.GhostButton(c, "Stall limits").Tooltip("How long a task may not move before GOD of Agents is told").Clicked() {
+			a.openGOAStall()
+		}
 		if widget.GhostButton(c, "Leave").Tooltip("Back to the projects and their sessions; GOD of Agents keeps running").Clicked() {
 			a.confirmLeaveGOA(nil)
 		}

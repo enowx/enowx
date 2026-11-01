@@ -24,14 +24,14 @@ func TestWorkingGoesStaleWhenTheScreenStandsStill(t *testing.T) {
 	s.mu.Lock()
 	s.stateAt, s.lastChange = past, past
 	s.mu.Unlock()
-	if got := s.Info().State; got != "" {
-		t.Fatalf("a still screen since %v: state %q", staleWorking*2, got)
+	if got := s.Info(); got.State != "" || !got.StateStale {
+		t.Fatalf("a still screen since %v: state %q, stale %v", staleWorking*2, got.State, got.StateStale)
 	}
 	// A screen that keeps changing is still working.
 	s.mu.Lock()
 	s.lastChange = time.Now()
 	s.mu.Unlock()
-	if got := s.Info().State; got != proto.StateWorking {
-		t.Fatalf("a changing screen: state %q", got)
+	if got := s.Info(); got.State != proto.StateWorking || got.StateStale {
+		t.Fatalf("a changing screen: state %q, stale %v", got.State, got.StateStale)
 	}
 }

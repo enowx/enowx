@@ -159,6 +159,7 @@ This follows the agent's mode; it isn't a boundary against the agent. A command 
 | Handing a task to a session, routed ([goa.md](goa.md)) | | `goa delegate` (`goa_delegate`) | `--host` | ✅ |
 | The task board | `goa board` (`goa_board`) | `goa task` (`goa_task`) | its own host's | ✅ |
 | Its own RAG collection, projects' read-only | `goa recall` (`goa_recall`) | `goa remember` (`goa_remember`) | projects' through the app | ✅ |
+| When a task counts as stalled | `goa stall` (`goa_stall`) | `goa stall --blank\|--idle\|--stuck` (`goa_stall`) | this host | ✅ |
 | The agents it runs on, their level | `goa agents` (`goa_agents`) | | this host | ✅ |
 | What a watched GOA did itself | `goa flags` | reverting: the user's, in the app | this host | — the user's |
 

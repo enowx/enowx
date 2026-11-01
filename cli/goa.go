@@ -38,6 +38,8 @@ const goaUsage = `usage: enowx-app goa COMMAND
   recall QUERY [--project P [--host H]]...
                                    search GOA's collection, and projects read-only
   rules                            the user's rules for GOA, which they edit in the app
+  stall [--blank D --idle D --stuck D]
+                                   how long a task may not move before GOA is told, on this host (90s, 10m; 0 its default)
   agents                           the agents GOA can run on, and how far each holds it
   flags                            what a GOA only watched did itself
   start [--agent A]                start GOD of Agents on this host`
@@ -84,6 +86,8 @@ func (r runner) goaCmd(args []string) error {
 		}
 		fmt.Fprintln(r.out, rules.Rules)
 		return nil
+	case "stall":
+		return r.goaStall(rest)
 	case "agents":
 		return r.goaAgents()
 	case "flags":

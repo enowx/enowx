@@ -28,7 +28,7 @@ func (s *Server) goaPick(p proto.GOADelegateParams) (proto.SessionInfo, bool, er
 	tasks := s.goa.board.List()
 	busy := func(id string) bool {
 		return slices.ContainsFunc(tasks, func(t proto.GOATask) bool {
-			return t.Session == id && (t.Status == proto.GOATaskWorking || t.Status == proto.GOATaskWaiting)
+			return t.Session == id && (t.Status == proto.GOATaskWorking || t.Status == proto.GOATaskWaiting || t.Status == proto.GOATaskStalled)
 		})
 	}
 	info, ok := goa.PickSession(list, goa.Want{Project: p.Project, Agent: p.Agent, Config: p.Config}, busy)

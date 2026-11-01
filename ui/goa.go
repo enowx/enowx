@@ -26,6 +26,7 @@ type goaApp struct {
 	override *goaOverrideForm
 	detail   *goaDetail    // a session's details, from the Sessions tool
 	rules    *goaRulesForm // its rules being edited (goa_rules.go)
+	stall    *goaStallForm // when a task counts as stalled, being edited (goa_stall.go)
 	// tabs are the sessions open beside GOA, shown the one in view, ""
 	// for GOA itself (goa_tabs.go).
 	tabs  []*goaTab

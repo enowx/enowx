@@ -1097,6 +1097,9 @@ field GOARememberParams.text string
 field GOARevertParams.id string
 field GOARules.clear bool
 field GOARules.rules string
+field GOAStall.blank int
+field GOAStall.idle int
+field GOAStall.stuck int
 field GOATask.agent string
 field GOATask.asks string
 field GOATask.branch string
@@ -1885,6 +1888,7 @@ field SessionInfo.restored bool
 field SessionInfo.skipPermissions bool
 field SessionInfo.skipUnheard bool
 field SessionInfo.state string
+field SessionInfo.stateStale bool
 field SessionInfo.title string
 field SessionInfo.worked int64
 field SessionInfo.worktree bool
@@ -2719,6 +2723,8 @@ method goa.remember
 method goa.revert
 method goa.rules
 method goa.rules.save
+method goa.stall
+method goa.stall.save
 method goa.task
 method goa.worker
 method hooks.approve

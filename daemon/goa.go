@@ -35,11 +35,13 @@ type goaState struct {
 	// rulesGiven is the hash of the rules each GOA session was last given
 	// (goa_rules.go).
 	rulesGiven map[string]string
+	// stallSet tells watchStalls the limits changed.
+	stallSet chan struct{}
 }
 
 func (s *Server) newGOA(dir string) {
 	s.goa = goaState{board: goa.OpenBoard(filepath.Join(dir, "goa-board.json")),
-		urgent: map[string]string{}, watch: map[string]*goaWatch{}}
+		urgent: map[string]string{}, watch: map[string]*goaWatch{}, stallSet: make(chan struct{}, 1)}
 }
 
 // goaDir is GOA's own folder, outside every project.
