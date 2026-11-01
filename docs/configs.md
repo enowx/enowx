@@ -2,7 +2,7 @@
 
 An agent's **configs** are what its sessions can run with. The **official** config is the agent as installed: its own sign-in and settings, which enowX never writes to. The others are saved apart and picked per session:
 
-- **Another account**: the agent signed in with another account, in a home of its own ([accounts.md](accounts.md)). Claude Code, Claude Agent Teams through it, and Codex.
+- **Another account**: the agent signed in with another account, in a home of its own ([accounts.md](accounts.md)). Claude Code, Claude Agent Teams through it, and Codex; Kimi, Mistral Vibe and Pi from their docs, not signed in.
 - **An API key**: a key of the vault lent to its sessions as the vault lends credentials, the agent's own home otherwise.
 - **A model API**: a gateway, OpenRouter, LiteLLM, a local server: its address, how it is spoken, its models (with their context, output and effort where the agent takes them), a model for quick work, and its key as the name of a credential of the vault.
 
@@ -61,58 +61,59 @@ The other agents [agent-api.md](agent-api.md) lists (Droid, Mistral Vibe, Pi) ta
 - **Aider:** checked against its docs. `OPENAI_API_BASE`, `OPENAI_API_KEY`, `--model openai/<model>` and `--model-metadata-file` (a JSON keyed by `provider/model`).
 - **Kilo Code, Qwen Code, Goose, Kimi, Continue, Crush, GitHub Copilot's providers file:** read from their docs and source, none run: tested only for what a session gets, the key in no file or argument (`core/agentapi/session_routes_test.go`). Each needs a real run before it's relied on.
 - **Antigravity:** `--model` is in `agy --help`. Whether it takes a model named by your API wasn't run.
+- **Another account of Kimi, Mistral Vibe, Pi:** read from their docs and never signed in: tested only for the variable a session gets, what its home links and that the sign-in's files stay apart (`core/accounts/ways_test.go`). Each needs a real sign-in before it's relied on.
 
 ## Every agent
 
-What each agent's CLI or docs offered on 2026-11-01 or 02, beside what enowX drives (`core/accounts/ways.go`, the list Settings → Agents, `configs` and `agent_api_list` read; a test fails when a new agent isn't in it). **Checked** is `run` (here), `help` (its `--help`, not run with a config) or `docs` (read, not run). "Could" is a route its docs offer that enowX doesn't drive yet.
+What each agent's CLI or docs offered on 2026-11-01 or 02, beside what enowX drives (`core/accounts/ways.go`, the list Settings → Agents, `configs` and `agent_api_list` read; a test fails when a new agent isn't in it). **Checked** is `run` (here), `help` (its `--help`, not run with a config) or `docs` (read, not run). "Could" is a route its docs offer that enowX doesn't drive yet; "no other account" is one its docs don't describe well enough to drive.
 
 | Agent | Takes | Checked | Why not more |
 |---|---|---|---|
 | Claude Code | another account, a model API per session, an API key | run |  |
 | Codex | another account, a model API per session, an API key | run |  |
 | OpenCode | a model API per session, an API key | run | No separate account: it has no documented folder for one sign-in alone. |
-| Gemini CLI | a model API per session, an API key | docs | GEMINI_CLI_HOME could give another account; enowX doesn't drive it yet. Its API's address is https unless it's on localhost. |
-| Kiro CLI | an API key | help | It uses its own models and documents no address for your API. KIRO_HOME could give another account; enowX doesn't drive it yet. |
+| Gemini CLI | a model API per session, an API key | docs | No other account: GEMINI_CLI_HOME moves its folder, but its docs name no file for the sign-in, and reports have it in the system keychain, which that doesn't move. Its API's address is https unless it's on localhost. |
+| Kiro CLI | an API key | help | It uses its own models and documents no address for your API. No other account: KIRO_HOME moves its sign-ins (V3), but its docs name no file for them, so what to keep apart isn't known. |
 | Claude Agent Teams | no config | help | Its sessions are Claude Code's, so they use Claude Code's configs. |
-| OpenClaude | a model API per session, an API key | docs | OPENCLAUDE_CONFIG_DIR could give another account; enowX doesn't drive it yet. |
+| OpenClaude | a model API per session, an API key | docs | No other account: OPENCLAUDE_CONFIG_DIR moves its folder, but its docs don't say where in it, if there, a sign-in is kept. |
 | Grok | an API key | docs | Its model API is in ~/.grok/config.toml, from a third party's docs: x.ai's couldn't be read. enowX doesn't write it. |
-| GitHub Copilot | a model API per session, an API key | docs | COPILOT_HOME could give another account; enowX doesn't drive it yet. |
+| GitHub Copilot | a model API per session, an API key | docs | No other account: its docs keep the token in the system keychain under one service, which COPILOT_HOME doesn't move, without saying how it's keyed. Its own /user switch changes accounts. |
 | OpenCode 2 | an API key | docs | Only opencode.jsonc takes a model API; enowX doesn't write it yet. |
-| MiMo Code | an API key | docs | MIMOCODE_HOME moves all of its settings, and its own settings hold the API; enowX drives neither yet. |
-| Ante | an API key | docs | ANTE_HOME moves all of its settings, and catalog.json holds the API; enowX drives neither yet. |
-| Trae | an API key | docs | Its 2.0 settings for a model API aren't documented. |
+| MiMo Code | an API key | docs | No other account: MIMOCODE_HOME stands for several folders at once (config, data, state, cache), which a home linked from one folder can't share. Its own settings hold the API; enowX doesn't write them yet. |
+| Ante | an API key | docs | No other account: ANTE_HOME moves all of its settings, but its docs name no file for a sign-in. catalog.json holds the API; enowX doesn't write it yet. |
+| Trae | an API key | docs | Its 2.0 settings for a model API aren't documented. No other account: its docs document neither TRAE_HOME nor a file for the sign-in. |
 | Muse | an API key | help | Its --base-url is for Meta's provider alone: no API of your own is documented. |
-| DeepSeek Harness | an API key | docs | DSH_HOME and settings.yaml are documented by a third party alone: its own site couldn't be read. |
-| Qoder CLI | an API key | docs | A model is added only in its /model screen: its docs say not to edit the settings by hand. |
-| Qoder CLI China | an API key | docs | A model is added only in its /model screen: its docs say not to edit the settings by hand. |
+| DeepSeek Harness | an API key | docs | DSH_HOME, .credentials.yaml and settings.yaml are documented by third parties alone: its own site couldn't be read, so it has no other account or model API here. |
+| Qoder CLI | an API key | docs | A model is added only in its /model screen: its docs say not to edit the settings by hand. No other account: QODER_CONFIG_DIR moves its folder, but its docs name no file for the sign-in. |
+| Qoder CLI China | an API key | docs | A model is added only in its /model screen: its docs say not to edit the settings by hand. No other account: QODERCN_CONFIG_DIR moves its folder, but its docs name no file for the sign-in. |
 | ZCode | no config | docs | Its docs describe a desktop app, with no command line to give a config to. |
-| Pi | a model API in its own settings, an API key | docs | PI_CODING_AGENT_DIR could give another account; enowX doesn't drive it yet. |
+| Pi | another account, a model API in its own settings, an API key | docs | Another account is read from its docs, not signed in: auth.json in PI_CODING_AGENT_DIR is the account's. It has no sign-in command: use /login in a session on the config. |
 | OMP | an API key | run | It takes a provider's address, but only for models named in models.yml, which enowX doesn't write yet: a model of your own wasn't found when run. |
 | Prime Agent | an API key | docs | Only a models.json takes a model API, at a place its docs don't name. |
 | Antigravity | a model API per session, an API key | help | No separate account is documented. |
 | Aider | a model API per session, an API key | docs | No account: it has no sign-in to separate, only API keys. |
-| Goose | a model API per session, an API key | docs | GOOSE_PATH_ROOT could give another account; enowX doesn't drive it yet. Its variables take one model, with no effort documented. |
+| Goose | a model API per session, an API key | docs | No other account: GOOSE_PATH_ROOT stands for several folders, and its secrets are in the system keyring, which that doesn't move. Its variables take one model, with no effort documented. |
 | Amp | an API key | docs | Its Custom URL connection is made in its own command, and isn't documented to go per session. |
 | Kilo Code | a model API per session, an API key | docs | KILO_CONFIG_DIR and its data folder could give another account; enowX doesn't drive them yet. |
 | Crush | a model API per session, an API key | docs | A config's sessions read its settings alone, not your own crush.json: CRUSH_GLOBAL_CONFIG replaces that file rather than adding to it. A model picked in a project's .crush folder can still win. |
 | Auggie | no config | docs | It uses Augment's models and documents no address or key for your API. |
-| Autohand Code | an API key | docs | AUTOHAND_AI_BASE_URL is for Autohand's own provider and models, with its sign-in. Another provider's key is a plain value of its config file, which enowX doesn't write a key to. |
-| Cline | an API key | docs | cline auth takes the key on its command line, which enowX doesn't do. |
+| Autohand Code | an API key | docs | AUTOHAND_AI_BASE_URL is for Autohand's own provider and models, with its sign-in. Another provider's key is a plain value of its config file, which enowX doesn't write a key to. No other account: AUTOHAND_HOME moves its folder, but its token is in that same file, with all its settings. |
+| Cline | an API key | docs | cline auth takes the key on its command line, which enowX doesn't do. No other account: CLINE_DIR moves its folder, but its keys are in data/settings/providers.json, with its provider settings. |
 | Codebuff | an API key | docs | Its user docs don't cover a model API of your own. |
 | Freebuff | no config | help | It runs free on its own models, with no option for your own API or key. |
 | Command Code | an API key | help | providers.json takes a model API, and no per-session way is documented; enowX doesn't write it yet. |
-| Continue | a model API per session, an API key | docs | Another account wasn't checked: it needs a real sign-in to test. |
+| Continue | a model API per session, an API key | docs | No other account: its docs document neither CONTINUE_GLOBAL_DIR nor where cn login keeps its sign-in. |
 | Cursor | an API key | help | It runs through Cursor's backend: the only provider of your own documented is AWS Bedrock. |
 | Droid | a model API in its own settings, an API key | help | Its --settings isn't documented to carry a model; enowX writes its settings. |
-| Kimi | a model API per session, an API key | docs | KIMI_CODE_HOME could give another account; enowX doesn't drive it yet. KIMI_MODEL_* takes one model, by OpenAI's or Anthropic's API, and needs a key. |
-| Mistral Vibe | a model API in its own settings, an API key | docs | VIBE_HOME moves all of its settings; enowX writes them for now. |
-| Qwen Code | a model API per session, an API key | docs | Its variables take one model, by OpenAI's chat API or Anthropic's: the Responses API, several models and their limits are only in its settings. |
+| Kimi | another account, a model API per session, an API key | docs | Another account is read from its docs, not signed in: credentials/ in KIMI_CODE_HOME is the account's. It has no sign-in command: use /login in a session on the config. KIMI_MODEL_* takes one model, by OpenAI's or Anthropic's API, and needs a key. |
+| Mistral Vibe | another account, a model API in its own settings, an API key | docs | Another account is read from its docs, not signed in: .env in VIBE_HOME holds the account's key, asked for on its first run, and a MISTRAL_API_KEY in the environment may win over it. A model API in its own settings keeps its key in the same .env, so an account doesn't have it. |
+| Qwen Code | a model API per session, an API key | docs | Its variables take one model, by OpenAI's chat API or Anthropic's: the Responses API, several models and their limits are only in its settings. No other account: its auth docs don't name QWEN_HOME, keep keys in settings.json or .env with its other settings, and name no file for a browser sign-in. |
 | Rovo Dev | no config | docs | It uses Atlassian's models and credits, and documents no API of your own. |
-| Hermes | an API key | docs | HERMES_HOME could give another account and config.yaml a model API; enowX drives neither yet. |
+| Hermes | an API key | docs | No other account: HERMES_HOME moves its folder and auth.json holds its sign-ins, but its docs have a profile read the root's login until a sign-in made by profile name, and write refreshes back to it. config.yaml holds a model API; enowX doesn't write it yet. |
 | Devin | no config | docs | Only Devin's own models are documented, air-gapped builds aside. |
-| OpenClaw | an API key | docs | OPENCLAW_CONFIG_PATH replaces its whole config, and its terminal normally talks to a Gateway that reads its own, so a session's variables wouldn't reach the model. |
-| CodeBuddy | an API key | run | CODEBUDDY_BASE_URL and its key do work per session, but run here it wrote the key into its own logs, so enowX doesn't send it that way. |
-| Jcode | an API key | docs | JCODE_OPENAI_API_BASE and OPENAI_API_KEY exist, but its sessions share one server: they don't reach a server already running, and one a session starts keeps the key after it ends. Its own sign-in also wins over OPENAI_API_KEY. |
+| OpenClaw | an API key | docs | OPENCLAW_CONFIG_PATH replaces its whole config, and its terminal normally talks to a Gateway that reads its own, so a session's variables wouldn't reach the model. No other account: OPENCLAW_HOME stands for the whole home, its sign-ins deep in agents/<id>/agent/auth-profiles.json, and the Gateway service doesn't follow it. |
+| CodeBuddy | an API key | run | CODEBUDDY_BASE_URL and its key do work per session, but run here it wrote the key into its own logs, so enowX doesn't send it that way. No other account: CODEBUDDY_CONFIG_DIR moves its folder, but its docs name no file or keychain item for the sign-in. |
+| Jcode | an API key | docs | JCODE_OPENAI_API_BASE and OPENAI_API_KEY exist, but its sessions share one server: they don't reach a server already running, and one a session starts keeps the key after it ends. Its own sign-in also wins over OPENAI_API_KEY. No other account: JCODE_HOME isn't in its README, and that server wouldn't follow it. |
 
 Run for real on this Mac: OpenCode and CodeBuddy against a local stand-in API. CodeBuddy took its address and key from the environment and answered through it, but wrote the key into its own logs, so enowX doesn't send it that way. OMP refused a model outside its `models.yml`.
 

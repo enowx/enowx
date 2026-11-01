@@ -4,11 +4,15 @@ An agent's other accounts are configs of it ([configs.md](configs.md)), as its m
 
 Claude Code and Codex can have them; they keep their sign-in in a folder a variable names (`CLAUDE_CONFIG_DIR`, `CODEX_HOME`). Claude Agent Teams uses Claude Code's.
 
+Kimi (`KIMI_CODE_HOME`, its `credentials/` the account's), Mistral Vibe (`VIBE_HOME`, its `.env`) and Pi (`PI_CODING_AGENT_DIR`, its `auth.json`) can too, read from their docs and never signed in: a real sign-in may still show otherwise. They have no sign-in command, so New config saves the account and can't start signing in: a session started on it signs in (`/login`; Vibe asks for its key on its first run). A team's member gets no account of these on a host they visit: if an agent ignored its variable, they'd have the host's user's sign-in.
+
+Other agents have a home variable but no other account, as their docs don't name the sign-in's files or keep it outside that folder (`core/accounts/ways.go` says why for each): every other file is linked to the user's own, so a sign-in file enowX doesn't know of would be the user's own. [configs.md](configs.md) lists them.
+
 - **Settings → Agents**: New config → Another account names one and opens a session signing it in. Remove forgets it, with its sign-in on that host. The configs sync to every host; a host where an account wasn't signed in yet signs it in from its menu.
 - **New session** picks the config: Official is the agent's own.
 - **Command line**: `enowx-app spawn --config Work …` (or `--account`).
 
-Each account's home is `~/.enowx-app/accounts/<id>` on the host (`core/accounts`). It links to what is in the agent's own home (`~/.claude`, `~/.codex`): settings, skills, subagents, commands, plugins and conversations are the same whichever account a session uses, so the chat view, history and Settings see them all. Only the sign-in is the account's own (for Claude Code also `.claude.json`, which holds who is signed in, so MCP servers added with `claude mcp add --scope user` are per account). A session keeps its account when continued, after hibernation or a restart.
+Each account's home is `~/.enowx-app/accounts/<id>` on the host (`core/accounts`). It links to what is in the agent's own home (`~/.claude`, `~/.codex`, and so on): settings, skills, subagents, commands, plugins and conversations are the same whichever account a session uses, so the chat view, history and Settings see them all. Only the sign-in is the account's own (for Claude Code also `.claude.json`, which holds who is signed in, so MCP servers added with `claude mcp add --scope user` are per account). A session keeps its account when continued, after hibernation or a restart.
 
 ## API keys as accounts
 
