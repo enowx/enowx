@@ -20,7 +20,7 @@ const canvasUsage = `usage: enowx-app canvas COMMAND (CANVAS: its ID or title; F
   list                             the host's canvases: ID, kind, title
   new TITLE [--kind mockup|wireframe|diagram|board] [--frame NAME[:WxH]]... [--group G] [--project PATH]
                                    a new canvas, its ID printed; frames named desktop, tablet or mobile take their size
-  open CANVAS                      show it in the enowX app's Canvas page, where the user watches it built
+  open CANVAS                      tell the user in the app it's there, with a card to click; it doesn't move them
   show CANVAS [--frame F] [--html] its frames, elements and open comments; --html prints a frame's HTML
   write CANVAS [--frame F] --html HTML|-          a frame's whole HTML (a mockup), elements with id attributes
   patch CANVAS --element E [--frame F] --html HTML|- [--into PARENT]

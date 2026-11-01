@@ -149,16 +149,12 @@ func (a *App) openPanel(tool string) {
 	a.state.Panel.Open, a.state.Panel.Tab = true, tool
 }
 
-// showBrowserSoon shows the Browser for a page an agent or a dev server
-// opened by itself, unless the user is at something else: a page (Notes,
-// Canvas…) or another tool in the panel (the team's chat, say), which it
-// leaves as it is, the Browser's button getting a dot until looked at.
+// showBrowserSoon marks the Browser for a page an agent or a dev server
+// opened: the panel stays as the user has it.
 func (a *App) showBrowserSoon() {
-	if a.page != "" || a.panelShown() && a.panelTab() != panelBrowser {
+	if !a.panelShows(panelBrowser) {
 		a.browserNews = true
-		return
 	}
-	a.openPanel(panelBrowser)
 }
 
 // togglePanel folds the panel, or shows it with the tool it showed.

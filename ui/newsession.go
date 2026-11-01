@@ -191,9 +191,12 @@ func (a *App) createFromForm(cl *client.Client, params proto.SessionCreateParams
 				f.err = strings.TrimPrefix(err.Error(), proto.MethodSessionCreate+": ")
 				return
 			}
+			wanted := f.open // closed while it started: they went on to something else
 			f.open = false
 			a.upsert(info)
-			a.selectSession(info)
+			if wanted {
+				a.selectSession(info)
+			}
 		})
 	}()
 }

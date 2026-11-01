@@ -104,7 +104,7 @@ func Open(o Options) *Window {
 				a.w.SetTitle(t)
 			}
 			if !a.w.IsVisible() {
-				a.w.Show()
+				a.w.ShowInactive() // an app starting doesn't take the keyboard
 			}
 		case e.Title == titleWait && !o.Show:
 			// No window: the app quit or restarts, as on a desktop.

@@ -33,7 +33,7 @@ func (v *View) Goto(o Options, id, ref string) {
 			return
 		}
 	}
-	v.pendingFrame = ref
+	v.pendingFrame, v.pendingAt = ref, time.Now()
 }
 
 // CompareDesigns shows designs (frame IDs) of canvas id side by side.

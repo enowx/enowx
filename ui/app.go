@@ -147,6 +147,7 @@ type App struct {
 	featAsks           []featureAsk              // agents asking to turn a feature on
 	ntf                notifyState               // the sounds played (notifysound.go)
 	chooseRunAs        string                    // the host whose next connection asks which user to run as
+	emptyProject       string                    // the project whose empty view shows, until the user picks
 	connectLink        string                    // a link the server gave while signing in: a Tailscale SSH check
 	openSession        string                    // a session to show once the host connected lists it
 	openProject        string                    // a project to show once the host connected shows it

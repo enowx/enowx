@@ -39,7 +39,7 @@ func TestBrowserDoesntTakeThePanel(t *testing.T) {
 	}
 	app.page, app.browserNews = "", false
 	app.showBrowserSoon()
-	if !app.panelShows(panelBrowser) || app.browserNews {
-		t.Fatal("with nothing else in front, the Browser shows")
+	if app.panelShown() || !app.browserNews {
+		t.Fatal("an agent's page opened the panel: it only marks the Browser")
 	}
 }

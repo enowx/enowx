@@ -2,6 +2,7 @@ package ui
 
 import (
 	"encoding/json"
+	"fmt"
 	"slices"
 	"strings"
 
@@ -79,10 +80,7 @@ func (a *App) canvasEvent(ev proto.Event) func() {
 				hc.list[i] = ch.Canvas.CanvasInfo
 			}
 			if ch.Op == proto.CanvasOpen || ch.Op == proto.CanvasCompare {
-				a.page, hc.open, hc.frame, hc.compare = pageCanvas, ch.Canvas.ID, ch.Frame, nil
-				if ch.Op == proto.CanvasCompare {
-					hc.compare = ch.Frames
-				}
+				a.canvasAsked(ch)
 				return
 			}
 			a.canvases.Apply(a.canvasOptions(), ch)
@@ -95,6 +93,32 @@ func (a *App) canvasEvent(ev proto.Event) func() {
 		return func() { a.renderCanvas(req) }
 	}
 	return nil
+}
+
+// canvasAsked is an agent asking to show the user a canvas (canvas open, goto,
+// compare). It moves nothing: a card says so, and a click on it goes there.
+func (a *App) canvasAsked(ch proto.CanvasChange) {
+	hc := a.canvasesOf()
+	id, frame := a.canvases.Showing()
+	if a.page == pageCanvas && id == ch.Canvas.ID && ch.Op == proto.CanvasOpen && (ch.Frame == "" || ch.Frame == frame) {
+		return // what it asks for already shows
+	}
+	text := "An agent opened it"
+	switch {
+	case ch.Op == proto.CanvasCompare:
+		text = fmt.Sprintf("An agent lined up %d designs to compare", len(ch.Frames))
+	case ch.Frame != "":
+		text = "An agent points you to a design"
+		if i := slices.IndexFunc(ch.Canvas.Frames, func(f proto.CanvasFrame) bool { return f.ID == ch.Frame }); i >= 0 {
+			text = "An agent points you to " + ch.Canvas.Frames[i].Name
+		}
+	}
+	a.toastAction("canvas:"+ch.Canvas.ID, ch.Canvas.Title, text, func() {
+		a.page, hc.open, hc.frame, hc.compare = pageCanvas, ch.Canvas.ID, ch.Frame, nil
+		if ch.Op == proto.CanvasCompare {
+			hc.compare = ch.Frames
+		}
+	})
 }
 
 func (a *App) canvasPage(c *ui.Context) {

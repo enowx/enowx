@@ -64,8 +64,8 @@ func TestCanvasComponentPickedAndNoted(t *testing.T) {
 	h.settle("the bar gone", func() bool { return !h.tt.HasText("#hero") })
 }
 
-// While an agent works on one design the user can look at another: the
-// view follows the agent only while the user stays where it worked.
+// While an agent works on another design the user stays on theirs, wherever
+// it works.
 func TestCanvasUserStaysOnTheDesignPicked(t *testing.T) {
 	h := newCanvasHarness(t)
 	cv, err := h.cl.CreateCanvas(proto.CanvasCreateParams{Title: "Landing", Kind: proto.CanvasWireframe,
@@ -81,17 +81,20 @@ func TestCanvasUserStaysOnTheDesignPicked(t *testing.T) {
 		}
 	}
 	h.settle("open", func() bool { return h.tt.HasText("Frame One") })
+	agent(cv.Frames[1].ID, "b0")
+	n := 0
+	h.settle("a moment", func() bool { n++; return n > 10 })
+	if !h.tt.HasText("Frame One") {
+		t.Fatalf("pulled to the agent's design: %q", h.tt.Texts())
+	}
 	agent(cv.Frames[0].ID, "a1")
 	h.settle("the agent's work", func() bool { return h.tt.HasText("a1") })
 	h.click(t, "Design after (→)")
 	h.settle("design two", func() bool { return h.tt.HasText("Frame Two") })
 	agent(cv.Frames[0].ID, "a2")
-	h.tt.Frame()
-	h.settle("a moment", func() bool { return true })
+	n = 0
+	h.settle("a moment", func() bool { n++; return n > 10 })
 	if !h.tt.HasText("Frame Two") {
 		t.Fatalf("pulled back to the agent's design: %q", h.tt.Texts())
 	}
-	h.click(t, "Design before (←)")
-	agent(cv.Frames[1].ID, "b1")
-	h.settle("followed again", func() bool { return h.tt.HasText("Frame Two") && h.tt.HasText("b1") })
 }

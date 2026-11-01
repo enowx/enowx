@@ -35,10 +35,10 @@ var designTools = []mcpTool{
 			}
 			return args
 		}},
-	{name: "canvas_goto", description: "Show a design in the user's Canvas page.",
+	{name: "canvas_goto", description: "Point the user to a design, with a card they may click to go there; it doesn't move them.",
 		props: map[string]mcpProp{"canvas": canvasProp, "design": designProp}, required: []string{"canvas", "design"},
 		args: func(a map[string]any) []string { return []string{"goto", str(a, "canvas"), str(a, "design")} }},
-	{name: "canvas_compare", description: "Show 2 to 4 designs side by side in the user's Canvas page, and answer what differs between them.",
+	{name: "canvas_compare", description: "Answer what differs between 2 to 4 designs, with a card the user may click to see them side by side; it doesn't move them.",
 		props: map[string]mcpProp{"canvas": canvasProp, "designs": {"array", "2 to 4 designs: numbers or names"}}, required: []string{"canvas", "designs"},
 		args: func(a map[string]any) []string {
 			args := []string{"compare", str(a, "canvas")}

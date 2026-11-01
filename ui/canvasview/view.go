@@ -135,13 +135,10 @@ type View struct {
 	mode     int
 	// preview shows a mockup frame at a device's width, 0 its own.
 	preview int
-	scale   float32 // the stage's zoom, as the last frame drew it
-	cam     camera  // where the design shows on the stage (camera.go)
-	// agentFrame is the design an agent changed last: the view follows it
-	// from there only.
-	agentFrame string
-	comp       *componentSel // the mockup's component picked (component.go)
-	sel        string        // the element selected
+	scale   float32       // the stage's zoom, as the last frame drew it
+	cam     camera        // where the design shows on the stage (camera.go)
+	comp    *componentSel // the mockup's component picked (component.go)
+	sel     string        // the element selected
 	// last is the latest change an agent made, highlighted a moment.
 	last     proto.CanvasChange
 	lastAt   time.Time
@@ -188,6 +185,7 @@ type View struct {
 	descr         *describeForm
 	// pendingFrame is a design to show once the canvas opening loaded.
 	pendingFrame string
+	pendingAt    time.Time
 }
 
 // Views of the designs.
@@ -244,7 +242,7 @@ func (v *View) Open(o Options, id string) {
 	if v.selected == id && v.canvas != nil {
 		return
 	}
-	v.selected, v.canvas, v.sel, v.frame, v.history, v.compare, v.agentFrame = id, nil, "", "", nil, nil, ""
+	v.selected, v.canvas, v.sel, v.frame, v.history, v.compare = id, nil, "", "", nil, nil
 	v.loading = true
 	v.opened++
 	opened := v.opened
@@ -283,6 +281,12 @@ func (v *View) show(o Options, c proto.Canvas) {
 	}
 }
 
+// pendingFor is how long a design asked for may still come and be shown.
+const pendingFor = 10 * time.Second
+
+// Showing is the canvas open and the design shown.
+func (v *View) Showing() (id, frame string) { return v.selected, v.frame }
+
 // Apply takes a change the host told: the canvas open as it is now, and
 // the element an agent changed, highlighted.
 func (v *View) Apply(o Options, ch proto.CanvasChange) {
@@ -291,14 +295,8 @@ func (v *View) Apply(o Options, ch proto.CanvasChange) {
 	}
 	if ch.Session != "" {
 		v.last, v.lastAt = ch, time.Now()
-		// Follow the agent to the design it works on, unless the user went
-		// to another: they stay where they chose.
-		if ch.Frame != "" && ch.Frame != v.frame && v.drag == nil && v.editing == nil && (v.agentFrame == "" || v.frame == v.agentFrame) {
-			v.frame = ch.Frame
-		}
-		if ch.Frame != "" {
-			v.agentFrame = ch.Frame
-		}
+		// The view stays where the user put it; the strip marks where the
+		// agent works (working).
 	}
 	old := v.canvas
 	c := ch.Canvas
@@ -308,7 +306,9 @@ func (v *View) Apply(o Options, ch proto.CanvasChange) {
 	}
 	// A design asked for before the change that made it came.
 	if v.pendingFrame != "" {
-		if i, err := canvas.FrameIndex(c, v.pendingFrame); err == nil {
+		if time.Since(v.pendingAt) > pendingFor {
+			v.pendingFrame = "" // long after the click: it would be a move of its own
+		} else if i, err := canvas.FrameIndex(c, v.pendingFrame); err == nil {
 			v.frame, v.sel, v.pendingFrame = c.Frames[i].ID, "", ""
 		}
 	}

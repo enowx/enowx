@@ -22,7 +22,7 @@ var canvasCoreTools = []mcpTool{
 		args: func(map[string]any) []string { return []string{"guide"} }},
 	{name: "canvas_list", description: "The host's canvases: ID, kind and title.",
 		args: func(map[string]any) []string { return []string{"list"} }},
-	{name: "canvas_new", description: "A new canvas, its ID answered. Open it (canvas_open) so the user watches it built.",
+	{name: "canvas_new", description: "A new canvas, its ID answered. canvas_open tells the user it's there.",
 		props: map[string]mcpProp{"title": {"string", "Its title"}, "kind": {"string", "mockup (HTML), wireframe, diagram or board"},
 			"frames": {"array", "Its frames: desktop, tablet, mobile (their sizes), or NAME:WxH"}, "group": {"string", "A group, as notes have"},
 			"project": {"string", "The project folder it belongs to"}},
@@ -38,7 +38,7 @@ var canvasCoreTools = []mcpTool{
 			}
 			return args
 		}},
-	{name: "canvas_open", description: "Show a canvas in the enowX app's Canvas page, where the user watches each change appear.",
+	{name: "canvas_open", description: "Tell the user in the enowX app about a canvas, with a card they may click to go there; it doesn't move them.",
 		props: map[string]mcpProp{"canvas": canvasProp}, required: []string{"canvas"},
 		args: func(a map[string]any) []string { return canvasArgs(a, "open") }},
 	{name: "canvas_show", description: "A canvas's frames, their HTML elements (by id) and shapes, and how many comments are open; html: true answers a frame's HTML.",

@@ -36,6 +36,7 @@ A canvas's frames are its designs, numbered from 1: the variations an agent was 
 - **Grid** shows them all at once. **Pick to compare** on two to four of them, then **Compare** shows them side by side at one scale, scrolling together.
 - A design is starred, picked the winner, duplicated as a variant, named and described, or deleted from its menu. Agents read what the user starred and picked.
 - Comments go with the design they are on.
+- `canvas open`, `goto` and `compare` never move the user: they raise a card ("An agent opened it") whose click goes there, and nothing when it already shows.
 - In Interact mode, a mockup's links to other designs move between them: `href="#design-2"` or `data-goto="Login"`. The shared page does the same, showing the design it names alone (**Show all designs** goes back).
 - `canvas://ID/design-3` links to a design. In a note or a chat, it opens the Canvas page there; **Copy link** in a design's menu gives it.
 
@@ -136,7 +137,7 @@ On the host, in `~/.enowx-app/canvas/<id>/`:
 | `canvas.edit` | A change: `meta`, `frame.add`/`set`/`remove`/`meta`/`move`/`copy`/`grid`, `pick`, `html.set`, `html.patch` (replace element `target`, or add into `into`), `html.remove`, `html.text`, `el.set`, `el.remove`; `session` marks an agent's |
 | `canvas.history`, `canvas.version`, `canvas.undo`, `canvas.redo`, `canvas.restore` | Versions |
 | `canvas.comments`, `canvas.comment` | Comments: add, resolve, reopen, delete |
-| `canvas.control` | `pause`, `resume`, `stop`, `open` (shows it in the apps, at design `frame`), `compare` (designs `frames` side by side) |
+| `canvas.control` | `pause`, `resume`, `stop`, `open` (tells the apps of it, at design `frame`, as a card), `compare` (of designs `frames` side by side) |
 | `canvas.chat`, `canvas.chatLog`, `canvas.chatMark` | The agent beside it: a message recorded with the canvas's version, the agent and mode picked; the conversation; a message's changes kept or undone |
 | `canvas.asset`, `canvas.assetGet` | Keep and read an image |
 | `canvas.render`, `canvas.renderReply` | A frame as PNG, PDF, SVG or HTML; the whole canvas as HTML |
@@ -147,6 +148,6 @@ Events: `canvas.changed` (a `CanvasChange`: the canvas, the op, frame and elemen
 
 A design shows whole on an endless, dotted board, at its own width times the zoom: scrolling (two fingers, a wheel, Shift for sideways) moves it, pinching or scrolling with Command (Control) zooms at the pointer, dragging the board beside it (or with the middle button) moves it, and the controls at the bottom right zoom out and in, show it at its own size, fit its width or fit it all. Below 50% a mockup shows as its picture, rendered at its own width (a web view zoomed out that far would lay its page out anew, narrower), so its content shrinks whole with its frame; from 50% up, and until the picture comes, the live page shows, and a click on the picture zooms in there. In Design mode the mockup's page doesn't scroll and takes no pointer, so the board moves over it too; Interact mode shows it as a browser does, scrolling and taking clicks.
 
-Shapes lie on the board itself, free form: a design without a page draws no sheet under them, so agents start a diagram, wireframe or board with a sheet of their own (a large light rect, behind everything) and keep text on it; screenshots and exports of such a design show the bare board's color around it, as the app does. A click on a mockup's page picks the component under it (the element with an id, or the nearest around it, outlined): a bar over it asks the AI about it or says what to change (sent to the canvas's agent with the component named), **Redesign** has the AI redesign it alone, and its note button keeps a note on it instead. Escape or × lets it go. While an agent works, the view follows it from design to design only while the user stays on the one it worked on: a design the user went to stays shown.
+Shapes lie on the board itself, free form: a design without a page draws no sheet under them, so agents start a diagram, wireframe or board with a sheet of their own (a large light rect, behind everything) and keep text on it; screenshots and exports of such a design show the bare board's color around it, as the app does. A click on a mockup's page picks the component under it (the element with an id, or the nearest around it, outlined): a bar over it asks the AI about it or says what to change (sent to the canvas's agent with the component named), **Redesign** has the AI redesign it alone, and its note button keeps a note on it instead. Escape or × lets it go. While an agent works, the view stays where the user put it: the strip marks the design it works on.
 
 A design must never be wider than its frame: nothing sticking out sideways, so its page never scrolls horizontally. The agents' guide says so, `canvas screenshot` and `canvas export` warn when a page is wider, and the board shows "Wider than its frame by N px" over such a design.

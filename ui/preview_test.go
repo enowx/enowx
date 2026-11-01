@@ -23,8 +23,8 @@ func TestAlwaysPreviewedPortsOpenTheBrowser(t *testing.T) {
 	a.setAlwaysPreview(s, 5173, true)
 
 	a.portsChanged(proto.PortsChange{Session: "s1", Opened: []proto.Port{{Port: 5173}}, Ports: []proto.Port{{Port: 5173}}})
-	if len(a.portOffers) != 0 || !a.panelShows(panelBrowser) {
-		t.Fatalf("offers %+v, panel shows %q", a.portOffers, a.panelTab())
+	if len(a.portOffers) != 0 || a.panelShown() || !a.browserNews {
+		t.Fatalf("offers %+v, panel shown %v, news %v", a.portOffers, a.panelShown(), a.browserNews)
 	}
 	// Another port, or the port in a session not shown, is offered.
 	a.portsChanged(proto.PortsChange{Session: "s1", Opened: []proto.Port{{Port: 8080}}, Ports: []proto.Port{{Port: 5173}, {Port: 8080}}})

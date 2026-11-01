@@ -7,6 +7,7 @@ import (
 
 	"github.com/egoist/mygo/ui"
 
+	"github.com/enowx/enowx/proto"
 	"github.com/enowx/enowx/ui/theme"
 )
 
@@ -127,6 +128,19 @@ func (a *App) saveState() {
 	}
 }
 
+// showRestored shows s again as the view was: not a user's pick, so it leaves
+// the page and the keyboard as they are, and a hibernated session asleep.
+func (a *App) showRestored(s proto.SessionInfo) {
+	if s.Parent != "" {
+		a.showTab(s.Parent, s.ID)
+		s = a.parentOf(s)
+	}
+	a.selected = s.ID
+	if s.Project != "" {
+		a.project = s.Project
+	}
+}
+
 // restoreView reopens the project and session that were open on this host,
 // once its state has loaded.
 func (a *App) restoreView() {
@@ -144,7 +158,7 @@ func (a *App) restoreView() {
 	if id := a.state.Sessions[a.host.ID]; id != "" {
 		for _, s := range a.sessions {
 			if s.ID == id {
-				a.selectSession(s)
+				a.showRestored(s)
 			}
 		}
 	}

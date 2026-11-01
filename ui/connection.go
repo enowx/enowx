@@ -2,7 +2,6 @@ package ui
 
 import (
 	"fmt"
-	"github.com/egoist/mygo"
 	"github.com/enowx/enowx/client"
 	"github.com/enowx/enowx/core/hosts"
 	"github.com/enowx/enowx/hostconn"
@@ -33,7 +32,6 @@ func (a *App) hostOptions(gen int) hostconn.Options {
 		RunAs:         func(h hosts.Host, users []hostconn.ServerUser) (hosts.Host, error) { return a.askRunAs(gen, h, users) },
 		Passphrase:    func(path string) (string, error) { return a.askPassphrase(gen, path) },
 		TailnetLogin: func(url string) {
-			go func() { _ = mygo.Shell.OpenExternal(url) }()
 			a.onMain(func() {
 				if gen == a.gen && a.connecting != "" {
 					a.connecting, a.connectLink = "Sign enowX in to your tailnet in the browser…", url
@@ -52,7 +50,13 @@ func (a *App) connect(h hosts.Host) {
 	if saved, ok := a.storedHost(h.ID); ok {
 		h = saved
 	}
+	// The same host coming back: what the user had open stays.
+	back := a.client == nil && a.retryHost == h.ID && a.host.ID == h.ID
+	maximized, form, picker := a.maximized, a.newSession.open, a.addProject
 	a.disconnect()
+	if back {
+		a.maximized, a.newSession.open, a.addProject = maximized, form, picker
+	}
 	a.gen++
 	gen := a.gen
 	a.host = h

@@ -48,7 +48,7 @@ func (a *App) vaultEvent(cl *client.Client, h hosts.Host, req proto.VaultRequest
 	v := a.vaultOf()
 	if v.file == nil {
 		if req.Action == proto.VaultLogin {
-			a.openVaultFor(req.Platform)
+			a.askVaultLogin(req.Platform)
 			reply(proto.VaultLend{Message: "The user has no vault yet: they were asked to make one in enowX, then add " + vault.Lookup(req.Platform).Name + "."}, nil)
 			return
 		}
@@ -114,7 +114,7 @@ func (a *App) vaultDecide(cl *client.Client, h hosts.Host, req proto.VaultReques
 		})
 		return
 	case proto.VaultLogin:
-		a.openVaultFor(req.Platform)
+		a.askVaultLogin(req.Platform)
 		reply(proto.VaultLend{Message: "Asked the user to log in to " + vault.Lookup(req.Platform).Name + " in enowX: creds list shows it once they have."}, nil)
 		return
 	case proto.VaultAdd:
@@ -362,6 +362,12 @@ func (a *App) vaultAnswer(q *vaultAsk, answer int) {
 		_ = a.vaultSave()
 	}
 	reply(lend, nil)
+}
+
+// askVaultLogin is an agent asking the user to log in to platform: a card they
+// may click, not a move.
+func (a *App) askVaultLogin(platform string) {
+	a.toastAction("vault:"+platform, vault.Lookup(platform).Name, "An agent asks you to log in here: click to add it", func() { a.openVaultFor(platform) })
 }
 
 // openVaultFor opens the Credentials page on adding platform's.

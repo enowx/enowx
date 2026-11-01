@@ -20,6 +20,7 @@ import (
 const (
 	sessionToastLife = 10 * time.Second // unless hovered
 	sessionToastMax  = 4                // shown at once, the oldest going first
+	toastNotice      = "notice"         // a card's kind: not a session's (toastAction)
 )
 
 // sessionToast is a notification's card. It belongs to the main thread.
@@ -29,6 +30,8 @@ type sessionToast struct {
 	host, id   string
 	name, text string
 	shown      time.Time
+	// open is what a click does on a card about no session (toastAction).
+	open func()
 }
 
 // toastSession shows a card for session id of host; a newer one of the same
@@ -45,6 +48,14 @@ func (a *App) toastSession(kind, host, id, name, text string) {
 	if over := len(a.sessionToasts) - sessionToastMax; over > 0 {
 		a.sessionToasts = slices.Delete(a.sessionToasts, 0, over)
 	}
+}
+
+// toastAction shows a quiet card about something other than a session, which
+// the user may go to: what agents ask to show them comes this way, never as a
+// move. A newer one of the same id replaces it.
+func (a *App) toastAction(id, name, text string, open func()) {
+	a.toastSession(toastNotice, a.host.Name, id, name, text)
+	a.sessionToasts[len(a.sessionToasts)-1].open = open
 }
 
 // toastChange shows the card for the change soundKind found in session info.
@@ -90,6 +101,8 @@ func toastSays(kind string) string {
 
 func toastKind(kind string) (*ui.SVG, ui.Color, string) {
 	switch kind {
+	case toastNotice:
+		return icon.Canvas, theme.Accent, "Look"
 	case proto.NotifyInput:
 		return icon.Alert, theme.Warning, "Needs you"
 	case proto.NotifyError:
@@ -102,6 +115,10 @@ func toastKind(kind string) (*ui.SVG, ui.Color, string) {
 // host shown as any session, on a watched host by going there.
 func (a *App) openToast(t *sessionToast) {
 	a.sessionToasts = slices.DeleteFunc(a.sessionToasts, func(x *sessionToast) bool { return x == t })
+	if t.open != nil {
+		t.open()
+		return
+	}
 	s, ok := a.sessionOn(t.host, t.id)
 	if !ok {
 		a.status = "That session is gone from " + t.host

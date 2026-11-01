@@ -20,7 +20,7 @@ Back, forward, reload; the address, as in a browser: a path (`/settings`) of the
 
 ## Always preview a port
 
-**Always preview :5173 in this project** on a port's card makes that port of the project open in the Browser by itself when a session shown opens it, without the card. It is kept per host and project; unticking it on a card ends it. When the user is at something else (a page, or another tool in the side panel such as the team's chat), the page loads in the Browser behind and its button gets a dot until looked at: nothing takes the panel from them.
+**Always preview :5173 in this project** on a port's card makes that port of the project load in the Browser by itself when a session shown opens it, without the card; a mark on the Browser says so, and the user opens it. It is kept per host and project; unticking it on a card ends it. When the user is at something else (a page, or another tool in the side panel such as the team's chat), the page loads in the Browser behind and its button gets a dot until looked at: nothing takes the panel from them.
 
 ## Hot reload on a server
 
@@ -58,7 +58,7 @@ Agents check what they build in the same Browser the user sees, through `enowx-a
 
 | Command | Does |
 |---|---|
-| `browser open URL` | Loads a page in the session's Browser: a URL, a host, or a path of its dev server. Opens the Browser for the user when the session is shown, unless they are at another tool or page: then its button gets a dot. |
+| `browser open URL` | Loads a page in the session's Browser: a URL, a host, or a path of its dev server. A mark on the Browser tells the user when it isn't in front: it never opens or moves for the agent. |
 | `browser snapshot` | Prints the page's title, address and text, then its controls, numbered: `[2] button "Join"`. |
 | `browser click REF` | Clicks a control, by its number from the last snapshot or a CSS selector, and waits for what it loads. |
 | `browser fill REF TEXT` | Types into a field as the page sees typing (React's inputs included); a select takes an option's value or text. |

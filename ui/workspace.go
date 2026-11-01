@@ -111,7 +111,10 @@ func (a *App) workspaceView(c *ui.Context) {
 		a.setupPage(c)
 		return
 	}
-	a.page = ""
+	// The connection dropping isn't a reason to leave: the page is back with it.
+	if a.client != nil || a.retryHost != a.host.ID {
+		a.page = ""
+	}
 	if a.connectionView(c) {
 		return
 	}
@@ -126,7 +129,17 @@ func (a *App) workspaceView(c *ui.Context) {
 		return
 	}
 	sessions := a.projectSessions(p.Path)
+	if a.selected != "" {
+		a.emptyProject = ""
+	}
+	if len(sessions) > 0 && a.selected == "" && a.emptyProject == p.Path {
+		// A session an agent started here doesn't take the user there.
+		a.viewHeader(c, func() { widget.Breadcrumb(c, a.host.Name, p.Name) })
+		a.emptyState(c, "Pick a session of "+p.Name, "It has sessions now: they're in the list.", "New session", func() { a.openNewSession(p) })
+		return
+	}
 	if len(sessions) == 0 {
+		a.emptyProject = p.Path
 		a.viewHeader(c, func() { widget.Breadcrumb(c, a.host.Name, p.Name) })
 		a.emptyState(c, "No sessions in "+p.Name, "Start an agent or a shell. On a git project it can get its own branch and worktree.", "New session", func() { a.openNewSession(p) })
 		return

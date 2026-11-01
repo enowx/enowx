@@ -291,8 +291,9 @@ const (
 	CanvasPause  = "pause"
 	CanvasResume = "resume"
 	CanvasStop   = "stop" // interrupts the agent designing, and pauses
-	// CanvasOpen shows the canvas in the apps' Canvas page, at design
-	// Frame when given; CanvasCompare shows designs Frames side by side.
+	// CanvasOpen tells the apps of the canvas, at design Frame when given;
+	// CanvasCompare of designs Frames side by side. The user goes there if
+	// they choose: an app never moves them for it.
 	CanvasOpen    = "open"
 	CanvasCompare = "compare"
 )

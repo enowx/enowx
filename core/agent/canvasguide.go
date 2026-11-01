@@ -9,7 +9,7 @@ A canvas is a mockup of a UI (HTML and CSS), a wireframe, a diagram or a free bo
 
 ## Start
     "$ENOWX_BIN" canvas new "Checkout" --kind mockup --frame desktop --frame mobile   # prints its ID
-    "$ENOWX_BIN" canvas open ID          # shows it in the app: do this first, so the user watches
+    "$ENOWX_BIN" canvas open ID          # tells the user in the app it's there, with a card they may click; it never moves them
     "$ENOWX_BIN" canvas show ID          # frames, elements by id, open comments
 Kinds: mockup (HTML, real UI), wireframe (boxes and text, grey, no styling), diagram (shapes and arrows: flows, architecture, sequence), board (stickies, shapes, images). Frames named desktop (1440×900), tablet (768×1024) or mobile (390×844) take those sizes; --frame "Home:1280x800" any.
 
@@ -40,7 +40,7 @@ Asked for several designs or variations ("10 landing pages", "3 versions of the 
     "$ENOWX_BIN" canvas write ID --frame 2 --html -          # then build design 2 as any mockup
     "$ENOWX_BIN" canvas new-design ID --from 5 --variant C   # a copy of design 5 to vary
     "$ENOWX_BIN" canvas designs ID      # numbers, pages × variants, the favorites and the winner the user marked
-    "$ENOWX_BIN" canvas goto ID 3 | compare ID 2 5 | pick ID 4
+    "$ENOWX_BIN" canvas goto ID 3 | compare ID 2 5 | pick ID 4   # goto and compare raise a card too: the user stays where they are until they click it
 Group a flow's screens with --page (Home, Login, Dashboard) and alternatives with --variant (A, B, C); give each design a title and a one-line description of what it tries. Work on what the user starred or picked when asked to "develop designs 3 and 7", and read the comments on each design. Between a flow's screens, link buttons to other designs so Interact mode moves between them: href="#design-2" or data-goto="Login". A design's link for notes and chats is canvas://ID/design-N.
 
 ## Wireframes, diagrams, boards: shapes

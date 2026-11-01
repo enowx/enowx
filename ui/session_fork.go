@@ -42,7 +42,8 @@ func (a *App) forkSession(s proto.SessionInfo) {
 			}
 			a.upsert(info)
 			a.notify("Forked as “" + a.sessionName(info) + "”")
-			if !a.goaOn() {
+			// Compacting takes a while: only if they're still where they asked.
+			if !a.goaOn() && a.selected == s.ID && a.page == "" {
 				a.selectSession(info)
 			}
 		})
