@@ -11,11 +11,7 @@ func TestCommentsGoToTheAgentAsOnePrompt(t *testing.T) {
 	v := loaded()
 	var sent, news string
 	o := Options{Send: func(text string) { sent = text }, Notify: func(m string) { news = m }}
-	tt := ui.NewTester(func(c *ui.Context) { v.Draw(c, o) }, 700, 600)
-	tt.Frame()
-	if err := tt.Click("a.go"); err != nil {
-		t.Fatal(err)
-	}
+	tt := ui.NewTester(func(c *ui.Context) { v.DrawFile(c, o, "a.go") }, 900, 600)
 	tt.Frame()
 
 	// Click the added line, write a comment, add it.
