@@ -30,6 +30,9 @@ const (
 	// MethodVaultAttach gives a session credentials (by name): lent now,
 	// and again whenever its program starts.
 	MethodVaultAttach = "vault.attach" // VaultAttach → []string
+	// MethodHostKeysToVault moves the keys typed on this host (a judge's,
+	// RAG's) to the vault, for every host to read: → HostKeysMoved.
+	MethodHostKeysToVault = "host.keysToVault"
 	// EventVaultRequest asks the serving app: VaultRequest.
 	EventVaultRequest = "vault.request"
 	// EventVaultChanged says the host's copy changed: VaultIndex.
@@ -187,4 +190,23 @@ type VaultFound struct {
 type VaultAttach struct {
 	Session string   `json:"session"`
 	Names   []string `json:"names"`
+}
+
+// HostKeysMoved is what keys moved to the vault, by the credential that now
+// holds each, and what stayed typed and why. No value is in it.
+type HostKeysMoved struct {
+	Moved  []HostKeyMoved  `json:"moved"`
+	Failed []HostKeyFailed `json:"failed"`
+}
+
+// HostKeyMoved is a key that moved: what it is for, and its credential.
+type HostKeyMoved struct {
+	What       string `json:"what"`
+	Credential string `json:"credential"`
+}
+
+// HostKeyFailed is a key that stayed where it was.
+type HostKeyFailed struct {
+	What string `json:"what"`
+	Err  string `json:"err"`
 }

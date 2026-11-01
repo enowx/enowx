@@ -618,3 +618,7 @@ func orInt(n, or int) int {
 	}
 	return n
 }
+
+// TypedKey is the embedder's key or the PostgreSQL URL (which) typed on this
+// host, for moving to the vault, never to show.
+func (e *Engine) TypedKey(which string) string { return e.keys.Get(which) }

@@ -24,6 +24,7 @@ const sectionDecide = "Decisions"
 
 // decideState is the section's. It belongs to the main thread.
 type decideState struct {
+	move    keysMove // the typed keys going to the vault
 	host    string
 	asked   bool
 	loaded  bool
@@ -169,6 +170,9 @@ func (a *App) decideSection(c *ui.Context) {
 
 // judgesTab is who may judge, and the judges in the order tried.
 func (a *App) judgesTab(c *ui.Context, st *decideState) {
+	if st.move.said != "" || slices.ContainsFunc(st.judges, func(j proto.Judge) bool { return j.Own && j.HasKey }) {
+		a.keysToVaultRow(c, &st.move, a.loadDecide)
+	}
 	widget.Field(c, "Who may judge", func() {
 		before := st.set.Policy
 		hookSelect(c, "Policy", &st.set.Policy, policies, policyNames)

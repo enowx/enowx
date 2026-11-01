@@ -460,3 +460,49 @@ func (e *Engine) SetKey(id, key string) error {
 	e.mu.Unlock()
 	return e.keys.Set(id, strings.TrimSpace(key))
 }
+
+// TypedKey is a key typed on this host for a judge the user added, which
+// other hosts can't use.
+type TypedKey struct {
+	ID, Label, Key string
+}
+
+// TypedKeys are the keys on this host alone for judges in the synced
+// settings. They are for moving to the vault, never to show.
+func (e *Engine) TypedKeys() []TypedKey {
+	var out []TypedKey
+	for _, j := range e.settings.Get().Own {
+		if key := e.keys.Get(j.ID); key != "" {
+			out = append(out, TypedKey{ID: j.ID, Label: j.Label, Key: key})
+		}
+	}
+	return out
+}
+
+// MoveKeyToCred has judge id read its key from vault credential cred on
+// every host, and forgets the one typed here. Its ID, which names the
+// credential, changes where the settings use it.
+func (e *Engine) MoveKeyToCred(id, cred string) error {
+	st := e.settings.Get()
+	i := slices.IndexFunc(st.Own, func(j proto.Judge) bool { return j.ID == id })
+	if i < 0 {
+		return fmt.Errorf("decide: no judge %s", id)
+	}
+	st.Own[i].Cred = cred
+	next := OwnID(st.Own[i])
+	for k, o := range st.Order {
+		if o == id {
+			st.Order[k] = next
+		}
+	}
+	for use, u := range st.Uses {
+		if u.Judge == id {
+			u.Judge = next
+			st.Uses[use] = u
+		}
+	}
+	if err := e.settings.Set(st); err != nil {
+		return err
+	}
+	return e.keys.Set(id, "")
+}

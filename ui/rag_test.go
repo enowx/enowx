@@ -158,3 +158,55 @@ func TestIndexTool(t *testing.T) {
 	}
 	frames(func() bool { return hasText(tt, "isn't indexed") }, "off again")
 }
+
+// A key typed on the host offers to go to the vault; with no vault to take
+// it, it says so and stays.
+func TestRAGSectionOffersTheVault(t *testing.T) {
+	srv, err := daemon.NewServer(t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer srv.Close()
+	a1, b1 := net.Pipe()
+	go srv.ServeConn(a1)
+	app := New(Options{})
+	cl, err := client.New(b1, func(proto.Event) {})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer cl.Close()
+	posted := make(chan func(), 64)
+	app.onMain = func(fn func()) { posted <- fn }
+	app.client, app.host.Name = cl, "this Mac"
+	if _, err := cl.SetRAGKey(proto.RAGKeyEmbedder, "typed-key"); err != nil {
+		t.Fatal(err)
+	}
+	tt := ui.NewTester(func(c *ui.Context) {
+		c.SetTheme(theme.Window())
+		ui.Column(c).Width(760).Height(800).Background(theme.Background).TextColor(theme.Text).Children(func() { app.ragSection(c) })
+	}, 760, 800)
+	frames := func(until func() bool, what string) {
+		t.Helper()
+		deadline := time.Now().Add(15 * time.Second)
+		for !until() {
+			select {
+			case fn := <-posted:
+				fn()
+			case <-time.After(30 * time.Millisecond):
+			}
+			tt.Frame()
+			if time.Now().After(deadline) {
+				t.Fatalf("never: %s: %q", what, tt.Texts())
+			}
+		}
+	}
+	frames(func() bool { return hasText(tt, "Keep them in the vault") }, "the offer")
+	shot(t, tt, "rag-keys-to-vault.png")
+	if err := tt.Click("Keep them in the vault"); err != nil {
+		t.Fatal(err)
+	}
+	frames(func() bool { return hasText(tt, "stays here") }, "why it stayed")
+	if st, _ := cl.RAGSettings(); !st.HasKey {
+		t.Fatal("the key went with nowhere to go")
+	}
+}

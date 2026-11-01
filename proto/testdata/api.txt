@@ -1241,6 +1241,12 @@ field HostCallParams.from string
 field HostCallParams.host string
 field HostCallParams.method string
 field HostCallParams.params json.RawMessage
+field HostKeyFailed.err string
+field HostKeyFailed.what string
+field HostKeyMoved.credential string
+field HostKeyMoved.what string
+field HostKeysMoved.failed []HostKeyFailed
+field HostKeysMoved.moved []HostKeyMoved
 field HostSessions.err string
 field HostSessions.host string
 field HostSessions.hostName string
@@ -2699,6 +2705,7 @@ method hooks.saveSession
 method hooks.test
 method host.call
 method host.controlLog
+method host.keysToVault
 method host.share
 method host.share.set
 method host.visitors

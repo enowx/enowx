@@ -37,6 +37,13 @@ func (c *Client) VaultAsk(a proto.VaultAsk) (proto.VaultLend, error) {
 	return out, err
 }
 
+// KeysToVault moves the keys typed on this host to the vault.
+func (c *Client) KeysToVault() (proto.HostKeysMoved, error) {
+	var out proto.HostKeysMoved
+	err := c.Call(proto.MethodHostKeysToVault, nil, &out)
+	return out, err
+}
+
 // VaultAudit is the host's last limit uses of the vault (0: all).
 func (c *Client) VaultAudit(limit int) ([]proto.VaultAuditEntry, error) {
 	var out []proto.VaultAuditEntry

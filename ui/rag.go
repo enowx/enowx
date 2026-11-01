@@ -37,6 +37,7 @@ type ragSettingsState struct {
 	// credential instead.
 	key, pg           string
 	keyVault, pgVault bool
+	move              keysMove
 }
 
 var ragEmbedders = []string{"", proto.RAGVoyage, proto.RAGOpenAI, proto.RAGTEI}
@@ -142,6 +143,9 @@ func (a *App) ragSection(c *ui.Context) {
 		ui.Text(c, "A vault credential holding postgres://user:password@host:5432/db. pgvector must be installed there (enowX creates the extension when its user may); enowX keeps its table enowx_rag_points.").FontSize(11.5).TextColor(theme.Muted)
 	} else {
 		ui.Text(c, "One SQLite file in "+a.host.Name+"'s enowX folder: nothing else to run, fast up to around a hundred thousand parts a project.").FontSize(11.5).TextColor(theme.Muted)
+	}
+	if s.HasKey || s.HasPostgres || st.move.said != "" {
+		a.keysToVaultRow(c, &st.move, a.loadRAGSettings)
 	}
 	if st.test != "" {
 		col, svg := theme.Error, icon.Alert
@@ -338,4 +342,53 @@ func (st *ragSettingsState) keysToSave() []proto.RAGKey {
 		}
 	}
 	return out
+}
+
+// keysToVaultRow offers to move the keys typed on this host to the vault,
+// for the user's other hosts: done runs after, on the main thread.
+func (a *App) keysToVaultRow(c *ui.Context, st *keysMove, done func()) {
+	widget.Notice(c, icon.Key, theme.Warning, "Some keys here are on this host alone", "Your other hosts get these settings but not the keys. Keep them in the vault, without typing them again: the app asks you first, and each host the first time it uses one.", func() {
+		b := widget.GhostButton(c, "Keep them in the vault")
+		if st.busy {
+			b.Disabled(true)
+		} else if b.Clicked() {
+			a.moveKeysToVault(st, done)
+		}
+	})
+	if st.said != "" {
+		ui.Text(c, st.said).FontSize(12).TextColor(theme.Muted)
+	}
+}
+
+// keysMove is keysToVaultRow's, the main thread's.
+type keysMove struct {
+	busy bool
+	said string
+}
+
+func (a *App) moveKeysToVault(st *keysMove, done func()) {
+	cl := a.client
+	if cl == nil {
+		return
+	}
+	st.busy, st.said = true, "The app asks you about each one…"
+	go func() {
+		res, err := cl.KeysToVault()
+		a.onMain(func() {
+			st.busy = false
+			if err != nil {
+				st.said = client.Explain(err)
+				return
+			}
+			var parts []string
+			for _, m := range res.Moved {
+				parts = append(parts, m.What+": now "+m.Credential)
+			}
+			for _, f := range res.Failed {
+				parts = append(parts, f.What+" stays here: "+f.Err)
+			}
+			st.said = strings.Join(parts, ". ")
+			done()
+		})
+	}()
 }

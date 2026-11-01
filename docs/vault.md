@@ -43,6 +43,10 @@ What the app lends goes to that session alone:
 
 The daemon keeps what it was lent in memory for the session, masks it in Traffic wherever it shows (headers, URLs, bodies, base64 included) and in what is read of any session's screen or conversation (`session read`, the chat view), and forgets it with the session. Values reach a session as variables and files, never typed into its shell, so its history doesn't hold them, and the daemon logs none. Each use goes in the host's record, `vault/audit.jsonl`, without values: which credential, for what, by which session, allowed or refused; the page shows the connected host's last uses, `creds audit` prints them. An agent's model API can take its key from the vault (**From the vault** in Settings' model API form).
 
+## Keys typed for one host
+
+A judge's key, RAG's embedder's and a PostgreSQL URL can be typed for one host alone (`rag-keys.json`, `decide-keys.json`), which never sync. **Keep them in the vault**, in Settings → RAG and Decisions, moves them (`host.keysToVault`): the host hands each to the app, which asks the user to keep it; only once the vault lends the same value back do the settings name the credential and the typed copy go. If anything fails, that key stays as it was, and the reason is shown. The settings' fields are the ones hosts of older versions already read (`keyCred`, `postgresCred`, a judge's `cred`). Other hosts then read it from the vault, the app asking the user the first time each uses it (**May be used without asking on** starts with the host it came from alone), and only while the app is open or the daemon holds it. Agents can't call this through control.
+
 ## For agents
 
 `enowx-app creds` (and the MCP tools `creds_*`) uses the vault by name; no command prints a value:
