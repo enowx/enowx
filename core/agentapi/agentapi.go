@@ -82,6 +82,8 @@ type adapter struct {
 	// variables for an API.
 	env  func(api API) [][2]string
 	caps Caps
+	// checkURL, for an agent that refuses some addresses, says why one won't do.
+	checkURL func(baseURL string) error
 }
 
 // adapters are the agents enowX can point at an API, by preset ID.

@@ -58,6 +58,11 @@ func Prepare(id string, api API) (API, error) {
 	if api.BaseURL == "" || !(strings.HasPrefix(api.BaseURL, "http://") || strings.HasPrefix(api.BaseURL, "https://")) {
 		return API{}, errors.New("agentapi: the API's address is an http:// or https:// URL")
 	}
+	if a.checkURL != nil {
+		if err := a.checkURL(api.BaseURL); err != nil {
+			return API{}, fmt.Errorf("agentapi: %s: %w", id, err)
+		}
+	}
 	if api.Protocol == "" {
 		api.Protocol = a.protocols[0]
 	}

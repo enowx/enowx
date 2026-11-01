@@ -1,6 +1,10 @@
 package agentapi
 
-import "strconv"
+import (
+	"fmt"
+	"net/url"
+	"strconv"
+)
 
 // Agents that take their API from the environment: the variables go to the
 // sessions enowX starts of them (envFile, LaunchEnv). Gemini CLI reads
@@ -135,12 +139,27 @@ var antigravity = func() adapter {
 	return a
 }()
 
+// httpsUnlessLocal is the rule Gemini CLI holds its address to: it refuses
+// plain http anywhere but on this machine.
+func httpsUnlessLocal(baseURL string) error {
+	u, err := url.Parse(baseURL)
+	if err != nil {
+		return fmt.Errorf("the API's address: %w", err)
+	}
+	switch h := u.Hostname(); {
+	case u.Scheme == "https", h == "localhost", h == "127.0.0.1", h == "::1":
+		return nil
+	}
+	return fmt.Errorf("%s isn't https: it takes plain http only on localhost, 127.0.0.1 or [::1]", baseURL)
+}
+
 // Gemini CLI: its .env for the key and the address, its settings for the
 // API key sign-in and the model.
 var geminiCLI = adapter{
 	protocols: []string{Gemini},
 	files:     []string{".gemini/.env", ".gemini/settings.json"},
-	note:      "Gemini CLI speaks Gemini's API only; it signs in with the key instead of a Google account.",
+	note:      "Gemini CLI speaks Gemini's API only; it signs in with the key instead of a Google account. Its address is https, unless it's localhost.",
+	checkURL:  httpsUnlessLocal,
 	read: func(home string) (API, bool, error) {
 		data, err := readFile(home, ".gemini/.env")
 		if err != nil {
