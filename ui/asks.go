@@ -101,6 +101,9 @@ func (a *App) asksBehind(shown int) int {
 func (a *App) dropLateAsks() (until time.Time, ok bool) {
 	now := time.Now()
 	late := func(at time.Time, what string) bool {
+		if at.IsZero() {
+			return false // nothing waits on it
+		}
 		if now.Before(at) {
 			if !ok || at.Before(until) {
 				until, ok = at, true
