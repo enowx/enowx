@@ -77,6 +77,7 @@ Go 1.27+ is required (MyGo needs it). With an older `go`, set `GOTOOLCHAIN=go1.2
 | `cloud/` | The team cloud's server (`cloud/server`), its database (`cloud/store`), API types (`cloud/api`) and the sealing of a team's keys and items (`cloud/seal`) (see `docs/cloud.md`) | **No** |
 | `cmd/enowx-cloud` | The cloud server's entry point and its image (`Dockerfile`) | **No** |
 | `hostconn/` | Connects to a host's daemon: starts or replaces it locally, installs or upgrades it over SSH | **No** |
+| `docs/` | The docs, and package `docs` shipping them in the program for `goa doc` (all top-level `*.md` but `PLAN.md`) | **No** |
 | `version/` | The release version shared by app, daemon and client | **No** |
 | `internal/quietcmd` | Starts programs in the background without a console window on Windows | **No** |
 | `internal/testlisten` | A test binary standing in for a dev server a session starts, for tests of ports | **No** |

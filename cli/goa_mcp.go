@@ -6,6 +6,16 @@ var goaTools = []mcpTool{
 		props:    map[string]mcpProp{"name": {"string", "setup or features"}},
 		required: []string{"name"},
 		args:     func(a map[string]any) []string { return []string{"skill", str(a, "name")} }},
+	{name: "goa_doc", description: "enowX's docs, shipped in the program: with no name, each doc and a line on what it covers; with a name, that doc; with a section too, that part of it; with search, which docs and sections hold those words. Read this to answer a question about a feature, not the code or memory.",
+		props: map[string]mcpProp{"name": {"string", "A doc's name, as the list gives it"}, "section": {"string", "A heading of the doc, or a word of one; a wrong one lists the headings"},
+			"search": {"string", "Words to find in every doc, instead of a name"}},
+		args: func(a map[string]any) []string {
+			args := []string{"doc"}
+			if name := str(a, "name"); name != "" {
+				args = append(args, name)
+			}
+			return withFlag(withFlag(args, a, "section", "section"), a, "search", "search")
+		}},
 	{name: "goa_board", description: "GOD of Agents' task board as JSON: each task, the session (and host) it went to, its model and effort and why, its status (working, waiting, done, failed, stopped), its result, what it asks and whether that is urgent (the user's to answer).",
 		args: func(map[string]any) []string { return []string{"board", "--json"} }},
 	{name: "goa_delegate", description: "Hand a task to a session and put it on the board: an existing session (session, host) or a new one (agent, project, branch, host). The judge picks the prompt's model and effort (cheaper near a token budget) unless model/effort/config are given or no_route is true. Returns the task as JSON with model, effort and why: tell the user. You are told when it finishes or asks something; don't poll.",
