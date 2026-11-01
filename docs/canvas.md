@@ -44,7 +44,7 @@ A canvas's frames are its designs, numbered from 1: the variations an agent was 
 
 A prototype is a canvas's designs linked together, one per page, so the strip, comments and versions work on each. Each page is its own document, so what it should remember goes through `enowx.state`, in every mockup: `data-set="plan=pro;step=2"` sets it on a click, `data-bind="email"` edits and shows a value, `data-show-if="plan=pro"` or `"!email"` shows by it, `data-reset` empties it, with `enowx.state.get/set/all/reset` and an `enowx:state` event for scripts. Interact mode and the shared page carry it from page to page alike, and each has a **Reset**, which empties it and returns to the first design. On the board a design shows as it starts.
 
-Scripts stay in their design. On the shared page each design is a sandboxed frame with an origin of its own: it can't read the page around it or its link, reach the sharing server, or keep storage, and it only tells the page where to go and what state holds. In the app each load of a mockup gets an address of its own that leads nowhere, so the page counts as a stranger's: calls into the app are refused, the device's files can't be read, and what it stores isn't there for another design. The app only reads from the page the link clicked and the state. A design can still load from the internet, as a page does; that is how it gets its libraries.
+Scripts stay in their design. On the shared page each design is a sandboxed frame with an origin of its own: it can't read the page around it or its link, reach the sharing server, or keep storage, and it only tells the page where to go and what state holds. In the app each load of a mockup gets an address of its own that leads nowhere, so the page counts as a stranger's: calls into the app are refused, the device's files can't be read, and what it stores isn't there for another design. The app only reads from the page the link clicked and the state. A design can still load from the internet, as a page does; that is how it gets libraries enowX doesn't carry.
 
 ## Layout grids
 
@@ -65,9 +65,26 @@ A mockup renders in the app's web view, so libraries load from CDNs when the dev
 - Tailwind CSS, shadcn-style tokens, DaisyUI and Bootstrap.
 - Lucide and Tabler icons.
 - Inter from Google Fonts.
-- anime.js, Chart.js and three.js.
+- Chart.js.
+- anime.js and three.js, which enowX carries.
 
-Offline, those don't load: a mockup keeps its layout and colors in its own CSS, and icons go in as inline SVG. `canvas icon lucide:rocket` gives one from the Lucide, Tabler and Phosphor icons enowX carries.
+Offline, those from a CDN don't load: a mockup keeps its layout and colors in its own CSS, and icons go in as inline SVG. `canvas icon lucide:rocket` gives one from the Lucide, Tabler and Phosphor icons enowX carries.
+
+anime.js 3.2.2 and three.js 0.160.0 (both MIT, in `core/canvas/lib` with their licences) need no network. A design names them by their CDN address, or imports `three` by its bare name, and its document carries them as data: URLs: in the app, on the shared page and in HTML exports, under a design's stranger origin and a sandboxed frame's opaque one. Only a design that names one pays for it: about 23 KB for anime.js and 894 KB for three.js, per design, on the shared page too, whose whole document has to fit the 16 MB frame when exported over the protocol (a dozen or so three.js designs); a shared link is served whole. Another version, three's addons or another library still load from their CDN. Three.js stays at 0.160.0 as its later builds are split into modules importing each other by relative path, which a single data: URL can't hold.
+
+## Motion
+
+A design can really move: a product's animation in its mockup, a logo's reveal, a loader. CSS animations, anime.js and three.js scenes run on one clock in the page, `enowx.motion` (`core/canvas/motion.js`), in any design that has motion and in no other. Playing is seeking on every frame, so a moment looks the same however it was reached: forward, backward, or fresh from a load.
+
+- `enowx.motion.add(timeline)` takes an anime.js instance, and `add(t => …, {element, duration, loop})` a draw function of the time. CSS animations, Web Animations and anime.js running as the page loads join by themselves; a click's feedback afterwards and a hover's transitions stay their own. `play`, `pause`, `restart`, `seek(ms)`, `set({duration, loop, autoplay})` and `state()` are there for the design's own buttons.
+- A scene given its `element` doesn't render while it can't be seen, nor does a frame scrolled away or hidden on the shared page; the clock stands still while the page is hidden.
+- `prefers-reduced-motion` shows the finished frame at load, and an explicit Play still plays.
+- **Interact mode** has a bar under a moving design: play or pause, restart, and a scrubber, driven through the page as its links are. The board shows the design finished and doesn't play it. It isn't a timeline editor: what moves is the design's own code, so an agent changes it.
+- **The shared page** has the same controls under each moving design, by postMessage, as its frame's sandbox leaves nothing else. A single frame's HTML export plays alone with no controls, so a viewer with reduced motion sees it finished.
+
+Stills catch one moment, the same each time: the end, or a loop's start. `canvas screenshot` and `canvas export` say so for a moving design, and Export's menu marks PNG, SVG and PDF "(one frame)". Only HTML keeps the motion; there is no video export or sound.
+
+Agents check motion from moments of it: `canvas frames ID [DESIGN] --at 0,25,50,75,100` (MCP `canvas_frames`) renders each with the page moved there (a percent of its length, or `1500ms`), keeps them as files, lays them on one sheet in order, and says when two are the same picture. The guide's Motion section has when to use what; `canvas guide motion` has timing, easing, choreography, what looks cheap and how to check it.
 
 ## At any window size
 
@@ -106,7 +123,7 @@ Agents learn how to design from the canvas guide (`enowx-app canvas guide`), whi
 
 - **Comments** go on the selected element, or on the frame. Agents read them (`canvas comments`), do them, and resolve them.
 - **Versions** lists every change: whose it was, and what it changed. One compares with the version shown, the elements added, removed and changed, and **Restore** makes an old version the newest. Undo and Redo (⌘Z, Shift+⌘Z) step through versions.
-- **Export** saves the frame as PNG, SVG, PDF or HTML into Downloads.
+- **Export** saves the frame as PNG, SVG, PDF or HTML into Downloads. Of a moving design only HTML keeps the motion ([Motion](#motion)).
 - **Share as a page** saves the whole canvas as one read-only HTML file, its images inside. There is no cloud: share the file.
 - **Share a link** has the host serve that page, read-only, to whoever has the link: on this device (`127.0.0.1`) and on the user's tailnet (the host's Tailscale address), never on other networks, nothing going to the internet. The page reloads as the canvas changes. No canvas has a link until the user makes one; **Stop sharing** (or deleting the canvas) ends it. The links are the host's own, kept in `canvas-shares.json` beside the synced folders, and come back when the daemon restarts. `canvas share CANVAS`, `canvas unshare CANVAS` and `canvas shares` do the same from the command line.
 - **Make code** starts an agent in one of the host's projects on building the canvas there, in the project's stack and components. It attaches the canvas to the project. **More** attaches a canvas to, or detaches it from, other projects.
@@ -140,7 +157,7 @@ On the host, in `~/.enowx-app/canvas/<id>/`:
 | `canvas.control` | `pause`, `resume`, `stop`, `open` (tells the apps of it, at design `frame`, as a card), `compare` (of designs `frames` side by side) |
 | `canvas.chat`, `canvas.chatLog`, `canvas.chatMark` | The agent beside it: a message recorded with the canvas's version, the agent and mode picked; the conversation; a message's changes kept or undone |
 | `canvas.asset`, `canvas.assetGet` | Keep and read an image |
-| `canvas.render`, `canvas.renderReply` | A frame as PNG, PDF, SVG or HTML; the whole canvas as HTML |
+| `canvas.render`, `canvas.renderReply` | A frame as PNG, PDF, SVG or HTML; the whole canvas as HTML; `at`, a moment of a moving design for a still, whose answer's `motion` gives its length and that moment |
 
 Events: `canvas.changed` (a `CanvasChange`: the canvas, the op, frame and element, the session), `canvas.listed` (the list), `canvas.render` (to the app).
 
