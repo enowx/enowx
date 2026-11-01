@@ -9,6 +9,7 @@ import (
 	"github.com/egoist/mygo"
 	"github.com/egoist/mygo/ui"
 
+	"github.com/enowx/enowx/core/canvas"
 	"github.com/enowx/enowx/proto"
 	"github.com/enowx/enowx/ui/canvasview"
 )
@@ -64,6 +65,9 @@ func (a *App) canvasWeb() *canvasview.Web {
 	}
 }
 
+// motionPaint is what a page takes to paint a moment it was just moved to.
+const motionPaint = 100 * time.Millisecond
+
 // renders runs one render at a time.
 var renders sync.Mutex
 
@@ -74,8 +78,9 @@ func (a *App) renderCanvas(req proto.CanvasRenderRequest) {
 		return
 	}
 	wider, text := 0, ""
+	var motion *proto.CanvasMotion
 	reply := func(data []byte, err error) {
-		out := proto.CanvasRenderReply{ID: req.ID, Data: data, Wider: wider, Text: text}
+		out := proto.CanvasRenderReply{ID: req.ID, Data: data, Wider: wider, Text: text, Motion: motion}
 		if err != nil {
 			out.Error = err.Error()
 		}
@@ -95,17 +100,19 @@ func (a *App) renderCanvas(req proto.CanvasRenderRequest) {
 			Frameless: true, SkipTaskbar: true, BackgroundColor: "#ffffff"})
 		r := renderIn(hidden.Page(), hidden.CapturePage, req)
 		hidden.Destroy()
-		wider, text = r.wider, r.text
+		wider, text, motion = r.wider, r.text, r.motion
 		reply(r.data, r.err)
 	}()
 }
 
 // rendered is a page's render: its picture or PDF, how much wider than
-// its frame it is, its script's value, whether it was laid out at all.
+// its frame it is, its script's value, the motion it stands in, whether it was
+// laid out at all.
 type rendered struct {
 	data    []byte
 	wider   int
 	text    string
+	motion  *proto.CanvasMotion
 	laidOut bool
 	err     error
 }
@@ -143,6 +150,12 @@ func renderIn(pg *mygo.Page, capture func() ([]byte, error), req proto.CanvasRen
 	if !r.laidOut {
 		r.err = errors.New("the web view gave no picture: it was never laid out")
 		return r
+	}
+	// A moving page shows one moment, the same each time, whatever the load took.
+	if v, err := pg.Eval(canvas.SettleScript); err == nil {
+		if r.motion = canvas.ParseMotion(evalText(v)); r.motion != nil {
+			time.Sleep(motionPaint)
+		}
 	}
 	if v, err := pg.Eval(canvasview.WiderScript); err == nil {
 		if n, ok := v.(float64); ok && n > 0 {

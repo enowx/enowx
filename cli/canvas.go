@@ -32,7 +32,7 @@ const canvasUsage = `usage: enowx-app canvas COMMAND (CANVAS: its ID or title; F
                                    add a shape, or change shape E (only what is given)
   remove CANVAS --element E [--frame F]           remove an HTML element or a shape
   frame CANVAS add NAME [--size WxH] | set F [--name N] [--size WxH] [--background #RRGGBB] | rm F
-  screenshot CANVAS FILE [--frame F|desktop|tablet|mobile]   a PNG of a frame, to look at what you made
+  screenshot CANVAS FILE [--frame F|desktop|tablet|mobile]   a PNG of a frame, to look at what you made (a moving design's end; frames samples it)
   export CANVAS --format png|pdf|svg|html [--frame F] [--out PATH]   (html without --frame: all of it, read-only, to share)
   comments CANVAS [--all]          the user's comments on its elements, to work on; --all the resolved too
   comment CANVAS TEXT [--element E] [--frame F] | resolve CANVAS COMMENT
@@ -41,12 +41,12 @@ const canvasUsage = `usage: enowx-app canvas COMMAND (CANVAS: its ID or title; F
   rm CANVAS                        delete a canvas, its versions and comments
   space CANVAS --to TEAM|personal [--copy]
                                    move a canvas to a team's space or your own (copied with --copy)
-  guide                            how to design a canvas here: rules, components, layouts
+  guide [motion]                   how to design a canvas here: rules, components, layouts; motion: animation in depth
   ` + unslopUsage + `
   ` + briefUsage + `
   ` + buildUsage + `
   ` + imageUsage + `
-` + shareUsage + "\n" + designsUsage + "\n" + gridUsage + "\n" + canvasChatUsage
+` + framesUsage + "\n" + shareUsage + "\n" + designsUsage + "\n" + gridUsage + "\n" + canvasChatUsage
 
 // parseAll parses args' flags wherever they are, and returns the rest.
 func parseAll(fs *flag.FlagSet, args []string) ([]string, error) {
@@ -114,6 +114,9 @@ func (r runner) canvasCmd(args []string) error {
 	if cmd == "brief" {
 		return r.canvasBrief(args[1:])
 	}
+	if cmd == "frames" {
+		return r.canvasFrames(args[1:])
+	}
 	if cmd == "image" {
 		return r.canvasImage(args[1:])
 	}
@@ -172,6 +175,10 @@ func (r runner) canvasCmd(args []string) error {
 		fmt.Fprintln(r.out, canvasUsage)
 		return nil
 	case "guide":
+		if arg(0) == "motion" {
+			fmt.Fprint(r.out, agent.CanvasMotionGuide)
+			return nil
+		}
 		fmt.Fprint(r.out, agent.CanvasGuide)
 		return nil
 	case "list", "ls":

@@ -239,6 +239,9 @@ func (r runner) canvasExport(c proto.Canvas, f *canvasFlags) error {
 	if out.Wider > 0 {
 		fmt.Fprintf(r.out, "warning: the page is %d px wider than the frame, so it scrolls sideways: find what sticks out (fixed widths, rows that don't wrap, 100vw with padding, wide images) and fix it, then look again\n", out.Wider)
 	}
+	if out.Motion != nil {
+		fmt.Fprintf(r.out, "note: this design moves, and a %s catches one frame of it, at %.1f s of %.1f s; canvas frames samples it, and HTML keeps the motion\n", format, out.Motion.At/1000, out.Motion.Duration/1000)
+	}
 	return nil
 }
 
