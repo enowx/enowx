@@ -70,11 +70,11 @@ const menuFits = 24
 // MenuItemTip is a menu item with a short label and, on hover, tip: what
 // it does in full. Keep labels to a few words; say the rest in tip.
 func MenuItemTip(c *ui.Context, svg *ui.SVG, label, tip string, danger bool) bool {
-	color := theme.TextSoft
+	color := theme.Text
 	if danger {
-		color = theme.Error
+		color = theme.Del
 	}
-	b := ui.ButtonBase(c).Gap(9).PaddingX(9).Height(30).Radius(theme.RadiusControl - 1).
+	b := ui.ButtonBase(c).Gap(theme.S2).Padding(theme.S1, theme.S3).MinHeight(theme.ControlHeight).Radius(theme.RadiusFull).
 		Cursor(ui.CursorPointer).Label(label).FillWidth().Justify(ui.Start)
 	if tip != "" {
 		b.Tooltip(tip)
@@ -82,14 +82,13 @@ func MenuItemTip(c *ui.Context, svg *ui.SVG, label, tip string, danger bool) boo
 	bg := theme.Fade(theme.Selected, 0)
 	if b.Hovered() {
 		bg = theme.Selected
-		if !danger {
-			color = theme.Text
-		}
 	}
-	b.Background(tint(b, "bg", bg)).TextColor(color)
+	b.Background(QuickTint(b, "bg", bg)).TextColor(color)
 	b.Children(func() {
-		ui.Icon(c, svg).FontSize(13)
-		ui.Text(c, label).FontSize(12.5).SingleLine().Shrink(1).MinWidth(0)
+		if svg != nil {
+			ui.Icon(c, svg).FontSize(14)
+		}
+		ui.Text(c, label).FontSize(theme.TextUI).SingleLine().Shrink(1).MinWidth(0)
 	})
 	return b.Clicked()
 }
