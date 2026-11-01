@@ -93,5 +93,32 @@ func MenuItemTip(c *ui.Context, svg *ui.SVG, label, tip string, danger bool) boo
 	return b.Clicked()
 }
 
+// MenuItemSub is a menu item with a quieter line under its label.
+func MenuItemSub(c *ui.Context, svg *ui.SVG, label, sub string, danger bool) bool {
+	color := theme.Text
+	if danger {
+		color = theme.Del
+	}
+	b := ui.ButtonBase(c).Gap(theme.S2).Padding(theme.S1, theme.S3).MinHeight(theme.ControlHeight).Radius(theme.RadiusCard).
+		Cursor(ui.CursorPointer).Label(label).FillWidth().Justify(ui.Start)
+	bg := theme.Fade(theme.Selected, 0)
+	if b.Hovered() {
+		bg = theme.Selected
+	}
+	b.Background(QuickTint(b, "bg", bg)).TextColor(color)
+	b.Children(func() {
+		if svg != nil {
+			ui.Icon(c, svg).FontSize(14)
+		}
+		ui.Column(c).Grow(1).MinWidth(0).Children(func() {
+			ui.Text(c, label).FontSize(theme.TextUI).SingleLine().Shrink(1)
+			if sub != "" {
+				ui.Text(c, sub).FontSize(theme.TextLabel).TextColor(theme.TextSoft).SingleLine().Shrink(1)
+			}
+		})
+	})
+	return b.Clicked()
+}
+
 // MenuSeparator separates groups of menu items.
 func MenuSeparator(c *ui.Context) { Divider(c) }
