@@ -9,49 +9,48 @@ import (
 )
 
 // Breadcrumb shows where a view sits: muted parents, then the current
-// place. Every page and dialog starts with one.
+// place.
 func Breadcrumb(c *ui.Context, parts ...string) {
-	ui.Row(c).Gap(7).MinWidth(0).Shrink(1).Children(func() {
+	ui.Row(c).Gap(theme.S1).MinWidth(0).Shrink(1).Children(func() {
 		for i, p := range parts {
 			if i > 0 {
-				ui.Text(c, "/").FontSize(12).TextColor(theme.Idle)
+				ui.Text(c, "/").FontSize(theme.TextLabel).TextColor(theme.TextSoft)
 			}
-			t := ui.Text(c, p).FontSize(12).SingleLine().MinWidth(0)
+			t := ui.Text(c, p).FontSize(theme.TextLabel).SingleLine().MinWidth(0)
 			if i == len(parts)-1 {
 				t.TextColor(theme.Text).Shrink(1)
 			} else {
 				// The parts before the last give way first: where the view
 				// is says the most.
-				t.TextColor(theme.Muted).Shrink(20)
+				t.TextColor(theme.TextSoft).Shrink(20)
 			}
 		}
 	})
 }
 
-// Segmented is a row of mutually exclusive options; it returns the option
-// clicked, or -1. disabled options are dimmed and can't be picked.
+// Segmented is a row of mutually exclusive options, a well of capsules; it
+// returns the option clicked, or -1. disabled options are dimmed and can't
+// be picked.
 func Segmented(c *ui.Context, options []string, current int, disabled func(i int) bool) int {
 	clicked := -1
-	ui.Row(c).Shrink(0).Height(30).Padding(3).Gap(2).Radius(theme.RadiusControl+1).
-		Background(theme.Sunken).Border(1, theme.BorderStrong).Children(func() {
+	ui.Row(c).Shrink(0).Padding(theme.S1).Radius(theme.RadiusFull).Background(theme.Sunken).Children(func() {
 		for i, label := range options {
 			off := disabled != nil && disabled(i)
-			b := ui.ButtonBase(c.Key(label)).Height(22).PaddingX(12).Radius(theme.RadiusControl - 2).Label(label)
-			bg, fg := theme.Fade(theme.Selected, 0), theme.Muted
+			b := ui.ButtonBase(c.Key(label)).Height(28).PaddingX(theme.S3).Radius(theme.RadiusFull).Label(label)
+			bg, fg, weight := theme.Fade(theme.Selected, 0), theme.TextSoft, 400
 			switch {
 			case i == current:
-				bg, fg = theme.Selected, theme.Accent
-				b.InsetShadow(0, 1, 0, 0, theme.Highlight)
+				bg, fg, weight = theme.Selected, theme.TextStrong, 500
 			case off:
-				fg = theme.Idle
+				b.Opacity(0.45)
 			case b.Hovered():
-				fg = theme.Text
+				bg, fg = theme.Hover, theme.Text
 			}
 			if !off && i != current {
 				b.Cursor(ui.CursorPointer)
 			}
-			b.Background(tint(b, "bg", bg)).TextColor(tint(b, "fg", fg))
-			b.Children(func() { ui.Text(c, label).FontSize(12).SingleLine() })
+			b.Background(QuickTint(b, "bg", bg)).TextColor(QuickTint(b, "fg", fg))
+			b.Children(func() { ui.Text(c, label).FontSize(theme.TextUI).FontWeight(weight).SingleLine() })
 			if !off && i != current && b.Clicked() {
 				clicked = i
 			}
@@ -66,9 +65,9 @@ func Segmented(c *ui.Context, options []string, current int, disabled func(i int
 // only gets wider or narrower to its right, so nothing moves sideways as
 // it folds, the narrow rail being RailInset+RailItemSize+RailInset wide.
 const (
-	RailInset    = 10
-	RailItemSize = 36
-	RailIconSize = 16
+	RailInset    = 8
+	RailItemSize = 32
+	RailIconSize = 14
 	railIconPad  = (RailItemSize - RailIconSize) / 2
 )
 
@@ -93,7 +92,7 @@ func RailItem(c *ui.Context, svg *ui.SVG, label, group string, wide, on bool, st
 // RailEntry gives e the rail's entry geometry: square while narrow, the
 // rail's width while wide, its content starting where the icon goes.
 func RailEntry(e ui.Element, wide bool) ui.Element {
-	e.Height(RailItemSize).Shrink(0).PaddingX(railIconPad).Gap(10).Radius(theme.RadiusControl).
+	e.Height(RailItemSize).Shrink(0).PaddingX(railIconPad).Gap(theme.S2).Radius(theme.RadiusFull).
 		AlignItems(ui.Center).Justify(ui.Start)
 	if wide {
 		return e.FillWidth()
@@ -106,29 +105,27 @@ func railFace(c *ui.Context, b ui.Element, svg *ui.SVG, label, group string, on 
 	bg, fg := theme.Fade(theme.Hover, 0), theme.TextSoft
 	switch {
 	case on:
-		fg = theme.Accent
+		fg = theme.TextStrong
 	case b.Hovered():
 		bg, fg = theme.Hover, theme.Text
 	}
-	b.Background(tint(b, "bg", bg)).TextColor(tint(b, "fg", fg))
+	b.Background(QuickTint(b, "bg", bg)).TextColor(QuickTint(b, "fg", fg))
 	b.Children(func() {
 		if on {
-			SelectionPill(c, group, theme.RadiusControl)
+			SelectionPill(c, group, theme.RadiusFull)
 		}
 		ui.Icon(c, svg).FontSize(RailIconSize)
 		if !wide {
 			if status.A != 0 {
-				ui.Box(c).Size(10, 10).Radius(5).Background(theme.Panel).Center().
-					AttachTo(b, ui.AnchorBottomRight, ui.AnchorBottomRight).Margin(0, 3, 3, 0).Children(func() {
-					ui.Box(c).Size(6, 6).Radius(3).Background(status)
-				})
+				ui.Box(c).Size(8, 8).Radius(theme.RadiusFull).Background(status).
+					AttachTo(b, ui.AnchorBottomRight, ui.AnchorBottomRight).Margin(0, 2, 2, 0)
 			}
 			return
 		}
-		ui.Text(c, label).FontSize(12.5).SingleLine().Shrink(1)
+		ui.Text(c, label).FontSize(theme.TextUI).SingleLine().Shrink(1)
 		ui.Spacer(c)
 		if status.A != 0 {
-			ui.Box(c).Size(6, 6).Radius(3).Background(status).Shrink(0)
+			ui.Box(c).Size(8, 8).Radius(theme.RadiusFull).Background(status).Shrink(0)
 		}
 	})
 	return Pressable(b)
@@ -139,42 +136,42 @@ func railFace(c *ui.Context, b ui.Element, svg *ui.SVG, label, group string, on 
 // wide, which fades in, and a short hairline under the icons while narrow,
 // both starting where the icons do.
 func RailSection(c *ui.Context, label string, wide bool) {
-	ui.Row(c).Height(26).FillWidth().Shrink(0).AlignItems(ui.End).
-		Padding(0, railIconPad, 6, railIconPad).Children(func() {
+	ui.Row(c).Height(32).FillWidth().Shrink(0).AlignItems(ui.End).
+		Padding(0, theme.S3, theme.S1, theme.S3).Children(func() {
 		if wide {
-			SectionLabel(c.Key("label"), label, theme.Muted).
+			SectionLabel(c.Key("label"), label, theme.TextSoft).
 				Transition(ui.ElementTransition{Duration: 260 * time.Millisecond, Ease: Out, Enter: &ui.Motion{X: -6, Opacity: 0}})
 			return
 		}
-		ui.Box(c.Key("line")).Size(RailIconSize, 1).Margin(0, 0, 4, 0).Background(theme.BorderStrong)
+		ui.Box(c.Key("line")).Size(RailIconSize, 0.5).Margin(0, 0, 4, 0).Background(theme.Border)
 	})
 }
 
-// SectionLabel is the small spaced capitals over a group.
+// SectionLabel is the small label over a group.
 func SectionLabel(c *ui.Context, label string, col ui.Color) ui.Element {
-	return ui.Text(c, label).FontSize(10).TextColor(col).SingleLine()
+	return ui.Text(c, label).FontSize(theme.TextLabel).FontWeight(500).TextColor(col).SingleLine()
 }
 
 // ListRow styles a clickable row of a list and fills it with fn: hovered,
 // or selected with the pill of group, which slides from row to row.
 func ListRow(c *ui.Context, row ui.Element, selected bool, group string, fn func()) ui.Element {
-	row.FillWidth().Padding(7, 10).Gap(10).Radius(theme.RadiusControl + 2).Cursor(ui.CursorPointer)
+	row.FillWidth().MinHeight(36).Padding(theme.S1, theme.S3).Gap(theme.S2).Radius(theme.RadiusCard).Cursor(ui.CursorPointer)
 	bg := theme.Fade(theme.Hover, 0)
 	if !selected && row.Hovered() {
 		bg = theme.Hover
 	}
-	row.Background(tint(row, "bg", bg)).Children(func() {
+	row.Background(QuickTint(row, "bg", bg)).Children(func() {
 		if selected {
-			SelectionPill(c, group, theme.RadiusControl+2)
+			SelectionPill(c, group, theme.RadiusCard)
 		}
 		fn()
 	})
 	return row
 }
 
-// Avatar is the tile of an agent or host: an icon on a raised square.
+// Avatar is the tile of an agent or host: an icon on a round well.
 func Avatar(c *ui.Context, svg *ui.SVG, size float32, col ui.Color) {
-	ui.Box(c).Size(size, size).Shrink(0).Radius(size/3.2).Background(theme.Selected).Border(1, theme.Border).
+	ui.Box(c).Size(size, size).Shrink(0).Radius(theme.RadiusFull).Background(theme.Sunken).
 		Center().TextColor(col).Children(func() {
 		ui.Icon(c, svg).FontSize(size * 0.55)
 	})
