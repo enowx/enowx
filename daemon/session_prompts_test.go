@@ -1,9 +1,13 @@
 package daemon
 
 import (
+	"os"
+	"path/filepath"
 	"runtime"
+	"slices"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/enowx/enowx/core/session"
 	"github.com/enowx/enowx/proto"
@@ -55,4 +59,86 @@ func TestGOATold(t *testing.T) {
 		t.Fatal(err)
 	}
 	waitScreen(t, c, g.ID(), "no longer shows")
+}
+
+// What a session and its task show is what its agent's transcript says, each
+// change kept on the task; stopped, the session shows it as the last.
+func TestSessionModelFollowsItsTranscript(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("uses sh")
+	}
+	home := t.TempDir()
+	t.Setenv("HOME", home)
+	t.Setenv("CLAUDE_CONFIG_DIR", "")
+	bin := t.TempDir()
+	script := `#!/bin/sh
+dir="$HOME/.claude/projects/$(pwd | sed 's/[^A-Za-z0-9]/-/g')"
+mkdir -p "$dir"
+say() { echo "{\"type\":\"assistant\",\"effort\":\"$2\",\"message\":{\"role\":\"assistant\",\"model\":\"$1\",\"content\":[{\"type\":\"text\",\"text\":\"ok\"}]}}" >> "$dir/s.jsonl"; }
+while read -r line; do [ -n "$line" ] && say $line; done
+`
+	if err := os.WriteFile(filepath.Join(bin, "claude"), []byte(script), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv("PATH", bin+string(os.PathListSeparator)+os.Getenv("PATH"))
+	srv := startServer(t)
+	c := connect(t, srv, nil)
+	project := gitRepo(t)
+	if _, err := c.AddProject(project); err != nil {
+		t.Fatal(err)
+	}
+	var task proto.GOATask
+	if err := c.Call(proto.MethodGOADelegate, proto.GOADelegateParams{Agent: "claude", Project: project, Branch: "", Prompt: "begin", NoRoute: true}, &task); err != nil {
+		t.Fatal(err)
+	}
+	sess, err := srv.sessions.Get(task.Session)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := srv.sessions.SetState(sess, proto.StateWorking); err != nil {
+		t.Fatal(err)
+	}
+	info := func() proto.SessionInfo { return sess.Info() }
+	ran := func() []string {
+		for _, x := range goaBoardOf(t, c).Tasks {
+			if x.ID == task.ID {
+				return x.Ran
+			}
+		}
+		return nil
+	}
+	waitForLong := func(what string, ok func() bool) {
+		t.Helper()
+		for deadline := time.Now().Add(30 * time.Second); !ok(); time.Sleep(100 * time.Millisecond) {
+			if time.Now().After(deadline) {
+				t.Fatalf("%s: session %+v, task ran %v", what, info().Model, ran())
+			}
+		}
+	}
+	if err := c.Input(task.Session, "model-a low", false, true); err != nil {
+		t.Fatal(err)
+	}
+	waitForLong("the first model", func() bool { return info().Model == "model-a" && info().Effort == "low" })
+	// As /model, a switch, a fallback or a config make it answer on another.
+	if err := c.Input(task.Session, "model-b high", false, true); err != nil {
+		t.Fatal(err)
+	}
+	waitForLong("the change", func() bool { return info().Model == "model-b" && info().Effort == "high" })
+	waitForLong("the task keeping both", func() bool {
+		return slices.Equal(ran(), []string{"model-a · low", "model-b · high"})
+	})
+	if err := srv.sessions.SetState(sess, proto.StateDone); err != nil {
+		t.Fatal(err)
+	}
+	res, err := c.HibernateSessions(proto.SessionHibernateParams{IDs: []string{task.Session}})
+	if err != nil || len(res.Hibernated) != 1 {
+		t.Fatalf("hibernating: %+v %v", res, err)
+	}
+	stopped, err := srv.sessions.Get(task.Session)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := stopped.Info(); got.Model != "model-b" || !got.ModelLast {
+		t.Fatalf("stopped: %q last %v", got.Model, got.ModelLast)
+	}
 }
