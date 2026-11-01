@@ -20,7 +20,7 @@ import (
 	"github.com/enowx/enowx/ui/widget"
 )
 
-// A device's screen shows in the tool: its host sends it as scrcpy's
+// A device's screen shows in a center tab: its host sends it as scrcpy's
 // video (android.mirror), a loopback server of the app hands it to a web
 // view, whose page decodes it with WebCodecs and sends touches and keys
 // back. Pop out opens it in scrcpy's own window instead.
@@ -73,7 +73,7 @@ func (v *View) openScreen(o Options, d device) {
 		return
 	}
 	s := &screen{key: d.key(), label: d.label(), serial: d.dev.Serial, host: d.host, tv: d.dev.TV}
-	v.screen, v.pane = s, paneScreen
+	v.screen = s
 	v.act(o, "Showing "+d.label()+"'s screen…", func() error {
 		t, err := d.host.Client.AndroidMirror(proto.AndroidMirrorParams{Serial: s.serial, MaxSize: 1280})
 		if err != nil {
@@ -185,61 +185,70 @@ func copyFlushing(w http.ResponseWriter, r io.Reader) {
 	}
 }
 
-// screenPane is the Screen pane: the picked device's screen, or what
-// shows it.
-func (v *View) screenPane(c *ui.Context, o Options) {
+// DrawScreen is the picked device's screen, in the center, or what shows it; its
+// bar holds the device's buttons.
+func (v *View) DrawScreen(c *ui.Context, o Options, wanted func() bool) {
+	v.follow(o, wanted)
 	d, ok := v.pickedDevice(o)
-	if ok && v.screen != nil && v.screen.key == d.key() {
-		v.screenView(c, o, d)
-		return
-	}
-	ui.Column(c).Grow(1).FillWidth().Center().Gap(10).Padding(24).Children(func() {
-		if !ok || d.dev.State != "device" {
-			ui.Text(c, "The device's screen shows here once it runs.").FontSize(theme.TextLabel).TextColor(theme.Muted)
-			return
+	ui.Column(c).Grow(1).FillWidth().MinHeight(0).Children(func() {
+		title := "Screen"
+		if ok {
+			title = d.label() + " · screen"
 		}
-		ui.Text(c, "Use "+d.label()+" from here: touch, type, its buttons.").FontSize(theme.TextLabel).TextColor(theme.Muted).TextAlign(ui.Center)
-		if widget.PrimaryButton(c, icon.AppWindow, "Show its screen", "").Disabled(v.busy != "").Clicked() {
-			v.openScreen(o, d)
-		}
+		widget.ViewerBar(c, icon.Android, title, func() { v.screenKeys(c, o) })
+		v.noticeBanner(c)
+		ui.Column(c).Grow(1).FillWidth().MinHeight(0).Background(widget.CodeGround).Children(func() {
+			switch {
+			case ok && v.screen != nil && v.screen.key == d.key():
+				v.screenView(c, o, d)
+			case !ok || d.dev.State != "device":
+				groundNote(c, "The device's screen shows here once it runs.")
+			default:
+				ui.Column(c).Grow(1).FillWidth().Center().Gap(theme.S3).Padding(theme.S5).Children(func() {
+					ui.Text(c, "Use "+d.label()+" from here: touch, type, its buttons.").FontSize(theme.TextUI).TextColor(widget.CodeDim).TextAlign(ui.Center)
+					if widget.PrimaryButton(c, nil, "Show its screen", "").Disabled(v.busy != "").Clicked() {
+						v.openScreen(o, d)
+					}
+				})
+			}
+		})
 	})
 }
 
-// screenView is the screen shown, with the device's buttons under it.
+// screenView is the screen shown, in the device's shape: as big as the room
+// lets it be, which the frame never outgrows; the page keeps the shape inside,
+// black around.
 func (v *View) screenView(c *ui.Context, o Options, d device) {
 	s := v.screen
 	_, winH := c.Size()
-	ui.Column(c).Grow(1).FillWidth().MinHeight(0).Padding(8, 12, 12, 12).Children(func() {
-		// As tall as what is left of the pane, and as wide as the device's
-		// shape makes it at about that height: the page keeps the shape
-		// inside, black around.
-		h := max(240, winH-360)
-		aspect := float32(9) / 19.5
-		if s.width > 0 && s.height > 0 {
-			aspect = float32(s.width) / float32(s.height)
-		}
-		landscape := aspect > 1 // a TV's, a tablet turned: as wide as the pane
-		row := ui.Row(c).FillWidth().MinHeight(0).Justify(ui.Center)
-		if !landscape {
-			row.Grow(1)
-		}
-		row.Children(func() {
-			box := ui.Column(c).Shrink(1).MinWidth(0).MinHeight(0).Center().Radius(theme.RadiusCard).Background(ui.RGBA(0, 0, 0, 1))
-			if landscape {
-				box.FillWidth().AspectRatio(aspect)
-			} else {
-				box.Width(h * aspect).FillHeight()
+	room := ui.Column(c).Grow(1).FillWidth().MinHeight(0).Padding(theme.S3).Gap(theme.S2).Center().Clip()
+	bounds := room.LayoutBounds()
+	h := max(240, bounds.H-2*theme.S3)
+	if bounds.H == 0 {
+		h = max(240, winH-360) // the first frame, before the room is known
+	}
+	if s.tv {
+		h -= theme.ControlHeight + theme.S4 + theme.S2 // the remote under it
+	}
+	w := h * 9 / 19.5
+	if s.width > 0 && s.height > 0 {
+		w = h * float32(s.width) / float32(s.height)
+	}
+	if bounds.W > 0 && w > bounds.W-2*theme.S3 {
+		h *= (bounds.W - 2*theme.S3) / w
+		w = bounds.W - 2*theme.S3
+	}
+	room.Children(func() {
+		ui.Column(c).Size(w, h).Shrink(0).Padding(theme.S2).Center().Radius(theme.RadiusPanel).Background(ui.Hex("#090A10")).
+			InsetShadow(0, 0, 0, 0.5, ui.RGBA(255, 255, 255, 0.2)).Children(func() {
+			switch {
+			case s.err != "":
+				ui.Text(c, s.err).FontSize(theme.TextUI).TextColor(widget.CodeDim).TextAlign(ui.Center).Padding(theme.S4)
+			case s.view != nil:
+				s.view.Show(c).FillWidth().FillHeight()
+			default:
+				ui.Text(c, "Connecting to the device…").FontSize(theme.TextUI).TextColor(widget.CodeDim).TextAlign(ui.Center)
 			}
-			box.Children(func() {
-				switch {
-				case s.err != "":
-					ui.Text(c, s.err).FontSize(theme.TextLabel).TextColor(ui.RGBA(170, 170, 170, 1)).TextAlign(ui.Center).Padding(16)
-				case s.view != nil:
-					s.view.Show(c).FillWidth().FillHeight()
-				default:
-					ui.Text(c, "Connecting to the device…").FontSize(theme.TextLabel).TextColor(ui.RGBA(170, 170, 170, 1))
-				}
-			})
 		})
 		if s.tv {
 			v.remote(c, s)
@@ -255,7 +264,7 @@ func (v *View) remote(c *ui.Context, s *screen) {
 			go s.host.Client.AndroidMirrorInput(proto.AndroidMirrorInput{Serial: s.serial, Kind: "key", Key: code})
 		}
 	}
-	ui.Row(c).FillWidth().Shrink(0).Padding(10, 0, 0, 0).Gap(4).Justify(ui.Center).AlignItems(ui.Center).Children(func() {
+	ui.Row(c).Shrink(0).Padding(theme.S1, theme.S2).Gap(theme.S1).Radius(theme.RadiusFull).Background(theme.Panel).AlignItems(ui.Center).Children(func() {
 		key(icon.ArrowLeft, "Left", android.KeyLeft)
 		key(icon.ArrowUp, "Up", android.KeyUp)
 		if widget.Button(c, widget.Secondary, nil, "OK", "").Tooltip("The remote's OK (Enter)").Clicked() {
@@ -263,13 +272,13 @@ func (v *View) remote(c *ui.Context, s *screen) {
 		}
 		key(icon.ArrowDown, "Down", android.KeyDown)
 		key(icon.ArrowRight, "Right", android.KeyRight)
-		ui.Box(c).Width(1).Height(18).Background(theme.Border).Margin(0, 4)
+		ui.Box(c).Width(1).Height(18).Background(theme.Border)
 		key(icon.List, "Menu", android.KeyMenu)
 	})
 }
 
-// screenKeys are the device's buttons, beside the tabs while its screen
-// shows: always in view, whatever the panel's height.
+// screenKeys are the device's buttons, in the viewer's bar while its screen
+// shows: always in view, whatever the height.
 func (v *View) screenKeys(c *ui.Context, o Options) {
 	s := v.screen
 	d, ok := v.pickedDevice(o)
@@ -287,7 +296,7 @@ func (v *View) screenKeys(c *ui.Context, o Options) {
 	key(icon.VolumeDown, "Volume down", android.KeyVolumeDown)
 	key(icon.VolumeUp, "Volume up", android.KeyVolumeUp)
 	key(icon.Power, "Power", android.KeyPower)
-	ui.Box(c).Width(1).Height(18).Background(theme.Border).Margin(0, 2)
+	ui.Box(c).Width(1).Height(18).Shrink(0).Background(theme.Border)
 	if widget.IconButton(c, icon.External, "Pop out: scrcpy's window, at full speed", false).Clicked() {
 		s.close()
 		v.screen = nil
