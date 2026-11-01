@@ -30,64 +30,113 @@ func (a *App) applyTheme() {
 	}
 }
 
-// appearancePage picks the palette and, optionally, an accent of the
-// user's own.
+// appearancePage picks the palette, the mode and, optionally, an accent of the
+// user's own, beside how they look together.
 func (a *App) appearancePage(c *ui.Context) {
-	a.viewHeader(c, func() {
-		ui.Row(c).Grow(1).MinWidth(0).Children(func() { widget.Breadcrumb(c, "Settings", "Appearance") })
-		if widget.IconButton(c, icon.Close, "Back to sessions", false).Clicked() {
-			a.page = ""
-		}
-	})
-	ui.Scroll(c).Grow(1).FillWidth().Children(func() {
-		ui.Column(c).FillWidth().Padding(20).Gap(14).Children(func() {
-			a.appearanceMode(c)
-			widget.SectionLabel(c, "THEME", theme.Muted)
-			widget.FitGrid(c, 260, 4).Gap(12).Children(func() {
-				for _, preset := range theme.Palettes {
-					p := theme.LookupAppearance(preset.ID, ui.Color{}, a.lightAppearance())
-					if a.paletteCard(c.Key(p.ID), p) {
-						a.state.Theme = p.ID
-						if p.ID == theme.Default.ID {
-							a.state.Theme = ""
-						}
-						a.applyTheme()
-					}
-				}
+	widget.PageHeader(c, "Appearance", "On this device", nil)
+	body := ui.Scroll(c.Key("appearance-body")).Grow(1).FillWidth().MinHeight(0)
+	room := body.Bounds().H
+	body.Children(func() {
+		ui.Row(c).FillWidth().MinHeight(room).Padding(theme.S4, theme.S5, theme.S5, theme.S5).Gap(theme.S4).AlignItems(ui.Stretch).Children(func() {
+			ui.Column(c).Grow(7).Basis(0).MinWidth(0).Gap(theme.S4).Children(func() {
+				a.themePicker(c)
+				ui.Grid(c).FillWidth().Grow(1).Columns(2).Gap(theme.S3).AlignItems(ui.Stretch).Children(func() {
+					widget.Card(c).Children(func() { a.appearanceMode(c) })
+					widget.Card(c).Children(func() { a.accentPicker(c) })
+				})
 			})
-
-			widget.SectionLabel(c, "ACCENT", theme.Muted).Margin(14, 0, 0, 0)
-			ui.Text(c, "Give any theme an accent of your own: its buttons, selection and focus take it.").
-				FontSize(12).TextColor(theme.Muted)
-			ui.Row(c).FillWidth().Gap(10).Children(func() {
-				own := a.state.Accent == ""
-				if a.swatch(c.Key("default"), theme.LookupAppearance(a.state.Theme, ui.Color{}, a.lightAppearance()).Accent, own, "Theme's own") {
-					a.setAccent("")
-				}
-				ui.Box(c).Width(1).Height(24).Background(theme.Border).Margin(0, 4)
-				for _, col := range theme.Accents {
-					hex := theme.Hex(col)
-					if a.swatch(c.Key(hex), col, strings.EqualFold(a.state.Accent, hex), hex) {
-						a.setAccent(hex)
-					}
-				}
-			})
-			ui.Row(c).Gap(10).Children(func() {
-				ui.Text(c, "Custom").FontSize(theme.TextLabel).TextColor(theme.TextSoft)
-				in := widget.Input(c, &a.accentInput, "#D8C3A0").Width(130).Font(theme.MonoFont)
-				if in.Changed() {
-					if hex, ok := parseAccent(a.accentInput); ok {
-						a.setAccent(hex)
-					}
-				}
-				if a.accentInput != "" {
-					if _, ok := parseAccent(a.accentInput); !ok {
-						ui.Text(c, "Type a color as #RRGGBB.").FontSize(theme.TextLabel).TextColor(theme.Warning)
-					}
-				}
-			})
+			widget.Card(c).Grow(5).Basis(0).Children(func() { a.themePreview(c) })
 		})
 	})
+}
+
+// themePicker is the palettes, each in its own colors whatever the current one.
+func (a *App) themePicker(c *ui.Context) {
+	ui.Column(c).FillWidth().Gap(theme.S2).Children(func() {
+		ui.Text(c, "Theme").FontSize(theme.TextUI).FontWeight(500)
+		ui.Grid(c).FillWidth().Columns(len(theme.Palettes)).Gap(theme.S3).Children(func() {
+			for _, preset := range theme.Palettes {
+				p := theme.LookupAppearance(preset.ID, ui.Color{}, a.lightAppearance())
+				if a.paletteCard(c.Key(p.ID), p) {
+					a.state.Theme = p.ID
+					if p.ID == theme.Default.ID {
+						a.state.Theme = ""
+					}
+					a.applyTheme()
+				}
+			}
+		})
+	})
+}
+
+// accentPicker is the accent: the theme's own, one of the app's, or one typed.
+func (a *App) accentPicker(c *ui.Context) {
+	widget.CardTitle(c, nil, "Accent", nil)
+	ui.Text(c, "Give any theme an accent of your own: its buttons, selection and focus take it.").
+		FontSize(theme.TextLabel).TextColor(theme.TextSoft)
+	ui.Row(c).FillWidth().Wrap().Gap(theme.S2).Children(func() {
+		var mark *ui.SVG
+		if a.state.Accent == "" {
+			mark = icon.Check
+		}
+		if widget.Button(c.Key("default"), widget.Secondary, mark, "Theme's own", "").Clicked() {
+			a.setAccent("")
+		}
+		for _, col := range theme.Accents {
+			hex := theme.Hex(col)
+			if a.swatch(c.Key(hex), col, strings.EqualFold(a.state.Accent, hex), hex) {
+				a.setAccent(hex)
+			}
+		}
+	})
+	widget.Field(c, "Custom", func() {
+		in := widget.Input(c, &a.accentInput, "#RRGGBB").FillWidth().Font(theme.MonoFont).Label("Custom accent")
+		if in.Changed() {
+			if hex, ok := parseAccent(a.accentInput); ok {
+				a.setAccent(hex)
+			}
+		}
+		col := theme.TextSoft
+		if a.accentInput != "" {
+			if _, ok := parseAccent(a.accentInput); !ok {
+				col = theme.Warning
+			}
+		}
+		ui.Text(c, "Type a color as #RRGGBB.").FontSize(theme.TextLabel).TextColor(col)
+	})
+}
+
+// themePreview shows the theme on the controls and states the app is made of.
+// Nothing in it does anything: it is there to be looked at.
+func (a *App) themePreview(c *ui.Context) {
+	widget.CardTitle(c, nil, "With this theme", nil)
+	ui.Row(c).FillWidth().Wrap().Gap(theme.S2).Children(func() {
+		widget.PrimaryButton(c, nil, "Primary", "")
+		widget.Button(c, widget.Secondary, nil, "Secondary", "")
+		on := true
+		widget.Switch(c, &on, "A switch")
+		widget.Segmented(c.Key("sample"), []string{"Selected", "Not selected"}, 0, nil)
+	})
+	ui.Column(c).FillWidth().Children(func() {
+		for i, s := range []struct {
+			name, state string
+			col         ui.Color
+		}{
+			{"GOA session tabs", "Working", theme.Working},
+			{"Host keys to the vault", "Waiting on you", theme.Warning},
+			{"Dialog footers", "Failed", theme.Error},
+		} {
+			row := ui.Row(c.Key(s.name)).FillWidth().MinHeight(32).Gap(theme.S2)
+			if i > 0 {
+				row.BorderWidth(0.5, 0, 0, 0).BorderColor(theme.Border)
+			}
+			row.Children(func() {
+				ui.Text(c, s.name).FontSize(theme.TextLabel).Grow(1).MinWidth(0).SingleLine()
+				widget.Legend(c, s.col, s.state)
+			})
+		}
+	})
+	widget.CodeBlockText(c, "$ go test ./ui\nok  github.com/enowx/enowx/ui  6.1s").Grow(1).Clip()
 }
 
 func (a *App) setAccent(hex string) {
@@ -104,56 +153,26 @@ func parseAccent(s string) (string, bool) {
 	return "#" + strings.ToUpper(s), true
 }
 
-// paletteCard previews a palette with its own colors, whatever the
-// current one; it reports whether it was clicked.
+// paletteCard is a palette's ground and accent, and its name; it reports whether
+// it was clicked.
 func (a *App) paletteCard(c *ui.Context, p theme.Palette) bool {
 	on := theme.Lookup(a.state.Theme, ui.Color{}).ID == p.ID
-	card := ui.ButtonBase(c).MinWidth(0).Padding(10).Gap(10).Radius(theme.RadiusCard).Cursor(ui.CursorPointer).Label(p.Name).
-		Background(theme.Raised)
+	card := ui.ButtonBase(c).MinWidth(0).Padding(theme.S2).Radius(theme.RadiusCard).Cursor(ui.CursorPointer)
 	switch {
 	case on:
-		card.Border(1, theme.AccentLine)
+		card.Background(theme.Sunken).InsetShadow(0, 0, 0, 2, theme.Text)
 	case card.Hovered():
-		card.Border(1, theme.BorderStrong)
+		card.Background(theme.Hover)
 	default:
-		card.Border(1, theme.Border)
+		card.Background(theme.Sunken)
 	}
 	card.Children(func() {
-		ui.Column(c).FillWidth().Children(func() {
-			ui.Row(c).FillWidth().Height(74).Radius(theme.RadiusSmall).Clip().Background(p.Background).Border(1, p.Border).Children(func() {
-				ui.Column(c).Width(18).FillHeight().Background(p.Panel).Padding(5, 0).Gap(4).AlignItems(ui.Center).Children(func() {
-					ui.Box(c).Size(9, 9).Radius(theme.RadiusTail).Background(p.Selected).Border(1, p.Accent)
-					ui.Box(c).Size(9, 9).Radius(theme.RadiusTail).Background(p.Selected)
-				})
-				ui.Column(c).Width(50).FillHeight().Background(p.Panel).Padding(6).Gap(4).
-					BorderWidth(0, 1, 0, 1).BorderColor(p.Border).Children(func() {
-					for i, col := range []ui.Color{p.Working, p.Warning, p.Idle} {
-						row := ui.Row(c.Key(i)).FillWidth().Height(10).Radius(theme.RadiusTail).Gap(3).PaddingX(3)
-						if i == 0 {
-							row.Background(p.Selected)
-						}
-						row.Children(func() {
-							ui.Box(c).Size(4, 4).Radius(theme.RadiusTail).Background(col)
-							ui.Box(c).Height(2).Grow(1).Radius(theme.RadiusTail).Background(p.Muted)
-						})
-					}
-				})
-				ui.Column(c).Grow(1).FillHeight().Padding(7).Gap(4).Children(func() {
-					ui.Box(c).Height(2).Width(44).Radius(theme.RadiusTail).Background(p.TextSoft)
-					ui.Box(c).Height(2).Width(30).Radius(theme.RadiusTail).Background(p.Muted)
-					ui.Spacer(c)
-					ui.Row(c).Gap(4).Children(func() {
-						ui.Box(c).Size(30, 10).Radius(theme.RadiusTail).Background(p.Accent)
-						ui.Box(c).Size(22, 10).Radius(theme.RadiusTail).Border(1, p.BorderStrong)
-					})
-				})
+		ui.Column(c).FillWidth().MinWidth(0).Gap(theme.S2).Children(func() {
+			ui.Row(c).FillWidth().Height(56).Radius(theme.S3).Clip().Children(func() {
+				ui.Box(c).Grow(2).Basis(0).FillHeight().Background(p.Background)
+				ui.Box(c).Grow(1).Basis(0).FillHeight().Background(p.Accent)
 			})
-		})
-		ui.Row(c).FillWidth().Gap(8).Children(func() {
-			ui.Text(c, p.Name).FontSize(theme.TextUI).Grow(1).SingleLine()
-			if on {
-				ui.Icon(c, icon.Check).FontSize(13).TextColor(theme.Accent)
-			}
+			widget.Running(c, p.Name, widget.RunStyle{Size: theme.TextLabel})
 		})
 	})
 	return card.Clicked()
@@ -161,18 +180,14 @@ func (a *App) paletteCard(c *ui.Context, p theme.Palette) bool {
 
 // swatch is one accent to pick; it reports whether it was clicked.
 func (a *App) swatch(c *ui.Context, col ui.Color, on bool, label string) bool {
-	b := ui.ButtonBase(c).Size(30, 30).Radius(theme.RadiusCard).Center().Shrink(0).Cursor(ui.CursorPointer).Label(label).Tooltip(label)
-	if theme.Current().Light {
-		b.Border(1, theme.BorderStrong)
-	}
+	b := ui.ButtonBase(c).Size(32, 32).Radius(theme.RadiusFull).Shrink(0).Cursor(ui.CursorPointer).Label(label).Tooltip(label).Background(col)
 	switch {
 	case on:
-		b.Border(1.5, theme.Text)
+		b.InsetShadow(0, 0, 0, 2, theme.Text)
 	case b.Hovered():
-		b.Border(1.5, theme.BorderStrong)
+		b.InsetShadow(0, 0, 0, 2, theme.TextSoft)
+	default:
+		b.InsetShadow(0, 0, 0, 0.5, theme.Border)
 	}
-	b.Children(func() {
-		ui.Box(c).Size(22, 22).Radius(theme.RadiusSmall).Background(col).InsetShadow(0, 1, 0, 0, ui.RGBA(255, 255, 255, 0.3))
-	})
 	return b.Clicked()
 }
