@@ -1,7 +1,7 @@
-// Package browserview is the side panel's Browser tool: what a session's
-// dev server serves, in a web view of this device, with back, forward,
-// reload, the address, a pick of the session's ports, DevTools, and a
-// screenshot to hand the agent. On a server, the app forwards the port
+// Package browserview is the Browser tool: in the side panel the pages a
+// session has, and in a center tab what its dev server serves, in a web view
+// of this device, with back, forward, reload, the address, a pick of the
+// session's ports, DevTools, and a screenshot to hand the agent. On a server, the app forwards the port
 // here first, so only HTTP and WebSocket traffic (hot reload) crosses the
 // connection. See docs/plans/preview.md.
 package browserview
@@ -52,6 +52,10 @@ type Options struct {
 	// reports whether the view still shows, else its poller stops.
 	Update func(func())
 	Wanted func() bool
+	// OpenTab brings the page's center tab to the front; Shown reports whether
+	// it is there.
+	OpenTab func()
+	Shown   func() bool
 	// Supported says this device has a web view; without, the view offers
 	// the browser.
 	Supported bool
@@ -128,6 +132,8 @@ type View struct {
 	started bool // Options.Port and Path were taken
 	width   int  // the page's width, as a device's; 0 fits the room
 	sizes   widget.ContextMenu
+	portsAt widget.ContextMenu
+	more    widget.ContextMenu
 	picking context.CancelFunc // stops picking an element; nil when not
 }
 
@@ -135,7 +141,7 @@ type View struct {
 var widths = []struct {
 	width int
 	name  string
-}{{0, "Fit"}, {1280, "Laptop · 1280"}, {768, "Tablet · 768"}, {390, "Phone · 390"}}
+}{{0, "Fill the tab"}, {1280, "Desktop, 1280"}, {768, "Tablet, 768"}, {390, "Phone, 390"}}
 
 // New returns a view with nothing open.
 func New() *View { return &View{poke: make(chan struct{}, 1)} }

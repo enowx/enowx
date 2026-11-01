@@ -68,7 +68,11 @@ func TestBrowserFollowsTheSessionsDevServer(t *testing.T) {
 	}
 
 	// Another port, picked.
-	if err := tt.Click(":8080 go"); err != nil {
+	if err := tt.Click("Ports"); err != nil {
+		t.Fatal(err)
+	}
+	tt.Frame()
+	if err := tt.Click("localhost:8080 · go"); err != nil {
 		t.Fatal(err)
 	}
 	tt.Frame()
@@ -88,6 +92,10 @@ func TestBrowserFollowsTheSessionsDevServer(t *testing.T) {
 		t.Fatalf("reloads = %d", page.reloads)
 	}
 
+	if err := tt.Click("More for the page"); err != nil {
+		t.Fatal(err)
+	}
+	tt.Frame()
 	if err := tt.Click("DevTools"); err != nil {
 		t.Fatal(err)
 	}
@@ -132,11 +140,11 @@ func TestPageWidthsAsDevices(t *testing.T) {
 	v.setPorts(o, []proto.Port{{Port: 5173}})
 	tt := ui.NewTester(func(c *ui.Context) { v.Draw(c, o) }, 900, 500)
 	tt.Frame()
-	if err := tt.Click("Page width: Fit"); err != nil {
+	if err := tt.Click("Page width: Fill the tab"); err != nil {
 		t.Fatal(err)
 	}
 	tt.Frame()
-	if err := tt.Click("Phone · 390"); err != nil {
+	if err := tt.Click("Phone, 390"); err != nil {
 		t.Fatal(err)
 	}
 	tt.Frame()
@@ -213,7 +221,7 @@ func TestPageToCanvasButton(t *testing.T) {
 	v.setPorts(o, []proto.Port{{Port: 5173}})
 	tt := ui.NewTester(func(c *ui.Context) { v.Draw(c, o) }, 1000, 600)
 	tt.Frame()
-	if err := tt.Click("Put this page on a canvas, as a design to compare others with"); err != nil {
+	if err := tt.Click("Put on a canvas"); err != nil {
 		t.Fatalf("%v: %q", err, tt.Texts())
 	}
 	tt.Frame()
@@ -224,5 +232,72 @@ func TestPageToCanvasButton(t *testing.T) {
 		}
 	case <-time.After(5 * time.Second):
 		t.Fatal("nothing put on a canvas")
+	}
+}
+
+// The panel lists pages and places no web view: the center's tab does, and a
+// page clicked goes there.
+func TestPagesListOpensInTheTab(t *testing.T) {
+	page := &fakePage{}
+	o := options(page, new(string))
+	opened := 0
+	o.OpenTab = func() { opened++ }
+	v := New()
+	tt := ui.NewTester(func(c *ui.Context) { v.DrawPages(c, o) }, 320, 500)
+	tt.Frame()
+	if !tt.HasText("Looking for the session's dev server…") {
+		t.Fatalf("not read yet: %q", tt.Texts())
+	}
+
+	v.loaded = true
+	tt.Frame()
+	if !tt.HasText("Waiting for a dev server: start one in the session (npm run dev, say) and it shows here.") || page.url != "" {
+		t.Fatalf("no dev server: url %q, %q", page.url, tt.Texts())
+	}
+	if err := tt.Click("Open a page"); err != nil {
+		t.Fatal(err)
+	}
+	if opened != 1 {
+		t.Fatal("no tab for a page without a dev server")
+	}
+
+	v.setPorts(o, []proto.Port{{Port: 5173, Process: "node"}, {Port: 8080, Process: "go"}})
+	tt.Frame()
+	for _, want := range []string{"Pages", "Open in a tab", "localhost:5173", "node", "localhost:8080", "go"} {
+		if !tt.HasText(want) {
+			t.Errorf("no %q in %q", want, tt.Texts())
+		}
+	}
+	if tt.HasText("page http://localhost:5173/") {
+		t.Fatal("the panel placed the web view")
+	}
+	reloadsBefore := page.url
+	if err := tt.Click("localhost:5173"); err != nil {
+		t.Fatal(err)
+	}
+	if opened != 2 || page.url != reloadsBefore {
+		t.Fatalf("the page shown: tabs %d, url %q", opened, page.url)
+	}
+	if err := tt.Click("localhost:8080"); err != nil {
+		t.Fatal(err)
+	}
+	if opened != 3 || page.url != "http://localhost:8080/" {
+		t.Fatalf("another page: tabs %d, url %q", opened, page.url)
+	}
+
+	// Its server stops: the page stays listed, to come back.
+	v.setPorts(o, []proto.Port{{Port: 5173, Process: "node"}})
+	tt.Frame()
+	if !tt.HasText("localhost:8080") || !tt.HasText("Stopped: the page comes back when it does") {
+		t.Fatalf("stopped: %q", tt.Texts())
+	}
+
+	// A site an agent went to shows first.
+	v.setPorts(o, []proto.Port{{Port: 5173, Process: "node"}, {Port: 8080, Process: "go"}})
+	v.address = "example.com"
+	v.navigate(o)
+	tt.Frame()
+	if !tt.HasText("example.com") || !tt.HasText("Another site") {
+		t.Fatalf("another site: %q", tt.Texts())
 	}
 }

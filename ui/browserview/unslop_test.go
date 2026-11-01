@@ -20,7 +20,7 @@ func TestUnslopInTheBrowser(t *testing.T) {
 	v.setPorts(o, []proto.Port{{Port: 5173}})
 	tt := ui.NewTester(func(c *ui.Context) { v.Draw(c, o) }, 1000, 600)
 	tt.Frame()
-	if err := tt.Click("Unslop: find what makes this page look AI-made, and have the session's agent fix it in the code, pass by pass"); err != nil {
+	if err := tt.Click("Unslop"); err != nil {
 		t.Fatal(err)
 	}
 	tt.Frame()
