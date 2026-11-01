@@ -91,6 +91,15 @@ func (s *Server) goaDelegate(p proto.GOADelegateParams) (proto.GOATask, error) {
 			return t, err
 		}
 		t.Woken = woken
+		s.goaSkipOn(p, target)
+		// Busy: it takes the task at its turn's end, in order (goaDeliver).
+		if !t.Woken && (goa.Busy(target) || s.goaOpenTask(t.Session)) {
+			t.Status = proto.GOATaskQueued
+			t.Why = strings.TrimSpace(t.Why + " Queued: its session is busy, and gets it when its turn ends.")
+		}
+		if t.Status == proto.GOATaskQueued {
+			return s.goaAddTask(p, t, target)
+		}
 		for _, line := range switches {
 			if err := s.goaCall(p.From, p.Host, proto.MethodSessionInput, proto.SessionInputParams{ID: t.Session, Text: line, Enter: true}, nil); err != nil {
 				return t, err
@@ -106,7 +115,19 @@ func (s *Server) goaDelegate(p proto.GOADelegateParams) (proto.GOATask, error) {
 			return t, err
 		}
 		t.Session, target = info.ID, info
+		why := "New session: the project has none to take it."
+		if p.Branch != "" {
+			why = "New session: asked for, on branch " + p.Branch + "."
+		} else if p.Project == "" {
+			why = "New session: no project named."
+		}
+		t.Why = strings.TrimSpace(t.Why + " " + why)
 	}
+	return s.goaAddTask(p, t, target)
+}
+
+// goaAddTask keeps where task t goes and puts it on the board.
+func (s *Server) goaAddTask(p proto.GOADelegateParams, t proto.GOATask, target proto.SessionInfo) (proto.GOATask, error) {
 	t.Project = nonEmpty(p.Project, target.Project)
 	t.SessionName, t.Dir, t.Branch = target.Name, target.Dir, target.Branch
 	if target.Model != "" {
@@ -119,6 +140,62 @@ func (s *Server) goaDelegate(p proto.GOADelegateParams) (proto.GOATask, error) {
 	s.goaRememberDelegation(t)
 	s.goaChanged()
 	return t, nil
+}
+
+// goaOpenTask says a session has a task that hasn't been answered yet.
+func (s *Server) goaOpenTask(id string) bool {
+	return slices.ContainsFunc(s.goa.board.List(), func(t proto.GOATask) bool {
+		return t.Session == id && (t.Status == proto.GOATaskWorking || t.Status == proto.GOATaskWaiting || t.Status == proto.GOATaskQueued)
+	})
+}
+
+// goaSkipOn switches a session started asking to skipping prompts, when the
+// task asks that and its agent can change mode as it runs. One that can't goes
+// on as it is: its prompts reach GOA.
+func (s *Server) goaSkipOn(p proto.GOADelegateParams, info proto.SessionInfo) {
+	if !p.SkipPermissions || info.SkipPermissions {
+		return
+	}
+	set := agent.SettingsOf(info.Agent)
+	if _, ok := agent.FindChoice(set.Modes, "bypassPermissions"); ok && set.ModeKey != "" {
+		_ = s.goaCall(p.From, p.Host, proto.MethodSessionMode, proto.SessionModeParams{ID: info.ID, Mode: "bypassPermissions"}, nil)
+	}
+}
+
+// goaDeliver gives a session that ended its turn its oldest queued task, or,
+// when it ended for good, says those tasks can't go.
+func (s *Server) goaDeliver(info proto.SessionInfo) {
+	var next *proto.GOATask
+	tasks := s.goa.board.List()
+	for i := range tasks {
+		if t := &tasks[i]; t.Session == info.ID && t.Status == proto.GOATaskQueued && (next == nil || t.Created.Before(next.Created)) {
+			next = t
+		}
+	}
+	if next == nil {
+		return
+	}
+	if info.Exited {
+		t, _ := s.goa.board.Update(next.ID, func(t *proto.GOATask) {
+			t.Status, t.Result = proto.GOATaskFailed, "its session ended before it could take this"
+		})
+		s.goaChanged()
+		s.goaTell(fmt.Sprintf("[enowX GOA] Task %s %q failed: its session %s ended before it could take it. Delegate it again.", t.ID, t.Title, t.Session))
+		s.goaDeliver(info)
+		return
+	}
+	from := ""
+	if g, ok := s.goaSession(); ok {
+		from = g.ID
+	}
+	err := s.goaCall(from, next.Host, proto.MethodSessionInput, proto.SessionInputParams{ID: next.Session, Text: next.Prompt, Paste: true, Enter: true}, nil)
+	_, _ = s.goa.board.Update(next.ID, func(t *proto.GOATask) {
+		t.Status = proto.GOATaskWorking
+		if err != nil {
+			t.Status, t.Result = proto.GOATaskFailed, "it couldn't be delivered: "+err.Error()
+		}
+	})
+	s.goaChanged()
 }
 
 // goaSpawn starts a new session for task t on p's host, as GOA's worker.
@@ -185,7 +262,7 @@ func (s *Server) goaWorkerChanged(info proto.SessionInfo) {
 		return
 	}
 	changed := s.goa.board.Of(info.ID, func(t *proto.GOATask) bool {
-		if t.Status == status {
+		if t.Status == status || t.Status == proto.GOATaskQueued {
 			return false
 		}
 		t.Status = status

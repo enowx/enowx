@@ -78,6 +78,7 @@ type GOAAgent struct {
 const (
 	GOATaskWorking = "working"
 	GOATaskWaiting = "waiting" // its session asks something
+	GOATaskQueued  = "queued"  // its session is busy: delivered at its turn's end
 	// GOATaskTurnEnded: its agent finished a turn, which may be mid-work.
 	// GOA reads it and settles the task, or sends more.
 	GOATaskTurnEnded = "turn-ended"

@@ -13,21 +13,21 @@ import (
 type Want struct {
 	Project string
 	Agent   string // "" any agent
-	Skip    bool   // the task asked to skip permission prompts
 	Config  string // "" any; "official" none; else a config's ID or name
 }
 
 // PickSession is the session of list a task like want goes to, ok false
-// when a new one is called for. A session qualifies when it is an agent's
-// of its own in the project's folder (no worktree, whose branch is another
-// task's), the user's, that can take a prompt now or come back to, not
-// working, not asking the user, and with no open task (busy). Of those: a
-// running one before a hibernated one before one that ended; then the
-// newest.
+// when the project has none, the one case that calls for a new one. A session
+// qualifies when it is an agent's of its own in the project's folder (no
+// worktree, whose branch is another task's; no shell tab, where a prompt could
+// land in the shell), the user's, that runs or can come back. Busy or asking it
+// still qualifies, and takes the task after its turn: the user wants to talk
+// to the agent that knows the project. Of those: one free before one busy
+// before a hibernated one before one that ended; then the newest.
 func PickSession(list []proto.SessionInfo, want Want, busy func(id string) bool) (proto.SessionInfo, bool) {
 	var found []proto.SessionInfo
 	for _, s := range list {
-		if qualifies(s, want) && !busy(s.ID) {
+		if qualifies(s, want) {
 			found = append(found, s)
 		}
 	}
@@ -35,7 +35,7 @@ func PickSession(list []proto.SessionInfo, want Want, busy func(id string) bool)
 		return proto.SessionInfo{}, false
 	}
 	slices.SortStableFunc(found, func(a, b proto.SessionInfo) int {
-		if d := pickRank(a) - pickRank(b); d != 0 {
+		if d := pickRank(a, busy) - pickRank(b, busy); d != 0 {
 			return d
 		}
 		if c := b.Created.Compare(a.Created); c != 0 {
@@ -50,7 +50,7 @@ func qualifies(s proto.SessionInfo, want Want) bool {
 	if s.GOA || s.Parent != "" || s.NotesFor != "" || s.CanvasFor != "" || s.Group != "" || s.Member != nil || s.Worktree || s.Queued {
 		return false
 	}
-	if s.Project == "" || filepath.Clean(s.Project) != filepath.Clean(want.Project) || s.SkipPermissions != want.Skip {
+	if s.Project == "" || filepath.Clean(s.Project) != filepath.Clean(want.Project) {
 		return false
 	}
 	if want.Agent != "" && s.Agent != want.Agent && agent.Base(s.Agent) != agent.Base(want.Agent) {
@@ -71,26 +71,23 @@ func qualifies(s proto.SessionInfo, want Want) bool {
 			return false
 		}
 	}
-	if s.Exited {
-		return len(preset.Continue) > 0 // it can come back
-	}
-	switch s.State {
-	case proto.StateWorking, proto.StateWaiting:
-		return false
-	case "":
-		// No hook said so: fine for an agent whose hooks would have, not
-		// for one that may be working unseen.
-		return agent.HookSupport(s.Agent)[proto.HookToolBefore] == proto.HookInAgent
-	}
-	return true
+	return !s.Exited || len(preset.Continue) > 0 // it can come back
 }
 
-func pickRank(s proto.SessionInfo) int {
+func pickRank(s proto.SessionInfo, busy func(string) bool) int {
 	switch {
-	case !s.Exited:
+	case !s.Exited && !Busy(s) && !busy(s.ID):
 		return 0
-	case s.Hibernated:
+	case !s.Exited:
 		return 1
+	case s.Hibernated:
+		return 2
 	}
-	return 2
+	return 3
+}
+
+// Busy says a running session is in a turn or asking: a prompt would land
+// on top of it, and waits for its turn's end.
+func Busy(s proto.SessionInfo) bool {
+	return !s.Exited && (s.State == proto.StateWorking || s.State == proto.StateWaiting)
 }

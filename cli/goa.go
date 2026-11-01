@@ -18,7 +18,7 @@ import (
 
 const goaUsage = `usage: enowx-app goa COMMAND
   board [--json]                   the tasks, the session each went to, status and result
-  delegate [flags] PROMPT          hand a task to a session, its model and effort routed
+  delegate [flags] PROMPT          hand a task to the project's session, queued if it's busy; a new one only if it has none
       --session S      an existing session (else a new one:)
       --project DIR    its project: the project's idle or stopped session takes it, else a new one
       --branch B       always a new one, on a new branch in a worktree of its own

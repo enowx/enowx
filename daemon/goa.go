@@ -177,7 +177,12 @@ func (s *Server) goaSeen(info proto.SessionInfo) {
 	}
 	if s.goa.board.Has(info.ID) {
 		s.goaRanOn(info)
-		go s.goaWorkerChanged(info)
+		go func() {
+			s.goaWorkerChanged(info)
+			if info.State == proto.StateDone || info.Exited && !info.Hibernated {
+				s.goaDeliver(info)
+			}
+		}()
 	}
 }
 

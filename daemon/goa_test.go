@@ -9,6 +9,7 @@ import (
 	"strings"
 	"sync"
 	"testing"
+	"time"
 
 	"github.com/enowx/enowx/client"
 	"github.com/enowx/enowx/core/agent"
@@ -510,9 +511,9 @@ func TestGOABringsSessionsBack(t *testing.T) {
 		t.Fatal("not brought back")
 	}
 
-	// Not named: the project's, while the task on it is open a new one.
+	// Not named: the project's, its open task making this one wait in line.
 	again, err := delegate(proto.GOADelegateParams{Project: dir, Agent: "claude", Prompt: "second task"})
-	if err != nil || again.Session == info.ID || again.Reused {
+	if err != nil || again.Session != info.ID || !again.Reused || again.Status != proto.GOATaskQueued {
 		t.Fatalf("with its session on an open task: %+v %v", again, err)
 	}
 	for _, id := range []string{task.ID, again.ID} {
@@ -520,26 +521,21 @@ func TestGOABringsSessionsBack(t *testing.T) {
 			t.Fatal(err)
 		}
 	}
-	for _, id := range []string{info.ID, again.Session} {
-		if err := ca.Call(proto.MethodSessionState, proto.SessionStateParams{ID: id, State: proto.StateDone}, nil); err != nil {
-			t.Fatal(err)
-		}
+	if err := ca.Call(proto.MethodSessionState, proto.SessionStateParams{ID: info.ID, State: proto.StateDone}, nil); err != nil {
+		t.Fatal(err)
 	}
 	reused, err := delegate(proto.GOADelegateParams{Project: dir, Agent: "claude", Prompt: "third task"})
-	if err != nil || !reused.Reused || reused.Woken || reused.Session != again.Session {
-		t.Fatalf("an idle one, the newest: %+v %v (first %s, second %s)", reused, err, info.ID, again.Session)
+	if err != nil || !reused.Reused || reused.Woken || reused.Session != info.ID || reused.Status == proto.GOATaskQueued {
+		t.Fatalf("an idle one: %+v %v", reused, err)
 	}
-	waitScreen(t, ca, again.Session, "heard: third task")
-	// One working is left alone.
+	waitScreen(t, ca, info.ID, "heard: third task")
+	// One working still takes the next, in line.
 	if err := ca.Call(proto.MethodSessionState, proto.SessionStateParams{ID: reused.Session, State: proto.StateWorking}, nil); err != nil {
 		t.Fatal(err)
 	}
-	if err := ca.Call(proto.MethodGOATask, proto.GOATaskParams{ID: reused.ID, Status: proto.GOATaskDone}, nil); err != nil {
-		t.Fatal(err)
-	}
 	other, err := delegate(proto.GOADelegateParams{Project: dir, Agent: "claude", Prompt: "fourth task"})
-	if err != nil || other.Session != info.ID || !other.Reused {
-		t.Fatalf("beside one working: %+v %v", other, err)
+	if err != nil || other.Session != info.ID || other.Status != proto.GOATaskQueued {
+		t.Fatalf("one working: %+v %v", other, err)
 	}
 
 	// On another host, through the app: named and not.
@@ -742,5 +738,65 @@ func TestSkipUnheardAgents(t *testing.T) {
 	}
 	if w := worker(); !w.SkipPermissions {
 		t.Fatal("GOA's OpenCode worker would wait on a prompt it can't hear of")
+	}
+}
+
+// A task for a project with a busy session is queued, not a new session, and
+// reaches it at its turn's end, in order; a --branch still starts a new one.
+func TestGOAQueuesForABusySession(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("uses sh")
+	}
+	bin := t.TempDir()
+	script := "#!/bin/sh\nwhile read -r line; do echo \"heard: $line\"; done\n"
+	if err := os.WriteFile(filepath.Join(bin, "claude"), []byte(script), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv("PATH", bin+string(os.PathListSeparator)+os.Getenv("PATH"))
+	srv, _ := hookServer(t)
+	c := connect(t, srv, nil)
+	project := t.TempDir()
+	var info proto.SessionInfo
+	if err := c.Call(proto.MethodSessionCreate, proto.SessionCreateParams{Agent: "claude", Project: project, BranchMode: proto.BranchNone, Cols: 80, Rows: 24}, &info); err != nil {
+		t.Fatal(err)
+	}
+	sess, err := srv.sessions.Get(info.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := srv.sessions.SetState(sess, proto.StateWorking); err != nil {
+		t.Fatal(err)
+	}
+	delegate := func(prompt string) proto.GOATask {
+		t.Helper()
+		var task proto.GOATask
+		if err := c.Call(proto.MethodGOADelegate, proto.GOADelegateParams{Agent: "claude", Project: project, Prompt: prompt, NoRoute: true}, &task); err != nil {
+			t.Fatal(err)
+		}
+		return task
+	}
+	first, second := delegate("first thing"), delegate("second thing")
+	if first.Session != info.ID || second.Session != info.ID || first.Status != proto.GOATaskQueued || second.Status != proto.GOATaskQueued {
+		t.Fatalf("%+v %+v", first, second)
+	}
+	if strings.Contains(sess.Terminal().Text(), "first thing") {
+		t.Fatal("delivered on top of its turn")
+	}
+	if err := srv.sessions.SetState(sess, proto.StateDone); err != nil {
+		t.Fatal(err)
+	}
+	deadline := time.Now().Add(10 * time.Second)
+	for !strings.Contains(sess.Terminal().Text(), "first thing") {
+		if time.Now().After(deadline) {
+			t.Fatalf("never delivered: %q", sess.Terminal().Text())
+		}
+		time.Sleep(50 * time.Millisecond)
+	}
+	if strings.Contains(sess.Terminal().Text(), "second thing") {
+		t.Fatal("the second went with the first")
+	}
+	var task proto.GOATask
+	if err := c.Call(proto.MethodGOADelegate, proto.GOADelegateParams{Agent: "claude", Project: project, Branch: "other", Prompt: "apart", NoRoute: true}, &task); err == nil && task.Session == info.ID {
+		t.Fatalf("a branch asked for took the project's session: %+v", task)
 	}
 }

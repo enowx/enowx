@@ -31,7 +31,7 @@ func (s *Server) goaPick(p proto.GOADelegateParams) (proto.SessionInfo, bool, er
 			return t.Session == id && (t.Status == proto.GOATaskWorking || t.Status == proto.GOATaskWaiting)
 		})
 	}
-	info, ok := goa.PickSession(list, goa.Want{Project: p.Project, Agent: p.Agent, Skip: p.SkipPermissions, Config: p.Config}, busy)
+	info, ok := goa.PickSession(list, goa.Want{Project: p.Project, Agent: p.Agent, Config: p.Config}, busy)
 	return info, ok, nil
 }
 

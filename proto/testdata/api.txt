@@ -3144,6 +3144,7 @@ value GOAKindTask=task
 value GOALimited=limited
 value GOATaskDone=done
 value GOATaskFailed=failed
+value GOATaskQueued=queued
 value GOATaskStopped=stopped
 value GOATaskTurnEnded=turn-ended
 value GOATaskWaiting=waiting
