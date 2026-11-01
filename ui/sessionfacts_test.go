@@ -5,6 +5,7 @@ import (
 
 	"github.com/egoist/mygo/ui"
 
+	"github.com/enowx/enowx/core/hosts"
 	"github.com/enowx/enowx/proto"
 	"github.com/enowx/enowx/ui/textfmt"
 )
@@ -75,5 +76,24 @@ func TestParseDailyCalls(t *testing.T) {
 	}
 	if _, ok := parseDailyCalls("-1"); ok {
 		t.Error("a negative limit taken")
+	}
+}
+
+// A session of a host not connected says why it can't open, offers the way to
+// that host, and its dialog's button says Close, not Cancel.
+func TestGOADetailsOfAnUnreachableHost(t *testing.T) {
+	a := New(Options{})
+	a.watches = map[string]*hostWatch{"h": {host: hosts.Host{ID: "h", Name: "vps"}}}
+	a.goa.detail = &goaDetail{open: true, host: "vps", session: proto.SessionInfo{ID: "s1", Agent: "claude"}}
+	tt := ui.NewTester(func(c *ui.Context) { a.goaDetailDialog(c) }, 800, 600)
+	tt.Frame()
+	tt.Frame()
+	for _, want := range []string{"Go to vps", "Close"} {
+		if !tt.HasText(want) {
+			t.Fatalf("no %q: %q", want, tt.Texts())
+		}
+	}
+	if tt.HasText("Cancel") || tt.HasText("Open in a tab") {
+		t.Fatalf("%q", tt.Texts())
 	}
 }

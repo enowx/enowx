@@ -87,6 +87,15 @@ func DialogFooter(c *ui.Context, note string, buttons func()) {
 // form, then Cancel and its buttons. Escape or a click outside closes it,
 // as Cancel does. It narrows to fit a small window.
 func FormSheet(c *ui.Context, open *bool, width float32, title, description string, body, buttons func()) {
+	formSheet(c, open, width, title, description, "Cancel", body, buttons)
+}
+
+// DetailSheet is a FormSheet that holds nothing to cancel: its button says Close.
+func DetailSheet(c *ui.Context, open *bool, width float32, title, description string, body, buttons func()) {
+	formSheet(c, open, width, title, description, "Close", body, buttons)
+}
+
+func formSheet(c *ui.Context, open *bool, width float32, title, description, dismiss string, body, buttons func()) {
 	w, _ := c.Size()
 	width = min(width, max(280, w-32))
 	Sheet(c, open, width, func() {
@@ -100,7 +109,7 @@ func FormSheet(c *ui.Context, open *bool, width float32, title, description stri
 			*open = false
 		}
 	}, body, func() {
-		if GhostButton(c, "Cancel").Clicked() {
+		if GhostButton(c, dismiss).Clicked() {
 			*open = false
 		}
 		buttons()

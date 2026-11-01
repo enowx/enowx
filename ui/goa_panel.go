@@ -1,6 +1,7 @@
 package ui
 
 import (
+	"github.com/enowx/enowx/core/hosts"
 	"path/filepath"
 	"slices"
 	"strings"
@@ -158,7 +159,11 @@ func (a *App) goaDetailDialog(c *ui.Context) {
 	}
 	s := d.session
 	t := a.goaTaskOf(s.ID)
-	widget.FormSheet(c, &d.open, 520, a.sessionName(s), a.agentName(s.Agent)+" on "+d.host+" · "+statusOf(s).label, func() {
+	cl := a.goaClientOf(d.host)
+	widget.DetailSheet(c, &d.open, 520, a.sessionName(s), a.agentName(s.Agent)+" on "+d.host+" · "+statusOf(s).label, func() {
+		if cl == nil {
+			widget.Notice(c, icon.Alert, theme.Warning, d.host+" isn't connected, so this session can't open here now: this list is what it last said. enowX keeps trying, and it opens once the host is back; or go to the host.", "", nil)
+		}
 		a.sessionFacts(c, s)
 		if t == nil {
 			ui.Text(c, "GOD of Agents gave this session no task.").FontSize(12).TextColor(theme.Muted)
@@ -170,13 +175,43 @@ func (a *App) goaDetailDialog(c *ui.Context) {
 			d.open = false
 			a.openGOAOverride(*t)
 		}
-		if cl := a.goaClientOf(d.host); cl != nil {
+		if cl == nil {
+			if h, ok := a.watchedHost(d.host); ok && widget.PrimaryButton(c, nil, "Go to "+d.host, "").Clicked() {
+				d.open = false
+				a.openSession = s.ID
+				a.leaveGOA()
+				a.connect(h)
+			}
+		} else {
 			if widget.PrimaryButton(c, nil, "Open in a tab", "").Tooltip("Shows it beside GOD of Agents; closing the tab leaves it running").Clicked() {
 				d.open = false
 				a.openGOATab(d.host, cl, s)
 			}
 		}
 	})
+}
+
+// goaOpenTask is a task's way to its session.
+func (a *App) goaOpenTask(c *ui.Context, t proto.GOATask) {
+	host := nonEmpty(a.goaHostName(t.Host), a.host.Name)
+	s, ok := a.sessionOn(host, t.Session)
+	if ok && widget.GhostButton(c.Key("open"), "Open session").Clicked() {
+		if cl := a.goaClientOf(host); cl != nil {
+			a.openGOATab(host, cl, s)
+		} else {
+			a.goa.detail = &goaDetail{open: true, host: host, session: s}
+		}
+	}
+}
+
+// watchedHost is the watched host named.
+func (a *App) watchedHost(name string) (hosts.Host, bool) {
+	for _, w := range a.watches {
+		if w.host.Name == name {
+			return w.host, true
+		}
+	}
+	return hosts.Host{}, false
 }
 
 // tasksTab is the Tasks tool: the board, newest first, then what a
@@ -205,6 +240,7 @@ func (a *App) tasksTab(c *ui.Context) {
 						if widget.GhostButton(c, "Change model").Clicked() {
 							a.openGOAOverride(t)
 						}
+						a.goaOpenTask(c, t)
 					})
 				}
 			})
