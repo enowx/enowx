@@ -37,12 +37,12 @@ func (a *App) openRules(p proto.ProjectInfo) {
 	go func() {
 		r, err := cl.ProjectRules(p.Path)
 		a.onMain(func() {
-			f.loaded = true
 			if err != nil {
+				// Not read: nothing here may write over them.
 				f.err = client.Explain(err)
 				return
 			}
-			f.rules, f.text = r, r.Rules
+			f.loaded, f.rules, f.text = true, r, r.Rules
 			if r.Editors == proto.RulesByAdmins {
 				f.editors = 1
 			}
@@ -65,10 +65,7 @@ func (a *App) rulesDialog(c *ui.Context) {
 	}
 	widget.FormSheet(c, &f.open, 600, "Rules of "+f.project.Name, about, func() {
 		if !f.loaded {
-			ui.Row(c).Gap(8).AlignItems(ui.Center).Children(func() {
-				widget.Spinner(c, 12)
-				ui.Text(c, "Reading them…").FontSize(12).TextColor(theme.Muted)
-			})
+			rulesNotRead(c, f.err)
 			return
 		}
 		if f.rules.Team != "" {
@@ -105,7 +102,7 @@ func (a *App) rulesDialog(c *ui.Context) {
 		if f.saving || !f.loaded || f.draft.drafting || !f.rules.CanEdit && !a.isAdminOf(f.rules.Team) {
 			b.Disabled(true)
 		} else if b.Clicked() {
-			a.saveRules(f)
+			a.saveRules(f, false)
 		}
 	})
 }
@@ -120,9 +117,27 @@ func (a *App) isAdminOf(team string) bool {
 	return false
 }
 
-func (a *App) saveRules(f *rulesForm) {
+// rulesNotRead is a rules dialog before it has them: still reading, or why it
+// couldn't, with nothing to edit or save over them.
+func rulesNotRead(c *ui.Context, err string) {
+	if err != "" {
+		widget.Notice(c, icon.Alert, theme.Error, "The rules couldn't be read", err+" Nothing can change them until they are: close this and open it again.", nil)
+		return
+	}
+	ui.Row(c).Gap(8).AlignItems(ui.Center).Children(func() {
+		widget.Spinner(c, 12)
+		ui.Text(c, "Reading them…").FontSize(12).TextColor(theme.Muted)
+	})
+}
+
+func (a *App) saveRules(f *rulesForm, clear bool) {
 	cl := a.client
 	r := proto.ProjectRules{Path: f.project.Path, Rules: strings.TrimSpace(f.text)}
+	if r.Rules == "" && strings.TrimSpace(f.rules.Rules) != "" && !clear {
+		a.confirm("Delete every rule?", "Saving them empty removes all of "+f.project.Name+"'s rules for every session in it. An earlier version stays to bring back.", "Delete them", func() { a.saveRules(f, true) })
+		return
+	}
+	r.Clear = clear
 	if f.rules.Team != "" && a.isAdminOf(f.rules.Team) {
 		r.Editors = rulesEditors[f.editors]
 	}

@@ -96,7 +96,14 @@ func (c *Client) SaveProjectRules(r proto.ProjectRules) (proto.ProjectRules, err
 	return out, err
 }
 
-// DraftRules has the host's AI write rules; nothing is saved.
+// RulesHistory lists rules as they were before their saves, newest first.
+func (c *Client) RulesHistory(p proto.RulesDraftParams) ([]proto.RulesVersion, error) {
+	var out []proto.RulesVersion
+	err := c.Call(proto.MethodRulesHistory, p, &out)
+	return out, err
+}
+
+// DraftRules has the host's AI write new rules; nothing is saved.
 func (c *Client) DraftRules(p proto.RulesDraftParams) (proto.RulesDraft, error) {
 	var out proto.RulesDraft
 	err := c.Call(proto.MethodRulesDraft, p, &out)

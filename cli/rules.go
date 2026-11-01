@@ -53,6 +53,7 @@ func (r runner) projectRules(args []string) error {
 	next := proto.ProjectRules{Path: path, Rules: cur.Rules, Editors: *editors}
 	if isSet(fs, "set") {
 		next.Rules = *set
+		next.Clear = *set != "-" // emptied on purpose; stdin that failed isn't
 		if *set == "-" {
 			data, err := io.ReadAll(os.Stdin)
 			if err != nil {

@@ -1,5 +1,7 @@
 package proto
 
+import "time"
+
 // A project's rules: Markdown every session in it reads first, whatever
 // its agent. A project of the user's own keeps them in the user's synced
 // settings; a team's project in the team's space, the same for every
@@ -10,7 +12,13 @@ const (
 	// MethodRulesDraft has an AI write rules from what the user says they
 	// want: RulesDraftParams → RulesDraft, nothing saved.
 	MethodRulesDraft = "rules.draft"
+	// MethodRulesHistory lists earlier versions of rules, newest first:
+	// RulesDraftParams (For, Path) → []RulesVersion.
+	MethodRulesHistory = "rules.history"
 )
+
+// RulesMaxBytes is the most rules hold: they go in every session's guide.
+const RulesMaxBytes = 32 << 10
 
 // What rules a draft is for (RulesDraftParams.For).
 const (
@@ -18,9 +26,9 @@ const (
 	RulesForGOA     = "goa"
 )
 
-// RulesDraftParams ask for rules: Ask what the user wants, in their
-// words; Current the rules so far, kept and improved; Path the project's
-// folder (RulesForProject).
+// RulesDraftParams ask for new rules: Ask what the user wants, in their
+// words; Current the rules so far, for the AI to avoid repeating and to see
+// what conflicts, never to change; Path the project's folder (RulesForProject).
 type RulesDraftParams struct {
 	For     string `json:"for"`
 	Ask     string `json:"ask"`
@@ -28,10 +36,19 @@ type RulesDraftParams struct {
 	Path    string `json:"path,omitempty"`
 }
 
-// RulesDraft is the rules an AI wrote, and which (a judge's label).
+// RulesDraft is the new rules an AI wrote, to add after those there, and
+// which AI (a judge's label). Conflicts says which of them go against rules
+// already there, for the user to settle.
 type RulesDraft struct {
-	Rules string `json:"rules"`
-	By    string `json:"by"`
+	Rules     string   `json:"rules"`
+	By        string   `json:"by"`
+	Conflicts []string `json:"conflicts,omitempty"`
+}
+
+// RulesVersion is rules as they were until Time.
+type RulesVersion struct {
+	Time  time.Time `json:"time"`
+	Rules string    `json:"rules"`
 }
 
 // Who edits a team's project's rules (ProjectRules.Editors).
@@ -57,4 +74,7 @@ type ProjectRules struct {
 	// (the default) or RulesByAdmins; CanEdit says the user may.
 	Editors string `json:"editors,omitempty"`
 	CanEdit bool   `json:"canEdit,omitempty"`
+	// Clear: the user agreed to Rules being empty, over rules there. Saving
+	// empty without it is refused.
+	Clear bool `json:"clear,omitempty"`
 }

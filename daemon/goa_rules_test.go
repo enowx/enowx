@@ -92,11 +92,27 @@ func TestDraftRules(t *testing.T) {
 	if err != nil || d.Rules != "- Ask before merging to main" || d.By != "Writer" {
 		t.Fatalf("draft %+v %v", d, err)
 	}
-	if !strings.Contains(asked, "jangan merge tanpa tanya") || !strings.Contains(asked, "- Use Codex") {
-		t.Fatalf("asked %q", asked)
+	first := asked
+	// The AI sees what's saved too, even if the editor holds nothing.
+	if err := c.Call(proto.MethodGOARulesSave, proto.GOARules{Rules: "- Saved earlier"}, nil); err != nil {
+		t.Fatal(err)
+	}
+	if err := c.Call(proto.MethodRulesDraft, proto.RulesDraftParams{For: proto.RulesForGOA, Ask: "one more"}, &d); err != nil || !strings.Contains(asked, "- Saved earlier") {
+		t.Fatalf("asked %q: %v", asked, err)
+	}
+	if err := c.Call(proto.MethodGOARulesSave, proto.GOARules{Clear: true}, nil); err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(first, "jangan merge tanpa tanya") || !strings.Contains(first, "- Use Codex") {
+		t.Fatalf("asked %q", first)
 	}
 	if r := srv.goaRules(); r.Rules != "" {
 		t.Fatalf("saved without the user: %q", r.Rules)
+	}
+	// What was saved over can be brought back, the newest first.
+	var versions []proto.RulesVersion
+	if err := c.Call(proto.MethodRulesHistory, proto.RulesDraftParams{For: proto.RulesForGOA}, &versions); err != nil || len(versions) != 1 || versions[0].Rules != "- Saved earlier" {
+		t.Fatalf("history %+v %v", versions, err)
 	}
 	if err := c.Call(proto.MethodRulesDraft, proto.RulesDraftParams{For: proto.RulesForGOA}, &d); err == nil {
 		t.Fatal("nothing asked, and an answer")

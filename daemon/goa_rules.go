@@ -3,10 +3,12 @@ package daemon
 import (
 	"context"
 	"crypto/sha256"
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"time"
 
@@ -29,11 +31,18 @@ func (s *Server) goaRules() proto.GOARules {
 // saveGOARules keeps r, refused when too long or holding a secret.
 func (s *Server) saveGOARules(r proto.GOARules) (proto.GOARules, error) {
 	rules := strings.TrimSpace(r.Rules)
+	before := s.goaRules().Rules
+	if rules == "" && before != "" && !r.Clear {
+		return proto.GOARules{}, errors.New("rules: saving them empty would delete every rule: say so to clear them")
+	}
 	if len(rules) > maxRules {
 		return proto.GOARules{}, fmt.Errorf("rules: %d KB at most, they go in GOA's guide", maxRules>>10)
 	}
 	if err := secretsIn(map[string][]byte{"the rules": []byte(rules)}); err != nil {
 		return proto.GOARules{}, errors.New("rules: they look like they hold a secret: GOA reads them, keep credentials in the vault")
+	}
+	if rules != before {
+		s.keepRulesVersion("goa", before)
 	}
 	file := s.goaRulesFile()
 	if rules == "" {
@@ -79,30 +88,40 @@ func rulesSystem(forWhat string) string {
 	if forWhat == proto.RulesForGOA {
 		about = "the rules of GOD of Agents, an orchestrating agent that hands coding tasks to other agents' sessions on several hosts, routes their models, follows their work and answers their questions: Markdown it reads first and follows"
 	}
-	return "You write " + about + ".\n\n" +
-		"Write them from what the user says they want, in English, as a short Markdown list grouped under a few ### headings when there are several topics. " +
-		"Each rule one line, imperative, concrete and checkable (name the command, the branch, the folder, the agent), with the reason after a colon when it isn't obvious. " +
-		"Keep every rule the user's current rules hold unless the user asks otherwise; merge duplicates; drop vague wishes that can't be acted on. " +
+	return "You write new rules to add to " + about + ".\n\n" +
+		"Write only the new rules the user asks for, as a short Markdown list, in English. The current rules, if shown, stay exactly as they are and aren't yours to repeat, reword, reorder or remove: never include them. " +
+		"Each rule one line, imperative, concrete and checkable (name the command, the branch, the folder, the agent), with the reason after a colon when it isn't obvious. Leave out a rule the current ones already say; drop vague wishes that can't be acted on. " +
+		"When a new rule goes against a current one, still write it, and add a line starting with \"" + rulesConflict + "\" saying which. " +
 		"Never invent facts about the project, and never write credentials. " +
-		"Answer with the rules alone: no preamble, no code fence, no closing remark."
+		"Answer with the new rules alone: no preamble, no code fence, no closing remark."
 }
 
-// draftRules has an AI write rules from what the user asked (p).
+// rulesConflict starts a line of the AI's saying a rule goes against another.
+const rulesConflict = "CONFLICT: "
+
+// draftRules has an AI write new rules from what the user asked (p). The
+// rules there are only shown to it, and what comes back is only ever added to
+// them, in the app.
 func (s *Server) draftRules(p proto.RulesDraftParams) (proto.RulesDraft, error) {
 	ask := strings.TrimSpace(p.Ask)
 	if ask == "" {
 		return proto.RulesDraft{}, errors.New("rules: say what the rules should hold")
 	}
+	// The file's too: an editor can be behind, or empty for a reason.
+	current := strings.TrimSpace(p.Current)
+	if stored := s.storedRules(p); stored != "" && !strings.Contains(current, stored) {
+		current = strings.TrimSpace(stored + "\n" + current)
+	}
 	// It goes to an AI, perhaps off this host.
-	if err := secretsIn(map[string][]byte{"the rules": []byte(ask + "\n" + p.Current)}); err != nil {
+	if err := secretsIn(map[string][]byte{"the rules": []byte(ask + "\n" + current)}); err != nil {
 		return proto.RulesDraft{}, errors.New("rules: that looks like it holds a secret: nothing was sent to the AI")
 	}
 	var user strings.Builder
 	if p.For == proto.RulesForProject && p.Path != "" {
 		fmt.Fprintf(&user, "The project: %s\n\n", filepath.Base(p.Path))
 	}
-	if cur := strings.TrimSpace(p.Current); cur != "" {
-		fmt.Fprintf(&user, "The current rules:\n\n%s\n\n", cur)
+	if current != "" {
+		fmt.Fprintf(&user, "The current rules, which stay as they are:\n\n%s\n\n", current)
 	}
 	fmt.Fprintf(&user, "What the user wants:\n\n%s\n", ask)
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Minute)
@@ -112,8 +131,85 @@ func (s *Server) draftRules(p proto.RulesDraftParams) (proto.RulesDraft, error) 
 		return proto.RulesDraft{}, err
 	}
 	text = strings.TrimSpace(strings.TrimSuffix(strings.TrimPrefix(strings.TrimPrefix(text, "```markdown"), "```"), "```"))
-	if len(text) > maxRules {
-		text = text[:maxRules]
+	out := proto.RulesDraft{By: by}
+	var lines []string
+	for _, line := range strings.Split(text, "\n") {
+		if said, ok := strings.CutPrefix(strings.TrimLeft(line, "-* "), rulesConflict); ok {
+			out.Conflicts = append(out.Conflicts, strings.TrimSpace(said))
+			continue
+		}
+		lines = append(lines, line)
 	}
-	return proto.RulesDraft{Rules: text, By: by}, nil
+	out.Rules = strings.TrimSpace(strings.Join(lines, "\n"))
+	if out.Rules == "" {
+		return proto.RulesDraft{}, errors.New("rules: the AI wrote nothing to add")
+	}
+	if len(out.Rules) > maxRules {
+		return proto.RulesDraft{}, fmt.Errorf("rules: the AI wrote over %d KB: nothing was added", maxRules>>10)
+	}
+	return out, nil
+}
+
+// storedRules are the rules p's are, as saved.
+func (s *Server) storedRules(p proto.RulesDraftParams) string {
+	if p.For == proto.RulesForGOA {
+		return s.goaRules().Rules
+	}
+	if p.Path == "" {
+		return ""
+	}
+	r, err := s.projectRules(p.Path)
+	if err != nil {
+		return ""
+	}
+	return strings.TrimSpace(r.Rules)
+}
+
+// rulesVersionsKept is how many earlier versions of each rules a host keeps.
+const rulesVersionsKept = 20
+
+func (s *Server) rulesHistoryDir(key string) string {
+	h := sha256.Sum256([]byte(key))
+	return filepath.Join(s.dataDir, "rules-history", hex.EncodeToString(h[:8]))
+}
+
+// keepRulesVersion keeps rules as they were before a save, on this host, the
+// oldest going past rulesVersionsKept. A failure costs only the history.
+func (s *Server) keepRulesVersion(key, rules string) {
+	if strings.TrimSpace(rules) == "" {
+		return
+	}
+	dir := s.rulesHistoryDir(key)
+	if err := os.MkdirAll(dir, 0o700); err != nil {
+		s.logger().Warn("rules: keeping a version", "err", err)
+		return
+	}
+	name := fmt.Sprintf("%020d.md", time.Now().UnixNano())
+	if err := os.WriteFile(filepath.Join(dir, name), []byte(rules), 0o600); err != nil {
+		s.logger().Warn("rules: keeping a version", "err", err)
+		return
+	}
+	entries, _ := os.ReadDir(dir)
+	for i := 0; i < len(entries)-rulesVersionsKept; i++ {
+		os.Remove(filepath.Join(dir, entries[i].Name()))
+	}
+}
+
+// rulesHistory lists p's rules as they were, newest first.
+func (s *Server) rulesHistory(p proto.RulesDraftParams) []proto.RulesVersion {
+	key := "project:" + p.Path
+	if p.For == proto.RulesForGOA {
+		key = "goa"
+	}
+	dir := s.rulesHistoryDir(key)
+	entries, _ := os.ReadDir(dir)
+	out := []proto.RulesVersion{}
+	for i := len(entries) - 1; i >= 0; i-- {
+		n, err := strconv.ParseInt(strings.TrimSuffix(entries[i].Name(), ".md"), 10, 64)
+		data, rerr := os.ReadFile(filepath.Join(dir, entries[i].Name()))
+		if err == nil && rerr == nil {
+			out = append(out, proto.RulesVersion{Time: time.Unix(0, n), Rules: string(data)})
+		}
+	}
+	return out
 }

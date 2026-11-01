@@ -25,7 +25,7 @@ import (
 
 // maxRules is the most a project's rules hold: they go in every session's
 // guide.
-const maxRules = 32 << 10
+const maxRules = proto.RulesMaxBytes
 
 func (s *Server) ownRulesFile(project string) string {
 	key := s.remoteRef(project) // the same however the remote is written
@@ -81,11 +81,17 @@ func (s *Server) saveProjectRules(p proto.ProjectRules) (proto.ProjectRules, err
 		return proto.ProjectRules{}, err
 	}
 	rules := strings.TrimSpace(p.Rules)
+	if rules == "" && strings.TrimSpace(cur.Rules) != "" && !p.Clear {
+		return proto.ProjectRules{}, errors.New("rules: saving them empty would delete every rule: say so to clear them")
+	}
 	if len(rules) > maxRules {
 		return proto.ProjectRules{}, fmt.Errorf("rules: %d KB at most, they go in every session's guide", maxRules>>10)
 	}
 	if err := secretsIn(map[string][]byte{"the rules": []byte(rules)}); err != nil {
 		return proto.ProjectRules{}, errors.New("rules: they look like they hold a secret: agents read them, keep credentials in the vault")
+	}
+	if rules != strings.TrimSpace(cur.Rules) {
+		s.keepRulesVersion("project:"+p.Path, cur.Rules)
 	}
 	if cur.Team == "" {
 		file := s.ownRulesFile(p.Path)

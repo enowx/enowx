@@ -1090,6 +1090,7 @@ field GOARememberParams.kind string
 field GOARememberParams.session string
 field GOARememberParams.text string
 field GOARevertParams.id string
+field GOARules.clear bool
 field GOARules.rules string
 field GOATask.agent string
 field GOATask.asks string
@@ -1604,6 +1605,7 @@ field ProjectReadParams.host string
 field ProjectReadParams.path string
 field ProjectRef.path string
 field ProjectRules.canEdit bool
+field ProjectRules.clear bool
 field ProjectRules.editors string
 field ProjectRules.path string
 field ProjectRules.project string
@@ -1747,11 +1749,14 @@ field RouteChoice.model string
 field RouteChoice.switch []string
 field RouteChoice.why string
 field RulesDraft.by string
+field RulesDraft.conflicts []string
 field RulesDraft.rules string
 field RulesDraftParams.ask string
 field RulesDraftParams.current string
 field RulesDraftParams.for string
 field RulesDraftParams.path string
+field RulesVersion.rules string
+field RulesVersion.time time.Time
 field RunCommand.command string
 field RunCommand.name string
 field RunCommand.source string
@@ -2813,6 +2818,7 @@ method review.pr
 method review.push
 method review.status
 method rules.draft
+method rules.history
 method session.answer
 method session.ask
 method session.attach

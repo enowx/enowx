@@ -234,4 +234,6 @@ type GOAProject struct {
 // delegates, what it leaves to the user, what it tells its workers.
 type GOARules struct {
 	Rules string `json:"rules"`
+	// Clear: the user agreed to Rules being empty, over rules there.
+	Clear bool `json:"clear,omitempty"`
 }

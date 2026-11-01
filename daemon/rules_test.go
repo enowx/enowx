@@ -39,6 +39,19 @@ func TestProjectRulesReachItsSessions(t *testing.T) {
 		t.Fatal("rules holding a secret were kept")
 	}
 
+	if _, err := ada.c.SaveProjectRules(proto.ProjectRules{Path: mine}); err == nil || !strings.Contains(err.Error(), "empty") {
+		t.Fatalf("saved empty over rules: %v", err)
+	}
+	if _, err := ada.c.SaveProjectRules(proto.ProjectRules{Path: mine, Rules: "Use spaces."}); err != nil {
+		t.Fatal(err)
+	}
+	if kept, err := ada.c.RulesHistory(proto.RulesDraftParams{For: proto.RulesForProject, Path: mine}); err != nil || len(kept) != 1 || kept[0].Rules != "Use tabs.\n" && kept[0].Rules != "Use tabs." {
+		t.Fatalf("the rules saved over: %+v %v", kept, err)
+	}
+	if g := ada.srv.projectGuide(mine); !strings.Contains(g, "Use spaces.") {
+		t.Fatalf("the guide: %q", g)
+	}
+
 	team, _ := db.CreateTeam(ctx, ada.acc, "Design")
 	inv, _ := db.CreateInvite(ctx, team.ID, ada.acc, api.InviteParams{Role: api.RoleMember})
 	db.AcceptInvite(ctx, inv.Token, bob.acc)

@@ -16,6 +16,7 @@ import (
 type goaRulesForm struct {
 	open   bool
 	text   string
+	saved  string // the rules as read, to tell emptying them
 	loaded bool
 	saving bool
 	err    string
@@ -34,12 +35,12 @@ func (a *App) openGOARules() {
 		var r proto.GOARules
 		err := cl.Call(proto.MethodGOARules, nil, &r)
 		a.onMain(func() {
-			f.loaded = true
 			if err != nil {
+				// Not read: nothing here may write over them.
 				f.err = client.Explain(err)
 				return
 			}
-			f.text = r.Rules
+			f.loaded, f.saved, f.text = true, r.Rules, r.Rules
 		})
 	}()
 }
@@ -55,10 +56,7 @@ func (a *App) goaRulesDialog(c *ui.Context) {
 	}
 	widget.FormSheet(c, &f.open, 640, "Rules of GOD of Agents", "How it delegates, what it leaves to you, what it tells its workers. Yours: every host's GOD of Agents follows them.", func() {
 		if !f.loaded {
-			ui.Row(c).Gap(8).AlignItems(ui.Center).Children(func() {
-				widget.Spinner(c, 12)
-				ui.Text(c, "Reading them…").FontSize(12).TextColor(theme.Muted)
-			})
+			rulesNotRead(c, f.err)
 			return
 		}
 		ui.TextArea(c.Key("goa-rules"), &f.text).Height(240).Padding(10, 12).Radius(theme.RadiusControl).Font(theme.MonoFont).FontSize(12.5).
@@ -74,17 +72,22 @@ func (a *App) goaRulesDialog(c *ui.Context) {
 		if f.saving || !f.loaded || f.draft.drafting {
 			b.Disabled(true)
 		} else if b.Clicked() {
-			a.saveGOARules(f)
+			a.saveGOARules(f, false)
 		}
 	})
 }
 
-func (a *App) saveGOARules(f *goaRulesForm) {
+func (a *App) saveGOARules(f *goaRulesForm, clear bool) {
 	cl := a.client
 	if cl == nil {
 		return
 	}
 	r := proto.GOARules{Rules: strings.TrimSpace(f.text)}
+	if r.Rules == "" && strings.TrimSpace(f.saved) != "" && !clear {
+		a.confirm("Delete every rule?", "Saving them empty removes all of GOD of Agents' rules. An earlier version stays to bring back.", "Delete them", func() { a.saveGOARules(f, true) })
+		return
+	}
+	r.Clear = clear
 	f.saving, f.err = true, ""
 	go func() {
 		err := cl.Call(proto.MethodGOARulesSave, r, nil)
