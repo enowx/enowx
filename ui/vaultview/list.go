@@ -17,75 +17,165 @@ import (
 	"github.com/enowx/enowx/ui/widget"
 )
 
-// row is one credential: its platform's mark, its name and account, the
-// end of its value, its status, where it may be used, and what to do.
+// row is one credential: its platform's mark and its name, its status, the end
+// of its value, where it may be used, and what to do.
 func (v *View) row(c *ui.Context, o Options, cr vault.Credential) {
 	p := vault.Lookup(cr.Platform)
 	now := time.Now()
-	card := widget.Card(c).FillWidth().Padding(12, 14).Gap(12).Row().AlignItems(ui.Center)
+	st := cr.State(now)
+	card := widget.Card(c)
+	if statusColor(st) == theme.Error {
+		card.Background(theme.Fade(theme.Error, 0.13))
+	}
 	card.Children(func() {
-		Logo(c, p, 34)
-		ui.Column(c).Grow(1).MinWidth(0).Gap(4).Children(func() {
-			ui.Row(c).Gap(8).AlignItems(ui.Center).Children(func() {
-				ui.Text(c, cr.Name).FontSize(theme.TextUI).FontWeight(600).TextColor(theme.TextStrong).SingleLine()
-				if cr.Default {
-					widget.Tag(c, "default", theme.Accent)
-				}
-				if cr.Auto {
-					widget.Tag(c, "every session", ui.Color{})
-				}
-			})
-			detail := p.Name
-			if cr.Account != "" {
-				detail += " · " + cr.Account
-			}
-			if h := vault.Hint(mainValue(cr)); h != "" {
-				detail += " · " + h
-			}
-			ui.Text(c, detail).FontSize(theme.TextLabel).TextColor(theme.Muted).SingleLine()
-			ui.Row(c).Gap(6).AlignItems(ui.Center).Children(func() {
-				st := cr.State(now)
-				widget.Badge(c, widget.Status{Label: statusLabel(st), Color: statusColor(st), Hollow: st == proto.CredUnchecked})
-				ui.Text(c, "·").FontSize(theme.TextLabel).TextColor(theme.Muted)
-				ui.Text(c, whereLabel(cr, o.Hosts)).FontSize(theme.TextLabel).TextColor(theme.TextSoft).SingleLine()
-				if !cr.Expires.IsZero() && st != proto.CredExpired {
-					ui.Text(c, "·").FontSize(theme.TextLabel).TextColor(theme.Muted)
-					col := theme.TextSoft
-					if cr.ExpiresSoon(now, 7*24*time.Hour) {
-						col = theme.Warning
-					}
-					ui.Text(c, "expires "+cr.Expires.Local().Format("2 Jan 2006")).FontSize(theme.TextLabel).TextColor(col).SingleLine()
-				}
+		ui.Row(c).FillWidth().Shrink(0).MinHeight(24).Gap(theme.S2).Children(func() {
+			Logo(c, p, 24)
+			ui.Row(c).Grow(1).MinWidth(0).Children(func() {
+				widget.Running(c, title(cr, p), widget.RunStyle{Size: theme.TextRead, Weight: 600})
 			})
 		})
-		if o.Testing[cr.ID] {
-			widget.Spinner(c, 14)
-		} else if widget.Button(c, widget.Secondary, icon.Check, "Test", "").Tooltip("Check it still works, with "+p.Name).Clicked() && o.Actions.Test != nil {
-			o.Actions.Test(cr.ID)
+		label, col, hollow := statusLabel(st), statusColor(st), st == proto.CredUnchecked
+		if (st == proto.CredValid || st == proto.CredUnchecked) && cr.ExpiresSoon(now, expiringWithin) {
+			label, col, hollow = "Rotate soon", theme.Warning, false
 		}
-		if widget.IconButton(c, icon.Pencil, "Edit "+cr.Name, false).Clicked() {
-			v.form = editForm(cr)
+		widget.StatusLine(c, col, hollow, label)
+		ui.Row(c).FillWidth().Shrink(0).MinWidth(0).Children(func() {
+			widget.Running(c.Key("value"), valueLine(cr, p), widget.RunStyle{Size: theme.TextLabel, Color: theme.TextSoft})
+		})
+		if line, warn := useLine(cr, o, now); line != "" {
+			col := theme.TextSoft
+			if warn {
+				col = theme.Warning
+			}
+			ui.Row(c).FillWidth().Shrink(0).MinWidth(0).Children(func() {
+				widget.Running(c.Key("use"), line, widget.RunStyle{Size: theme.TextLabel, Color: col})
+			})
 		}
-		widget.MoreMenu(c, &v.menu, "cred:"+cr.ID, func(done func()) {
-			if !cr.Default && widget.MenuItem(c, icon.Check, "Make it "+p.Name+"'s default", false) {
-				o.Actions.SetDefault(cr.ID)
-				done()
+		ui.Row(c).FillWidth().Shrink(0).Wrap().Gap(theme.S1).Tooltip(whereLabel(cr, o.Hosts)).Children(func() {
+			if cr.Default {
+				widget.Chip(c, "default", theme.Accent)
 			}
-			label, rev := "Revoke: no host may use it", true
-			if cr.Revoked {
-				label, rev = "Allow it again", false
+			if cr.Auto {
+				widget.Chip(c, "every session", ui.Color{})
 			}
-			if widget.MenuItem(c, icon.Stop, label, false) {
-				o.Actions.Revoke(cr.ID, rev)
-				done()
+			for _, name := range whereChips(cr, o.Hosts) {
+				widget.Chip(c, name, ui.Color{})
 			}
-			widget.MenuSeparator(c)
-			if widget.MenuItem(c, icon.Trash, "Remove from the vault", true) {
-				o.Actions.Remove(cr.ID)
-				done()
+		})
+		widget.CardFoot(c, func() {
+			if o.Testing[cr.ID] {
+				widget.Spinner(c, 14)
+			} else if widget.GhostButton(c, "Test").Tooltip("Check it still works, with "+p.Name).Clicked() && o.Actions.Test != nil {
+				o.Actions.Test(cr.ID)
 			}
+			if widget.GhostButton(c, "Details").Label("Details of " + cr.Name).Clicked() {
+				v.OpenDetails(cr.ID)
+			}
+			ui.Spacer(c)
+			v.rowMenu(c, o, cr, p)
 		})
 	})
+}
+
+// rowMenu is what else can be done with a credential.
+func (v *View) rowMenu(c *ui.Context, o Options, cr vault.Credential, p vault.Platform) {
+	key := "cred:" + cr.ID
+	b := widget.IconButton(c.Key("more:"+key), icon.More, "More for "+cr.Name, false)
+	v.menu.OpenBelow(b, key, theme.ControlHeight)
+	v.menu.Show(c, b, key, func(done func()) {
+		if widget.MenuItem(c, icon.Pencil, "Edit…", false) {
+			v.form = editForm(cr)
+			done()
+		}
+		if !cr.Default && widget.MenuItem(c, icon.Check, "Make it "+p.Name+"'s default", false) {
+			o.Actions.SetDefault(cr.ID)
+			done()
+		}
+		label, rev := "Revoke: no host may use it", true
+		if cr.Revoked {
+			label, rev = "Allow it again", false
+		}
+		if widget.MenuItem(c, icon.Stop, label, false) {
+			o.Actions.Revoke(cr.ID, rev)
+			done()
+		}
+		widget.MenuSeparator(c)
+		if widget.MenuItem(c, icon.Trash, "Remove from the vault", true) {
+			o.Actions.Remove(cr.ID)
+			done()
+		}
+	})
+}
+
+// title is what a credential's card is called: its platform, when it goes by
+// the platform's own name, else the name the user gave it.
+func title(cr vault.Credential, p vault.Platform) string {
+	if strings.EqualFold(cr.Name, p.ID) {
+		return p.Name
+	}
+	return cr.Name
+}
+
+// valueLine says what kind of value it holds, whose, and how it ends.
+func valueLine(cr vault.Credential, p vault.Platform) string {
+	parts := []string{mainLabel(cr, p)}
+	if cr.Account != "" {
+		parts = append(parts, cr.Account)
+	}
+	if h := vault.Hint(mainValue(cr)); h != "" {
+		parts = append(parts, h)
+	}
+	return strings.Join(parts, " · ")
+}
+
+// useLine is the card's line on its use: its expiry, else how much it was used
+// today, else the user's note. warn says the expiry is close.
+func useLine(cr vault.Credential, o Options, now time.Time) (line string, warn bool) {
+	if !cr.Expires.IsZero() && cr.State(now) != proto.CredExpired {
+		return "Expires " + cr.Expires.Local().Format("2 Jan 2006"), cr.ExpiresSoon(now, expiringWithin)
+	}
+	n := 0
+	for _, e := range o.Audit {
+		if e.Credential == cr.Name && e.Allowed && sameDay(e.Time, now) {
+			n++
+		}
+	}
+	switch {
+	case n == 1:
+		return "Used once today", false
+	case n > 1:
+		return fmt.Sprintf("Used %d times today", n), false
+	}
+	return cr.Notes, false
+}
+
+// whereChips are where it may be used, shortly; whereLabel says it whole.
+func whereChips(cr vault.Credential, hosts []Host) []string {
+	var out []string
+	for _, id := range cr.Hosts {
+		for _, h := range hosts {
+			if h.ID == id {
+				out = append(out, h.Name)
+			}
+		}
+	}
+	if len(out) == 0 {
+		out = append(out, map[bool]string{false: "asks on each host", true: "no host"}[cr.HostsOnly])
+	}
+	for _, p := range cr.Projects {
+		out = append(out, "only "+p)
+	}
+	return out
+}
+
+// mainLabel names the value a hint is made of.
+func mainLabel(cr vault.Credential, p vault.Platform) string {
+	for _, f := range p.Fields {
+		if f.Secret && cr.Fields[f.Key] != "" {
+			return f.Label
+		}
+	}
+	return p.Name
 }
 
 // mainValue is the value a hint is made of.
@@ -147,14 +237,12 @@ func whereLabel(cr vault.Credential, hosts []Host) string {
 	return "allowed on " + strings.Join(names, ", ") + ", asks elsewhere" + scope
 }
 
-// Logo is a platform's mark: its own on a tile of its brand's color, else
-// its initials on a tile of a color of its own.
+// Logo is a platform's mark, in the text's color so that every one reads on any
+// surface; without one, its initials on a tile of a color of its own.
 func Logo(c *ui.Context, p vault.Platform, size float32) {
-	if svg, brand, ok := logoOf(p.ID); ok {
-		fg := readable(brand)
-		ui.Row(c).Size(size, size).Shrink(0).Radius(size/4).Center().Background(theme.Fade(brand, 0.14)).
-			Border(1, theme.Fade(fg, 0.3)).Label(p.Name).Children(func() {
-			ui.Icon(c, svg).FontSize(size * 0.5).TextColor(fg)
+	if svg, _, ok := logoOf(p.ID); ok {
+		ui.Row(c).Size(size, size).Shrink(0).Center().Label(p.Name).Children(func() {
+			ui.Icon(c, svg).FontSize(size * 5 / 6).TextColor(theme.TextStrong)
 		})
 		return
 	}
@@ -202,28 +290,50 @@ func (v *View) audit(c *ui.Context, o Options) {
 	if len(o.Audit) == 0 {
 		return
 	}
-	ui.Column(c).FillWidth().Gap(8).Children(func() {
-		widget.SectionLabel(c, "USED ON "+strings.ToUpper(o.Current.Name), theme.Muted)
-		card := widget.Card(c).FillWidth().Padding(4, 0)
-		card.Children(func() {
-			list := o.Audit
-			if len(list) > 12 {
-				list = list[len(list)-12:]
-			}
+	ui.Column(c).FillWidth().Shrink(0).Gap(theme.S2).Children(func() {
+		ui.Text(c, "Latest uses").FontSize(theme.TextUI).FontWeight(500)
+		list := o.Audit
+		if len(list) > auditShown {
+			list = list[len(list)-auditShown:]
+		}
+		ui.Column(c).FillWidth().Children(func() {
 			for i := len(list) - 1; i >= 0; i-- {
-				e := list[i]
-				ui.Row(c.Key(i)).FillWidth().Height(32).PaddingX(14).Gap(10).AlignItems(ui.Center).Children(func() {
-					col := theme.Done
-					if !e.Allowed {
-						col = theme.Error
-					}
-					widget.Dot(c, col, false, 6)
-					ui.Text(c, auditText(e)).FontSize(theme.TextLabel).TextColor(theme.Text).SingleLine().Grow(1).MinWidth(0)
-					ui.Text(c, e.Time.Local().Format("2 Jan 15:04")).FontSize(theme.TextLabel).TextColor(theme.Muted).SingleLine()
-				})
+				auditRow(c.Key(i), list[i], i == len(list)-1)
 			}
 		})
 	})
+}
+
+// auditShown is how many uses show.
+const auditShown = 12
+
+// auditRow is a use: when, what, and whether it was let.
+func auditRow(c *ui.Context, e proto.VaultAuditEntry, first bool) {
+	row := ui.Row(c).FillWidth().Shrink(0).MinHeight(32).Gap(theme.S2)
+	if first {
+		row.BorderWidth(0.5, 0, 0.5, 0)
+	} else {
+		row.BorderWidth(0, 0, 0.5, 0)
+	}
+	row.BorderColor(theme.Border).Children(func() {
+		ui.Text(c, auditWhen(e.Time)).FontSize(theme.TextLabel).TextColor(theme.TextSoft).Width(44).Shrink(0).SingleLine()
+		ui.Row(c).Grow(1).MinWidth(0).Children(func() {
+			widget.Running(c, auditText(e), widget.RunStyle{Size: theme.TextLabel})
+		})
+		if e.Allowed {
+			widget.StatusLine(c.Key("state"), theme.Done, false, "Allowed")
+		} else {
+			widget.StatusLine(c.Key("state"), theme.Error, false, "Refused")
+		}
+	})
+}
+
+// auditWhen is the hour of a use today, the day of an older one.
+func auditWhen(t time.Time) string {
+	if sameDay(t, time.Now()) {
+		return t.Local().Format("15:04")
+	}
+	return t.Local().Format("2 Jan")
 }
 
 func auditText(e proto.VaultAuditEntry) string {
@@ -236,12 +346,9 @@ func auditText(e proto.VaultAuditEntry) string {
 	if name == "" {
 		name = "a credential"
 	}
-	s := fmt.Sprintf("%s for %s", name, what)
+	s := name + " · " + what
 	if e.Detail != "" {
-		s += ": " + e.Detail
-	}
-	if !e.Allowed {
-		s = "Refused " + s
+		s += " · " + e.Detail
 	}
 	return s
 }
