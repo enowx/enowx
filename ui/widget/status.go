@@ -27,22 +27,19 @@ type Status struct {
 // Badge is a status: a dot then its words, without a filled block, so a
 // list of many stays calm.
 func Badge(c *ui.Context, s Status) {
-	ui.Row(c).Gap(6).Shrink(0).Children(func() {
-		Dot(c, s.Color, s.Hollow, 6)
-		ui.Text(c, s.Label).FontSize(11.5).TextColor(theme.TextSoft).SingleLine()
+	ui.Row(c).Gap(theme.S1).Shrink(0).Children(func() {
+		Dot(c, s.Color, s.Hollow, 8)
+		ui.Text(c, s.Label).FontSize(theme.TextLabel).TextColor(theme.Text).SingleLine()
 	})
 }
 
-// Tag is a small outlined label, as New, Changed, git; col colors its
-// words, theme.TextSoft when zero.
+// Tag is a small capsule, as New, Changed, git; col colors its words,
+// theme.Text when zero.
 func Tag(c *ui.Context, label string, col ui.Color) {
-	border := theme.BorderStrong
 	if col.A == 0 {
-		col = theme.TextSoft
-	} else {
-		border = theme.Fade(col, 0.35)
+		col = theme.Text
 	}
-	ui.Box(c).PaddingX(8).Height(18).Radius(9).Border(1, border).Center().Shrink(0).Children(func() {
-		ui.Text(c, label).FontSize(10.5).TextColor(col).SingleLine()
+	ui.Box(c).PaddingX(theme.S2).Height(20).Radius(theme.RadiusFull).Background(theme.Fade(theme.TextStrong, 0.1)).Center().Shrink(0).Children(func() {
+		ui.Text(c, label).FontSize(theme.TextLabel).TextColor(col).SingleLine()
 	})
 }
