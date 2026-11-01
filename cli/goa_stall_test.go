@@ -3,6 +3,7 @@ package cli
 import (
 	"bytes"
 	"net"
+	"slices"
 	"strings"
 	"testing"
 
@@ -47,5 +48,15 @@ func TestGOAStallCommand(t *testing.T) {
 	var l proto.GOAStall
 	if err := c.Call(proto.MethodGOAStall, nil, &l); err != nil || l != (proto.GOAStall{Blank: goa.StallBlank, Idle: 90, Stuck: goa.StallStuck}) {
 		t.Fatalf("kept: %+v %v", l, err)
+	}
+	// The MCP tool is the same command.
+	i := slices.IndexFunc(goaTools, func(tool mcpTool) bool { return tool.name == "goa_stall" })
+	if i < 0 {
+		t.Fatal("no goa_stall tool")
+	}
+	out.Reset()
+	runner{c: c, out: &out}.callTool(goaTools[i], runner.goaCmd, map[string]any{"blank": "45s"})
+	if err := c.Call(proto.MethodGOAStall, nil, &l); err != nil || l.Blank != 45 || l.Idle != 90 {
+		t.Fatalf("through the tool: %+v %v", l, err)
 	}
 }

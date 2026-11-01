@@ -286,6 +286,10 @@ func TestGOAMode(t *testing.T) {
 	if err := cl.Call(proto.MethodGOAStall, nil, &stall); err != nil || stall != (proto.GOAStall{Blank: 60, Idle: 90, Stuck: 600}) {
 		t.Fatalf("the limits kept: %+v %v", stall, err)
 	}
+	click("Settings")
+	app.settingsSection = sectionSessions
+	frames("the limits in Settings", func() bool { return tt.HasText("Stalled tasks on") })
+	click("GOD of Agents")
 
 	click("Leave")
 	if !app.goaOn() || app.confirming == nil {

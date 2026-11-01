@@ -321,9 +321,11 @@ func TestGOAStalledSessionHibernatedOrGone(t *testing.T) {
 	asleep := stallDelegate(t, c, proto.GOADelegateParams{Title: "asleep", Prompt: "STANDIN-READY"})
 	gone := stallDelegate(t, c, proto.GOADelegateParams{Title: "gone", Prompt: "STANDIN-READY"})
 	waitScreen(t, c, asleep.Session, "ready for it")
-	if res, err := c.HibernateSessions(proto.SessionHibernateParams{IDs: []string{asleep.Session}}); err != nil || len(res.Hibernated) != 1 {
-		t.Fatalf("hibernating: %+v %v", res, err)
-	}
+	// A program that only just printed counts as working, and isn't hibernated.
+	waitFor(t, "hibernated", func() bool {
+		res, err := c.HibernateSessions(proto.SessionHibernateParams{IDs: []string{asleep.Session}})
+		return err == nil && len(res.Hibernated) == 1
+	})
 	if err := srv.deleteSession(gone.Session); err != nil {
 		t.Fatal(err)
 	}
