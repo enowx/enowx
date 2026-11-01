@@ -33,7 +33,7 @@ var sessionAdapters = map[string]sessionFunc{
 	"claude":      claudeSession,
 	"codex":       codexSession,
 	"opencode":    openCodeSession,
-	"copilot":     envSession(copilot),
+	"copilot":     copilotSession,
 	"openclaude":  envSession(openClaude),
 	"antigravity": envSession(antigravity),
 	"gemini":      geminiSession,
@@ -223,6 +223,20 @@ func envSession(a adapter) sessionFunc {
 		}
 		return Launch{Env: kv(a.env(api)...)}, nil
 	}
+}
+
+// copilotSession: its variables, and an empty providers file of the session's
+// own: the user's providers.json, when it lists anything, wins over them.
+// The key can't go in that file: it takes $VAR as literal text.
+func copilotSession(api API, dir string) (Launch, error) {
+	if err := os.MkdirAll(dir, 0o700); err != nil {
+		return Launch{}, err
+	}
+	path := filepath.Join(dir, "copilot-providers.json")
+	if err := os.WriteFile(path, []byte(`{"providers":[],"models":[]}`+"\n"), 0o600); err != nil {
+		return Launch{}, err
+	}
+	return Launch{Env: append(kv(copilot.env(api)...), "COPILOT_PROVIDERS_CONFIG="+path)}, nil
 }
 
 // geminiSession: the variables Gemini CLI reads its key and address

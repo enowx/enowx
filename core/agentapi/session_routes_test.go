@@ -30,6 +30,27 @@ func keyInFiles(t *testing.T, dir string) []string {
 	return found
 }
 
+// A providers.json of the user's would win over Copilot's variables: its
+// sessions read an empty one instead, the key staying in the environment.
+func TestCopilotSessionDoesNotReadTheUsersProviders(t *testing.T) {
+	dir := t.TempDir()
+	l, err := SessionLaunch("copilot", API{BaseURL: "https://gw.example.com/v1", APIKey: routeKey, Model: "m"}, dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	path := filepath.Join(dir, "copilot-providers.json")
+	if !contains(l.Env, "COPILOT_PROVIDERS_CONFIG="+path) || !contains(l.Env, "COPILOT_PROVIDER_API_KEY="+routeKey) || !contains(l.Env, "COPILOT_PROVIDER_BASE_URL=https://gw.example.com/v1") {
+		t.Fatalf("env %q", l.Env)
+	}
+	data, err := os.ReadFile(path)
+	if err != nil || strings.TrimSpace(string(data)) != `{"providers":[],"models":[]}` {
+		t.Fatalf("providers %s, %v", data, err)
+	}
+	if found := keyInFiles(t, dir); len(found) > 0 || strings.Contains(strings.Join(l.Args, " "), routeKey) {
+		t.Fatalf("the key in %q, args %q", found, l.Args)
+	}
+}
+
 // Gemini CLI refuses plain http anywhere but on this machine: a config says so
 // when it's made, not when its session fails to start.
 func TestGeminiAddressIsHTTPSUnlessLocal(t *testing.T) {
