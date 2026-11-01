@@ -127,6 +127,8 @@ type SessionInfo struct {
 	State string `json:"state,omitempty"`
 	// SkipPermissions: the agent runs tools without asking.
 	SkipPermissions bool `json:"skipPermissions,omitempty"`
+	// ExitWhy says in a line why it ended, when it wasn't clean.
+	ExitWhy string `json:"exitWhy,omitempty"`
 	// Model and Effort are what its agent last said it runs on, "" when it
 	// says nothing; ModelLast: the agent isn't running, so this was the last.
 	Model     string `json:"model,omitempty"`

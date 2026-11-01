@@ -104,6 +104,19 @@ func (m *Manager) SetNote(s *Session, note string) {
 	m.notify(s)
 }
 
+// quickExitsFor is how long quick exits count against starting again.
+const quickExitsFor = 30 * time.Second
+
+// QuickExits is how many times in a row s ended right after starting.
+func (s *Session) QuickExits() int {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if time.Since(s.lastExit) > quickExitsFor {
+		return 0 // later on, the user may well try again
+	}
+	return s.quickExits
+}
+
 // SetModel records what session s's agent last said it runs on.
 func (m *Manager) SetModel(s *Session, model, effort string) {
 	s.mu.Lock()
@@ -148,5 +161,19 @@ func (m *Manager) Replace(spec Spec) (*Session, error) {
 	if spec.Created.IsZero() {
 		spec.Created = old.created
 	}
-	return m.create(spec, old)
+	old.mu.Lock()
+	quick, last := old.quickExits, old.lastExit
+	old.mu.Unlock()
+	next, err := m.create(spec, old)
+	if err == nil {
+		next.mu.Lock()
+		if next.quickExits == 0 {
+			next.quickExits = quick
+		}
+		if next.lastExit.IsZero() {
+			next.lastExit = last
+		}
+		next.mu.Unlock()
+	}
+	return next, err
 }

@@ -5,6 +5,7 @@ import (
 	"path/filepath"
 	"runtime"
 	"strings"
+	"time"
 	"testing"
 
 	"github.com/enowx/enowx/client"
@@ -158,5 +159,29 @@ func TestForkSession(t *testing.T) {
 	}
 	if got := len(srv.sessions.List()); got != n+1 {
 		t.Fatalf("%d sessions, was %d and one more", got, n)
+	}
+}
+
+// A session that keeps ending as it starts says why, and isn't continued in a
+// tight loop.
+func TestSessionEndingAtOnceStops(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("uses sh")
+	}
+	srv := startServer(t)
+	c := connect(t, srv, nil)
+	info, err := c.CreateSession(proto.SessionCreateParams{Command: []string{"sh", "-c", "exit 129"}, Cols: 80, Rows: 24})
+	if err != nil {
+		t.Fatal(err)
+	}
+	sess, err := srv.sessions.Get(info.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for sess.QuickExits() < 1 {
+		time.Sleep(10 * time.Millisecond)
+	}
+	if why := sess.Info().ExitWhy; !strings.Contains(why, "hang-up") || !strings.Contains(why, "never got going") {
+		t.Fatalf("why: %q", why)
 	}
 }

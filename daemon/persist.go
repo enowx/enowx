@@ -340,6 +340,10 @@ func (s *Server) saveHistories(done <-chan struct{}) {
 // continueSession starts session id's program again in the session, its
 // screen kept: an agent picks up its last conversation, a shell starts
 // over. It is for sessions whose program ended, by itself or killed.
+// quickExitsMax is how many times in a row a session may end right after
+// starting before it isn't continued: nothing good comes of a tight loop.
+const quickExitsMax = 3
+
 func (s *Server) continueSession(id string) (*session.Session, error) {
 	return s.resumeSession(id, "")
 }
@@ -354,6 +358,9 @@ func (s *Server) resumeSession(id, convo string) (*session.Session, error) {
 	info, meta := sess.Info(), sess.Meta()
 	if !info.Exited {
 		return nil, errors.New("the session is still running")
+	}
+	if sess.QuickExits() >= quickExitsMax {
+		return nil, fmt.Errorf("it ended right after starting %d times in a row, so enowX won't start it again by itself: %s", quickExitsMax, info.ExitWhy)
 	}
 	if !meta.Relaunch {
 		return nil, errors.New("this session's command can't be continued: start it again in a new session")

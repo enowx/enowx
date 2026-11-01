@@ -288,6 +288,9 @@ func (a *App) factStrip(c *ui.Context, s proto.SessionInfo) {
 		if text, col := budgetFact(s); text != "" {
 			fact(text, col)
 		}
+		if s.ExitWhy != "" {
+			ui.Text(c.Key("exit-why"), s.ExitWhy).FontSize(11).TextColor(theme.Error).SingleLine().Shrink(1).Tooltip(s.ExitWhy)
+		}
 		ui.Spacer(c)
 		if t, ok := a.sessionTokens(s.ID); ok {
 			ui.Text(c.Key("tokens"), tokenview.Spent(t)).FontSize(11.5).TextColor(theme.Muted).SingleLine().Shrink(1).Tooltip(tokenview.SpentTip(t))

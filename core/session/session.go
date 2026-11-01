@@ -127,13 +127,20 @@ const EnvSession = "ENOWX_SESSION"
 
 // Session is one running (or exited) program.
 type Session struct {
-	id      string
-	meta    Meta
-	command []string
-	dir     string
-	created time.Time
-	term    *terminal.Terminal
-	done    chan struct{}
+	// started is when its program started; exitWhy why it ended, when it wasn't
+	// clean; quickExits how many times in a row, over Replace too, it ended
+	// right after starting, the last at lastExit.
+	started    time.Time
+	exitWhy    string
+	quickExits int
+	lastExit   time.Time
+	id         string
+	meta       Meta
+	command    []string
+	dir        string
+	created    time.Time
+	term       *terminal.Terminal
+	done       chan struct{}
 
 	mu         sync.Mutex
 	title      string
@@ -213,6 +220,7 @@ func (s *Session) Info() proto.SessionInfo {
 		State:           s.stateLocked(time.Now()),
 		SkipPermissions: s.meta.SkipPermissions,
 		SkipUnheard:     s.meta.SkipUnheard,
+		ExitWhy:         s.exitWhy,
 		Model:           s.meta.Model,
 		Effort:          s.meta.Effort,
 		ModelLast:       s.meta.Model != "" && (s.exited || s.meta.Hibernated),
@@ -400,6 +408,7 @@ func (m *Manager) create(spec Spec, old *Session) (*Session, error) {
 		return nil, fmt.Errorf("session: load terminal emulator: %w", err)
 	}
 	s := &Session{
+		started: time.Now(),
 		id:      spec.ID,
 		meta:    spec.Meta,
 		command: slices.Clone(spec.Command),
@@ -434,6 +443,13 @@ func (m *Manager) create(spec Spec, old *Session) (*Session, error) {
 		OnExit: func(code int) {
 			s.mu.Lock()
 			s.exited, s.code, s.active = true, code, false
+			s.exitWhy = ExitWhy(code, time.Since(s.started))
+			if time.Since(s.started) < quickExit {
+				s.quickExits++
+			} else {
+				s.quickExits = 0
+			}
+			s.lastExit = time.Now()
 			s.mu.Unlock()
 			m.notify(s)
 		},

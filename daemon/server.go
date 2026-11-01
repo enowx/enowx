@@ -212,7 +212,7 @@ func newServer(dir, hookBin string) (*Server, error) {
 			// When and how each program ended, to tell later what ended it
 			// (143 is SIGTERM from outside, say).
 			if _, logged := s.exitsLogged.LoadOrStore(info.ID, true); !logged {
-				s.logger().Info("session ended", "id", info.ID, "agent", info.Agent, "code", info.ExitCode)
+				s.logger().Info("session ended", "id", info.ID, "agent", info.Agent, "code", info.ExitCode, "why", info.ExitWhy)
 			}
 		} else {
 			s.exitsLogged.Delete(info.ID)

@@ -1853,6 +1853,7 @@ field SessionInfo.display int
 field SessionInfo.displayScale int
 field SessionInfo.effort string
 field SessionInfo.exitCode int
+field SessionInfo.exitWhy string
 field SessionInfo.exited bool
 field SessionInfo.goa bool
 field SessionInfo.goaWorker string

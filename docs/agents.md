@@ -158,6 +158,10 @@ The mode is the one a session shows ("skips permission prompts"), and stays thro
 
 OpenCode's mode is `--auto`: it approves what asks, in the session and its subagents, and paths outside the project, `.env` reads and repeated calls included; a `deny` rule of its config still stops the tool, which reports it in the session. enowX doesn't touch that config.
 
+## When a session dies
+
+A session that ended badly says why beside its name, in `session.exitWhy` and in the daemon's log: the signal for a code above 128 (129 is a hang-up), and that it never got going when that was within five seconds. Three such endings in a row keep it from being continued for 30 seconds, so nothing restarts it in a tight loop.
+
 ## Limits
 
 **Agents at once** (command palette) sets how many agents may work at the same time on a host, kept by its daemon in `~/.enowx-app/settings.json`. An agent session started past it is created at once, with its worktree, but shows as **queued** and runs nothing; the daemon starts it in that session when an agent finishes its turn (as its hooks or its screen tell), oldest first. An agent just started counts as working for 10 s, so the next one doesn't start before it begins. Shells and custom commands are never queued. A daemon restart forgets the queue: the sessions waiting are gone.
