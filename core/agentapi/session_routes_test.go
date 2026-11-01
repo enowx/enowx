@@ -4,6 +4,7 @@ import (
 	"io/fs"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"testing"
 )
@@ -28,6 +29,126 @@ func keyInFiles(t *testing.T, dir string) []string {
 		t.Fatal(err)
 	}
 	return found
+}
+
+// Each agent wired from its docs: what its session gets, the key in the
+// environment alone, never in a file or on its command line.
+func TestSessionRoutes(t *testing.T) {
+	const url = "https://gw.example.com/v1"
+	one := func(proto string) API {
+		return API{BaseURL: url, APIKey: routeKey, Protocol: proto, Model: "m",
+			Models: []Model{{ID: "m", Context: 64000, Output: 8000, Vision: true}}}
+	}
+	for name, tc := range map[string]struct {
+		id   string
+		api  API
+		env  []string // wanted exactly
+		args []string // wanted exactly, the session's folder as {dir}
+		file string   // a file of the session's that must name the key's variable
+		ref  string
+	}{
+		"kilo": {id: "kilo", api: one(""), env: []string{kiloKeyVar + "=" + routeKey}, file: ".config/kilo/kilo.json", ref: "{env:" + kiloKeyVar + "}"},
+		"qwen openai": {id: "qwen-code", api: one(OpenAI), env: []string{"OPENAI_API_KEY=" + routeKey, "OPENAI_BASE_URL=" + url, "OPENAI_MODEL=m"},
+			args: []string{"--auth-type", "openai", "--model", "m"}},
+		"qwen anthropic": {id: "qwen-code", api: one(Anthropic), env: []string{"ANTHROPIC_API_KEY=" + routeKey, "ANTHROPIC_BASE_URL=" + url, "ANTHROPIC_MODEL=m"},
+			args: []string{"--auth-type", "anthropic", "--model", "m"}},
+		"kimi openai": {id: "kimi", api: one(OpenAI), env: []string{"KIMI_MODEL_NAME=m", "KIMI_MODEL_API_KEY=" + routeKey, "KIMI_MODEL_BASE_URL=" + url,
+			"KIMI_MODEL_PROVIDER_TYPE=openai", "KIMI_MODEL_MAX_CONTEXT_SIZE=64000", "KIMI_MODEL_CAPABILITIES=image_in"}},
+		"kimi anthropic": {id: "kimi", api: API{BaseURL: url, APIKey: routeKey, Protocol: Anthropic, Model: "m"},
+			env: []string{"KIMI_MODEL_NAME=m", "KIMI_MODEL_API_KEY=" + routeKey, "KIMI_MODEL_BASE_URL=" + url, "KIMI_MODEL_PROVIDER_TYPE=anthropic"}},
+		"continue": {id: "continue", api: one(""), env: []string{continueKeyVar + "=" + routeKey}, args: []string{"--config", "{dir}/" + continueFile},
+			file: continueFile, ref: "${{ secrets." + continueKeyVar + " }}"},
+		"crush": {id: "crush", api: one(""), env: []string{"CRUSH_GLOBAL_CONFIG={dir}/crush", "CRUSH_GLOBAL_DATA={dir}/crush-data", crushKeyVar + "=" + routeKey},
+			file: "crush/crush.json", ref: "$" + crushKeyVar},
+	} {
+		t.Run(name, func(t *testing.T) {
+			if !PerSession(tc.id) {
+				t.Fatalf("%s isn't per session", tc.id)
+			}
+			dir := t.TempDir()
+			l, err := SessionLaunch(tc.id, tc.api, dir)
+			if err != nil {
+				t.Fatal(err)
+			}
+			env := l.Env
+			if tc.id == "kilo" {
+				// Its config is a variable, naming the key's.
+				var content string
+				env = nil
+				for _, e := range l.Env {
+					if v, ok := strings.CutPrefix(e, "KILO_CONFIG_CONTENT="); ok {
+						content = v
+					} else {
+						env = append(env, e)
+					}
+				}
+				if strings.Contains(content, routeKey) || !strings.Contains(content, tc.ref) || !strings.Contains(content, `"enowx/m"`) {
+					t.Fatalf("KILO_CONFIG_CONTENT: %s", content)
+				}
+			}
+			var want []string
+			for _, e := range tc.env {
+				want = append(want, strings.ReplaceAll(e, "{dir}", dir))
+			}
+			if !slices.Equal(env, want) {
+				t.Errorf("env\n%q\nwant\n%q", env, want)
+			}
+			var args []string
+			for _, a := range tc.args {
+				args = append(args, strings.ReplaceAll(a, "{dir}", dir))
+			}
+			if !slices.Equal(l.Args, args) {
+				t.Errorf("args %q, want %q", l.Args, args)
+			}
+			if found := keyInFiles(t, dir); len(found) > 0 {
+				t.Errorf("the key is in %q", found)
+			}
+			if strings.Contains(strings.Join(l.Args, " "), routeKey) {
+				t.Errorf("the key is on its command line: %q", l.Args)
+			}
+			if tc.file != "" {
+				data, err := os.ReadFile(filepath.Join(dir, tc.file))
+				if err != nil || !strings.Contains(string(data), tc.ref) {
+					t.Errorf("%s doesn't name the key: %s, %v", tc.file, data, err)
+				}
+			}
+		})
+	}
+}
+
+// What a session can't start on says so as it starts, not in its agent.
+func TestSessionRoutesRefuse(t *testing.T) {
+	const url = "https://gw.example.com/v1"
+	for name, tc := range map[string]struct {
+		id  string
+		api API
+	}{
+		"qwen without a model":  {"qwen-code", API{BaseURL: url, APIKey: routeKey}},
+		"qwen's Responses API":  {"qwen-code", API{BaseURL: url, APIKey: routeKey, Model: "m", Protocol: OpenAIResponses}},
+		"kimi without a model":  {"kimi", API{BaseURL: url, APIKey: routeKey}},
+		"kimi without a key":    {"kimi", API{BaseURL: url, Model: "m"}},
+		"kimi's Gemini API":     {"kimi", API{BaseURL: url, APIKey: routeKey, Model: "m", Protocol: Gemini}},
+		"crush without a model": {"crush", API{BaseURL: url, APIKey: routeKey}},
+		"kilo without a model":  {"kilo", API{BaseURL: url, APIKey: routeKey}},
+		"continue, no model":    {"continue", API{BaseURL: url, APIKey: routeKey}},
+	} {
+		if _, err := SessionLaunch(tc.id, tc.api, t.TempDir()); err == nil {
+			t.Errorf("%s: started", name)
+		}
+	}
+}
+
+// A local server with no key: nothing names a variable that isn't set.
+func TestSessionConfigWithoutAKey(t *testing.T) {
+	dir := t.TempDir()
+	l, err := SessionLaunch("crush", API{BaseURL: "http://localhost:8080/v1", Model: "m"}, dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	data, _ := os.ReadFile(filepath.Join(dir, "crush", "crush.json"))
+	if strings.Contains(string(data), crushKeyVar) || slices.ContainsFunc(l.Env, func(e string) bool { return strings.HasPrefix(e, crushKeyVar) }) {
+		t.Fatalf("env %q, config %s", l.Env, data)
+	}
 }
 
 // A providers.json of the user's would win over Copilot's variables: its

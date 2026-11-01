@@ -38,6 +38,11 @@ var sessionAdapters = map[string]sessionFunc{
 	"antigravity": antigravitySession,
 	"gemini":      geminiSession,
 	"aider":       aiderSession,
+	"kilo":        kiloSession,
+	"qwen-code":   qwenSession,
+	"kimi":        kimiSession,
+	"continue":    continueSession,
+	"crush":       crushSession,
 }
 
 // PerSession says agent id (a preset) can take an API per session.
@@ -204,15 +209,11 @@ const openCodeKeyVar = "ENOWX_OPENCODE_API_KEY"
 // openCodeSession: a config of the session's own, which OpenCode merges
 // over the user's (OPENCODE_CONFIG), its key named from the environment.
 func openCodeSession(api API, dir string) (Launch, error) {
-	if err := os.MkdirAll(dir, 0o700); err != nil {
+	path, err := sessionConfig("opencode", "{env:"+openCodeKeyVar+"}", api, dir)
+	if err != nil {
 		return Launch{}, err
 	}
-	keyed := api
-	keyed.APIKey = "{env:" + openCodeKeyVar + "}"
-	if err := adapters["opencode"].write(dir, keyed); err != nil {
-		return Launch{}, err
-	}
-	return Launch{Env: kv([2]string{"OPENCODE_CONFIG", filepath.Join(dir, adapters["opencode"].files[0])}, [2]string{openCodeKeyVar, api.APIKey})}, nil
+	return Launch{Env: kv([2]string{"OPENCODE_CONFIG", path}, [2]string{openCodeKeyVar, api.APIKey})}, nil
 }
 
 // envSession is an agent that takes its API from the environment only.

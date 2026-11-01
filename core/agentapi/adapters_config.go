@@ -97,10 +97,11 @@ const (
 )
 
 var kimi = adapter{
-	protocols: []string{OpenAI, OpenAIResponses, Anthropic, Gemini},
+	// What its sessions take (kimiSession): one model, by two protocols.
+	protocols: []string{OpenAI, Anthropic},
 	files:     []string{kimiFile, kimiOldFile},
-	caps:      Caps{Multi: true, Vision: true, Context: "model"},
-	note:      "It needs the model's name. Each model's context window is required: 131072 when not given.",
+	caps:      Caps{Vision: true, Context: "model"},
+	note:      "It needs the model's name and a key.",
 	read: func(home string) (API, bool, error) {
 		for _, file := range []string{kimiFile, kimiOldFile} {
 			data, err := readFile(home, file)
