@@ -19,10 +19,18 @@ import (
 // tool_result). Records marked isMeta or isSidechain (subagents) aren't
 // the conversation. See docs/chat-view.md.
 
+// ClaudeHome is where Claude Code keeps its files under home.
+func ClaudeHome(home string) string {
+	if h := os.Getenv("CLAUDE_CONFIG_DIR"); h != "" {
+		return h
+	}
+	return filepath.Join(home, ".claude")
+}
+
 // ClaudeFiles returns the transcripts Claude Code keeps for sessions run in
 // dir, newest first.
 func ClaudeFiles(home, dir string) []string {
-	root := filepath.Join(home, ".claude", "projects")
+	root := filepath.Join(ClaudeHome(home), "projects")
 	var folders []string
 	if f := filepath.Join(root, ClaudeFolder(dir)); isDir(f) {
 		folders = append(folders, f)

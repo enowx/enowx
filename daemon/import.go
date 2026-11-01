@@ -227,7 +227,7 @@ func (s *Server) placeConversation(ms transfer.Session, dir string, data []byte)
 	if err != nil {
 		return err
 	}
-	folder := filepath.Join(home, ".claude", "projects", transcript.ClaudeFolder(dir))
+	folder := filepath.Join(transcript.ClaudeHome(home), "projects", transcript.ClaudeFolder(dir))
 	if err := os.MkdirAll(folder, 0o700); err != nil {
 		return err
 	}
