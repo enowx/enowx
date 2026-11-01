@@ -100,6 +100,7 @@ var (
 	Bot        = load("agentbot")
 	Sparkle    = load("sparkle") // the agent's own words, in the chat's timeline
 	List       = load("list")
+	ListChecks = load("list-checks")
 	Notebook   = load("notebook")
 	// A note's layout blocks.
 	Info       = load("info")
