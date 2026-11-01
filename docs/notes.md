@@ -98,7 +98,7 @@ Pages and groups of before had emoji: the daemon moves them to the closest SVG i
 
 ## Asking an agent
 
-**Ask an agent** in the page's header opens a panel beside it to talk with an agent about the page: Claude Code, Codex or any other installed, picked per page. Suggestions start it on the common asks (tidy the page into to-dos, turn it into a plan, brainstorm it as a new project, summarize it), or ask anything.
+**Note agent** (the sparkle in the page's header) opens a panel in its frame to talk with an agent about the page: Claude Code, Codex or any other installed, picked per page. Suggestions start it on the common asks (tidy the page into to-dos, turn it into a plan, brainstorm it as a new project, summarize it), or ask anything.
 
 - The agent works on notes only. It runs in an empty folder of its own (`~/.enowx-app/notes-chat/<note>`), out of the session list, with a guide of its own on writing to-do lists, plans, project ideas, meeting notes and tidy pages. Claude Code is held to it: only enowX's notes tools (list, read, create, write), web search, and none of its tools for files or commands. Other agents are asked to keep to it.
 - Nothing it writes takes effect by itself. Each write is a proposal shown above the page, as the lines it changes (a new page in full); **Accept** makes it, **Reject** drops it, and **Undo** puts the page back after accepting. A proposal made before the page changed says so.
@@ -108,7 +108,7 @@ The daemon keeps proposals in `~/.enowx-app/notes/proposals.json` (`note.proposa
 
 ## Groups
 
-Groups keep pages together, like folders: a top-level page is in one group or none, and the pages under it go with it. **New group** (the folder button beside **New**) makes one, with a name, an icon and a color. In the tree each group is a header with its count of pages: a click folds it (every device sees it folded), **+** makes a page in it, and its menu edits or deletes it. Dragging a page onto a group's header puts it in the group, onto **No group** takes it out, and a page's menu moves it to any group; dragging a group onto another puts it before. Deleting a group keeps its pages, in no group. The folder button beside the filter shows one group's pages alone.
+Groups keep pages together, like folders: a top-level page is in one group or none, and the pages under it go with it. **New group…** (in the **Import and export** menu beside **New note**) makes one, with a name, an icon and a color. In the tree each group is a header with its count of pages: a click folds it (every device sees it folded), **+** makes a page in it, and its menu edits or deletes it. Dragging a page onto a group's header puts it in the group, onto **No group** takes it out, and a page's menu moves it to any group; dragging a group onto another puts it before. Deleting a group keeps its pages, in no group. The folder button beside the filter shows one group's pages alone.
 
 Groups are kept in `~/.enowx-app/notes/groups.json` and a page's group in its header (`group:`); `note.groups`, `note.group.save`, `note.group.delete`, `note.group.move` and `note.setGroup` change them, and `notes.groups` tells the apps.
 
@@ -158,7 +158,7 @@ With a token of the vault's, the import can be made again on its own, hourly, ev
 
 Importing the same source again finds the notes it made before (Notion's page IDs, the files' paths in a vault, …, kept in `notes/imports.json`): it skips them, writes them again, or makes copies, as picked.
 
-**Export…** in a page's menu (with the pages under it), a group's menu, or **Export all…** writes them on the host and saves the file on this device:
+**Export…** in a page's menu (with the pages under it), a group's menu, or **Export…** in the tree's menu writes them on the host and saves the file on this device:
 
 - **Markdown**: one note as a .md with a header (title, icon, group, dates, its ID); several as a .zip of them.
 - **Folders**: a .zip of folders of Markdown, a group's notes in its folder and a page's under it in one of its name, their images in `assets/`. Obsidian opens it as a vault and Notion imports it; **Import** makes the same notes again from it.

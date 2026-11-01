@@ -170,7 +170,7 @@ A session that ended badly says why beside its name, in `session.exitWhy` and in
 
 ## Credits
 
-The daemon reads what each signed-in account has left (`core/credits`, `credits.get`) and the app shows it in the title bar chip, its popover and the Credits page. Tokens are read when needed and sent only to the vendor that issued them; enowX never stores, logs or refreshes them, since refreshing would sign the agent out. A reading is reused for 5 minutes. All three sources are undocumented and may change; a changed answer shows as an error on the card.
+The daemon reads what each signed-in account has left (`core/credits`, `credits.get`) and the app shows it on the Credits page. Tokens are read when needed and sent only to the vendor that issued them; enowX never stores, logs or refreshes them, since refreshing would sign the agent out. A reading is reused for 5 minutes. All three sources are undocumented and may change; a changed answer shows as an error on the card.
 
 | Agent | Login read | Asked |
 |---|---|---|

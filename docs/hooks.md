@@ -112,7 +112,7 @@ Codex runs a hook only once the user trusted its exact definition, kept as a has
 - **The host's own:** `~/.enowx-app/settings/hooks.json`, synced to the user's other hosts with their settings ([user-data-sync.md](user-data-sync.md)). The daemon reads the file again when it changes.
 - **A project's own:** its `.enowx/hooks.json`, committed with it, as a list of the same hooks.
   - Saved from the app or `enowx hooks add --scope project`, the file is allowed as written.
-  - Otherwise, its hooks don't run until the user allows that file as it is, and Settings → Hooks shows the projects waiting, with Review… and Allow them.
+  - Otherwise, its hooks don't run until the user allows that file as it is, and Settings → Hooks shows the projects waiting, with Review and Allow them.
   - The approval is of the file's hash, kept per host in `~/.enowx-app/hooks-allowed.json`, so any change asks again.
 - **A session's own:** kept by the daemon until the session ends (a hibernated one keeps them), not on disk.
 - **Agents' proposals:** in `~/.enowx-app/hooks-proposed.json` until the user decides.

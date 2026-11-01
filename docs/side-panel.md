@@ -50,8 +50,8 @@ The daemon finds a session's processes by name: each session's program runs unde
 
 ## Traffic
 
-The HTTP the session's programs send, caught by its host's interceptor: the list with its filter, an exchange's headers, bodies and messages, mocks and breakpoints, rules, what is attached, Compose, and its settings. See [traffic.md](traffic.md).
+The HTTP the session's programs send, caught by its host's interceptor: the list with its filter, an exchange's headers, bodies and messages in a tab of the session, mocks and breakpoints, rules, what is attached, Compose, and its settings. See [traffic.md](traffic.md).
 
 ## Android
 
-The devices of the session's host and of this machine: start an emulator, connect a phone, set Android up, run the session's app on a device (across hosts through the ADB bridge), catch its traffic, and in its **Screen** and **Logcat** tabs use its screen right in the panel, or read its log. See [android.md](android.md).
+The devices of the session's host and of this machine: start an emulator, connect a phone, set Android up, run the session's app on a device (across hosts through the ADB bridge), catch its traffic, and open its **Screen** and **Logcat** in tabs of the session, to use its screen or read its log. See [android.md](android.md).

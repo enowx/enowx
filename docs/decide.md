@@ -74,7 +74,7 @@ Found on their own:
 - Ollama's decision models (Nimble, Clef, Clef Flash, Tev1, Kev);
 - a Kev or SGLang server on the host.
 
-Settings → Decisions → **Add a judge** → **A decision model** offers each provider above, its address and model filled in, and any other System One address.
+Settings → Decisions → **Add a judge** → **Decision model** offers each provider above, its address and model filled in, and any other System One address.
 
 Models of other shapes aren't asked directly: Perplexity Decider, Liquid d1, Microsoft-Decision-1, Celeris-1 and Baseten's mammoth-1 and elephant-1. Reach the System One ones through a gateway (Opper, OpenRouter), or add their address once they publish one.
 

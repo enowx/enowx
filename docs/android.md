@@ -37,7 +37,7 @@ When the device is on this machine and the session on a server, its tools reach 
 
 ## The screen
 
-The tool's **Screen** and **Logcat** tabs, under the device and its app, show one or the other as tall as the panel. **Show its screen** shows the device's screen there, to use: a click is a touch and a drag a swipe, typing types, right click is Back, and the buttons under it are Back, Home, Recent apps, the volume and Power. The device's host starts scrcpy's server on it ([scrcpy](https://github.com/Genymobile/scrcpy), Apache-2.0: `scrcpy-server` 5.0.1, downloaded once into `~/.enowx-app/tools` and checked against its SHA-256, pushed to the device), which sends the screen as H.264; the host carries it to the app (`android.mirror`, a tunnel), wherever the device is, and the app hands it to a web view on a loopback port of its own, whose page decodes it with WebCodecs. Touches and keys go back the same way (`android.mirror.input`). Closing the screen, or the app, stops the server.
+The tool's **Screen** and **Logcat** rows, under the device and its app, open one or the other in a tab of the session. **Show its screen** shows the device's screen there, to use: a click is a touch and a drag a swipe, typing types, right click is Back, and the buttons in its bar are Back, Home, Recent apps, the volume and Power. The device's host starts scrcpy's server on it ([scrcpy](https://github.com/Genymobile/scrcpy), Apache-2.0: `scrcpy-server` 5.0.1, downloaded once into `~/.enowx-app/tools` and checked against its SHA-256, pushed to the device), which sends the screen as H.264; the host carries it to the app (`android.mirror`, a tunnel), wherever the device is, and the app hands it to a web view on a loopback port of its own, whose page decodes it with WebCodecs. Touches and keys go back the same way (`android.mirror.input`). Closing the screen, or the app, stops the server.
 
 **Pop out** (and a system whose web view can't decode video) opens it in scrcpy's own window instead, at full speed, with the clipboard: the scrcpy installed, or version 5.0.1 downloaded once the same way. For a device on a server, scrcpy talks to the server's adb through the bridge and its video comes through a port adb forwards there, tunneled here (`android.forward.open`, only ports adb lists).
 
@@ -56,8 +56,8 @@ The picked device's logcat, the app's lines only by default (by its package, fro
 
 ## Android TV
 
-An Android TV is a device like a phone: **+ Device** connects one over the network (Developer options → Network debugging, then its address with `:5555`, no pairing), or a USB one shows by itself; its app runs, logs and has its traffic caught the same way. The list says **Android TV**, read from the device (`ro.build.characteristics`).
+An Android TV is a device like a phone: **Connect a phone** connects one over the network (Developer options → Network debugging, then its address with `:5555`, no pairing), or a USB one shows by itself; its app runs, logs and has its traffic caught the same way. The list says **Android TV**, read from the device (`ro.build.characteristics`).
 
 - **Its screen** fills the pane's width, with a remote under it: the D-pad, **OK** (the D-pad's center) and Menu, beside Back, Home and the volume above. In the screen, the keyboard's arrows move and Enter is OK.
-- **A virtual TV:** **Make a virtual TV**, in the + Device dialog, sets one up in a tab of the session (`enowx-app android setup --tv`): the newest Android TV system image for the host, and an AVD `enowX_TV` (1080p), beside the virtual phone.
+- **A virtual TV:** **Make a virtual TV**, in the Connect a phone dialog, sets one up in a tab of the session (`enowx-app android setup --tv`): the newest Android TV system image for the host, and an AVD `enowX_TV` (1080p), beside the virtual phone.
 - **Agents** press the remote's keys: `enowx-app android key up|down|left|right|ok|menu|play-pause`.
