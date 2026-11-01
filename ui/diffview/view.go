@@ -101,7 +101,7 @@ func (v *View) toolbar(c *ui.Context, o Options) {
 			{ActCommit, "Commit…", widget.Primary, icon.Check},
 			{ActPush, "Push", widget.Secondary, icon.ArrowUp},
 			{ActPR, "Pull request…", widget.Secondary, icon.Globe},
-			{ActMerge, "Merge into " + st.Base, widget.Secondary, icon.Git},
+			{ActMerge, "Merge into " + st.Base + "…", widget.Secondary, icon.Git},
 		}
 		var shown, rest []button
 		for _, a := range actions {
@@ -130,6 +130,9 @@ func (v *View) toolbar(c *ui.Context, o Options) {
 				if st.Uncommitted > 0 {
 					ui.Text(c, fmt.Sprintf("%d uncommitted", st.Uncommitted)).FontSize(theme.TextLabel).TextColor(theme.Warning).Padding(theme.S1, theme.S3)
 				}
+				if v.summary() != "" || st.Uncommitted > 0 {
+					widget.MenuSeparator(c)
+				}
 				for _, a := range rest {
 					if widget.MenuItem(c.Key(a.action), a.svg, a.label, false) {
 						v.start(o, a.action)
@@ -144,9 +147,12 @@ func (v *View) toolbar(c *ui.Context, o Options) {
 					o.OpenURL(v.lastPRURL)
 					done()
 				}
-				if st.Worktree && widget.MenuItem(c, icon.Trash, "Discard worktree…", true) {
-					v.start(o, ActDiscard)
-					done()
+				if st.Worktree {
+					widget.MenuSeparator(c)
+					if widget.MenuItem(c, icon.Trash, "Discard the worktree…", true) {
+						v.start(o, ActDiscard)
+						done()
+					}
 				}
 			})
 		})
@@ -279,12 +285,18 @@ func (v *View) baseMenu(c *ui.Context, st proto.ReviewStatus) {
 	})
 	v.baseMenuState.OpenBelow(b, "base", theme.ControlHeight)
 	v.baseMenuState.Show(c, b, "base", func(done func()) {
-		if widget.MenuItem(c, icon.Check, "Since the last commit", false) {
+		mark := func(on bool) *ui.SVG {
+			if on {
+				return icon.Check
+			}
+			return nil
+		}
+		if widget.MenuItem(c, mark(st.Base == ""), "Since the last commit", false) {
 			v.setBase(noBase)
 			done()
 		}
 		for _, base := range st.Bases {
-			if widget.MenuItem(c, icon.Git, "Against "+base, false) {
+			if widget.MenuItem(c.Key(base), mark(st.Base == base), "Against "+base, false) {
 				v.setBase(base)
 				done()
 			}
@@ -302,16 +314,20 @@ func (v *View) commitDialog(c *ui.Context, o Options) {
 		return
 	}
 	submit := false
-	widget.Dialog(c, &f.open, 480, 14, func() {
-		widget.DialogHeader(c, "Commit changes", fmt.Sprintf("Commits all %d changed %s in %s, new files included.",
-			v.status.Uncommitted, textfmt.Plural(v.status.Uncommitted, "file", "files"), v.status.Branch), false)
-		in := widget.Input(c, &f.message, "Commit message").FillWidth().AutoFocus()
-		submit = in.Submitted()
+	widget.Dialog(c, &f.open, 480, theme.S3, func() {
+		if widget.DialogHeader(c, "Commit changes", fmt.Sprintf("Commits all %d changed %s in %s, new files included.",
+			v.status.Uncommitted, textfmt.Plural(v.status.Uncommitted, "file", "files"), v.status.Branch), true) {
+			f.open = false
+		}
+		widget.Field(c, "Commit message", func() {
+			in := widget.Input(c, &f.message, "Commit message").FillWidth().AutoFocus()
+			submit = in.Submitted()
+		})
 		widget.DialogFooter(c, "", func() {
-			if widget.GhostButton(c, "Cancel").Clicked() {
+			if widget.Button(c, widget.Secondary, nil, "Cancel", "").Clicked() {
 				f.open = false
 			}
-			if widget.PrimaryButton(c, icon.Check, "Commit", "").Clicked() {
+			if widget.PrimaryButton(c, nil, "Commit", "").Clicked() {
 				submit = true
 			}
 		})
@@ -336,9 +352,11 @@ func (v *View) prDialog(c *ui.Context, o Options) {
 	}
 	submit := false
 	st := v.status
-	widget.Dialog(c, &f.open, 520, 14, func() {
-		widget.DialogHeader(c, "Open a pull request",
-			fmt.Sprintf("Pushes %s and asks GitHub to merge it into %s, with gh on this host.", st.Branch, st.Base), false)
+	widget.Dialog(c, &f.open, 520, theme.S3, func() {
+		if widget.DialogHeader(c, "Open a pull request",
+			fmt.Sprintf("Pushes %s and asks GitHub to merge it into %s, with gh on this host.", st.Branch, st.Base), true) {
+			f.open = false
+		}
 		widget.Field(c, "Title", func() {
 			widget.Input(c, &f.title, "From the commits when empty").FillWidth().AutoFocus()
 		})
@@ -346,10 +364,10 @@ func (v *View) prDialog(c *ui.Context, o Options) {
 			widget.Input(c, &f.body, "Optional").FillWidth()
 		})
 		widget.DialogFooter(c, "", func() {
-			if widget.GhostButton(c, "Cancel").Clicked() {
+			if widget.Button(c, widget.Secondary, nil, "Cancel", "").Clicked() {
 				f.open = false
 			}
-			if widget.PrimaryButton(c, icon.Globe, "Open pull request", "").Clicked() {
+			if widget.PrimaryButton(c, nil, "Open pull request", "").Clicked() {
 				submit = true
 			}
 		})
@@ -399,7 +417,7 @@ func (v *View) discardDialog(c *ui.Context, o Options) {
 	}
 	submit := false
 	st := v.status
-	widget.Dialog(c, &f.open, 480, 14, func() {
+	widget.Dialog(c, &f.open, 420, theme.S3, func() {
 		body := "Ends the sessions in this worktree and deletes its folder."
 		if st.Uncommitted > 0 {
 			body += fmt.Sprintf(" Its %d uncommitted %s are lost.", st.Uncommitted, textfmt.Plural(st.Uncommitted, "change", "changes"))
@@ -407,7 +425,7 @@ func (v *View) discardDialog(c *ui.Context, o Options) {
 		widget.DialogHeader(c, "Discard the worktree of "+st.Branch+"?", body, false)
 		widget.Checkbox(c, &f.deleteBranch, "Also delete the branch "+st.Branch)
 		widget.DialogFooter(c, "", func() {
-			if widget.GhostButton(c, "Cancel").Clicked() {
+			if widget.Button(c, widget.Secondary, nil, "Cancel", "").Clicked() {
 				f.open = false
 			}
 			if widget.DangerButton(c, "Discard").Clicked() {
