@@ -60,7 +60,8 @@ func (a *App) connect(h hosts.Host) {
 	a.gen++
 	gen := a.gen
 	a.host = h
-	a.syncWatches() // the host left is watched now, this one shown
+	a.connectByApp = false // the timer and the app's start say so after
+	a.syncWatches()        // the host left is watched now, this one shown
 	a.connecting, a.connErr, a.connFail, a.status, a.connectLink = "Connecting to "+h.Name+"…", "", nil, "", ""
 	if h.ID == hosts.LocalID {
 		a.connecting = "Starting…"
@@ -155,6 +156,7 @@ func (a *App) retryLater(h hosts.Host, err error) {
 				return // connected meanwhile, or the user went elsewhere
 			}
 			a.connect(h)
+			a.connectByApp = true
 		})
 	})
 }

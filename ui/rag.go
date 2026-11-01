@@ -2,6 +2,8 @@ package ui
 
 import (
 	"encoding/json"
+	"fmt"
+	"slices"
 	"strconv"
 	"strings"
 
@@ -274,36 +276,33 @@ func (a *App) ragEvent(ev proto.Event) {
 		if json.Unmarshal(ev.Data, &p) != nil {
 			return
 		}
-		a.onMain(func() { a.ragOffer = &p })
+		a.onMain(func() { a.ragOffers = append(a.ragOffers, &p) })
 	}
 }
 
-// ragOfferDialog offers to keep what a session's agent said last as a
-// memory of its project, edited first.
-func (a *App) ragOfferDialog(c *ui.Context) {
-	p := a.ragOffer
-	if p == nil {
-		return
+// ragAsk offers to keep what a session's agent said last as a memory of its
+// project, edited first.
+func (a *App) ragAsk(c *ui.Context) *widget.Ask {
+	if len(a.ragOffers) == 0 {
+		return nil
 	}
-	open := true
-	widget.Dialog(c, &open, 520, 12, func() {
-		widget.DialogHeader(c, "Keep this as a memory of the project?", a.sessionLabel(p.Session)+" ended. Agents searching the project will find it; trim it to the decision.", false)
-		ui.TextAreaBase(c.Key("rag-offer"), &p.Text).FillWidth().MinHeight(90).MaxHeight(240).Padding(9, 11).FontSize(12.5).
-			Radius(theme.RadiusControl).Border(1, theme.Border)
-		ui.Row(c).FillWidth().Gap(8).Children(func() {
-			ui.Spacer(c)
-			if widget.GhostButton(c, "Dismiss").Clicked() {
-				a.ragOffer = nil
-			}
-			if widget.PrimaryButton(c, icon.Check, "Save memory", "").Disabled(strings.TrimSpace(p.Text) == "").Clicked() {
-				a.ragOffer = nil
+	p := a.ragOffers[0]
+	done := func() {
+		a.ragOffers = slices.DeleteFunc(a.ragOffers, func(x *proto.RAGRememberParams) bool { return x == p })
+	}
+	return &widget.Ask{Key: fmt.Sprintf("rag:%p", p), Icon: icon.Check, Title: "Keep this as a memory of the project?",
+		About: a.sessionLabel(p.Session) + " ended. Agents searching the project will find it; trim it to the decision.",
+		Body: func() {
+			ui.TextAreaBase(c.Key("rag-offer"), &p.Text).FillWidth().MinHeight(90).MaxHeight(240).Padding(9, 11).FontSize(12.5).
+				Radius(theme.RadiusControl).Border(1, theme.Border).Label("Memory")
+		},
+		Buttons: []widget.AskButton{
+			{Kind: widget.Secondary, Label: "Dismiss", Do: done},
+			{Kind: widget.Primary, Icon: icon.Check, Label: "Save memory", Disabled: strings.TrimSpace(p.Text) == "", Do: func() {
+				done()
 				a.rememberRAG(proto.RAGRememberParams{RAGRef: proto.RAGRef{Project: p.Project}, Text: strings.TrimSpace(p.Text)})
-			}
-		})
-	})
-	if !open {
-		a.ragOffer = nil
-	}
+			}},
+		}}
 }
 
 func (a *App) rememberRAG(p proto.RAGRememberParams) {

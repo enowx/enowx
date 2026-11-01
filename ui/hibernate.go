@@ -33,6 +33,7 @@ type hibernateForm struct {
 	// asker is the session of the agent asking, whose answer reply sends.
 	asker string
 	reply func(yes bool)
+	until time.Time // past it, the daemon waits no more
 }
 
 // hibernateTargets are the sessions a Hibernate on s acts on: those
@@ -222,7 +223,7 @@ func (a *App) hibernateAsked(cl *client.Client, req proto.AppRequest, reply func
 			if s, ok := a.sessionByID(p.From); ok {
 				asker = a.sessionName(s)
 			}
-			a.hibernating = &hibernateForm{cl: cl, plans: res.Plans, asker: asker, reply: func(yes bool) { reply(yes, nil) }}
+			a.hibernateAsks = append(a.hibernateAsks, &hibernateForm{cl: cl, plans: res.Plans, asker: asker, until: askUntil(hostAskLife), reply: func(yes bool) { reply(yes, nil) }})
 		})
 	}()
 }
@@ -236,46 +237,16 @@ func (a *App) hibernateDialog(c *ui.Context) {
 	open := true
 	answer := func(yes bool, p proto.SessionHibernateParams) {
 		a.hibernating = nil
-		if f.reply != nil {
-			f.reply(yes)
-			return
-		}
 		if yes {
 			a.runHibernate(f.cl, p)
 		}
 	}
-	var freed uint64
-	var cpu float64
-	working := false
-	for _, pl := range f.plans {
-		if pl.Blocked == "" {
-			freed, cpu = freed+pl.RSS, cpu+pl.CPU
-		}
-		working = working || pl.Working
-	}
+	working := slices.ContainsFunc(f.plans, func(pl proto.HibernatePlan) bool { return pl.Working })
 	title := "Hibernate " + textfmt.Plural(len(f.plans), "this session", fmt.Sprintf("these %d sessions", len(f.plans))) + "?"
-	about := fmt.Sprintf("Their agents stop and come back on their conversation when shown. Frees about %s and %.0f%% CPU.", textfmt.Bytes(freed), cpu)
-	if f.asker != "" {
-		title = "“" + f.asker + "” asks to hibernate"
-		about = "An agent asks to hibernate " + textfmt.Plural(len(f.plans), "this session", "these sessions") + ". " + about
-	}
 	widget.Dialog(c, &open, 460, 14, func() {
-		widget.DialogHeader(c, title, about, false)
-		ui.Column(c).FillWidth().Gap(8).Children(func() {
-			for _, pl := range f.plans {
-				hibernatePlanCard(c.Key(pl.ID), pl)
-			}
-		})
+		widget.DialogHeader(c, title, hibernateFrees(f.plans), false)
+		hibernatePlans(c, f.plans)
 		widget.DialogFooter(c, "", func() {
-			if f.asker != "" {
-				if widget.GhostButton(c, "Don't").Clicked() {
-					answer(false, proto.SessionHibernateParams{})
-				}
-				if widget.Button(c, widget.Danger, icon.Moon, "Hibernate", "").Clicked() {
-					answer(true, proto.SessionHibernateParams{})
-				}
-				return
-			}
 			if widget.GhostButton(c, "Cancel").Clicked() {
 				answer(false, proto.SessionHibernateParams{})
 			}
@@ -290,6 +261,47 @@ func (a *App) hibernateDialog(c *ui.Context) {
 	if !open && a.hibernating == f {
 		answer(false, proto.SessionHibernateParams{})
 	}
+}
+
+// hibernateAsk is the card of the oldest agent asking to hibernate sessions.
+func (a *App) hibernateAsk(c *ui.Context) *widget.Ask {
+	if len(a.hibernateAsks) == 0 {
+		return nil
+	}
+	f := a.hibernateAsks[0]
+	answer := func(yes bool) func() {
+		return func() {
+			a.hibernateAsks = slices.DeleteFunc(a.hibernateAsks, func(x *hibernateForm) bool { return x == f })
+			f.reply(yes)
+		}
+	}
+	return &widget.Ask{Key: fmt.Sprintf("hibernate:%p", f), Icon: icon.Moon, Title: "“" + f.asker + "” asks to hibernate",
+		About: "An agent asks to hibernate " + textfmt.Plural(len(f.plans), "this session", "these sessions") + ". " + hibernateFrees(f.plans),
+		Body:  func() { hibernatePlans(c, f.plans) },
+		Buttons: []widget.AskButton{
+			{Kind: widget.Secondary, Label: "Don't", Do: answer(false)},
+			{Kind: widget.Danger, Icon: icon.Moon, Label: "Hibernate", Do: answer(true)},
+		}}
+}
+
+// hibernateFrees says what hibernating plans does and gives back.
+func hibernateFrees(plans []proto.HibernatePlan) string {
+	var freed uint64
+	var cpu float64
+	for _, pl := range plans {
+		if pl.Blocked == "" {
+			freed, cpu = freed+pl.RSS, cpu+pl.CPU
+		}
+	}
+	return fmt.Sprintf("Their agents stop and come back on their conversation when shown. Frees about %s and %.0f%% CPU.", textfmt.Bytes(freed), cpu)
+}
+
+func hibernatePlans(c *ui.Context, plans []proto.HibernatePlan) {
+	ui.Column(c).FillWidth().Gap(8).Children(func() {
+		for _, pl := range plans {
+			hibernatePlanCard(c.Key(pl.ID), pl)
+		}
+	})
 }
 
 // hibernatePlanCard is what hibernating a session would stop and free.

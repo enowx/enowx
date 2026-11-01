@@ -256,17 +256,13 @@ func (a *App) hostCard(c *ui.Context, h hosts.Host) {
 }
 
 func (a *App) trustDialog(c *ui.Context) {
-	if a.trust == nil {
+	if a.trust == nil || a.connectByApp {
 		return
 	}
 	open := true
 	widget.Dialog(c, &open, 520, 14, func() {
 		widget.DialogHeader(c, "Trust this server?", "", false, "Hosts", a.host.Name, "Trust server")
-		ui.Text(c, "This is the first connection to "+a.trust.addr+". Check that its key fingerprint matches the server's before trusting it:").
-			FontSize(12.5).TextColor(theme.TextSoft)
-		ui.Text(c, a.trust.fingerprint).Font(theme.MonoFont).FontSize(12).Padding(10).Radius(theme.RadiusControl).
-			Background(theme.Sunken).Border(1, theme.Border).FillWidth()
-		ui.Text(c, "On the server: for f in /etc/ssh/ssh_host_*_key.pub; do ssh-keygen -lf $f; done").Font(theme.MonoFont).FontSize(11).TextColor(theme.Muted)
+		trustFacts(c, a.trust)
 		widget.DialogFooter(c, "", func() {
 			if widget.GhostButton(c, "Cancel").Clicked() {
 				a.answerTrust(false)
@@ -279,6 +275,26 @@ func (a *App) trustDialog(c *ui.Context) {
 	if !open {
 		a.answerTrust(false)
 	}
+}
+
+// trustAsk is trustDialog on a connection the user didn't start.
+func (a *App) trustAsk(c *ui.Context) *widget.Ask {
+	t := a.trust
+	if t == nil || !a.connectByApp {
+		return nil
+	}
+	return &widget.Ask{Key: "trust:" + t.addr, Title: "Trust this server?", Body: func() { trustFacts(c, t) }, Buttons: []widget.AskButton{
+		{Kind: widget.Secondary, Label: "Cancel", Do: func() { a.answerTrust(false) }},
+		{Kind: widget.Primary, Label: "Trust and connect", Do: func() { a.answerTrust(true) }},
+	}}
+}
+
+func trustFacts(c *ui.Context, t *trustPrompt) {
+	ui.Text(c, "This is the first connection to "+t.addr+". Check that its key fingerprint matches the server's before trusting it:").
+		FontSize(12.5).TextColor(theme.TextSoft)
+	ui.Text(c, t.fingerprint).Font(theme.MonoFont).FontSize(12).Padding(10).Radius(theme.RadiusControl).
+		Background(theme.Sunken).Border(1, theme.Border).FillWidth()
+	ui.Text(c, "On the server: for f in /etc/ssh/ssh_host_*_key.pub; do ssh-keygen -lf $f; done").Font(theme.MonoFont).FontSize(11).TextColor(theme.Muted)
 }
 
 // exportHosts saves the host list to a file the user picks, for another

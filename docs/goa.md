@@ -64,7 +64,7 @@ On the worker's host, before each tool call of a GOA worker (its agent's hooks):
 3. Edits inside the worker's own folder are its work: allowed.
 4. What is left asks as usual, and GOA, told, answers it (`answer ID allow|deny --host H`).
 
-What can't be undone, asked by GOA or a worker in bypass mode, runs without the app's dialog on the user's own hosts, and is logged ([goa-tools.md](goa-tools.md#when-the-user-is-asked)); a worker's urgent prompt stays the user's whatever GOA's mode.
+What can't be undone, asked by GOA or a worker in bypass mode, runs without the app's asking on the user's own hosts, and is logged ([goa-tools.md](goa-tools.md#when-the-user-is-asked)); a worker's urgent prompt stays the user's whatever GOA's mode.
 
 ## Its RAG collection
 

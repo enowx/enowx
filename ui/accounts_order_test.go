@@ -48,7 +48,7 @@ func TestAccountsOrderAndAsk(t *testing.T) {
 		c.SetTheme(theme.Window())
 		ui.Column(c).Width(820).Height(900).Background(theme.Background).TextColor(theme.Text).Children(func() {
 			app.agentsSection(c)
-			app.accountAskDialog(c)
+			app.asksView(c)
 		})
 	}, 820, 900)
 	frames := func(until func() bool, what string) {
@@ -78,8 +78,8 @@ func TestAccountsOrderAndAsk(t *testing.T) {
 	if got := app.defaultAccountFor("claude", "/code/x"); got == "" {
 		t.Fatal("the default for new sessions")
 	}
-	app.acctAsk = &proto.AccountFallback{Session: "s1", Agent: "claude", From: "Work", To: "Spare", ToID: "x", Reason: proto.AccountLimit, Ask: true,
-		Line: "Claude usage limit reached. Your limit will reset at 3pm", Until: time.Now().Add(3 * time.Hour)}
+	app.acctAsks = []*proto.AccountFallback{{Session: "s1", Agent: "claude", From: "Work", To: "Spare", ToID: "x", Reason: proto.AccountLimit, Ask: true,
+		Line: "Claude usage limit reached. Your limit will reset at 3pm", Until: time.Now().Add(3 * time.Hour)}}
 	tt.Frame()
 	tt.Frame()
 	if !tt.HasText("Switch and go on") {

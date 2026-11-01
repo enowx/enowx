@@ -9,6 +9,7 @@ import (
 )
 
 func TestMain(m *testing.M) {
+	askArmDelay = 0 // tests click as soon as a card shows
 	testlisten.Serve()
 	// No judge of this machine's (its Claude Code, its vault): the judge's
 	// uses are on by default, and tests mustn't ask real models.

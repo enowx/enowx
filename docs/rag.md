@@ -60,7 +60,7 @@ The side panel's **Code** group has an **Index** tool for the selected session's
 - a search box. Results show file:line, the symbol and the matching part; clicking one opens the file at those lines, marked;
 - the project's memories, which can be added, changed and deleted;
 - **Give prompts the parts that bear on them**: at the start of a prompt, the four best results, up to 6000 characters, are added as context. This needs the start-of-prompt hook (Claude Code, Codex). With the judge's use **RAG: context or not** on, only those it says bear on the prompt are added ([decide.md](decide.md)).
-- **Offer to keep decisions as memories**: when a session ends, a dialog offers the agent's last answer to edit and save (`rag.offer`). With the judge's use **RAG: memories to keep** on, it offers only an answer holding a decision, written as that decision ([decide.md](decide.md)).
+- **Offer to keep decisions as memories**: when a session ends, a card offers the agent's last answer to edit and save (`rag.offer`). With the judge's use **RAG: memories to keep** on, it offers only an answer holding a decision, written as that decision ([decide.md](decide.md)).
 - **Turn off and delete the index**, which asks first.
 
 The feature `rag` is on by default, and agreeing to index a project turns on both switches above when neither was set.
