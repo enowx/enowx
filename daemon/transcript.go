@@ -2,7 +2,6 @@ package daemon
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"github.com/enowx/enowx/core/git"
 	"github.com/enowx/enowx/core/project"
@@ -177,7 +176,7 @@ func (s *Server) switchMode(p proto.SessionModeParams) error {
 	}
 	set := agent.SettingsOf(sess.Info().Agent)
 	if set.ModeKey == "" {
-		return errors.New("this agent's mode can't be changed while it runs")
+		return fmt.Errorf("%s takes its permission mode only as it starts: skipping prompts needs a new session, or a restart with them skipped", agentName(sess.Info().Agent))
 	}
 	if _, ok := agent.FindChoice(set.Modes, p.Mode); !ok {
 		return fmt.Errorf("unknown mode %q", p.Mode)

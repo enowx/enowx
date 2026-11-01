@@ -301,7 +301,7 @@ func (a *App) canvasAsk(cv proto.Canvas, agentID, text string, files []string) {
 	if cl == nil {
 		return
 	}
-	params := proto.SessionCreateParams{Agent: agentID, CanvasFor: cv.ID, Prompt: a.canvasContext(cv) + withFiles(text, files), Cols: 100, Rows: 40,
+	params := proto.SessionCreateParams{Agent: agentID, CanvasFor: cv.ID, Prompt: a.canvasContext(cv) + withFiles(text, files), SkipUnheard: a.skipPermissions, Cols: 100, Rows: 40,
 		Model: a.notesModel[agentID], Effort: a.notesEffort[agentID]}
 	go func() {
 		info, err := cl.CreateSession(params)

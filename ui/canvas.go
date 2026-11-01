@@ -277,7 +277,7 @@ func (a *App) makeCode(c proto.Canvas, project string) {
 		a.status = "Clone the team's project on " + a.host.Name + " first (the team's Projects tab)"
 		return
 	}
-	params := proto.SessionCreateParams{Agent: agentID, Project: project, Prompt: prompt, Cols: 120, Rows: 40}
+	params := proto.SessionCreateParams{Agent: agentID, Project: project, Prompt: prompt, SkipUnheard: a.skipPermissions, Cols: 120, Rows: 40}
 	go func() {
 		info, err := cl.CreateSession(params)
 		a.onMain(func() {

@@ -81,6 +81,10 @@ func (s *Server) createSessionFor(p proto.SessionCreateParams, member *proto.Ses
 		}
 		dir = goaDir
 	}
+	meta.SkipUnheard = p.SkipUnheard
+	if p.SkipUnheard && len(agent.HookArgs(p.Agent)) == 0 {
+		p.SkipPermissions = true
+	}
 	// Settle what to run before creating a worktree it would leave behind.
 	id := session.NewID()
 	guide := s.guideFor(meta)

@@ -279,11 +279,12 @@ func (r runner) goaFlags() error {
 func (r runner) goaStart(args []string) error {
 	fs := flagSet("goa start")
 	agentID := fs.String("agent", "claude", "")
+	yolo := fs.Bool("yolo", false, "")
 	if _, err := parseAll(fs, args); err != nil {
-		return errors.New("usage: enowx-app goa start [--agent A]")
+		return errors.New("usage: enowx-app goa start [--agent A] [--yolo]")
 	}
 	var info proto.SessionInfo
-	if err := r.c.Call(proto.MethodSessionCreate, proto.SessionCreateParams{Agent: *agentID, GOA: true, Cols: 120, Rows: 40}, &info); err != nil {
+	if err := r.c.Call(proto.MethodSessionCreate, proto.SessionCreateParams{Agent: *agentID, GOA: true, SkipUnheard: *yolo, Cols: 120, Rows: 40}, &info); err != nil {
 		return err
 	}
 	fmt.Fprintf(r.out, "GOD of Agents started: session %s (%s)\n", info.ID, info.Agent)

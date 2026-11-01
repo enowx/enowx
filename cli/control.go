@@ -383,7 +383,7 @@ func (r runner) switchSession(args []string) error {
 	}
 	if *mode != "" {
 		if set.ModeKey == "" {
-			return fmt.Errorf("switch: %s's mode can't be changed while it runs", nonEmpty(s.Agent, "this program"))
+			return fmt.Errorf("switch: %s's mode can't be changed while it runs: it takes it only as it starts, so skipping prompts needs a restart (a new session with --yolo)", nonEmpty(s.Agent, "this program"))
 		}
 		if err := r.c.SwitchMode(s.ID, *mode); err != nil {
 			return err

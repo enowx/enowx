@@ -241,7 +241,7 @@ func (a *App) goaStartDialog(c *ui.Context) {
 	}
 	f.starting = true
 	var info proto.SessionInfo
-	a.goaCall(proto.MethodSessionCreate, proto.SessionCreateParams{Agent: f.agent, GOA: true, Cols: 120, Rows: 40}, &info, func(err error) {
+	a.goaCall(proto.MethodSessionCreate, proto.SessionCreateParams{Agent: f.agent, GOA: true, SkipUnheard: a.skipPermissions, Cols: 120, Rows: 40}, &info, func(err error) {
 		f.starting = false
 		if err != nil {
 			return

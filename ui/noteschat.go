@@ -259,7 +259,7 @@ func (a *App) notesAsk(n proto.NoteInfo, agentID, question string) {
 	}
 	// Which page it is goes in its guide (agent.NotesArgs): the chat
 	// shows the question alone.
-	params := proto.SessionCreateParams{Agent: agentID, NotesFor: n.ID, Prompt: question, Cols: 100, Rows: 40,
+	params := proto.SessionCreateParams{Agent: agentID, NotesFor: n.ID, Prompt: question, SkipUnheard: a.skipPermissions, Cols: 100, Rows: 40,
 		Model: a.notesModel[agentID], Effort: a.notesEffort[agentID]}
 	go func() {
 		info, err := cl.CreateSession(params)

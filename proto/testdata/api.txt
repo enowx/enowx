@@ -1814,6 +1814,7 @@ field SessionCreateParams.runSetup bool
 field SessionCreateParams.shell string
 field SessionCreateParams.signIn bool
 field SessionCreateParams.skipPermissions bool
+field SessionCreateParams.skipUnheard bool
 field SessionCreateParams.tokenBudgetOK bool
 field SessionEnvVar.name string
 field SessionEnvVar.value string
@@ -1867,6 +1868,7 @@ field SessionInfo.prompt string
 field SessionInfo.queued bool
 field SessionInfo.restored bool
 field SessionInfo.skipPermissions bool
+field SessionInfo.skipUnheard bool
 field SessionInfo.state string
 field SessionInfo.title string
 field SessionInfo.worked int64

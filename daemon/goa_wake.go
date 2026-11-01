@@ -35,6 +35,14 @@ func (s *Server) goaPick(p proto.GOADelegateParams) (proto.SessionInfo, bool, er
 	return info, ok, nil
 }
 
+// goaSkipsUnheard says whether a worker of agent id starts skipping prompts,
+// though not told to: the user keeps them skipped, and its prompts would wait
+// unseen, as it has no hooks to tell GOA of them.
+func (s *Server) goaSkipsUnheard(id string) bool {
+	g, ok := s.goaSession()
+	return ok && g.SkipUnheard && id != "" && len(agent.HookArgs(id)) == 0
+}
+
 // goaReady has session info ready for a prompt, continuing it when its agent
 // isn't running; it says whether it had to. An error means no prompt would
 // reach it.

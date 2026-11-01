@@ -684,3 +684,63 @@ func TestGOARemembersItsTasks(t *testing.T) {
 		t.Fatalf("after a restart: %d, want %d", len(again), len(mems)-1)
 	}
 }
+
+// The user's default of skipping prompts reaches sessions started without
+// asking them only for an agent with no hooks, like OpenCode: its prompts
+// would wait with nothing to tell of them. An agent with hooks, GOA's workers
+// of one too, stays as it was asked to start.
+func TestSkipUnheardAgents(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("uses sh")
+	}
+	bin := t.TempDir()
+	for _, name := range []string{"opencode", "claude"} {
+		if err := os.WriteFile(filepath.Join(bin, name), []byte("#!/bin/sh\nsleep 60\n"), 0o755); err != nil {
+			t.Fatal(err)
+		}
+	}
+	t.Setenv("PATH", bin+string(os.PathListSeparator)+os.Getenv("PATH"))
+	srv, _ := hookServer(t)
+	c := connect(t, srv, nil)
+	create := func(p proto.SessionCreateParams) proto.SessionInfo {
+		t.Helper()
+		p.Cols, p.Rows, p.Dir = 80, 24, t.TempDir()
+		var info proto.SessionInfo
+		if err := c.Call(proto.MethodSessionCreate, p, &info); err != nil {
+			t.Fatal(err)
+		}
+		return info
+	}
+	if s := create(proto.SessionCreateParams{Agent: "opencode"}); s.SkipPermissions {
+		t.Fatal("skipped with no default set")
+	}
+	if s := create(proto.SessionCreateParams{Agent: "opencode", SkipUnheard: true}); !s.SkipPermissions {
+		t.Fatal("OpenCode's prompts would wait unseen")
+	}
+	if s := create(proto.SessionCreateParams{Agent: "claude", SkipUnheard: true}); s.SkipPermissions {
+		t.Fatal("an agent with hooks was put in bypass though nobody asked")
+	}
+
+	worker := func() proto.SessionInfo {
+		t.Helper()
+		var task proto.GOATask
+		if err := c.Call(proto.MethodGOADelegate, proto.GOADelegateParams{Agent: "opencode", Project: t.TempDir(), Branch: "", Prompt: "Do it", NoRoute: true}, &task); err != nil {
+			t.Fatal(err)
+		}
+		s, err := srv.sessions.Get(task.Session)
+		if err != nil {
+			t.Fatal(err)
+		}
+		return s.Info()
+	}
+	if w := worker(); w.SkipPermissions {
+		t.Fatal("a worker skipped with no GOA that keeps prompts skipped")
+	}
+	g := create(proto.SessionCreateParams{Agent: "claude", GOA: true, SkipUnheard: true})
+	if g.SkipPermissions || !g.SkipUnheard {
+		t.Fatalf("GOA on an agent with hooks: %+v", g)
+	}
+	if w := worker(); !w.SkipPermissions {
+		t.Fatal("GOA's OpenCode worker would wait on a prompt it can't hear of")
+	}
+}

@@ -127,6 +127,9 @@ type SessionInfo struct {
 	State string `json:"state,omitempty"`
 	// SkipPermissions: the agent runs tools without asking.
 	SkipPermissions bool `json:"skipPermissions,omitempty"`
+	// SkipUnheard is SessionCreateParams.SkipUnheard: for GOD of Agents,
+	// what its workers follow.
+	SkipUnheard bool `json:"skipUnheard,omitempty"`
 	// Restored: the daemon restarted and relaunched (or kept) this session.
 	Restored bool `json:"restored,omitempty"`
 	Exited   bool `json:"exited"`
@@ -237,6 +240,10 @@ type SessionCreateParams struct {
 	// SkipPermissions starts agents that support it in their mode that
 	// runs tools without asking (see docs/agents.md).
 	SkipPermissions bool `json:"skipPermissions,omitempty"`
+	// SkipUnheard is the user's default of skipping prompts, for sessions
+	// started without asking them: it starts in that mode an agent with no
+	// hooks, whose prompts nothing would hear of, so that they'd wait unseen.
+	SkipUnheard bool `json:"skipUnheard,omitempty"`
 	// SignIn runs the agent's sign-in (AgentInfo.SignIn) in the project
 	// folder instead of the agent. Only sent to daemons whose AgentInfo
 	// has a SignIn, so older daemons never get it.

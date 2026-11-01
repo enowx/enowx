@@ -146,6 +146,14 @@ It goes the way each agent takes standing instructions, and adds to the user's o
 
 Files are written, or brought up to date, when the daemon starts the agent. enowX's own files (`enowx.md`) hold the whole guide. In a file of the user's, enowX keeps only a short block between `<!-- enowX: … -->` lines, saying to run `"$ENOWX_BIN" guide`, and leaves the rest as it is; deleting the block is undone at the agent's next start. Both apply only when `ENOWX_SESSION` is set, since the agent reads them outside enowX too. The places are those the agents' documentation or source gives, not all checked by running them.
 
+## Skipping permission prompts
+
+New session's **Skip permission prompts** starts an agent in its mode that asks nothing. Sessions the user doesn't start by hand follow it only where nothing would hear a prompt: an agent with no hooks (OpenCode and most others; every agent on Windows), started as GOD of Agents, its worker, or the chat of a note or a canvas (`SkipUnheard`). Claude Code and Codex tell enowX they are asking, so GOA's workers of them stay as `goa delegate` said (`--yolo`), and GOA answers. `goa start --yolo` is the same default on the command line.
+
+The mode is the one a session shows ("skips permission prompts"), and stays through resuming and waking. An agent with no keys for its mode (OpenCode) takes it only as it starts: `switch --mode` says so.
+
+OpenCode's mode is `--auto`: it approves what asks, in the session and its subagents, and paths outside the project, `.env` reads and repeated calls included; a `deny` rule of its config still stops the tool, which reports it in the session. enowX doesn't touch that config.
+
 ## Limits
 
 **Agents at once** (command palette) sets how many agents may work at the same time on a host, kept by its daemon in `~/.enowx-app/settings.json`. An agent session started past it is created at once, with its worktree, but shows as **queued** and runs nothing; the daemon starts it in that session when an agent finishes its turn (as its hooks or its screen tell), oldest first. An agent just started counts as working for 10 s, so the next one doesn't start before it begins. Shells and custom commands are never queued. A daemon restart forgets the queue: the sessions waiting are gone.

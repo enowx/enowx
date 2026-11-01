@@ -30,6 +30,7 @@ func (s *Server) goaDelegate(p proto.GOADelegateParams) (proto.GOATask, error) {
 	}
 	t := proto.GOATask{Title: p.Title, Prompt: p.Prompt, Host: p.Host, Session: p.Session, Agent: p.Agent,
 		Model: p.Model, Effort: p.Effort, Config: p.Config}
+	p.SkipPermissions = p.SkipPermissions || s.goaSkipsUnheard(p.Agent)
 	var target proto.SessionInfo
 	if p.Session != "" {
 		info, err := s.goaSessionOn(p.From, p.Host, p.Session)

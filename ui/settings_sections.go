@@ -169,7 +169,7 @@ func (a *App) sessionDefaults(c *ui.Context) {
 			a.state.ProjectFolder = i == 1
 		}
 	})
-	if switchRow(c, &a.skipPermissions, "Agents skip permission prompts", "They run tools without asking; the chat can still switch it per session.") {
+	if switchRow(c, &a.skipPermissions, "Agents skip permission prompts", "They run tools without asking. It also covers GOD of Agents, its workers and the chats of notes and canvases for agents that can't tell enowX they ask, like OpenCode. Claude Code and Codex can switch it in the chat; others keep theirs until they restart.") {
 		a.saveState()
 	}
 	widget.Field(c, "Time budget for agents", func() {
