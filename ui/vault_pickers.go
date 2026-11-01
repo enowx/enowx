@@ -39,9 +39,9 @@ func (a *App) vaultAPIKeys(c *ui.Context, f *agentAPIForm) {
 		return
 	}
 	ui.Row(c).FillWidth().Wrap().Gap(6).AlignItems(ui.Center).Children(func() {
-		ui.Text(c, "From the vault:").FontSize(theme.TextLabel).TextColor(theme.Muted)
+		ui.Text(c, "From the vault:").FontSize(theme.TextLabel).TextColor(theme.TextSoft)
 		for _, cr := range keys {
-			b := ui.ButtonBase(c.Key(cr.ID)).Height(26).PaddingX(8).Gap(6).Radius(theme.RadiusSmall).Border(1, theme.Border).Cursor(ui.CursorPointer).Label("Use " + cr.Name)
+			b := ui.ButtonBase(c.Key(cr.ID)).Height(24).PaddingX(theme.S2).Gap(theme.S1).Radius(theme.RadiusFull).Background(theme.Sunken).Cursor(ui.CursorPointer).Label("Use " + cr.Name)
 			if b.Hovered() {
 				b.Background(theme.Hover)
 			}
@@ -69,7 +69,7 @@ func (a *App) credsField(c *ui.Context) {
 	case v.file == nil:
 		return
 	case v.data == nil:
-		ui.Text(c, "Unlock the vault (Credentials) to start the session with logins from it.").FontSize(theme.TextLabel).TextColor(theme.Muted)
+		ui.Text(c, "Unlock the vault (Credentials) to start the session with logins from it.").FontSize(theme.TextLabel).TextColor(theme.TextSoft)
 		return
 	case len(v.data.Credentials) == 0:
 		return
@@ -81,14 +81,13 @@ func (a *App) credsField(c *ui.Context) {
 					continue
 				}
 				on := slices.Contains(f.creds, cr.Name) || cr.Auto
-				b := ui.ButtonBase(c.Key(cr.ID)).Height(28).PaddingX(9).Gap(6).Radius(theme.RadiusCard).Cursor(ui.CursorPointer).Label(cr.Name)
+				b := ui.ButtonBase(c.Key(cr.ID)).Height(24).PaddingX(theme.S2).Gap(theme.S1).Radius(theme.RadiusFull).Cursor(ui.CursorPointer).Label(cr.Name)
 				if on {
-					b.Background(theme.AccentSoft).Border(1, theme.AccentLine)
+					b.Background(theme.Selected)
+				} else if b.Hovered() {
+					b.Background(theme.Hover)
 				} else {
-					b.Border(1, theme.Border)
-					if b.Hovered() {
-						b.Background(theme.Hover)
-					}
+					b.Background(theme.Sunken)
 				}
 				b.Children(func() {
 					vaultview.Logo(c, vault.Lookup(cr.Platform), 16)
@@ -103,6 +102,6 @@ func (a *App) credsField(c *ui.Context) {
 				}
 			}
 		})
-		ui.Text(c, "Their variables are in the session's environment; git, docker and ssh get the vault's logins anyway.").FontSize(theme.TextLabel).TextColor(theme.Muted)
+		ui.Text(c, "Their variables are in the session's environment; git, docker and ssh get the vault's logins anyway.").FontSize(theme.TextLabel).TextColor(theme.TextSoft)
 	})
 }
