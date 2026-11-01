@@ -43,6 +43,7 @@ var sessionAdapters = map[string]sessionFunc{
 	"kimi":        kimiSession,
 	"continue":    continueSession,
 	"crush":       crushSession,
+	"goose":       gooseSession,
 }
 
 // PerSession says agent id (a preset) can take an API per session.

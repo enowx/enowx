@@ -94,6 +94,24 @@ func kimiSession(api API, _ string) (Launch, error) {
 		[2]string{"KIMI_MODEL_MAX_CONTEXT_SIZE", itoa(m.Context)}, [2]string{"KIMI_MODEL_CAPABILITIES", caps})}, nil
 }
 
+// gooseSession: the variables its docs name for a provider, and those its
+// OpenAI and Anthropic providers' source reads: the docs' weren't found there,
+// and either way the key goes to the config's address alone.
+func gooseSession(api API, _ string) (Launch, error) {
+	if api.Model == "" {
+		return Launch{}, errors.New("agentapi: Goose needs the model's name")
+	}
+	provider, host, key := "openai", "OPENAI_BASE_URL", "OPENAI_API_KEY"
+	if api.Protocol == Anthropic {
+		provider, host, key = "anthropic", "ANTHROPIC_HOST", "ANTHROPIC_API_KEY"
+	}
+	m := api.model(api.Model)
+	return Launch{Env: kv([2]string{"GOOSE_PROVIDER", provider}, [2]string{"GOOSE_MODEL", api.Model},
+		[2]string{"GOOSE_PROVIDER__TYPE", provider}, [2]string{"GOOSE_PROVIDER__HOST", api.BaseURL}, [2]string{"GOOSE_PROVIDER__API_KEY", api.APIKey},
+		[2]string{host, api.BaseURL}, [2]string{key, api.APIKey},
+		[2]string{"GOOSE_CONTEXT_LIMIT", itoa(m.Context)}, [2]string{"GOOSE_MAX_TOKENS", itoa(m.Output)})}, nil
+}
+
 // crushKeyVar holds the key of a Crush session's API: its config names it.
 const crushKeyVar = "ENOWX_CRUSH_API_KEY"
 

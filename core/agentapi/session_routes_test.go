@@ -58,6 +58,10 @@ func TestSessionRoutes(t *testing.T) {
 			env: []string{"KIMI_MODEL_NAME=m", "KIMI_MODEL_API_KEY=" + routeKey, "KIMI_MODEL_BASE_URL=" + url, "KIMI_MODEL_PROVIDER_TYPE=anthropic"}},
 		"continue": {id: "continue", api: one(""), env: []string{continueKeyVar + "=" + routeKey}, args: []string{"--config", "{dir}/" + continueFile},
 			file: continueFile, ref: "${{ secrets." + continueKeyVar + " }}"},
+		"goose openai": {id: "goose", api: one(OpenAI), env: []string{"GOOSE_PROVIDER=openai", "GOOSE_MODEL=m", "GOOSE_PROVIDER__TYPE=openai", "GOOSE_PROVIDER__HOST=" + url,
+			"GOOSE_PROVIDER__API_KEY=" + routeKey, "OPENAI_BASE_URL=" + url, "OPENAI_API_KEY=" + routeKey, "GOOSE_CONTEXT_LIMIT=64000", "GOOSE_MAX_TOKENS=8000"}},
+		"goose anthropic": {id: "goose", api: API{BaseURL: url, APIKey: routeKey, Protocol: Anthropic, Model: "m"}, env: []string{"GOOSE_PROVIDER=anthropic", "GOOSE_MODEL=m", "GOOSE_PROVIDER__TYPE=anthropic",
+			"GOOSE_PROVIDER__HOST=" + url, "GOOSE_PROVIDER__API_KEY=" + routeKey, "ANTHROPIC_HOST=" + url, "ANTHROPIC_API_KEY=" + routeKey}},
 		"crush": {id: "crush", api: one(""), env: []string{"CRUSH_GLOBAL_CONFIG={dir}/crush", "CRUSH_GLOBAL_DATA={dir}/crush-data", crushKeyVar + "=" + routeKey},
 			file: "crush/crush.json", ref: "$" + crushKeyVar},
 	} {
@@ -129,6 +133,7 @@ func TestSessionRoutesRefuse(t *testing.T) {
 		"kimi without a key":    {"kimi", API{BaseURL: url, Model: "m"}},
 		"kimi's Gemini API":     {"kimi", API{BaseURL: url, APIKey: routeKey, Model: "m", Protocol: Gemini}},
 		"crush without a model": {"crush", API{BaseURL: url, APIKey: routeKey}},
+		"goose without a model": {"goose", API{BaseURL: url, APIKey: routeKey}},
 		"kilo without a model":  {"kilo", API{BaseURL: url, APIKey: routeKey}},
 		"continue, no model":    {"continue", API{BaseURL: url, APIKey: routeKey}},
 	} {

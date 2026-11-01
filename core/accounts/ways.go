@@ -69,7 +69,7 @@ var agentWays = map[string]Way{
 	"prime-agent":        {Key: true, Why: "Only a models.json takes a model API, at a place its docs don't name.", Checked: "docs"},
 	"antigravity":        {Key: true, Why: "No separate account is documented.", Checked: "help"},
 	"aider":              {Key: true, Why: "No account: it has no sign-in to separate, only API keys.", Checked: "docs"},
-	"goose":              {Key: true, Why: "GOOSE_PATH_ROOT and GOOSE_PROVIDER__* could run per session; enowX writes its settings for now.", Checked: "docs"},
+	"goose":              {Key: true, Why: "GOOSE_PATH_ROOT could give another account; enowX doesn't drive it yet. Its variables take one model, with no effort documented.", Checked: "docs"},
 	"amp":                {Key: true, Why: "Its Custom URL connection is made in its own command, and isn't documented to go per session.", Checked: "docs"},
 	"kilo":               {Key: true, Why: "KILO_CONFIG_DIR and its data folder could give another account; enowX doesn't drive them yet.", Checked: "docs"},
 	"crush":              {Key: true, Why: "A config's sessions read its settings alone, not your own crush.json: CRUSH_GLOBAL_CONFIG replaces that file rather than adding to it. A model picked in a project's .crush folder can still win.", Checked: "docs"},

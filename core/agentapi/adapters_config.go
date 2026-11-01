@@ -301,8 +301,9 @@ const gooseProvider = ".config/goose/custom_providers/enowx.json"
 var goose = adapter{
 	protocols: []string{OpenAI, Anthropic},
 	files:     []string{".config/goose/config.yaml", gooseProvider, envFile("goose")},
-	caps:      withEfforts(Caps{Multi: true, Vision: true, Context: "model", Output: "global"}, "global", "off", "low", "medium", "high", "max"),
-	note:      "It needs the model's name. Its key reaches the sessions enowX starts.",
+	// What its sessions take (gooseSession): one model, by its variables.
+	caps: Caps{Context: "global", Output: "global"},
+	note: "It needs the model's name.",
 	read: func(home string) (API, bool, error) {
 		data, err := readFile(home, ".config/goose/config.yaml")
 		if err != nil || yamlTop(string(data), "GOOSE_PROVIDER") != ourName {
