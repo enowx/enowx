@@ -20,6 +20,10 @@ Where there is no systemd (Alpine, containers) or lingering couldn't be turned o
 
 `scripts/test-service.sh` checks it in an Ubuntu container booted with systemd.
 
+## When the app freezes
+
+The app's main thread is watched: asked to answer every second, it leaves a report in `watchdog/` under the data folder when it takes over 0.7 seconds (at most once a minute: lag) or 3 seconds (a stall). A report holds every goroutine's stack, whether a frame was being built, and what was on screen as of its last answer (the page, session, agent and style, never what's in them). The newest 30 stay. `watchdog/app.log` and `watchdog/daemon.log` get a line every 5 minutes with the Go heap, its objects, goroutines and slow frames, so growth over hours shows. A process crashed or killed from outside leaves no report.
+
 ## What sessions leave behind
 
 Closing a session hangs up its terminal, which ends its program and foreground, but an agent's servers and helpers in process groups of their own don't hear it. So the daemon writes down each session's process tree every 15 seconds and just before a stop (`session-procs.json`), and on a close, a hibernation or a switch of account asks what's still there to end, then forces it 3 seconds later. Each process goes by its PID and start time together, so a PID used again is left alone, and only processes on that list are ever stopped: never one no session started, the daemon itself or what started it.

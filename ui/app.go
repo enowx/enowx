@@ -20,6 +20,7 @@ import (
 	"github.com/enowx/enowx/core/hosts"
 	"github.com/enowx/enowx/core/projectsync"
 	"github.com/enowx/enowx/core/tailnet"
+	"github.com/enowx/enowx/internal/watchdog"
 	"github.com/enowx/enowx/proto"
 	"github.com/enowx/enowx/ui/activityview"
 	"github.com/enowx/enowx/ui/androidview"
@@ -64,6 +65,7 @@ type App struct {
 	connFail        error           // the same, to tell what kind of failure it was
 	notice          string          // a.status is news, not a problem, while it equals this
 	bundleWarned    bool            // warnBundlePlace said it
+	watchdog        *watchdog.Watch // the main thread's, once the window is open
 	sessionToasts   []*sessionToast // what notifications are about (sessiontoast.go)
 	sessionToastKey int
 	trust           *trustPrompt
@@ -383,6 +385,7 @@ func (a *App) Open() *mygo.Window {
 	})
 	a.onMain = a.win.Update
 	a.startDevDriver()
+	a.startWatchdog()
 	stopAppearance := mygo.Theme.OnUpdated(func() { a.systemAppearanceChanged(mygo.Theme.IsDark()) })
 	a.watchQuit()
 	a.usage.Every = a.usageEvery

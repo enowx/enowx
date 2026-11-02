@@ -153,6 +153,9 @@ func (ch *Chat) InsertDraft(text string) {
 	ch.input, ch.focus, ch.caretEnd = ch.input+text+" ", true, true
 }
 
+// Entries is how many of the conversation's entries the chat holds.
+func (ch *Chat) Entries() int { return len(ch.entries) }
+
 // Draft is what the composer holds.
 func (ch *Chat) Draft() string { return ch.input }
 

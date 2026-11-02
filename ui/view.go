@@ -22,6 +22,10 @@ var modKey = func() string {
 }()
 
 func (a *App) view(c *ui.Context) {
+	if a.watchdog != nil {
+		a.watchdog.FrameStart()
+		defer a.watchdog.FrameEnd()
+	}
 	c.SetTheme(a.theme)
 	a.winW, _ = c.Size()
 	a.shortcuts(c)

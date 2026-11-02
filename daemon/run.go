@@ -11,8 +11,10 @@ import (
 	"os"
 	"os/exec"
 	"os/signal"
+	"path/filepath"
 	"syscall"
 
+	"github.com/enowx/enowx/internal/watchdog"
 	"github.com/enowx/enowx/transport"
 )
 
@@ -48,6 +50,8 @@ func Run() error {
 	}
 	srv.Log = log
 	go srv.watchProgram(exe)
+	dog := watchdog.Start(filepath.Join(dir, "watchdog"), "daemon", nil, nil) // its memory: it has no one thread to stall
+	defer dog.Stop()
 	srv.procs.load(procsFile(dir))
 	go func() {
 		srv.endProcsLeftBefore()
