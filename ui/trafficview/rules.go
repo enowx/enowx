@@ -323,7 +323,7 @@ func (v *View) rulesPage(c *ui.Context, o Options) {
 			note(c, "No rules: everything passes through. Mock on a request, or New rule, answers, changes, slows or pauses requests.", theme.TextSoft)
 			return
 		}
-		ui.Scroll(c).Grow(1).FillWidth().MinHeight(0).Children(func() {
+		widget.Scroll(c).Grow(1).FillWidth().MinHeight(0).Children(func() {
 			ui.Column(c).FillWidth().Children(func() {
 				for i := range r.list {
 					v.ruleRow(c.Key(r.list[i].ID), o, i)

@@ -56,7 +56,7 @@ func (v *View) requestsPage(c *ui.Context, o Options) {
 			if o.Current != nil {
 				current = o.Current()
 			}
-			ui.List(c.Key("rows"), &v.listState, len(v.rows), func(i int) {
+			widget.List(c.Key("rows"), &v.listState, len(v.rows), func(i int) {
 				r := v.rows[i]
 				if r < 0 {
 					gapRow(c, gaps[-1-r])

@@ -72,7 +72,7 @@ func (v *View) interceptPage(c *ui.Context, o Options) {
 	if o.Session.Parent != "" {
 		session = o.Session.Parent
 	}
-	ui.Scroll(c).Grow(1).FillWidth().MinHeight(0).Children(func() {
+	widget.Scroll(c).Grow(1).FillWidth().MinHeight(0).Children(func() {
 		ui.Column(c).FillWidth().Gap(theme.S1).Children(func() {
 			ui.Text(c, "What runs on "+o.HostName+" can send its HTTP through enowX. Nothing is caught until you attach it.").FontSize(theme.TextUI).TextColor(theme.TextSoft).Padding(0, theme.S3)
 			if s.err != "" {

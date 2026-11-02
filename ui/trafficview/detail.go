@@ -441,7 +441,7 @@ func timingView(c *ui.Context, ex proto.TrafficExchange) {
 		label string
 		ms    int64
 	}{{"Connect", t.Connect}, {"TLS", t.TLS}, {"Sent", t.Sent}, {"First byte", t.FirstByte}, {"Total", t.Done}}
-	ui.Scroll(c.Key("timing")).Grow(1).FillWidth().MinHeight(0).Children(func() {
+	widget.Scroll(c.Key("timing")).Grow(1).FillWidth().MinHeight(0).Children(func() {
 		ui.Column(c).FillWidth().Gap(theme.S1).Padding(theme.S2, 0).Children(func() {
 			for _, r := range rows {
 				if r.ms != 0 {
