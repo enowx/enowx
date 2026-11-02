@@ -230,15 +230,16 @@ func (a *App) updateDialog(c *ui.Context) {
 		return
 	}
 	v := u.found
-	widget.Dialog(c, &u.dialog, 520, 14, func() {
-		desc := "You have " + version.String
-		if !v.Date.IsZero() {
-			desc += " · released " + textfmt.Age(v.Date, time.Now()) + " ago"
-		}
-		widget.DialogHeader(c, "enowX "+v.Version+" is available", desc, true)
+	desc := "You have " + version.String
+	if !v.Date.IsZero() {
+		desc += " · released " + textfmt.Age(v.Date, time.Now()) + " ago"
+	}
+	widget.Sheet(c, &u.dialog, 520, func() {
+		widget.SheetHead(c, &u.dialog, "enowX "+v.Version+" is available", desc)
+	}, func() {
 		if v.Notes != "" {
 			ui.Scroll(c).FillWidth().MaxHeight(280).Children(func() {
-				ui.Column(c).FillWidth().Gap(8).Children(func() { widget.Markdown(c, v.Notes) })
+				ui.Column(c).FillWidth().Gap(theme.S2).Children(func() { widget.Markdown(c, v.Notes) })
 			})
 		}
 		switch u.state {
@@ -248,49 +249,46 @@ func (a *App) updateDialog(c *ui.Context) {
 				frac = float64(u.done) / float64(u.total)
 			}
 			widget.Meter(c, widget.Segment{Fraction: frac, Color: theme.Accent})
-			ui.Text(c, "Downloading and checking its signature…").FontSize(theme.TextLabel).TextColor(theme.Muted)
+			ui.Text(c, "Downloading and checking its signature…").FontSize(theme.TextUI).TextColor(theme.TextSoft)
 		case updateReady:
 			ui.Text(c, "Installed. Restarting runs it: the daemon updates with it and brings your sessions back, agents continuing their conversations.").
-				FontSize(12).TextColor(theme.TextSoft)
+				FontSize(theme.TextUI).TextColor(theme.TextSoft)
 		}
 		if u.err != "" {
-			ui.Text(c, "The update failed: "+u.err).FontSize(theme.TextLabel).TextColor(theme.Error)
+			ui.Text(c, "The update failed: "+u.err).FontSize(theme.TextUI).TextColor(theme.Error)
 		}
-		ui.Row(c).FillWidth().Children(func() {
-			auto := !a.state.Updates.Manual
-			if widget.Checkbox(c, &auto, "Check for updates automatically") {
-				a.state.Updates.Manual = !auto
+		auto := !a.state.Updates.Manual
+		if widget.Checkbox(c, &auto, "Check for updates automatically") {
+			a.state.Updates.Manual = !auto
+		}
+	}, func() {
+		switch u.state {
+		case updateAvailable:
+			if widget.GhostButton(c, "Skip this version").Clicked() {
+				a.state.Updates.Skipped = v.Version
+				u.state, u.found, u.dialog = updateIdle, nil, false
 			}
-		})
-		widget.DialogFooter(c, "", func() {
-			switch u.state {
-			case updateAvailable:
-				if widget.GhostButton(c, "Skip this version").Clicked() {
-					a.state.Updates.Skipped = v.Version
-					u.state, u.found, u.dialog = updateIdle, nil, false
-				}
-				if widget.GhostButton(c, "Later").Clicked() {
-					u.dialog = false
-				}
-				label := "Install update"
-				if u.err != "" {
-					label = "Try again"
-				}
-				if widget.PrimaryButton(c, icon.ArrowUp, label, "").Clicked() {
-					a.installUpdate()
-				}
-			case updateDownloading:
-				if widget.GhostButton(c, "Cancel").Clicked() && u.cancel != nil {
-					u.cancel()
-				}
-			case updateReady:
-				if widget.GhostButton(c, "Later").Clicked() {
-					u.dialog = false
-				}
-				if widget.PrimaryButton(c, icon.Restore, "Restart now", "").Clicked() {
-					u.source.Relaunch()
-				}
+			if widget.GhostButton(c, "Later").Clicked() {
+				u.dialog = false
 			}
-		})
+			label := "Install update"
+			if u.err != "" {
+				label = "Try again"
+			}
+			if widget.PrimaryButton(c, icon.ArrowUp, label, "").Clicked() {
+				a.installUpdate()
+			}
+		case updateDownloading:
+			if widget.GhostButton(c, "Cancel").Clicked() && u.cancel != nil {
+				u.cancel()
+			}
+		case updateReady:
+			if widget.GhostButton(c, "Later").Clicked() {
+				u.dialog = false
+			}
+			if widget.PrimaryButton(c, icon.Restore, "Restart now", "").Clicked() {
+				u.source.Relaunch()
+			}
+		}
 	})
 }

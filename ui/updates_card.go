@@ -17,7 +17,7 @@ func (a *App) cornerCards(c *ui.Context) {
 	if !a.showsUpdateCard() && !a.spacesGoneShown() && (len(a.portOffers) == 0 || a.client == nil) {
 		return
 	}
-	ui.Column(c.Key("corner-cards")).Absolute().Right(16).Bottom(40).Width(340).Gap(8).TextColor(theme.Text).Children(func() {
+	ui.Column(c.Key("corner-cards")).Absolute().Right(theme.S4).Bottom(40).Width(340).Gap(theme.S2).TextColor(theme.Text).Children(func() {
 		a.updateCard(c.Key("update"))
 		a.spacesGoneCards(c)
 		a.portOfferCards(c)
@@ -40,11 +40,11 @@ func (a *App) updateCard(c *ui.Context) {
 	}
 	u := &a.updates
 	v := u.found
-	widget.Float(ui.Column(c).FillWidth().Padding(12, 12, 12, 14).Gap(10).Radius(theme.RadiusCard).
+	widget.Float(ui.Column(c).FillWidth().Padding(theme.S3).Gap(theme.S2).Radius(theme.RadiusCard).
 		Background(theme.Dialog).Border(1, theme.BorderStrong)).Transition(widget.OverlayMotion).Children(func() {
-		ui.Row(c).FillWidth().Gap(10).AlignItems(ui.Start).Children(func() {
+		ui.Row(c).FillWidth().Gap(theme.S2).AlignItems(ui.Start).Children(func() {
 			ui.Icon(c, icon.ArrowUp).FontSize(14).TextColor(theme.Accent).Margin(2, 0, 0, 0)
-			ui.Column(c).Grow(1).MinWidth(0).Gap(3).Children(func() {
+			ui.Column(c).Grow(1).MinWidth(0).Gap(2).Children(func() {
 				title, detail := "enowX "+v.Version+" is available", "You have "+version.String+"."
 				switch u.state {
 				case updateDownloading:
@@ -55,10 +55,10 @@ func (a *App) updateCard(c *ui.Context) {
 				case updateReady:
 					title, detail = "enowX "+v.Version+" is installed", "Restart to run it: your sessions come back, agents on their conversations."
 				}
-				ui.Text(c, title).FontSize(theme.TextUI).SingleLine().Shrink(1)
-				ui.Text(c, detail).FontSize(theme.TextLabel).TextColor(theme.Muted)
+				widget.Running(c, title, widget.RunStyle{Weight: 500})
+				ui.Text(c, detail).FontSize(theme.TextLabel).TextColor(theme.TextSoft)
 				if u.err != "" {
-					ui.Text(c, "The update failed: "+u.err).FontSize(theme.TextLabel).TextColor(theme.Error)
+					ui.Text(c, "The update failed: "+u.err).FontSize(theme.TextLabel).TextColor(theme.Error).MaxLines(3)
 				}
 			})
 		})
@@ -69,7 +69,7 @@ func (a *App) updateCard(c *ui.Context) {
 			}
 			widget.Meter(c, widget.Segment{Fraction: frac, Color: theme.Accent})
 		}
-		ui.Row(c).FillWidth().Gap(8).Justify(ui.End).Children(func() {
+		ui.Row(c).FillWidth().Gap(theme.S2).Justify(ui.End).Children(func() {
 			switch u.state {
 			case updateAvailable:
 				if widget.GhostButton(c, "What's new").Clicked() {
