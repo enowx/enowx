@@ -144,7 +144,7 @@ func (e *editor) imageMentionMenu(c *ui.Context, in ui.Element, text string, set
 		e.menuIn = e.menuIn || menu.Hovered()
 		menu.Children(func() {
 			widget.PopupLabel(c, "Mention an image")
-			ui.Scroll(c).FillWidth().Shrink(1).MinHeight(0).Children(func() {
+			widget.Scroll(c).FillWidth().Shrink(1).MinHeight(0).Children(func() {
 				for j, img := range matches {
 					row := ui.ButtonBase(c.Key(img.ref)).Justify(ui.Start).AlignItems(ui.Center).Cursor(ui.CursorPointer).Label("Choose image " + img.name)
 					widget.PopupItem(row, j == e.mentionPick || row.Hovered()).Children(func() {

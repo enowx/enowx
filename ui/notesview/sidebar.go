@@ -64,7 +64,7 @@ func (v *View) sidebar(c *ui.Context, o Options) {
 			v.groupFilterButton(c, o)
 			v.projectFilterButton(c, o)
 		})
-		ui.Scroll(c).Grow(1).FillWidth().MinHeight(0).Children(func() {
+		widget.Scroll(c).Grow(1).FillWidth().MinHeight(0).Children(func() {
 			ui.Column(c).FillWidth().Gap(2).Children(func() {
 				if o.Loaded && len(o.Notes) == 0 {
 					ui.Text(c, "No notes yet").FontSize(theme.TextUI).TextColor(theme.TextSoft).Padding(theme.S2, theme.S3)

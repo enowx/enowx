@@ -183,7 +183,7 @@ func (v *View) outlinePanel(c *ui.Context, p *page) {
 			if done, total := noteblocks.Progress(p.ed.markdown()); total > 0 {
 				ui.Column(c).FillWidth().Padding(theme.S1, theme.S2).Children(func() { progressBar(c, "To-dos", done, total) })
 			}
-			ui.Scroll(c).FillWidth().Shrink(1).MinHeight(0).Children(func() {
+			widget.Scroll(c).FillWidth().Shrink(1).MinHeight(0).Children(func() {
 				ui.Column(c).FillWidth().Gap(2).Children(func() {
 					hidden := 99 // entries deeper than a folded one hide
 					for k, s := range out {
@@ -345,7 +345,7 @@ func (v *View) jumpDialog(c *ui.Context, p *page) {
 		if len(matches) == 0 {
 			ui.Text(c, "No section has that in its title.").FontSize(theme.TextUI).TextColor(theme.TextSoft).Padding(theme.S2, theme.S3)
 		}
-		ui.Scroll(c).FillWidth().MaxHeight(360).Children(func() {
+		widget.Scroll(c).FillWidth().MaxHeight(360).Children(func() {
 			ui.Column(c).FillWidth().Gap(1).Children(func() {
 				for k, s := range matches {
 					row := ui.ButtonBase(c.Key(s.ID)).Label("Jump to " + s.Title)

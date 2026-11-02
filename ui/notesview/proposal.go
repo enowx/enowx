@@ -132,7 +132,7 @@ func (v *View) proposalCard(c *ui.Context, o Options, p Proposal, body string) {
 		if isNew {
 			lines = lineDiff("", p.Note.Body)
 		}
-		ui.Scroll(c).FillWidth().MaxHeight(320).Radius(theme.RadiusSmall).Children(func() {
+		widget.Scroll(c).FillWidth().MaxHeight(320).Radius(theme.RadiusSmall).Children(func() {
 			ui.Column(c).FillWidth().Radius(theme.RadiusSmall).Background(widget.CodeGround).Padding(theme.S2, 0).Children(func() {
 				for i, l := range lines {
 					row := ui.Row(c.Key(i)).FillWidth().PaddingX(theme.S3).Gap(theme.S2).AlignItems(ui.Start)

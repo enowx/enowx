@@ -185,7 +185,7 @@ func (v *View) libraryIcons(c *ui.Context, o Options, current string, pick func(
 			}
 		})
 	}
-	ui.Scroll(c).FillWidth().MaxHeight(300).Children(func() {
+	widget.Scroll(c).FillWidth().MaxHeight(300).Children(func() {
 		ui.Column(c).FillWidth().Gap(theme.S2).Children(func() {
 			if strings.TrimSpace(p.query) == "" {
 				v.iconSection(c, "Favorites", p.prefs.Favorites, current, pick)

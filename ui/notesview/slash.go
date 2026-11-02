@@ -92,7 +92,7 @@ func (e *editor) slashMenu(c *ui.Context, in ui.Element, i int) {
 		e.menuIn = menu.Hovered()
 		menu.Children(func() {
 			widget.PopupLabel(c, "Blocks")
-			ui.Scroll(c).FillWidth().Shrink(1).MinHeight(0).Children(func() {
+			widget.Scroll(c).FillWidth().Shrink(1).MinHeight(0).Children(func() {
 				for j, it := range items {
 					row := ui.ButtonBase(c.Key(it.name)).Justify(ui.Start).AlignItems(ui.Center).Cursor(ui.CursorPointer).Label(it.name)
 					widget.PopupItem(row, j == e.slash || row.Hovered()).Children(func() {
