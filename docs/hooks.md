@@ -93,6 +93,8 @@ Hooks run in this order: the host's, the project's, then the session's, each in 
 
 ## How agents hand over events
 
+For Codex, a plain approval by enowX leaves Codex's normal permission checks in place; the judge can still refuse a command.
+
 enowX adds its own hooks when it starts Claude Code (`--settings`) or Codex (`-c hooks.<Event>=…`). They run `"$ENOWX_BIN" hook --event E [--state S]` with the agent's JSON on stdin (`daemon.Hook`).
 
 That command calls `session.hook` on the daemon. The daemon sets the state and runs the matching hooks; a Git commit, push or merge in a tool's command also goes through the `git.before` hooks. The command then answers the agent as agents read their hooks:

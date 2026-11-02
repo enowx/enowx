@@ -164,8 +164,28 @@ func TestCodexHookTrust(t *testing.T) {
 	if cfg.Model != "gpt" || cfg.Hooks.State["/x/hooks.json:stop:0:0"].Enabled == nil || len(cfg.Hooks.State) != 1+len(codexEvents) {
 		t.Fatalf("config:\n%s", data)
 	}
-	g := on("", codexEvents[2].event, codexEvents[2].state, codexEvents[2].timeout)
+	g := codexOn(codexEvents[2].event, codexEvents[2].state, codexEvents[2].timeout)
 	if got := cfg.Hooks.State[codexFlagsSource+":pre_tool_use:0:0"].TrustedHash; got != codexHookHash("pre_tool_use", g.Hooks[0]) {
 		t.Fatalf("pre_tool_use trusted as %q", got)
+	}
+}
+
+func TestCodexHookCommandsIdentifyAgent(t *testing.T) {
+	args := codexHookArgs(nil)
+	for i := 2; i < len(args); i += 2 {
+		var cfg struct {
+			Hooks map[string][]agentMatcher `toml:"hooks"`
+		}
+		if _, err := toml.Decode(args[i+1], &cfg); err != nil {
+			t.Fatal(err)
+		}
+		for _, groups := range cfg.Hooks {
+			if len(groups) != 1 || len(groups[0].Hooks) != 1 || !strings.Contains(groups[0].Hooks[0].Command, "--agent=codex") {
+				t.Fatalf("hook missing agent: %s", args[i+1])
+			}
+		}
+	}
+	if strings.Contains(claudeHookArgs()[1], "--agent=codex") {
+		t.Fatal("Claude hook identifies as Codex")
 	}
 }
