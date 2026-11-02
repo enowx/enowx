@@ -47,16 +47,19 @@ func (v *View) unlock(c *ui.Context, o Options) {
 	if !v.remember && o.Remember {
 		v.remember = true
 	}
-	v.hero(c, icon.Lock, "The vault is locked", "Unlock it to see your credentials and lend them to sessions.", func() {
+	widget.Card(c).Width(heroWidth).Shrink(1).Children(func() {
+		ui.Row(c).FillWidth().Gap(theme.S2).Justify(ui.Center).Children(func() {
+			ui.Text(c, "The vault is locked").FontSize(theme.TextRead).FontWeight(600)
+			ui.Icon(c, icon.Lock).FontSize(16).TextColor(theme.TextSoft)
+		})
+		ui.Text(c, "Unlock it to see your credentials and lend them to sessions.").FontSize(theme.TextUI).TextColor(theme.TextSoft).FillWidth().TextAlign(ui.Center)
 		submit := widget.Input(c, &v.password, "Your master password").FillWidth().Password().AutoFocus().Submitted()
 		widget.ToggleRow(c, "Remember on this device", "", &v.remember)
 		v.errorLine(c)
-		ui.Row(c).FillWidth().Shrink(0).Justify(ui.End).Children(func() {
-			if widget.PrimaryButton(c, nil, "Unlock", "").Clicked() || submit {
-				v.err = errText(o.Actions.Unlock(v.password, v.remember))
-				v.password = "" // wrong: typed again from the start
-			}
-		})
+		if widget.PrimaryButton(c, nil, "Unlock", "").FillWidth().Clicked() || submit {
+			v.err = errText(o.Actions.Unlock(v.password, v.remember))
+			v.password = "" // wrong: typed again from the start
+		}
 	})
 }
 

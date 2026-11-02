@@ -288,6 +288,7 @@ func (v *View) grid(c *ui.Context, o Options, list []vault.Credential, addOne bo
 			widget.Card(c.Key("add-one")).Children(func() {
 				widget.CardTitle(c, nil, "Add one", nil)
 				widget.CardNote(c, "Add a token, a key or a login once; sessions on any host get it when they need it, after you allow that host.", 0)
+				ui.Spacer(c)
 				widget.CardFoot(c, func() {
 					if widget.Button(c, widget.Secondary, icon.Plus, "Add credential", "").Clicked() {
 						v.OpenAdd("")
