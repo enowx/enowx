@@ -39,6 +39,7 @@ const (
 	sectionAppearance  = "Appearance"
 	sectionFloating    = "Floating control"
 	sectionDiagnostics = "Diagnostics"
+	sectionCache       = "Clean cache"
 	sectionSync        = "Sync"
 	sectionFeatures    = "Features"
 	sectionNotify      = "Notifications"
@@ -121,6 +122,8 @@ func (a *App) settingsBody(c *ui.Context) {
 		a.floatingSection(c)
 	case sectionDiagnostics:
 		a.diagnosticsSection(c)
+	case sectionCache:
+		a.cacheSection(c)
 	case sectionNotify:
 		a.notifySection(c)
 	case sectionDiscord:

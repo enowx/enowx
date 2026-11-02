@@ -38,7 +38,7 @@ var settingsGroups = []struct {
 	sections []string
 }{
 	{"Agents", []string{sectionLibrary, sectionSessions, sectionAgents, sectionAutomations, sectionHooks, sectionDecide, sectionRAG}},
-	{"Host", []string{sectionEnvironment, sectionTerminal, sectionFeatures, sectionSync, sectionDiagnostics}},
+	{"Host", []string{sectionEnvironment, sectionTerminal, sectionFeatures, sectionSync, sectionDiagnostics, sectionCache}},
 	{"Account", []string{sectionCloud}},
 	{"App", []string{sectionApp, sectionAppearance, sectionFloating, sectionNotify, sectionDiscord}},
 }
@@ -55,7 +55,7 @@ func settingsSections() []string {
 var sectionIcons = map[string]*ui.SVG{
 	sectionLibrary: icon.Brain, sectionSessions: icon.Plus, sectionAgents: icon.Bot,
 	sectionAutomations: icon.History, sectionHooks: icon.Terminal, sectionRAG: icon.Search, sectionDecide: icon.Gauge, sectionEnvironment: icon.Key, sectionTerminal: icon.Terminal, sectionFeatures: icon.Layers,
-	sectionSync: icon.Sync, sectionDiagnostics: icon.Gauge, sectionCloud: icon.Account, sectionApp: icon.Settings, sectionAppearance: icon.Palette,
+	sectionSync: icon.Sync, sectionDiagnostics: icon.Gauge, sectionCache: icon.Trash, sectionCloud: icon.Account, sectionApp: icon.Settings, sectionAppearance: icon.Palette,
 	sectionNotify: icon.VolumeUp, sectionFloating: icon.Floating, sectionDiscord: icon.Discord,
 }
 

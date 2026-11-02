@@ -65,6 +65,7 @@ type App struct {
 	connFail        error           // the same, to tell what kind of failure it was
 	notice          string          // a.status is news, not a problem, while it equals this
 	bundleWarned    bool            // warnBundlePlace said it
+	cacheState      *cacheSettings  // Settings' Clean cache
 	watchdog        *watchdog.Watch // the main thread's, once the window is open
 	sessionToasts   []*sessionToast // what notifications are about (sessiontoast.go)
 	sessionToastKey int
