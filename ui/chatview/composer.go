@@ -22,8 +22,16 @@ import (
 // row of the agent's settings. What it says of the conversation (the lines
 // changed, the context) keeps to the row's free end.
 func (ch *Chat) composer(c *ui.Context, o Options) {
-	ui.Row(c.Key("composer")).Absolute().Left(0).Bottom(theme.S4).FillWidth().Justify(ui.Center).PaddingX(theme.S5).PassThrough().Children(func() {
-		ui.Column(c).Grow(1).MinWidth(0).MaxWidth(o.columnWidth()).Gap(theme.S2).PassThrough().Children(func() {
+	row := ui.Row(c.Key("composer")).Absolute().Left(0).FillWidth().Justify(ui.Center).PassThrough()
+	column := o.columnWidth()
+	if theme.DockedComposer {
+		row.Bottom(0)
+		column = 9999 // across the frame's foot
+	} else {
+		row.Bottom(theme.S4).PaddingX(theme.S5)
+	}
+	row.Children(func() {
+		ui.Column(c).Grow(1).MinWidth(0).MaxWidth(column).Gap(theme.S2).PassThrough().Children(func() {
 			ch.slashMenu(c)
 			ch.box(c, o)
 		})
@@ -71,8 +79,12 @@ const (
 
 // box is the message and the row of buttons under it.
 func (ch *Chat) box(c *ui.Context, o Options) {
-	box := ui.Column(c).FillWidth().Padding(theme.S3, theme.S2, theme.S2, theme.S2).Gap(theme.S1).Radius(theme.RadiusPanel).Background(theme.Popover).
-		InsetShadow(0, 0, 0, 0.5, theme.Border)
+	box := ui.Column(c).FillWidth().Padding(theme.S3, theme.S2, theme.S2, theme.S2).Gap(theme.S1).Background(theme.Popover)
+	if theme.DockedComposer {
+		box.InsetShadow(0, theme.Hairline, 0, 0, theme.Border) // docked: only the line along its top
+	} else {
+		box.Radius(theme.RadiusPanel).InsetShadow(0, 0, 0, 0.5, theme.Border)
+	}
 	widget.DropShadow(box, 10, 30, ui.RGBA(0, 0, 0, float32(0.35*theme.SurfaceOpacity)))
 	// Narrow, as beside the side panel: the settings show as icons and the
 	// context as its percentage, so nothing is cut.

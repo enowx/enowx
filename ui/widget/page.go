@@ -12,7 +12,7 @@ import (
 // PageHeader is a frame's top: its title, what it is about, which runs when
 // it can't fit, and its actions at the right. The frame keeps its height.
 func PageHeader(c *ui.Context, title, sub string, actions func()) {
-	ui.Row(c.Key("page-header")).MinHeight(56).Shrink(0).FillWidth().Padding(theme.S2, theme.S4, theme.S2, theme.S5).Gap(theme.S3).
+	ui.Row(c.Key("page-header")).MinHeight(theme.HeaderHeight).Shrink(0).FillWidth().Padding(theme.S2, theme.S4, theme.S2, theme.S5).Gap(theme.S3).
 		BorderWidth(0, 0, 0.5, 0).BorderColor(theme.Border).Children(func() {
 		ui.Row(c).Grow(1).MinWidth(0).Gap(theme.S3).Children(func() {
 			ui.Row(c).MinWidth(0).Shrink(1).Children(func() {

@@ -347,8 +347,8 @@ func (a *App) toolsDock(c *ui.Context) {
 	if chat {
 		unread, _ = a.chatUnreadAll()
 	}
-	ui.Column(c.Key("dock-room")).Width(44).Shrink(0).FillHeight().Justify(ui.Center).Children(func() {
-		widget.Glass(ui.Column(c.Key("dock")).FillWidth().Padding(theme.S1, 0).Gap(theme.S1).Radius(theme.RadiusFull).AlignItems(ui.Center)).Children(func() {
+	widget.DockRoom(ui.Column(c.Key("dock-room")).Width(theme.RailWidth).Shrink(0).FillHeight().Justify(ui.Center)).Children(func() {
+		widget.DockBar(ui.Column(c.Key("dock")).FillWidth().Padding(theme.S1, 0).Gap(theme.S1).AlignItems(ui.Center)).Children(func() {
 			for _, id := range first {
 				t, _ := findTool(id)
 				if a.toolOff(id) {
@@ -399,7 +399,7 @@ func (a *App) toolsDock(c *ui.Context) {
 
 // dockFace is the round button of a dock's entry.
 func dockFace(c *ui.Context, svg *ui.SVG, label string, on bool) ui.Element {
-	b := ui.ButtonBase(c).Size(36, 36).Radius(theme.RadiusFull).Center().Shrink(0).Label(label).Tooltip(label).Cursor(ui.CursorPointer)
+	b := ui.ButtonBase(c).Size(theme.RailWidth-8, theme.RailWidth-8).Radius(theme.RadiusFull).Center().Shrink(0).Label(label).Tooltip(label).Cursor(ui.CursorPointer)
 	bg, fg := theme.Fade(theme.Selected, 0), theme.TextSoft
 	if on || b.Hovered() {
 		bg, fg = theme.Selected, theme.Text
@@ -412,7 +412,7 @@ func dockFace(c *ui.Context, svg *ui.SVG, label string, on bool) ui.Element {
 
 // dockFaceOff is a dock's entry that can't be used now.
 func dockFaceOff(c *ui.Context, svg *ui.SVG, label string) {
-	ui.ButtonBase(c).Size(36, 36).Radius(theme.RadiusFull).Center().Shrink(0).Label(label).Tooltip(label).
+	ui.ButtonBase(c).Size(theme.RailWidth-8, theme.RailWidth-8).Radius(theme.RadiusFull).Center().Shrink(0).Label(label).Tooltip(label).
 		TextColor(theme.TextSoft).Opacity(0.35).Disabled(true).Children(func() {
 		ui.Icon(c, svg).FontSize(16)
 	})

@@ -33,10 +33,6 @@ const (
 	checkEvery = 5 * time.Second
 )
 
-// columnWidth is how wide the conversation and its composer run, centered:
-// lines a reader can follow, however wide the window.
-const columnWidth = 740
-
 // outlineFrom is how wide the conversation must be for the outline of the
 // user's messages beside it.
 const outlineFrom = 1212
@@ -332,11 +328,13 @@ func (ch *Chat) reckon() {
 	}
 }
 
+// columnWidth is how wide the conversation and its composer run, centered:
+// the style's reading column, unless the options say otherwise.
 func (o Options) columnWidth() float32 {
 	if o.ColumnWidth > 0 {
 		return o.ColumnWidth
 	}
-	return columnWidth
+	return theme.ReadWidth
 }
 
 // Options are what the chat needs of its session.

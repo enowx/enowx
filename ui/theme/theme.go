@@ -26,6 +26,7 @@ var (
 	Selected     ui.Color
 	Border       ui.Color // hairlines between areas
 	BorderStrong ui.Color // outlines of controls
+	BorderFloat  ui.Color // the line of what floats, in a flat style
 	Dialog       ui.Color // dialogs
 	Popover      ui.Color // menus, pop-overs
 	Text         ui.Color
@@ -72,14 +73,19 @@ var (
 	ControlHeight float32
 	BarHeight     float32 // the title bar's pieces
 	ScrollWidth   float32 // a scroll bar's thickness
+	BarRadius     float32 // the title bar's pieces' corners
+	RailWidth     float32 // the tools dock's region
+	ReadWidth     float32 // the column a conversation reads in
+	HeaderHeight  float32 // a page's header
 
 	// Spacing: the steps of every gap and padding.
 	S1, S2, S3, S4, S5, S6 float32
 
 	// Effects: see Style.
-	Flat     bool
-	Hairline float32
-	Scrim    ui.Color
+	Flat, Butted, FullDock, DockedComposer bool
+	Hairline                               float32
+	Scrim                                  ui.Color
+	Family                                 string
 
 	// Type: the steps of every text size.
 	TextLabel float32 // labels, details
@@ -102,6 +108,7 @@ func init() {
 // Apply sets every token from p.
 func Apply(p Palette) {
 	current = p
+	term := styled(darkPalette(p)).Background
 	p = styled(p)
 	Background, Panel, Raised, Sunken = p.Background, p.Panel, p.Raised, p.Sunken
 	Ground, Frame, Popover = p.Ground, p.Frame, p.Popover
@@ -126,7 +133,11 @@ func Apply(p Palette) {
 	if p.code.A != 0 {
 		CodeGround = p.code
 	}
-	TermGround = Surface(terminalGround(p))
+	TermGround = Surface(term)
+	BorderFloat = p.Border
+	if p.floatLine.A != 0 {
+		BorderFloat = p.floatLine
+	}
 	Add, Del, Now = p.Add, p.Del, p.Now
 	Working, Done, Warning, Error, Idle = p.Working, p.Done, p.Warning, p.Error, p.Idle
 }

@@ -34,6 +34,10 @@ type Palette struct {
 	// code is the ground of code and logs a style gives it, none keeping the
 	// app's own.
 	code ui.Color
+	// floatLine is the line of what floats a style gives it, none keeping Border.
+	floatLine ui.Color
+	// own says the palette's accent is its own, no accent of the user's over it.
+	own bool
 }
 
 // glass is a dark palette: every palette has the same glass, over a
@@ -51,6 +55,7 @@ func glass(id, name, ground string, wall [3]ui.Color, accent, onAccent string) P
 		Accent: ui.Hex(accent), OnAccent: ui.Hex(onAccent),
 		Working: ui.Hex("#64D2FF"), Done: ui.Hex("#30D158"), Warning: ui.Hex("#FFD60A"), Error: ui.Hex("#FF6961"), Idle: ui.Hex("#AEAEB2"),
 		Add: ui.Hex("#8BF0B0"), Del: ui.Hex("#FFB1AB"), Now: ui.Hex("#BCDCFF"),
+		own: true,
 	}
 }
 
@@ -104,6 +109,7 @@ func Lookup(id string, accent ui.Color) Palette {
 	if accent.A != 0 {
 		p.Accent = accent
 		p.OnAccent = contrastInk(accent)
+		p.own = false
 	}
 	return p
 }

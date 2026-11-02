@@ -10,6 +10,7 @@ type Style struct {
 
 	RadiusFull, RadiusControl, RadiusTail, RadiusSmall, RadiusCard, RadiusPanel float32
 	BentoGap, WindowInset, ControlHeight, BarHeight, ScrollWidth                float32
+	BarRadius, RailWidth, ReadWidth, HeaderHeight                               float32
 	S1, S2, S3, S4, S5, S6                                                      float32
 	TextLabel, TextUI, TextRead, TextTitle                                      float32
 
@@ -20,6 +21,16 @@ type Style struct {
 	Hairline float32
 	Scrim    ui.Color
 
+	// Butted has the regions touch, one line between them: the gap between them
+	// shows the line's color, and the top bar is one bar of cells. FullDock has the
+	// tools dock fill its region's height rather than float in it, and
+	// DockedComposer the composer run across the frame's foot rather than float.
+	Butted, FullDock, DockedComposer bool
+
+	// Family is the font list of the app's words, "" the system's. A family the
+	// system lacks gives way to the next.
+	Family string
+
 	// surfaces is what the style makes of a palette's surfaces; nil keeps them.
 	surfaces func(Palette) Palette
 }
@@ -29,13 +40,14 @@ var LiquidGlass = Style{
 	ID: "liquid-glass", Name: "Liquid Glass",
 	RadiusFull: 999, RadiusControl: 16, RadiusTail: 4, RadiusSmall: 12, RadiusCard: 20, RadiusPanel: 28,
 	BentoGap: 8, WindowInset: 12, ControlHeight: 32, BarHeight: 40, ScrollWidth: 8,
+	BarRadius: 999, RailWidth: 44, ReadWidth: 740, HeaderHeight: 56,
 	S1: 4, S2: 8, S3: 12, S4: 16, S5: 24, S6: 32,
 	TextLabel: 12, TextUI: 13, TextRead: 15, TextTitle: 17,
 	Scrim: ui.RGBA(0, 0, 0, 0.5),
 }
 
 // Styles is every style, in the order the app offers them.
-var Styles = []Style{LiquidGlass}
+var Styles = []Style{LiquidGlass, Ledger}
 
 // style is the style in use.
 var style Style
@@ -61,6 +73,8 @@ func UseStyle(s Style) {
 	RadiusFull, RadiusControl, RadiusTail, RadiusSmall, RadiusCard = s.RadiusFull, s.RadiusControl, s.RadiusTail, s.RadiusSmall, s.RadiusCard
 	RadiusPanel, RadiusBento = s.RadiusPanel, s.RadiusPanel
 	BentoGap, WindowInset, ControlHeight, BarHeight, ScrollWidth = s.BentoGap, s.WindowInset, s.ControlHeight, s.BarHeight, s.ScrollWidth
+	BarRadius, RailWidth, ReadWidth, HeaderHeight = s.BarRadius, s.RailWidth, s.ReadWidth, s.HeaderHeight
+	Butted, FullDock, DockedComposer, Family = s.Butted, s.FullDock, s.DockedComposer, s.Family
 	S1, S2, S3, S4, S5, S6 = s.S1, s.S2, s.S3, s.S4, s.S5, s.S6
 	TextLabel, TextUI, TextRead, TextTitle = s.TextLabel, s.TextUI, s.TextRead, s.TextTitle
 	Flat, Hairline, Scrim = s.Flat, s.Hairline, s.Scrim

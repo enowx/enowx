@@ -27,8 +27,13 @@ func (a *App) titleBar(c *ui.Context) {
 // titleBarWith is the title bar with actions on its right.
 func (a *App) titleBarWith(c *ui.Context, actions func()) {
 	bar := c.TitleBar()
-	ui.Row(c).Height(max(bar.Height, theme.BarHeight)).Shrink(0).FillWidth().
-		Padding(0, bar.Right, 0, bar.Left).Gap(theme.S2).DragWindow().Children(func() {
+	row := ui.Row(c).Height(max(bar.Height, theme.BarHeight)).Shrink(0).FillWidth().Padding(0, bar.Right, 0, bar.Left).DragWindow()
+	gap := theme.S2
+	if theme.Butted {
+		row.Background(theme.Panel)
+		gap = 0
+	}
+	row.Gap(gap).Children(func() {
 		ui.Row(c).Height(theme.BarHeight).PaddingX(theme.S3).Shrink(0).Children(func() { a.windowButtons(c) })
 		a.contextCapsule(c)
 		a.pagesCapsule(c)
@@ -40,7 +45,7 @@ func (a *App) titleBarWith(c *ui.Context, actions func()) {
 
 // capsule is a piece of the top's glass.
 func capsule(c *ui.Context) ui.Element {
-	return widget.Glass(ui.Row(c).Height(theme.BarHeight).Radius(theme.RadiusFull).AlignItems(ui.Center))
+	return widget.BarPiece(ui.Row(c).Height(theme.BarHeight).AlignItems(ui.Center))
 }
 
 // contextMax is how wide the host's and the project's names may be in their
@@ -50,7 +55,7 @@ const contextMax = 112
 // contextCapsule is the host and project the app is on, a menu of the others.
 func (a *App) contextCapsule(c *ui.Context) {
 	col, state := a.connectionState()
-	b := widget.Glass(ui.ButtonBase(c.Key("host-switch")).Height(theme.BarHeight).PaddingX(theme.S4).Gap(theme.S2).Radius(theme.RadiusFull).
+	b := widget.BarPiece(ui.ButtonBase(c.Key("host-switch")).Height(theme.BarHeight).PaddingX(theme.S4).Gap(theme.S2).
 		Cursor(ui.CursorPointer).Shrink(0).Label("Host: " + a.host.Name + ", " + state).Tooltip(a.host.Name + " · " + state))
 	b.Children(func() {
 		if a.client == nil {
@@ -126,8 +131,8 @@ func pageButton(c *ui.Context, label string, on, enabled bool) ui.Element {
 
 // commandButton opens the command palette.
 func (a *App) commandButton(c *ui.Context) {
-	b := widget.Glass(ui.ButtonBase(c.Key("command")).Width(340).Shrink(1).MinWidth(160).Height(theme.BarHeight).PaddingX(theme.S4).Gap(theme.S2).
-		Radius(theme.RadiusFull).Label("Run a command").Cursor(ui.CursorPointer))
+	b := widget.BarField(ui.ButtonBase(c.Key("command")).Width(340).Shrink(1).MinWidth(160).Height(theme.BarHeight).PaddingX(theme.S4).Gap(theme.S2).
+		Label("Run a command").Cursor(ui.CursorPointer))
 	b.Justify(ui.Start).TextColor(theme.TextSoft).Children(func() {
 		ui.Icon(c, icon.Search).FontSize(14)
 		ui.Text(c, "Search sessions, hosts and actions").FontSize(theme.TextUI).SingleLine().Shrink(1).MinWidth(0)

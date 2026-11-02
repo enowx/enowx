@@ -38,6 +38,15 @@ func Edge(e ui.Element) ui.Element {
 	return e.InsetShadow(0, 0, 0, 0.5, theme.Border)
 }
 
+// paneEdge is Edge for one of the window's regions: where they touch, the gap
+// between them is their line.
+func paneEdge(e ui.Element) ui.Element {
+	if theme.Butted {
+		return e
+	}
+	return Edge(e)
+}
+
 // DropShadow is a shadow under e, in a style that has shadows.
 func DropShadow(e ui.Element, y, blur float32, col ui.Color) ui.Element {
 	if theme.Flat {
@@ -55,7 +64,7 @@ var Frosted = true
 // panels to be told apart when nothing else of them shows.
 func SurfaceEdge(e ui.Element) ui.Element {
 	if theme.Flat {
-		return Edge(e)
+		return paneEdge(e)
 	}
 	o := float64(theme.SurfaceOpacity)
 	return e.InsetShadow(0, 0.5, 0, 0, theme.Fade(theme.Highlight, float64(theme.Highlight.A)/255*o)).InsetShadow(0, 0, 0, 0.5, theme.Border).
@@ -73,7 +82,7 @@ const glassLeastOpacity = 0.25
 func Glass(e ui.Element) ui.Element {
 	switch {
 	case theme.Flat:
-		return Edge(e.Background(theme.Panel))
+		return paneEdge(e.Background(theme.Panel))
 	case !Frosted, theme.SurfaceOpacity < glassLeastOpacity:
 		return SurfaceEdge(e.Background(theme.Panel))
 	case theme.SurfaceOpacity < 1:
@@ -86,7 +95,7 @@ func Glass(e ui.Element) ui.Element {
 // on screen: nearly opaque, with the deepest shadow and the brightest rim.
 func BrightFrame(e ui.Element) ui.Element {
 	if theme.Flat {
-		return Edge(e.Radius(theme.RadiusPanel).Clip().Background(theme.Frame))
+		return paneEdge(e.Radius(theme.RadiusPanel).Clip().Background(theme.Frame))
 	}
 	o := float32(theme.SurfaceOpacity)
 	return e.Radius(theme.RadiusPanel).Clip().Background(theme.Frame).
@@ -105,11 +114,68 @@ func Raise(e ui.Element) ui.Element {
 // Bento makes e one of the window's panels: a pane of the given color with
 // glass's edge.
 func Bento(e ui.Element, bg ui.Color) ui.Element {
+	if theme.Flat {
+		bg = theme.Panel // a region is opaque: what is under it may be its line
+	}
 	return SurfaceEdge(e.Radius(theme.RadiusBento).Clip().Background(bg))
 }
 
 // Float gives e the edge of an overlay: menus, pop-ups, dialogs.
-func Float(e ui.Element) ui.Element { return Rim(e) }
+func Float(e ui.Element) ui.Element {
+	if theme.Family != "" {
+		e.Font(theme.Family) // overlays lie outside the window's root
+	}
+	if theme.Flat && theme.Hairline > 0 {
+		return e.InsetShadow(0, 0, 0, theme.Hairline, theme.BorderFloat)
+	}
+	return Rim(e)
+}
+
+// BarPiece makes e one of the title bar's pieces: a capsule of glass, or where the
+// regions touch, a cell of the one bar, ruled off from the last.
+func BarPiece(e ui.Element) ui.Element {
+	if theme.Butted {
+		return e.Radius(0).InsetShadow(theme.Hairline, 0, 0, 0, theme.Border)
+	}
+	return Glass(e.Radius(theme.BarRadius))
+}
+
+// BarField is BarPiece for the title bar's search: where the regions touch, a well
+// in the bar.
+func BarField(e ui.Element) ui.Element {
+	if theme.Butted {
+		return e.Height(theme.BarHeight-2*theme.S1).Margin(theme.S1, 0, 0, 0).Radius(theme.RadiusControl).Background(theme.Sunken).
+			InsetShadow(0, 0, 0, theme.Hairline, theme.Border)
+	}
+	return BarPiece(e)
+}
+
+// RegionGround is what lies under the window's regions: where they touch, the
+// color of their line, which the one-pixel gaps between them show.
+func RegionGround(e ui.Element) ui.Element {
+	if theme.Butted {
+		return e.Background(theme.Border)
+	}
+	return e
+}
+
+// DockRoom is the tools dock's region: nothing itself, or with a dock that fills it,
+// a pane.
+func DockRoom(room ui.Element) ui.Element {
+	if theme.FullDock {
+		return Glass(room.Radius(theme.RadiusPanel))
+	}
+	return room
+}
+
+// DockBar is the tools dock in its region: a capsule, or with a dock that fills it,
+// only its buttons.
+func DockBar(bar ui.Element) ui.Element {
+	if theme.FullDock {
+		return bar
+	}
+	return Glass(bar.Radius(theme.RadiusFull))
+}
 
 // Popup styles the panel of a drop-down or pop-over, which grows in.
 func Popup(panel ui.Element) ui.Element {

@@ -24,7 +24,7 @@ func lightOf(dark Palette, accent ui.Color) Palette {
 		wall[i].A = 70
 	}
 	p := Palette{
-		ID: dark.ID, Name: dark.Name, Light: true,
+		ID: dark.ID, Name: dark.Name, Light: true, own: dark.own && accent.A == 0,
 		Ground: ui.Hex("#E9EDF5"), Wall: wall,
 		Background: ui.Hex("#F4F6F9"), Panel: white(0.62), Raised: black(0.035), Sunken: black(0.06),
 		Frame: white(0.88), Popover: ui.RGBA(252, 252, 254, 0.98),
