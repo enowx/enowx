@@ -48,7 +48,7 @@ func PageBody(c *ui.Context, wide bool, fn func()) {
 func SidePanel(c *ui.Context, width float32, fn func()) {
 	Glass(ui.Column(c.Key("page-side")).Width(width).Shrink(0).FillHeight().Radius(theme.RadiusPanel).Clip()).Children(func() {
 		ui.Scroll(c).Grow(1).FillWidth().MinHeight(0).Children(func() {
-			ui.Column(c).FillWidth().Padding(theme.S2).Gap(theme.S1).Children(fn)
+			ui.Column(c).FillWidth().Padding(theme.S2, ScrollGutter, theme.S2, theme.S2).Gap(theme.S1).Children(fn)
 		})
 	})
 }

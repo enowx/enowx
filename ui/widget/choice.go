@@ -25,7 +25,7 @@ func Choice(c *ui.Context, label string, options []string, current int, width fl
 	})
 	sel.Popup(func(panel ui.Element) {
 		Popup(panel.Margin(theme.S1, 0, 0, 0).MinWidth(max(width, 160)))
-		ui.Scroll(c).FillWidth().MaxHeight(320).Children(func() {
+		Scroll(c).FillWidth().MaxHeight(320).Children(func() {
 			ui.Column(c).FillWidth().Children(func() {
 				for _, o := range options {
 					item := sel.Item(o)

@@ -32,7 +32,7 @@ func Palette(c *ui.Context, open *bool, query *string, placeholder string, onKey
 		})
 		ui.Box(c).FillWidth().Shrink(0).Height(0.5).Background(theme.Border)
 		ui.Scroll(c).FillWidth().Shrink(1).MinHeight(0).Children(func() {
-			ui.Column(c).FillWidth().Padding(theme.S2).Gap(2).Children(list)
+			ui.Column(c).FillWidth().Padding(theme.S2, ScrollGutter, theme.S2, theme.S2).Gap(2).Children(list)
 		})
 	})
 	return submitted
