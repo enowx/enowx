@@ -134,7 +134,12 @@ func goaCanType(sess *session.Session, now time.Time) bool {
 
 // goaTake takes what fits an agent's context of what waits for GOA, the rest staying.
 func (s *Server) goaTake() string {
-	lines := s.goaLinesToSay()
+	text, _ := s.goaTakeOf(s.goaLinesToSay())
+	return text
+}
+
+// goaTakeOf takes what fits of lines, the rest going back, and says how many it took.
+func (s *Server) goaTakeOf(lines []goaLine) (string, int) {
 	size, n := 0, 0
 	for n < len(lines) && (n == 0 || size+len(lines[n].Text) < goaContextMost) {
 		size += len(lines[n].Text) + 1
@@ -147,13 +152,13 @@ func (s *Server) goaTake() string {
 	}
 	s.saveGOATell()
 	if n == 0 {
-		return ""
+		return "", 0
 	}
 	text := joinLines(lines[:n])
 	if r := []rune(text); len(r) > goaContextMost {
 		text = string(r[:goaContextMost]) + "…"
 	}
-	return text
+	return text, n
 }
 
 // goaHookLines gives GOA's agent what waits for it in the hook it is in, and says a
@@ -169,7 +174,7 @@ func (s *Server) goaHookLines(sess *session.Session, info proto.SessionInfo, ev 
 			s.goaChanged()
 		}
 	case proto.HookTurnDone:
-		if text := s.goaTake(); text != "" {
+		if text := s.goaTakeAtStop(); text != "" {
 			d.Continue = text
 			_ = s.sessions.SetState(sess, proto.StateWorking)
 			s.goaChanged()

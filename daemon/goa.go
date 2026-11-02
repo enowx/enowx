@@ -28,6 +28,7 @@ type goaState struct {
 
 	mu     sync.Mutex
 	tell   []goaLine         // lines for GOA until it takes them, kept in tellFile
+	stops  map[string]bool   // what kept its turn going at a Stop, until it looks (goa_stop.go)
 	waker  *goaWaker         // its idle agent's background hook, the latest (goa_inject.go)
 	urgent map[string]string // worker session → why the user answers what it asks
 	// pending is the tool call of each worker in urgent the user hasn't been
@@ -236,6 +237,11 @@ func (s *Server) goaTell(line string) { s.goaTellLine(goaLine{Text: line}) }
 type goaLine struct {
 	Text string `json:"text"`
 	Task string `json:"task,omitempty"`
+	// Session is who it is about, when one session is.
+	Session string `json:"session,omitempty"`
+	// Soft: it only says to look. It never keeps GOA's turn going, and reading the
+	// session takes it back.
+	Soft bool `json:"soft,omitempty"`
 }
 
 // goaTellMax bounds what waits for a GOA that never comes back, the oldest going.
@@ -334,7 +340,7 @@ func (s *Server) goaCall(from, host, method string, params, out any) error {
 	if err != nil {
 		return err
 	}
-	res, err := (&conn{srv: s}).hostCall(proto.HostCallParams{Host: host, Method: method, Params: raw, From: from})
+	res, err := (&conn{srv: s, self: true}).hostCall(proto.HostCallParams{Host: host, Method: method, Params: raw, From: from})
 	if err != nil || out == nil {
 		return err
 	}

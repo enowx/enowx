@@ -44,6 +44,7 @@ func (s *Server) toldCheck(w *stallWatch, id string, was goaTold, h stallHost, l
 		}
 		return
 	}
+	shell := info.Agent == "" || info.Agent == agent.Shell
 	text, err := h.screen(id)
 	if err != nil {
 		return
@@ -56,27 +57,34 @@ func (s *Server) toldCheck(w *stallWatch, id string, was goaTold, h stallHost, l
 		w.follows[toldFollow(id)] = f
 	case text != f.screen:
 		f.screen, f.since = text, now
-		if was.Status == toldQuiet {
-			s.goaToldStatus(id, was.Status, "") // at work again: its next end is news
-		}
-		return
+		return // quiet stays heard: only what GOA sends it next makes it news again
 	}
 	look := stallLook{Info: info, NoCPU: !h.cpuKnown, CPU: h.cpuOf(id), Still: now.Sub(f.since)}
 	said := proto.GOATask{Session: id, Host: was.Host}
 	switch {
+	case shell && shellBack(look, text):
+		// Its command is over and nothing of it waits: GOA hears once, its turn left alone.
+		if s.goaToldStatus(id, was.Status, proto.GOATaskTurnEnded) {
+			s.goaTellLine(goaLine{Session: id, Soft: true, Text: fmt.Sprintf("[enowX GOA] Shell session %s, which you sent something to, is back at its prompt: %s", id, clip(oneLine(lastLines(text, 3)), 200))})
+		}
 	case turnOverOnScreen(look, text):
 		if s.goaToldStatus(id, was.Status, proto.GOATaskTurnEnded) {
-			s.goaTell(fmt.Sprintf("[enowX GOA] Session %s, which you sent something to, finished a turn, as its screen shows: %s", id, clip(oneLine(s.goaResult(said)), goaResultMax)))
+			s.goaTellAbout(id, fmt.Sprintf("[enowX GOA] Session %s, which you sent something to, finished a turn, as its screen shows: %s", id, clip(oneLine(s.goaResult(said)), goaResultMax)))
 		}
-	case toldGoneQuiet(look, text, lim):
+	case was.Status != toldQuiet && toldGoneQuiet(look, text, lim):
 		if s.goaToldStatus(id, was.Status, toldQuiet) {
-			s.goaTell(fmt.Sprintf("[enowX GOA] Session %s, which you sent something to, has shown nothing new for %s, and its screen doesn't say whether its turn ended: %s. Read it (read %s).", id, look.Still.Round(time.Second), clip(oneLine(lastLines(text, 3)), 200), id))
+			s.goaTellLine(goaLine{Session: id, Soft: true, Text: fmt.Sprintf("[enowX GOA] Session %s, which you sent something to, has shown nothing new for %s, and its screen doesn't say whether its turn ended: %s. Read it (read %s).", id, look.Still.Round(time.Second), clip(oneLine(lastLines(text, 3)), 200), id)})
 		}
 	}
 }
 
+// shellBack says a shell's command is over: still and idle, its prompt the last thing shown.
+func shellBack(l stallLook, screen string) bool {
+	return l.Still >= turnOverStill && (l.NoCPU || l.CPU < turnOverCPU) && agent.ShellPromptShown(screen)
+}
+
 // toldGoneQuiet says a told session has stopped with no sign why, so that GOA hears
-// even from an agent whose screen nobody can read. Once only, by Status.
+// even from an agent whose screen nobody can read. The caller says it once, by Status.
 func toldGoneQuiet(l stallLook, screen string, lim proto.GOAStall) bool {
 	silent := l.Info.State == "" || l.Info.StateStale || l.Info.State == proto.StateDone
 	if _, asks := agent.PromptShown(screen); asks {
@@ -90,7 +98,7 @@ func toldGoneQuiet(l stallLook, screen string, lim proto.GOAStall) bool {
 func (s *Server) goaToldStatus(id, from, to string) bool {
 	s.goa.mu.Lock()
 	t, told := s.goa.told[id]
-	moved := told && t.Status == from
+	moved := told && t.Status == from && from != to
 	if moved {
 		t.Status = to
 		s.goa.told[id] = t

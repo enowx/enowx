@@ -17,6 +17,8 @@ import (
 type conn struct {
 	srv *Server
 	nc  net.Conn
+	// self is the daemon calling as GOA (goaCall): what it reads for a line, GOA hasn't.
+	self bool
 
 	wmu sync.Mutex
 

@@ -56,6 +56,7 @@ func (s *Server) sessionsEverywhere() []proto.HostSessions {
 // peekSession reads a session's conversation, here or on another host.
 func (s *Server) peekSession(p proto.SessionPeekParams) (proto.SessionPeek, error) {
 	if p.Host != "" && p.Host != s.daemonID && !strings.EqualFold(p.Host, s.userdata.Name) {
+		s.goaHeardOf(p.From, p.Session)
 		raw, err := s.askApp("session.peek", p, time.Minute)
 		if err != nil {
 			return proto.SessionPeek{}, err
@@ -83,6 +84,7 @@ func (s *Server) peekSession(p proto.SessionPeekParams) (proto.SessionPeek, erro
 	default:
 		return proto.SessionPeek{}, fmt.Errorf("sessions: %d sessions are named %q on %s: use the ID", found, p.Session, s.userdata.Name)
 	}
+	s.goaHeardOf(p.From, info.ID)
 	out := proto.SessionPeek{Host: s.daemonID, HostName: s.userdata.Name, Session: info, Messages: []proto.PeekMessage{}}
 	t, err := s.transcript(proto.TranscriptParams{ID: info.ID})
 	if err != nil {

@@ -279,7 +279,7 @@ func (s *Server) stallHostLost(w *stallWatch, key string, t proto.GOATask, lim p
 		return
 	}
 	if s.stallMark(t.ID, proto.GOATaskWorking, proto.GOATaskStalled) {
-		s.goaTellLine(goaLine{Task: t.ID, Text: fmt.Sprintf("[enowX GOA] Task %s %q on %s: its host can't be reached (the app is closed there, or the connection dropped), so what its session does isn't known. It stays open: look again once the host is back.", t.ID, t.Title, nonEmpty(t.Host, "this host"))})
+		s.goaTellLine(goaLine{Task: t.ID, Session: t.Session, Text: fmt.Sprintf("[enowX GOA] Task %s %q on %s: its host can't be reached (the app is closed there, or the connection dropped), so what its session does isn't known. It stays open: look again once the host is back.", t.ID, t.Title, nonEmpty(t.Host, "this host"))})
 	}
 }
 
@@ -383,7 +383,7 @@ func (s *Server) stallCheck(w *stallWatch, t proto.GOATask, h stallHost, lim pro
 	if look.NoCPU {
 		line += " (its host can't say what its processes use, so it may be a long build)"
 	}
-	s.goaTellLine(goaLine{Text: stallLine(t, line, text), Task: t.ID})
+	s.goaTellLine(goaLine{Text: stallLine(t, line, text), Task: t.ID, Session: t.Session})
 }
 
 // stallMark moves task id from one status to another, unless something else

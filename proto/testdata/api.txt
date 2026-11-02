@@ -2013,6 +2013,7 @@ field SessionPeek.hostName string
 field SessionPeek.messages []PeekMessage
 field SessionPeek.reason string
 field SessionPeek.session SessionInfo
+field SessionPeekParams.from string
 field SessionPeekParams.host string
 field SessionPeekParams.last int
 field SessionPeekParams.session string
@@ -2020,6 +2021,7 @@ field SessionPorts.ports []Port
 field SessionPorts.supported bool
 field SessionPrivateParams.id string
 field SessionPrivateParams.private bool
+field SessionRef.from string
 field SessionRef.id string
 field SessionRenameParams.id string
 field SessionRenameParams.name string

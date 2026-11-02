@@ -570,11 +570,11 @@ func (r runner) read(args []string) error {
 	if err != nil {
 		return err
 	}
-	text, err := r.c.Screen(s.ID)
-	if err != nil {
+	var screen proto.SessionScreen
+	if err := r.c.Call(proto.MethodSessionScreen, proto.SessionRef{ID: s.ID, From: os.Getenv(EnvSession)}, &screen); err != nil {
 		return err
 	}
-	fmt.Fprintln(r.out, strings.TrimRight(text, "\n "))
+	fmt.Fprintln(r.out, strings.TrimRight(screen.Text, "\n "))
 	return nil
 }
 

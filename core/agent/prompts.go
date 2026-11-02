@@ -112,6 +112,21 @@ var (
 	promptAlone = regexp.MustCompile(`^[│|┃]?\s*[❯›>$%#]\s*[│|┃]?$`)
 )
 
+// shellPrompt is a shell's prompt as the last line: its mark at the end, alone or after
+// a user, host or path (a number before % is progress), or one of the prompts that open
+// with theirs.
+var shellPrompt = regexp.MustCompile(`(^|[\s\]\)>:~/])[%$#>❯➜λ]$|[A-Za-z_][%$#]$|^[❯➜λ]\s`)
+
+// ShellPromptShown says a screen ends at a shell's prompt with nothing typed after it.
+func ShellPromptShown(screen string) bool {
+	lines := tailLines(screen, 1)
+	if len(lines) == 0 || !shellPrompt.MatchString(lines[0]) {
+		return false
+	}
+	_, asks := PromptShown(screen)
+	return !asks
+}
+
 // turnOverLines is how far up a turn's end is looked for: an agent's footer alone
 // (a status line, its running agents) can take ten lines.
 const turnOverLines = 20

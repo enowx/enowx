@@ -104,13 +104,21 @@ func (s *Server) goaCorrection(info proto.SessionInfo) {
 }
 
 // goaCallTold follows input a session sends through host.call, to any host.
-func (s *Server) goaCallTold(p proto.HostCallParams) {
-	if p.Method != proto.MethodSessionInput || p.From == "" {
+func (s *Server) goaCallTold(p proto.HostCallParams, self bool) {
+	if p.From == "" {
 		return
 	}
-	var in proto.SessionInputParams
-	if json.Unmarshal(p.Params, &in) == nil {
-		s.goaMarkTold(p.From, p.Host, in.ID)
+	switch p.Method {
+	case proto.MethodSessionInput:
+		var in proto.SessionInputParams
+		if json.Unmarshal(p.Params, &in) == nil {
+			s.goaMarkTold(p.From, p.Host, in.ID)
+		}
+	case proto.MethodSessionScreen, proto.MethodSessionTranscript:
+		var ref proto.SessionRef
+		if !self && json.Unmarshal(p.Params, &ref) == nil {
+			s.goaHeardOf(p.From, ref.ID)
+		}
 	}
 }
 
@@ -122,6 +130,7 @@ func (s *Server) goaMarkTold(from, host, id string) {
 	if !ok || from != g.ID || id == "" || id == g.ID {
 		return
 	}
+	s.goaHeardOf(from, id)
 	if s.goa.board.Has(id) {
 		changed := s.goa.board.Of(id, func(t *proto.GOATask) bool {
 			if t.Status != proto.GOATaskTurnEnded {
@@ -176,17 +185,17 @@ func (s *Server) goaToldChanged(info proto.SessionInfo) {
 	s.saveGOATold()
 	t := proto.GOATask{Session: info.ID}
 	if info.ReportAt > was.ReportAt {
-		s.goaTell(fmt.Sprintf("[enowX GOA] Session %s, which you sent something to, reports %s: %s", info.ID, info.ReportOutcome, clip(oneLine(info.Report), goaResultMax)))
+		s.goaTellAbout(info.ID, fmt.Sprintf("[enowX GOA] Session %s, which you sent something to, reports %s: %s", info.ID, info.ReportOutcome, clip(oneLine(info.Report), goaResultMax)))
 		if status == was.Status || status == proto.GOATaskTurnEnded {
 			return // that was its turn's end
 		}
 	}
 	switch status {
 	case proto.GOATaskTurnEnded:
-		s.goaTell(fmt.Sprintf("[enowX GOA] Session %s, which you sent something to, finished a turn: %s", info.ID, clip(oneLine(s.goaResult(t)), goaResultMax)))
+		s.goaTellAbout(info.ID, fmt.Sprintf("[enowX GOA] Session %s, which you sent something to, finished a turn: %s", info.ID, clip(oneLine(s.goaResult(t)), goaResultMax)))
 	case proto.GOATaskWaiting:
-		s.goaTell(fmt.Sprintf("[enowX GOA] Session %s, which you sent something to, asks something: %s", info.ID, clip(oneLine(s.goaResult(t)), goaResultMax)))
+		s.goaTellAbout(info.ID, fmt.Sprintf("[enowX GOA] Session %s, which you sent something to, asks something: %s", info.ID, clip(oneLine(s.goaResult(t)), goaResultMax)))
 	case proto.GOATaskFailed, proto.GOATaskStopped:
-		s.goaTell(fmt.Sprintf("[enowX GOA] Session %s, which you sent something to, ended with exit code %d: %s", info.ID, info.ExitCode, clip(oneLine(s.goaResult(t)), goaResultMax)))
+		s.goaTellAbout(info.ID, fmt.Sprintf("[enowX GOA] Session %s, which you sent something to, ended with exit code %d: %s", info.ID, info.ExitCode, clip(oneLine(s.goaResult(t)), goaResultMax)))
 	}
 }

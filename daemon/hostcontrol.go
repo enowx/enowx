@@ -113,7 +113,7 @@ func (c *conn) hostCall(p proto.HostCallParams) (result any, err error) {
 			return nil, err // urgent: the user's (goa_workers.go)
 		}
 	}
-	s.goaCallTold(p)
+	s.goaCallTold(p, c.self)
 	confirm := level == hostcontrol.Confirm && p.From != ""
 	// What this daemon knows, never what the session sent; a visitor's
 	// connection doesn't speak for a session of the owner's.

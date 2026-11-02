@@ -142,6 +142,7 @@ func (s *Server) goaAddTask(p proto.GOADelegateParams, t proto.GOATask, target p
 		return t, err
 	}
 	s.goaForgetTold(t.Session) // it reports as this task's from now on
+	s.goaStopsClear(t.Session)
 	s.goaRememberDelegation(t)
 	s.goaChanged()
 	return t, nil
@@ -313,14 +314,14 @@ func (s *Server) goaWorkerChanged(info proto.SessionInfo) {
 		case proto.GOATaskTurnEnded:
 			said := s.goaResult(t)
 			t, _ = s.goa.board.Update(t.ID, func(t *proto.GOATask) { t.Said = said })
-			s.goaTellLine(goaLine{Task: t.ID, Text: head + " finished a turn, which may be mid-work: " + clip(oneLine(said), goaResultMax) + " Check it (chat " + t.Session + hostFlag + "), then settle it: goa task " + t.ID + " --status done|failed --result \"…\"."})
+			s.goaTellLine(goaLine{Task: t.ID, Session: t.Session, Text: head + " finished a turn, which may be mid-work: " + clip(oneLine(said), goaResultMax) + " Check it (chat " + t.Session + hostFlag + "), then settle it: goa task " + t.ID + " --status done|failed --result \"…\"."})
 		case proto.GOATaskWaiting:
 			ask := s.goaAskOf(t)
 			t, _ = s.goa.board.Update(t.ID, func(t *proto.GOATask) { t.Asks, t.Urgent = askLine(ask), ask.Urgent })
 			if ask.Urgent != "" {
-				s.goaTellLine(goaLine{Task: t.ID, Text: head + " waits on the user (" + ask.Urgent + "): " + t.Asks + ". It is theirs to answer: don't."})
+				s.goaTellLine(goaLine{Task: t.ID, Session: t.Session, Text: head + " waits on the user (" + ask.Urgent + "): " + t.Asks + ". It is theirs to answer: don't."})
 			} else {
-				s.goaTellLine(goaLine{Task: t.ID, Text: head + " asks: " + nonEmpty(t.Asks, "something its screen shows (read "+t.Session+hostFlag+")") + ". Answer it: answer " + t.Session + hostFlag + " allow|deny|N."})
+				s.goaTellLine(goaLine{Task: t.ID, Session: t.Session, Text: head + " asks: " + nonEmpty(t.Asks, "something its screen shows (read "+t.Session+hostFlag+")") + ". Answer it: answer " + t.Session + hostFlag + " allow|deny|N."})
 			}
 		case proto.GOATaskFailed:
 			s.goaRememberOutcome(t)
@@ -411,7 +412,7 @@ func (s *Server) goaReportSeen(info proto.SessionInfo) {
 	})
 	for _, t := range changed {
 		where, hostFlag := goaTaskPlace(t)
-		s.goaTellLine(goaLine{Task: t.ID, Text: fmt.Sprintf("[enowX GOA] Task %s %q (%s) reports %s: %s Check it (chat %s%s), then settle it: goa task %s --status done|failed --result \"…\".", t.ID, t.Title, where, t.Outcome, clip(oneLine(t.Said), goaResultMax), t.Session, hostFlag, t.ID)})
+		s.goaTellLine(goaLine{Task: t.ID, Session: t.Session, Text: fmt.Sprintf("[enowX GOA] Task %s %q (%s) reports %s: %s Check it (chat %s%s), then settle it: goa task %s --status done|failed --result \"…\".", t.ID, t.Title, where, t.Outcome, clip(oneLine(t.Said), goaResultMax), t.Session, hostFlag, t.ID)})
 	}
 	if len(changed) > 0 {
 		s.goaChanged()
@@ -437,7 +438,7 @@ func (s *Server) goaTurnOverSeen(t proto.GOATask, screen string) {
 	if agent.InterruptShown(screen) {
 		how = "was interrupted"
 	}
-	s.goaTellLine(goaLine{Task: t.ID, Text: fmt.Sprintf("[enowX GOA] Task %s %q (%s) %s, as its screen shows, which may be mid-work: %s Check it (chat %s%s), then settle it: goa task %s --status done|failed --result \"…\".", t.ID, t.Title, where, how, clip(oneLine(said), goaResultMax), t.Session, hostFlag, t.ID)})
+	s.goaTellLine(goaLine{Task: t.ID, Session: t.Session, Text: fmt.Sprintf("[enowX GOA] Task %s %q (%s) %s, as its screen shows, which may be mid-work: %s Check it (chat %s%s), then settle it: goa task %s --status done|failed --result \"…\".", t.ID, t.Title, where, how, clip(oneLine(said), goaResultMax), t.Session, hostFlag, t.ID)})
 }
 
 // goaTaskPlace is where task t's session is, in GOA's words, and the flag its

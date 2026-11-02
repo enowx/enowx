@@ -288,7 +288,7 @@ func (r runner) chat(args []string) error {
 	if err != nil {
 		return err
 	}
-	p, err := r.c.PeekSession(proto.SessionPeekParams{Session: s.ID, Last: *last})
+	p, err := r.c.PeekSession(proto.SessionPeekParams{Session: s.ID, Last: *last, From: os.Getenv(EnvSession)})
 	if err != nil {
 		return err
 	}

@@ -5,7 +5,9 @@ import (
 	"testing"
 	"time"
 
+	"github.com/enowx/enowx/core/agent"
 	"github.com/enowx/enowx/core/goa"
+	"github.com/enowx/enowx/core/session"
 	"github.com/enowx/enowx/proto"
 )
 
@@ -175,6 +177,104 @@ func TestToldGoneQuiet(t *testing.T) {
 	} {
 		if got := toldGoneQuiet(c.look, c.screen, lim); got != c.want {
 			t.Errorf("%s: %v", name, got)
+		}
+	}
+}
+
+// However long a session stays quiet, GOA hears once; a shell back at its prompt is one
+// line as well, and neither keeps GOA's turn going. Reading takes back what waits.
+func TestToldLineOnceNeverHoldsStop(t *testing.T) {
+	srv := startServer(t)
+	goaSess, err := srv.sessions.Create(session.Spec{Command: []string{"sh", "-c", "cat"}, Dir: srv.goaDir(), Cols: 80, Rows: 24, Meta: session.Meta{Agent: "claude", GOA: true}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	g := goaSess.Info()
+	lim := goa.StallOr(proto.GOAStall{})
+	check := func(id, screen string, agentID string) int {
+		info := proto.SessionInfo{ID: id, Agent: agentID}
+		h := stallHost{infos: map[string]proto.SessionInfo{id: info}, cpuKnown: true,
+			cpuOf:  func(string) float64 { return 0 },
+			screen: func(string) (string, error) { return screen, nil }}
+		w := &stallWatch{follows: map[string]*stallFollow{}, sampled: map[string]bool{}}
+		srv.goa.mu.Lock()
+		srv.goa.told[id] = goaTold{}
+		srv.goa.mu.Unlock()
+		w.follows[toldFollow(id)] = &stallFollow{screen: screen, since: time.Now().Add(-time.Hour)}
+		for range 4 { // every look of the watch
+			srv.goa.mu.Lock()
+			was := srv.goa.told[id]
+			srv.goa.mu.Unlock()
+			srv.toldCheck(w, id, was, h, lim)
+		}
+		srv.goa.mu.Lock()
+		defer srv.goa.mu.Unlock()
+		n := 0
+		for _, l := range srv.goa.tell {
+			if l.Session == id {
+				n++
+			}
+		}
+		return n
+	}
+	if n := check("quiet1", "something\n", "some-agent"); n != 1 {
+		t.Fatalf("quiet: %d lines", n)
+	}
+	if n := check("shell1", "$ make\ndone\nenow@mac code % ", agent.Shell); n != 1 {
+		t.Fatalf("a shell at its prompt: %d lines", n)
+	}
+	srv.goa.mu.Lock()
+	soft := true
+	for _, l := range srv.goa.tell {
+		soft = soft && l.Soft
+	}
+	srv.goa.mu.Unlock()
+	if !soft {
+		t.Fatal("a line that only says to look isn't soft")
+	}
+	if text := srv.goaTakeAtStop(); text != "" {
+		t.Fatalf("kept GOA's turn going: %q", text)
+	}
+	srv.goaHeardOf(g.ID, "quiet1")
+	srv.goa.mu.Lock()
+	left := len(srv.goa.tell)
+	srv.goa.mu.Unlock()
+	if left != 1 {
+		t.Fatalf("after reading one: %d lines wait", left)
+	}
+
+	// Any line: once for what it's about, until GOA looks at it.
+	srv.goa.mu.Lock()
+	srv.goa.tell = []goaLine{{Session: "w", Text: "first"}}
+	srv.goa.mu.Unlock()
+	if srv.goaTakeAtStop() == "" {
+		t.Fatal("a report didn't reach a Stop")
+	}
+	srv.goa.mu.Lock()
+	srv.goa.tell = []goaLine{{Session: "w", Text: "second"}}
+	srv.goa.mu.Unlock()
+	if text := srv.goaTakeAtStop(); text != "" {
+		t.Fatalf("held a Stop again: %q", text)
+	}
+	srv.goaHeardOf(g.ID, "w")
+	if srv.goaTakeAtStop() == "" {
+		t.Fatal("still held after GOA read it")
+	}
+}
+
+func TestShellPromptShown(t *testing.T) {
+	for screen, want := range map[string]bool{
+		"enow@mac code % ":        true,
+		"root@box:~# ":            true,
+		"~/code $":                true,
+		"➜  enowx git:(main) ":    true,
+		"$ sleep 100":             false,
+		"Compiling 12 of 100":     false,
+		"Do you want to proceed?": false,
+		"":                        false,
+	} {
+		if got := agent.ShellPromptShown(screen); got != want {
+			t.Errorf("%q: %v", screen, got)
 		}
 	}
 }

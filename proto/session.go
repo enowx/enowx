@@ -338,6 +338,9 @@ type SessionCreateParams struct {
 // SessionRef names a session.
 type SessionRef struct {
 	ID string `json:"id"`
+	// From is the session reading it, when a session asks: GOA having read one clears
+	// what waits for it about that one.
+	From string `json:"from,omitempty"`
 }
 
 // AttachResult names the stream that carries a session's frames.
