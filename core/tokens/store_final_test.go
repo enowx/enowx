@@ -1,6 +1,8 @@
 package tokens
 
 import (
+	"os"
+	"path/filepath"
 	"testing"
 	"time"
 
@@ -68,5 +70,50 @@ func TestStoreCountsACallOnceAcrossDays(t *testing.T) {
 	all := Open(dir).Calls(first.Add(-time.Hour), time.Now())
 	if len(all) != 1 || all[0].Output != 40 || !all[0].Time.Equal(first) {
 		t.Fatalf("%+v", all)
+	}
+}
+
+// Codex in every shape: a record of the running total alone counts its difference from
+// the one before, the first being where it starts from; cached never passes input; rate
+// limits alone count nothing; a resume says a count again; a fork's copy is its parent's.
+func TestCodexRecordsInEveryShape(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "rollout.jsonl")
+	at := func(s int) string { return time.Date(2026, 10, 20, 10, 0, s, 0, time.UTC).Format(time.RFC3339) }
+	count := func(s int, last, total string) string {
+		return `{"timestamp":"` + at(s) + `","type":"event_msg","payload":{"type":"token_count","info":{"last_token_usage":` + last + `,"total_token_usage":` + total + `}}}` + "\n"
+	}
+	body := `{"timestamp":"` + at(0) + `","type":"session_meta","payload":{"id":"c1","cwd":"/w"}}` + "\n" +
+		`{"timestamp":"` + at(1) + `","type":"turn_context","payload":{"model":"gpt-6-luna"}}` + "\n" +
+		`{"timestamp":"` + at(2) + `","type":"event_msg","payload":{"type":"token_count","info":null,"rate_limits":{"plan_type":"plus"}}}` + "\n" +
+		count(3, `{}`, `{"input_tokens":100,"cached_input_tokens":40,"output_tokens":10,"total_tokens":110}`) +
+		count(4, `{}`, `{"input_tokens":150,"cached_input_tokens":50,"output_tokens":20,"total_tokens":170}`) +
+		count(5, `{}`, `{"input_tokens":150,"cached_input_tokens":50,"output_tokens":20,"total_tokens":170}`) +
+		count(6, `{"input_tokens":10,"cached_input_tokens":99,"output_tokens":5,"total_tokens":15}`, `{"input_tokens":160,"cached_input_tokens":149,"output_tokens":25,"total_tokens":185}`)
+	if err := os.WriteFile(path, []byte(body), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	calls, err := readCodex(path, &FileState{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(calls) != 2 {
+		t.Fatalf("%+v", calls)
+	}
+	if d := calls[0]; d.Input != 40 || d.CacheRead != 10 || d.Output != 10 {
+		t.Errorf("the difference: %+v", d)
+	}
+	if c := calls[1]; c.CacheRead != 10 || c.Input != 0 {
+		t.Errorf("cached past input: %+v", c)
+	}
+
+	fork := `{"timestamp":"` + at(30) + `","type":"session_meta","payload":{"id":"c2","history_base":{"thread_id":"c1"}}}` + "\n" +
+		count(6, `{"input_tokens":10,"output_tokens":5,"total_tokens":15}`, `{"input_tokens":160,"output_tokens":25,"total_tokens":185}`) +
+		count(31, `{"input_tokens":20,"output_tokens":5,"total_tokens":25}`, `{"input_tokens":180,"output_tokens":30,"total_tokens":210}`)
+	if err := os.WriteFile(path, []byte(fork), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	calls, err = readCodex(path, &FileState{})
+	if err != nil || len(calls) != 1 || calls[0].Input != 20 {
+		t.Fatalf("a fork's copy: %+v %v", calls, err)
 	}
 }

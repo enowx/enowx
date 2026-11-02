@@ -38,6 +38,11 @@ type FileState struct {
 	Conv     string `json:"conv,omitempty"`
 	// Mark is an adapter's own place: OpenCode's last update read.
 	Mark int64 `json:"mark,omitempty"`
+	// Running is Codex's running total as last read, to take the next from when a
+	// record has only that; ForkAt, in a fork, when the fork began: what is dated before
+	// is its parent's.
+	Running *codexUsage `json:"running,omitempty"`
+	ForkAt  time.Time   `json:"forkAt,omitzero"`
 }
 
 // adapter reads one agent's records (and those of agents sharing them).
