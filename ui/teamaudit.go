@@ -8,7 +8,6 @@ import (
 	"github.com/enowx/enowx/client"
 	"github.com/enowx/enowx/cloud/api"
 	"github.com/enowx/enowx/ui/icon"
-	"github.com/enowx/enowx/ui/textfmt"
 	"github.com/enowx/enowx/ui/theme"
 	"github.com/enowx/enowx/ui/widget"
 )
@@ -35,8 +34,8 @@ type teamAudit struct {
 	err     string
 }
 
-// cloudTeamAudit is the team dialog's Activity tab.
-func (a *App) cloudTeamAudit(c *ui.Context, cs *cloudSettings) {
+// teamAuditOf is the open team's log, read when first asked for.
+func (a *App) teamAuditOf(cs *cloudSettings) *teamAudit {
 	team := cs.teams.team.ID
 	ta := cs.teams.audit
 	if ta == nil || ta.team != team {
@@ -54,6 +53,43 @@ func (a *App) cloudTeamAudit(c *ui.Context, cs *cloudSettings) {
 			})
 		}()
 	}
+	return ta
+}
+
+// auditLine is what an entry of the log says happened.
+func auditLine(e api.AuditEntry) string {
+	who := e.Account.Name
+	if who == "" {
+		who = "The cloud"
+	}
+	what := auditActions[e.Action]
+	if what == "" {
+		what = e.Action
+	}
+	line := who + " " + what
+	if e.Detail != "" {
+		line += ": " + e.Detail
+	}
+	return line
+}
+
+// teamAuditRow is a line of a team's log: its time, the full date in a tip, and
+// what happened, days before today saying which.
+func teamAuditRow(c *ui.Context, e api.AuditEntry, now time.Time) {
+	line := auditLine(e)
+	if day := ragDay(e.At, now); day != "Today" {
+		line = day + ": " + line
+	}
+	ui.Row(c).FillWidth().Shrink(0).MinHeight(36).Gap(theme.S3).BorderWidth(0.5, 0, 0, 0).BorderColor(theme.Border).Children(func() {
+		ui.Text(c, e.At.Local().Format("15:04")).FontSize(theme.TextLabel).TextColor(theme.TextSoft).SingleLine().Shrink(0).
+			Tooltip(e.At.Local().Format("2 Jan 2006 15:04"))
+		ui.Row(c).Grow(1).Basis(0).MinWidth(0).Children(func() { widget.Running(c, line, widget.RunStyle{Size: theme.TextLabel}) })
+	})
+}
+
+// cloudTeamAudit is the team dialog's Activity tab.
+func (a *App) cloudTeamAudit(c *ui.Context, cs *cloudSettings) {
+	ta := a.teamAuditOf(cs)
 	if ta.err != "" {
 		widget.Notice(c, icon.Alert, theme.Error, ta.err, "", nil)
 	}
@@ -65,29 +101,9 @@ func (a *App) cloudTeamAudit(c *ui.Context, cs *cloudSettings) {
 		ui.Text(c, "Nothing yet.").FontSize(theme.TextLabel).TextColor(theme.Muted)
 	}
 	now := time.Now()
-	ui.Column(c).FillWidth().Gap(2).Children(func() {
+	ui.Column(c).FillWidth().Children(func() {
 		for _, e := range ta.entries {
-			ui.Row(c.Key(e.ID)).FillWidth().Gap(10).AlignItems(ui.Start).Padding(6, 4).BorderWidth(0, 0, 1, 0).BorderColor(theme.Border).Children(func() {
-				who := e.Account.Name
-				if e.Account.GitHub != "" {
-					who = "@" + e.Account.GitHub
-				}
-				if who == "" {
-					who = "The cloud"
-				}
-				what := auditActions[e.Action]
-				if what == "" {
-					what = e.Action
-				}
-				ui.Column(c).Grow(1).Shrink(1).MinWidth(0).Gap(1).Children(func() {
-					ui.Text(c, who+" "+what).FontSize(theme.TextUI).SingleLine()
-					if e.Detail != "" {
-						ui.Text(c, e.Detail).FontSize(theme.TextLabel).TextColor(theme.Muted).SingleLine()
-					}
-				})
-				ui.Text(c, textfmt.Age(e.At, now)).FontSize(theme.TextLabel).TextColor(theme.Muted).SingleLine().Shrink(0).
-					Tooltip(e.At.Local().Format("2 Jan 2006 15:04"))
-			})
+			teamAuditRow(c.Key(e.ID), e, now)
 		}
 	})
 }

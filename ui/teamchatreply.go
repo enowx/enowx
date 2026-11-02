@@ -82,6 +82,11 @@ func (a *App) replyQuote(c *ui.Context, team string, m proto.ChatMessage) {
 			name = "You"
 		}
 	}
+	// In the user's own bubble it lies on the accent, in the accent's text color.
+	soft := theme.TextSoft
+	if m.Account == a.cloudOf().st.AccountID && m.Account != "" {
+		col, soft = theme.OnAccent, theme.OnAccent
+	}
 	b := ui.ButtonBase(c).FillWidth().MinWidth(160).Radius(theme.RadiusSmall).Background(theme.Fade(col, 0.12)).Label("The message it answers")
 	b.Children(func() {
 		ui.Row(c).FillWidth().AlignItems(ui.Stretch).Children(func() {
@@ -90,7 +95,7 @@ func (a *App) replyQuote(c *ui.Context, team string, m proto.ChatMessage) {
 				if name != "" {
 					ui.Text(c, name).FontSize(theme.TextLabel).FontWeight(650).TextColor(col).SingleLine()
 				}
-				t := ui.Text(c, text).FontSize(theme.TextLabel).TextColor(theme.TextSoft).MaxLines(2)
+				t := ui.Text(c, text).FontSize(theme.TextLabel).TextColor(soft).MaxLines(2)
 				if i < 0 {
 					t.Italic().TextColor(theme.Idle)
 				}

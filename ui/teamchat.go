@@ -122,6 +122,11 @@ func (a *App) chatTeam() string {
 	return ""
 }
 
+// chatShows says team's chat shows now, in the side panel or on the Team page.
+func (a *App) chatShows(team string) bool {
+	return a.panelShows(panelChat) && a.chatTeam() == team || a.teamPageChat() == team
+}
+
 // wasRead says team's chat was read whole on connection gen.
 func (hc *hostChats) wasRead(team string, gen int) bool {
 	g, ok := hc.readGen[team]
@@ -206,7 +211,7 @@ func (a *App) teamChatEvent(data json.RawMessage) func() {
 				continue
 			}
 			hc.byTeam[m.Team] = append(have, m)
-			seen := a.panelShows(panelChat) && a.chatTeam() == m.Team && a.win != nil && a.win.IsFocused()
+			seen := a.chatShows(m.Team) && a.win != nil && a.win.IsFocused()
 			if m.Account == me || seen {
 				continue
 			}
@@ -262,6 +267,13 @@ func (a *App) chatTab(c *ui.Context) {
 		panelNote(c, "Sign in to enowX Cloud and join a team to chat with it.")
 		return
 	}
+	a.teamHeader(c, team)
+	a.chatBody(c, team)
+}
+
+// chatBody is team's chat: its messages and the composer, as the side panel and
+// the Team page show it.
+func (a *App) chatBody(c *ui.Context, team string) {
 	hc := a.chatsOf()
 	if !hc.wasShown || hc.listFor != team {
 		// Opened, or another team's: at its latest message, as a fresh
@@ -283,7 +295,6 @@ func (a *App) chatTab(c *ui.Context) {
 		}
 		a.state.ChatRead[team] = msgs[n-1].ID
 	}
-	a.teamHeader(c, team)
 	switch {
 	case len(msgs) == 0 && !hc.wasRead(team, a.gen):
 		// Not "no message yet": they may just not be read, or have come.
@@ -366,7 +377,7 @@ func (a *App) chatUnreadAll() (int, string) {
 // click opens the chat with the latest.
 func (a *App) chatChip(c *ui.Context) {
 	n, team := a.chatUnreadAll()
-	if n == 0 || a.panelShows(panelChat) && a.chatTeam() == team {
+	if n == 0 || a.chatShows(team) {
 		return
 	}
 	label := fmt.Sprintf("%d unread", n)

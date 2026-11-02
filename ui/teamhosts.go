@@ -87,64 +87,18 @@ func (a *App) cloudTeamHosts(c *ui.Context, cs *cloudSettings) {
 	if th.err != "" {
 		widget.Notice(c, icon.Alert, theme.Error, th.err, "", nil)
 	}
-	widget.Field(c, "Shared by "+a.host.Name, func() {
-		if team.Role == api.RoleViewer {
-			ui.Text(c, "Viewers don't share hosts.").FontSize(theme.TextLabel).TextColor(theme.Muted)
-			return
-		}
-		var shared []string
-		var allow *bool
-		for _, t := range th.share.Teams {
-			if t.Team == team.ID {
-				shared, allow = t.Projects, t.AllowSessions
-			}
-		}
-		ui.Text(c, "The projects picked show to the team: their sessions and files. Members reach "+a.host.Name+" over Tailscale: share its node with their Tailscale accounts.").FontSize(theme.TextLabel).TextColor(theme.Muted)
-		switch {
-		case th.share.Err != "" && len(shared) > 0:
-			widget.Notice(c, icon.Alert, theme.Warning, th.share.Err, "", nil)
-		case th.share.Addr != "" && len(shared) > 0:
-			ui.Text(c, "Members reach it at "+th.share.Addr).FontSize(theme.TextLabel).TextColor(theme.Done)
-		}
-		ui.Column(c).FillWidth().Gap(2).Children(func() {
-			if len(a.projects) == 0 {
-				ui.Text(c, a.host.Name+" has no projects yet.").FontSize(theme.TextLabel).TextColor(theme.Muted)
-			}
-			for _, p := range a.projects {
-				on := slices.Contains(shared, p.Path)
-				ui.Row(c.Key("share:"+p.Path)).FillWidth().Gap(8).AlignItems(ui.Center).Padding(3, 0).Children(func() {
-					if widget.Checkbox(c, &on, p.Name) {
-						next := slices.DeleteFunc(slices.Clone(shared), func(x string) bool { return x == p.Path })
-						if on {
-							next = append(next, p.Path)
-						}
-						a.shareHost(team.ID, team.Name, next)
-					}
-					ui.Text(c, textfmt.TildePath(p.Path, a.daemonInfo.Home)).Font(theme.MonoFont).FontSize(theme.TextLabel).TextColor(theme.Muted).SingleLine().Shrink(1)
-				})
-			}
-		})
-		if len(shared) > 0 && allow != nil {
-			// A daemon that knows the setting says it; an older one doesn't.
-			a.teamSessionsSwitch(c, team.ID, team.Name, shared, *allow)
-		}
-	})
+	widget.Field(c, "Shared by "+a.host.Name, func() { a.hostShareBody(c, team) })
 	widget.Field(c, "Shared by members", func() {
-		var list []proto.TeamHost
-		for _, h := range th.hosts {
-			if h.Team == team.ID {
-				list = append(list, h)
-			}
-		}
+		list := a.membersHosts(team.ID)
 		if len(list) == 0 {
-			ui.Text(c, "No member shares a host yet.").FontSize(theme.TextLabel).TextColor(theme.Muted)
+			widget.CardNote(c, "No member shares a host yet.", 0)
 		}
 		for _, h := range list {
-			ui.Row(c.Key("th:"+h.Device)).FillWidth().Gap(10).AlignItems(ui.Center).Padding(8, 10).Radius(theme.RadiusControl).Background(theme.Sunken).Children(func() {
+			ui.Row(c.Key("th:"+h.Device)).FillWidth().Shrink(0).Gap(theme.S3).Padding(theme.S2, theme.S3).Radius(theme.RadiusCard).Background(theme.Raised).Children(func() {
 				ui.Icon(c, icon.Server).FontSize(14).TextColor(theme.TextSoft)
-				ui.Column(c).Grow(1).Shrink(1).MinWidth(0).Gap(1).Children(func() {
-					ui.Text(c, h.Name).FontSize(theme.TextUI).SingleLine()
-					ui.Text(c, fmt.Sprintf("%s's · %s", h.Owner, textfmt.Plural(len(h.Projects), "1 project", fmt.Sprintf("%d projects", len(h.Projects))))).FontSize(theme.TextLabel).TextColor(theme.Muted).SingleLine()
+				ui.Column(c).Grow(1).Basis(0).MinWidth(0).Children(func() {
+					widget.Running(c, h.Name, widget.RunStyle{Weight: 500})
+					widget.Running(c.Key("sub"), teamHostAbout(h), widget.RunStyle{Size: theme.TextLabel, Color: theme.TextSoft})
 				})
 				if widget.Button(c, widget.Secondary, nil, "Open", "").Clicked() {
 					cs.teams.open = ""
@@ -153,6 +107,71 @@ func (a *App) cloudTeamHosts(c *ui.Context, cs *cloudSettings) {
 			})
 		}
 	})
+}
+
+// membersHosts are the hosts team's members share.
+func (a *App) membersHosts(team string) []proto.TeamHost {
+	var list []proto.TeamHost
+	for _, h := range a.teamHostsOf().hosts {
+		if h.Team == team {
+			list = append(list, h)
+		}
+	}
+	return list
+}
+
+// teamHostAbout says whose a shared host is and what it shows.
+func teamHostAbout(h proto.TeamHost) string {
+	return "Shared by " + h.Owner + " · " + textfmt.Plural(len(h.Projects), "1 project", fmt.Sprintf("%d projects", len(h.Projects)))
+}
+
+// hostShareBody picks what the connected host shares with team.
+func (a *App) hostShareBody(c *ui.Context, team api.Team) {
+	th := a.teamHostsOf()
+	if team.Role == api.RoleViewer {
+		widget.CardNote(c, "Viewers don't share hosts.", 0)
+		return
+	}
+	var shared []string
+	var allow *bool
+	for _, t := range th.share.Teams {
+		if t.Team == team.ID {
+			shared, allow = t.Projects, t.AllowSessions
+		}
+	}
+	widget.CardNote(c, "The projects picked show to the team: their sessions and files. Members reach "+a.host.Name+" over Tailscale: share its node with their Tailscale accounts.", 0)
+	switch {
+	case th.share.Err != "" && len(shared) > 0:
+		widget.Notice(c, icon.Alert, theme.Warning, th.share.Err, "", nil)
+	case th.share.Addr != "" && len(shared) > 0:
+		widget.Running(c.Key("addr"), "Members reach it at "+th.share.Addr, widget.RunStyle{Size: theme.TextLabel, Color: theme.Done})
+	}
+	ui.Column(c.Key("share-projects")).FillWidth().Shrink(0).Children(func() {
+		if len(a.projects) == 0 {
+			widget.CardNote(c, a.host.Name+" has no projects yet.", 0)
+		}
+		for _, p := range a.projects {
+			on := slices.Contains(shared, p.Path)
+			ui.Row(c.Key("share:" + p.Path)).FillWidth().Shrink(0).MinHeight(32).Gap(theme.S2).Children(func() {
+				ui.Row(c.Key("pick")).Shrink(0).MaxWidth(240).Children(func() {
+					if widget.Checkbox(c, &on, p.Name) {
+						next := slices.DeleteFunc(slices.Clone(shared), func(x string) bool { return x == p.Path })
+						if on {
+							next = append(next, p.Path)
+						}
+						a.shareHost(team.ID, team.Name, next)
+					}
+				})
+				ui.Row(c).Grow(1).Basis(0).MinWidth(0).Justify(ui.End).Children(func() {
+					widget.Running(c, textfmt.TildePath(p.Path, a.daemonInfo.Home), widget.RunStyle{Size: theme.TextLabel, Color: theme.TextSoft})
+				})
+			})
+		}
+	})
+	if len(shared) > 0 && allow != nil {
+		// A daemon that knows the setting says it; an older one doesn't.
+		a.teamSessionsSwitch(c, team.ID, team.Name, shared, *allow)
+	}
 }
 
 // shareHost shares projects of the connected host with team, after a
@@ -192,18 +211,15 @@ const teamSessionsWarning = "Members' sessions run as you on this host: an agent
 // teamSessionsSwitch lets the team's members start sessions of their own
 // in the shared projects, or not; turning it on asks first.
 func (a *App) teamSessionsSwitch(c *ui.Context, team, name string, shared []string, allow bool) {
-	ui.Column(c.Key("team-sessions")).FillWidth().Gap(4).Padding(6, 0, 0, 0).Children(func() {
-		on := allow
-		if widget.Switch(c, &on, "Members start sessions here") {
-			set := func() { a.setTeamShare(proto.HostShareTeam{Team: team, Projects: shared, AllowSessions: &on}) }
-			if !on {
-				set()
-			} else {
-				a.confirm("Let "+name+"'s members start sessions on "+a.host.Name+"?", teamSessionsWarning, "Let them", set)
-			}
+	on := allow
+	if widget.ToggleRow(c.Key("team-sessions"), "Members start sessions here", teamSessionsWarning, &on) {
+		set := func() { a.setTeamShare(proto.HostShareTeam{Team: team, Projects: shared, AllowSessions: &on}) }
+		if !on {
+			set()
+		} else {
+			a.confirm("Let "+name+"'s members start sessions on "+a.host.Name+"?", teamSessionsWarning, "Let them", set)
 		}
-		ui.Text(c, teamSessionsWarning).FontSize(theme.TextLabel).TextColor(theme.Warning)
-	})
+	}
 }
 
 // teamVisit is a shared host the app visits: its connection, who the host

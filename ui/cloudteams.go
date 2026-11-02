@@ -36,6 +36,14 @@ type cloudTeams struct {
 	// typed in it (teamdelete.go).
 	deleting   bool
 	deleteName string
+	// The Team page (teampage.go) shows the open team instead of a dialog:
+	// onPage says it did this frame, pageTeam is its team and pageTab its tab,
+	// inviting its dialog for an invite and sharing its dialog for the kit.
+	onPage   bool
+	pageTeam string
+	pageTab  string
+	inviting bool
+	sharing  bool
 }
 
 var (
@@ -46,6 +54,7 @@ var (
 
 // The team dialog's tabs.
 const (
+	tabChat     = "Chat" // the Team page's alone
 	tabMembers  = "Members"
 	tabProjects = "Projects"
 	tabHosts    = "Hosts"
@@ -63,11 +72,14 @@ func canAdmin(role string) bool { return role == api.RoleOwner || role == api.Ro
 func (a *App) openCloudTeam(cs *cloudSettings, id string) {
 	ts := &cs.teams
 	ts.open, ts.team, ts.invite, ts.tab, ts.audit = id, api.Team{}, api.Invite{}, tabMembers, nil
+	if a.page == pageTeam {
+		ts.team = cs.full[id] // the page keeps showing it while it's read again
+	}
 	a.cloudDo("", func(cl *client.Client) error {
 		var full api.Team
 		err := cl.CloudCall("GET", teamPath(api.PathTeam, id), nil, &full)
 		a.onMain(func() {
-			if ts.open == id {
+			if ts.open == id && err == nil {
 				ts.team = full
 			}
 		})
@@ -95,9 +107,11 @@ func (a *App) cloudTeamDialogs(c *ui.Context, cs *cloudSettings) {
 					return cl.CloudCall("POST", api.PathTeams, api.TeamParams{Name: &name}, &t)
 				}, func() {
 					ts.making = false
+					ts.list = append(ts.list, t)
 					a.loadCloud()
 					a.openCloudTeam(cs, t.ID)
 					ts.tab = tabInvite // the next thing to do
+					ts.inviting = a.page == pageTeam
 				})
 			}
 		})
@@ -123,7 +137,9 @@ func (a *App) cloudTeamDialogs(c *ui.Context, cs *cloudSettings) {
 		})
 	}
 	if ts.open != "" {
-		a.cloudTeamDialog(c, cs)
+		if a.page != pageTeam {
+			a.cloudTeamDialog(c, cs)
+		}
 		a.cloudTeamDeleteDialog(c, cs)
 	}
 }
@@ -207,10 +223,7 @@ func (a *App) cloudTeamDialog(c *ui.Context, cs *cloudSettings) {
 	}, func() {
 		if m, ok := cs.member(); ok && m.Role != api.RoleOwner {
 			if widget.DangerButton(c, "Leave the team").Clicked() {
-				acc := m.Account.ID
-				a.confirm("Leave "+t.Name+"?", "Its notes and canvases leave this host's Notes and Canvas, and you need a new invite to come back.", "Leave the team", func() {
-					a.removeMember(cs, acc)
-				})
+				a.confirmLeaveTeam(cs, t.Name, m.Account.ID)
 			}
 		}
 		ui.Spacer(c)
@@ -233,6 +246,13 @@ func (cs *cloudSettings) member() (api.Member, bool) {
 	return api.Member{}, false
 }
 
+// confirmLeaveTeam asks before the user leaves the open team, as account.
+func (a *App) confirmLeaveTeam(cs *cloudSettings, name, account string) {
+	a.confirm("Leave "+name+"?", "Its notes and canvases leave this host's Notes and Canvas, and you need a new invite to come back.", "Leave the team", func() {
+		a.removeMember(cs, account)
+	})
+}
+
 func (a *App) removeMember(cs *cloudSettings, account string) {
 	ts := &cs.teams
 	team, me := ts.team.ID, account == cs.st.AccountID
@@ -241,7 +261,8 @@ func (a *App) removeMember(cs *cloudSettings, account string) {
 	}, func() {
 		delete(a.chatsOf().membersAt, team)
 		if me {
-			ts.open = ""
+			ts.open, ts.pageTeam = "", ""
+			ts.list = slices.DeleteFunc(slices.Clone(ts.list), func(t api.Team) bool { return t.ID == team })
 		} else {
 			a.openCloudTeam(cs, team)
 		}
@@ -307,15 +328,19 @@ func roleAbout(role string) string {
 	return "Members edit the team's notes and canvases and work in its projects."
 }
 
+// setTeamCopyOut sets whether team's items may be copied to a member's own space.
+func (a *App) setTeamCopyOut(cs *cloudSettings, team string, out bool) {
+	a.cloudDo("", func(cl *client.Client) error {
+		return cl.CloudCall("PATCH", teamPath(api.PathTeam, team), api.TeamParams{CopyOut: &out}, nil)
+	}, func() { a.openCloudTeam(cs, team); cs.teams.tab = tabOptions })
+}
+
 // cloudTeamSettings is the open team's rules, for its admins.
 func (a *App) cloudTeamSettings(c *ui.Context, cs *cloudSettings) {
 	ts := &cs.teams
 	out := ts.team.CopyOut
 	if switchRow(c, &out, "Copying out", "Members may copy the team's notes and canvases to their own space. Off, the team's items stay in the team.") {
-		team := ts.team.ID
-		a.cloudDo("", func(cl *client.Client) error {
-			return cl.CloudCall("PATCH", teamPath(api.PathTeam, team), api.TeamParams{CopyOut: &out}, nil)
-		}, func() { a.openCloudTeam(cs, team); ts.tab = tabOptions })
+		a.setTeamCopyOut(cs, ts.team.ID, out)
 	}
 	a.cloudTeamDeleteSection(c, cs)
 }

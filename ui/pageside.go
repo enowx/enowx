@@ -9,4 +9,7 @@ func (a *App) pageSide(c *ui.Context) {
 	if a.page == pageSettings && a.client != nil {
 		a.settingsSide(c)
 	}
+	if a.page == pageTeam && a.client != nil {
+		a.teamSide(c)
+	}
 }

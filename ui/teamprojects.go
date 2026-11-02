@@ -108,7 +108,7 @@ func (a *App) cloudTeamProjects(c *ui.Context, cs *cloudSettings) {
 		}
 		ui.Text(c, msg).FontSize(theme.TextLabel).TextColor(theme.Muted)
 	}
-	ui.Column(c).FillWidth().Gap(4).Children(func() {
+	ui.Column(c.Key("rows")).FillWidth().Shrink(0).Gap(theme.S2).Children(func() {
 		for _, p := range list {
 			a.teamProjectRow(c, p, admin)
 		}
@@ -126,19 +126,7 @@ func (a *App) cloudTeamProjects(c *ui.Context, cs *cloudSettings) {
 			if link == "" {
 				b.Disabled(true)
 			} else if b.Clicked() {
-				cl, id := a.client, team.ID
-				go func() {
-					_, err := cl.AddTeamProject(proto.TeamProjectAddParams{Team: id, Repo: link})
-					a.onMain(func() {
-						tp.err = ""
-						if err != nil {
-							tp.err = client.Explain(err)
-							return
-						}
-						tp.adding = ""
-						a.loadTeamProjects()
-					})
-				}()
+				a.addTeamProject(team.ID, link)
 			}
 		})
 		ui.Text(c, "The link only, no token in it: each member clones with their own login.").FontSize(theme.TextLabel).TextColor(theme.Muted)
@@ -146,37 +134,58 @@ func (a *App) cloudTeamProjects(c *ui.Context, cs *cloudSettings) {
 }
 
 func (a *App) teamProjectRow(c *ui.Context, p proto.TeamProject, admin bool) {
-	ui.Row(c.Key("tp:"+p.ID)).FillWidth().Gap(10).AlignItems(ui.Center).Padding(8, 10).Radius(theme.RadiusControl).Background(theme.Sunken).Children(func() {
-		ui.Icon(c, icon.Folder).FontSize(14).TextColor(theme.TextSoft)
-		ui.Column(c).Grow(1).Shrink(1).MinWidth(0).Gap(1).Children(func() {
-			ui.Text(c, p.Name).FontSize(theme.TextUI).SingleLine()
+	ui.Row(c.Key("tp:"+p.ID)).FillWidth().Shrink(0).Gap(theme.S2).Padding(theme.S2, theme.S3).Radius(theme.RadiusCard).Background(theme.Raised).Children(func() {
+		ui.Column(c).Grow(1).Basis(0).MinWidth(0).Children(func() {
+			widget.Running(c, p.Name, widget.RunStyle{Weight: 500})
 			where := strings.TrimPrefix(p.Ref, "git:")
 			if len(p.Here) > 0 {
 				where = "On " + a.host.Name + ": " + textfmt.TildePath(p.Here[0].Path, a.daemonInfo.Home)
 			}
-			ui.Text(c, where).FontSize(theme.TextLabel).TextColor(theme.Muted).SingleLine()
+			widget.Running(c.Key("where"), where, widget.RunStyle{Size: theme.TextLabel, Color: theme.TextSoft})
 		})
 		if notes := a.teamProjectNotes(p); notes > 0 {
-			widget.Tag(c, textfmt.Plural(notes, "1 note", fmt.Sprintf("%d notes", notes)), theme.TextSoft)
+			widget.Chip(c, textfmt.Plural(notes, "1 note", fmt.Sprintf("%d notes", notes)), ui.Color{})
 		}
 		if len(p.Here) == 0 {
 			if widget.Button(c, widget.Secondary, icon.Download, "Clone", "").Tooltip("Clone " + p.Repo + " on " + a.host.Name).Clicked() {
 				a.cloneTeamProject(p)
 			}
 		} else {
-			widget.Tag(c, "here", theme.Done)
+			widget.Chip(c, "here", theme.Done)
 		}
 		if admin && widget.IconButton(c, icon.Close, "Take "+p.Name+" out of the team", false).Clicked() {
-			cl, team, id, name := a.client, p.Team, p.ID, p.Name
-			a.confirm("Take "+name+" out of the team?", "Members stop seeing it as the team's. Their copies stay theirs, and the notes attached to it stay attached.", "Take it out", func() {
-				go func() {
-					if err := cl.RemoveTeamProject(team, id); err != nil {
-						a.onMain(func() { a.teamProjectsOf().err = client.Explain(err) })
-					}
-				}()
-			})
+			a.confirmTakeProjectOut(p)
 		}
 	})
+}
+
+// confirmTakeProjectOut asks before p leaves its team's projects.
+func (a *App) confirmTakeProjectOut(p proto.TeamProject) {
+	cl, team, id, name := a.client, p.Team, p.ID, p.Name
+	a.confirm("Take "+name+" out of the team?", "Members stop seeing it as the team's. Their copies stay theirs, and the notes attached to it stay attached.", "Take it out", func() {
+		go func() {
+			if err := cl.RemoveTeamProject(team, id); err != nil {
+				a.onMain(func() { a.teamProjectsOf().err = client.Explain(err) })
+			}
+		}()
+	})
+}
+
+// addTeamProject adds the Git link typed to team.
+func (a *App) addTeamProject(team, link string) {
+	tp, cl := a.teamProjectsOf(), a.client
+	go func() {
+		_, err := cl.AddTeamProject(proto.TeamProjectAddParams{Team: team, Repo: link})
+		a.onMain(func() {
+			tp.err = ""
+			if err != nil {
+				tp.err = client.Explain(err)
+				return
+			}
+			tp.adding = ""
+			a.loadTeamProjects()
+		})
+	}()
 }
 
 // teamProjectNotes counts the team's notes attached to p.

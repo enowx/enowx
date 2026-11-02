@@ -29,9 +29,21 @@ type mentionOption struct {
 	detail string
 }
 
+// chatPlaceholder is what an empty composer says: the side panel has room for
+// less of it.
+func (a *App) chatPlaceholder(team string) string {
+	if a.teamPageChat() != "" {
+		return "Message " + a.spaceName(team) + ", @ to mention"
+	}
+	return "Message " + a.spaceName(team)
+}
+
 func (a *App) chatComposer(c *ui.Context, team string) {
 	hc := a.chatsOf()
-	col := ui.Column(c).FillWidth().Shrink(0).Padding(8, 10, 10, 10).Gap(6).BorderWidth(1, 0, 0, 0).BorderColor(theme.Border)
+	col := ui.Column(c).FillWidth().Shrink(0).Padding(theme.S2, a.chatPad()).Gap(theme.S1)
+	if a.teamPageChat() != "" {
+		col.Padding(theme.S2, theme.S5, theme.S5, theme.S5)
+	}
 	if files := col.DroppedFiles(); len(files) > 0 && a.chatWriter(team) {
 		a.addChatImageFiles(team, files)
 	}
@@ -67,15 +79,11 @@ func (a *App) chatComposer(c *ui.Context, team string) {
 		a.pendingImages(c)
 		start, stop, query, typing := -1, -1, "", false
 		var options []mentionOption
-		box := ui.Row(c).FillWidth().Gap(4).Padding(3, 3, 3, 10).Radius(theme.RadiusCard).Background(theme.Sunken).AlignItems(ui.End)
-		border := theme.BorderStrong
-		if box.FocusWithin() {
-			border = theme.AccentLine
-		}
+		box := ui.Row(c).FillWidth().Gap(theme.S1).Padding(theme.S1, theme.S2, theme.S1, theme.S4).Radius(theme.RadiusPanel).AlignItems(ui.End)
 		send := false
-		box.Border(1, widget.Tint(box, "border", border)).Children(func() {
+		widget.Well(box, box.FocusWithin()).Children(func() {
 			in := ui.TextAreaBase(c, &hc.draft).Grow(1).Shrink(1).MinWidth(0).Lines(1, 6).Padding(6, 0).FontSize(theme.TextUI).
-				Placeholder("Message " + a.spaceName(team) + " · @ to mention").Label("Message").
+				Placeholder(a.chatPlaceholder(team)).Label("Message").
 				Tooltip("Enter to send · Shift+Enter for a new line")
 			_, caret := in.TextSelection()
 			if hc.setCaret >= 0 {
@@ -154,13 +162,11 @@ func (a *App) chatComposer(c *ui.Context, team string) {
 			}
 			images, uploading := a.imagesReady()
 			empty := strings.TrimSpace(hc.draft) == "" && len(images) == 0 || uploading
-			b := ui.ButtonBase(c).Size(28, 28).Radius(theme.RadiusCard).Center().Shrink(0).Label("Send").Tooltip("Send (Enter)").Cursor(ui.CursorPointer).
-				Gradient(theme.AccentHigh, theme.Accent, 180).TextColor(theme.OnAccent)
+			b := widget.IconButton(c, icon.Send, "Send", false).Tooltip("Send (Enter)")
 			if empty {
-				b.Opacity(0.35).Disabled(true)
+				b.Disabled(true)
 			}
-			b.Children(func() { ui.Icon(c, icon.ArrowUp).FontSize(13) })
-			send = widget.Pressable(b).Clicked() && !empty
+			send = b.Clicked() && !empty
 		})
 		if typing {
 			a.mentionMenu(c, box, start, stop, query, options)

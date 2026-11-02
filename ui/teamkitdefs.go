@@ -108,65 +108,73 @@ func (a *App) kitDefinitions(c *ui.Context, cs *cloudSettings) {
 			}
 		}
 		if len(defs) == 0 {
-			ui.Text(c, "A team project's pipeline dialog shares its stages; an automation of one of the team's projects shares from Settings › Automations; templates are added here.").FontSize(theme.TextLabel).TextColor(theme.Muted)
+			widget.CardNote(c, "A team project's pipeline dialog shares its stages; an automation of one of the team's projects shares from Settings › Automations; templates are added here.", 0)
 		}
 		for _, it := range defs {
-			ui.Row(c.Key("def:"+it.Kind+":"+it.Name)).FillWidth().Gap(10).AlignItems(ui.Center).Padding(8, 10).Radius(theme.RadiusControl).Background(theme.Sunken).Children(func() {
-				widget.Tag(c, it.Kind, theme.TextSoft)
-				ui.Column(c).Grow(1).Shrink(1).MinWidth(0).Gap(1).Children(func() {
-					ui.Text(c, it.Name).FontSize(theme.TextUI).SingleLine()
-					if sub := a.kitDefinitionAbout(it); sub != "" {
-						ui.Text(c, sub).FontSize(theme.TextLabel).TextColor(theme.Muted).SingleLine()
+			ui.Row(c.Key("def:"+it.Kind+":"+it.Name)).FillWidth().Shrink(0).Gap(theme.S2).Padding(theme.S2, theme.S3).Radius(theme.RadiusCard).Background(theme.Raised).Children(func() {
+				ui.Column(c).Grow(1).Basis(0).MinWidth(0).Children(func() {
+					widget.Running(c, it.Name, widget.RunStyle{Weight: 500})
+					sub := roleName(it.Kind)
+					if about := a.kitDefinitionAbout(it); about != "" {
+						sub += " · " + about
 					}
+					widget.Running(c.Key("sub"), sub, widget.RunStyle{Size: theme.TextLabel, Color: theme.TextSoft})
 				})
 				switch it.Kind {
 				case proto.KitAutomation:
-					if widget.Button(c, widget.Secondary, nil, "Use on "+a.host.Name, "").Clicked() {
+					if widget.Button(c, widget.Secondary, nil, "Set up", "").Tooltip("Set it up on " + a.host.Name).Clicked() {
 						a.useKitAutomation(it, tk)
 					}
 				case proto.KitTemplate:
 					if widget.Button(c, widget.Secondary, icon.Download, "New project", "").Clicked() {
-						var t proto.KitTemplateData
-						json.Unmarshal(it.Data, &t)
-						cs.teams.open = ""
-						a.openClone()
-						if a.clone != nil {
-							a.clone.url = t.Repo
-						}
+						a.cloneKitTemplate(cs, it)
 					}
 				}
-				if can && widget.IconButton(c, icon.Close, "Take "+it.Name+" out of the kit", false).Clicked() {
-					item := it
-					a.confirm("Take "+item.Name+" out of the team's kit?", "Members stop seeing it. What they set up from it stays theirs.", "Take it out", func() {
-						cl := a.client
-						go func() { _ = cl.RemoveFromTeamKit(item.Team, item.Kind, item.Name) }()
-					})
+				if can && widget.Button(c, widget.Secondary, nil, "Take it out", "").Tooltip("Take "+it.Name+" out of the kit").Clicked() {
+					a.confirmTakeKitOut(it)
 				}
 			})
 		}
 		if !can {
 			return
 		}
-		ui.Row(c).FillWidth().Gap(8).Children(func() {
-			ui.Column(c).Width(140).Children(func() { widget.Input(c, &tk.templateName, "Template name").FillWidth() })
-			ui.Column(c).Grow(1).Children(func() {
+		ui.Row(c.Key("add-template")).FillWidth().Shrink(0).Gap(theme.S2).Children(func() {
+			ui.Column(c).Width(140).Shrink(0).Children(func() { widget.Input(c, &tk.templateName, "Template name").FillWidth() })
+			ui.Column(c.Key("repo")).Grow(1).Basis(0).MinWidth(0).Children(func() {
 				widget.Input(c, &tk.templateRepo, "Its Git link").FillWidth().Font(theme.MonoFont)
 			})
-			b := widget.Button(c, widget.Secondary, icon.Plus, "Add template", "")
-			if strings.TrimSpace(tk.templateName) == "" || strings.TrimSpace(tk.templateRepo) == "" {
-				b.Disabled(true)
-			} else if b.Clicked() {
-				data, _ := json.Marshal(proto.KitTemplateData{Repo: strings.TrimSpace(tk.templateRepo)})
-				a.saveKitDefinition(proto.TeamKitSaveParams{Team: team.ID, Kind: proto.KitTemplate, Name: strings.TrimSpace(tk.templateName), Data: data}, func(err error) {
-					if err != nil {
-						tk.err = err.Error()
-						return
-					}
-					tk.templateName, tk.templateRepo = "", ""
-				})
-			}
+			a.addTemplateButton(c, team.ID)
 		})
 	})
+}
+
+// cloneKitTemplate opens the clone dialog on a template's link.
+func (a *App) cloneKitTemplate(cs *cloudSettings, it proto.TeamKitItem) {
+	var t proto.KitTemplateData
+	json.Unmarshal(it.Data, &t)
+	cs.teams.open = ""
+	a.openClone()
+	if a.clone != nil {
+		a.clone.url = t.Repo
+	}
+}
+
+// addTemplateButton adds the template typed to team's kit.
+func (a *App) addTemplateButton(c *ui.Context, team string) {
+	tk := a.teamKitOf()
+	b := widget.Button(c, widget.Secondary, icon.Plus, "Add template", "")
+	if strings.TrimSpace(tk.templateName) == "" || strings.TrimSpace(tk.templateRepo) == "" {
+		b.Disabled(true)
+	} else if b.Clicked() {
+		data, _ := json.Marshal(proto.KitTemplateData{Repo: strings.TrimSpace(tk.templateRepo)})
+		a.saveKitDefinition(proto.TeamKitSaveParams{Team: team, Kind: proto.KitTemplate, Name: strings.TrimSpace(tk.templateName), Data: data}, func(err error) {
+			if err != nil {
+				tk.err = err.Error()
+				return
+			}
+			tk.templateName, tk.templateRepo = "", ""
+		})
+	}
 }
 
 // kitDefinitionAbout says what a definition is.

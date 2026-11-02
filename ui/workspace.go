@@ -50,6 +50,9 @@ func (a *App) workspace(c *ui.Context) {
 	if a.page != pageHosts {
 		a.hostsPageShown = false
 	}
+	if a.page != pageTeam {
+		a.leftTeamPage()
+	}
 	if a.page != pageTeamHost && a.visit != nil {
 		a.closeVisit() // left the shared host
 	}
@@ -91,6 +94,9 @@ func (a *App) workspaceView(c *ui.Context) {
 		return
 	case a.page == pageCanvas && a.client != nil:
 		a.canvasPage(c)
+		return
+	case a.page == pageTeam && a.client != nil:
+		a.teamPage(c)
 		return
 	case a.page == pageTeamHost && a.visit != nil:
 		a.teamHostPage(c)

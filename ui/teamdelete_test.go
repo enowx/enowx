@@ -132,8 +132,8 @@ func TestOwnerDeletesTeamByTypingItsName(t *testing.T) {
 	click(tt, "Team Design")
 	settle("the team's dialog", func() bool { return tt.HasText("You're its owner · 2 members") })
 	click(tt, "Options")
-	settle("the options", func() bool { return tt.HasText("Delete Design…") })
-	click(tt, "Delete Design…")
+	settle("the options", func() bool { return tt.HasText("Delete the team…") })
+	click(tt, "Delete the team…")
 	settle("the delete dialog", func() bool { return tt.HasText("Type Design to confirm") && tt.HasText("Delete the team") })
 	tt.Advance(time.Second) // the dialog in, for its picture
 	shot(t, tt, "team-delete.png")

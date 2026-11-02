@@ -77,7 +77,7 @@ func (a *App) accountAction(c *ui.Context) {
 			}
 		}
 		if a.client != nil && widget.MenuItem(c.Key("teams"), icon.Users, "Team", false) {
-			a.page, a.settingsSection = pageSettings, sectionCloud
+			a.openTeamPage()
 			done()
 		}
 		if a.client != nil && widget.MenuItem(c.Key("credits"), icon.Credits, "Credits", false) {
