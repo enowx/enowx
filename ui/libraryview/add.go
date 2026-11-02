@@ -280,7 +280,7 @@ func (v *View) repoSkills(c *ui.Context, o Options, f *skillForm) {
 	if f.fetch == nil || f.fetching {
 		return
 	}
-	ui.Scroll(c).FillWidth().Shrink(0).MaxHeight(260).Children(func() {
+	widget.Scroll(c).FillWidth().Shrink(0).MaxHeight(260).Children(func() {
 		ui.Column(c).FillWidth().Gap(theme.S1).Children(func() {
 			for _, sk := range f.fetch.Skills {
 				on := f.picked[sk.Path]

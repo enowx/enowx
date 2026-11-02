@@ -83,7 +83,7 @@ func (v *View) mcpTestPanel(c *ui.Context, o Options, it proto.EnvItem) {
 		return
 	}
 	if r.OK && len(r.Tools) > 0 {
-		ui.Scroll(c.Key("mcp-tools")).FillWidth().Shrink(0).MaxHeight(88).Children(func() {
+		widget.Scroll(c.Key("mcp-tools")).FillWidth().Shrink(0).MaxHeight(88).Children(func() {
 			ui.Row(c).FillWidth().Wrap().Gap(theme.S1).Children(func() {
 				for i, tool := range r.Tools {
 					ui.Row(c.Key(strconv.Itoa(i))).MaxWidth(360).MinWidth(0).Clip().Tooltip(tool.Description).Children(func() {

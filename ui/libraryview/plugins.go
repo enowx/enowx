@@ -115,7 +115,7 @@ func (v *View) pluginsPanel(c *ui.Context, o Options) {
 	case !ps.list.CLI && len(ps.list.Plugins) > 0:
 		widget.Banner(c, theme.Warning, "Claude Code isn't on "+o.Host+"'s PATH: plugins show, but can't be changed.", nil)
 	}
-	ui.Scroll(c.Key("plugin-cards")).Grow(1).Basis(0).FillWidth().MinHeight(0).Children(func() {
+	widget.Scroll(c.Key("plugin-cards")).Grow(1).Basis(0).FillWidth().MinHeight(0).Children(func() {
 		widget.Cols(c, 2).Children(func() {
 			if ps.markets {
 				for _, m := range ps.list.Marketplaces {
