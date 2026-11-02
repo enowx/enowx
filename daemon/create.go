@@ -371,7 +371,7 @@ func launchFor(p proto.SessionCreateParams, chat chatFor) (launch, error) {
 	}
 	l := launch{
 		command:  thenShell(preset.Argv(first)),
-		env:      append(append(append(append(preset.Environ(skip), chat.apiEnv(preset.ID)...), notesEnv(chat.notes != "")...), canvasEnv(chat.canvas != "")...), chat.goaEnv(preset.ID)...),
+		env:      append(append(append(append(preset.Environ(skip), chat.apiEnv(preset.ID)...), notesEnv(chat.notes != "")...), canvasEnv(chat.canvas != "")...), append(chat.goaEnv(preset.ID), chat.toolEnv(preset.ID)...)...),
 		restart:  thenShell(preset.Argv(agentLaunch(preset, skip, "", true, chat))),
 		relaunch: len(preset.Continue) > 0,
 		skip:     skip,
@@ -424,6 +424,26 @@ type chatFor struct {
 	goa bool
 }
 
+// toolEnv is what agent id's environment adds for enowX's tools: for the host's
+// user's ordinary sessions, as the Notes, Canvas and GOA agents have tools of
+// their own and a teammate's session none of this.
+func (ch chatFor) toolEnv(id string) []string {
+	if ch.member || ch.notes != "" || ch.canvas != "" || ch.goa {
+		return nil
+	}
+	return toolEnv(id)
+}
+
+// toolEnv is agent.ToolEnv for this program and its user.
+func toolEnv(id string) []string {
+	exe, _ := os.Executable()
+	home, err := os.UserHomeDir()
+	if err != nil {
+		return nil
+	}
+	return agent.ToolEnv(id, exe, home)
+}
+
 // goaEnv is what GOA's agent id gets in its environment, nothing for
 // another session.
 func (ch chatFor) goaEnv(id string) []string {
@@ -472,7 +492,12 @@ func agentLaunch(preset agent.Preset, skip bool, prompt string, cont bool, chat 
 			slog.Warn("could not give the agent its guide", "agent", preset.ID, "err", err)
 		}
 	}
-	hooks := append(agent.HookArgs(preset.ID), agent.GuideArgsText(preset.ID, guide)...)
+	var tools []string
+	if !chat.member {
+		exe, _ := os.Executable()
+		tools = agent.ToolArgs(preset.ID, exe)
+	}
+	hooks := append(append(agent.HookArgs(preset.ID), tools...), agent.GuideArgsText(preset.ID, guide)...)
 	if agent.Base(preset.ID) == "codex" && len(hooks) > 0 {
 		// Codex runs only hooks it trusts: enowX's own are trusted here.
 		if err := agent.TrustCodexHooks(""); err != nil {

@@ -45,7 +45,8 @@ var guidePlaces = map[string][]guidePlace{
 	"cline":        {own(".cline/rules/enowx.md", "")},
 	"devin":        {own(".devin/rules/enowx.md", "")},
 	"gemini":       {block(".gemini/GEMINI.md")},
-	"opencode":     {block(".config/opencode/AGENTS.md", ".claude/CLAUDE.md")},
+	"opencode":     {own(".enowx-app/agent-guide.md", "")}, // named by ToolEnv's config
+	"kilo":         {own(".enowx-app/agent-guide.md", "")},
 	"ante":         {block(".ante/AGENTS.md", ".claude/CLAUDE.md")},
 	"mimo-code":    {block(".config/mimocode/AGENTS.md")},
 	"zcode":        {block(".zcode/AGENTS.md")},

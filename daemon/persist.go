@@ -448,7 +448,15 @@ func (s *Server) agentEnv(meta session.Meta) ([]string, error) {
 	if meta.Member != nil {
 		return append(append(preset.Environ(meta.SkipPermissions), acc...), memberEnv(meta.Member, s.accounts.Home(meta.Account))...), nil
 	}
-	return append(append(append(append(append(preset.Environ(meta.SkipPermissions), apiEnv(meta.Agent)...), acc...), notesEnv(meta.NotesFor != "")...), canvasEnv(meta.CanvasFor != "")...), goaEnv(meta)...), nil
+	return append(append(append(append(append(preset.Environ(meta.SkipPermissions), apiEnv(meta.Agent)...), acc...), notesEnv(meta.NotesFor != "")...), canvasEnv(meta.CanvasFor != "")...), append(goaEnv(meta), restoredToolEnv(meta)...)...), nil
+}
+
+// restoredToolEnv is toolEnv for a session coming back, by what it is.
+func restoredToolEnv(meta session.Meta) []string {
+	if meta.NotesFor != "" || meta.CanvasFor != "" || meta.GOA {
+		return nil
+	}
+	return toolEnv(meta.Agent)
 }
 
 // hasConversation says whether an agent of preset, its conversation convo
