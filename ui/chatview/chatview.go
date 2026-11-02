@@ -336,7 +336,10 @@ type Options struct {
 	Agent     string // preset ID
 	Dir       string // the session's folder: what's in it reads from there
 	AgentName string
-	Working   bool // the agent is busy
+	// Placeholder is what the composer says while empty, for a panel too narrow
+	// for the usual words; "" says them.
+	Placeholder string
+	Working     bool // the agent is busy
 	// Send sends a message, with the paths of the files attached to it.
 	Send      func(text string, files []string)
 	Interrupt func()

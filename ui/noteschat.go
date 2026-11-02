@@ -188,10 +188,11 @@ func (a *App) notesStart(c *ui.Context, n proto.NoteInfo, agentID string) {
 	}
 	ch := a.chatOf("notes-new:" + n.ID + ":" + agentID)
 	ch.View(c, chatview.Options{
-		Agent:     agentID,
-		AgentName: a.agentName(agentID),
-		Fresh:     true,
-		Send:      func(text string, _ []string) { a.notesAsk(n, agentID, text) },
+		Agent:       agentID,
+		AgentName:   a.agentName(agentID),
+		Placeholder: "Message the note agent",
+		Fresh:       true,
+		Send:        func(text string, _ []string) { a.notesAsk(n, agentID, text) },
 		Set: func(setting, id string) {
 			switch setting {
 			case "model":

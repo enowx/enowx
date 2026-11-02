@@ -227,11 +227,12 @@ var canvasSuggestions = []notesSuggestion{
 func (a *App) canvasStart(c *ui.Context, cv proto.Canvas, agentID string) {
 	ch := a.chatOf("canvas-new:" + cv.ID + ":" + agentID)
 	ch.View(c, chatview.Options{
-		Agent:     agentID,
-		AgentName: a.agentName(agentID),
-		Fresh:     true,
-		Send:      func(text string, files []string) { a.canvasAsk(cv, agentID, text, files) },
-		Paste:     func(text string) bool { return a.canvasPaste(cv.ID, ch, text) },
+		Agent:       agentID,
+		AgentName:   a.agentName(agentID),
+		Placeholder: "Message the canvas agent",
+		Fresh:       true,
+		Send:        func(text string, files []string) { a.canvasAsk(cv, agentID, text, files) },
+		Paste:       func(text string) bool { return a.canvasPaste(cv.ID, ch, text) },
 		Set: func(setting, id string) {
 			switch setting {
 			case "model":

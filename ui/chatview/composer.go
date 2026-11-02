@@ -93,7 +93,7 @@ func (ch *Chat) box(c *ui.Context, o Options) {
 		// Enter sends otherwise, Shift+Enter breaking the line.
 		send := false
 		in := ui.TextAreaBase(c, &ch.input).FillWidth().Lines(1, 5).PaddingX(theme.S2).
-			FontSize(theme.TextRead).LineHeight(readLeading).Placeholder("Message " + o.AgentName + ", / for commands, @ for files").Label("Message").
+			FontSize(theme.TextRead).LineHeight(readLeading).Placeholder(composerPlaceholder(o)).Label("Message").
 			OnPaste(func(text string) bool { return o.Paste != nil && o.Paste(text) }).
 			OnTextKey(func(k ui.TextKey) bool {
 				if k.Mods != 0 {
@@ -454,4 +454,12 @@ func (ch *Chat) recall(text string, up bool) (string, bool) {
 		return "", false
 	}
 	return shown(ch.histAt), true
+}
+
+// composerPlaceholder is what the empty composer says.
+func composerPlaceholder(o Options) string {
+	if o.Placeholder != "" {
+		return o.Placeholder
+	}
+	return "Message " + o.AgentName + ", / for commands, @ for files"
 }
