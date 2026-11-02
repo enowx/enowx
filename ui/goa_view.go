@@ -76,16 +76,16 @@ func (a *App) goaHeader(c *ui.Context, s, front proto.SessionInfo) {
 		more := widget.IconButton(c, icon.More, "More for GOD of Agents", false)
 		a.menu.OpenBelow(more, "goa-more", theme.ControlHeight)
 		a.menu.Show(c, more, "goa-more", func(done func()) {
-			if widget.MenuItem(c, nil, "Rules…", false) {
+			if widget.MenuItem(c, icon.List, "Rules…", false) {
 				a.openGOARules()
 				done()
 			}
-			if widget.MenuItem(c, nil, "Stall limits…", false) {
+			if widget.MenuItem(c, icon.Gauge, "Stall limits…", false) {
 				a.openGOAStall()
 				done()
 			}
 			widget.Divider(c)
-			if widget.MenuItem(c, nil, "Leave GOD of Agents…", false) {
+			if widget.MenuItem(c, icon.Power, "Leave GOD of Agents…", false) {
 				a.confirmLeaveGOA(nil)
 				done()
 			}
