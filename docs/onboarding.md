@@ -9,7 +9,7 @@ Every user goes through it. It can't be skipped, opening included, and optional 
 | Who | What they get |
 |---|---|
 | Nobody has done it here, and the host has no sessions or projects | The opening, then seven steps: Agents, Project, Host, Style, GOD of Agents, First task, Community |
-| Not done yet, but the host has sessions or projects (a returning user) | The frames, then their settings filled in to confirm or change, then Community |
+| Not done yet, but the host has sessions or projects (a returning user) | The opening, then the frames, then their settings filled in to confirm or change, then Community |
 | Done on this account, new to this device | The frames, then this device's own steps: Agents, Host |
 | Settings, App, Run setup again | All of it, from the opening |
 

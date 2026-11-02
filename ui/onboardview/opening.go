@@ -39,7 +39,7 @@ const (
 
 // opening draws the stage: the opening, then its giving way.
 func (v *View) opening(c *ui.Context, o Options, w, h, t float32) {
-	if t >= tOpeningEnd+450 || v.flow != FlowNew {
+	if t >= tOpeningEnd+450 || v.flow == FlowDevice {
 		return
 	}
 	fade := 1 - seg(t, tOpeningEnd, tOpeningEnd+450, easeIn)

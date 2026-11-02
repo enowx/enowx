@@ -45,13 +45,20 @@ func TestFlows(t *testing.T) {
 	}
 }
 
-// The opening starts a first run; a returning user comes in at the frames.
+// Nobody skips the opening the first time, returning users included; a new device of
+// an account that has seen it comes in at the frames.
 func TestStartTimes(t *testing.T) {
 	if startAt(FlowNew, false) != 0 {
 		t.Error("a new user skipped the opening")
 	}
-	if startAt(FlowReturning, false) < tOpeningEnd {
-		t.Error("a returning user sat through the opening")
+	if startAt(FlowReturning, false) != 0 {
+		t.Error("a returning user skipped the opening")
+	}
+	if startAt(FlowDevice, false) < tOpeningEnd {
+		t.Error("a new device sat through the opening again")
+	}
+	if startAt(FlowReturning, true) != startAt(FlowNew, true) {
+		t.Error("with less motion, a returning user's opening differs")
 	}
 }
 

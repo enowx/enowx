@@ -51,11 +51,12 @@ func stepsShown(stops []stop) int {
 	return n
 }
 
-// startAt is when flow's clock starts: the opening for a first run; the frames for one
-// who has seen it. Less motion comes in where the opening holds still.
+// startAt is when flow's clock starts: the opening, for everyone the first time they
+// get this flow, returning users too; the frames on a new device, whose account has seen
+// it. Less motion comes in where the opening holds still.
 func startAt(f Flow, reduce bool) float32 {
 	switch {
-	case f != FlowNew:
+	case f == FlowDevice:
 		return tFramesFrom
 	case reduce:
 		return tOpeningEnd - reduceOpening
