@@ -44,7 +44,7 @@ The side panel holds its lists; what they open shows in a tab of the session, in
 - **Intercept:** what is attached, and what can be.
 - **Compose:** a request written by hand, or from one caught, sent from the host through the rules or around them, the last ones kept.
 - **Settings** (the gear): certificates not checked, an upstream proxy, names pointed at other addresses (as a hosts file), client certificates for servers that ask, how much the capture keeps, being told when an app's request fails or is answered 5xx, and making the CA anew (what trusted the old one must be attached again).
-- The **…** menu saves the filter with the project (in `.enowx/traffic.json`) and picks a saved one, exports what the list shows as HAR, imports a HAR file of this device, and clears. The globe lists the domains seen, with their counts, to hide or show each.
+- The **…** menu saves the filter with the project (in `.enowx/traffic.json`) and picks a saved one, exports what the list shows as HAR, and imports a HAR file of this device. The bin beside the filter clears the list. The globe lists the domains seen, with their counts, to hide or show each.
 
 ### Filtering
 

@@ -158,9 +158,9 @@ func (v *View) captureKeys(c *ui.Context, o Options) {
 	}
 }
 
-// captureButtons are Pause or Resume (with a menu of what to pause), and Stop
-// or Start.
-func (v *View) captureButtons(c *ui.Context, o Options) {
+// pauseButton is Pause, with a menu of what to pause, or Resume; none while
+// stopped, or before the state is known.
+func (v *View) pauseButton(c *ui.Context, o Options) {
 	cs := &v.capture
 	if !cs.loaded {
 		return
@@ -174,6 +174,14 @@ func (v *View) captureButtons(c *ui.Context, o Options) {
 		b := widget.IconButton(c, icon.Pause, "Pause recording (⌘⌥P)", false)
 		cs.menu.OpenBelow(b, "capture", theme.ControlHeight)
 		cs.menu.Show(c, b, "capture", func(done func()) { v.pauseItems(c, o, done) })
+	}
+}
+
+// stopButton is Stop or Start; none before the state is known.
+func (v *View) stopButton(c *ui.Context, o Options) {
+	cs := &v.capture
+	if !cs.loaded {
+		return
 	}
 	if cs.st.State == proto.CaptureStopped {
 		if widget.IconButton(c, icon.Play, "Start catching again (⌘⌥S)", false).Clicked() {
@@ -275,14 +283,13 @@ func (v *View) capturePrefsFields(c *ui.Context) {
 		release := cs.prefs.Breakpoints != "drop"
 		widget.ToggleRow(c, "Let held requests go on", "Those at a breakpoint, when pausing or stopping; else they are dropped", &release)
 		cs.prefs.Breakpoints = map[bool]string{true: "release", false: "drop"}[release]
-		ui.Row(c).FillWidth().Gap(theme.S3).AlignItems(ui.End).Children(func() {
-			ui.Column(c).Grow(1).Basis(0).MinWidth(0).Children(func() {
+		widget.FieldCols(c,
+			func() {
 				widget.Field(c, "Pause on its own after (minutes)", func() { widget.Input(c, &cs.minutes, "never").FillWidth() })
-			})
-			ui.Column(c).Grow(1).Basis(0).MinWidth(0).Children(func() {
+			},
+			func() {
 				widget.Field(c, "or after (exchanges)", func() { widget.Input(c, &cs.count, "never").FillWidth() })
 			})
-		})
 		ui.Text(c, "These are yours on every host; whether a host records now is its own.").FontSize(theme.TextLabel).TextColor(theme.TextSoft)
 	})
 }

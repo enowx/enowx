@@ -62,9 +62,11 @@ func (v *View) composeSheet(c *ui.Context, o Options) {
 	sheet(c, &f.open, 600, "Send a request", "Sent from "+o.HostName+" and recorded with the rest.", func() {
 		ui.Column(c).FillWidth().Gap(theme.S3).Children(func() {
 			i := slices.Index(methods, f.method)
-			if k := widget.Segmented(c, methods, i, nil); k >= 0 {
-				f.method = methods[k]
-			}
+			ui.Row(c).FillWidth().Children(func() {
+				if k := widget.Segmented(c, methods, i, nil); k >= 0 {
+					f.method = methods[k]
+				}
+			})
 			widget.Field(c, "URL", func() { widget.Input(c, &f.url, "https://api.example.com/v1/users").FillWidth() })
 			codeArea(c, "Headers (Name: value per line)", &f.headers, 60)
 			codeArea(c, "Body", &f.body, 110)

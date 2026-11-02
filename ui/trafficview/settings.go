@@ -110,14 +110,13 @@ func (v *View) settingsSheet(c *ui.Context, o Options) {
 			widget.Field(c, "Send through a proxy", func() {
 				widget.Input(c, &s.upstream, "http://proxy.company:3128 (none by default)").FillWidth()
 			})
-			ui.Row(c).FillWidth().Gap(theme.S3).Children(func() {
-				ui.Column(c).Grow(1).Basis(0).MinWidth(0).Children(func() {
+			widget.FieldCols(c,
+				func() {
 					widget.Field(c, "Keep at most (exchanges)", func() { widget.Input(c, &s.maxEx, "2000").FillWidth() })
-				})
-				ui.Column(c).Grow(1).Basis(0).MinWidth(0).Children(func() {
+				},
+				func() {
 					widget.Field(c, "Bodies at most (MB)", func() { widget.Input(c, &s.maxMB, "256").FillWidth() })
 				})
-			})
 			area := func(label, hint string, value *string) {
 				ui.Column(c).FillWidth().Gap(theme.S1).Children(func() {
 					codeArea(c, label, value, 44)
@@ -162,7 +161,7 @@ func (v *View) settingsSheet(c *ui.Context, o Options) {
 		})
 		errorText(c, s.err)
 	}, func() {
-		label := "Save"
+		label := "Done"
 		if s.saving {
 			label = "Saving…"
 		}

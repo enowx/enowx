@@ -16,7 +16,6 @@ import (
 	"github.com/enowx/enowx/client"
 	"github.com/enowx/enowx/proto"
 	"github.com/enowx/enowx/ui/icon"
-	"github.com/enowx/enowx/ui/textfmt"
 	"github.com/enowx/enowx/ui/theme"
 	"github.com/enowx/enowx/ui/widget"
 )
@@ -142,7 +141,14 @@ func (v *View) filterBar(c *ui.Context, o Options) {
 			v.queryAt = time.Now()
 			time.AfterFunc(filterDelay+20*time.Millisecond, func() { o.Update(func() {}) })
 		}
-		v.captureButtons(c, o)
+		v.pauseButton(c, o)
+		if widget.IconButton(c, icon.Trash, "Clear", false).Clicked() {
+			run(o, func() error { return o.Host.TrafficClear(proto.TrafficClearParams{}) }, func(err error) {
+				if err != nil {
+					v.notice = client.Explain(err)
+				}
+			})
+		}
 	})
 	ui.Row(c.Key("scope")).FillWidth().Shrink(0).Gap(theme.S2).Children(func() {
 		scope := 0
@@ -153,6 +159,7 @@ func (v *View) filterBar(c *ui.Context, o Options) {
 			v.all = i == 1
 		}
 		ui.Spacer(c)
+		v.stopButton(c, o)
 		v.domainMenu(c, o)
 		v.rules.load(o)
 		widget.MoreMenu(c, &v.menu, "requests", func(done func()) {
@@ -183,14 +190,6 @@ func (v *View) filterBar(c *ui.Context, o Options) {
 			if o.PickFile != nil && widget.MenuItem(c, icon.FolderPlus, "Import HAR…", false) {
 				done()
 				o.PickFile("Import a HAR file", func(path string) { v.importHAR(o, path) })
-			}
-			if widget.MenuItem(c, icon.Trash, "Clear", true) {
-				run(o, func() error { return o.Host.TrafficClear(proto.TrafficClearParams{}) }, func(err error) {
-					if err != nil {
-						v.notice = client.Explain(err)
-					}
-				})
-				done()
 			}
 		})
 	})
@@ -234,9 +233,9 @@ func (v *View) row(c *ui.Context, s proto.TrafficSummary, picked bool) ui.Elemen
 	if s.Mocked || s.Rule != "" || s.Kind != proto.TrafficHTTP {
 		tags = func() {
 			if s.Mocked {
-				widget.Tag(c, "mock", theme.Accent)
+				widget.Tag(c, "mock", theme.Working)
 			} else if s.Rule != "" {
-				widget.Tag(c, "rule", theme.Accent)
+				widget.Tag(c, "rule", theme.Working)
 			}
 			if s.Kind != proto.TrafficHTTP {
 				widget.Tag(c, s.Kind, theme.TextSoft)
@@ -253,8 +252,8 @@ func (v *View) open(o Options, s proto.TrafficSummary) {
 	}
 }
 
-// exchangeFacts are an exchange in a few words: method, status, size and time;
-// there is no size or time before it ends.
+// exchangeFacts are an exchange in a few words: method, status and time; there
+// is no time before it ends.
 func exchangeFacts(s proto.TrafficSummary) string {
 	status, _ := statusText(s)
 	switch s.State {
@@ -263,7 +262,7 @@ func exchangeFacts(s proto.TrafficSummary) string {
 	case proto.TrafficPending:
 		return s.Method + " · …"
 	}
-	return s.Method + " · " + status + " · " + textfmt.Bytes(uint64(s.ResSize)) + " · " + millis(s.Duration)
+	return s.Method + " · " + status + " · " + millis(s.Duration)
 }
 
 // millis is a time in milliseconds as it reads best.

@@ -425,9 +425,11 @@ func (v *View) ruleSheet(c *ui.Context, o Options) {
 		})
 		ui.Column(c).FillWidth().Gap(theme.S3).Children(func() {
 			ui.Text(c, "Then").FontSize(theme.TextUI).FontWeight(500)
-			if i := widget.Segmented(c, actions, f.action, nil); i >= 0 {
-				f.action = i
-			}
+			ui.Row(c).FillWidth().Children(func() {
+				if i := widget.Segmented(c, actions, f.action, nil); i >= 0 {
+					f.action = i
+				}
+			})
 			switch actionKind[f.action] {
 			case proto.ActionMock:
 				ui.Row(c).FillWidth().Gap(8).Children(func() {
@@ -447,15 +449,16 @@ func (v *View) ruleSheet(c *ui.Context, o Options) {
 				codeArea(c, "Response: set headers", &f.resSet, 36)
 				field("Response: remove headers", &f.resRemove, "")
 				field("Response: status", &f.resStatus, "unchanged")
-				ui.Row(c).FillWidth().Gap(8).Children(func() {
-					ui.Column(c).Grow(1).Basis(0).MinWidth(0).Children(func() { field("Response: replace", &f.replaceFrom, "") })
-					ui.Column(c).Grow(1).Basis(0).MinWidth(0).Children(func() { field("with", &f.replaceTo, "") })
-				})
+				widget.FieldCols(c,
+					func() { field("Response: replace", &f.replaceFrom, "") },
+					func() { field("with", &f.replaceTo, "") })
 				codeArea(c, "Response JSON: field = value per line", &f.jsonPatch, 36)
 			case proto.ActionFail:
-				if i := widget.Segmented(c, failLabels, f.fail, nil); i >= 0 {
-					f.fail = i
-				}
+				ui.Row(c).FillWidth().Children(func() {
+					if i := widget.Segmented(c, failLabels, f.fail, nil); i >= 0 {
+						f.fail = i
+					}
+				})
 			case proto.ActionBreakpoint:
 				ui.Row(c).Gap(8).AlignItems(ui.Center).Children(func() {
 					ui.Text(c, "Pause the").FontSize(theme.TextUI).TextColor(theme.TextSoft)
