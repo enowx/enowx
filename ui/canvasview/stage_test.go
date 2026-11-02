@@ -83,3 +83,26 @@ func TestMockupShrinksWholeWhenZoomedOut(t *testing.T) {
 		t.Fatalf("zoomed back in, no live page: %q", tt.Texts())
 	}
 }
+
+// What failed shows over the page until dismissed, its words kept to the bar.
+func TestErrorBarStaysInItsFrame(t *testing.T) {
+	long := "The canvas couldn't be saved: the host's disk is full, or the folder it keeps canvases in can't be written to by the daemon any more, whichever came first"
+	v := &View{selected: "c1", frame: "f1", err: long, canvas: &proto.Canvas{CanvasInfo: proto.CanvasInfo{ID: "c1", Title: "Shop", Kind: proto.CanvasWireframe},
+		Frames: []proto.CanvasFrame{{ID: "f1", Name: "Home", Width: 1440, Height: 900}}}}
+	tt := ui.NewTester(func(c *ui.Context) { v.Draw(c, Options{Loaded: true}) }, 1000, 700)
+	tt.Frame()
+	r, ok := tt.Find(long)
+	if !ok {
+		t.Fatalf("no error: %q", tt.Texts())
+	}
+	if r.X+r.W > 1000 {
+		t.Fatalf("out of the window: %+v", r)
+	}
+	if err := tt.Click("Dismiss"); err != nil {
+		t.Fatal(err)
+	}
+	tt.Frame()
+	if v.err != "" {
+		t.Fatal("not dismissed")
+	}
+}

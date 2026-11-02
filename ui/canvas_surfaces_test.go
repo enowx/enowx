@@ -171,7 +171,8 @@ func TestCanvasSurfacesAudit(t *testing.T) {
 		c := h.app.canvases.Canvas()
 		h.app.buildRuns = map[string]proto.CanvasBuildRun{c.ID: {ID: c.ID, What: "A settings page for notifications", From: "brief", Want: 2, Stage: proto.BuildCompare,
 			Directions: []proto.BuildDirection{{Frame: c.Frames[0].ID, Done: true}, {Frame: c.Frames[1].ID, Session: "s1"}},
-			Pairs:      []proto.DirectionPair{{A: c.Frames[0].ID, B: c.Frames[1].ID, Shared: []string{"type", "color"}, Alike: 9, Distinct: 1}}}}
+			Pairs:      []proto.DirectionPair{{A: c.Frames[0].ID, B: c.Frames[1].ID, Shared: []string{"type", "color"}, Alike: 9, Distinct: 1}},
+			Review:     &proto.DesignReview{Round: 2, Session: "s2", Score: 7, Issues: []string{"Hero: the type is too small on a phone → it reads at arm's length"}, Keep: "The one bright frame", Done: true}}}
 		settled()
 	}, func() { h.app.buildRuns = nil })
 	add("compare-build", func() {
@@ -182,6 +183,15 @@ func TestCanvasSurfacesAudit(t *testing.T) {
 		h.app.canvases.CompareDesigns(h.app.canvasOptions(), c.ID, []string{c.Frames[0].ID, c.Frames[1].ID})
 		settled()
 	}, func() { h.app.buildRuns = nil; h.app.canvases.SetView(0) })
+	add("pick-sheet", func() {
+		c := h.app.canvases.Canvas()
+		h.app.buildRuns = map[string]proto.CanvasBuildRun{c.ID: {ID: c.ID, What: "A settings page", From: "brief", Want: 2, Stage: proto.BuildCompare,
+			Directions: []proto.BuildDirection{{Frame: c.Frames[0].ID, Done: true}, {Frame: c.Frames[1].ID, Done: true}}}}
+		h.app.canvases.CompareDesigns(h.app.canvasOptions(), c.ID, []string{c.Frames[0].ID, c.Frames[1].ID})
+		settled()
+		click("Pick Desktop")
+		settled()
+	}, func() { cancel(); h.app.buildRuns = nil; h.app.canvases.SetView(0) })
 	add("build-starting", func() { h.app.buildStarting = true; settled() }, func() { h.app.buildStarting = false })
 	add("build-error", func() {
 		h.app.buildErr = "The agent couldn't start: claude isn't installed on this host, or it isn't on its path"
