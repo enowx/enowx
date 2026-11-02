@@ -233,7 +233,7 @@ func (a *App) messageImages(c *ui.Context, team string, m proto.ChatMessage) {
 	}
 	w := float32(chatImageW)
 	if len(m.Attachments) > 1 {
-		w = chatImageW/2 - 3
+		w = (chatImageW - theme.S2) / 2 // two a row, with the row's gap between
 	}
 	ui.Row(c).Gap(theme.S2).Wrap().MaxWidth(chatImageW).Children(func() {
 		for _, att := range m.Attachments {

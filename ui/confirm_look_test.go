@@ -7,6 +7,7 @@ import (
 	"github.com/egoist/mygo/ui"
 
 	"github.com/enowx/enowx/ui/theme"
+	"github.com/enowx/enowx/ui/widget"
 	"github.com/enowx/enowx/ui/wrapcheck"
 )
 
@@ -58,5 +59,34 @@ func TestConfirmDialogHoldsWhatItAsks(t *testing.T) {
 				t.Fatalf("%s did it %d times", st.action, done)
 			}
 		})
+	}
+}
+
+// What can't be done yet says why, with OK alone (removing a project with
+// running sessions).
+func TestAlertWithOKAlone(t *testing.T) {
+	open, chosen := true, -1
+	tt := ui.NewTester(func(c *ui.Context) {
+		c.SetTheme(theme.Window())
+		ui.Column(c).Width(1200).Height(720).Background(theme.Frame).TextColor(theme.Text).Children(func() {
+			if open {
+				if i := widget.AlertDialog(c, &open, "Can't remove “antares” yet", "2 sessions are running in it. Stop them first.", "OK"); i >= 0 {
+					chosen, open = i, false
+				}
+			}
+		})
+	}, 1200, 720)
+	tt.Frame()
+	tt.Frame()
+	shot(t, tt, "confirm-ok-alone.png")
+	if tt.HasText("Cancel") {
+		t.Errorf("it offers Cancel: %q", tt.Texts())
+	}
+	if err := tt.Click("OK"); err != nil {
+		t.Fatal(err)
+	}
+	tt.Frame()
+	if chosen != 0 {
+		t.Fatalf("chose %d", chosen)
 	}
 }
