@@ -85,9 +85,12 @@ func (a *App) routeField(c *ui.Context) {
 			return
 		}
 		plate(routeLabel(s, *r.choice)+": "+r.choice.Why, func() {
-			if widget.Button(c.Key("use"), widget.Secondary, icon.Check, "Use it", "").Clicked() {
-				r.applied = true
-			}
+			// In a row of its own: the plate's column would stretch it.
+			ui.Row(c).FillWidth().Children(func() {
+				if widget.Button(c.Key("use"), widget.Secondary, icon.Check, "Use it", "").Clicked() {
+					r.applied = true
+				}
+			})
 		})
 	case prompt != "":
 		if widget.GhostButton(c.Key("ask"), "Suggest a model for this prompt").Tooltip("The judge says how hard it is; the cheapest model that fits").Clicked() {

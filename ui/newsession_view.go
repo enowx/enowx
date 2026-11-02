@@ -40,11 +40,9 @@ func (a *App) newSessionDialog(c *ui.Context) {
 				widget.TextBox(c, &f.prompt, "What should the agent do?", 96).FillWidth().AutoFocus()
 				a.issueButton(c)
 			})
-			a.routeField(c)
 		}
-		ui.Grid(c.Key("agent-project")).FillWidth().Columns(2).Gap(theme.S3).Children(func() {
-			a.agentPicker(c)
-			a.projectPicker(c)
+		ui.Column(c.Key("agent-project")).FillWidth().Shrink(0).Children(func() {
+			widget.FieldCols(c, func() { a.agentPicker(c) }, func() { a.projectPicker(c) })
 		})
 		if install {
 			a.installCard(c, ag)
@@ -61,6 +59,9 @@ func (a *App) newSessionDialog(c *ui.Context) {
 		} else if f.loaded {
 			widget.Notice(c, icon.Folder, ui.Color{}, "This folder isn't a git repository",
 				"The session runs directly in the folder. Sessions here share the same files, so two agents can overwrite each other's changes. Run git init in it to get branches and isolated worktrees.", nil)
+		}
+		if f.agent != agent.Shell {
+			a.routeField(c)
 		}
 		a.accountField(c)
 		if ag.SignIn != "" {
@@ -296,26 +297,29 @@ var whereNames = map[string]string{
 // branchFields says where the session runs, and on which branch.
 func (a *App) branchFields(c *ui.Context) {
 	f := &a.newSession
-	ui.Grid(c.Key("where")).FillWidth().Columns(2).Gap(theme.S3).Children(func() {
-		widget.Field(c, "Where", func() {
-			hookSelect(c, "Where", &f.branchMode, []string{proto.BranchNew, proto.BranchExisting, proto.BranchNone}, whereNames)
+	ui.Column(c.Key("where")).FillWidth().Shrink(0).Children(func() {
+		widget.FieldCols(c, func() {
+			widget.Field(c, "Where", func() {
+				hookSelect(c, "Where", &f.branchMode, []string{proto.BranchNew, proto.BranchExisting, proto.BranchNone}, whereNames)
+			})
+		}, func() {
+			widget.Field(c, "Branch", func() {
+				switch f.branchMode {
+				case proto.BranchNew:
+					widget.Input(c, &f.branch, "feature/name").FillWidth()
+				case proto.BranchExisting:
+					branchSelect(c, &f.existing, f.project.Branches)
+				default:
+					ui.Row(c).Height(theme.ControlHeight).MinWidth(0).Children(func() {
+						widget.Running(c, nonEmpty(f.project.Branch, "As it is checked out"), widget.RunStyle{Color: theme.TextSoft})
+					})
+				}
+			})
 		})
-		widget.Field(c, "Branch", func() {
-			switch f.branchMode {
-			case proto.BranchNew:
-				widget.Input(c, &f.branch, "feature/name").FillWidth()
-			case proto.BranchExisting:
-				branchSelect(c, &f.existing, f.project.Branches)
-			default:
-				ui.Row(c).Height(theme.ControlHeight).MinWidth(0).Children(func() {
-					widget.Running(c, nonEmpty(f.project.Branch, "As it is checked out"), widget.RunStyle{Color: theme.TextSoft})
-				})
-			}
-		})
-		if f.branchMode == proto.BranchNew {
-			widget.Field(c, "From", func() { branchSelect(c, &f.base, f.project.Branches) })
-		}
 	})
+	if f.branchMode == proto.BranchNew {
+		widget.Field(c, "From", func() { branchSelect(c, &f.base, f.project.Branches) })
+	}
 	if f.branchMode == proto.BranchExisting && f.existing == f.project.Branch && f.existing != "" {
 		ui.Text(c, "Checked out in the project folder, so the session runs there.").FontSize(theme.TextUI).TextColor(theme.TextSoft)
 	}
