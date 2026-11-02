@@ -9,15 +9,6 @@ import (
 
 // The parts every page is made of, so one look is defined once.
 
-// ruleWidth is the line under a page's header: the style's own in a flat style, none
-// where tones alone separate.
-func ruleWidth() float32 {
-	if theme.Flat {
-		return theme.Hairline
-	}
-	return 0.5
-}
-
 // SheetPage says the page drawn now is a header over sections (the app sets it per
 // frame, on the main thread), which in a style of tiles are tiles themselves. Other
 // pages keep their one frame, and their room inside it.
@@ -93,7 +84,7 @@ func Columns(g ui.Element, n int) ui.Element {
 // it can't fit, and its actions at the right. The frame keeps its height.
 func PageHeader(c *ui.Context, title, sub string, actions func()) {
 	pageHeaderBar(ui.Row(c.Key("page-header")).MinHeight(theme.HeaderHeight).Shrink(0).FillWidth().Padding(theme.S2, theme.S4, theme.S2, theme.S5).Gap(theme.S3).
-		BorderWidth(0, 0, ruleWidth(), 0).BorderColor(theme.Border)).Children(func() {
+		BorderWidth(0, 0, theme.Rule, 0).BorderColor(theme.Border)).Children(func() {
 		ui.Row(c).Grow(1).MinWidth(0).Gap(theme.S3).Children(func() {
 			ui.Row(c).MinWidth(0).Shrink(1).Children(func() {
 				Running(c, title, RunStyle{Size: theme.TextTitle, Weight: 600, Always: true})
@@ -180,7 +171,7 @@ func Figs(c *ui.Context, figs []Fig) {
 		for i, f := range figs {
 			cell := ui.Column(c.Key(f.Label)).Grow(1).Basis(0).MinWidth(0).Padding(theme.S3, theme.S4)
 			if i > 0 {
-				cell.BorderWidth(0, 0, 0, 0.5).BorderColor(theme.Fade(theme.Border, 0.14))
+				cell.BorderWidth(0, 0, 0, theme.Rule).BorderColor(theme.Fade(theme.Border, 0.14))
 			}
 			cell.Children(func() { figFace(c, f) })
 		}
@@ -196,7 +187,7 @@ func FigsNav(c *ui.Context, figs []Fig, current int) int {
 			b := ui.ButtonBase(c.Key(f.Label)).Grow(1).Basis(0).MinWidth(0).Padding(theme.S3, theme.S4).Justify(ui.Start).AlignItems(ui.Start).
 				Label(f.Label).Cursor(ui.CursorPointer)
 			if i > 0 {
-				b.BorderWidth(0, 0, 0, 0.5).BorderColor(theme.Fade(theme.Border, 0.14))
+				b.BorderWidth(0, 0, 0, theme.Rule).BorderColor(theme.Fade(theme.Border, 0.14))
 			}
 			switch {
 			case i == current:
@@ -244,7 +235,7 @@ func KV(c *ui.Context, key, value string, mono bool) {
 // its switch. It reports whether it changed.
 func ToggleRow(c *ui.Context, title, about string, on *bool) bool {
 	changed := false
-	ui.Row(c.Key("toggle:" + title)).FillWidth().MinHeight(44).Gap(theme.S3).Children(func() {
+	ui.Row(c.Key("toggle:" + title)).FillWidth().MinHeight(theme.RowTall).Gap(theme.S3).Children(func() {
 		ui.Column(c).Grow(1).MinWidth(0).Children(func() {
 			ui.Text(c, title).FontSize(theme.TextUI)
 			if about != "" {
@@ -294,8 +285,8 @@ func CodeBlockText(c *ui.Context, text string) ui.Element {
 // ViewerBar heads a viewer in a center tab: its icon, its path, which runs
 // inside the room it has, then what can be done with it.
 func ViewerBar(c *ui.Context, svg *ui.SVG, path string, actions func()) {
-	ui.Row(c.Key("viewer-bar")).Height(44).Shrink(0).FillWidth().Padding(0, theme.S2, 0, theme.S4).Gap(theme.S2).Clip().
-		BorderWidth(0, 0, 0.5, 0).BorderColor(theme.Border).Children(func() {
+	ui.Row(c.Key("viewer-bar")).Height(theme.RowTall).Shrink(0).FillWidth().Padding(0, theme.S2, 0, theme.S4).Gap(theme.S2).Clip().
+		BorderWidth(0, 0, theme.Rule, 0).BorderColor(theme.Border).Children(func() {
 		ui.Icon(c, svg).FontSize(14).TextColor(theme.TextSoft)
 		ui.Row(c).MinWidth(64).Shrink(1).Children(func() {
 			Running(c, path, RunStyle{Size: theme.TextLabel, Mono: true, Always: true})
@@ -316,7 +307,7 @@ func ToolHeader(c *ui.Context, fn func()) {
 // ListItem is a row of a side panel's list: a dot, a title and a quieter line,
 // which run inside the row, and what follows at its right. It's lit while on.
 func ListItem(c *ui.Context, dot ui.Color, title, sub string, on bool, right func()) ui.Element {
-	b := ui.ButtonBase(c.Key("item:"+title+sub)).FillWidth().MinHeight(36).Padding(theme.S1, theme.S3).Gap(theme.S2).Radius(theme.RadiusCard).
+	b := ui.ButtonBase(c.Key("item:"+title+sub)).FillWidth().MinHeight(theme.RowHeight).Padding(theme.S1, theme.S3).Gap(theme.S2).Radius(theme.RadiusCard).
 		Justify(ui.Start).Label(title).Cursor(ui.CursorPointer).Shrink(0)
 	bg := theme.Fade(theme.Selected, 0)
 	switch {

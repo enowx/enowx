@@ -9,6 +9,7 @@ var Tonal = Style{
 	RadiusFull: 999, RadiusControl: 12, RadiusTail: 4, RadiusSmall: 12, RadiusCard: 14, RadiusPanel: 24,
 	BentoGap: 12, WindowInset: 12, ControlHeight: 32, BarHeight: 40, ScrollWidth: 8,
 	BarRadius: 14, RailWidth: 48, ReadWidth: 740, HeaderHeight: 56,
+	RowHeight: 36, RowTwo: 40, RowTall: 44, TabHeight: 28, Rule: 0,
 	S1: 4, S2: 8, S3: 12, S4: 16, S5: 24, S6: 32,
 	TextLabel: 12, TextUI: 13, TextRead: 15, TextTitle: 20,
 	Flat: true, Hairline: 0, Scrim: ui.RGBA(0, 0, 0, 0.55),

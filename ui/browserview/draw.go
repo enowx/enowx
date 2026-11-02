@@ -77,7 +77,7 @@ func (v *View) note(c *ui.Context, o Options, text string) {
 // shrinks and the rest is in its menu.
 func (v *View) toolbar(c *ui.Context, o Options) {
 	ui.Row(c.Key("page-bar")).Height(44).Shrink(0).FillWidth().PaddingX(theme.S2).Gap(theme.S1).Clip().
-		BorderWidth(0, 0, 0.5, 0).BorderColor(theme.Border).Children(func() {
+		BorderWidth(0, 0, theme.Rule, 0).BorderColor(theme.Border).Children(func() {
 		page := v.page
 		if navButton(c, icon.ArrowLeft, "Back", page != nil && page.CanBack()) {
 			page.Back()

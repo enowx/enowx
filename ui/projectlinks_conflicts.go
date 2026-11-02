@@ -36,7 +36,7 @@ func (a *App) linkConflicts(c *ui.Context, f *linksForm, l proto.ProjectLinkStat
 	_, dstOn := a.reach(l.Target.Daemon)
 	online := srcOn && dstOn && a.links.running[l.ID] == ""
 	now := time.Now()
-	ui.Column(c).FillWidth().Shrink(0).Gap(theme.S2).Padding(theme.S3, 0, 0, 0).BorderWidth(0.5, 0, 0, 0).BorderColor(theme.Border).Children(func() {
+	ui.Column(c).FillWidth().Shrink(0).Gap(theme.S2).Padding(theme.S3, 0, 0, 0).BorderWidth(theme.Rule, 0, 0, 0).BorderColor(theme.Border).Children(func() {
 		ui.Text(c, "Changed on both since the last sync: keep whose?").FontSize(theme.TextUI).FontWeight(500)
 		for _, x := range l.Status.Conflicts {
 			ui.Column(c.Key(x.Path)).FillWidth().Shrink(0).Gap(theme.S1).Children(func() {

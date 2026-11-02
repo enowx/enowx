@@ -22,7 +22,7 @@ func TwoParts(c *ui.Context, left, right func()) {
 // TallyRow is a count among others: what it counts, a meter against the
 // largest of them, the count.
 func TallyRow(c *ui.Context, label string, n, largest int) {
-	ui.Row(c.Key("tally:" + label)).FillWidth().Shrink(0).MinHeight(28).Gap(theme.S2).Children(func() {
+	ui.Row(c.Key("tally:" + label)).FillWidth().Shrink(0).MinHeight(theme.TabHeight).Gap(theme.S2).Children(func() {
 		ui.Row(c).Width(172).Shrink(0).Children(func() { Running(c, label, RunStyle{Size: theme.TextLabel}) })
 		ui.Column(c).Grow(1).Basis(0).MinWidth(0).Children(func() {
 			fraction := 0.0
@@ -40,7 +40,7 @@ func TallyRow(c *ui.Context, label string, n, largest int) {
 // RecordRow is a line of a list of the latest: when, what, and how it went,
 // under a hairline. What doesn't fit runs inside its row.
 func RecordRow(c *ui.Context, when, what string, col ui.Color, status string) {
-	ui.Row(c).FillWidth().Shrink(0).MinHeight(28).Gap(theme.S2).BorderWidth(0.5, 0, 0, 0).BorderColor(theme.Border).Children(func() {
+	ui.Row(c).FillWidth().Shrink(0).MinHeight(theme.TabHeight).Gap(theme.S2).BorderWidth(theme.Rule, 0, 0, 0).BorderColor(theme.Border).Children(func() {
 		ui.Row(c).Width(44).Shrink(0).Children(func() { Running(c.Key("when"), when, RunStyle{Size: theme.TextLabel, Color: theme.TextSoft}) })
 		ui.Row(c).Grow(1).Basis(0).MinWidth(0).Children(func() { Running(c.Key("what"), what, RunStyle{Size: theme.TextLabel}) })
 		ui.Row(c).MaxWidth(160).Shrink(0).Children(func() { StatusLine(c, col, false, status) })

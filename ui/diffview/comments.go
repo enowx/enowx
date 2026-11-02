@@ -184,7 +184,7 @@ func (v *View) commentBar(c *ui.Context, o Options) {
 		return
 	}
 	ui.Row(c.Key("comment-bar")).Height(52).Shrink(0).FillWidth().Padding(0, theme.S3, 0, theme.S4).Gap(theme.S2).
-		BorderWidth(0.5, 0, 0, 0).BorderColor(theme.Border).Children(func() {
+		BorderWidth(theme.Rule, 0, 0, 0).BorderColor(theme.Border).Children(func() {
 		ui.Icon(c, icon.Chat).FontSize(14).TextColor(theme.Now)
 		ui.Row(c).Grow(1).MinWidth(0).Children(func() {
 			widget.Running(c, fmt.Sprintf("%d review %s", n, textfmt.Plural(n, "comment", "comments")), widget.RunStyle{Weight: 500})

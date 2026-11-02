@@ -36,7 +36,7 @@ func Segmented(c *ui.Context, options []string, current int, disabled func(i int
 	ui.Row(c).Shrink(0).Padding(theme.S1).Radius(theme.RadiusFull).Background(theme.Sunken).Children(func() {
 		for i, label := range options {
 			off := disabled != nil && disabled(i)
-			b := ui.ButtonBase(c.Key(label)).Height(28).PaddingX(theme.S3).Radius(theme.RadiusFull).Label(label)
+			b := ui.ButtonBase(c.Key(label)).Height(theme.TabHeight).PaddingX(theme.S3).Radius(theme.RadiusFull).Label(label)
 			bg, fg, weight := theme.Fade(theme.Selected, 0), theme.TextSoft, 400
 			switch {
 			case i == current:
@@ -136,7 +136,7 @@ func railFace(c *ui.Context, b ui.Element, svg *ui.SVG, label, group string, on 
 // wide, which fades in, and a short hairline under the icons while narrow,
 // both starting where the icons do.
 func RailSection(c *ui.Context, label string, wide bool) {
-	ui.Row(c).Height(32).FillWidth().Shrink(0).AlignItems(ui.End).
+	ui.Row(c).Height(theme.ControlHeight).FillWidth().Shrink(0).AlignItems(ui.End).
 		Padding(0, theme.S3, theme.S1, theme.S3).Children(func() {
 		if wide {
 			SectionLabel(c.Key("label"), label, theme.TextSoft).
@@ -155,7 +155,7 @@ func SectionLabel(c *ui.Context, label string, col ui.Color) ui.Element {
 // ListRow styles a clickable row of a list and fills it with fn: hovered,
 // or selected with the pill of group, which slides from row to row.
 func ListRow(c *ui.Context, row ui.Element, selected bool, group string, fn func()) ui.Element {
-	row.FillWidth().MinHeight(36).Padding(theme.S1, theme.S3).Gap(theme.S2).Radius(theme.RadiusCard).Cursor(ui.CursorPointer)
+	row.FillWidth().MinHeight(theme.RowHeight).Padding(theme.S1, theme.S3).Gap(theme.S2).Radius(theme.RadiusCard).Cursor(ui.CursorPointer)
 	bg := theme.Fade(theme.Hover, 0)
 	if !selected && row.Hovered() {
 		bg = theme.Hover

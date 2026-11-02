@@ -242,7 +242,7 @@ func (d *Dialog) section(c *ui.Context, kind string, idx []int) {
 func (d *Dialog) rowView(c *ui.Context, r *row, first bool) {
 	line := ui.Column(c).FillWidth().Shrink(0).MinHeight(32).Padding(theme.S1, 0).Gap(theme.S1)
 	if !first {
-		line.BorderWidth(0.5, 0, 0, 0).BorderColor(theme.Border)
+		line.BorderWidth(theme.Rule, 0, 0, 0).BorderColor(theme.Border)
 	}
 	hovered := line.Hovered()
 	line.Children(func() {

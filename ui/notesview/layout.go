@@ -97,7 +97,7 @@ func (e *editor) runView(c *ui.Context, i int, n noteblocks.Node) {
 			case kTable:
 				tableView(cc, b.text, nil, e.env.openLink)
 			case kDivider:
-				ui.Box(cc).FillWidth().Height(0.5).Margin(theme.S2, 0).Background(theme.Border)
+				ui.Box(cc).FillWidth().Height(theme.Rule).Margin(theme.S2, 0).Background(theme.Border)
 			default:
 				if b.kind == kText && strings.TrimSpace(b.text) == "" {
 					ui.Box(cc).Height(6)

@@ -171,7 +171,7 @@ func (a *App) kitShareList(c *ui.Context, team api.Team) {
 				continue
 			}
 			shown++
-			ui.Row(c.Key("host:"+it.ID)).FillWidth().Shrink(0).MinHeight(40).Gap(theme.S2).BorderWidth(0.5, 0, 0, 0).BorderColor(theme.Border).Children(func() {
+			ui.Row(c.Key("host:"+it.ID)).FillWidth().Shrink(0).MinHeight(40).Gap(theme.S2).BorderWidth(theme.Rule, 0, 0, 0).BorderColor(theme.Border).Children(func() {
 				ui.Column(c).Grow(1).Basis(0).MinWidth(0).Children(func() {
 					widget.Running(c, it.Name, widget.RunStyle{})
 					widget.Running(c.Key("sub"), roleName(it.Kind)+" · "+a.agentName(it.Agent), widget.RunStyle{Size: theme.TextLabel, Color: theme.TextSoft})

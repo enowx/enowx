@@ -131,7 +131,7 @@ func (a *App) peerRow(c *ui.Context, p tailnet.Peer, first bool) {
 	}
 	r := ui.Row(c).FillWidth().Shrink(0).MinHeight(44).Padding(theme.S1, 0).Gap(theme.S2)
 	if !first {
-		r.BorderWidth(0.5, 0, 0, 0).BorderColor(theme.Border)
+		r.BorderWidth(theme.Rule, 0, 0, 0).BorderColor(theme.Border)
 	}
 	r.Children(func() {
 		widget.Dot(c, peerColor(p.Online), !p.Online, 8)

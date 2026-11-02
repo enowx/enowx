@@ -80,7 +80,7 @@ func teamAuditRow(c *ui.Context, e api.AuditEntry, now time.Time) {
 	if day := ragDay(e.At, now); day != "Today" {
 		line = day + ": " + line
 	}
-	ui.Row(c).FillWidth().Shrink(0).MinHeight(36).Gap(theme.S3).BorderWidth(0.5, 0, 0, 0).BorderColor(theme.Border).Children(func() {
+	ui.Row(c).FillWidth().Shrink(0).MinHeight(36).Gap(theme.S3).BorderWidth(theme.Rule, 0, 0, 0).BorderColor(theme.Border).Children(func() {
 		ui.Text(c, e.At.Local().Format("15:04")).FontSize(theme.TextLabel).TextColor(theme.TextSoft).SingleLine().Shrink(0).
 			Tooltip(e.At.Local().Format("2 Jan 2006 15:04"))
 		ui.Row(c).Grow(1).Basis(0).MinWidth(0).Children(func() { widget.Running(c, line, widget.RunStyle{Size: theme.TextLabel}) })

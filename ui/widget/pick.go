@@ -30,7 +30,7 @@ func Pick(c *ui.Context, svg *ui.SVG, title, sub string, on bool, right func()) 
 // PickFace is a Pick whose inside the caller draws, for entries that aren't a
 // title and a line.
 func PickFace(c *ui.Context, key, label string, on bool, face func()) ui.Element {
-	b := ui.ButtonBase(c.Key("pick:"+key)).FillWidth().Shrink(0).MinHeight(44).Padding(theme.S3, theme.S4).Gap(theme.S3).Radius(theme.RadiusCard).
+	b := ui.ButtonBase(c.Key("pick:"+key)).FillWidth().Shrink(0).MinHeight(theme.RowTall).Padding(theme.S3, theme.S4).Gap(theme.S3).Radius(theme.RadiusCard).
 		Justify(ui.Start).Label(label).Cursor(ui.CursorPointer)
 	bg := theme.Raised
 	switch {
@@ -39,7 +39,7 @@ func PickFace(c *ui.Context, key, label string, on bool, face func()) ui.Element
 	case b.Hovered():
 		bg = theme.Fade(theme.TextStrong, 0.12)
 	}
-	b.Background(QuickTint(b, "bg", bg)).InsetShadow(0, 0.5, 0, 0, theme.Border).Children(face)
+	b.Background(QuickTint(b, "bg", bg)).InsetShadow(0, theme.Rule, 0, 0, theme.Border).Children(face)
 	return b
 }
 

@@ -325,9 +325,9 @@ const auditShown = 12
 func auditRow(c *ui.Context, e proto.VaultAuditEntry, first bool) {
 	row := ui.Row(c).FillWidth().Shrink(0).MinHeight(32).Gap(theme.S2)
 	if first {
-		row.BorderWidth(0.5, 0, 0.5, 0)
+		row.BorderWidth(theme.Rule, 0, theme.Rule, 0)
 	} else {
-		row.BorderWidth(0, 0, 0.5, 0)
+		row.BorderWidth(0, 0, theme.Rule, 0)
 	}
 	row.BorderColor(theme.Border).Children(func() {
 		ui.Text(c, auditWhen(e.Time)).FontSize(theme.TextLabel).TextColor(theme.TextSoft).Width(44).Shrink(0).SingleLine()

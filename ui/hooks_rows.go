@@ -334,7 +334,7 @@ func (a *App) hookReviewSheet(c *ui.Context, st *hooksState) {
 			widget.Running(c.Key("path"), filepath.Join(ph.Dir, ".enowx", "hooks.json"), widget.RunStyle{Size: theme.TextLabel, Color: theme.TextSoft, Mono: true})
 			widget.CardLines(c, func() {
 				for _, h := range ph.Hooks {
-					ui.Column(c.Key(h.ID)).FillWidth().Shrink(0).Padding(theme.S2, 0).Gap(theme.S1).BorderWidth(0.5, 0, 0, 0).BorderColor(theme.Border).Children(func() {
+					ui.Column(c.Key(h.ID)).FillWidth().Shrink(0).Padding(theme.S2, 0).Gap(theme.S1).BorderWidth(theme.Rule, 0, 0, 0).BorderColor(theme.Border).Children(func() {
 						ui.Row(c).FillWidth().Gap(theme.S2).Children(func() {
 							title, mono := hookTitle(h)
 							ui.Row(c).Grow(1).Basis(0).MinWidth(0).Children(func() { widget.Running(c, title, widget.RunStyle{Mono: mono}) })

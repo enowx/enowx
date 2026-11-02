@@ -498,7 +498,7 @@ func (v *View) listColumn(c *ui.Context) ui.Element {
 	if v.listInSidebar {
 		return ui.Column(c.Key("canvas-list")).FillWidth().Grow(1).MinHeight(0)
 	}
-	return ui.Column(c.Key("canvas-list")).Width(listWidth).Shrink(0).FillHeight().BorderWidth(0, 0.5, 0, 0).BorderColor(theme.Border)
+	return ui.Column(c.Key("canvas-list")).Width(listWidth).Shrink(0).FillHeight().BorderWidth(0, theme.Rule, 0, 0).BorderColor(theme.Border)
 }
 
 // pageRoom is about how wide the frame's page is, its own list left out.

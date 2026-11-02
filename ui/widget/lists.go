@@ -48,7 +48,7 @@ func Group(c *ui.Context, title string, count int, open *bool, body func()) {
 // and a note under it (each "" for none), with trailing controls at its
 // right (a switch, a menu button).
 func Row(c *ui.Context, title, detail, note string, trailing func()) ui.Element {
-	r := ui.Row(c).FillWidth().Gap(theme.S2).MinHeight(36).Padding(theme.S1, theme.S3).Radius(theme.RadiusCard)
+	r := ui.Row(c).FillWidth().Gap(theme.S2).MinHeight(theme.RowHeight).Padding(theme.S1, theme.S3).Radius(theme.RadiusCard)
 	if r.Hovered() {
 		r.Background(theme.Hover)
 	}

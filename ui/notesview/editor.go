@@ -280,7 +280,7 @@ func (e *editor) showBlock(c *ui.Context, i, n int) {
 	switch b.kind {
 	case kDivider:
 		row.FillWidth().Padding(theme.S3, 6).Children(func() {
-			ui.Box(c).FillWidth().Height(0.5).Background(theme.Border)
+			ui.Box(c).FillWidth().Height(theme.Rule).Background(theme.Border)
 		})
 		if row.Clicked() && !e.env.read {
 			e.insert(i, block{})

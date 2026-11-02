@@ -267,7 +267,7 @@ func (v *View) favoriteRow(c *ui.Context, o Options, current string) {
 	base := withoutColor(r)
 	p := &v.picker
 	fav := slices.Contains(p.prefs.Favorites, base)
-	ui.Row(c).FillWidth().Gap(theme.S2).AlignItems(ui.Center).BorderWidth(0.5, 0, 0, 0).BorderColor(theme.Border).Padding(theme.S2, 2, 0, 2).Children(func() {
+	ui.Row(c).FillWidth().Gap(theme.S2).AlignItems(ui.Center).BorderWidth(theme.Rule, 0, 0, 0).BorderColor(theme.Border).Padding(theme.S2, 2, 0, 2).Children(func() {
 		widget.NoteIcon(c, current, 16, theme.Text, nil)
 		name := r.Lib + ":" + r.Name
 		if r.Custom != "" {

@@ -80,6 +80,11 @@ var (
 	RailWidth     float32 // the tools dock's region
 	ReadWidth     float32 // the column a conversation reads in
 	HeaderHeight  float32 // a page's header
+	RowHeight     float32 // a list's row
+	RowTwo        float32 // a list's row of two lines
+	RowTall       float32 // a row with a control or two lines of words
+	TabHeight     float32 // tabs and small segmented controls
+	Rule          float32 // the line between parts of a surface, 0 for none
 
 	// Spacing: the steps of every gap and padding.
 	S1, S2, S3, S4, S5, S6 float32

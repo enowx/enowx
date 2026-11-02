@@ -205,6 +205,6 @@ func PopupLabel(c *ui.Context, label string) {
 // Divider is a hairline between groups.
 func Divider(c *ui.Context) {
 	ui.Row(c).FillWidth().Shrink(0).Padding(theme.S1, theme.S2).Children(func() {
-		ui.Box(c).Height(0.5).FillWidth().Background(theme.Border)
+		ui.Box(c).Height(theme.Rule).FillWidth().Background(theme.Border)
 	})
 }

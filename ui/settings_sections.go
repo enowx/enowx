@@ -548,7 +548,7 @@ func (a *App) appSection(c *ui.Context) {
 				})
 				ui.Column(c).FillWidth().MinWidth(0).Children(func() {
 					for _, s := range list {
-						ui.Box(c).Height(0.5).FillWidth().Shrink(0).Background(theme.Border)
+						ui.Box(c).Height(theme.Rule).FillWidth().Shrink(0).Background(theme.Border)
 						ui.Row(c.Key(s[0])).FillWidth().Height(28).Shrink(0).Gap(theme.S3).Children(func() {
 							ui.Row(c).Grow(1).MinWidth(0).Children(func() { widget.Running(c, s[1], widget.RunStyle{}) })
 							ui.Text(c, s[0]).FontSize(theme.TextLabel).TextColor(theme.TextSoft).SingleLine().Shrink(0)

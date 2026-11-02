@@ -9,6 +9,7 @@ var Bento = Style{
 	RadiusFull: 4, RadiusControl: 4, RadiusTail: 4, RadiusSmall: 4, RadiusCard: 6, RadiusPanel: 6,
 	BentoGap: 8, WindowInset: 8, ControlHeight: 26, BarHeight: 36, ScrollWidth: 6,
 	BarRadius: 6, RailWidth: 40, ReadWidth: 800, HeaderHeight: 40,
+	RowHeight: 26, RowTwo: 36, RowTall: 32, TabHeight: 22, Rule: 1,
 	S1: 4, S2: 6, S3: 8, S4: 12, S5: 16, S6: 24,
 	TextLabel: 12, TextUI: 12, TextRead: 13, TextTitle: 14,
 	Flat: true, Hairline: 1, Scrim: ui.RGBA(0, 0, 0, 0),

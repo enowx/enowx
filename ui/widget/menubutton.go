@@ -46,7 +46,7 @@ func SegmentedFit(c *ui.Context, options []string, current int) int {
 		for i, label := range options {
 			// Shares by length, not evenly: a long word gets the room a short one
 			// leaves, so that narrow cards don't cut labels that would all fit.
-			b := ui.ButtonBase(c.Key(i)).Height(28).Grow(float32(utf8.RuneCountInString(label) + 3)).Basis(0).Shrink(1).MinWidth(0).PaddingX(theme.S1).Radius(theme.RadiusFull).Label(label).Center()
+			b := ui.ButtonBase(c.Key(i)).Height(theme.TabHeight).Grow(float32(utf8.RuneCountInString(label) + 3)).Basis(0).Shrink(1).MinWidth(0).PaddingX(theme.S1).Radius(theme.RadiusFull).Label(label).Center()
 			bg, fg, weight := theme.Fade(theme.Selected, 0), theme.TextSoft, 400
 			switch {
 			case i == current:

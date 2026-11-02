@@ -181,7 +181,7 @@ func codeGround(d *Doc) ui.Color {
 // editor.
 func (d *Doc) bar(c *ui.Context, o Options) {
 	ui.Row(c).Height(44).Shrink(0).FillWidth().Padding(0, theme.S2, 0, theme.S4).Gap(theme.S2).Clip().
-		BorderWidth(0, 0, 0.5, 0).BorderColor(theme.Border).Children(func() {
+		BorderWidth(0, 0, theme.Rule, 0).BorderColor(theme.Border).Children(func() {
 		ui.Icon(c, icon.File).FontSize(14).TextColor(theme.TextSoft)
 		ui.Row(c).MinWidth(64).Shrink(1).Children(func() {
 			widget.Running(c, d.path, widget.RunStyle{Size: theme.TextLabel, Mono: true, Always: true})

@@ -73,7 +73,7 @@ func (a *App) tabStrip(c *ui.Context, s proto.SessionInfo) {
 	viewer := a.centerFront(s)
 	front := a.frontTab(s).ID
 	ui.Row(c.Key("tab-strip")).Height(36).Shrink(0).FillWidth().PaddingX(theme.S2).Gap(theme.S1).Background(theme.Sunken).
-		BorderWidth(0, 0, 0.5, 0).BorderColor(theme.Border).Children(func() {
+		BorderWidth(0, 0, theme.Rule, 0).BorderColor(theme.Border).Children(func() {
 		ui.ScrollHorizontal(c.Key("tabs")).Grow(1).MinWidth(0).Height(36).Children(func() {
 			ui.Row(c).Gap(theme.S1).Height(36).Children(func() {
 				a.tabButton(c.Key("tab:"+s.ID), s, s, viewer == "" && front == s.ID, false)

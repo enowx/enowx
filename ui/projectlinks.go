@@ -366,7 +366,7 @@ func (a *App) linksHistory(c *ui.Context, f *linksForm) {
 	}
 	now := time.Now()
 	for i, e := range f.history {
-		ui.Row(c.Key(i)).FillWidth().Shrink(0).MinHeight(36).Gap(theme.S2).BorderWidth(0.5, 0, 0, 0).BorderColor(theme.Border).Children(func() {
+		ui.Row(c.Key(i)).FillWidth().Shrink(0).MinHeight(36).Gap(theme.S2).BorderWidth(theme.Rule, 0, 0, 0).BorderColor(theme.Border).Children(func() {
 			svg, col := icon.Sync, theme.Done
 			if e.Kind == "push" {
 				svg = icon.ArrowRight

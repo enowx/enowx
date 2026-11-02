@@ -73,7 +73,7 @@ func (v *View) pageView(c *ui.Context, o Options) {
 // then what can be done with it. It keeps its height whatever it holds.
 func (v *View) pageHeader(c *ui.Context, o Options, p *page) {
 	head := ui.Row(c.Key("note-header")).FillWidth().MinHeight(56).Shrink(0).Padding(theme.S2, theme.S4, theme.S2, theme.S5).Gap(theme.S2).
-		BorderWidth(0, 0, 0.5, 0).BorderColor(theme.Border)
+		BorderWidth(0, 0, theme.Rule, 0).BorderColor(theme.Border)
 	tight := head.Bounds().W > 0 && head.Bounds().W < 560
 	head.Children(func() {
 		if v.narrow && widget.IconButton(c, icon.Sidebar, "Pages", v.treeOpen).Clicked() {
@@ -230,7 +230,7 @@ func (v *View) pageBody(c *ui.Context, o Options, p *page, outline bool) {
 		p.ed.draw(c)
 	}
 	if kids := p.ed.env.children; len(kids) > 0 && p.mode != modeSource {
-		ui.Column(c).FillWidth().Gap(theme.S1).Padding(theme.S3, 0, theme.S5, docLeft+6).BorderWidth(0.5, 0, 0, 0).BorderColor(theme.Border).Children(func() {
+		ui.Column(c).FillWidth().Gap(theme.S1).Padding(theme.S3, 0, theme.S5, docLeft+6).BorderWidth(theme.Rule, 0, 0, 0).BorderColor(theme.Border).Children(func() {
 			ui.Text(c, "Pages inside").FontSize(theme.TextLabel).FontWeight(500).TextColor(theme.TextSoft)
 			p.ed.pagesView(c)
 		})

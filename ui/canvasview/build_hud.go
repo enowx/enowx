@@ -122,7 +122,7 @@ func (v *View) buildDirections(c *ui.Context, o Options, cv proto.Canvas, run pr
 		}
 		return "a design"
 	}
-	ui.Column(c.Key("directions")).FillWidth().Gap(theme.S1).Padding(theme.S2, 0, 0, 0).BorderWidth(0.5, 0, 0, 0).BorderColor(theme.Border).Children(func() {
+	ui.Column(c.Key("directions")).FillWidth().Gap(theme.S1).Padding(theme.S2, 0, 0, 0).BorderWidth(theme.Rule, 0, 0, 0).BorderColor(theme.Border).Children(func() {
 		for i, d := range run.Directions {
 			f := cv.Frames[max(0, slices.IndexFunc(cv.Frames, func(f proto.CanvasFrame) bool { return f.ID == d.Frame }))]
 			row := ui.ButtonBase(c.Key(d.Frame)).FillWidth().Gap(theme.S2).Padding(theme.S1, theme.S2).Radius(theme.RadiusSmall).AlignItems(ui.Center).Justify(ui.Start).

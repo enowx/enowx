@@ -83,9 +83,9 @@ func chatDay(c *ui.Context, at, now time.Time, pad float32) {
 		label = "Yesterday"
 	}
 	ui.Row(c).FillWidth().Gap(theme.S3).Padding(theme.S3, pad, theme.S2, pad).Children(func() {
-		ui.Box(c).Grow(1).Height(0.5).Background(theme.Border)
+		ui.Box(c).Grow(1).Height(theme.Rule).Background(theme.Border)
 		ui.Text(c, label).FontSize(theme.TextLabel).TextColor(theme.TextSoft).SingleLine()
-		ui.Box(c).Grow(1).Height(0.5).Background(theme.Border)
+		ui.Box(c).Grow(1).Height(theme.Rule).Background(theme.Border)
 	})
 }
 

@@ -753,7 +753,7 @@ func (v *View) DrawLogcat(c *ui.Context, o Options, wanted func() bool) {
 
 // logFilters narrow the log: the app's, a level, words.
 func (v *View) logFilters(c *ui.Context) {
-	ui.Row(c.Key("filters")).FillWidth().Shrink(0).Padding(theme.S2, theme.S4).Gap(theme.S2).BorderWidth(0, 0, 0.5, 0).BorderColor(theme.Border).Children(func() {
+	ui.Row(c.Key("filters")).FillWidth().Shrink(0).Padding(theme.S2, theme.S4).Gap(theme.S2).BorderWidth(0, 0, theme.Rule, 0).BorderColor(theme.Border).Children(func() {
 		if v.project.Package != "" {
 			ui.Row(c).MinWidth(0).Shrink(1).Clip().Children(func() {
 				widget.Checkbox(c, &v.appOnly, "Only "+v.project.Package)

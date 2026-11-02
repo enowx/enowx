@@ -164,7 +164,7 @@ func tableView(c *ui.Context, src string, st *tableState, open widget.LinkOpener
 		}
 		ui.Column(c).FillWidth().MinWidth(0).Children(func() {
 			for i, r := range rows {
-				ui.Row(c.Key(i)).FillWidth().MinWidth(0).AlignItems(ui.Stretch).BorderWidth(0, 0, 0.5, 0).BorderColor(theme.Border).Children(func() {
+				ui.Row(c.Key(i)).FillWidth().MinWidth(0).AlignItems(ui.Stretch).BorderWidth(0, 0, theme.Rule, 0).BorderColor(theme.Border).Children(func() {
 					for j := range cols {
 						cell := ""
 						if j < len(r) {

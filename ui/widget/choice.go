@@ -50,7 +50,7 @@ func SegmentedFill(c *ui.Context, options []string, current int) int {
 	clicked := -1
 	ui.Row(c).FillWidth().MinWidth(0).Padding(theme.S1).Radius(theme.RadiusFull).Background(theme.Sunken).Children(func() {
 		for i, label := range options {
-			b := ui.ButtonBase(c.Key(label)).Grow(1).Basis(0).MinWidth(0).Height(28).PaddingX(theme.S1).Radius(theme.RadiusFull).Label(label)
+			b := ui.ButtonBase(c.Key(label)).Grow(1).Basis(0).MinWidth(0).Height(theme.TabHeight).PaddingX(theme.S1).Radius(theme.RadiusFull).Label(label)
 			bg, fg, weight := theme.Fade(theme.Selected, 0), theme.TextSoft, 400
 			switch {
 			case i == current:

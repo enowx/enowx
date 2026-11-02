@@ -32,7 +32,7 @@ func (v *View) DrawFile(c *ui.Context, o Options, path string) {
 // fileBar heads a file's changes.
 func (v *View) fileBar(c *ui.Context, o Options, path string) {
 	ui.Row(c).Height(44).Shrink(0).FillWidth().Padding(0, theme.S2, 0, theme.S4).Gap(theme.S2).Clip().
-		BorderWidth(0, 0, 0.5, 0).BorderColor(theme.Border).Children(func() {
+		BorderWidth(0, 0, theme.Rule, 0).BorderColor(theme.Border).Children(func() {
 		ui.Icon(c, icon.Git).FontSize(14).TextColor(theme.TextSoft)
 		name := path
 		fi := v.fileIndex(path)

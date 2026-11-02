@@ -38,7 +38,7 @@ func linkFieldsOf(l proto.ProjectLink) linkFields {
 // linkSettings edits the settings of the link f.editing.
 func (a *App) linkSettings(c *ui.Context, f *linksForm) {
 	d, src, dst := &f.draft, f.draft.Source.Host, f.draft.Target.Host
-	ui.Column(c).FillWidth().Shrink(0).Gap(theme.S3).Padding(theme.S3, 0, 0, 0).BorderWidth(0.5, 0, 0, 0).BorderColor(theme.Border).Children(func() {
+	ui.Column(c).FillWidth().Shrink(0).Gap(theme.S3).Padding(theme.S3, 0, 0, 0).BorderWidth(theme.Rule, 0, 0, 0).BorderColor(theme.Border).Children(func() {
 		widget.Field(c, "Direction", func() {
 			dirs := []string{proto.SyncOneWay, proto.SyncTwoWay, proto.SyncReverse}
 			cur := 1

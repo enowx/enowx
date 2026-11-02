@@ -197,7 +197,7 @@ func (v *View) permissions(c *ui.Context, e *settingsEditor) {
 func ruleLine(c *ui.Context, first bool, rule string, remove func()) {
 	r := ui.Row(c).FillWidth().Shrink(0).MinHeight(theme.ControlHeight).Gap(theme.S2)
 	if !first {
-		r.BorderWidth(0.5, 0, 0, 0).BorderColor(theme.Border)
+		r.BorderWidth(theme.Rule, 0, 0, 0).BorderColor(theme.Border)
 	}
 	r.Children(func() {
 		ui.Row(c).Grow(1).Basis(0).MinWidth(0).Children(func() {
@@ -234,7 +234,7 @@ func (v *View) hookList(c *ui.Context, e *settingsEditor) {
 				for i, h := range e.hooks {
 					r := ui.Row(c.Key(strconv.Itoa(i))).FillWidth().Shrink(0).MinHeight(theme.ControlHeight).Gap(theme.S3)
 					if i > 0 {
-						r.BorderWidth(0.5, 0, 0, 0).BorderColor(theme.Border)
+						r.BorderWidth(theme.Rule, 0, 0, 0).BorderColor(theme.Border)
 					}
 					r.Children(func() {
 						ui.Row(c).Grow(1).Basis(0).MinWidth(0).Children(func() { widget.Running(c, hookLabel(h), widget.RunStyle{}) })

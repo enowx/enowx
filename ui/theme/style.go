@@ -11,6 +11,7 @@ type Style struct {
 	RadiusFull, RadiusControl, RadiusTail, RadiusSmall, RadiusCard, RadiusPanel float32
 	BentoGap, WindowInset, ControlHeight, BarHeight, ScrollWidth                float32
 	BarRadius, RailWidth, ReadWidth, HeaderHeight                               float32
+	RowHeight, RowTwo, RowTall, TabHeight, Rule                                 float32
 	S1, S2, S3, S4, S5, S6                                                      float32
 	TextLabel, TextUI, TextRead, TextTitle                                      float32
 
@@ -45,6 +46,7 @@ var LiquidGlass = Style{
 	RadiusFull: 999, RadiusControl: 16, RadiusTail: 4, RadiusSmall: 12, RadiusCard: 20, RadiusPanel: 28,
 	BentoGap: 8, WindowInset: 12, ControlHeight: 32, BarHeight: 40, ScrollWidth: 8,
 	BarRadius: 999, RailWidth: 44, ReadWidth: 740, HeaderHeight: 56,
+	RowHeight: 36, RowTwo: 40, RowTall: 44, TabHeight: 28, Rule: 0.5,
 	S1: 4, S2: 8, S3: 12, S4: 16, S5: 24, S6: 32,
 	TextLabel: 12, TextUI: 13, TextRead: 15, TextTitle: 17,
 	Scrim: ui.RGBA(0, 0, 0, 0.5),
@@ -78,6 +80,7 @@ func UseStyle(s Style) {
 	RadiusPanel, RadiusBento = s.RadiusPanel, s.RadiusPanel
 	BentoGap, WindowInset, ControlHeight, BarHeight, ScrollWidth = s.BentoGap, s.WindowInset, s.ControlHeight, s.BarHeight, s.ScrollWidth
 	BarRadius, RailWidth, ReadWidth, HeaderHeight = s.BarRadius, s.RailWidth, s.ReadWidth, s.HeaderHeight
+	RowHeight, RowTwo, RowTall, TabHeight, Rule = s.RowHeight, s.RowTwo, s.RowTall, s.TabHeight, s.Rule
 	Butted, FullDock, DockedComposer, Tiled, Family = s.Butted, s.FullDock, s.DockedComposer, s.Tiled, s.Family
 	S1, S2, S3, S4, S5, S6 = s.S1, s.S2, s.S3, s.S4, s.S5, s.S6
 	TextLabel, TextUI, TextRead, TextTitle = s.TextLabel, s.TextUI, s.TextRead, s.TextTitle

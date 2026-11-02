@@ -162,7 +162,7 @@ func (p *Panel) Draw(c *ui.Context, run *proto.CanvasUnslopRun, o PanelOptions) 
 }
 
 func hudRegions(c *ui.Context, o PanelOptions, run *proto.CanvasUnslopRun) {
-	ui.Column(c.Key("regions")).FillWidth().Gap(theme.S1).Padding(theme.S2, 0, 0, 0).BorderWidth(0.5, 0, 0, 0).BorderColor(theme.Border).Children(func() {
+	ui.Column(c.Key("regions")).FillWidth().Gap(theme.S1).Padding(theme.S2, 0, 0, 0).BorderWidth(theme.Rule, 0, 0, 0).BorderColor(theme.Border).Children(func() {
 		ui.Text(c, fmt.Sprintf("%d agents at once", len(run.Regions))).FontSize(theme.TextLabel).FontWeight(500).TextColor(theme.TextSoft)
 		for i, r := range run.Regions {
 			state := AgentWorking
@@ -439,7 +439,7 @@ func (p *Panel) drawBrief(c *ui.Context, b proto.DesignBrief) {
 // DrawReview is an independent review (an unslop's, a build's): under
 // way, its reviewer a click away (open), or its score and what it asks.
 func DrawReview(c *ui.Context, rv proto.DesignReview, open func(session string)) {
-	ui.Column(c.Key("review")).FillWidth().Gap(theme.S1).Padding(theme.S2, 0, 0, 0).BorderWidth(0.5, 0, 0, 0).BorderColor(theme.Border).Children(func() {
+	ui.Column(c.Key("review")).FillWidth().Gap(theme.S1).Padding(theme.S2, 0, 0, 0).BorderWidth(theme.Rule, 0, 0, 0).BorderColor(theme.Border).Children(func() {
 		ui.Row(c.Key("head")).FillWidth().Gap(theme.S2).AlignItems(ui.Center).Children(func() {
 			ui.Row(c).Grow(1).MinWidth(0).Children(func() {
 				widget.Running(c, fmt.Sprintf("Independent review · round %d", rv.Round), widget.RunStyle{Size: theme.TextLabel, Weight: 500, Color: theme.TextSoft})

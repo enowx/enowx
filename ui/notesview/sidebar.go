@@ -28,7 +28,7 @@ func (v *View) sidebar(c *ui.Context, o Options) {
 	if v.treeInSidebar {
 		tree = ui.Column(c.Key("notes-tree")).FillWidth().Grow(1).MinHeight(0).Padding(theme.S2).Gap(theme.S1)
 	} else {
-		tree = ui.Column(c.Key("notes-tree")).Width(248).Shrink(0).FillHeight().Padding(theme.S2).Gap(theme.S1).BorderWidth(0, 0.5, 0, 0).BorderColor(theme.Border)
+		tree = ui.Column(c.Key("notes-tree")).Width(248).Shrink(0).FillHeight().Padding(theme.S2).Gap(theme.S1).BorderWidth(0, theme.Rule, 0, 0).BorderColor(theme.Border)
 	}
 	if o.Drop != nil {
 		// Files from other apps dropped on the tree are imported.

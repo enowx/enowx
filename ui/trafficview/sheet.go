@@ -16,7 +16,7 @@ func sheet(c *ui.Context, open *bool, width float32, title, description string, 
 func codeArea(c *ui.Context, label string, value *string, height float32) {
 	widget.Field(c, label, func() {
 		ui.TextAreaBase(c, value).FillWidth().MinHeight(height).MaxHeight(260).Padding(theme.S2, theme.S2).Font(theme.MonoFont).FontSize(theme.TextUI).
-			Radius(theme.RadiusSmall).Background(theme.Sunken).InsetShadow(0, 0, 0, 0.5, theme.Border)
+			Radius(theme.RadiusSmall).Background(theme.Sunken).InsetShadow(0, 0, 0, theme.Rule, theme.Border)
 	})
 }
 

@@ -291,14 +291,14 @@ func configSessions(c *ui.Context, names []string) {
 		for i, name := range shown {
 			line := ui.Row(c.Key(i)).FillWidth().Shrink(0).Height(rowHeight)
 			if i > 0 {
-				line.BorderWidth(0.5, 0, 0, 0).BorderColor(theme.Border)
+				line.BorderWidth(theme.Rule, 0, 0, 0).BorderColor(theme.Border)
 			}
 			line.Children(func() { widget.Running(c, name, widget.RunStyle{Size: theme.TextLabel}) })
 		}
 		if more > 0 {
 			line := ui.Row(c.Key("more")).FillWidth().Shrink(0).Height(rowHeight)
 			if len(shown) > 0 {
-				line.BorderWidth(0.5, 0, 0, 0).BorderColor(theme.Border)
+				line.BorderWidth(theme.Rule, 0, 0, 0).BorderColor(theme.Border)
 			}
 			line.Children(func() {
 				widget.Running(c, "and "+strconv.Itoa(more)+" more", widget.RunStyle{Size: theme.TextLabel, Color: theme.TextSoft})
@@ -461,7 +461,7 @@ func (a *App) agentLatest(c *ui.Context, st *accountsState, ag proto.AgentInfo) 
 			if e.Reason != "" {
 				what += " · " + e.Reason
 			}
-			ui.Row(c.Key(n)).FillWidth().Shrink(0).Height(32).Gap(theme.S2).BorderWidth(0.5, 0, 0, 0).BorderColor(theme.Border).Children(func() {
+			ui.Row(c.Key(n)).FillWidth().Shrink(0).Height(32).Gap(theme.S2).BorderWidth(theme.Rule, 0, 0, 0).BorderColor(theme.Border).Children(func() {
 				at := e.Time.Local().Format("Jan 2")
 				if y, m, d := time.Now().Date(); e.Time.Local().Year() == y && e.Time.Local().Month() == m && e.Time.Local().Day() == d {
 					at = e.Time.Local().Format("15:04")

@@ -192,7 +192,7 @@ func (a *App) focused(sessions []proto.SessionInfo) proto.SessionInfo {
 // viewHeader is the top bar of a view; fn fills it, breadcrumb first.
 func (a *App) viewHeader(c *ui.Context, fn func()) {
 	ui.Row(c).Height(headerHeight).Shrink(0).FillWidth().Padding(0, theme.S4, 0, theme.S5).Gap(theme.S3).
-		BorderWidth(0, 0, 0.5, 0).BorderColor(theme.Border).Children(fn)
+		BorderWidth(0, 0, theme.Rule, 0).BorderColor(theme.Border).Children(fn)
 }
 
 // sessionsHidden reports whether the sidebar gives way: to a maximized

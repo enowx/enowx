@@ -103,7 +103,7 @@ func IconButton(c *ui.Context, svg *ui.SVG, label string, on bool) ui.Element {
 // Well is what inputs and drop-downs are made of: sunk under the surface
 // with a hairline around it, and the focus ring while focused.
 func Well(e ui.Element, focused bool) ui.Element {
-	e.Background(theme.Sunken).InsetShadow(0, 0, 0, 0.5, theme.Border)
+	Edge(e.Background(theme.Sunken))
 	if focused {
 		e.Border(2, theme.Now)
 	}
@@ -150,8 +150,7 @@ func Switch(c *ui.Context, on *bool, label string) bool {
 	}
 	x := b.AnimateTo("x", map[bool]float32{false: 0, true: 16}[*on], Press)
 	b.Background(QuickTint(b, "track", track)).Children(func() {
-		ui.Box(c).Size(20, 20).Radius(theme.RadiusFull).Shrink(0).Margin(0, 0, 0, 2+x).Background(ui.Hex("#FFFFFF")).
-			Shadow(0, 1, 3, 0, ui.RGBA(0, 0, 0, 0.4))
+		DropShadow(ui.Box(c).Size(20, 20).Radius(theme.RadiusFull).Shrink(0).Margin(0, 0, 0, 2+x).Background(ui.Hex("#FFFFFF")), 1, 3, ui.RGBA(0, 0, 0, 0.4))
 	})
 	if b.Clicked() {
 		*on = !*on

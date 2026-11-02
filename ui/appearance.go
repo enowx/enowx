@@ -197,7 +197,7 @@ func (a *App) themePreview(c *ui.Context) {
 		} {
 			row := ui.Row(c.Key(s.name)).FillWidth().MinHeight(32).Gap(theme.S2)
 			if i > 0 {
-				row.BorderWidth(0.5, 0, 0, 0).BorderColor(theme.Border)
+				row.BorderWidth(theme.Rule, 0, 0, 0).BorderColor(theme.Border)
 			}
 			row.Children(func() {
 				ui.Text(c, s.name).FontSize(theme.TextLabel).Grow(1).MinWidth(0).SingleLine()

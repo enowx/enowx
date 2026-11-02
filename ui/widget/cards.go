@@ -105,9 +105,9 @@ func CardLines(c *ui.Context, fn func()) {
 // CardLine is one row of CardLines: a title and a quieter line, which run
 // inside the row, and what follows at its right.
 func CardLine(c *ui.Context, first bool, title, sub string, right func()) ui.Element {
-	r := ui.Row(c).FillWidth().Shrink(0).MinHeight(32).Padding(theme.S1, 0).Gap(theme.S2)
+	r := ui.Row(c).FillWidth().Shrink(0).MinHeight(theme.ControlHeight).Padding(theme.S1, 0).Gap(theme.S2)
 	if !first {
-		r.BorderWidth(0.5, 0, 0, 0).BorderColor(theme.Border)
+		r.BorderWidth(theme.Rule, 0, 0, 0).BorderColor(theme.Border)
 	}
 	r.Children(func() {
 		ui.Column(c).Grow(1).MinWidth(0).Children(func() {

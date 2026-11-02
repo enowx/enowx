@@ -15,7 +15,7 @@ import (
 func (v *View) header(c *ui.Context, o Options, cv proto.Canvas) {
 	f := v.frameOf()
 	ui.Row(c.Key("canvas-header")).FillWidth().MinHeight(56).Shrink(0).Padding(theme.S2, theme.S4, theme.S2, theme.S5).Gap(theme.S2).AlignItems(ui.Center).
-		BorderWidth(0, 0, 0.5, 0).BorderColor(theme.Border).Children(func() {
+		BorderWidth(0, 0, theme.Rule, 0).BorderColor(theme.Border).Children(func() {
 		if !v.listOutside && (!v.listShown() || v.listOpen) {
 			// The canvases' list, hidden in a narrow page, a click away.
 			if widget.IconButton(c.Key("list"), icon.Sidebar, "Canvases", v.listOpen).Clicked() {

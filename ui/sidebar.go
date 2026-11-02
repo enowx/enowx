@@ -373,7 +373,7 @@ func (a *App) sessionRow(c *ui.Context, i int, s proto.SessionInfo, project stri
 		FillWidth().PaddingX(theme.S3).Gap(theme.S2).Justify(ui.Start)
 	row.Height(theme.ControlHeight)
 	if project != "" {
-		row.Height(40)
+		row.Height(theme.RowTwo)
 	}
 	if a.picked[s.ID] && !active {
 		row.Border(1, theme.Now)

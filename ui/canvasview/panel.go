@@ -23,7 +23,7 @@ var panelTabs = []string{"layers", "comments", "versions", "grid"}
 // selection's properties, the comments, the versions, or the grid. The toolbar
 // shows it again once hidden.
 func (v *View) sidePanel(c *ui.Context, o Options) {
-	ui.Column(c.Key("canvas-panel")).Width(panelWidth).Shrink(0).FillHeight().BorderWidth(0, 0, 0, 0.5).BorderColor(theme.Border).
+	ui.Column(c.Key("canvas-panel")).Width(panelWidth).Shrink(0).FillHeight().BorderWidth(0, 0, 0, theme.Rule).BorderColor(theme.Border).
 		Transition(widget.PanelMotion(16)).Children(func() {
 		ui.Row(c.Key("panel-tabs")).FillWidth().Shrink(0).Padding(theme.S3, theme.S3, theme.S2, theme.S3).Gap(theme.S1).AlignItems(ui.Center).Children(func() {
 			comments := "Comments"
