@@ -2,6 +2,7 @@ package ui
 
 import (
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/egoist/mygo/ui"
@@ -40,7 +41,7 @@ func (a *App) syncSection(c *ui.Context) {
 		{Label: "Files", Value: fmt.Sprint(hub.Files)},
 		{Label: "Size", Value: textfmt.Bytes(uint64(hub.Size))},
 		{Label: "Hosts synced", Value: fmt.Sprintf("%d of %d", synced, len(others))},
-		{Label: "Conflicts", Value: fmt.Sprint(len(a.dsync.conflicts))},
+		{Label: "Conflicts", Value: fmt.Sprint(len(a.dsync.conflicts)), Tone: conflictTone(len(a.dsync.conflicts))},
 		{Label: "Recently deleted", Value: fmt.Sprint(len(a.dsync.trash))},
 	})
 	widget.PageBody(c, true, func() {
@@ -52,7 +53,7 @@ func (a *App) syncSection(c *ui.Context) {
 			widget.Dot(c, col, a.dsync.running, 8)
 			ui.Row(c).Grow(1).MinWidth(0).Children(func() { widget.Running(c, summary, widget.RunStyle{Weight: 500}) })
 		})
-		widget.CardNote(c, "Your notes, their groups, canvases, settings and the vault's encrypted data are the same on every host. This device syncs each host it reaches with its own, when it connects, every 30 seconds and right after a change. Project files are not synced here.", 0)
+		widget.CardNote(c, "Your notes, canvases, settings and vault, the same on every host. This device is the hub: nothing goes through a cloud.", 0)
 		ui.Row(c.Key("sync-lower")).FillWidth().Gap(theme.S3).AlignItems(ui.Start).Children(func() {
 			ui.Column(c).Grow(7).Basis(0).MinWidth(0).Gap(theme.S2).Children(func() {
 				widget.Heading(c, "Hosts")
@@ -100,7 +101,8 @@ func (a *App) syncTrash(c *ui.Context) {
 			if name == "" {
 				name = it.Path
 			}
-			widget.CardLine(c.Key(it.ID), i == 0, name, textfmt.Age(it.Deleted, time.Now()), func() {
+			widget.CardLine(c.Key(it.ID), i == 0, name, "", func() {
+				ui.Text(c, textfmt.Ago(it.Deleted, time.Now())).FontSize(theme.TextLabel).TextColor(theme.TextSoft).SingleLine()
 				if widget.GhostButton(c, "Restore").Clicked() {
 					a.syncCall(func(hub *client.Client) error { return hub.SyncRestore(it.ID) })
 				}
@@ -119,7 +121,7 @@ func (a *App) syncHostCard(c *ui.Context, h hosts.Host) {
 		state, col, hollow = st.state, theme.Done, false
 		switch st.state {
 		case syncIdle:
-			about = "Synced " + textfmt.Age(st.last, time.Now())
+			about = "Synced " + textfmt.Ago(st.last, time.Now())
 			if n := len(st.rep.Skipped); n > 0 {
 				about += " · " + textfmt.Plural(n, "1 file", fmt.Sprintf("%d files", n)) + " too large to sync"
 			}
@@ -131,7 +133,7 @@ func (a *App) syncHostCard(c *ui.Context, h hosts.Host) {
 	}
 	widget.Card(c).Children(func() {
 		widget.CardTitle(c, nil, h.Name, nil)
-		widget.StatusLine(c, col, hollow, state)
+		widget.StatusLine(c, col, hollow, syncStateWords(state))
 		note := widget.CardNote(c, about, 2)
 		if col == theme.Warning {
 			note.TextColor(theme.Warning)
@@ -154,15 +156,21 @@ func (a *App) conflictCard(c *ui.Context, cf proto.SyncConflict) {
 		name = cf.Path
 	}
 	widget.Card(c).FillWidth().Background(theme.Fade(theme.Error, 0.13)).Children(func() {
-		widget.CardTitle(c, icon.Alert, name, nil)
-		widget.CardNote(c, "Both changed the same lines, "+textfmt.Age(cf.Created, time.Now())+". The first version is in place until you pick.", 0)
+		widget.CardTitle(c, nil, name, nil)
+		widget.CardNote(c, "Changed on "+conflictHosts(cf)+", "+textfmt.Ago(cf.Created, time.Now())+". The first version is in place until you pick.", 0)
 		ui.Row(c).FillWidth().Gap(theme.S2).Wrap().Children(func() {
 			for i, v := range cf.Versions {
-				label := "Keep " + v.Host + "'s"
+				label := "Keep " + v.Host
 				if v.Deleted {
 					label = "Delete, as " + v.Host + " did"
 				}
-				if widget.GhostButton(c.Key(i), label).Clicked() {
+				var b ui.Element
+				if i == 0 {
+					b = widget.PrimaryButton(c.Key(i), nil, label, "")
+				} else {
+					b = widget.GhostButton(c.Key(i), label)
+				}
+				if b.Clicked() {
 					keep := fmt.Sprint(i + 1)
 					a.syncCall(func(hub *client.Client) error { return hub.SyncResolve(cf.ID, keep) })
 				}
@@ -190,4 +198,41 @@ func (a *App) syncCall(fn func(hub *client.Client) error) {
 			a.syncData()
 		})
 	}()
+}
+
+// conflictTone colors the count of conflicts when there are some to settle.
+func conflictTone(n int) ui.Color {
+	if n > 0 {
+		return theme.Warning
+	}
+	return ui.Color{}
+}
+
+// conflictHosts names the hosts of a conflict's versions, for a sentence.
+func conflictHosts(cf proto.SyncConflict) string {
+	names := make([]string, 0, len(cf.Versions))
+	for _, v := range cf.Versions {
+		names = append(names, v.Host)
+	}
+	if len(names) == 2 {
+		return "both " + names[0] + " and " + names[1]
+	}
+	return strings.Join(names, ", ")
+}
+
+// syncStateWords says a host's sync state on its card.
+func syncStateWords(state string) string {
+	switch state {
+	case syncOffline:
+		return "Not connected"
+	case syncIdle:
+		return "Synced"
+	case syncSyncing:
+		return "Syncing"
+	case syncFailed:
+		return "Failed"
+	case syncOld:
+		return "Update needed"
+	}
+	return state
 }
