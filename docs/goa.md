@@ -53,6 +53,8 @@ Checked with Codex itself, started as GOA: enowX's tools reached it over MCP as 
 
 There is no limit on workers; rate limits fall to accounts' fallback ([accounts.md](accounts.md)) and budgets.
 
+**A task's to-dos.** `goa delegate --note NOTE --items "one\nper line"` shows the worker the to-dos its task finishes, with the rule to tick each in the same turn as its commit. Settling the task done doesn't tick them: it says which aren't ticked (`Open` on the board), as a to-do done but not committed is the worker's to say. GOA never tells a worker to leave a to-do open.
+
 **Which session a project's task goes to** (`goa.PickSession`): an agent's session of its own in the project's folder, not in a worktree, whose branch is another task's; the user's, not a teammate's; of `--agent` when given, with the same `--yolo`, and the same `--config` when given. Not one working, asking the user, or with an open task on the board, and not a running one of an agent without hooks, as it may be working unseen. Of those, a running one first, then a hibernated one, then one that ended; among equals, the newest. With none, a new session. A running session keeps its own config when the judge's route names another provider's. An agent that quit to the shell in its terminal counts as running, as the daemon can't tell it from one at rest.
 
 ## Workers' permission prompts

@@ -134,8 +134,13 @@ type GOATask struct {
 	// Asks is what its session waits on; Urgent, why the user answers it
 	// rather than GOA (it can't be undone, money, publishing, secrets,
 	// the judge unsure).
-	Asks    string    `json:"asks,omitempty"`
-	Urgent  string    `json:"urgent,omitempty"`
+	Asks   string `json:"asks,omitempty"`
+	Urgent string `json:"urgent,omitempty"`
+	// Note and Items are as delegated; Open, once settled done, the items
+	// its note doesn't have ticked.
+	Note    string    `json:"note,omitempty"`
+	Items   []string  `json:"items,omitempty"`
+	Open    []string  `json:"open,omitempty"`
 	Created time.Time `json:"created"`
 	Updated time.Time `json:"updated"`
 }
@@ -169,6 +174,9 @@ type GOADelegateParams struct {
 	// NoRoute keeps the agent's own model and effort, the judge not asked.
 	NoRoute         bool `json:"noRoute,omitempty"`
 	SkipPermissions bool `json:"skipPermissions,omitempty"`
+	// Note and Items are the note the task belongs to and its to-dos it finishes.
+	Note  string   `json:"note,omitempty"`
+	Items []string `json:"items,omitempty"`
 }
 
 // GOATaskParams set task ID's status and result ("" leaves either).

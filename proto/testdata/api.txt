@@ -1075,8 +1075,10 @@ field GOADelegateParams.config string
 field GOADelegateParams.effort string
 field GOADelegateParams.from string
 field GOADelegateParams.host string
+field GOADelegateParams.items []string
 field GOADelegateParams.model string
 field GOADelegateParams.noRoute bool
+field GOADelegateParams.note string
 field GOADelegateParams.project string
 field GOADelegateParams.prompt string
 field GOADelegateParams.session string
@@ -1119,7 +1121,10 @@ field GOATask.dir string
 field GOATask.effort string
 field GOATask.host string
 field GOATask.id string
+field GOATask.items []string
 field GOATask.model string
+field GOATask.note string
+field GOATask.open []string
 field GOATask.override bool
 field GOATask.project string
 field GOATask.prompt string

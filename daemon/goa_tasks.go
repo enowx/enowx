@@ -10,6 +10,7 @@ import (
 	"github.com/enowx/enowx/core/agent"
 	"github.com/enowx/enowx/core/decide"
 	"github.com/enowx/enowx/core/goa"
+	"github.com/enowx/enowx/core/noteblocks"
 	"github.com/enowx/enowx/proto"
 )
 
@@ -28,8 +29,9 @@ func (s *Server) goaDelegate(p proto.GOADelegateParams) (proto.GOATask, error) {
 	if strings.TrimSpace(p.Prompt) == "" {
 		return proto.GOATask{}, errors.New("goa: delegate what? (a prompt)")
 	}
+	p.Prompt += goaToDoLines(p)
 	t := proto.GOATask{Title: p.Title, Prompt: p.Prompt, Host: p.Host, Session: p.Session, Agent: p.Agent,
-		Model: p.Model, Effort: p.Effort, Config: p.Config}
+		Model: p.Model, Effort: p.Effort, Config: p.Config, Note: p.Note, Items: p.Items}
 	p.SkipPermissions = p.SkipPermissions || s.goaSkipsUnheard(p.Agent)
 	var target proto.SessionInfo
 	if p.Session != "" {
@@ -375,6 +377,32 @@ func askLine(ask proto.SessionAsk) string {
 	return ask.Reason
 }
 
+// goaToDoLines tells a worker the to-dos its task finishes, and to tick them.
+func goaToDoLines(p proto.GOADelegateParams) string {
+	if p.Note == "" || len(p.Items) == 0 {
+		return ""
+	}
+	var b strings.Builder
+	b.WriteString("\n\nThis task finishes these to-dos of note " + p.Note + ". Tick each in the same turn as the commit that finishes it (\"$ENOWX_BIN\" notes check " + p.Note + " --item TEXT):")
+	for _, item := range p.Items {
+		b.WriteString("\n- " + item)
+	}
+	return b.String()
+}
+
+// goaOpenItems are task t's to-dos its note doesn't have ticked, all of them
+// when the note can't be read: what can't be seen to be ticked isn't.
+func (s *Server) goaOpenItems(t proto.GOATask) []string {
+	if t.Note == "" || len(t.Items) == 0 {
+		return nil
+	}
+	n, err := s.notesFor(t.Note).Get(t.Note)
+	if err != nil {
+		return t.Items
+	}
+	return noteblocks.Open(n.Body, t.Items)
+}
+
 // goaSetTask is GOA settling a task: its status and result.
 func (s *Server) goaSetTask(p proto.GOATaskParams) (proto.GOATask, error) {
 	switch p.Status {
@@ -387,6 +415,9 @@ func (s *Server) goaSetTask(p proto.GOATaskParams) (proto.GOATask, error) {
 		if p.Status != "" {
 			settles = goa.Settled(p.Status) && !goa.Settled(t.Status)
 			t.Status = p.Status
+		}
+		if p.Status == proto.GOATaskDone {
+			t.Open = s.goaOpenItems(*t)
 		}
 		if p.Result != "" {
 			t.Result = clip(p.Result, goaResultMax)

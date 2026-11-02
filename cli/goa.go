@@ -176,12 +176,26 @@ func (r runner) goaDelegate(args []string) error {
 	fs.StringVar(&p.Title, "title", "", "")
 	fs.BoolVar(&p.NoRoute, "no-route", false, "")
 	fs.BoolVar(&p.SkipPermissions, "yolo", false, "")
+	note := fs.String("note", "", "")
+	items := fs.String("items", "", "")
 	asJSON := fs.Bool("json", false, "")
 	words, err := parseAll(fs, args)
 	if err != nil || len(words) == 0 {
 		return errors.New(goaUsage)
 	}
 	p.Prompt = strings.Join(words, " ")
+	if *note != "" {
+		n, err := r.findNote(*note)
+		if err != nil {
+			return err
+		}
+		p.Note = n.ID
+		for _, item := range strings.Split(*items, "\n") {
+			if item = strings.TrimSpace(item); item != "" {
+				p.Items = append(p.Items, item)
+			}
+		}
+	}
 	if p.Project != "" && p.Host == "" {
 		if abs, err := filepath.Abs(expandTilde(p.Project)); err == nil {
 			p.Project = abs
@@ -231,6 +245,9 @@ func (r runner) goaTask(args []string) error {
 		return err
 	}
 	fmt.Fprintf(r.out, "%s: %s\n", t.ID, t.Status)
+	for _, item := range t.Open {
+		fmt.Fprintf(r.out, "Not ticked in its note: %s\n", item)
+	}
 	return nil
 }
 

@@ -96,3 +96,15 @@ func Check(md, item string, done bool) (string, int, error) {
 	lines[at] = todoRe.ReplaceAllString(lines[at], "${1}"+mark+"${3}${4}")
 	return strings.Join(lines, "\n") + "\n", at, nil
 }
+
+// Open are those of items md doesn't have ticked: left open, or no to-do of that
+// text at all, an item being found as Check finds it.
+func Open(md string, items []string) []string {
+	var out []string
+	for _, item := range items {
+		if after, _, err := Check(md, item, true); err != nil || after != md {
+			out = append(out, item)
+		}
+	}
+	return out
+}

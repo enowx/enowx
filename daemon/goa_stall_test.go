@@ -108,3 +108,28 @@ func TestGOAStallLimits(t *testing.T) {
 		t.Fatalf("back to its default: %+v %v", got, err)
 	}
 }
+
+// A task carrying its note's to-dos shows them to the worker, and settled done
+// says which aren't ticked.
+func TestGOATaskCarriesItsToDos(t *testing.T) {
+	p := proto.GOADelegateParams{Note: "n1", Items: []string{"Build it", "Write docs"}}
+	lines := goaToDoLines(p)
+	if !strings.Contains(lines, "notes check n1") || !strings.Contains(lines, "- Write docs") {
+		t.Fatalf("%q", lines)
+	}
+	if goaToDoLines(proto.GOADelegateParams{}) != "" {
+		t.Fatal("lines with no note")
+	}
+	srv := startServer(t)
+	n, err := srv.notesFor("").Save(proto.Note{NoteInfo: proto.NoteInfo{Title: "Plan"}, Body: "- [x] Build it\n- [ ] Write docs\n"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	open := srv.goaOpenItems(proto.GOATask{Note: n.ID, Items: p.Items})
+	if len(open) != 1 || open[0] != "Write docs" {
+		t.Fatalf("open: %q", open)
+	}
+	if got := srv.goaOpenItems(proto.GOATask{Note: "gone", Items: p.Items}); len(got) != 2 {
+		t.Fatalf("a note gone: %q", got)
+	}
+}
