@@ -104,6 +104,14 @@ func (m *Manager) SetNote(s *Session, note string) {
 	m.notify(s)
 }
 
+// SetReport keeps its agent's report of a turn.
+func (m *Manager) SetReport(s *Session, outcome, text string) {
+	s.mu.Lock()
+	s.meta.Report, s.meta.ReportOutcome, s.meta.ReportAt = text, outcome, time.Now().UnixMilli()
+	s.mu.Unlock()
+	m.notify(s)
+}
+
 // quickExitsFor is how long quick exits count against starting again.
 const quickExitsFor = 30 * time.Second
 

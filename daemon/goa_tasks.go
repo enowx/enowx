@@ -30,7 +30,7 @@ func (s *Server) goaDelegate(p proto.GOADelegateParams) (proto.GOATask, error) {
 	if strings.TrimSpace(p.Prompt) == "" {
 		return proto.GOATask{}, errors.New("goa: delegate what? (a prompt)")
 	}
-	p.Prompt += goaToDoLines(p)
+	p.Prompt += goaToDoLines(p) + goaReportAsk
 	t := proto.GOATask{Title: p.Title, Prompt: p.Prompt, Host: p.Host, Session: p.Session, Agent: p.Agent,
 		Model: p.Model, Effort: p.Effort, Config: p.Config, Note: p.Note, Items: p.Items}
 	p.SkipPermissions = p.SkipPermissions || s.goaSkipsUnheard(p.Agent)
@@ -309,6 +309,45 @@ func (s *Server) goaWorkerChanged(info proto.SessionInfo) {
 			s.goaRememberOutcome(t)
 			s.goaTell(head + " stopped: its agent ended.")
 		}
+	}
+	if len(changed) > 0 {
+		s.goaChanged()
+	}
+}
+
+// goaReportAsk is what every task asks of its session, whatever comes of it.
+const goaReportAsk = "\n\nEnd every turn with a report, whatever came of it, nothing to do and refusing included: \"$ENOWX_BIN\" goa report --outcome done|partly|nothing|blocked|refused|failed \"what happened, in a line or two\". It goes to GOD of Agents, who gave you this."
+
+// goaReport is session p.Session's report of its turn, kept on that session, on
+// its own host: goaReportSeen takes it to GOA from there.
+func (s *Server) goaReport(p proto.GOAReportParams) error {
+	if !slices.Contains(proto.GOAOutcomes, p.Outcome) {
+		return fmt.Errorf("goa: a report's outcome is one of %s", strings.Join(proto.GOAOutcomes, ", "))
+	}
+	sess, err := s.sessions.Get(p.Session)
+	if err != nil {
+		return fmt.Errorf("goa: report: %w", err)
+	}
+	s.sessions.SetReport(sess, p.Outcome, clip(strings.TrimSpace(p.Text), goaResultMax))
+	return nil
+}
+
+// goaReportSeen puts a report info carries that wasn't seen yet on its task, and
+// tells GOA in its session's words.
+func (s *Server) goaReportSeen(info proto.SessionInfo) {
+	if info.ReportAt == 0 {
+		return
+	}
+	changed := s.goa.board.Of(info.ID, func(t *proto.GOATask) bool {
+		if t.ReportAt >= info.ReportAt {
+			return false
+		}
+		t.Outcome, t.ReportAt, t.Said = info.ReportOutcome, info.ReportAt, info.Report
+		return true
+	})
+	for _, t := range changed {
+		where, hostFlag := goaTaskPlace(t)
+		s.goaTell(fmt.Sprintf("[enowX GOA] Task %s %q (%s) reports %s: %s Check it (chat %s%s), then settle it: goa task %s --status done|failed --result \"…\".", t.ID, t.Title, where, t.Outcome, clip(oneLine(t.Said), goaResultMax), t.Session, hostFlag, t.ID))
 	}
 	if len(changed) > 0 {
 		s.goaChanged()

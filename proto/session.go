@@ -164,6 +164,12 @@ type SessionInfo struct {
 	// Note is what the session is at, a line or two its agent (enowx note)
 	// or the user last set; "" for none.
 	Note string `json:"note,omitempty"`
+	// Report is what its agent last reported of a turn (goa report), Outcome one of
+	// GOAOutcomes; ReportAt, in Unix milliseconds, tells one from the next. On the
+	// session, it reaches GOA by the road its changes take, on any host.
+	Report        string `json:"report,omitempty"`
+	ReportOutcome string `json:"reportOutcome,omitempty"`
+	ReportAt      int64  `json:"reportAt,omitempty"`
 	// Group is the fan-out the session is part of: sessions given one
 	// prompt, each in its own worktree, to compare and keep the best of.
 	Group string `json:"group,omitempty"`

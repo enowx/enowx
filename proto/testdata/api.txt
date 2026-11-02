@@ -1105,6 +1105,9 @@ field GOARecallParams.session string
 field GOARememberParams.kind string
 field GOARememberParams.session string
 field GOARememberParams.text string
+field GOAReportParams.outcome string
+field GOAReportParams.session string
+field GOAReportParams.text string
 field GOARevertParams.id string
 field GOARules.clear bool
 field GOARules.rules string
@@ -1125,10 +1128,12 @@ field GOATask.items []string
 field GOATask.model string
 field GOATask.note string
 field GOATask.open []string
+field GOATask.outcome string
 field GOATask.override bool
 field GOATask.project string
 field GOATask.prompt string
 field GOATask.ran []string
+field GOATask.reportAt int64
 field GOATask.result string
 field GOATask.reused bool
 field GOATask.said string
@@ -1903,6 +1908,9 @@ field SessionInfo.private bool
 field SessionInfo.project string
 field SessionInfo.prompt string
 field SessionInfo.queued bool
+field SessionInfo.report string
+field SessionInfo.reportAt int64
+field SessionInfo.reportOutcome string
 field SessionInfo.restored bool
 field SessionInfo.skipPermissions bool
 field SessionInfo.skipUnheard bool
@@ -2749,6 +2757,7 @@ method goa.flags
 method goa.override
 method goa.recall
 method goa.remember
+method goa.report
 method goa.revert
 method goa.rules
 method goa.rules.save

@@ -3,7 +3,9 @@ package cli
 import (
 	"encoding/json"
 	"errors"
+	"flag"
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
 	"strings"
@@ -33,6 +35,8 @@ const goaUsage = `usage: enowx-app goa COMMAND
       --title T        the task's title on the board; --yolo skips the worker's permission prompts
   task ID [--status working|waiting|done|failed|stopped] [--result TEXT]
                                    settle a task, or say where it stands
+  report --outcome done|partly|nothing|blocked|refused|failed TEXT
+                                   a session's report of its turn, whatever came of it
   remember [--kind task|delegation|outcome|decision|preference] TEXT
                                    keep it in GOA's own collection
   recall QUERY [--project P [--host H]]...
@@ -43,6 +47,22 @@ const goaUsage = `usage: enowx-app goa COMMAND
   agents                           the agents GOA can run on, and how far each holds it
   flags                            what a GOA only watched did itself
   start [--agent A]                start GOD of Agents on this host`
+
+// goaReport is a session reporting how its turn ended, to its own host's daemon.
+func (r runner) goaReport(args []string) error {
+	fs := flag.NewFlagSet("goa report", flag.ContinueOnError)
+	fs.SetOutput(io.Discard)
+	outcome := fs.String("outcome", "", "")
+	words, err := parseAll(fs, args)
+	if err != nil || *outcome == "" {
+		return errors.New("usage: enowx-app goa report --outcome " + strings.Join(proto.GOAOutcomes, "|") + " TEXT")
+	}
+	session := os.Getenv(EnvSession)
+	if session == "" {
+		return errors.New("goa report: it runs inside a session")
+	}
+	return r.c.Call(proto.MethodGOAReport, proto.GOAReportParams{Session: session, Outcome: *outcome, Text: strings.Join(words, " ")}, nil)
+}
 
 // goaCmd runs `enowx goa …`.
 func (r runner) goaCmd(args []string) error {
@@ -71,6 +91,8 @@ func (r runner) goaCmd(args []string) error {
 		return r.goaDelegate(rest)
 	case "task":
 		return r.goaTask(rest)
+	case "report":
+		return r.goaReport(rest)
 	case "remember":
 		return r.goaRemember(rest)
 	case "recall":

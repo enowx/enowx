@@ -1,6 +1,7 @@
 package daemon
 
 import (
+	"strings"
 	"testing"
 	"time"
 
@@ -28,5 +29,30 @@ func TestTurnOverOnScreen(t *testing.T) {
 		if got := turnOverOnScreen(c.look, c.screen); got != c.want {
 			t.Errorf("%s: %v", name, got)
 		}
+	}
+}
+
+// A report's outcome is one of those there are; it goes on the task once, and
+// reaches GOA by the session's own change.
+func TestGOAReportGoesOnTheTask(t *testing.T) {
+	srv := startServer(t)
+	task, err := srv.goa.board.Add(proto.GOATask{Title: "x", Session: "s1"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := srv.goaReport(proto.GOAReportParams{Session: "s1", Outcome: "maybe"}); err == nil {
+		t.Fatal("an outcome there isn't")
+	}
+	info := proto.SessionInfo{ID: "s1", Report: "no access", ReportOutcome: "blocked", ReportAt: 5}
+	srv.goaReportSeen(info)
+	srv.goaReportSeen(info)
+	found := false
+	for _, x := range srv.goa.board.List() {
+		if x.ID == task.ID {
+			found = x.Outcome == "blocked" && strings.Contains(x.Said, "no access") && x.ReportAt == 5
+		}
+	}
+	if !found {
+		t.Fatal("not on the task")
 	}
 }

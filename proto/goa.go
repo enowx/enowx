@@ -138,11 +138,15 @@ type GOATask struct {
 	Urgent string `json:"urgent,omitempty"`
 	// Note and Items are as delegated; Open, once settled done, the items
 	// its note doesn't have ticked.
-	Note    string    `json:"note,omitempty"`
-	Items   []string  `json:"items,omitempty"`
-	Open    []string  `json:"open,omitempty"`
-	Created time.Time `json:"created"`
-	Updated time.Time `json:"updated"`
+	Note  string   `json:"note,omitempty"`
+	Items []string `json:"items,omitempty"`
+	Open  []string `json:"open,omitempty"`
+	// Outcome is what its session last reported, one of GOAOutcomes; ReportAt
+	// that report's time (SessionInfo.ReportAt).
+	Outcome  string    `json:"outcome,omitempty"`
+	ReportAt int64     `json:"reportAt,omitempty"`
+	Created  time.Time `json:"created"`
+	Updated  time.Time `json:"updated"`
 }
 
 // GOABoard is GOA's board on a host.
@@ -191,6 +195,20 @@ type GOAOverrideParams struct {
 	ID     string `json:"id"`
 	Model  string `json:"model,omitempty"`
 	Effort string `json:"effort,omitempty"`
+}
+
+// MethodGOAReport is a session saying how a turn ended, on its own host:
+// GOAReportParams.
+const MethodGOAReport = "goa.report"
+
+// GOAOutcomes are what a session can report of a turn.
+var GOAOutcomes = []string{"done", "partly", "nothing", "blocked", "refused", "failed"}
+
+// GOAReportParams is session Session's report of its turn, whatever came of it.
+type GOAReportParams struct {
+	Session string `json:"session"`
+	Outcome string `json:"outcome"`
+	Text    string `json:"text,omitempty"`
 }
 
 // GOAWorkerParams are a session of another host, as the app saw it

@@ -113,7 +113,7 @@ func (a *App) goaCatchUp(host string, sessions []proto.SessionInfo) {
 		if t == nil || goaSettled(*t) {
 			continue
 		}
-		if st := goa.WorkerStatus(s); st != "" && st != t.Status {
+		if st := goa.WorkerStatus(s); st != "" && st != t.Status || s.ReportAt > t.ReportAt {
 			a.goaRelay(host, s)
 		}
 	}

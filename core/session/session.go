@@ -84,6 +84,11 @@ type Meta struct {
 	// Note is what the session is at, as its agent or the user last said
 	// (SessionInfo.Note).
 	Note string
+	// Report, ReportOutcome and ReportAt are its agent's last report of a turn
+	// (SessionInfo). They don't outlast the daemon, their news having gone.
+	Report        string
+	ReportOutcome string
+	ReportAt      int64
 	// Group is the fan-out the session is part of (SessionInfo.Group).
 	Group string
 	// Account is the agent's account it runs as (SessionInfo.Account).
@@ -194,6 +199,9 @@ func (s *Session) Info() proto.SessionInfo {
 		ID:              s.id,
 		Name:            s.meta.Name,
 		Note:            s.meta.Note,
+		Report:          s.meta.Report,
+		ReportOutcome:   s.meta.ReportOutcome,
+		ReportAt:        s.meta.ReportAt,
 		Group:           s.meta.Group,
 		Account:         s.meta.Account,
 		Config:          cloneConfig(s.meta.Config),
