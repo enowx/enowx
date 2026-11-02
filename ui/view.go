@@ -47,9 +47,9 @@ func (a *App) view(c *ui.Context) {
 					a.navSidebarNarrow(c)
 				}
 				a.workspace(c)
+				a.canvasAgentPanel(c) // beside what it draws on, the dock staying at the edge
 				a.sidePanelView(c)
 				a.toolsDock(c)
-				a.canvasAgentPanel(c)
 			})
 		})
 		a.statusToast(c)

@@ -177,6 +177,7 @@ type App struct {
 	decisions          []*proto.Decision          // the judge stopped an agent or refused its command (decide_uses.go)
 	chatToasts         []*chatToast               // team chat messages, in the corner (teamchatnotify.go)
 	acctAsks           []*proto.AccountFallback   // accounts at their limit, asking to switch (accounts_switch.go)
+	panelPage          string                     // the Notes or Canvas page the panel was opened on
 	browserNews        bool                       // the Browser opened a page while the user was at something else
 	deletingServer     *hosts.Host                // the server whose deletion is asked about
 	clearingHost       *hosts.Host                // the host whose synced data's clearing is asked about

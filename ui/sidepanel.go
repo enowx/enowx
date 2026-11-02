@@ -127,16 +127,57 @@ func (a *App) panelTab() string {
 	return panelTools[0].id
 }
 
-// panelShown reports whether the side panel shows: open, beside a
-// session's workspace (not a rail page).
-func (a *App) panelShown() bool { return a.state.Panel.Open && a.page == "" && a.client != nil }
+// panelShown reports whether the side panel shows: open, beside a session's
+// workspace, or on the Notes or Canvas page it was opened on. Opened on a
+// session, it stays out of those pages until asked for there.
+func (a *App) panelShown() bool {
+	return a.state.Panel.Open && a.client != nil && (a.page == "" || a.pageHasDock() && a.panelPage == a.page)
+}
+
+// pageHasDock says the page in front is one the dock stays on, a session's
+// tools a click away while it stays open.
+func (a *App) pageHasDock() bool { return a.page == pageNotes || a.page == pageCanvas }
+
+// toolNeedsSession says tool shows something of the selected session; the
+// others are the team's or GOD of Agents'.
+func toolNeedsSession(tool string) bool {
+	switch tool {
+	case panelChat, panelTeamProjects, panelTeamMembers, panelSessions, panelTasks:
+		return false
+	}
+	return true
+}
+
+// toolOff says the dock can't open tool on this page: it has no session to
+// show. On a session's own page the panel says so itself.
+func (a *App) toolOff(tool string) bool {
+	if !a.pageHasDock() || !toolNeedsSession(tool) {
+		return false
+	}
+	_, ok := a.selectedSession()
+	return !ok
+}
+
+// showTool shows tool in the panel, on the page in front if the dock is on
+// it, else beside the session.
+func (a *App) showTool(tool string) {
+	if !a.pageHasDock() {
+		a.openPanel(tool)
+		return
+	}
+	if a.toolOff(tool) {
+		return
+	}
+	a.state.Panel.Open, a.state.Panel.Tab = true, tool
+	a.panelPage = a.page
+}
 
 // panelShows reports whether the side panel shows tool.
 func (a *App) panelShows(tool string) bool { return a.panelShown() && a.panelTab() == tool }
 
 // openPanel shows the panel with tool in it.
 func (a *App) openPanel(tool string) {
-	a.page = ""
+	a.page, a.panelPage = "", ""
 	a.state.Panel.Open, a.state.Panel.Tab = true, tool
 }
 
@@ -154,7 +195,7 @@ func (a *App) togglePanel() {
 		a.state.Panel.Open = false
 		return
 	}
-	a.openPanel(a.panelTab())
+	a.showTool(a.panelTab())
 }
 
 // toggleTool shows tool in the panel, or folds the panel if it shows it.
@@ -163,7 +204,7 @@ func (a *App) toggleTool(tool string) {
 		a.foldTool()
 		return
 	}
-	a.openPanel(tool)
+	a.showTool(tool)
 }
 
 // sidePanelView is the panel: its tab strip, then the tool in front, for
@@ -271,9 +312,10 @@ func (a *App) panelStrip(c *ui.Context) {
 var dockFirst = []string{panelChanges, panelFiles, panelChecks, panelBrowser, panelTraffic}
 
 // toolsDock is the column of tools at the window's right, while a session
-// shows: the conversation keeps the room until one is asked for.
+// shows and on the Notes and Canvas pages: what is in front keeps the room
+// until one is asked for.
 func (a *App) toolsDock(c *ui.Context) {
-	if a.page != "" || a.client == nil {
+	if a.page != "" && !a.pageHasDock() || a.client == nil {
 		return
 	}
 	front := ""
@@ -305,6 +347,10 @@ func (a *App) toolsDock(c *ui.Context) {
 		widget.Glass(ui.Column(c.Key("dock")).FillWidth().Padding(theme.S1, 0).Gap(theme.S1).Radius(theme.RadiusFull).AlignItems(ui.Center)).Children(func() {
 			for _, id := range first {
 				t, _ := findTool(id)
+				if a.toolOff(id) {
+					dockFaceOff(c.Key("tool:"+id), t.svg, t.name)
+					continue
+				}
 				if a.dockButton(c.Key("tool:"+id), t, id == front).Clicked() {
 					a.toggleTool(id)
 				}
@@ -325,8 +371,12 @@ func (a *App) toolsDock(c *ui.Context) {
 						if t.id == panelChat && unread > 0 {
 							label += " · " + strconv.Itoa(unread) + " unread"
 						}
+						if a.toolOff(t.id) {
+							widget.MenuItemOff(c.Key(t.id), t.svg, label)
+							continue
+						}
 						if widget.MenuItem(c.Key(t.id), t.svg, label, false) {
-							a.openPanel(t.id)
+							a.showTool(t.id)
 							done()
 						}
 					}
@@ -347,6 +397,14 @@ func dockFace(c *ui.Context, svg *ui.SVG, label string, on bool) ui.Element {
 		ui.Icon(c, svg).FontSize(16)
 	})
 	return b
+}
+
+// dockFaceOff is a dock's entry that can't be used now.
+func dockFaceOff(c *ui.Context, svg *ui.SVG, label string) {
+	ui.ButtonBase(c).Size(36, 36).Radius(theme.RadiusFull).Center().Shrink(0).Label(label).Tooltip(label).
+		TextColor(theme.TextSoft).Opacity(0.35).Disabled(true).Children(func() {
+		ui.Icon(c, svg).FontSize(16)
+	})
 }
 
 // dockButton is a tool's entry of the dock, with its news.

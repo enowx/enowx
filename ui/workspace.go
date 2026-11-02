@@ -28,6 +28,14 @@ const headerHeight = 56
 // down to its own minimum, before the workspace does.
 const minWorkspaceWidth = 400
 
+// With the panel beside them, the Notes and Canvas pages narrow first, down to
+// these: what is left of the smallest window beside the list and the panels,
+// and on Notes room for its agent, which keeps its width inside the frame.
+const (
+	minNotesWidth  = 480
+	minCanvasWidth = 270
+)
+
 // The window's smallest size: the wide rail, the session list, the
 // workspace and the side panel at their narrowest, with the gaps between.
 const (
@@ -65,7 +73,14 @@ func (a *App) workspace(c *ui.Context) {
 			view = "split:" + a.project
 		}
 	}
-	widget.BrightFrame(ui.Column(c.Key("workspace")).Grow(1).FillHeight().MinWidth(minWorkspaceWidth)).
+	frame := ui.Column(c.Key("workspace")).Grow(1).FillHeight().MinWidth(minWorkspaceWidth)
+	if a.pageHasDock() && a.panelShown() {
+		frame.Basis(0).MinWidth(minCanvasWidth)
+		if a.page == pageNotes {
+			frame.MinWidth(minNotesWidth)
+		}
+	}
+	widget.BrightFrame(frame).
 		Transition(widget.LayoutMotion).Children(func() {
 		ui.Column(c.Key(view)).Grow(1).FillWidth().MinHeight(0).Transition(widget.PageMotion).Children(func() { a.workspaceView(c) })
 	})

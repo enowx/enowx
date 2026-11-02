@@ -111,6 +111,17 @@ func MenuItemTip(c *ui.Context, svg *ui.SVG, label, tip string, danger bool) boo
 	return b.Clicked()
 }
 
+// MenuItemOff is a menu item that can't be picked now.
+func MenuItemOff(c *ui.Context, svg *ui.SVG, label string) {
+	ui.ButtonBase(c).Gap(theme.S2).Padding(theme.S1, theme.S3).MinHeight(theme.ControlHeight).Radius(theme.RadiusFull).
+		Label(label).FillWidth().Justify(ui.Start).TextColor(theme.Text).Opacity(0.35).Disabled(true).Children(func() {
+		if svg != nil {
+			ui.Icon(c, svg).FontSize(14)
+		}
+		ui.Text(c, label).FontSize(theme.TextUI).SingleLine().Shrink(1).MinWidth(0)
+	})
+}
+
 // MenuItemSub is a menu item with a quieter line under its label.
 func MenuItemSub(c *ui.Context, svg *ui.SVG, label, sub string, danger bool) bool {
 	color := theme.Text
