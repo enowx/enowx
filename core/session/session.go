@@ -314,6 +314,21 @@ func truncate(s string, n int) string {
 	return string(r[:n])
 }
 
+// QuietFor is how long it has been since anything was typed in or shown, as of
+// now; a long time when nothing has been since it was brought back.
+func (s *Session) QuietFor(now time.Time) time.Duration {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	last := s.lastChange
+	if s.lastInput.After(last) {
+		last = s.lastInput
+	}
+	if last.IsZero() {
+		return 365 * 24 * time.Hour
+	}
+	return now.Sub(last)
+}
+
 // stateLocked is the agent's state as clients see it: what the hooks said,
 // unless it went stale. The caller holds s.mu.
 func (s *Session) stateLocked(now time.Time) string {

@@ -206,6 +206,19 @@ Where an agent's docs offer no way for one session, and the closest there is:
 - **Cursor, Hermes, OpenClaw, Kimi, OpenCode 2:** instructions only from the project's folder or a file of the user's identity (`SOUL.md`). Writing into either would change what isn't enowX's. Closest: the line after the first prompt.
 - **Trae, DeepSeek Harness, Codebuff, Freebuff:** their documentation couldn't be read here. They keep the line after the first prompt until it can.
 
+## Helpers end by themselves
+
+Sessions enowX starts for one piece of work end when it does, without the user asking, and leave the session lists; what they made stays where it belongs. Each host's daemon sees to its own (`daemon/helpers.go`).
+
+| Session | Ends | What stays |
+|---|---|---|
+| A design reviewer | once its verdict is in and its turn is over | the verdict, on the run |
+| A region's unslop agent | once it says its part is done and its turn is over | the design, on the canvas |
+| A build's direction | after 15 minutes unused, as it may be sent back after the comparison | its design, on the canvas |
+| A Canvas page's agent, a Notes page's agent | after 15 minutes unused: the next message goes on with its conversation, by its ID where the agent can resume one; else a new one, with the page's chat log | the canvas, the note, the chat log |
+
+One at work or waiting on the user is never ended, nor one whose hooks have gone quiet, which may be either. Not helpers, and never ended by this: sessions the user starts, GOD of Agents and its workers, anything on its board, a teammate's session, a fan-out (its results wait to be compared), pipelines and automations (the session is their result), and tabs, which end with their session. Those left from before this are cleaned up the same way, at the first look after the daemon starts.
+
 ## The model a session runs on
 
 The session list, `sessions` and `ls` show each agent session's project, path and model. The model is what the agent writes in its transcript with each answer, looked at every few seconds, so `/model`, a switch, a fallback and a config all show, Claude Code's `/model` at once and others with their next answer. An agent enowX reads no transcript of, or one that hasn't answered yet, reads "unknown model"; a stopped session shows the last it said, marked "(last)". A program started by hand in a shell tab is listed as the shell, with no model.

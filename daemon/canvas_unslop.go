@@ -94,6 +94,13 @@ func (s *Server) canvasUnslop(p proto.CanvasUnslopParams) (proto.CanvasUnslop, e
 			return out, err
 		}
 		s.broadcast(proto.EventCanvasUnslop, run)
+		if strings.EqualFold(p.Pass, "done") {
+			for _, r := range run.Regions {
+				if r.ID == p.Region {
+					s.helperFinished(r.Session)
+				}
+			}
+		}
 		if allDone(run) && !allDone(was) {
 			go s.tellLead(run, cv)
 		}

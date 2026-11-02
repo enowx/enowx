@@ -108,6 +108,7 @@ type Server struct {
 	// controlAsks are the sessions waiting for the user's yes in the app, and
 	// the method it's for (sessionAwaitsUser).
 	controlAsks sync.Map
+	helpers     helpersState // sessions enowX starts for one piece of work (helpers.go)
 	// controlAllowMu guards the file of sessions always allowed (control_allow.go).
 	controlAllowMu sync.Mutex
 	statsState     stats
@@ -264,6 +265,7 @@ func newServer(dir, hookBin string) (*Server, error) {
 	go s.watchModels(s.done)
 	go s.watchPrompts(s.done)
 	go s.watchStalls(s.done)
+	go s.watchHelpers(s.done)
 	go s.runSchedules(s.done)
 	go s.goBackLoop(s.done)
 	go s.watchLimitsLoop(s.done)

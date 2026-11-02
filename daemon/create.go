@@ -37,6 +37,11 @@ func (s *Server) createSession(p proto.SessionCreateParams) (*session.Session, e
 // or the host's own user (nil): a member's session gets none of the host's
 // credentials (membersession.go).
 func (s *Server) createSessionFor(p proto.SessionCreateParams, member *proto.SessionMember) (*session.Session, error) {
+	if member == nil {
+		if convo := s.takeHelperConvo(p); convo != "" {
+			p.Resume = convo // a page's agent that ended idle: the same conversation
+		}
+	}
 	meta := session.Meta{Member: member, Name: strings.TrimSpace(p.Name), Prompt: p.Prompt, Project: p.Project, Agent: p.Agent, Group: p.Group, Account: p.Account, NotesFor: p.NotesFor, CanvasFor: p.CanvasFor, Features: p.Features,
 		NoAutoHibernate: s.hibernatePrefs().NeverByDefault}
 	if err := s.tokenGate(p, p.Project); err != nil {
