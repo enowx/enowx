@@ -95,7 +95,11 @@ func TestSettingsConfigMenus(t *testing.T) {
 	app.openNewSession(app.projects[0])
 	app.newSession.agent = "claude"
 	tt = draw(app.view)
-	h.settle("the Config field", func() bool { return tt.HasText("Work account") })
+	h.settle("the Config field", func() bool { return tt.HasText("Default") })
+	if err := tt.Click("Config of the session"); err != nil {
+		t.Fatalf("%v: %q", err, tt.Texts())
+	}
+	h.settle("the Config menu", func() bool { return tt.HasText("Work account") })
 	shot(t, tt, "settings-new-session-config.png")
 	app.newSession.open = false
 

@@ -3,6 +3,7 @@ package ui
 import (
 	"fmt"
 	"os"
+	"slices"
 
 	"github.com/egoist/mygo"
 	"github.com/egoist/mygo/ui"
@@ -51,13 +52,17 @@ func (a *App) noteExportDialog(c *ui.Context) {
 		a.noteExport = nil
 		return
 	}
-	widget.FormSheet(c, &f.open, 520, "Export notes", "“"+f.pick.Title+"”, written on "+a.host.Name+", then saved on this device where you pick.", func() {
+	widget.FormSheet(c, &f.open, 480, "Export notes", "“"+f.pick.Title+"”, written on "+a.host.Name+", then saved on this device where you pick.", func() {
 		labels := make([]string, len(exportFormats))
+		names := map[string]string{}
 		for i, ef := range exportFormats {
 			labels[i] = ef.label
+			names[ef.label] = ef.label
 		}
 		widget.Field(c, "As", func() {
-			if i := widget.Segmented(c, labels, f.format, nil); i >= 0 && !f.busy {
+			picked := labels[f.format]
+			hookSelect(c, "Export as", &picked, labels, names)
+			if i := slices.Index(labels, picked); i != f.format && !f.busy {
 				f.format = i
 			}
 		})

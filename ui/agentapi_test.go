@@ -118,11 +118,15 @@ func TestMakeAModelAPIConfig(t *testing.T) {
 		ui.Column(c).Width(600).Height(120).Background(theme.Background).TextColor(theme.Text).Children(func() { app.accountField(c) })
 	}, 600, 120)
 	ns.Frame()
-	if !ns.HasText("Official") || !ns.HasText("GLM") || app.newSession.account != "" {
+	if !ns.HasText("Default") || app.newSession.account != "" {
 		t.Fatalf("New session's configs: %q, picked %q", ns.Texts(), app.newSession.account)
 	}
+	if err := ns.Click("Config of the session"); err != nil { // a select: the configs are in its menu
+		t.Fatalf("%v: %q", err, ns.Texts())
+	}
+	ns.Frame()
 	if err := ns.Click("GLM"); err != nil {
-		t.Fatal(err)
+		t.Fatalf("%v: %q", err, ns.Texts())
 	}
 	ns.Frame()
 	if app.newSession.account != list[0].ID || !app.newSession.accountPicked {

@@ -134,30 +134,13 @@ func (a *App) accountField(c *ui.Context) {
 		f.account = a.defaultAccountFor(f.agent, f.project.Path) // by the preferences, until picked
 	}
 	widget.Field(c, "Config", func() {
-		labels := []string{"Official"}
-		cur := 0
-		for i, acc := range list {
-			labels = append(labels, acc.Name)
-			if acc.ID == f.account {
-				cur = i + 1
-			}
-		}
-		if len(labels) <= 4 {
-			if i := widget.Segmented(c, labels, cur, nil); i >= 0 {
-				f.account, f.accountPicked = "", true
-				if i > 0 {
-					f.account = list[i-1].ID
-				}
-			}
-			return
-		}
-		options, names := []string{""}, map[string]string{"": "Official: the agent as installed"}
+		options, names := []string{""}, map[string]string{"": "Default"}
 		for _, acc := range list {
 			options = append(options, acc.ID)
-			names[acc.ID] = acc.Name + " · " + configKindLabel(acc)
+			names[acc.ID] = acc.Name
 		}
 		v := f.account
-		hookSelect(c.Key("config"), "Config", &v, options, names)
+		hookSelect(c.Key("config"), "Config of the session", &v, options, names)
 		if v != f.account {
 			f.account, f.accountPicked = v, true
 		}
