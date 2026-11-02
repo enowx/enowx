@@ -52,7 +52,15 @@ func TestCanvasLayoutAudit(t *testing.T) {
 			h.app.canvases.CompareDesigns(h.app.canvasOptions(), c.ID, []string{c.Frames[1].ID, c.Frames[2].ID})
 		}},
 		{"agent", func() { h.app.canvases.SetView(0); h.app.canvases.OpenAssistant() }},
-		{"new-canvas", func() { h.app.canvases.CloseAssistant(); h.app.canvases.NewCanvas() }},
+		{"agent-panel", func() {
+			h.app.state.Panel.Open, h.app.state.Panel.Tab, h.app.panelPage = true, panelFiles, pageCanvas
+		}},
+		{"panel", func() { h.app.canvases.CloseAssistant() }},
+		{"new-canvas", func() {
+			h.app.state.Panel.Open, h.app.panelPage = false, ""
+			h.app.canvases.CloseAssistant()
+			h.app.canvases.NewCanvas()
+		}},
 	}
 	shots := os.Getenv("SHOTS")
 	var problems []string

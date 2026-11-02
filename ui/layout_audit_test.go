@@ -12,6 +12,7 @@ import (
 
 	"github.com/enowx/enowx/proto"
 	"github.com/enowx/enowx/ui/notesview"
+	"github.com/enowx/enowx/ui/wrapcheck"
 )
 
 // The layout audit draws the whole app, each page at a small, a common
@@ -50,6 +51,25 @@ func auditPages() []auditPage {
 			a.page = pageNotes
 			a.notes.Select(a.notesOptions(), a.noteList.list[0].ID)
 			a.notes.SetAssistant(true)
+		}},
+		{name: "notes-dock-panel", open: func(a *App) {
+			a.page = pageNotes
+			a.notes.Select(a.notesOptions(), a.noteList.list[0].ID)
+			a.selectSession(a.sessions[0])
+			a.page = pageNotes
+			a.showTool(panelFiles)
+		}},
+		{name: "notes-dock-agent-panel", open: func(a *App) {
+			a.page = pageNotes
+			a.notes.Select(a.notesOptions(), a.noteList.list[0].ID)
+			a.notes.SetAssistant(true)
+			a.selectSession(a.sessions[0])
+			a.page = pageNotes
+			a.showTool(panelChanges)
+		}},
+		{name: "notes-dock-no-session", open: func(a *App) {
+			a.page, a.selected, a.state.Panel.Open = pageNotes, "", false
+			a.notes.Select(a.notesOptions(), a.noteList.list[0].ID)
 		}},
 		{name: "hosts", open: func(a *App) { a.page = pageHosts }},
 		{name: "usage", open: func(a *App) { a.page = pageUsage }, fill: true},
@@ -140,6 +160,7 @@ func auditPages() []auditPage {
 func closeAudit(a *App) {
 	a.newSession.open = false
 	a.notes.SetAssistant(false)
+	a.state.Panel.Open, a.panelPage = false, ""
 	a.clone, a.featAsks, a.acctAsks, a.decisions = nil, nil, nil, nil
 	a.addHost.open = false
 	a.noteImport, a.noteExport = nil, nil
@@ -202,6 +223,9 @@ func layoutProblems(tt *ui.Tester, w, h float32, fill bool) []string {
 		if !ok || r.W < 12 || r.H <= 0 || r.W <= 44 && r.H <= 44 {
 			continue // an icon button's label or a handle's, not a text
 		}
+		if wrapcheck.FullWidth(tt, text) > r.W+wrapSlackPoints {
+			continue // cut by what scrolls it, as the last card of a strip: it isn't squeezed
+		}
 		short := text
 		if len(short) > 40 {
 			short = short[:40] + "…"
@@ -228,6 +252,9 @@ func layoutProblems(tt *ui.Tester, w, h float32, fill bool) []string {
 	}
 	return append(out, outOfParents(tt)...)
 }
+
+// wrapSlackPoints is what rounding leaves between two measures of one box.
+const wrapSlackPoints = 1.5
 
 // seedAudit gives the app things to show: notes, a project, sessions.
 func seedAudit(t *testing.T, h *notesHarness) {

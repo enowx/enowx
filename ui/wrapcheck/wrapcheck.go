@@ -113,3 +113,30 @@ func OutOfParents(tt *ui.Tester) []string {
 	}
 	return out
 }
+
+// FullWidth is how wide the element labelled or reading text is as laid out,
+// the widest if several are. The Tester's rectangle is cut by what scrolls or
+// clips an element; this isn't. 0 if there is none.
+func FullWidth(tt *ui.Tester, text string) float32 {
+	rt := field(reflect.ValueOf(tt).Elem(), "rt").Elem()
+	ctx := field(rt, "c")
+	if ctx.Kind() == reflect.Pointer {
+		ctx = ctx.Elem()
+	}
+	var widest float32
+	var walk func(n reflect.Value)
+	walk = func(n reflect.Value) {
+		if field(n, "label").String() == text || field(n, "text").String() == text {
+			if _, _, w, _, ok := nodeBox(n); ok {
+				widest = max(widest, w)
+			}
+		}
+		for k := field(n, "first"); !k.IsNil(); k = field(k.Elem(), "next") {
+			walk(k.Elem())
+		}
+	}
+	if root := field(ctx, "root"); !root.IsNil() {
+		walk(root.Elem())
+	}
+	return widest
+}
