@@ -89,7 +89,7 @@ func TrustCodexHooks(home string) error {
 	text := string(data)
 	changed := false
 	for _, e := range codexEvents {
-		g := on("", e.event, e.state, e.timeout)
+		g := codexOn(e.event, e.state, e.timeout)
 		key := fmt.Sprintf("%s:%s:0:0", codexFlagsSource, e.label)
 		var ok bool
 		text, ok = setTrustedHash(text, key, codexHookHash(e.label, g.Hooks[0]))

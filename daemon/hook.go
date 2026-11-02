@@ -33,9 +33,11 @@ const hookEventTimeout = 10 * time.Minute
 // can't be reported is dropped. It returns the exit code.
 func Hook(args []string, stdin io.Reader, stdout, stderr io.Writer) int {
 	id := os.Getenv(session.EnvSession)
-	var event, state string
+	var event, state, agentID string
 	for i := 0; i < len(args); i++ {
 		switch {
+		case strings.HasPrefix(args[i], "--agent="):
+			agentID = strings.TrimPrefix(args[i], "--agent=")
 		case args[i] == "--event" && i+1 < len(args):
 			i++
 			event = args[i]
@@ -64,6 +66,11 @@ func Hook(args []string, stdin io.Reader, stdout, stderr io.Writer) int {
 			_ = c.Call(proto.MethodSessionState, proto.SessionStateParams{ID: id, State: state}, nil) // an older daemon
 		}
 	})
+	return answerHook(event, agentID, data, d, stdout, stderr)
+}
+
+// answerHook translates the daemon decision into the agent hook protocol.
+func answerHook(event, agentID string, data []byte, d proto.HookDecision, stdout, stderr io.Writer) int {
 	if d.Block && (event == proto.HookToolBefore || event == proto.HookPromptStart) {
 		fmt.Fprintln(stderr, d.Reason)
 		return hooks.ExitBlock
@@ -75,7 +82,9 @@ func Hook(args []string, stdin io.Reader, stdout, stderr io.Writer) int {
 		}
 	}
 	if d.Approve && event == proto.HookToolBefore {
-		fmt.Fprintln(stdout, approveOutput())
+		if agentID != "codex" {
+			fmt.Fprintln(stdout, approveOutput())
+		}
 		return 0
 	}
 	if d.Context != "" && (event == proto.HookPromptStart || event == proto.HookSessionStart) {
