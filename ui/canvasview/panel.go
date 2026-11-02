@@ -30,12 +30,10 @@ func (v *View) sidePanel(c *ui.Context, o Options) {
 			if n := v.openComments(); n > 0 {
 				comments = fmt.Sprintf("Comments %d", n)
 			}
-			ui.Row(c).Grow(1).MinWidth(0).Children(func() {
-				if i := widget.SegmentedFit(c.Key("tabs"), []string{"Layers", comments, "Versions", "Grid"}, slices.Index(panelTabs, v.panel)); i >= 0 {
-					v.panel = panelTabs[i]
-					v.togglePanelLoad(o)
-				}
-			})
+			if i := panelSegments(c.Key("tabs"), []string{"Layers", comments, "Versions", "Grid"}, slices.Index(panelTabs, v.panel)); i >= 0 {
+				v.panel = panelTabs[i]
+				v.togglePanelLoad(o)
+			}
 		})
 		ui.Scroll(c.Key("panel-body")).Grow(1).FillWidth().MinHeight(0).Children(func() {
 			ui.Column(c).FillWidth().Padding(0, theme.S3, theme.S3, theme.S3).Gap(theme.S2).Children(func() {
@@ -55,6 +53,34 @@ func (v *View) sidePanel(c *ui.Context, o Options) {
 			v.commentComposer(c, o)
 		}
 	})
+}
+
+// panelSegments are the panel's tabs, each as wide as its word needs: at equal
+// widths "Comments" wouldn't fit the panel, though all four do.
+func panelSegments(c *ui.Context, labels []string, current int) int {
+	clicked := -1
+	ui.Row(c).FillWidth().MinWidth(0).Padding(theme.S1).Radius(theme.RadiusFull).Background(theme.Sunken).Children(func() {
+		for i, label := range labels {
+			b := ui.ButtonBase(c.Key(i)).Grow(float32(len(label) + 1)).Basis(0).MinWidth(0).Height(28).PaddingX(2).Radius(theme.RadiusFull).Label(label)
+			bg, fg, weight := theme.Fade(theme.Selected, 0), theme.TextSoft, 400
+			switch {
+			case i == current:
+				bg, fg, weight = theme.Selected, theme.TextStrong, 500
+			case b.Hovered():
+				bg, fg = theme.Hover, theme.Text
+			}
+			if i != current {
+				b.Cursor(ui.CursorPointer)
+			}
+			b.Background(widget.QuickTint(b, "bg", bg)).Children(func() {
+				widget.Running(c, label, widget.RunStyle{Color: fg, Weight: weight})
+			})
+			if i != current && b.Clicked() {
+				clicked = i
+			}
+		}
+	})
+	return clicked
 }
 
 // showLayers shows the Layers panel, or has it show once the agent's closed.

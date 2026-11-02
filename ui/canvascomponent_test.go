@@ -52,6 +52,9 @@ func TestCanvasComponentPickedAndNoted(t *testing.T) {
 		t.Fatalf("no redesign: %q", h.tt.Texts())
 	}
 	shot(t, h.tt, "canvas-component.png")
+	if out := outOfParents(h.tt); len(out) > 0 {
+		t.Errorf("out of their parents: %q", out)
+	}
 	h.click(t, "Write a note instead of asking the AI")
 	h.click(t, "About #hero")
 	h.tt.Type("make the headline bigger")

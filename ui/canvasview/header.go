@@ -115,16 +115,16 @@ func (v *View) exportMenu(c *ui.Context, o Options, cv proto.Canvas, f proto.Can
 		} {
 			picked := false
 			if e.sub != "" {
-				picked = widget.MenuItemSub(c.Key(e.label), icon.Download, e.label, e.sub, false)
+				picked = widget.MenuItemSub(c.Key(e.label), nil, e.label, e.sub, false)
 			} else {
-				picked = widget.MenuItem(c.Key(e.label), icon.Download, e.label, false)
+				picked = widget.MenuItem(c.Key(e.label), nil, e.label, false)
 			}
 			if picked {
 				v.export(o, cv, f.ID, e.format)
 				done()
 			}
 		}
-		if widget.MenuItem(c.Key("page"), icon.Download, "Share as a page (read-only HTML)…", false) {
+		if widget.MenuItem(c.Key("page"), nil, "Share as a page (read-only HTML)…", false) {
 			v.export(o, cv, "", proto.RenderHTML)
 			done()
 		}
@@ -152,7 +152,7 @@ func (v *View) makeCodeMenu(c *ui.Context, o Options, cv proto.Canvas) {
 			if containsPath(cv.Projects, p.Path) {
 				label += " · attached"
 			}
-			if widget.MenuItem(c.Key(p.Path), icon.Folder, label, false) {
+			if widget.MenuItem(c.Key(p.Path), nil, label, false) {
 				o.MakeCode(cv, p.Path)
 				if !containsPath(cv.Projects, p.Path) {
 					projects := append(append([]string{}, cv.Projects...), p.Path)
@@ -166,7 +166,7 @@ func (v *View) makeCodeMenu(c *ui.Context, o Options, cv proto.Canvas) {
 
 // moreMenu is what is done with the canvas itself.
 func (v *View) moreMenu(c *ui.Context, o Options, cv proto.Canvas) {
-	more := widget.IconButton(c.Key("more"), icon.More, "More", false)
+	more := widget.IconButton(c.Key("more"), icon.More, "More for this canvas", false)
 	v.menu.OpenBelow(more, "more", theme.ControlHeight)
 	v.menu.Show(c, more, "more", func(done func()) {
 		if widget.MenuItem(c.Key("rename"), icon.Pencil, "Rename…", false) {

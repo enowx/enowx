@@ -32,7 +32,7 @@ func (v *View) toolbar(c *ui.Context, o Options, cv proto.Canvas) {
 			v.menu.OpenBelow(ins, "insert", theme.ControlHeight)
 			v.menu.Show(c, ins, "insert", func(done func()) {
 				for _, comp := range canvas.Components {
-					if widget.MenuItem(c.Key(comp.Name), icon.Square, comp.Name, false) {
+					if widget.MenuItem(c.Key(comp.Name), nil, comp.Name, false) {
 						id, html := canvas.ComponentHTML(comp, f.HTML)
 						v.sel = id
 						v.edit(o, proto.CanvasEdit{Op: proto.CanvasOpHTMLPatch, Target: id, HTML: html})
@@ -103,7 +103,7 @@ func (v *View) modeTools(c *ui.Context, o Options, f proto.CanvasFrame, narrow b
 	v.menu.OpenBelow(pw, "preview", theme.ControlHeight)
 	v.menu.Show(c, pw, "preview", func(done func()) {
 		for i, name := range names {
-			if widget.MenuItem(c.Key(name), icon.Laptop, name, false) {
+			if widget.MenuItem(c.Key(name), nil, name, false) {
 				v.preview = widths[i]
 				done()
 			}

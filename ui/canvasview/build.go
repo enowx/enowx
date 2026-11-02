@@ -106,7 +106,9 @@ func (v *View) buildDialog(c *ui.Context, o Options) {
 					v.countSelect(c, f)
 				})
 				if f.count == 0 {
-					widget.Checkbox(c.Key("confirm"), &f.confirm, "Show me the direction before building it")
+					ui.Row(c.Key("confirm")).FillWidth().Children(func() {
+						widget.Checkbox(c, &f.confirm, "Show me the direction before building it")
+					})
 				}
 			}
 			if f.imageErr != "" {
