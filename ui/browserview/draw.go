@@ -287,10 +287,12 @@ func (v *View) pickButton(c *ui.Context, o Options, page Page) {
 			}
 		}
 		o.Update(func() {
+			// Asked before cancel: its end is what says the time ran out.
+			timedOut := ctx.Err() != nil
 			cancel()
 			v.picking = nil
 			switch {
-			case err != nil && ctx.Err() == nil:
+			case err != nil && !timedOut:
 				v.err = "Couldn't pick the element: " + err.Error()
 			case picked != nil:
 				o.AttachElement(picked.Describe(), shot)

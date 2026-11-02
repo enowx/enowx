@@ -6,6 +6,7 @@ import (
 	"github.com/egoist/mygo/ui"
 
 	"github.com/enowx/enowx/proto"
+	"github.com/enowx/enowx/ui/theme"
 )
 
 // The toolbar's Unslop starts one on a page of the project running here,
@@ -18,7 +19,10 @@ func TestUnslopInTheBrowser(t *testing.T) {
 	v := New()
 	v.loaded = true
 	v.setPorts(o, []proto.Port{{Port: 5173}})
-	tt := ui.NewTester(func(c *ui.Context) { v.Draw(c, o) }, 1000, 600)
+	tt := ui.NewTester(func(c *ui.Context) {
+		c.SetTheme(theme.Window())
+		ui.Column(c).Width(1000).Height(600).Background(theme.Frame).TextColor(theme.Text).Children(func() { v.Draw(c, o) })
+	}, 1000, 600)
 	tt.Frame()
 	if err := tt.Click("Unslop"); err != nil {
 		t.Fatal(err)
@@ -53,11 +57,13 @@ func TestUnslopInTheBrowser(t *testing.T) {
 	if !tt.HasText("Reading the page…") || !tt.HasText("Truth") {
 		t.Fatalf("no panel over the page: %q", tt.Texts())
 	}
+	lookShot(t, tt, "browser-unslop-run")
 	// Done, with its pictures taken: Compare opens its before and after.
 	compared := 0
 	o.UnslopCompare = func(proto.CanvasUnslopRun) { compared++ }
 	o.UnslopRun = &proto.CanvasUnslopRun{ID: "s1", Frame: "page", From: 8, Score: 70, Scans: 3, Done: true, Shots: 3, Passes: []string{"01 Truth"}}
 	tt.Frame()
+	lookShot(t, tt, "browser-unslop-done")
 	if err := tt.Click("Compare"); err != nil {
 		t.Fatalf("%v: %q", err, tt.Texts())
 	}
