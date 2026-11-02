@@ -72,7 +72,7 @@ func (a *App) rulesAskBox(c *ui.Context, d *rulesDraft, forWhat, path string, te
 		widget.Well(ask, ask.Focused())
 	})
 	ui.Row(c.Key("rules-ai")).FillWidth().Shrink(0).Gap(theme.S2).Children(func() {
-		b := widget.Button(c, widget.Secondary, icon.Sparkle, "Write with AI", "")
+		b := widget.Button(c, widget.Secondary, icon.Sparkle, "Write with AI", "").Grow(1)
 		if d.drafting || strings.TrimSpace(d.ask) == "" {
 			b.Disabled(true)
 		} else if b.Clicked() {

@@ -5,7 +5,6 @@ import (
 
 	"github.com/egoist/mygo/ui"
 
-	"github.com/enowx/enowx/ui/icon"
 	"github.com/enowx/enowx/ui/theme"
 	"github.com/enowx/enowx/ui/widget"
 )
@@ -75,11 +74,7 @@ func (a *App) accentPicker(c *ui.Context) {
 	ui.Text(c, "Give any theme an accent of your own: its buttons, selection and focus take it.").
 		FontSize(theme.TextLabel).TextColor(theme.TextSoft)
 	ui.Row(c).FillWidth().Wrap().Gap(theme.S2).Children(func() {
-		var mark *ui.SVG
-		if a.state.Accent == "" {
-			mark = icon.Check
-		}
-		if widget.Button(c.Key("default"), widget.Secondary, mark, "Theme's own", "").Clicked() {
+		if widget.Button(c.Key("default"), widget.Secondary, nil, "Theme's own", "").Clicked() {
 			a.setAccent("")
 		}
 		for _, col := range theme.Accents {
