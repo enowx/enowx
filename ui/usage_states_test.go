@@ -142,6 +142,10 @@ func usageStatePages(t *testing.T) []auditPage {
 			}
 			auditCredentials(t, a, more...)
 		}},
+		{name: "vault-expiry-toast", open: func(a *App) {
+			auditCredentials(t, a)
+			a.vaultReminders()
+		}},
 		{name: "vault-ask-lend", open: func(a *App) {
 			auditAsk(t, a, vaultview.Ask{Always: true, Host: "enowxlabs", Title: "Let enowxlabs use github?",
 				About: "Claude Code in “Dialog footers” on enowxlabs asks for it, for git push. The values go to that session only."})
@@ -326,5 +330,33 @@ func usageFlows(t *testing.T) []auditFlow {
 			clicks(t, tt, "Remove")
 			see(t, tt, "Remove your price for qwen3:8b?")
 		}},
+	}
+}
+
+// A budget at its limit says so, with what happens next; turned off, no banner
+// goes to the system, whose real notifications tests must not raise.
+func TestBudgetAlertSaysWhatHappens(t *testing.T) {
+	a := New(Options{})
+	a.state.NotifyOff = true
+	a.host.Name = "this Mac"
+	a.budgetAlert(proto.TokenBudgetState{TokenBudget: proto.TokenBudget{Period: proto.BudgetWeek, Scope: proto.BudgetAll, AtLimit: proto.BudgetAsk}, Level: 100, Fraction: 1})
+	if !strings.Contains(a.status, "at 100%") || !strings.Contains(a.status, "New sessions ask first.") {
+		t.Fatalf("status: %q", a.status)
+	}
+}
+
+// A credential expiring within a week is told of once a day, by a toast.
+func TestVaultRemindsOfExpiryOnceADay(t *testing.T) {
+	fakeKeychain(t)
+	a := New(Options{})
+	auditCredentials(t, a)
+	a.vaultReminders()
+	if !strings.Contains(a.notice, "cloudflare expires on") {
+		t.Fatalf("notice: %q", a.notice)
+	}
+	a.notice = ""
+	a.vaultReminders()
+	if a.notice != "" {
+		t.Fatalf("told again the same day: %q", a.notice)
 	}
 }

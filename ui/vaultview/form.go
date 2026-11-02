@@ -123,9 +123,9 @@ func (v *View) formDialog(c *ui.Context, o Options) {
 				}
 				if fl.Multiline {
 					ui.TextArea(c, &val).FillWidth().Height(96).Padding(theme.S2, theme.S3).Radius(theme.RadiusSmall).Background(theme.Sunken).
-						InsetShadow(0, 0, 0, 0.5, theme.Border).Font(theme.MonoFont).FontSize(theme.TextLabel).Label("Paste the " + strings.ToLower(fl.Label))
+						InsetShadow(0, 0, 0, 0.5, theme.Border).Font(theme.MonoFont).FontSize(theme.TextLabel).Label(pasteHint(fl.Label))
 				} else {
-					in := widget.Input(c, &val, "Paste the "+strings.ToLower(fl.Label)).FillWidth()
+					in := widget.Input(c, &val, pasteHint(fl.Label)).FillWidth()
 					if fl.Secret {
 						in.Password()
 					}
@@ -231,6 +231,18 @@ func (f *form) credential() (vault.Credential, string) {
 		}
 	}
 	return cr, ""
+}
+
+// pasteHint is what a field's empty input says, its label's initialisms kept:
+// "Paste the API token".
+func pasteHint(label string) string {
+	words := strings.Fields(label)
+	for i, w := range words {
+		if w != strings.ToUpper(w) {
+			words[i] = strings.ToLower(w)
+		}
+	}
+	return "Paste the " + strings.Join(words, " ")
 }
 
 // envOf lists the variables a platform's credentials set.
