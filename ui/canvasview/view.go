@@ -425,7 +425,7 @@ func (v *View) Draw(c *ui.Context, o Options) {
 		if v.listShown() && !o.ListOutside {
 			v.sidebar(c, o)
 		}
-		ui.Column(c).Grow(1).MinWidth(0).FillHeight().Background(theme.Background).Children(func() {
+		ui.Column(c).Grow(1).MinWidth(0).FillHeight().Children(func() {
 			switch {
 			case v.canvas == nil && v.loading:
 				ui.Text(c, "Opening…").FontSize(theme.TextLabel).TextColor(theme.Muted).Padding(theme.S5)
