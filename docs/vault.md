@@ -1,6 +1,6 @@
 # Credentials
 
-The rail's **Credentials** page keeps the user's logins to platforms (GitHub and other git hosts, cloud providers, edge and hosting, databases, registries, AI APIs, SSH keys, bots, or any key, login, env file or certificate) in one vault. Sessions on any host use them without logging in again on each machine, and agents use them by name without seeing a value.
+The **Credentials** page (More › Credentials) keeps the user's logins to platforms (GitHub and other git hosts, cloud providers, edge and hosting, databases, registries, AI APIs, SSH keys, bots, or any key, login, env file or certificate) in one vault. Sessions on any host use them without logging in again on each machine, and agents use them by name without seeing a value.
 
 ## The vault
 
