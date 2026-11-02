@@ -206,7 +206,7 @@ func hudRegions(c *ui.Context, o PanelOptions, run *proto.CanvasUnslopRun) {
 				default:
 					if r.Pass != "" {
 						num, _, _ := strings.Cut(r.Pass, " ")
-						ui.Text(c, num).FontSize(theme.TextLabel).TextColor(theme.Accent)
+						ui.Text(c, num).FontSize(theme.TextLabel).TextColor(theme.Now)
 					}
 					widget.Spinner(c, 12)
 				}

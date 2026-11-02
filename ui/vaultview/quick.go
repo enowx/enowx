@@ -110,7 +110,7 @@ func (v *View) tokenPageRow(c *ui.Context, o Options, f *form, p vault.Platform)
 		}
 		ui.Row(c.Key("offer")).FillWidth().Gap(theme.S2).Padding(theme.S1, theme.S2, theme.S1, theme.S3).Radius(theme.RadiusCard).
 			Background(theme.Fade(theme.Accent, 0.14)).Children(func() {
-			ui.Icon(c, icon.Key).FontSize(13).TextColor(theme.Accent)
+			ui.Icon(c, icon.Key).FontSize(13).TextColor(theme.Now)
 			ui.Row(c).Grow(1).MinWidth(0).Children(func() {
 				widget.Running(c, "You copied a "+p.Name+" token ("+vault.Mask(tp.offer)+")", widget.RunStyle{Size: theme.TextLabel})
 			})

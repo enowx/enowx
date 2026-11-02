@@ -104,7 +104,7 @@ func (a *App) canvasChatHistory(c *ui.Context, cv proto.Canvas, hc *hostCanvasCh
 				m := hc.log.Messages[i]
 				widget.Raise(ui.Column(c.Key(m.N)).FillWidth().Shrink(0).Padding(theme.S2, theme.S3).Gap(theme.S1).Radius(theme.RadiusCard).Background(theme.Raised)).Children(func() {
 					ui.Row(c.Key("head")).FillWidth().Gap(theme.S2).AlignItems(ui.Center).Children(func() {
-						ui.Text(c, fmt.Sprintf("#%d · v%d", m.N, m.Version)).FontSize(theme.TextLabel).FontWeight(500).TextColor(theme.Accent).SingleLine().Shrink(0)
+						ui.Text(c, fmt.Sprintf("#%d · v%d", m.N, m.Version)).FontSize(theme.TextLabel).FontWeight(500).TextColor(theme.Now).SingleLine().Shrink(0)
 						if m.State != "" {
 							widget.Tag(c.Key("state"), m.State, theme.Muted)
 						}

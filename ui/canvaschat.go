@@ -248,7 +248,7 @@ func (a *App) canvasIntro(c *ui.Context, cv proto.Canvas, agentID string) {
 	ui.Column(c).FillWidth().Gap(theme.S4).Padding(theme.S5, 0, theme.S2, 0).Children(func() {
 		ui.Column(c.Key("hello")).FillWidth().Center().Gap(theme.S2).Children(func() {
 			ui.Row(c).Size(48, 48).Radius(theme.RadiusCard).Center().Background(theme.AccentSoft).Children(func() {
-				ui.Icon(c, icon.Agent(agentID)).FontSize(24).TextColor(theme.Accent)
+				ui.Icon(c, icon.Agent(agentID)).FontSize(24).TextColor(theme.Now)
 			})
 			ui.Text(c, "Design with "+a.agentName(agentID)).FontSize(theme.TextTitle).FontWeight(600).TextColor(theme.TextStrong).TextAlign(ui.Center)
 			ui.Text(c, "On “"+cv.Title+"”: it sees the design you show and the element you select").FontSize(theme.TextUI).TextColor(theme.TextSoft).TextAlign(ui.Center)
@@ -270,7 +270,7 @@ func (a *App) canvasIntro(c *ui.Context, cv proto.Canvas, agentID string) {
 							card.Background(theme.Hover)
 						}
 						widget.Raise(card).Children(func() {
-							ui.Icon(c, sug.svg).FontSize(14).TextColor(theme.Accent)
+							ui.Icon(c, sug.svg).FontSize(14).TextColor(theme.Now)
 							ui.Text(c, sug.title).FontSize(theme.TextUI).FontWeight(500).TextColor(theme.TextStrong)
 							ui.Text(c, sug.about).FontSize(theme.TextLabel).TextColor(theme.TextSoft)
 						})

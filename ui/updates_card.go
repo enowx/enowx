@@ -43,7 +43,7 @@ func (a *App) updateCard(c *ui.Context) {
 	widget.Float(ui.Column(c).FillWidth().Padding(theme.S3).Gap(theme.S2).Radius(theme.RadiusCard).
 		Background(theme.Dialog).Border(1, theme.BorderStrong)).Transition(widget.OverlayMotion).Children(func() {
 		ui.Row(c).FillWidth().Gap(theme.S2).AlignItems(ui.Start).Children(func() {
-			ui.Icon(c, icon.ArrowUp).FontSize(14).TextColor(theme.Accent).Margin(2, 0, 0, 0)
+			ui.Icon(c, icon.ArrowUp).FontSize(14).TextColor(theme.Now).Margin(2, 0, 0, 0)
 			ui.Column(c).Grow(1).MinWidth(0).Gap(2).Children(func() {
 				title, detail := "enowX "+v.Version+" is available", "You have "+version.String+"."
 				switch u.state {

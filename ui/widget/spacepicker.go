@@ -56,7 +56,7 @@ func SpacePicker(c *ui.Context, current Space, detail string, size float32, spac
 				ui.Box(c).Size(18, 18).Center().Shrink(0).Children(func() { mark(sp, 14) })
 				ui.Text(c, sp.Name).TextColor(theme.Text).SingleLine().Grow(1).Shrink(1)
 				if sp.Team == current.Team {
-					ui.Icon(c, icon.Check).FontSize(12).TextColor(theme.Accent)
+					ui.Icon(c, icon.Check).FontSize(12).TextColor(theme.Now)
 				}
 			})
 		}

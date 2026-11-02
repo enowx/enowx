@@ -79,7 +79,7 @@ func askHead(c *ui.Context, ask *Ask) {
 		svg = icon.Alert
 	}
 	ui.Row(c).FillWidth().Gap(theme.S2).AlignItems(ui.Start).Children(func() {
-		ui.Icon(c, svg).FontSize(15).TextColor(theme.Accent).Margin(2, 0, 0, 0)
+		ui.Icon(c, svg).FontSize(15).TextColor(theme.Now).Margin(2, 0, 0, 0)
 		ui.Column(c).Grow(1).MinWidth(0).Gap(theme.S1).Children(func() {
 			ui.Text(c, ask.Title).FontSize(theme.TextUI).FontWeight(600).TextColor(theme.TextStrong)
 			if ask.About != "" {

@@ -52,7 +52,7 @@ func (a *App) replyBar(c *ui.Context) {
 	}
 	m := *hc.replyTo
 	ui.Row(c).FillWidth().Gap(theme.S2).PaddingX(theme.S1).AlignItems(ui.Center).Children(func() {
-		ui.Icon(c, icon.Reply).FontSize(12).TextColor(theme.Accent)
+		ui.Icon(c, icon.Reply).FontSize(12).TextColor(theme.Now)
 		ui.Text(c, "Replying to").FontSize(theme.TextLabel).TextColor(theme.Muted).SingleLine().Shrink(0)
 		ui.Text(c, m.Name).FontSize(theme.TextLabel).FontWeight(600).TextColor(widget.TeamColor(m.Account)).SingleLine().Shrink(0)
 		ui.Row(c).Grow(1).Basis(0).MinWidth(0).Children(func() {

@@ -79,7 +79,7 @@ func (v *View) versions(c *ui.Context, o Options) {
 				widget.Running(c.Key("sub"), who+" · "+ago(ver.Time)+" · "+what, widget.RunStyle{Size: theme.TextLabel, Color: theme.TextSoft})
 			})
 			if ver.N == h.Head {
-				ui.Text(c, "shown").FontSize(theme.TextLabel).TextColor(theme.Accent).SingleLine().Shrink(0)
+				ui.Text(c, "shown").FontSize(theme.TextLabel).TextColor(theme.Now).SingleLine().Shrink(0)
 				return
 			}
 			if widget.IconButton(c.Key("cmp"), icon.Layers, fmt.Sprintf("Compare v%d with the one shown", ver.N), v.compare != nil && v.compare.n == ver.N).Clicked() {

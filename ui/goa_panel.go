@@ -520,7 +520,7 @@ func goaChoice(c *ui.Context, label string, value *string, choices []agent.Choic
 				widget.PopupItem(it, it.Highlighted()).Children(func() {
 					ui.Text(c, name).FontSize(theme.TextUI).Grow(1).SingleLine()
 					if id == *value {
-						ui.Icon(c, icon.Check).FontSize(13).TextColor(theme.Accent)
+						ui.Icon(c, icon.Check).FontSize(13).TextColor(theme.Now)
 					}
 				})
 			}

@@ -52,16 +52,16 @@ func spansLabel(c *ui.Context, open LinkOpener, spans []span) ui.Element {
 				fg, bg := BadgeColors(sp.text)
 				ui.Text(c, "\u2009"+sp.text+"\u2009").FontSize(theme.TextLabel).FontWeight(600).TextColor(fg).Background(bg)
 			case sp.url != "" && open != nil:
-				l := ui.Link(c.Key(i), sp.text, "").TextColor(theme.Accent).Underline()
+				l := ui.Link(c.Key(i), sp.text, "").TextColor(theme.Now).Underline()
 				if l.Clicked() && !open(sp.url) {
 					c.OpenURL(sp.url)
 				}
 			case strings.HasPrefix(sp.url, "note:"):
-				ui.Text(c, sp.text).TextColor(theme.Accent) // nowhere to go
+				ui.Text(c, sp.text).TextColor(theme.Now) // nowhere to go
 			case sp.url != "":
-				ui.Link(c.Key(i), sp.text, sp.url).TextColor(theme.Accent).Underline()
+				ui.Link(c.Key(i), sp.text, sp.url).TextColor(theme.Now).Underline()
 			case sp.code:
-				ui.Text(c, sp.text).Font(theme.MonoFont).FontSize(theme.TextLabel).Background(theme.Raised).TextColor(theme.Accent)
+				ui.Text(c, sp.text).Font(theme.MonoFont).FontSize(theme.TextLabel).Background(theme.Raised).TextColor(theme.Now)
 			default:
 				t := ui.Text(c, sp.text)
 				if sp.bold {

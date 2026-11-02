@@ -278,7 +278,7 @@ func (a *App) agentItem(c *ui.Context, sel ui.SelectParts[string], ag proto.Agen
 			ui.Text(c, sub).FontSize(theme.TextLabel).TextColor(theme.TextSoft).SingleLine()
 		})
 		if ag.ID == a.newSession.agent {
-			ui.Icon(c, icon.Check).FontSize(14).TextColor(theme.Accent)
+			ui.Icon(c, icon.Check).FontSize(14).TextColor(theme.Now)
 		}
 	})
 }
@@ -346,7 +346,7 @@ func branchSelect(c *ui.Context, value *string, branches []string) {
 				widget.PopupItem(item, item.Highlighted()).Children(func() {
 					ui.Row(c).Grow(1).MinWidth(0).Children(func() { widget.Running(c, b, widget.RunStyle{}) })
 					if b == *value {
-						ui.Icon(c, icon.Check).FontSize(13).TextColor(theme.Accent)
+						ui.Icon(c, icon.Check).FontSize(13).TextColor(theme.Now)
 					}
 				})
 			}

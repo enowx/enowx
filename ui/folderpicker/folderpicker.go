@@ -226,7 +226,7 @@ func (f *Picker) fileRow(c *ui.Context, e proto.FolderEntry) {
 
 func (f *Picker) newFolderRow(c *ui.Context) {
 	ui.Row(c).FillWidth().Shrink(0).Gap(theme.S2).Padding(theme.S1, theme.S3).Children(func() {
-		ui.Icon(c, icon.FolderPlus).FontSize(14).TextColor(theme.Accent)
+		ui.Icon(c, icon.FolderPlus).FontSize(14).TextColor(theme.Now)
 		in := widget.Input(c, &f.newName, "New folder name").AutoFocus().Grow(1).MinWidth(0)
 		if in.Submitted() {
 			f.makeFolder()

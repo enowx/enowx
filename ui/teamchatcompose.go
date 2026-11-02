@@ -61,7 +61,7 @@ func (a *App) chatComposer(c *ui.Context, team string) {
 		}
 		if hc.editing != nil {
 			ui.Row(c).FillWidth().Gap(theme.S2).PaddingX(theme.S1).AlignItems(ui.Center).Children(func() {
-				ui.Icon(c, icon.Pencil).FontSize(12).TextColor(theme.Accent)
+				ui.Icon(c, icon.Pencil).FontSize(12).TextColor(theme.Now)
 				ui.Text(c, "Editing your message · Esc to cancel").FontSize(theme.TextLabel).TextColor(theme.TextSoft).Grow(1).Shrink(1).SingleLine()
 				if widget.IconButton(c, icon.Close, "Stop editing", false).Clicked() {
 					a.stopEditing()

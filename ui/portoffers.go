@@ -144,7 +144,7 @@ func (a *App) portOfferCard(c *ui.Context, o portOffer, remote bool) {
 	widget.Float(ui.Column(c).FillWidth().Padding(theme.S3, theme.S3, theme.S3, theme.S4).Gap(theme.S2).Radius(theme.RadiusCard).
 		Background(theme.Dialog)).Transition(widget.OverlayMotion).Children(func() {
 		ui.Row(c).FillWidth().Gap(theme.S2).Children(func() {
-			ui.Icon(c, icon.Link).FontSize(14).TextColor(theme.Accent)
+			ui.Icon(c, icon.Link).FontSize(14).TextColor(theme.Now)
 			ui.Column(c).Grow(1).MinWidth(0).Children(func() {
 				widget.Running(c, o.port.Process+" is listening on :"+strconv.Itoa(o.port.Port), widget.RunStyle{Always: true})
 				widget.Running(c.Key("in"), "in "+name, widget.RunStyle{Size: theme.TextLabel, Color: theme.TextSoft})
