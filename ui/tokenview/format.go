@@ -69,6 +69,6 @@ func SpentTip(t proto.TokenCounts) string {
 	if t.Calls == 0 {
 		return ""
 	}
-	return fmt.Sprintf("Tokens so far: %s in, %s cached, %s written to the cache, %s out, %d calls. %s",
-		Count(t.Input), Count(t.CacheRead), Count(t.CacheWrite), Count(t.Output), t.Calls, Spent(t))
+	return fmt.Sprintf("Tokens so far: %s in, %s out, %s cache write, and %s cache read not counted in them, %d calls. %s",
+		Count(t.Input), Count(t.Output), Count(t.CacheWrite), Count(t.CacheRead), t.Calls, Spent(t))
 }

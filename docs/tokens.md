@@ -88,7 +88,7 @@ Per day, week or month, for everything, an agent, a config or a project, in toke
 
 ## In the app
 
-- **Resource usage → Tokens**: totals and a chart per day, input / cached / output side by side, split by agent, model, project, session, config or host, for today, 7, 30, 90 days or a year; enowX's own use apart; tabs for Budgets, Prices and Coverage.
+- **Resource usage → Tokens**: totals with Tokens, Input, Output, Cost and Calls as figures, and Cache read and Cache write as their own smaller ones; a chart per day of input, output and cache write, cache read in its legend and tooltips, not in the bars; split by agent, model, project, session, config or host, for today, 7, 30, 90 days or a year; enowX's own use apart; tabs for Budgets, Prices and Coverage.
 - **Every host's numbers together**: the app asks each host it reaches (the one shown and the ones watched); a host not reached shows its last synced totals. Each host writes its daily totals of the last 90 days to `settings/tokens-hosts/<its ID>.json`, synced with the user's data, every 30 minutes while tracking.
 - **Per session**: tokens and cost so far in the line under its header and beside the chat's context meter, and on hover in the session list.
 - **Per project**: the project's menu → **Token usage** opens the tab filtered to it.

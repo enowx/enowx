@@ -15,7 +15,7 @@ import (
 )
 
 // The parts of a count the chart and cards show, and their colors.
-func partColors() []ui.Color { return []ui.Color{theme.Working, theme.Warning, theme.Done} }
+func partColors() []ui.Color { return []ui.Color{theme.Working, theme.Done, theme.Warning} }
 
 // overview is the range's figures, each day's, where they went, every host's,
 // and enowX's own use.
@@ -39,8 +39,9 @@ func (v *View) overview(c *ui.Context, d Data, o Options) {
 			ui.Row(c).FillWidth().Wrap().Gap(theme.S3).Children(func() {
 				cols := partColors()
 				widget.Legend(c, cols[0], "Input "+Count(s.Total.Input))
-				widget.Legend(c, cols[1], "Cached "+Count(s.Total.CacheRead+s.Total.CacheWrite))
-				widget.Legend(c, cols[2], "Output "+Count(s.Total.Output))
+				widget.Legend(c, cols[1], "Output "+Count(s.Total.Output))
+				widget.Legend(c, cols[2], "Cache write "+Count(s.Total.CacheWrite))
+				widget.Legend(c, theme.Idle, "Cache read "+Count(s.Total.CacheRead)+", not in the bars")
 			})
 		})
 		widget.Card(c).Grow(5).Basis(0).Children(func() { v.whereTheyWent(c, s, o) })
@@ -113,27 +114,33 @@ func refresh(o Options) {
 	}
 }
 
-// totals are the range's figures.
+// totals are the range's figures: tokens and what they are made of, with the cache's
+// two beside them, smaller, as cache reads aren't added to the tokens.
 func totals(c *ui.Context, t proto.TokenCounts) {
-	cached := "0%"
-	if all := t.Input + t.CacheRead + t.CacheWrite; all > 0 {
-		cached = fmt.Sprintf("%.0f%%", float64(t.CacheRead+t.CacheWrite)/float64(all)*100)
-	}
 	widget.Figs(c, []widget.Fig{
 		{Label: "Tokens", Value: Count(t.Total())},
+		{Label: "Input", Value: Count(t.Input)},
+		{Label: "Output", Value: Count(t.Output)},
 		{Label: "Cost", Value: Dollars(t.Cost)},
 		{Label: "Calls", Value: Whole(t.Calls)},
-		{Label: "Cached", Value: cached},
+	})
+	ui.Row(c.Key("cache-figures")).FillWidth().Shrink(0).Gap(theme.S4).Children(func() {
+		for _, fig := range []struct {
+			label string
+			n     int64
+		}{{"Cache read", t.CacheRead}, {"Cache write", t.CacheWrite}} {
+			ui.Row(c.Key(fig.label)).Gap(theme.S1).Shrink(0).Children(func() {
+				ui.Text(c, fig.label).FontSize(theme.TextLabel).TextColor(theme.TextSoft).SingleLine()
+				ui.Text(c, Count(fig.n)).FontSize(theme.TextLabel).SingleLine()
+			})
+		}
 	})
 }
 
 // totalsNote says what the figures don't: the part of them that isn't what it
 // seems. Empty when there's none.
 func totalsNote(t proto.TokenCounts) string {
-	var parts []string
-	if t.CacheWrite > 0 {
-		parts = append(parts, Count(t.CacheWrite)+" written to the cache")
-	}
+	parts := []string{"Input is new input, without the cache; tokens are input, output and cache write"}
 	if t.Reasoning > 0 {
 		parts = append(parts, Count(t.Reasoning)+" of the output reasoning")
 	}
@@ -166,8 +173,8 @@ func dayBars(s proto.TokensSummary, since time.Time) []widget.Bar {
 		day := d.Format(time.DateOnly)
 		t := byDay[day]
 		out = append(out, widget.Bar{Label: d.Format(label),
-			Tip:   fmt.Sprintf("%s: %s in, %s cached, %s out, %s", d.Format("Mon Jan 2"), Count(t.Input), Count(t.CacheRead+t.CacheWrite), Count(t.Output), Dollars(t.Cost)),
-			Parts: []float64{float64(t.Input), float64(t.CacheRead + t.CacheWrite), float64(t.Output)}})
+			Tip:   fmt.Sprintf("%s: %s in, %s out, %s cache write, %s cache read, %s", d.Format("Mon Jan 2"), Count(t.Input), Count(t.Output), Count(t.CacheWrite), Count(t.CacheRead), Dollars(t.Cost)),
+			Parts: []float64{float64(t.Input), float64(t.Output), float64(t.CacheWrite)}})
 	}
 	return out
 }
@@ -188,7 +195,8 @@ func (v *View) whereTheyWent(c *ui.Context, s proto.TokensSummary, o Options) {
 		if splits[v.Split].by == proto.TokensByAgent && o.Agent != nil && g.Key != "" {
 			name = o.Agent(g.Key)
 		}
-		tip := fmt.Sprintf("%s in, %s cached, %s out, %d calls", Count(g.Input), Count(g.CacheRead+g.CacheWrite), Count(g.Output), g.Calls)
+		parts := splitLine(g.TokenCounts)
+		tip := fmt.Sprintf("%s, %d calls", parts, g.Calls)
 		if splits[v.Split].by == proto.TokensByProject && g.Key != "" {
 			tip = g.Key + ": " + tip
 		}
@@ -203,7 +211,9 @@ func (v *View) whereTheyWent(c *ui.Context, s proto.TokensSummary, o Options) {
 				ui.Text(c, Count(g.Total())).FontSize(theme.TextLabel).Width(48).Shrink(0).TextAlign(ui.End).SingleLine()
 			})
 			ui.Row(c).FillWidth().Gap(theme.S2).Children(func() {
-				ui.Text(c, "cost").FontSize(theme.TextLabel).TextColor(theme.TextSoft).Grow(1)
+				ui.Row(c.Key("parts")).Grow(1).Basis(0).MinWidth(0).Children(func() {
+					widget.Running(c, parts, widget.RunStyle{Size: theme.TextLabel, Color: theme.TextSoft})
+				})
 				cost := Dollars(g.Cost)
 				if g.Equivalent > 0 && g.Equivalent >= g.Cost {
 					cost = "≈" + cost
@@ -212,6 +222,11 @@ func (v *View) whereTheyWent(c *ui.Context, s proto.TokensSummary, o Options) {
 			})
 		})
 	}
+}
+
+// splitLine says a split's counts apart.
+func splitLine(t proto.TokenCounts) string {
+	return fmt.Sprintf("Input %s · Output %s · Cache write %s · Cache read %s", Count(t.Input), Count(t.Output), Count(t.CacheWrite), Count(t.CacheRead))
 }
 
 // ownUse is what enowX's own judge and embedder used.
@@ -235,7 +250,7 @@ func hosts(c *ui.Context, list []HostTotal) {
 		widget.CardNote(c, "Every host's numbers together: those the app reaches now, the others as they last synced.", 0)
 		widget.CardLines(c, func() {
 			for i, h := range list {
-				detail, counts := "", Count(h.Total.Total())+" · "+Dollars(h.Total.Cost)
+				detail, counts := "", Count(h.Total.Input)+" in · "+Count(h.Total.Output)+" out · "+Dollars(h.Total.Cost)
 				switch {
 				case !h.Live && h.Total.Calls == 0:
 					counts = "as of " + h.Updated.Local().Format("2 Jan 15:04")
