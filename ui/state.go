@@ -38,26 +38,28 @@ type appState struct {
 	OnboardedDevice   bool `json:"onboardedDevice,omitempty"`
 	FollowBackground  bool `json:"followBackground,omitempty"`
 	derived           *theme.Derived
-	BackgroundImage   string             `json:"backgroundImage,omitempty"`
-	BackgroundOpacity *float64           `json:"backgroundOpacity,omitempty"`
-	BackgroundBlur    *float64           `json:"backgroundBlur,omitempty"`
-	Accent            string             `json:"accent,omitempty"`       // #RRGGBB replacing the palette's accent
-	TermFont          string             `json:"termFont,omitempty"`     // the terminals' font family; the system's monospaced font when empty
-	TermFontSize      float32            `json:"termFontSize,omitempty"` // the terminals' text size; 13 when 0
-	RailWide          bool               `json:"railWide,omitempty"`     // the rail shows labels
-	Space             string             `json:"space,omitempty"`        // the team whose space Notes and Canvas show, "" the user's own
-	Layouts           map[string]layout  `json:"layouts,omitempty"`      // "<host ID> <project path>" → layout
-	Panel             sidePanel          `json:"panel,omitempty"`
-	ChatRead          map[string]string  `json:"chatRead,omitempty"` // the last message read of each team's chat
-	Discord           discordPrefs       `json:"discord,omitempty"`
-	Updates           updatePrefs        `json:"updates,omitempty"`
-	Editor            string             `json:"editor,omitempty"`       // the editor last opened (editor.id)
-	Previews          map[string]preview `json:"previews,omitempty"`     // session ID → where its browser was
-	BrowserViews      map[string]bool    `json:"browserViews,omitempty"` // session IDs showing the Browser as their view
-	TrafficViews      map[string]bool    `json:"trafficViews,omitempty"` // session IDs showing Traffic as their view
-	AutoPreview       map[string][]int   `json:"autoPreview,omitempty"`  // "<host ID> <project>" → ports previewed when opened
-	QuietPorts        bool               `json:"quietPorts,omitempty"`   // no card when a session opens a port
-	CloseQuits        bool               `json:"closeQuits,omitempty"`   // closing the window quits, rather than keeping the app in the tray
+	BackgroundImage   string   `json:"backgroundImage,omitempty"`
+	BackgroundOpacity *float64 `json:"backgroundOpacity,omitempty"`
+	// BackgroundPlain: the ground alone under glass, none of the wallpaper's lights.
+	BackgroundPlain bool               `json:"backgroundPlain,omitempty"`
+	BackgroundBlur  *float64           `json:"backgroundBlur,omitempty"`
+	Accent          string             `json:"accent,omitempty"`       // #RRGGBB replacing the palette's accent
+	TermFont        string             `json:"termFont,omitempty"`     // the terminals' font family; the system's monospaced font when empty
+	TermFontSize    float32            `json:"termFontSize,omitempty"` // the terminals' text size; 13 when 0
+	RailWide        bool               `json:"railWide,omitempty"`     // the rail shows labels
+	Space           string             `json:"space,omitempty"`        // the team whose space Notes and Canvas show, "" the user's own
+	Layouts         map[string]layout  `json:"layouts,omitempty"`      // "<host ID> <project path>" → layout
+	Panel           sidePanel          `json:"panel,omitempty"`
+	ChatRead        map[string]string  `json:"chatRead,omitempty"` // the last message read of each team's chat
+	Discord         discordPrefs       `json:"discord,omitempty"`
+	Updates         updatePrefs        `json:"updates,omitempty"`
+	Editor          string             `json:"editor,omitempty"`       // the editor last opened (editor.id)
+	Previews        map[string]preview `json:"previews,omitempty"`     // session ID → where its browser was
+	BrowserViews    map[string]bool    `json:"browserViews,omitempty"` // session IDs showing the Browser as their view
+	TrafficViews    map[string]bool    `json:"trafficViews,omitempty"` // session IDs showing Traffic as their view
+	AutoPreview     map[string][]int   `json:"autoPreview,omitempty"`  // "<host ID> <project>" → ports previewed when opened
+	QuietPorts      bool               `json:"quietPorts,omitempty"`   // no card when a session opens a port
+	CloseQuits      bool               `json:"closeQuits,omitempty"`   // closing the window quits, rather than keeping the app in the tray
 	// What New session starts with (Settings): an agent, the project
 	// folder rather than a new branch, a time budget in minutes.
 	DefaultAgent  string `json:"defaultAgent,omitempty"`

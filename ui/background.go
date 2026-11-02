@@ -158,7 +158,7 @@ func (a *App) chooseBackground() {
 			if len(paths) == 0 {
 				return
 			}
-			a.state.BackgroundImage = paths[0]
+			a.state.BackgroundImage, a.state.BackgroundPlain = paths[0], false
 			a.applyTheme()
 		})
 	}()
@@ -181,8 +181,8 @@ func (a *App) backgroundCard(c *ui.Context) {
 	flat := a.state.flatStyle()
 	widget.Card(c.Key("background-card")).FillWidth().Shrink(0).Children(func() {
 		widget.CardTitle(c, nil, "Background", func() {
-			if path != "" && backgroundButton(c.Key("default"), "Use the default", flat).Clicked() && !flat {
-				a.state.BackgroundImage = ""
+			if (path != "" || a.state.BackgroundPlain) && backgroundButton(c.Key("default"), "Use the default", flat).Clicked() && !flat {
+				a.state.BackgroundImage, a.state.BackgroundPlain = "", false
 				a.applyTheme()
 			}
 			if backgroundButton(c.Key("choose"), "Choose an image…", flat).Clicked() && !flat {

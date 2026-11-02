@@ -5,12 +5,12 @@
 package onboardview
 
 import (
+	"fmt"
 	"time"
 
 	"github.com/egoist/mygo/ui"
 
 	"github.com/enowx/enowx/proto"
-	"github.com/enowx/enowx/ui/theme"
 )
 
 // Flow is who is going through it.
@@ -26,46 +26,61 @@ const (
 type stop struct {
 	id string
 	at float32
-	// step is its number of the seven the panel counts, 0 for none.
+	// step is its number of the seven the panel counts, 0 for none. The opening is the
+	// first, so agents are the second; the project and a host are one step, as the design.
 	step int
+	name string // a detour's word in the panel's head
 }
 
 // stopsOf are where flow's clock waits.
 func stopsOf(f Flow, _ bool) []stop {
 	switch f {
 	case FlowReturning:
-		return []stop{{"back", tPanelTo + 400, 0}, {"community", tCommunity, 0}, {"end", tEnd, 0}}
+		return []stop{{id: "back", at: tWhole}, {id: "community", at: tCommunity}, {id: "end", at: tEnd}}
 	case FlowDevice:
-		return []stop{{"agents", tAgents, 1}, {"host", tHost, 2}, {"end", tEnd, 0}}
+		return []stop{{id: "agents", at: tAgents, step: 1}, {id: "host", at: tHost, step: 2}, {id: "hostdone", at: tHostDone, step: 2}, {id: "end", at: tEnd}}
 	}
-	return []stop{{"agents", tAgents, 1}, {"project", tProject, 2}, {"host", tHost, 3}, {"style", tStyle, 4}, {"goa", tGOA, 5}, {"task", tTask, 6}, {"community", tCommunity, 7}, {"end", tEnd, 0}}
+	return []stop{{id: "agents", at: tAgents, step: 2}, {id: "project", at: tProject, step: 3}, {id: "host", at: tHost, step: 3}, {id: "hostdone", at: tHostDone, step: 3},
+		{id: "style", at: tStyle, step: 4}, {id: "goa", at: tGOA, step: 5}, {id: "task", at: tTask, step: 6}, {id: "running", at: tRunning, step: 6}, {id: "community", at: tCommunity, step: 7}, {id: "end", at: tEnd}}
 }
 
-func stepsShown(stops []stop) int {
-	n := 0
-	for _, s := range stops {
-		if s.step > 0 {
-			n++
-		}
+// skipsOf are the stretches flow's clock doesn't run through: the design's tour of the
+// styles, and what isn't this flow's.
+func skipsOf(f Flow) []skip {
+	switch f {
+	case FlowReturning:
+		return []skip{{tWhole, 45000}}
+	case FlowDevice:
+		return []skip{{13300, 14900}, {19250, 45650}}
 	}
-	return n
+	return []skip{{tStyle, tStyleEnd}}
 }
 
 // startAt is when flow's clock starts: the opening, for everyone the first time they
 // get this flow, returning users too; the frames on a new device, whose account has seen
-// it. Less motion comes in where the opening holds still.
+// it. Less motion holds on the logo, whole.
 func startAt(f Flow, reduce bool) float32 {
 	switch {
 	case f == FlowDevice:
 		return tFramesFrom
 	case reduce:
-		return tOpeningEnd - reduceOpening
+		return reduceOpening
 	}
 	return 0
 }
 
-// reduceOpening is how long the opening stays with less motion: the logo and name still.
-const reduceOpening = 1600
+const (
+	// reduceOpening is the moment less motion holds on: the logo and its name, still.
+	reduceOpening = 5950
+	reduceHold    = 2200 * time.Millisecond
+)
+
+// The window's background, as the Style step offers it.
+const (
+	BackgroundDefault = "default"
+	BackgroundPlain   = "plain"
+	BackgroundImage   = "image" // an image of the user's
+)
 
 // Options are what onboarding gets of the app: it reads real settings, and acts through
 // these.
@@ -79,19 +94,28 @@ type Options struct {
 
 	Agents       []proto.AgentInfo
 	AgentsLoaded bool
-	Rescan       func()
 	Projects     []proto.ProjectInfo
 	OpenFolder   func()
 	OpenClone    func()
 	Hosts        []string // saved besides this one
-	AddHost      func()
+	AddHost      func(address string)
 
-	// Wallpaper draws what lies under glass.
-	Wallpaper  func(c *ui.Context)
-	StyleID    string
-	SetStyle   func(id string)
-	PaletteID  string
-	SetPalette func(id string) // "" the style's own
+	// Wallpaper draws the user's own image, when they chose one.
+	Wallpaper func(c *ui.Context)
+	// BackgroundMode is one of the Background constants; SetBackground asks for one,
+	// BackgroundImage by choosing an image.
+	BackgroundMode string
+	SetBackground  func(mode string)
+	// How opaque the panels over the user's image are, 0 to 1, and its blur.
+	PanelOpacity    float32
+	SetPanelOpacity func(float32)
+	BlurValue       float32
+	BlurMost        float32
+	SetBlur         func(float32)
+	StyleID         string
+	SetStyle        func(id string)
+	PaletteID       string
+	SetPalette      func(id string) // "" the style's own
 
 	GOAAgents []proto.GOAAgent
 	StartGOA  func(agent string, done func(error))
@@ -112,16 +136,25 @@ type View struct {
 	at    int // the stop the clock is at or going to
 	begun bool
 
-	hostsAtStart int
-	wireOn       bool // a host was added: its wire plays
-	goaAgent     string
-	goaBusy      bool
-	goaErr       string
-	task         taskState
-	detour       *stop // a step "Your settings" sent the user to change
+	hostsAtStart    int
+	projectsAtStart int
+	projectPaths    map[string]bool
+	projectMoved    bool
+	hostAddress     string
+	wireOn          bool // a host was added: its wire plays
+	pick            int  // which card the project came from: its folder flies from there
+	goaAgent        string
+	goaBusy         bool
+	goaErr          string
+	goaChip         ui.Rect // the bar's chip, as last laid out: GOD of Agents' node leaves it
+	task            taskState
+	detour          *stop // a step "Your settings" sent the user to change
 
 	morph  morph
-	reduce bool // less motion: what travels is cut to
+	looks  map[string]look
+	lookOf string // what looks were made for
+	reduce bool   // less motion: what travels is cut to
+	hold   time.Time
 }
 
 // New is onboarding, not begun.
@@ -130,12 +163,58 @@ func New() *View { return &View{} }
 // begin starts the clock for o's flow.
 func (v *View) begin(o Options) {
 	v.begun, v.flow, v.stops, v.reduce = true, o.Flow, stopsOf(o.Flow, o.Reduce), o.Reduce
-	v.clock = clock{t: startAt(o.Flow, o.Reduce), target: v.stops[0].at}
-	v.hostsAtStart = len(o.Hosts)
-	if o.Reduce {
-		// With less motion nothing travels: past the opening, each stop is cut to.
-		v.clock.target = v.clock.t + reduceOpening
+	v.clock = clock{t: startAt(o.Flow, o.Reduce), target: v.stops[0].at, skips: skipsOf(o.Flow)}
+	if o.Flow == FlowReturning {
+		v.clock.rush = [2]float32{tOpeningEnd, tWhole}
 	}
+	v.hostsAtStart, v.projectsAtStart = len(o.Hosts), len(o.Projects)
+	v.projectPaths = map[string]bool{}
+	for _, p := range o.Projects {
+		v.projectPaths[p.Path] = true
+	}
+	if o.Reduce && o.Flow != FlowDevice {
+		v.clock.target = v.clock.t
+		v.hold = time.Now().Add(reduceHold)
+	}
+	if o.Reduce && o.Flow == FlowDevice {
+		v.clock.t = v.clock.target
+	}
+}
+
+// lookFor is style id's look with the palette and background as they are, kept until
+// those change: a frame needn't work them out again.
+func (v *View) lookFor(id string, o Options) look {
+	key := fmt.Sprint(o.PaletteID, "|", o.BackgroundMode, "|", o.PanelOpacity, "|", o.BlurValue)
+	if key != v.lookOf || v.looks == nil {
+		v.lookOf, v.looks = key, map[string]look{}
+	}
+	l, ok := v.looks[id]
+	if !ok {
+		l = lookOf(id, o.PaletteID, o)
+		v.looks[id] = l
+	}
+	return l
+}
+
+// project is the project this flow is about: the one the user just added, or their first.
+func (v *View) project(o Options) (proto.ProjectInfo, bool) {
+	for _, p := range o.Projects {
+		if !v.projectPaths[p.Path] {
+			return p, true
+		}
+	}
+	if len(o.Projects) > 0 {
+		return o.Projects[0], true
+	}
+	return proto.ProjectInfo{}, false
+}
+
+func (v *View) projectName(o Options) string {
+	p, ok := v.project(o)
+	if !ok {
+		return ""
+	}
+	return nonEmpty(p.Name, p.Path)
 }
 
 func (v *View) current() stop {
@@ -145,35 +224,13 @@ func (v *View) current() stop {
 	return v.stops[v.at]
 }
 
-// settle says the flow's first stop follows the opening, once that has held, with less
-// motion.
-func (v *View) settle(o Options) {
-	if o.Reduce && v.at == 0 && v.clock.t == v.clock.target && v.clock.target != v.stops[0].at {
-		v.clock.t, v.clock.target = v.stops[0].at, v.stops[0].at
-	}
-}
-
-// skipEmpty has the clock not sit through stretches where nothing moves: once the
-// window is whole, stops are a cut apart, and a returning user's window is whole at once.
-func (v *View) skipEmpty() {
-	k := &v.clock
-	if k.t == k.target {
-		return
-	}
-	from, to := float32(tMaterialTo+200), float32(tFold)
-	if v.flow == FlowReturning {
-		from = tPanelTo + 400
-	}
-	if k.t >= from && k.t <= to {
-		k.t = clamp(k.target, from, to)
-	}
-}
-
 // next goes on to the next stop.
 func (v *View) next(o Options) {
 	if v.detour != nil {
 		v.detour = nil
-	} else if v.at < len(v.stops)-1 {
+		return
+	}
+	if v.at < len(v.stops)-1 {
 		v.at++
 	}
 	v.goTo(o)
@@ -183,8 +240,19 @@ func (v *View) next(o Options) {
 func (v *View) back(o Options) {
 	if v.detour != nil {
 		v.detour = nil
-	} else if v.at > 0 {
-		v.at--
+		return
+	}
+	if v.at == 0 {
+		return
+	}
+	left := v.stops[v.at]
+	v.at--
+	switch {
+	case left.id == "hostdone" && !v.wireOn:
+		// Nothing played there: straight back to the form it was skipped from.
+		v.clock.t = v.stops[v.at].at
+	case v.stops[v.at].id == "running" && !v.task.sent:
+		v.at-- // no task ran: back to where it can be sent from
 	}
 	v.goTo(o)
 }
@@ -196,28 +264,36 @@ func (v *View) goTo(o Options) {
 	}
 }
 
+// Covers says it hides the whole window, so nothing needs building under it: until it
+// gives way to the app in its last moments.
+func (v *View) Covers() bool { return !v.begun || v.clock.t < tEnd-handover }
+
+// handover is how long onboarding fades into the app that's under it by then.
+const handover = 300
+
 // Draw draws it over the whole window.
 func (v *View) Draw(c *ui.Context, o Options) {
 	if !v.begun {
 		v.begin(o)
 	}
-	v.skipEmpty()
 	now := time.Now()
 	w, h := c.Size()
-	v.morph.step(o, w, h, now)
-	if v.clock.tick(now) || v.morph.running() {
+	v.morph.step(o, now)
+	if !v.hold.IsZero() && now.After(v.hold) {
+		v.hold = time.Time{}
+		v.clock.t, v.clock.target = v.stops[0].at, v.stops[0].at
+	}
+	if v.clock.tick(now) || v.morph.running() || !v.hold.IsZero() {
 		c.After(16 * time.Millisecond)
 	}
-	v.settle(o)
 	t := v.clock.t
 	if t >= tEnd && v.current().id == "end" {
 		o.Done()
 	}
-	g := layoutFor(w, h, theme.StyleByID(o.StyleID))
-	root := ui.Box(c.Key("onboarding")).Absolute().Left(0).Top(0).Right(0).Bottom(0).Clip().Opacity(1 - seg(t, tEnd-300, tEnd, easeOut))
+	s := v.sceneAt(o, w, h, t)
+	root := ui.Box(c.Key("onboarding")).Absolute().Left(0).Top(0).Right(0).Bottom(0).Clip().Opacity(1 - seg(t, tEnd-handover, tEnd, easeOut))
 	root.Children(func() {
-		v.ground(c, o, t)
-		v.shell(c, o, g, t)
+		v.window(c, o, s)
 		v.opening(c, o, w, h, t)
 	})
 }

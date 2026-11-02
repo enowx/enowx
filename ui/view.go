@@ -42,7 +42,7 @@ func (a *App) view(c *ui.Context) {
 		root.Font(theme.Family)
 	}
 	root.Children(func() {
-		if a.onboardingShows() {
+		if a.onboardingCovers() {
 			// It covers the window, and redraws sixty times a second as it plays: the
 			// app under it, all its panes, doesn't need building too.
 			a.onboardingView(c)
@@ -68,6 +68,7 @@ func (a *App) view(c *ui.Context) {
 			})
 		})
 		a.statusToast(c)
+		a.onboardingView(c) // fading into the app, in its last moments
 	})
 	a.cornerCards(c)
 	a.chatToastsView(c)

@@ -23,7 +23,8 @@ func TestClockStops(t *testing.T) {
 	}
 }
 
-// Each flow's stops rise, end at the end, and a new user sees all seven steps.
+// Each flow's stops rise and end at the end, and a new user gets every step the panel
+// counts, the opening being the first.
 func TestFlows(t *testing.T) {
 	for _, f := range []Flow{FlowNew, FlowReturning, FlowDevice} {
 		stops := stopsOf(f, true)
@@ -36,10 +37,15 @@ func TestFlows(t *testing.T) {
 			t.Errorf("flow %d ends at %v", f, stops[len(stops)-1].at)
 		}
 	}
-	if n := stepsShown(stopsOf(FlowNew, true)); n != 7 {
-		t.Errorf("a new user sees %d steps", n)
+	seen := map[int]bool{}
+	for _, s := range stopsOf(FlowNew, true) {
+		if s.step > 0 {
+			seen[s.step] = true
+		}
 	}
-	// Every link set has its card.
+	if len(seen)+1 != 7 {
+		t.Errorf("a new user sees %v", seen)
+	}
 	if got := communityLinks(); len(got) != 3 {
 		t.Errorf("links: %+v", got)
 	}
@@ -62,23 +68,23 @@ func TestStartTimes(t *testing.T) {
 	}
 }
 
-// Once the window is whole, going on to a stop doesn't sit through empty time.
-func TestSkipEmpty(t *testing.T) {
-	v := New()
-	v.begin(Options{Flow: FlowNew})
-	v.clock.t, v.clock.target = tStyle, tGOA
-	v.skipEmpty()
-	if v.clock.t != tGOA {
-		t.Errorf("at %v", v.clock.t)
+// The design's tour of the styles is jumped over, both ways, and so is what isn't a
+// flow's own.
+func TestSkips(t *testing.T) {
+	now := time.Now()
+	k := clock{t: tStyle, target: tGOA, last: now, skips: skipsOf(FlowNew)}
+	k.tick(now.Add(10 * time.Millisecond))
+	if k.t != tStyleEnd {
+		t.Errorf("on from the style: at %v", k.t)
 	}
-	v.clock.t, v.clock.target = tGOA, tEnd
-	v.skipEmpty()
-	if v.clock.t != tFold {
-		t.Errorf("the fold was skipped: at %v", v.clock.t)
+	k = clock{t: tStyleEnd + 1, target: tStyle, last: now, skips: skipsOf(FlowNew)}
+	k.tick(now.Add(10 * time.Millisecond))
+	if k.t != tStyle {
+		t.Errorf("back to the style: at %v", k.t)
 	}
-	v.clock.t, v.clock.target = tHost, tStyle
-	v.skipEmpty()
-	if v.clock.t != tHost {
-		t.Errorf("the regions' material was skipped: at %v", v.clock.t)
+	k = clock{t: tHost, target: tStyle, last: now, skips: skipsOf(FlowNew)}
+	k.tick(now.Add(10 * time.Millisecond))
+	if k.t >= tHost+100 {
+		t.Errorf("the regions' material was skipped: at %v", k.t)
 	}
 }

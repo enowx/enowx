@@ -15,15 +15,23 @@ Every user goes through it. It can't be skipped, opening included, and optional 
 
 The account's record is `settings/onboarding.json` on the host, which syncs with the user's data; the device's is `onboardedDevice` in `app.json`. A host too old to answer leaves the device's record to go by.
 
+## How it's drawn
+
+Onboarding paints from its own table of the four styles' values (`ui/onboardview/look.go`), not the theme's tokens, which are one set for the whole app. So each region can be partway from one style to another by itself, and every moment is a function of the clock (`scene.go`). The clock's stops are the design's, so a picture of a moment can be compared with the design's picture of the same moment (`TestPictures`, with `SHOTS` and `SHOTS_AT`).
+
+Wires, ports and what flies are measured from what they join, each frame: an agent goes from its row's tile to its slot in the list, a host's wire from a port on the project's row to a port on the server's card.
+
 ## The change of style
 
-Picking a style plays one change across the window: a wave, each region starting a beat after the last, its place, corners and color crossing together, colors in Oklab. One ring moves between the style cards. A style picked meanwhile follows.
-
-The app's theme is one set of tokens, so a widget can't be in two styles at once. So what's in the regions fades out in the old style (0.12 seconds), the style changes, and it fades back in as the wave passes (about half a second), while the surfaces carry the change. That is a change from the design, where text crosses region by region.
+Picking a style plays one change across the window: a wave, each region starting a beat after the last, its place, corners, colors and font crossing together, colors in Oklab. Words dip as the wave crosses them, and those on a fill take whichever ink reads on it by then. The wallpaper leaves first and comes in last. One ring moves between the style cards, and a style picked meanwhile follows. The app takes the style at once; only the drawing crosses. Glass is the design's: what's under a region blurred, more as its material comes, then tinted.
 
 ## Less motion
 
-With Reduce Motion on (the system's, or the app's own), the opening holds the logo and name still for 1.6 seconds, and each stop is cut to.
+With Reduce Motion on (the system's, or the app's own), the opening holds the logo and name still for 2.2 seconds, and each stop is cut to.
+
+## Differences from the prototype
+
+What the prototype only pretends is real here, so its words differ: agents are found or not, as nothing says whether one is signed in; a saved host says Saved; the first task runs in a session of its own, which answers there rather than with a sample reply; the composer's model chip says the agent's default. Background offers the user's own image rather than a sample, and the panels' opacity and blur apply to that image, as in Settings. The prototype's style tour is jumped over: a change plays when one is picked.
 
 ## Links
 

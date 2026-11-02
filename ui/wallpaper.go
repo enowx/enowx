@@ -19,6 +19,9 @@ func (a *App) wallpaper(c *ui.Context) {
 		a.backgroundImage(c)
 		return
 	}
+	if a.state.BackgroundPlain {
+		return
+	}
 	w, h := c.Size()
 	sx, sy := w/1440, h/900
 	wall := theme.Current().Wall

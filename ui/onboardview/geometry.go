@@ -2,8 +2,6 @@ package onboardview
 
 import (
 	"github.com/egoist/mygo/ui"
-
-	"github.com/enowx/enowx/ui/theme"
 )
 
 // rect is a place in the window.
@@ -23,67 +21,36 @@ const (
 	panelWidth = 320
 )
 
-// geometry is where a style puts the regions in a window this large, as the app does.
-type geometry struct {
-	side, doc, panel, rail, ctx, pg, fd, act rect
-	radius, barRadius, railRadius, rim       float32
-}
-
-// layoutFor is geometry for style s.
-func layoutFor(w, h float32, s theme.Style) geometry {
-	m, gap, bar := s.WindowInset, s.BentoGap, s.BarHeight
-	top := m + bar + gap
-	g := geometry{radius: s.RadiusPanel, barRadius: s.BarRadius, railRadius: s.RadiusFull, rim: s.Hairline}
-	if s.FullDock {
-		g.railRadius = s.RadiusPanel
+// halves is a rounded rectangle as two paths from the middle of one side ('t', 'r', 'b'
+// or 'l'), going round it opposite ways to meet on the far side: a frame drawing itself
+// from one point.
+func halves(x, y, w, h, r float32, side byte) (*ui.Path, *ui.Path) {
+	r = min(r, w/2, h/2)
+	x1, y1 := x+w, y+h
+	type corner struct{ ax, ay, cx, cy, bx, by float32 }
+	corners := [4]corner{
+		{x1 - r, y, x1, y, x1, y + r},    // top right, going clockwise
+		{x1, y1 - r, x1, y1, x1 - r, y1}, // bottom right
+		{x + r, y1, x, y1, x, y1 - r},    // bottom left
+		{x, y + r, x, y, x + r, y},       // top left
 	}
-	g.side = rect{m, top, sideWidth, h - top - m}
-	railH := h - top - m
-	railY := top
-	if !s.FullDock {
-		railH = min(railH, 244) // it floats in its region, as a capsule
-		railY = top + (h-top-m-railH)/2
+	mids := map[byte][2]float32{'t': {x + w/2, y}, 'r': {x1, y + h/2}, 'b': {x + w/2, y1}, 'l': {x, y + h/2}}
+	order := []byte{'t', 'r', 'b', 'l'}
+	at := 0
+	for i, c := range order {
+		if c == side {
+			at = i
+		}
 	}
-	g.rail = rect{w - m - s.RailWidth, railY, s.RailWidth, railH}
-	g.panel = rect{g.rail.x - gap - panelWidth, top, panelWidth, h - top - m}
-	docX := g.side.right() + gap
-	g.doc = rect{docX, top, g.panel.x - gap - docX, h - top - m}
-	// The bar's cells, the middle ones shrinking first in a small window.
-	left := m + 84
-	right := w - m - 232
-	mid := max(right-left-gap*3-160, 200)
-	g.ctx = rect{left, m, 160, bar}
-	g.pg = rect{g.ctx.right() + gap, m, mid * .55, bar}
-	g.fd = rect{g.pg.right() + gap, m, mid * .45, bar}
-	g.act = rect{right, m, 232, bar}
-	return g
-}
-
-// mixGeometry is a and b part of the way.
-func mixGeometry(a, b geometry, x float32) geometry {
-	r := func(p, q rect) rect {
-		return rect{lerp(p.x, q.x, x), lerp(p.y, q.y, x), lerp(p.w, q.w, x), lerp(p.h, q.h, x)}
+	start, end := mids[side], mids[order[(at+2)%4]]
+	one, two := (&ui.Path{}).MoveTo(start[0], start[1]), (&ui.Path{}).MoveTo(start[0], start[1])
+	for k := range 2 {
+		c := corners[(at+k)%4]
+		one.LineTo(c.ax, c.ay).QuadTo(c.cx, c.cy, c.bx, c.by)
+		c = corners[(at+3-k)%4]
+		two.LineTo(c.bx, c.by).QuadTo(c.cx, c.cy, c.ax, c.ay)
 	}
-	return geometry{
-		side: r(a.side, b.side), doc: r(a.doc, b.doc), panel: r(a.panel, b.panel), rail: r(a.rail, b.rail),
-		ctx: r(a.ctx, b.ctx), pg: r(a.pg, b.pg), fd: r(a.fd, b.fd), act: r(a.act, b.act),
-		radius: lerp(a.radius, b.radius, x), barRadius: lerp(a.barRadius, b.barRadius, x), railRadius: lerp(a.railRadius, b.railRadius, x), rim: lerp(a.rim, b.rim, x),
-	}
-}
-
-// roundedPath is a rectangle's outline as a path, from the middle of its side a,
-// going round both ways by the caller's trims: drawing itself from one point.
-func roundedPath(r rect, radius float32) *ui.Path {
-	radius = min(radius, r.w/2, r.h/2)
-	x0, y0, x1, y1 := r.x, r.y, r.right(), r.y+r.h
-	p := &ui.Path{}
-	p.MoveTo(r.cx(), y0)
-	p.LineTo(x1-radius, y0).QuadTo(x1, y0, x1, y0+radius)
-	p.LineTo(x1, y1-radius).QuadTo(x1, y1, x1-radius, y1)
-	p.LineTo(x0+radius, y1).QuadTo(x0, y1, x0, y1-radius)
-	p.LineTo(x0, y0+radius).QuadTo(x0, y0, x0+radius, y0)
-	p.Close()
-	return p
+	return one.LineTo(end[0], end[1]), two.LineTo(end[0], end[1])
 }
 
 // wirePath is a route through legs with rounded corners.

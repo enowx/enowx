@@ -89,8 +89,11 @@ func (a *App) onboardingDone() {
 	}
 }
 
-// onboardingShows says it covers the window.
+// onboardingShows says it is on: the app's keys wait for it.
 func (a *App) onboardingShows() bool { return a.onboard.view != nil }
+
+// onboardingCovers says the window is all onboarding: until it fades into the app.
+func (a *App) onboardingCovers() bool { return a.onboard.view != nil && a.onboard.view.Covers() }
 
 // onboardingView draws it over the window, the app's dialogs above it.
 func (a *App) onboardingView(c *ui.Context) {
@@ -119,18 +122,28 @@ func (a *App) onboardingOptions() onboardview.Options {
 		OpenFolder:   a.openFolder,
 		OpenClone:    func() { a.openClone() },
 		Hosts:        saved,
-		AddHost:      a.openAddHost,
-		Wallpaper:    a.wallpaper,
-		StyleID:      a.state.UIStyle,
-		SetStyle:     a.onboardingStyle,
-		PaletteID:    a.state.Theme,
-		SetPalette:   a.onboardingPalette,
-		GOAAgents:    a.onboard.goa,
-		StartGOA:     a.onboardingStartGOA,
-		GOAOn:        a.goa.board.Session != "",
-		StartTask:    a.onboardingStartTask,
-		OpenLink:     func(url string) { go func() { _ = mygo.Shell.OpenExternal(url) }() },
-		Done:         a.onboardingDone,
+		AddHost: func(address string) {
+			a.openAddHost()
+			a.addHost.address = address
+		},
+		Wallpaper:       a.wallpaper,
+		BackgroundMode:  a.onboardingBackground(),
+		SetBackground:   a.onboardingSetBackground,
+		PanelOpacity:    float32(a.state.backgroundOpacity()),
+		SetPanelOpacity: a.onboardingSetOpacity,
+		BlurValue:       float32(a.state.backgroundBlur()),
+		BlurMost:        backgroundMaxBlur,
+		SetBlur:         a.onboardingSetBlur,
+		StyleID:         a.state.UIStyle,
+		SetStyle:        a.onboardingStyle,
+		PaletteID:       a.state.Theme,
+		SetPalette:      a.onboardingPalette,
+		GOAAgents:       a.onboard.goa,
+		StartGOA:        a.onboardingStartGOA,
+		GOAOn:           a.goa.board.Session != "",
+		StartTask:       a.onboardingStartTask,
+		OpenLink:        func(url string) { go func() { _ = mygo.Shell.OpenExternal(url) }() },
+		Done:            a.onboardingDone,
 	}
 }
 
@@ -149,6 +162,44 @@ func (a *App) onboardingPalette(id string) {
 	a.state.Theme = id
 	a.applyTheme()
 	a.saveState()
+}
+
+// onboardingBackground is the background as the Style step says it.
+func (a *App) onboardingBackground() string {
+	switch {
+	case a.state.BackgroundImage != "":
+		return onboardview.BackgroundImage
+	case a.state.BackgroundPlain:
+		return onboardview.BackgroundPlain
+	}
+	return onboardview.BackgroundDefault
+}
+
+// onboardingSetBackground is what the Style step's choice does: as Settings' Background,
+// an image being chosen in the system's dialog.
+func (a *App) onboardingSetBackground(mode string) {
+	switch mode {
+	case onboardview.BackgroundImage:
+		a.chooseBackground()
+		return
+	case onboardview.BackgroundPlain:
+		a.state.BackgroundImage, a.state.BackgroundPlain = "", true
+	default:
+		a.state.BackgroundImage, a.state.BackgroundPlain = "", false
+	}
+	a.applyTheme()
+	a.saveState()
+}
+
+func (a *App) onboardingSetOpacity(v float32) {
+	x := float64(v)
+	a.state.BackgroundOpacity = &x
+	a.applyTheme()
+}
+
+func (a *App) onboardingSetBlur(v float32) {
+	x := float64(v)
+	a.state.BackgroundBlur = &x
 }
 
 // onboardingStartGOA starts GOD of Agents on agent, as its own dialog does.

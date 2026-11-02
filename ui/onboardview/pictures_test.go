@@ -8,6 +8,7 @@ import (
 	"strconv"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/egoist/mygo/ui"
 
@@ -39,6 +40,7 @@ func TestPictures(t *testing.T) {
 		v.begin(o)
 		v.pictureAt(float32(ms), o)
 		tt := ui.NewTester(func(c *ui.Context) { v.Draw(c, o) }, 1440, 900)
+		tt.Advance(16 * time.Millisecond) // what's measured from last frame's places
 		name := fmt.Sprintf("frame-%sms.png", at)
 		if style != "" {
 			name = style + "-" + name
@@ -68,8 +70,9 @@ func pictureOptions(style string) Options {
 		},
 		Projects: []proto.ProjectInfo{{Name: "enowx", Path: "~/code/enowx", IsGit: true, Branch: "main"}},
 		Hosts:    []string{"enowxlabs"},
-		OpenLink: func(string) {}, OpenFolder: func() {}, OpenClone: func() {}, AddHost: func() {},
+		OpenLink: func(string) {}, OpenFolder: func() {}, OpenClone: func() {}, AddHost: func(string) {},
 		SetStyle: func(string) {}, SetPalette: func(string) {}, Done: func() {},
+		BackgroundMode: BackgroundDefault, SetBackground: func(string) {}, PanelOpacity: 1, SetPanelOpacity: func(float32) {}, BlurValue: 30, BlurMost: 40, SetBlur: func(float32) {},
 		GOAAgents: []proto.GOAAgent{{Agent: "claude", Name: "Claude Code", Installed: true}, {Agent: "codex", Name: "Codex", Installed: true}},
 	}
 }
@@ -77,10 +80,22 @@ func pictureOptions(style string) Options {
 // pictureAt puts the clock at ms, at the stop that shows.
 func (v *View) pictureAt(ms float32, o Options) {
 	v.clock.t, v.clock.target = ms, ms
+	if ms > tStyle && ms < tStyleEnd {
+		// The design's tour of the styles: a change partway, as if one was just picked.
+		seq := []string{"liquid-glass", "ledger", "tonal", "bento", "liquid-glass", "tonal", "ledger", "bento", "tonal", "liquid-glass", "bento", "ledger", "liquid-glass"}
+		i := int((ms - tStyle) / 1400)
+		v.morph.began = time.Now().Add(-time.Duration(ms-tStyle-float32(i)*1400) * time.Millisecond)
+		v.morph.from, v.morph.to = seq[i], seq[i+1]
+		v.clock.t, v.clock.target = tStyle, tStyle
+		ms = tStyle
+	}
 	for i, s := range v.stops {
 		if s.at <= ms {
 			v.at = i
 		}
 	}
 	v.wireOn = true
+	if ms >= 41250 {
+		v.task.sent, v.task.prompt = true, "Add a short section on make dev to the README."
+	}
 }
