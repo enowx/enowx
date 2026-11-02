@@ -8,6 +8,7 @@ import (
 	"net/url"
 	"path"
 	"regexp"
+	"slices"
 	"strings"
 	"sync"
 	"time"
@@ -31,6 +32,7 @@ type remote struct {
 	// retry is when a note's file not on the host yet is asked for again:
 	// a sync may bring the note before its file.
 	retry time.Time
+	used  time.Time // last asked for
 }
 
 // size is the image's size, in pixels.
@@ -47,6 +49,28 @@ var remotes struct {
 	m map[string]*remote
 }
 
+// remotesKept is how many fetched images and titles stay in memory: a note's images
+// run to 16 MB each, and one scrolled back to is fetched again.
+const remotesKept = 96
+
+// forgetRemotes drops the links least recently asked for once over most, those still
+// on their way aside. The caller holds remotes.
+func forgetRemotes(m map[string]*remote, most int) {
+	if len(m) <= most {
+		return
+	}
+	links := make([]string, 0, len(m))
+	for link, r := range m {
+		if r.done {
+			links = append(links, link)
+		}
+	}
+	slices.SortFunc(links, func(x, y string) int { return m[x].used.Compare(m[y].used) })
+	for _, link := range links[:max(len(m)-most, 0)] {
+		delete(m, link)
+	}
+}
+
 var fetchClient = &http.Client{Timeout: 15 * time.Second}
 
 // fetch is link as fetched so far, fetching it the first time it is
@@ -60,10 +84,12 @@ func fetch(link string, image bool, local func(ref string) ([]byte, error)) remo
 		remotes.m = map[string]*remote{}
 	}
 	if r, ok := remotes.m[link]; ok && (r.retry.IsZero() || time.Now().Before(r.retry)) {
+		r.used = time.Now()
 		return *r
 	}
-	r := &remote{}
+	r := &remote{used: time.Now()}
 	remotes.m[link] = r
+	forgetRemotes(remotes.m, remotesKept)
 	go func() {
 		var got remote
 		if strings.HasPrefix(link, "assets/") {
@@ -73,6 +99,7 @@ func fetch(link string, image bool, local func(ref string) ([]byte, error)) remo
 		}
 		got.done = true
 		remotes.Lock()
+		got.used = r.used
 		*r = got
 		remotes.Unlock()
 	}()

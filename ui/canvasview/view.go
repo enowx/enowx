@@ -299,6 +299,9 @@ func (v *View) Open(o Options, id string) {
 func (v *View) show(o Options, c proto.Canvas) {
 	old := v.canvas
 	v.canvas = &c
+	if old != nil && old.ID != c.ID {
+		v.thumbs = nil // another canvas's pictures: the disk keeps them
+	}
 	if !slices.ContainsFunc(c.Frames, func(f proto.CanvasFrame) bool { return f.ID == v.frame }) && len(c.Frames) > 0 {
 		v.frame = c.Frames[0].ID
 	}

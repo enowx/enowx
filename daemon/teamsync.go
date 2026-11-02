@@ -42,6 +42,17 @@ type teamSyncer struct {
 	run   sync.Mutex
 	mu    sync.Mutex
 	last  map[string]syncStatus
+	// hashes are files' hashes by path, as of their size and time, so that a sync
+	// reads only what changed: spaces hold gigabytes, and this runs every 30 seconds.
+	// Only a sync touches it, under run.
+	hashes map[string]teamFileHash
+}
+
+// teamFileHash is a file's hash, as of its size and time.
+type teamFileHash struct {
+	size int64
+	mod  time.Time
+	hash string
 }
 
 type syncStatus struct {
@@ -459,12 +470,25 @@ func (ts *teamSync) pushChanges(ctx context.Context) error {
 			return nil
 		}
 		seen[p] = true
+		f, known := ts.state.Files[p]
+		info, err := d.Info()
+		if err != nil {
+			return nil
+		}
+		hashes := &ts.srv.teamSync.hashes
+		was, kept := (*hashes)[full]
+		if kept && known && !f.Deleted && was.size == info.Size() && was.mod.Equal(info.ModTime()) && was.hash == f.Hash {
+			return nil
+		}
 		data, err := os.ReadFile(full)
 		if err != nil {
 			return nil
 		}
-		f, known := ts.state.Files[p]
 		h := hashOf(data)
+		if *hashes == nil {
+			*hashes = map[string]teamFileHash{}
+		}
+		(*hashes)[full] = teamFileHash{size: info.Size(), mod: info.ModTime(), hash: h}
 		if known && !f.Deleted && f.Hash == h {
 			return nil
 		}

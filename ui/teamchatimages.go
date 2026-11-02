@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 	"slices"
 	"strings"
+	"time"
 
 	"github.com/egoist/mygo"
 	"github.com/egoist/mygo/ui"
@@ -46,6 +47,33 @@ type chatImage struct {
 	data  []byte
 	err   string
 	asked bool
+	used  time.Time // last asked for, to forget the least wanted
+}
+
+// chatImagesKept is how many fetched images stay in memory; one scrolled back to
+// is fetched again.
+const chatImagesKept = 48
+
+// forgetChatImages drops the images least recently shown once over the limit. Those of
+// a message on its way stay: they exist nowhere else yet.
+func forgetChatImages(images map[string]*chatImage, local func(id string) bool, most int) {
+	type kept struct {
+		id   string
+		used time.Time
+	}
+	var list []kept
+	for id, im := range images {
+		if im.bmp != nil && !im.used.IsZero() && !local(id) {
+			list = append(list, kept{id, im.used})
+		}
+	}
+	if len(list) <= most {
+		return
+	}
+	slices.SortFunc(list, func(x, y kept) int { return x.used.Compare(y.used) })
+	for _, k := range list[:len(list)-most] {
+		delete(images, k.id)
+	}
 }
 
 // addChatImage uploads data, named name, for the draft.
@@ -201,7 +229,9 @@ func (a *App) imageOf(team string, att proto.ChatAttachment) *chatImage {
 	if im == nil {
 		im = &chatImage{}
 		hc.images[att.ID] = im
+		forgetChatImages(hc.images, func(id string) bool { return strings.HasPrefix(id, "out:") }, chatImagesKept)
 	}
+	im.used = time.Now()
 	if !im.asked && cl != nil {
 		im.asked = true
 		go func() {
