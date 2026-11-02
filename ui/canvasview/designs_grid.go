@@ -39,8 +39,8 @@ func (v *View) comparing(cv proto.Canvas) []proto.CanvasFrame {
 // grid is every design at once, to look over, open, star and pick to
 // compare.
 func (v *View) grid(c *ui.Context, o Options, cv proto.Canvas) {
-	area := ui.Scroll(c.Key("grid")).Grow(1).MinWidth(0).FillHeight()
-	room := area.Bounds().W
+	area := widget.Scroll(c.Key("grid")).Grow(1).MinWidth(0).FillHeight()
+	room := area.Bounds().W - widget.ScrollGutter
 	area.Children(func() {
 		ui.Column(c).FillWidth().Gap(theme.S3).Children(func() {
 			if n := len(v.comparing(cv)); n > 0 {

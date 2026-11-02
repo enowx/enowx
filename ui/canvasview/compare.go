@@ -85,7 +85,7 @@ func (v *View) compareView(c *ui.Context, o Options, cv proto.Canvas) {
 		if st.actual {
 			area = ui.ScrollBoth(c.Key("compare"))
 		}
-		area.Grow(1).FillWidth().MinHeight(0)
+		area.Grow(1).FillWidth().MinHeight(0).Padding(0, widget.ScrollGutter, 0, 0)
 		b := area.Bounds()
 		widest := 1
 		for _, f := range list {
@@ -94,13 +94,13 @@ func (v *View) compareView(c *ui.Context, o Options, cv proto.Canvas) {
 		const gap = theme.S3
 		w := float32(360)
 		if b.W > 0 {
-			w = (b.W - float32(len(list)-1)*gap) / float32(len(list))
+			w = (b.W - widget.ScrollGutter - float32(len(list)-1)*gap) / float32(len(list))
 		}
 		// Too narrow side by side, or at their real size, they go one
 		// above the other.
 		stacked := b.W > 0 && w < 240 || st.actual
 		if stacked {
-			w = max(b.W, 240)
+			w = max(b.W-widget.ScrollGutter, 240)
 		}
 		area.Children(func() {
 			box := ui.Row(c.Key("side-by-side"))
