@@ -36,6 +36,7 @@ const (
 	sectionHooks       = "Hooks"
 	sectionAgents      = "Agents" // their configs: accounts and model APIs (agents.go)
 	sectionApp         = "App"
+	sectionAppearance  = "Appearance"
 	sectionFloating    = "Floating control"
 	sectionDiagnostics = "Diagnostics"
 	sectionSync        = "Sync"
@@ -114,6 +115,8 @@ func (a *App) settingsBody(c *ui.Context) {
 		a.agentsSection(c)
 	case sectionApp:
 		a.appSection(c)
+	case sectionAppearance:
+		a.appearancePage(c) // the same page as the one reached from the menus
 	case sectionFloating:
 		a.floatingSection(c)
 	case sectionDiagnostics:
