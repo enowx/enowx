@@ -8,6 +8,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/enowx/enowx/core/agent"
 	"github.com/enowx/enowx/core/goa"
 	"github.com/enowx/enowx/core/procstat"
 	"github.com/enowx/enowx/core/session"
@@ -104,6 +105,20 @@ func stallCase(l stallLook, lim proto.GOAStall) (string, time.Duration) {
 	return "", 0
 }
 
+// queuedQuiet is how long a session's screen stays still, with nothing running,
+// before a task queued for it goes in although its turn was never seen to end.
+const queuedQuiet = 20 * time.Second
+
+// queuedCanGo says a task queued for a session can go in now, its turn's end
+// unheard: an interrupt ends a turn with no hook, and a command typed at the
+// prompt (/model) says nothing either, so its state stays the working it last
+// was, gone stale. Only such a session counts: one with no state may be a plain
+// shell, in a command that reads what it is typed.
+func queuedCanGo(l stallLook, screen string) bool {
+	return l.Info.StateStale && !l.Info.Exited && !l.Info.Queued && !l.Gone &&
+		l.Still >= queuedQuiet && (l.NoCPU || l.CPU < stallCPUIdle) && agent.PromptFree(screen)
+}
+
 // stallFollow is what was told of a task. Only watchStalls touches it.
 type stallFollow struct {
 	screen string
@@ -155,7 +170,7 @@ func (s *Server) stallPass(w *stallWatch) {
 	lim := s.goaStall()
 	var open []proto.GOATask
 	for _, t := range s.goa.board.Working() {
-		if t.Session != "" && (t.Status == proto.GOATaskWorking || t.Status == proto.GOATaskStalled) {
+		if t.Session != "" && (t.Status == proto.GOATaskWorking || t.Status == proto.GOATaskStalled || t.Status == proto.GOATaskQueued) {
 			open = append(open, t)
 		}
 	}
@@ -166,6 +181,7 @@ func (s *Server) stallPass(w *stallWatch) {
 	}
 	hosts := map[string]*stallHost{}
 	seen := map[string]bool{}
+	given := map[string]bool{} // sessions given a queued task in this pass
 	for _, t := range open {
 		seen[t.ID] = true
 		key := t.Host
@@ -184,8 +200,12 @@ func (s *Server) stallPass(w *stallWatch) {
 			}
 			hosts[key] = h
 		}
-		if h != nil {
+		switch {
+		case h == nil:
+		case t.Status != proto.GOATaskQueued:
 			s.stallCheck(w, t, *h, lim)
+		case !given[t.Session] && s.queuedCheck(w, t, *h):
+			given[t.Session] = true
 		}
 	}
 	for id := range w.follows {
@@ -193,6 +213,35 @@ func (s *Server) stallPass(w *stallWatch) {
 			delete(w.follows, id)
 		}
 	}
+}
+
+// queuedCheck gives task t's session its oldest queued task if its prompt is
+// free, on host h, and says whether it did.
+func (s *Server) queuedCheck(w *stallWatch, t proto.GOATask, h stallHost) bool {
+	now := time.Now()
+	f := w.follows[t.ID]
+	if f == nil {
+		f = &stallFollow{since: now}
+		w.follows[t.ID] = f
+	}
+	info, there := h.infos[t.Session]
+	if !there {
+		return false
+	}
+	text, err := h.screen(t.Session)
+	if err != nil {
+		return false
+	}
+	if text != f.screen {
+		f.screen, f.since = text, now
+	}
+	look := stallLook{Info: info, NoCPU: !h.cpuKnown, CPU: h.cpuOf(t.Session), Still: now.Sub(f.since)}
+	if !queuedCanGo(look, text) {
+		return false
+	}
+	s.logger().Info("goa: a queued task goes in, its session's prompt being free", "session", t.Session, "task", t.ID)
+	s.goaDeliver(info)
+	return true
 }
 
 // stallCheck tells what's new of task t, on host h.

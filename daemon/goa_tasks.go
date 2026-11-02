@@ -188,13 +188,22 @@ func (s *Server) goaDeliver(info proto.SessionInfo) {
 	if g, ok := s.goaSession(); ok {
 		from = g.ID
 	}
-	err := s.goaCall(from, next.Host, proto.MethodSessionInput, proto.SessionInputParams{ID: next.Session, Text: next.Prompt, Paste: true, Enter: true}, nil)
+	// Claimed first: a turn's end and the stall watch may both come to give it.
+	claimed := false
 	_, _ = s.goa.board.Update(next.ID, func(t *proto.GOATask) {
-		t.Status = proto.GOATaskWorking
-		if err != nil {
-			t.Status, t.Result = proto.GOATaskFailed, "it couldn't be delivered: "+err.Error()
+		if t.Status == proto.GOATaskQueued {
+			t.Status, claimed = proto.GOATaskWorking, true
 		}
 	})
+	if !claimed {
+		return
+	}
+	err := s.goaCall(from, next.Host, proto.MethodSessionInput, proto.SessionInputParams{ID: next.Session, Text: next.Prompt, Paste: true, Enter: true}, nil)
+	if err != nil {
+		_, _ = s.goa.board.Update(next.ID, func(t *proto.GOATask) {
+			t.Status, t.Result = proto.GOATaskFailed, "it couldn't be delivered: "+err.Error()
+		})
+	}
 	s.goaChanged()
 }
 

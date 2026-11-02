@@ -43,6 +43,34 @@ func TestStallCases(t *testing.T) {
 	}
 }
 
+// A queued task goes in when its session's prompt is really free, its turn's
+// end unheard; not while it works, asks, runs something, or may be a shell.
+func TestQueuedCanGo(t *testing.T) {
+	stale := proto.SessionInfo{StateStale: true}
+	const free = "  ⎿  Interrupted · What should Claude do instead?\n\n❯ \n  ⏵⏵ bypass permissions on\n"
+	for _, c := range []struct {
+		name   string
+		look   stallLook
+		screen string
+		want   bool
+	}{
+		{"after an interrupt and /model", stallLook{Info: stale, Still: time.Minute}, free, true},
+		{"still too shortly", stallLook{Info: stale, Still: time.Second}, free, false},
+		{"something runs", stallLook{Info: stale, Still: time.Minute, CPU: 50}, free, false},
+		{"it says it works", stallLook{Info: stale, Still: time.Minute}, "✶ Thinking… (esc to interrupt)\n", false},
+		{"it asks", stallLook{Info: stale, Still: time.Minute}, "Do you want to proceed?\n ❯ 1. Yes\n   2. No\n", false},
+		{"a blank screen", stallLook{Info: stale, Still: time.Minute}, " \n", false},
+		{"no state: maybe a shell", stallLook{Still: time.Minute}, free, false},
+		{"really working", stallLook{Info: proto.SessionInfo{State: proto.StateWorking}, Still: time.Minute}, free, false},
+		{"its own input queued", stallLook{Info: proto.SessionInfo{StateStale: true, Queued: true}, Still: time.Minute}, free, false},
+		{"ended", stallLook{Info: proto.SessionInfo{StateStale: true, Exited: true}, Still: time.Minute}, free, false},
+	} {
+		if got := queuedCanGo(c.look, c.screen); got != c.want {
+			t.Errorf("%s: %v", c.name, got)
+		}
+	}
+}
+
 // The limits are the host's, kept over a restart, each back to its default at
 // 0; what can't be a limit is refused and changes nothing.
 func TestGOAStallLimits(t *testing.T) {

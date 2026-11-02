@@ -81,6 +81,20 @@ func askedAbove(lines []string, i int) string {
 	return line
 }
 
+// PromptFree says a screen shows an agent neither at work nor asking anything:
+// what it is given next, it takes. The caller says it has been still for long
+// enough, and that nothing runs.
+func PromptFree(screen string) bool {
+	if strings.TrimSpace(screen) == "" || workingShown.MatchString(strings.Join(tailLines(screen, 12), "\n")) {
+		return false
+	}
+	if _, ok := PromptShown(screen); ok {
+		return false
+	}
+	_, ok := StalledPrompt(screen)
+	return !ok
+}
+
 // StalledPrompt is the fallback for prompts nobody listed: a screen that hasn't
 // changed, not saying it works, whose end is a question or a menu to pick from.
 // The caller says how long it has been still: a long command prints nothing
