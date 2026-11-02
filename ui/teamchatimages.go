@@ -155,7 +155,7 @@ func (a *App) pendingImages(c *ui.Context) {
 	if len(hc.pending) == 0 {
 		return
 	}
-	ui.Row(c).FillWidth().Gap(8).PaddingX(4).Wrap().Children(func() {
+	ui.Row(c).FillWidth().Gap(theme.S2).PaddingX(theme.S1).Wrap().Children(func() {
 		for i, p := range hc.pending {
 			box := ui.Box(c.Key(p.key)).Size(64, 64).Radius(theme.RadiusSmall).Background(theme.Sunken).Border(1, theme.Border).Center()
 			if p.err != "" {
@@ -235,7 +235,7 @@ func (a *App) messageImages(c *ui.Context, team string, m proto.ChatMessage) {
 	if len(m.Attachments) > 1 {
 		w = chatImageW/2 - 3
 	}
-	ui.Row(c).Gap(6).Wrap().MaxWidth(chatImageW).Children(func() {
+	ui.Row(c).Gap(theme.S2).Wrap().MaxWidth(chatImageW).Children(func() {
 		for _, att := range m.Attachments {
 			im := a.imageOf(team, att)
 			iw, ih := imageSize(att, w)
@@ -249,7 +249,7 @@ func (a *App) messageImages(c *ui.Context, team string, m proto.ChatMessage) {
 				case im.bmp != nil:
 					ui.Image(c, im.bmp).Size(iw, ih).Radius(theme.RadiusSmall).Fit(ui.Cover)
 				case im.err != "":
-					ui.Column(c).Gap(4).Padding(8).AlignItems(ui.Center).Children(func() {
+					ui.Column(c).Gap(theme.S1).Padding(theme.S2).AlignItems(ui.Center).Children(func() {
 						ui.Icon(c, icon.Image).FontSize(16).TextColor(theme.Idle)
 						ui.Text(c, im.err).FontSize(theme.TextLabel).TextColor(theme.Muted).TextAlign(ui.Center).MaxLines(3)
 					})
@@ -283,11 +283,11 @@ func (a *App) imageViewer(c *ui.Context, team string) {
 			iw, ih = maxW, maxH
 		}
 		scale := min(maxW/iw, maxH/ih, 1)
-		panel.Gap(10).AlignItems(ui.Center)
+		panel.Gap(theme.S2).AlignItems(ui.Center)
 		if im != nil && im.bmp != nil {
 			ui.Image(c, im.bmp).Size(iw*scale, ih*scale).Radius(theme.RadiusSmall)
 		}
-		ui.Row(c).Gap(10).AlignItems(ui.Center).Padding(6, 8, 6, 14).Radius(theme.RadiusControl+4).Background(theme.Dialog).Border(1, theme.BorderStrong).Children(func() {
+		ui.Row(c).Gap(theme.S2).AlignItems(ui.Center).Padding(theme.S2, theme.S2, theme.S2, theme.S3).Radius(theme.RadiusControl+4).Background(theme.Dialog).Border(1, theme.BorderStrong).Children(func() {
 			ui.Column(c).Gap(1).Shrink(1).MinWidth(0).Children(func() {
 				ui.Text(c, nonEmptyStr(att.Name, "Image")).FontSize(theme.TextLabel).FontWeight(600).SingleLine()
 				detail := m.Name + " · " + m.At.Local().Format("Mon 2 Jan 15:04")

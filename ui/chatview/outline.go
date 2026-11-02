@@ -40,7 +40,7 @@ func (ch *Chat) outline(c *ui.Context, turns []turn, more int) {
 				for _, r := range rows {
 					t := turns[r-more]
 					on := r == current
-					b := ui.ButtonBase(c.Key(r)).FillWidth().Padding(5, 10).Justify(ui.Start).Cursor(ui.CursorPointer).
+					b := ui.ButtonBase(c.Key(r)).FillWidth().Padding(theme.S1, theme.S2).Justify(ui.Start).Cursor(ui.CursorPointer).
 						BorderWidth(0, 0, 0, 2).Label("Go to: " + firstLine(t.prompt.Text))
 					col, edge := theme.TextSoft, theme.BorderStrong
 					switch {

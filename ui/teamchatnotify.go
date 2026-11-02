@@ -108,7 +108,7 @@ func (a *App) chatToastsView(c *ui.Context) {
 	if len(a.chatToasts) == 0 && len(a.sessionToasts) == 0 {
 		return
 	}
-	ui.Column(c.Key("chat-toasts")).Absolute().Top(52).Right(16).Width(360).Gap(8).TextColor(theme.Text).Children(func() {
+	ui.Column(c.Key("chat-toasts")).Absolute().Top(52).Right(16).Width(360).Gap(theme.S2).TextColor(theme.Text).Children(func() {
 		a.sessionToastsView(c, now)
 		for _, t := range slices.Clone(a.chatToasts) {
 			a.chatToastCard(c.Key("toast:"+t.msg.ID), t, now)
@@ -133,7 +133,7 @@ func (a *App) chatToastCard(c *ui.Context, t *chatToast, now time.Time) {
 		c.After(chatToastLife - now.Sub(t.shown) + 50*time.Millisecond)
 	}
 	card.Children(func() {
-		ui.Row(c).FillWidth().Gap(10).AlignItems(ui.Start).Children(func() {
+		ui.Row(c).FillWidth().Gap(theme.S2).AlignItems(ui.Start).Children(func() {
 			memberAvatar(c, m.Account, m.Name, 30)
 			body := ui.ButtonBase(c.Key("open")).Grow(1).MinWidth(0).Cursor(ui.CursorPointer).Label("Open the chat").Tooltip("Open the chat")
 			body.Children(func() {
@@ -172,7 +172,7 @@ func (a *App) chatToastCard(c *ui.Context, t *chatToast, now time.Time) {
 			ui.Text(c, t.err).FontSize(theme.TextLabel).TextColor(theme.Error)
 		}
 		if !t.replying {
-			ui.Row(c).FillWidth().Gap(6).Padding(0, 0, 0, 40).Children(func() {
+			ui.Row(c).FillWidth().Gap(theme.S2).Padding(0, 0, 0, 40).Children(func() {
 				if a.chatWriter(m.Team) && widget.Button(c.Key("reply"), widget.Secondary, icon.Reply, "Reply", "").Height(26).Clicked() {
 					t.replying, t.focus = true, true
 				}
@@ -182,7 +182,7 @@ func (a *App) chatToastCard(c *ui.Context, t *chatToast, now time.Time) {
 			})
 			return
 		}
-		ui.Row(c).FillWidth().Gap(6).Padding(0, 0, 0, 40).AlignItems(ui.Center).Children(func() {
+		ui.Row(c).FillWidth().Gap(theme.S2).Padding(0, 0, 0, 40).AlignItems(ui.Center).Children(func() {
 			in := widget.Input(c.Key("reply-in"), &t.draft, "Reply to "+m.Name).Grow(1).Height(30)
 			if t.focus {
 				in.Focus()

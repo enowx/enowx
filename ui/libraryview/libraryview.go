@@ -349,7 +349,7 @@ func pickOne(c *ui.Context, label string, width float32, values []string, name f
 		ui.Icon(c, icon.ChevronDown).FontSize(12).TextColor(theme.TextSoft)
 	})
 	sel.Popup(func(panel ui.Element) {
-		widget.Popup(panel.Margin(6, 0, 0, 0).Width(width))
+		widget.Popup(panel.Margin(theme.S2, 0, 0, 0).Width(width))
 		ui.Scroll(c).FillWidth().MaxHeight(300).Children(func() {
 			ui.Column(c).FillWidth().Children(func() {
 				for _, val := range values {

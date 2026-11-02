@@ -187,7 +187,7 @@ func (p *Picker) row(c *ui.Context, e entry) {
 	on := p.selected[full]
 	ui.Row(c).FillWidth().Shrink(0).Gap(theme.S1).PaddingX(theme.S3).AlignItems(ui.Start).Children(func() {
 		// A checkbox keeps to its row's start: down to its name's middle.
-		ui.Row(c.Key("box")).Shrink(0).Padding(6, 0, 0, 0).Children(func() {
+		ui.Row(c.Key("box")).Shrink(0).Padding(theme.S2, 0, 0, 0).Children(func() {
 			if widget.Checkbox(c.Key("pick"), &on, "") {
 				if on {
 					p.selected[full] = true

@@ -81,7 +81,7 @@ func (a *App) floatingAppearance(c *ui.Context) {
 				a.state.FloatingAccent, *input = "", ""
 				a.refreshFloatingAppearance()
 			}
-			ui.Box(c).Width(1).Height(24).Background(theme.Border).Margin(0, 4)
+			ui.Box(c).Width(1).Height(24).Background(theme.Border).Margin(0, theme.S1)
 			for _, color := range theme.Accents {
 				hex := theme.Hex(color)
 				if a.swatch(c.Key(hex), color, strings.EqualFold(a.state.FloatingAccent, hex), "Floating color "+hex) {

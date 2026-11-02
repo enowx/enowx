@@ -226,7 +226,7 @@ func markRow(c *ui.Context, row ui.Element, b block, n int, tick func(), text fu
 		case kNumber:
 			ui.Text(c, strconv.Itoa(max(n, 1))+".").FontSize(theme.TextRead).TextColor(theme.TextSoft).MinWidth(16).Shrink(0)
 		case kTodo:
-			box := ui.ButtonBase(c).Size(16, 16).Margin(3, 0, 0, 0).Shrink(0).Radius(theme.RadiusTail).Center().Cursor(ui.CursorPointer).Label("Done")
+			box := ui.ButtonBase(c).Size(16, 16).Margin(theme.S1, 0, 0, 0).Shrink(0).Radius(theme.RadiusTail).Center().Cursor(ui.CursorPointer).Label("Done")
 			if b.done {
 				box.Background(theme.Accent).Children(func() {
 					ui.Icon(c, icon.Check).FontSize(12).TextColor(theme.OnAccent)
@@ -299,7 +299,7 @@ func (e *editor) showBlock(c *ui.Context, i, n int) {
 	case kLayout:
 		row.FillWidth().Padding(theme.S1, 6).Children(func() { e.layoutView(c, i) })
 	case kLeaf:
-		row.FillWidth().Padding(2, 6).Children(func() { e.leafView(c, i, b.text, e.lineOf(i)) })
+		row.FillWidth().Padding(2, theme.S2).Children(func() { e.leafView(c, i, b.text, e.lineOf(i)) })
 	case kText:
 		if len(imageMatches(b.text)) > 0 {
 			row.FillWidth().Padding(theme.S1, 0).Children(func() { e.imageBlock(c, i) })

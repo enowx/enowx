@@ -140,7 +140,7 @@ func (ch *Chat) attachmentChip(c *ui.Context, at *attachment) {
 				img.Opacity(0.45)
 			}
 		} else {
-			ui.Row(c).Fill().Gap(6).PaddingX(8).Children(func() {
+			ui.Row(c).Fill().Gap(theme.S2).PaddingX(theme.S2).Children(func() {
 				ui.Icon(c, icon.File).FontSize(13).TextColor(theme.Muted)
 				widget.Running(c, at.name, widget.RunStyle{Size: theme.TextLabel})
 			})

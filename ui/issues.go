@@ -66,21 +66,21 @@ func (a *App) issueButton(c *ui.Context) {
 		return
 	}
 	ui.PopoverBase(c, b, &a.issues.open, func(panel ui.Element) {
-		widget.Popup(panel.AttachTo(b, ui.AnchorTopLeft, ui.AnchorBottomLeft).Margin(6, 0, 0, 0).Width(520))
+		widget.Popup(panel.AttachTo(b, ui.AnchorTopLeft, ui.AnchorBottomLeft).Margin(theme.S2, 0, 0, 0).Width(520))
 		in := widget.Input(c, &a.issues.search, "Search issues (GitHub's search)").FillWidth().AutoFocus()
 		if in.Submitted() && a.issues.search != a.issues.asked {
 			a.loadIssues(f.project.Path)
 		}
 		switch {
 		case a.issues.err != "":
-			ui.Text(c, a.issues.err).FontSize(theme.TextLabel).TextColor(theme.Error).Padding(8)
+			ui.Text(c, a.issues.err).FontSize(theme.TextLabel).TextColor(theme.Error).Padding(theme.S2)
 		case a.issues.loading:
-			ui.Row(c).Gap(8).Padding(8).Children(func() {
+			ui.Row(c).Gap(theme.S2).Padding(theme.S2).Children(func() {
 				widget.Spinner(c, 13)
 				ui.Text(c, "Reading the issues…").FontSize(theme.TextLabel).TextColor(theme.Muted)
 			})
 		case len(a.issues.issues) == 0:
-			ui.Text(c, "No open issues match.").FontSize(theme.TextLabel).TextColor(theme.Muted).Padding(8)
+			ui.Text(c, "No open issues match.").FontSize(theme.TextLabel).TextColor(theme.Muted).Padding(theme.S2)
 		}
 		ui.Scroll(c).FillWidth().MaxHeight(340).Children(func() {
 			ui.Column(c).FillWidth().Children(func() {

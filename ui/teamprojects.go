@@ -117,7 +117,7 @@ func (a *App) cloudTeamProjects(c *ui.Context, cs *cloudSettings) {
 		return
 	}
 	widget.Field(c, "Add a project", func() {
-		ui.Row(c).FillWidth().Gap(8).Children(func() {
+		ui.Row(c).FillWidth().Gap(theme.S2).Children(func() {
 			ui.Column(c).Grow(1).Children(func() {
 				widget.Input(c, &tp.adding, "https://github.com/me/app or git@github.com:me/app.git").FillWidth().Font(theme.MonoFont)
 			})

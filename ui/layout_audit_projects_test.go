@@ -44,7 +44,7 @@ func projectAuditPages() []auditPage {
 		a.hostList = []hosts.Host{other}
 	}
 	plan := projectsync.Plan{
-		Files: []projectsync.File{{Path: "README.md"}, {Path: "a/b.go", From: projectsync.There}, {Path: "a/deleted.go", Delete: true}, {Path: "a/both/with/a/name/too/long/for/its/row/so/that/it/has/to/run/in/it.go", Conflict: true}},
+		Files:    []projectsync.File{{Path: "README.md"}, {Path: "a/b.go", From: projectsync.There}, {Path: "a/deleted.go", Delete: true}, {Path: "a/both/with/a/name/too/long/for/its/row/so/that/it/has/to/run/in/it.go", Conflict: true}},
 		Sessions: []projectsync.Session{{Name: "Fix it", New: true}, {Name: "Chat", Restarts: true, From: projectsync.There}, {Name: "Both", Key: "k", Conflict: true}},
 		Branches: []projectsync.Branch{{Name: "main", Commit: "abcdef123"}},
 	}

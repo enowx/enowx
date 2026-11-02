@@ -79,7 +79,7 @@ func drawingView(c *ui.Context, code string) {
 		w, h = 24, 24
 	}
 	// As large as it says, at most 640 and the room the page has.
-	row := ui.Row(c).FillWidth().Padding(6, 0)
+	row := ui.Row(c).FillWidth().Padding(theme.S2, 0)
 	most := float32(640)
 	if room := row.Bounds().W; room > 0 {
 		most = min(most, room)

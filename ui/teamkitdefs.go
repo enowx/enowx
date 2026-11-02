@@ -41,7 +41,7 @@ func (a *App) pipelineTeamRow(c *ui.Context, f *pipelineForm) {
 	}
 	team := a.spaceName(tp.Team)
 	widget.Field(c, team+"'s pipelines", func() {
-		ui.Row(c).FillWidth().Gap(6).Wrap().Children(func() {
+		ui.Row(c).FillWidth().Gap(theme.S2).Wrap().Children(func() {
 			for _, it := range a.kitOfKind(tp.Team, proto.KitPipeline) {
 				var stages []proto.PipelineStage
 				if json.Unmarshal(it.Data, &stages) != nil || len(stages) == 0 {
@@ -56,7 +56,7 @@ func (a *App) pipelineTeamRow(c *ui.Context, f *pipelineForm) {
 				}
 			}
 		})
-		ui.Row(c).FillWidth().Gap(8).AlignItems(ui.Center).Children(func() {
+		ui.Row(c).FillWidth().Gap(theme.S2).AlignItems(ui.Center).Children(func() {
 			ui.Column(c).Grow(1).Children(func() { widget.Input(c, &f.shareName, "Share these stages as…").FillWidth() })
 			b := widget.Button(c, widget.Secondary, icon.Plus, "Share with "+team, "")
 			name := strings.TrimSpace(f.shareName)

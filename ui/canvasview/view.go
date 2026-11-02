@@ -428,7 +428,7 @@ func (v *View) Draw(c *ui.Context, o Options) {
 		ui.Column(c).Grow(1).MinWidth(0).FillHeight().Background(theme.Background).Children(func() {
 			switch {
 			case v.canvas == nil && v.loading:
-				ui.Text(c, "Opening…").FontSize(theme.TextLabel).TextColor(theme.Muted).Padding(20)
+				ui.Text(c, "Opening…").FontSize(theme.TextLabel).TextColor(theme.Muted).Padding(theme.S5)
 			case v.canvas == nil:
 				v.empty(c, o)
 			default:

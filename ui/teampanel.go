@@ -39,7 +39,7 @@ func (a *App) teamProjectsTab(c *ui.Context) {
 		}
 	}
 	if len(list) == 0 {
-		ui.Column(c).Grow(1).FillWidth().Center().Gap(6).Padding(24).Children(func() {
+		ui.Column(c).Grow(1).FillWidth().Center().Gap(theme.S2).Padding(theme.S5).Children(func() {
 			ui.Icon(c, icon.Folder).FontSize(22).TextColor(theme.Idle)
 			ui.Text(c, "No projects yet").FontSize(theme.TextUI).TextColor(theme.TextSoft)
 			ui.Text(c, "Admins add them by their Git link, in Settings › Cloud › the team › Projects.").FontSize(theme.TextLabel).TextColor(theme.Muted).TextAlign(ui.Center)
@@ -153,7 +153,7 @@ func (a *App) teamMembersTab(c *ui.Context) {
 	c.After(membersRefresh)
 	if err := a.chatsOf().membersErr[team]; err != "" && len(members) == 0 {
 		hc := a.chatsOf()
-		ui.Column(c).Grow(1).FillWidth().Center().Gap(8).Padding(24).Children(func() {
+		ui.Column(c).Grow(1).FillWidth().Center().Gap(theme.S2).Padding(theme.S5).Children(func() {
 			ui.Text(c, "Couldn't read the team's members: "+err).FontSize(theme.TextLabel).TextColor(theme.Muted).TextAlign(ui.Center)
 			if widget.Button(c, widget.Secondary, nil, "Try again", "").Clicked() {
 				delete(hc.membersAt, team)
@@ -163,7 +163,7 @@ func (a *App) teamMembersTab(c *ui.Context) {
 		return
 	}
 	if len(members) == 0 {
-		ui.Column(c).Grow(1).FillWidth().Center().Gap(6).Padding(24).Children(func() {
+		ui.Column(c).Grow(1).FillWidth().Center().Gap(theme.S2).Padding(theme.S5).Children(func() {
 			widget.Spinner(c, 14)
 			ui.Text(c, "Reading the team's members…").FontSize(theme.TextLabel).TextColor(theme.Muted)
 		})

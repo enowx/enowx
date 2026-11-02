@@ -280,7 +280,7 @@ func (e *editor) calloutView(c *ui.Context, i int, n noteblocks.Node) {
 		ui.Icon(c, k.svg).FontSize(16).TextColor(col).Margin(2, 0, 0, 0)
 		ui.Column(c).Grow(1).MinWidth(0).Gap(theme.S1).Children(func() {
 			if title != "" {
-				e.label(c, title).FontSize(theme.TextRead).FontWeight(500).TextColor(theme.TextStrong).PaddingX(6)
+				e.label(c, title).FontSize(theme.TextRead).FontWeight(500).TextColor(theme.TextStrong).PaddingX(theme.S2)
 			}
 			e.soft = true
 			defer func() { e.soft = false }()
@@ -314,7 +314,7 @@ func (e *editor) columnsView(c *ui.Context, i int, n noteblocks.Node) {
 			}
 			col.Children(func() {
 				if p.Title != "" {
-					e.label(c, p.Title).FontSize(theme.TextRead).FontWeight(500).TextColor(theme.TextStrong).PaddingX(6)
+					e.label(c, p.Title).FontSize(theme.TextRead).FontWeight(500).TextColor(theme.TextStrong).PaddingX(theme.S2)
 				}
 				e.partView(c, i, p)
 			})
@@ -339,7 +339,7 @@ func (e *editor) cardsView(c *ui.Context, i int, n noteblocks.Node) {
 					p := n.Parts[k]
 					widget.Card(c.Key(k)).Grow(1).Basis(0).Gap(theme.S1).Padding(theme.S3, theme.S4).Children(func() {
 						if p.Title != "" {
-							e.label(c, p.Title).FontSize(theme.TextRead).FontWeight(500).TextColor(theme.TextStrong).PaddingX(6)
+							e.label(c, p.Title).FontSize(theme.TextRead).FontWeight(500).TextColor(theme.TextStrong).PaddingX(theme.S2)
 						}
 						e.partView(c, i, p)
 					})

@@ -253,10 +253,10 @@ func (v *View) mockup(c *ui.Context, o Options, f proto.CanvasFrame, design ui.R
 		v.componentBar(c, o, s, w, h)
 		return
 	}
-	ui.Column(c.Key("outline")).Absolute().Left(0).Top(0).Size(w, h).Padding(16).Gap(4).Children(func() {
+	ui.Column(c.Key("outline")).Absolute().Left(0).Top(0).Size(w, h).Padding(theme.S4).Gap(theme.S1).Children(func() {
 		ui.Text(c, "This device shows mockups in a web view: here, their elements.").FontSize(theme.TextLabel).TextColor(ui.RGB(100, 116, 139))
 		for _, el := range canvas.Outline(f.HTML) {
-			row := ui.Row(c.Key(el.ID)).Padding(2, 6, 2, 6+float32(el.Depth)*12).Radius(theme.RadiusTail).Gap(6)
+			row := ui.Row(c.Key(el.ID)).Padding(2, 6, 2, 6+float32(el.Depth)*12).Radius(theme.RadiusTail).Gap(theme.S2)
 			if v.recent(el.ID) {
 				row.Background(ui.RGBA(99, 102, 241, 0.18))
 			}
@@ -336,14 +336,14 @@ func (v *View) shape(c *ui.Context, o Options, el proto.CanvasElement, s float64
 		switch {
 		case v.editing != nil && v.editing.id == el.ID:
 			in := ui.TextInput(c.Key("edit"), &v.editing.text).FillWidth().FillHeight().FontSize(float32(st.FontSize * s)).
-				TextColor(color(st.Color, ui.RGB(15, 23, 42))).Padding(4).AutoFocus().Label("Text of " + el.ID)
+				TextColor(color(st.Color, ui.RGB(15, 23, 42))).Padding(theme.S1).AutoFocus().Label("Text of " + el.ID)
 			if in.Submitted() || in.Shortcut(0, ui.KeyEscape) || !in.Focused() && v.editing.text != el.Text {
 				el.Text = v.editing.text
 				v.editing = nil
 				v.edit(o, proto.CanvasEdit{Op: proto.CanvasOpElementSet, Element: &el})
 			}
 		case el.Type == proto.ShapeImage:
-			ui.Column(c).FillWidth().FillHeight().Center().Gap(4).Children(func() {
+			ui.Column(c).FillWidth().FillHeight().Center().Gap(theme.S1).Children(func() {
 				ui.Icon(c, icon.File).FontSize(float32(math.Max(14*s, 10))).TextColor(ui.RGB(100, 116, 139))
 				ui.Text(c, el.Src).FontSize(float32(math.Max(11*s, 9))).TextColor(ui.RGB(100, 116, 139)).SingleLine()
 			})
@@ -358,7 +358,7 @@ func (v *View) shape(c *ui.Context, o Options, el proto.CanvasElement, s float64
 			if o.AgentName != nil {
 				who = o.AgentName(v.last.Session)
 			}
-			ui.Row(c.Key("who")).Absolute().Left(0).Top(-22).Height(18).PaddingX(6).Radius(theme.RadiusTail).Background(theme.Accent).Children(func() {
+			ui.Row(c.Key("who")).Absolute().Left(0).Top(-22).Height(18).PaddingX(theme.S2).Radius(theme.RadiusTail).Background(theme.Accent).Children(func() {
 				ui.Text(c, who).FontSize(theme.TextLabel).TextColor(ui.RGB(255, 255, 255)).SingleLine()
 			})
 		}
@@ -502,7 +502,7 @@ func (v *View) arrowHandle(c *ui.Context, o Options, f proto.CanvasFrame, el pro
 			return
 		}
 		ui.Text(c, el.Text).FontSize(float32(st.FontSize * s * 0.85)).TextColor(color(st.Color, ui.RGB(15, 23, 42))).
-			Background(ui.RGBA(255, 255, 255, 0.9)).PaddingX(4).Radius(theme.RadiusTail).SingleLine()
+			Background(ui.RGBA(255, 255, 255, 0.9)).PaddingX(theme.S1).Radius(theme.RadiusTail).SingleLine()
 	})
 	_ = o
 }

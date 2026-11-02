@@ -34,7 +34,7 @@ func (a *App) windowButtons(c *ui.Context) {
 	if win == nil {
 		return
 	}
-	group := ui.Row(c.Key("window-buttons")).Gap(8).Shrink(0)
+	group := ui.Row(c.Key("window-buttons")).Gap(theme.S2).Shrink(0)
 	over := group.Hovered()
 	group.Children(func() {
 		for i, label := range []string{"Close", "Minimize", "Zoom"} {

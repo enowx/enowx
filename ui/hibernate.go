@@ -297,7 +297,7 @@ func hibernateFrees(plans []proto.HibernatePlan) string {
 }
 
 func hibernatePlans(c *ui.Context, plans []proto.HibernatePlan) {
-	ui.Column(c).FillWidth().Gap(8).Children(func() {
+	ui.Column(c).FillWidth().Gap(theme.S2).Children(func() {
 		for _, pl := range plans {
 			hibernatePlanCard(c.Key(pl.ID), pl)
 		}

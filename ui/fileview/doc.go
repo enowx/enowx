@@ -286,7 +286,7 @@ func (d *Doc) text(c *ui.Context) {
 			row.Background(theme.Selected)
 		}
 		row.Children(func() {
-			ui.Text(c, strconv.Itoa(i+1)).Font(theme.MonoFont).FontSize(theme.TextUI).TextColor(ui.Hex("#6E7386")).Width(width).PaddingX(6).
+			ui.Text(c, strconv.Itoa(i+1)).Font(theme.MonoFont).FontSize(theme.TextUI).TextColor(ui.Hex("#6E7386")).Width(width).PaddingX(theme.S2).
 				TextAlign(ui.End).SingleLine().Shrink(0)
 			var spans []widget.Span
 			if i < len(d.spans) {
@@ -297,7 +297,7 @@ func (d *Doc) text(c *ui.Context) {
 			}
 			widget.CodeSpans(c, spans, lines[i]).Font(theme.MonoFont).FontSize(theme.TextUI).TextColor(ui.Hex("#E4E6EE")).SingleLine().Shrink(1)
 		})
-	}).Grow(1).FillWidth().MinHeight(0).Padding(6, 0)
+	}).Grow(1).FillWidth().MinHeight(0).Padding(theme.S2, 0)
 }
 
 // picture shows an image: at its size when it fits, else scaled down to

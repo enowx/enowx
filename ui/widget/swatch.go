@@ -27,7 +27,7 @@ func ParseHex(s string) (ui.Color, bool) {
 
 // Swatches picks one of colors (#RRGGBB) into value, "" for none.
 func Swatches(c *ui.Context, colors []string, value *string) {
-	ui.Row(c).Gap(6).AlignItems(ui.Center).Children(func() {
+	ui.Row(c).Gap(theme.S2).AlignItems(ui.Center).Children(func() {
 		swatch := func(key, hex string) {
 			col, ok := ParseHex(hex)
 			on := strings.EqualFold(*value, hex)
@@ -62,7 +62,7 @@ func BadgeTag(c *ui.Context, label, hex string) {
 	if !ok {
 		col = theme.Accent
 	}
-	ui.Row(c).PaddingX(7).Height(18).Gap(5).Radius(theme.RadiusSmall).Border(1, theme.Fade(col, 0.45)).AlignItems(ui.Center).Shrink(0).Children(func() {
+	ui.Row(c).PaddingX(theme.S2).Height(18).Gap(theme.S1).Radius(theme.RadiusSmall).Border(1, theme.Fade(col, 0.45)).AlignItems(ui.Center).Shrink(0).Children(func() {
 		ui.Box(c).Width(6).Height(6).Radius(theme.RadiusTail).Background(col)
 		ui.Text(c, label).FontSize(theme.TextLabel).TextColor(theme.TextSoft).SingleLine()
 	})

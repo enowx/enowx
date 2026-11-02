@@ -60,7 +60,7 @@ func (a *App) chatComposer(c *ui.Context, team string) {
 			widget.Notice(c, icon.Alert, theme.Error, hc.err, "", nil)
 		}
 		if hc.editing != nil {
-			ui.Row(c).FillWidth().Gap(6).PaddingX(4).AlignItems(ui.Center).Children(func() {
+			ui.Row(c).FillWidth().Gap(theme.S2).PaddingX(theme.S1).AlignItems(ui.Center).Children(func() {
 				ui.Icon(c, icon.Pencil).FontSize(12).TextColor(theme.Accent)
 				ui.Text(c, "Editing your message · Esc to cancel").FontSize(theme.TextLabel).TextColor(theme.TextSoft).Grow(1).Shrink(1).SingleLine()
 				if widget.IconButton(c, icon.Close, "Stop editing", false).Clicked() {
@@ -68,7 +68,7 @@ func (a *App) chatComposer(c *ui.Context, team string) {
 				}
 			})
 			// What the message mentions as chips, kept unless dropped here.
-			ui.Row(c).FillWidth().Gap(6).Wrap().PaddingX(4).Children(func() {
+			ui.Row(c).FillWidth().Gap(theme.S2).Wrap().PaddingX(theme.S1).Children(func() {
 				for i, mn := range hc.mentions {
 					if strings.Contains(hc.editing.Text, "@"+mn.Title) {
 						continue
@@ -87,7 +87,7 @@ func (a *App) chatComposer(c *ui.Context, team string) {
 		box := ui.Row(c).FillWidth().Gap(theme.S1).Padding(theme.S1, theme.S2, theme.S1, theme.S4).Radius(theme.RadiusPanel).AlignItems(ui.End)
 		send := false
 		widget.Well(box, box.FocusWithin()).Children(func() {
-			in := ui.TextAreaBase(c, &hc.draft).Grow(1).Shrink(1).MinWidth(0).Lines(1, 6).Padding(6, 0).FontSize(theme.TextUI).
+			in := ui.TextAreaBase(c, &hc.draft).Grow(1).Shrink(1).MinWidth(0).Lines(1, 6).Padding(theme.S2, 0).FontSize(theme.TextUI).
 				Placeholder(a.chatPlaceholder(team)).Label("Message").
 				Tooltip("Enter to send · Shift+Enter for a new line")
 			_, caret := in.TextSelection()
@@ -312,14 +312,14 @@ func (a *App) mentionFiles(team, query string) []mentionOption {
 func (a *App) mentionMenu(c *ui.Context, box ui.Element, start, stop int, query string, options []mentionOption) {
 	hc := a.chatsOf()
 	ui.Overlay(c, func() {
-		widget.Popup(ui.Column(c).AttachTo(box, ui.AnchorTopLeft, ui.AnchorBottomLeft).Margin(0, 0, 6, 0).
+		widget.Popup(ui.Column(c).AttachTo(box, ui.AnchorTopLeft, ui.AnchorBottomLeft).Margin(0, 0, theme.S2, 0).
 			Width(max(box.LayoutBounds().W, 240)).MaxHeight(300)).Children(func() {
 			if len(options) == 0 {
 				msg := "Nothing in the team is called “" + query + "”"
 				if query == "" {
 					msg = "The team has no members, notes or projects to mention yet"
 				}
-				ui.Text(c, msg).FontSize(theme.TextLabel).TextColor(theme.Muted).Padding(8, 10)
+				ui.Text(c, msg).FontSize(theme.TextLabel).TextColor(theme.Muted).Padding(theme.S2, theme.S2)
 				return
 			}
 			widget.PopupLabel(c, "Mention")

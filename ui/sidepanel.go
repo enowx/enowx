@@ -356,7 +356,7 @@ func (a *App) dockButton(c *ui.Context, t panelTool, front bool) ui.Element {
 
 // dockDot says a dock's entry has something new.
 func dockDot(c *ui.Context, b ui.Element) {
-	ui.Box(c.Key("news")).Size(8, 8).AttachTo(b, ui.AnchorTopRight, ui.AnchorTopRight).Margin(4, 4, 0, 0).Radius(theme.RadiusFull).Background(theme.Now)
+	ui.Box(c.Key("news")).Size(8, 8).AttachTo(b, ui.AnchorTopRight, ui.AnchorTopRight).Margin(theme.S1, theme.S1, 0, 0).Radius(theme.RadiusFull).Background(theme.Now)
 }
 
 func panelNote(c *ui.Context, text string) {

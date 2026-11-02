@@ -30,7 +30,7 @@ func (a *App) installCard(c *ui.Context, ag proto.AgentInfo) {
 			return
 		}
 		ui.Text(c, "Install runs its official installer in a session here, as the user enowX runs as:").FontSize(theme.TextLabel).TextColor(theme.Muted)
-		ui.Text(c, ag.Install).Font(theme.MonoFont).FontSize(theme.TextLabel).Padding(8, 10).Radius(theme.RadiusSmall).Background(theme.Sunken).FillWidth()
+		ui.Text(c, ag.Install).Font(theme.MonoFont).FontSize(theme.TextLabel).Padding(theme.S2, theme.S2).Radius(theme.RadiusSmall).Background(theme.Sunken).FillWidth()
 	})
 }
 

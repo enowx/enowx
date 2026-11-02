@@ -143,7 +143,7 @@ func RailSection(c *ui.Context, label string, wide bool) {
 				Transition(ui.ElementTransition{Duration: 260 * time.Millisecond, Ease: Out, Enter: &ui.Motion{X: -6, Opacity: 0}})
 			return
 		}
-		ui.Box(c.Key("line")).Size(RailIconSize, 0.5).Margin(0, 0, 4, 0).Background(theme.Border)
+		ui.Box(c.Key("line")).Size(RailIconSize, 0.5).Margin(0, 0, theme.S1, 0).Background(theme.Border)
 	})
 }
 

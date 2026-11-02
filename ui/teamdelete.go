@@ -49,10 +49,10 @@ func (a *App) cloudTeamDeleteDialog(c *ui.Context, cs *cloudSettings) {
 		if cs.err != "" {
 			widget.Notice(c, icon.Alert, theme.Error, cs.err, "", nil)
 		}
-		ui.Column(c).FillWidth().Gap(6).Children(func() {
+		ui.Column(c).FillWidth().Gap(theme.S2).Children(func() {
 			ui.Text(c, "What goes:").FontSize(theme.TextUI)
 			for _, s := range teamDeleteGoes {
-				ui.Row(c.Key(s)).FillWidth().Gap(8).AlignItems(ui.Start).Children(func() {
+				ui.Row(c.Key(s)).FillWidth().Gap(theme.S2).AlignItems(ui.Start).Children(func() {
 					ui.Text(c, "•").FontSize(theme.TextLabel).TextColor(theme.Muted)
 					ui.Text(c, s).FontSize(theme.TextLabel).TextColor(theme.TextSoft).Grow(1).Shrink(1)
 				})

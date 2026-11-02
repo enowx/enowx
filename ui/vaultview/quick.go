@@ -82,7 +82,7 @@ func (v *View) quickWays(c *ui.Context, o Options, f *form, p vault.Platform) {
 func (v *View) tokenPageRow(c *ui.Context, o Options, f *form, p vault.Platform) {
 	field := vault.TokenField(p)
 	widget.Field(c, "Make one on "+p.Name, func() {
-		ui.Row(c).FillWidth().Gap(8).AlignItems(ui.Center).Children(func() {
+		ui.Row(c).FillWidth().Gap(theme.S2).AlignItems(ui.Center).Children(func() {
 			if widget.Button(c, widget.Secondary, icon.Globe, "Open the token page", "").
 				Tooltip(p.Link).Clicked() {
 				f.page = &tokenPage{before: c.ReadClipboard()}

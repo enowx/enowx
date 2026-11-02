@@ -186,7 +186,7 @@ func (a *App) floatingSlice(c *ui.Context, act floatingAction, i int, angle floa
 	y -= math.Sin(angle) * float64(lift)
 	b := ui.ButtonBase(c.Key(act.key)).Absolute().
 		Left(float32(x-floatingSliceTarget/2)).Top(float32(y-floatingSliceTarget/2)).
-		Size(floatingSliceTarget, floatingSliceTarget).Radius(floatingSliceTarget / 2).Column().Center().Gap(5).
+		Size(floatingSliceTarget, floatingSliceTarget).Radius(floatingSliceTarget / 2).Column().Center().Gap(theme.S1).
 		Opacity(t).Label(act.label).Tooltip(act.label).Cursor(ui.CursorPointer)
 	if !a.floatingShown {
 		b.Disabled(true)

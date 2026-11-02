@@ -65,7 +65,7 @@ func (a *App) chatMessages(c *ui.Context, team string, msgs []proto.ChatMessage)
 				a.memberMessage(c, team, m, first, bottom, now)
 			}
 		})
-	}).Grow(1).FillWidth().MinHeight(0).Padding(6, 0)
+	}).Grow(1).FillWidth().MinHeight(0).Padding(theme.S2, 0)
 }
 
 func sameDay(x, y time.Time) bool {
@@ -112,7 +112,7 @@ func (a *App) memberMessage(c *ui.Context, team string, m proto.ChatMessage, fir
 		} else {
 			ui.Box(c).Width(chatAvatar).Shrink(0)
 		}
-		col := ui.Column(c).Grow(1).Shrink(1).MinWidth(0).Gap(3).AlignItems(ui.Start)
+		col := ui.Column(c).Grow(1).Shrink(1).MinWidth(0).Gap(theme.S1).AlignItems(ui.Start)
 		col.Children(func() {
 			if first {
 				ui.Row(c.Key("who")).Gap(theme.S2).Shrink(1).MinWidth(0).Children(func() {
@@ -139,7 +139,7 @@ func (a *App) memberMessage(c *ui.Context, team string, m proto.ChatMessage, fir
 
 // ownMessage is the user's message, on the right in the accent's tint.
 func (a *App) ownMessage(c *ui.Context, team string, m proto.ChatMessage, first bool, bottom float32, now time.Time) {
-	col := ui.Column(c).FillWidth().Gap(3).Padding(0, a.chatPad(), bottom, a.chatPad()).AlignItems(ui.End)
+	col := ui.Column(c).FillWidth().Gap(theme.S1).Padding(0, a.chatPad(), bottom, a.chatPad()).AlignItems(ui.End)
 	col.Children(func() {
 		ui.Row(c).Gap(theme.S1).Shrink(1).MinWidth(0).Children(func() {
 			border := theme.Accent
@@ -339,7 +339,7 @@ func mentionTip(mn proto.ChatMention) string {
 
 // mentionChip is what a message names, under its text.
 func (a *App) mentionChip(c *ui.Context, team string, mn proto.ChatMention) {
-	b := ui.ButtonBase(c).Height(22).Padding(0, 8, 0, 6).Gap(5).Radius(theme.RadiusSmall).Background(theme.Sunken).Border(1, theme.Border).AlignItems(ui.Center).
+	b := ui.ButtonBase(c).Height(22).Padding(0, theme.S2, 0, theme.S2).Gap(theme.S1).Radius(theme.RadiusSmall).Background(theme.Sunken).Border(1, theme.Border).AlignItems(ui.Center).
 		Label(mn.Kind + " " + mn.Title)
 	if a.mentionOpens(mn) {
 		b.Cursor(ui.CursorPointer)

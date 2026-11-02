@@ -38,7 +38,7 @@ func TeamMark(c *ui.Context, team, name string, size float32) ui.Element {
 
 // TeamTag is a team's mark with its name, after an item of its space.
 func TeamTag(c *ui.Context, team, name string) {
-	ui.Row(c).Gap(5).Height(18).Padding(0, 7, 0, 5).Radius(theme.RadiusSmall).Background(theme.Fade(TeamColor(team), 0.14)).AlignItems(ui.Center).Shrink(0).Children(func() {
+	ui.Row(c).Gap(theme.S1).Height(18).Padding(0, theme.S2, 0, theme.S1).Radius(theme.RadiusSmall).Background(theme.Fade(TeamColor(team), 0.14)).AlignItems(ui.Center).Shrink(0).Children(func() {
 		TeamMark(c, team, name, 11)
 		ui.Text(c, name).FontSize(theme.TextLabel).TextColor(theme.TextSoft).SingleLine()
 	})

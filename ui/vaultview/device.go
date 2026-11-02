@@ -20,7 +20,7 @@ func (v *View) deviceSection(c *ui.Context, o Options, f *form, p vault.Platform
 	widget.Field(c, "Or sign in in the browser", func() {
 		switch {
 		case d.code != "":
-			ui.Row(c).FillWidth().Gap(10).AlignItems(ui.Center).Children(func() {
+			ui.Row(c).FillWidth().Gap(theme.S2).AlignItems(ui.Center).Children(func() {
 				ui.Text(c, d.code).FontSize(theme.TextTitle).FontWeight(700).Font(theme.MonoFont).TextColor(theme.TextStrong).Selectable()
 				if widget.Button(c, widget.Secondary, icon.Copy, "Copy", "").Clicked() {
 					c.WriteClipboard(d.code)
@@ -30,7 +30,7 @@ func (v *View) deviceSection(c *ui.Context, o Options, f *form, p vault.Platform
 		case d.waiting:
 			ui.Text(c, "Asking "+p.Name+" for a code…").FontSize(theme.TextLabel).TextColor(theme.TextSoft)
 		default:
-			ui.Row(c).FillWidth().Gap(8).AlignItems(ui.Center).Children(func() {
+			ui.Row(c).FillWidth().Gap(theme.S2).AlignItems(ui.Center).Children(func() {
 				widget.Input(c, &d.clientID, "Your OAuth app's client ID").Grow(1).Shrink(1).MinWidth(0)
 				if widget.Button(c, widget.Secondary, icon.Globe, "Sign in", "").Clicked() {
 					d.waiting, d.err = true, ""

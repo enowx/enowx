@@ -411,11 +411,11 @@ func (v *View) ruleSheet(c *ui.Context, o Options) {
 		ui.Column(c).FillWidth().Gap(theme.S3).Children(func() {
 			ui.Text(c, "When a request matches").FontSize(theme.TextUI).FontWeight(500)
 			field("Name (optional)", &f.rule.Name, "Login fails")
-			ui.Row(c).FillWidth().Gap(8).Children(func() {
+			ui.Row(c).FillWidth().Gap(theme.S2).Children(func() {
 				ui.Column(c).Width(120).Children(func() { field("Methods", &f.methods, "GET,POST") })
 				ui.Column(c).Grow(1).Basis(0).MinWidth(0).Children(func() { field("Host", &f.host, "api.example.com or *.example.com") })
 			})
-			ui.Row(c).FillWidth().Gap(8).AlignItems(ui.End).Children(func() {
+			ui.Row(c).FillWidth().Gap(theme.S2).AlignItems(ui.End).Children(func() {
 				ui.Column(c).Grow(1).Basis(0).MinWidth(0).Children(func() { field("Path", &f.path, "/api/login") })
 				if i := widget.Segmented(c, pathModes, f.pathMode, nil); i >= 0 {
 					f.pathMode = i
@@ -432,7 +432,7 @@ func (v *View) ruleSheet(c *ui.Context, o Options) {
 			})
 			switch actionKind[f.action] {
 			case proto.ActionMock:
-				ui.Row(c).FillWidth().Gap(8).Children(func() {
+				ui.Row(c).FillWidth().Gap(theme.S2).Children(func() {
 					ui.Column(c).Width(100).Children(func() { field("Status", &f.status, "200") })
 					ui.Column(c).Width(100).Children(func() { field("Times", &f.times, "always") })
 				})
@@ -460,14 +460,14 @@ func (v *View) ruleSheet(c *ui.Context, o Options) {
 					}
 				})
 			case proto.ActionBreakpoint:
-				ui.Row(c).Gap(8).AlignItems(ui.Center).Children(func() {
+				ui.Row(c).Gap(theme.S2).AlignItems(ui.Center).Children(func() {
 					ui.Text(c, "Pause the").FontSize(theme.TextUI).TextColor(theme.TextSoft)
 					if i := widget.Segmented(c, stages, f.stage, nil); i >= 0 {
 						f.stage = i
 					}
 				})
 			}
-			ui.Row(c).FillWidth().Gap(8).Children(func() {
+			ui.Row(c).FillWidth().Gap(theme.S2).Children(func() {
 				ui.Column(c).Width(120).Children(func() { field("Delay (ms)", &f.delay, "0") })
 				ui.Column(c).Width(150).Children(func() { field("Throttle (bytes/s)", &f.throttle, "off") })
 			})

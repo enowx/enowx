@@ -54,9 +54,9 @@ func Sheet(c *ui.Context, open *bool, width float32, header, body, footer func()
 // clicked.
 func DialogHeader(c *ui.Context, title, description string, closeable bool, crumbs ...string) (closed bool) {
 	ui.Row(c).FillWidth().AlignItems(ui.Start).Children(func() {
-		ui.Column(c).Gap(4).Grow(1).Children(func() {
+		ui.Column(c).Gap(theme.S1).Grow(1).Children(func() {
 			if len(crumbs) > 0 {
-				ui.Box(c).Margin(0, 0, 4, 0).Children(func() { Breadcrumb(c, crumbs...) })
+				ui.Box(c).Margin(0, 0, theme.S1, 0).Children(func() { Breadcrumb(c, crumbs...) })
 			}
 			ui.Text(c, title).FontSize(theme.TextTitle).FontWeight(600)
 			if description != "" {

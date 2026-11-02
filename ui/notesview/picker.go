@@ -99,7 +99,7 @@ func (v *View) iconPopover(c *ui.Context, o Options, anchor ui.Element, open *bo
 func (v *View) iconPickerBody(c *ui.Context, o Options, current string, pick func(ref string)) {
 	p := &v.picker
 	ui.Column(c).Width(348).MaxWidth(392).Shrink(1).Padding(theme.S3).Gap(theme.S2).Children(func() {
-		ui.Row(c).FillWidth().Gap(8).AlignItems(ui.Center).Children(func() {
+		ui.Row(c).FillWidth().Gap(theme.S2).AlignItems(ui.Center).Children(func() {
 			tab := 0
 			if p.custom {
 				tab = 1
@@ -128,7 +128,7 @@ func (v *View) libraryIcons(c *ui.Context, o Options, current string, pick func(
 	if p.query != before {
 		p.shown = pickerStep
 	}
-	ui.Row(c).FillWidth().Gap(4).Wrap().AlignItems(ui.Center).Children(func() {
+	ui.Row(c).FillWidth().Gap(theme.S1).Wrap().AlignItems(ui.Center).Children(func() {
 		shown := p.libraries()
 		for _, l := range iconlib.Libraries {
 			on := slices.Contains(shown, l.ID)
@@ -145,7 +145,7 @@ func (v *View) libraryIcons(c *ui.Context, o Options, current string, pick func(
 			}
 		}
 	})
-	ui.Row(c).FillWidth().Gap(6).AlignItems(ui.Center).Children(func() {
+	ui.Row(c).FillWidth().Gap(theme.S2).AlignItems(ui.Center).Children(func() {
 		ui.Text(c, "Color").FontSize(theme.TextLabel).TextColor(theme.TextSoft).Width(40).Shrink(0)
 		for _, col := range append([]string{""}, pickerColors...) {
 			sw := ui.ButtonBase(c.Key("c"+col)).Size(16, 16).Radius(theme.RadiusFull).Cursor(ui.CursorPointer).Label("Icon color " + col)
@@ -168,7 +168,7 @@ func (v *View) libraryIcons(c *ui.Context, o Options, current string, pick func(
 	})
 	if r, err := iconlib.Parse(current); err == nil && current != "" {
 		// How large it shows above its page's title.
-		ui.Row(c).FillWidth().Gap(6).AlignItems(ui.Center).Children(func() {
+		ui.Row(c).FillWidth().Gap(theme.S2).AlignItems(ui.Center).Children(func() {
 			ui.Text(c, "Size").FontSize(theme.TextLabel).TextColor(theme.TextSoft).Width(40).Shrink(0)
 			for _, sz := range []struct {
 				label string
@@ -186,7 +186,7 @@ func (v *View) libraryIcons(c *ui.Context, o Options, current string, pick func(
 		})
 	}
 	ui.Scroll(c).FillWidth().MaxHeight(300).Children(func() {
-		ui.Column(c).FillWidth().Gap(6).Children(func() {
+		ui.Column(c).FillWidth().Gap(theme.S2).Children(func() {
 			if strings.TrimSpace(p.query) == "" {
 				v.iconSection(c, "Favorites", p.prefs.Favorites, current, pick)
 				v.iconSection(c, "Recent", p.prefs.Recent, current, pick)
@@ -217,7 +217,7 @@ func (v *View) iconSection(c *ui.Context, label string, refs []string, current s
 	if len(refs) == 0 {
 		return
 	}
-	ui.Column(c.Key(label)).FillWidth().Gap(3).Children(func() {
+	ui.Column(c.Key(label)).FillWidth().Gap(theme.S1).Children(func() {
 		ui.Text(c, label).FontSize(theme.TextLabel).FontWeight(500).TextColor(theme.TextSoft)
 		ui.Row(c).FillWidth().Gap(2).Wrap().Children(func() {
 			for _, ref := range refs {
@@ -342,7 +342,7 @@ func (v *View) customIcon(c *ui.Context, o Options, pick func(ref string)) {
 	ui.Text(c, "Paste SVG code, or choose a file. It is cleaned first: scripts, links out and embedded content go.").
 		FontSize(theme.TextLabel).TextColor(theme.TextSoft)
 	widget.Well(ui.TextAreaBase(c, &p.svg).FillWidth().Lines(4, 8).Font(theme.MonoFont).FontSize(theme.TextLabel).Padding(theme.S2, theme.S3).Radius(theme.RadiusCard), false).Placeholder("<svg viewBox=\"0 0 24 24\">…</svg>").Label("SVG code")
-	ui.Row(c).FillWidth().Gap(8).AlignItems(ui.Center).Children(func() {
+	ui.Row(c).FillWidth().Gap(theme.S2).AlignItems(ui.Center).Children(func() {
 		if o.OpenSVG != nil && widget.Button(c, widget.Secondary, icon.File, "Choose a file…", "").Clicked() {
 			o.OpenSVG(func(data []byte, err error) {
 				if err != nil {
@@ -362,7 +362,7 @@ func (v *View) customIcon(c *ui.Context, o Options, pick func(ref string)) {
 		}
 	}
 	ref, err := p.customRef, p.customErr
-	ui.Row(c).FillWidth().Gap(10).AlignItems(ui.Center).Children(func() {
+	ui.Row(c).FillWidth().Gap(theme.S2).AlignItems(ui.Center).Children(func() {
 		ui.Row(c).Size(48, 48).Radius(theme.RadiusSmall).Center().Shrink(0).Background(theme.Sunken).Children(func() {
 			if ref != "" {
 				widget.NoteIcon(c, ref, 32, theme.Text, nil)

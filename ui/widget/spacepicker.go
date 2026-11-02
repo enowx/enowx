@@ -30,7 +30,7 @@ func SpacePicker(c *ui.Context, current Space, detail string, size float32, spac
 		TeamMark(c, sp.Team, sp.Name, size)
 	}
 	if len(spaces) < 2 || pick == nil {
-		ui.Row(c).Gap(5).AlignItems(ui.Center).MinWidth(0).Children(func() {
+		ui.Row(c).Gap(theme.S1).AlignItems(ui.Center).MinWidth(0).Children(func() {
 			mark(current, size+0.5)
 			ui.Text(c, label).FontSize(size).TextColor(theme.Muted).SingleLine().Shrink(1)
 		})
@@ -38,7 +38,7 @@ func SpacePicker(c *ui.Context, current Space, detail string, size float32, spac
 	}
 	choice := current.Team
 	sel := ui.SelectBase(c, &choice)
-	trig := sel.Trigger.Gap(5).Padding(1, 4, 1, 2).Margin(0, 0, 0, -2).Radius(theme.RadiusSmall).AlignItems(ui.Center).MinWidth(0).Shrink(1).
+	trig := sel.Trigger.Gap(theme.S1).Padding(1, theme.S1, 1, 2).Margin(0, 0, 0, -2).Radius(theme.RadiusSmall).AlignItems(ui.Center).MinWidth(0).Shrink(1).
 		Cursor(ui.CursorPointer).Label("Space: " + current.Name).Tooltip("Switch to another space")
 	if sel.Open() || trig.Hovered() {
 		trig.Background(theme.Hover)
@@ -49,7 +49,7 @@ func SpacePicker(c *ui.Context, current Space, detail string, size float32, spac
 		ui.Icon(c, icon.ChevronDown).FontSize(size - 0.5).TextColor(theme.Muted)
 	})
 	sel.Popup(func(panel ui.Element) {
-		Popup(panel.AttachTo(trig, ui.AnchorTopLeft, ui.AnchorBottomLeft).Margin(4, 0, 0, 0).Width(220))
+		Popup(panel.AttachTo(trig, ui.AnchorTopLeft, ui.AnchorBottomLeft).Margin(theme.S1, 0, 0, 0).Width(220))
 		for _, sp := range spaces {
 			it := sel.Item(sp.Team)
 			PopupItem(it, it.Highlighted()).TextColor(theme.TextSoft).Children(func() {

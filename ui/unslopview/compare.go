@@ -51,9 +51,9 @@ func (v *Compare) Draw(c *ui.Context, o CompareOptions) {
 		maxW, maxH := max(w-64, 200), max(h-150, 200)
 		switch {
 		case o.Err != "":
-			ui.Text(c, o.Err).FontSize(theme.TextUI).TextColor(theme.Error).Padding(24)
+			ui.Text(c, o.Err).FontSize(theme.TextUI).TextColor(theme.Error).Padding(theme.S5)
 		case o.Loading || len(o.Shots) == 0:
-			ui.Row(c).Gap(8).AlignItems(ui.Center).Padding(24).Children(func() {
+			ui.Row(c).Gap(theme.S2).AlignItems(ui.Center).Padding(theme.S5).Children(func() {
 				widget.Spinner(c, 14)
 				ui.Text(c, "Getting the pictures…").FontSize(theme.TextUI).TextColor(theme.TextSoft)
 			})
@@ -80,7 +80,7 @@ func (v *Compare) bar(c *ui.Context, o CompareOptions) {
 				v.size = i // -1: none clicked
 			}
 		}
-		ui.Row(c).Gap(4).AlignItems(ui.End).Children(func() {
+		ui.Row(c).Gap(theme.S1).AlignItems(ui.End).Children(func() {
 			ui.Text(c, fmt.Sprint(o.From)).FontSize(theme.TextUI).TextColor(scoreColor(o.From))
 			ui.Icon(c, icon.ArrowRight).FontSize(12).TextColor(theme.TextSoft)
 			ui.Text(c, fmt.Sprint(o.To)).FontSize(theme.TextUI).FontWeight(500).TextColor(scoreColor(o.To))

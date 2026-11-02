@@ -59,7 +59,7 @@ func (a *App) automationProjectPick(c *ui.Context, project *string) {
 		ui.Icon(c, icon.ChevronDown).FontSize(12).TextColor(theme.TextSoft)
 	})
 	sel.Popup(func(panel ui.Element) {
-		widget.Popup(panel.Margin(6, 0, 0, 0).Width(300))
+		widget.Popup(panel.Margin(theme.S2, 0, 0, 0).Width(300))
 		ui.Scroll(c).FillWidth().MaxHeight(300).Children(func() {
 			ui.Column(c).FillWidth().Children(func() {
 				for _, p := range a.projects {
@@ -80,7 +80,7 @@ func (a *App) automationAgentPick(c *ui.Context, id *string) {
 		ui.Icon(c, icon.ChevronDown).FontSize(12).TextColor(theme.TextSoft)
 	})
 	sel.Popup(func(panel ui.Element) {
-		widget.Popup(panel.Margin(6, 0, 0, 0).Width(300))
+		widget.Popup(panel.Margin(theme.S2, 0, 0, 0).Width(300))
 		ui.Scroll(c).FillWidth().MaxHeight(300).Children(func() {
 			ui.Column(c).FillWidth().Children(func() {
 				for _, ag := range a.agents {

@@ -268,4 +268,3 @@ func (a *App) centerBody(c *ui.Context, s proto.SessionInfo, tab string) {
 		a.goaTabView(c, what)
 	}
 }
-

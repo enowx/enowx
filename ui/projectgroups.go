@@ -108,7 +108,7 @@ func (a *App) groupSection(c *ui.Context, e listEntry) int {
 		return 1
 	}
 	shown := 0
-	ui.Column(c).FillWidth().Padding(0, 0, 0, 10).Children(func() {
+	ui.Column(c).FillWidth().Padding(0, 0, 0, theme.S2).Children(func() {
 		for _, p := range e.projects {
 			if a.projectGroup(c.Key(p.Path), p) {
 				shown++

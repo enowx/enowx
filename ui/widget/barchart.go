@@ -37,7 +37,7 @@ func BarChart(c *ui.Context, bars []Bar, colors []ui.Color, height float32) {
 	case len(bars) <= 90:
 		gap = 2
 	}
-	ui.Column(c).FillWidth().Gap(4).Children(func() {
+	ui.Column(c).FillWidth().Gap(theme.S1).Children(func() {
 		ui.Row(c).FillWidth().Height(height).Gap(gap).AlignItems(ui.End).Children(func() {
 			for i, b := range bars {
 				cell := ui.Column(c.Key(i)).Grow(1).Basis(0).MinWidth(0).Height(height).AlignItems(ui.Center)

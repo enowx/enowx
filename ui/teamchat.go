@@ -298,12 +298,12 @@ func (a *App) chatBody(c *ui.Context, team string) {
 	switch {
 	case len(msgs) == 0 && !hc.wasRead(team, a.gen):
 		// Not "no message yet": they may just not be read, or have come.
-		ui.Column(c).Grow(1).FillWidth().Center().Gap(8).Padding(24).Children(func() {
+		ui.Column(c).Grow(1).FillWidth().Center().Gap(theme.S2).Padding(theme.S5).Children(func() {
 			widget.Spinner(c, 14)
 			ui.Text(c, "Reading the chat…").FontSize(theme.TextLabel).TextColor(theme.Muted)
 		})
 	case len(msgs) == 0:
-		ui.Column(c).Grow(1).FillWidth().Center().Gap(6).Padding(24).Children(func() {
+		ui.Column(c).Grow(1).FillWidth().Center().Gap(theme.S2).Padding(theme.S5).Children(func() {
 			ui.Icon(c, icon.Chat).FontSize(22).TextColor(theme.Idle)
 			ui.Text(c, "No message yet: say hello to "+a.spaceName(team)+".").FontSize(theme.TextLabel).TextColor(theme.Muted)
 			ui.Text(c, "Type @ to mention a member, a note or a file.").FontSize(theme.TextLabel).TextColor(theme.Idle)
@@ -319,7 +319,7 @@ func (a *App) chatBody(c *ui.Context, team string) {
 // teamHeader names the team the Team group's tools show, with how many
 // members it has.
 func (a *App) teamHeader(c *ui.Context, team string) {
-	ui.Row(c).FillWidth().Height(36).Shrink(0).PaddingX(12).Gap(8).AlignItems(ui.Center).BorderWidth(0, 0, 1, 0).BorderColor(theme.Border).Children(func() {
+	ui.Row(c).FillWidth().Height(36).Shrink(0).PaddingX(theme.S3).Gap(theme.S2).AlignItems(ui.Center).BorderWidth(0, 0, 1, 0).BorderColor(theme.Border).Children(func() {
 		var teams []widget.Space
 		for _, sp := range a.spacesOf().list {
 			teams = append(teams, widget.Space{Team: sp.Team, Name: sp.Name})
@@ -331,7 +331,7 @@ func (a *App) teamHeader(c *ui.Context, team string) {
 			ui.Text(c, textfmt.Plural(n, "1 member", fmt.Sprintf("%d members", n))).FontSize(theme.TextLabel).TextColor(theme.Muted).SingleLine()
 		}
 		if n := len(a.hereOf().byTeam[team].Online); n > 0 {
-			ui.Row(c).Gap(4).AlignItems(ui.Center).Children(func() {
+			ui.Row(c).Gap(theme.S1).AlignItems(ui.Center).Children(func() {
 				ui.Box(c).Size(6, 6).Radius(theme.RadiusTail).Background(theme.Done)
 				ui.Text(c, fmt.Sprintf("%d online", n)).FontSize(theme.TextLabel).TextColor(theme.Muted).SingleLine()
 			})
