@@ -30,13 +30,17 @@ func layerColor(layer string) ui.Color {
 	return theme.Idle
 }
 
+// coverageCardHeight is the least an agent's card takes: its note on two lines
+// and where its records are.
+const coverageCardHeight = 168
+
 // coverage is how each agent is tracked: its layer, what is counted, where, and
 // whether that was checked against a real install.
-func coverage(c *ui.Context, d Data) {
-	widget.CardNote(c, "Each agent is tracked by the best layer it allows: its own records; else its model API's answers through the interceptor; else what it prints. Never guessed.", 0)
-	ui.Grid(c).FillWidth().Columns(3).Gap(theme.S3).Children(func() {
+func (v *View) coverage(c *ui.Context, d Data) {
+	widget.CardNote(c, "Each agent is tracked by the best layer it allows: its own records; else its model API's answers through the interceptor; else what it prints.", 0)
+	v.cards(c, len(d.Coverage), coverageCardHeight, func() {
 		for _, cv := range d.Coverage {
-			widget.Card(c.Key(cv.Agent)).Children(func() {
+			widget.GridCard(c.Key(cv.Agent)).Children(func() {
 				widget.CardTitle(c, nil, orText(cv.Name, cv.Agent), func() {
 					if cv.Checked {
 						widget.Tag(c, "checked", theme.Done)
@@ -44,7 +48,7 @@ func coverage(c *ui.Context, d Data) {
 				})
 				ui.Row(c).FillWidth().Shrink(0).Gap(theme.S2).Children(func() {
 					widget.Avatar(c, icon.Agent(cv.Agent), 32, theme.Text)
-					widget.StatusLine(c, layerColor(cv.Layer), cv.Layer == proto.TokenLayerNone, layerNames[cv.Layer])
+					widget.StatusLine(c, layerColor(cv.Layer), false, layerNames[cv.Layer])
 				})
 				widget.CardNote(c, cv.Records, 0)
 				if cv.Where != "" {

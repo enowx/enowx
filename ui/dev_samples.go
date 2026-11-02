@@ -73,9 +73,9 @@ func sampleTokens(now time.Time) tokenview.Data {
 	day := func(d int) time.Time { return now.AddDate(0, 0, -d) }
 	return tokenview.Data{
 		Summary: proto.TokensSummary{Total: total, Days: days, Groups: []proto.TokenGroup{
-			{Key: "/work/enowx", Label: "enowx", TokenCounts: counts(5400000, 3200000, 500000, 3100, 28.4)},
-			{Key: "/work/enowx-cloud", Label: "enowx-cloud", TokenCounts: counts(2200000, 1300000, 100000, 1200, 11.1)},
-			{Key: "/work/enowx-web", Label: "enowx-web", TokenCounts: counts(1200000, 780000, 120000, 840, 6.7)},
+			{Key: "claude", TokenCounts: counts(5400000, 3200000, 500000, 3100, 28.4)},
+			{Key: "codex", TokenCounts: counts(2200000, 1300000, 100000, 1200, 11.1)},
+			{Key: "opencode", TokenCounts: counts(1200000, 780000, 120000, 840, 6.7)},
 		}, Own: counts(1200, 0, 300, 15, 0.0026), OwnGroups: []proto.TokenGroup{
 			{Key: proto.TokensOwnJudge, TokenCounts: counts(1000, 0, 250, 12, 0.0022)},
 			{Key: proto.TokensOwnRAG, TokenCounts: counts(200, 0, 50, 3, 0.0004)},

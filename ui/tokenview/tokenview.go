@@ -43,6 +43,10 @@ type View struct {
 	Project string // only this project's, "" all
 	budget  budgetForm
 	price   priceForm
+	// The tab's column and how much of it shows, this frame, for cards to
+	// share what is left of the frame.
+	column ui.Element
+	shown  float32
 }
 
 // Query is what the view asks for now.
@@ -97,8 +101,11 @@ func (v *View) Draw(c *ui.Context, d Data, o Options) {
 	if v.Tab == "" {
 		v.Tab = TabOverview
 	}
-	ui.Scroll(c.Key("tokens-body")).Grow(1).FillWidth().MinHeight(0).Children(func() {
-		ui.Column(c).FillWidth().Padding(theme.S4, theme.S5, theme.S5, theme.S5).Gap(theme.S4).Children(func() {
+	body := ui.Scroll(c.Key("tokens-body")).Grow(1).FillWidth().MinHeight(0)
+	v.shown = body.Bounds().H
+	body.Children(func() {
+		v.column = ui.Column(c).FillWidth().Padding(theme.S4, theme.S5, theme.S5, theme.S5).Gap(theme.S4)
+		v.column.Children(func() {
 			ui.Row(c).FillWidth().Shrink(0).Gap(theme.S2).Children(func() {
 				cur := 0
 				for i, t := range tabs {
@@ -123,7 +130,7 @@ func (v *View) Draw(c *ui.Context, d Data, o Options) {
 			case TabPrices:
 				v.prices(c, d, o)
 			case TabCoverage:
-				coverage(c, d)
+				v.coverage(c, d)
 			default:
 				v.overview(c, d, o)
 			}
@@ -131,6 +138,19 @@ func (v *View) Draw(c *ui.Context, d Data, o Options) {
 	})
 	v.budgetSheet(c, d, o)
 	v.priceSheet(c, d, o)
+}
+
+// cards is a grid of n cards, three a row, whose rows share what the frame has
+// left, at least minRow each.
+func (v *View) cards(c *ui.Context, n int, minRow float32, fn func()) {
+	grid := ui.Grid(c.Key("cards")).FillWidth().Columns(3).Gap(theme.S3)
+	grid.RowTracks(widget.RowsLeft(grid, v.column, v.shown, (n+2)/3, minRow)...).Children(fn)
+}
+
+// fieldRow is a row of fields side by side, keyed apart from a sheet's other
+// rows of them.
+func fieldRow(c *ui.Context, key string, fields ...func()) {
+	ui.Column(c.Key(key)).FillWidth().Shrink(0).Children(func() { widget.FieldCols(c, fields...) })
 }
 
 // tracking is tracking's switch.

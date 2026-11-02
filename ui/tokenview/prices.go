@@ -27,13 +27,13 @@ type priceForm struct {
 func (v *View) prices(c *ui.Context, d Data, o Options) {
 	ui.Row(c).FillWidth().Shrink(0).Gap(theme.S2).Children(func() {
 		ui.Column(c).Grow(1).Basis(0).MinWidth(0).Children(func() {
-			widget.CardNote(c, "US dollars a million tokens. Your prices go over enowX's; a model API config's own (OpenRouter's, a local model's 0) by its config.", 0)
+			widget.CardNote(c, "US dollars a million tokens. Your prices go over enowX's; a model API config's own by its config.", 0)
 		})
 		if widget.PrimaryButton(c, icon.Plus, "Add price", "").Clicked() {
 			v.price = priceForm{open: true, index: -1}
 		}
 	})
-	ui.Grid(c).FillWidth().Columns(3).Gap(theme.S3).Children(func() {
+	v.cards(c, len(d.Prices), priceCardHeight, func() {
 		own := 0
 		for i, p := range d.Prices {
 			index := -1
@@ -46,10 +46,13 @@ func (v *View) prices(c *ui.Context, d Data, o Options) {
 	})
 }
 
+// priceCardHeight is the least a price's card takes: all it holds.
+const priceCardHeight = 144
+
 // priceCard is a model's price: enowX's, which can be set over, or one of the
 // user's, at index of theirs, to change or remove.
 func (v *View) priceCard(c *ui.Context, p proto.TokenPrice, index int, d Data, o Options) {
-	widget.Card(c).Children(func() {
+	widget.GridCard(c).Children(func() {
 		widget.CardTitle(c, nil, p.Model, nil)
 		widget.CardStats(c, []widget.Stat{
 			{Value: money(p.Input), Label: "input"},
@@ -57,6 +60,7 @@ func (v *View) priceCard(c *ui.Context, p proto.TokenPrice, index int, d Data, o
 			{Value: money(p.CacheWrite), Label: "cache write"},
 			{Value: money(p.Output), Label: "output"},
 		})
+		ui.Spacer(c) // the foot stays at the card's bottom, however tall the row
 		widget.CardFoot(c, func() {
 			note := "enowX's"
 			if !p.Shipped {
@@ -106,18 +110,24 @@ func (v *View) priceSheet(c *ui.Context, d Data, o Options) {
 	}
 	widget.FormSheet(c, &f.open, 480, "A price of yours", "A model's ID, or a prefix ending in * (claude-sonnet-*). A config's price counts only for that config.", func() {
 		widget.Field(c, "Model", func() { widget.Input(c.Key("model"), &f.model, "claude-sonnet-*").FillWidth().Font(theme.MonoFont) })
-		ui.Grid(c).FillWidth().Columns(2).Gap(theme.S3).Children(func() {
-			widget.Field(c, "Provider (optional)", func() { widget.Input(c.Key("provider"), &f.provider, "anthropic").FillWidth() })
-			widget.Field(c, "Config (optional)", func() { widget.Input(c.Key("config"), &f.config, "work-openrouter").FillWidth() })
-		})
-		ui.Grid(c).FillWidth().Columns(4).Gap(theme.S3).Children(func() {
-			for _, fld := range []struct {
-				label string
-				v     *string
-			}{{"Input", &f.input}, {"Cache read", &f.cacheRead}, {"Cache write", &f.cacheWrite}, {"Output", &f.output}} {
-				widget.Field(c.Key(fld.label), fld.label, func() { widget.Input(c, fld.v, "0.00").FillWidth() })
-			}
-		})
+		fieldRow(c, "whose",
+			func() {
+				widget.Field(c, "Provider (optional)", func() { widget.Input(c.Key("provider"), &f.provider, "anthropic").FillWidth() })
+			},
+			func() {
+				widget.Field(c, "Config (optional)", func() { widget.Input(c.Key("config"), &f.config, "work-openrouter").FillWidth() })
+			},
+		)
+		var amounts []func()
+		for _, fld := range []struct {
+			label string
+			v     *string
+		}{{"Input", &f.input}, {"Cache read", &f.cacheRead}, {"Cache write", &f.cacheWrite}, {"Output", &f.output}} {
+			amounts = append(amounts, func() {
+				widget.Field(c, fld.label, func() { widget.Input(c, fld.v, "0.00").FillWidth() })
+			})
+		}
+		fieldRow(c, "amounts", amounts...)
 		if f.err != "" {
 			widget.CardNote(c, f.err, 0).TextColor(theme.Error)
 		}

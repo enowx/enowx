@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"path/filepath"
 	"slices"
-	"strconv"
 	"strings"
 	"time"
 
@@ -120,7 +119,7 @@ func totals(c *ui.Context, t proto.TokenCounts) {
 	widget.Figs(c, []widget.Fig{
 		{Label: "Tokens", Value: Count(t.Total())},
 		{Label: "Cost", Value: Dollars(t.Cost)},
-		{Label: "Calls", Value: strconv.Itoa(t.Calls)},
+		{Label: "Calls", Value: Whole(t.Calls)},
 		{Label: "Cached", Value: cached},
 	})
 }
@@ -153,10 +152,14 @@ func dayBars(s proto.TokensSummary, since time.Time) []widget.Bar {
 	}
 	var out []widget.Bar
 	end := time.Now()
+	label := "Jan 2"
+	if end.Sub(since) <= 8*24*time.Hour && end.Sub(since) > 24*time.Hour {
+		label = "Mon" // a week reads by its weekdays
+	}
 	for d := since; !d.After(end); d = d.AddDate(0, 0, 1) {
 		day := d.Format(time.DateOnly)
 		t := byDay[day]
-		out = append(out, widget.Bar{Label: d.Format("Jan 2"),
+		out = append(out, widget.Bar{Label: d.Format(label),
 			Tip:   fmt.Sprintf("%s: %s in, %s cached, %s out, %s", d.Format("Mon Jan 2"), Count(t.Input), Count(t.CacheRead+t.CacheWrite), Count(t.Output), Dollars(t.Cost)),
 			Parts: []float64{float64(t.Input), float64(t.CacheRead + t.CacheWrite), float64(t.Output)}})
 	}
@@ -226,14 +229,16 @@ func hosts(c *ui.Context, list []HostTotal) {
 		widget.CardNote(c, "Every host's numbers together: those the app reaches now, the others as they last synced.", 0)
 		widget.CardLines(c, func() {
 			for i, h := range list {
-				detail := "now"
+				detail, counts := "", Count(h.Total.Total())+" · "+Dollars(h.Total.Cost)
 				switch {
+				case !h.Live && h.Total.Calls == 0:
+					counts = "as of " + h.Updated.Local().Format("2 Jan 15:04")
 				case !h.Live:
 					detail = "as of " + h.Updated.Local().Format("2 Jan 15:04")
 				case !h.On:
 					detail = "tracking off"
 				}
-				countLine(c.Key("h:"+h.Name), i == 0, h.Name, detail, Count(h.Total.Total())+" · "+Dollars(h.Total.Cost))
+				countLine(c.Key("h:"+h.Name), i == 0, h.Name, detail, counts)
 			}
 		})
 	})
