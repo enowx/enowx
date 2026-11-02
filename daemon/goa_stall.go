@@ -120,6 +120,17 @@ func queuedCanGo(l stallLook, screen string) bool {
 }
 
 // stallFollow is what was told of a task. Only watchStalls touches it.
+// turnOverStill is how long a screen shows a turn's end before it counts.
+const turnOverStill = 20 * time.Second
+
+// turnOverOnScreen says a session no hook speaks for (an agent with none, or one
+// started by hand in a shell tab) shows its turn has ended. That is a report, not
+// "isn't moving". What is only quiet stays a stall.
+func turnOverOnScreen(l stallLook, screen string) bool {
+	silent := l.Info.State == "" || l.Info.StateStale
+	return silent && !l.Info.Exited && l.Still >= turnOverStill && (l.NoCPU || l.CPU < stallCPUIdle) && agent.TurnOverShown(screen)
+}
+
 type stallFollow struct {
 	screen string
 	since  time.Time
@@ -280,6 +291,10 @@ func (s *Server) stallCheck(w *stallWatch, t proto.GOATask, h stallHost, lim pro
 		look.CPU = h.cpuOf(t.Session)
 	}
 	look.Still = now.Sub(f.since)
+	if there && turnOverOnScreen(look, text) {
+		s.goaTurnOverSeen(t, text)
+		return
+	}
 	why, limit := stallCase(look, lim)
 	if why == "" {
 		f.told, f.fired = time.Time{}, false

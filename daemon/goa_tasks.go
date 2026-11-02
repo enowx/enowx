@@ -315,6 +315,28 @@ func (s *Server) goaWorkerChanged(info proto.SessionInfo) {
 	}
 }
 
+// goaTurnOverSeen tells of task t, whose session's screen shows its turn ended
+// with no hook saying so, as a hook's turn end would.
+func (s *Server) goaTurnOverSeen(t proto.GOATask, screen string) {
+	said := s.goaResult(t)
+	moved := false
+	t, err := s.goa.board.Update(t.ID, func(x *proto.GOATask) {
+		if x.Status == proto.GOATaskWorking || x.Status == proto.GOATaskStalled {
+			x.Status, x.Said, moved = proto.GOATaskTurnEnded, said, true
+		}
+	})
+	if err != nil || !moved {
+		return
+	}
+	s.goaChanged()
+	where, hostFlag := goaTaskPlace(t)
+	how := "finished a turn"
+	if agent.InterruptShown(screen) {
+		how = "was interrupted"
+	}
+	s.goaTell(fmt.Sprintf("[enowX GOA] Task %s %q (%s) %s, as its screen shows, which may be mid-work: %s Check it (chat %s%s), then settle it: goa task %s --status done|failed --result \"…\".", t.ID, t.Title, where, how, clip(oneLine(said), goaResultMax), t.Session, hostFlag, t.ID))
+}
+
 // goaTaskPlace is where task t's session is, in GOA's words, and the flag its
 // commands need to reach it.
 func goaTaskPlace(t proto.GOATask) (where, hostFlag string) {

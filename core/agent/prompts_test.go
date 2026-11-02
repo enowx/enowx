@@ -103,3 +103,27 @@ func TestPromptAsksPermission(t *testing.T) {
 		t.Errorf("a shell: %+v", k)
 	}
 }
+
+// A turn's end shows on the screen of an agent no hook speaks for, and what is
+// only quiet isn't taken for it.
+func TestTurnOverShown(t *testing.T) {
+	for _, screen := range []string{
+		"The report is in.\n✻ Baked for 27s · done 9:43 PM\n",
+		"Done.\n\n❯ \n  ⏵⏵ bypass permissions on\n",
+		"ok\n$ \n",
+	} {
+		if !TurnOverShown(screen) {
+			t.Errorf("not seen: %q", screen)
+		}
+	}
+	for _, screen := range []string{
+		"compiling the thing\n",
+		"✶ Thinking… (esc to interrupt)\n",
+		"Do you want to proceed?\n ❯ 1. Yes\n   2. No\n",
+		" \n",
+	} {
+		if TurnOverShown(screen) {
+			t.Errorf("taken for it: %q", screen)
+		}
+	}
+}

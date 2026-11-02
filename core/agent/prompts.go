@@ -105,6 +105,21 @@ func askedAbove(lines []string, i int) string {
 	return line
 }
 
+// turnOverShown is what shows at a turn's end, when no hook says so: Claude Code's
+// time taken ("Baked for 27s"), or a prompt mark alone on its line.
+var turnOverShown = regexp.MustCompile(`(?m)^\s*[✻✽✶✢*·]?\s*[A-Z][a-z]+(ed|ing)? for \d+\s*[smh]|^\s*[❯›>$%#]\s*$`)
+
+// InterruptShown says a screen's end shows a turn was interrupted.
+func InterruptShown(screen string) bool {
+	return strings.Contains(strings.Join(tailLines(screen, 12), "\n"), "Interrupted")
+}
+
+// TurnOverShown says a screen, not at work and not asking, shows an agent whose
+// turn has ended.
+func TurnOverShown(screen string) bool {
+	return PromptFree(screen) && turnOverShown.MatchString(strings.Join(tailLines(screen, 12), "\n"))
+}
+
 // PromptFree says a screen shows an agent neither at work nor asking anything:
 // what it is given next, it takes. The caller says it has been still for long
 // enough, and that nothing runs.
