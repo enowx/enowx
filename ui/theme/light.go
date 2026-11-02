@@ -12,7 +12,11 @@ func LookupAppearance(id string, accent ui.Color, light bool) Palette {
 	if !light {
 		return Lookup(id, accent)
 	}
-	dark := Lookup(id, ui.Color{})
+	return lightOf(Lookup(id, ui.Color{}), accent)
+}
+
+// lightOf is dark, a dark palette, composed for the light appearance.
+func lightOf(dark Palette, accent ui.Color) Palette {
 	black := func(a float32) ui.Color { return ui.RGBA(0, 0, 0, a) }
 	white := func(a float32) ui.Color { return ui.RGBA(255, 255, 255, a) }
 	wall := dark.Wall
@@ -40,6 +44,10 @@ func LookupAppearance(id string, accent ui.Color, light bool) Palette {
 		p.Accent = ui.Hex("#355CAD")
 	case Copper.ID:
 		p.Ground, p.Accent = ui.Hex("#F3ECE6"), ui.Hex("#9C5429")
+	case FollowID:
+		// The image's colors: its ground tinted pale, its accent deepened below.
+		p.Ground, p.Accent = Mix(dark.Ground, ui.Hex("#FFFFFF"), 0.88), dark.Accent
+		p.darkOf = &dark
 	case Teal.ID:
 		p.Ground, p.Accent = ui.Hex("#E6F0F0"), ui.Hex("#285F63")
 	}

@@ -34,7 +34,7 @@ const (
 
 // backgroundState is the image as read. It belongs to the main thread.
 type backgroundState struct {
-	path string // what bmp or err is of
+	path string // what bmp, err and the state's derived colors are of
 	bmp  *ui.Bitmap
 	err  string
 }
@@ -86,16 +86,34 @@ func (a *App) keepBackground() {
 	}
 	a.background = backgroundState{path: path}
 	if path == "" {
+		a.setDerived(nil)
 		return
 	}
 	go func() {
 		img, err := readBackground(path)
 		var bmp *ui.Bitmap
+		var derived *theme.Derived
 		if err == nil {
 			bmp = ui.NewBitmap(img)
+			d := theme.DeriveColors(img)
+			derived = &d
 		}
-		a.onMain(func() { a.backgroundRead(path, bmp, err) })
+		a.onMain(func() {
+			a.backgroundRead(path, bmp, err)
+			if a.background.path == path {
+				a.setDerived(derived)
+			}
+		})
 	}()
+}
+
+// setDerived keeps the colors of the image read, and has a palette following
+// them change at once. nil goes back to the palette last saved.
+func (a *App) setDerived(d *theme.Derived) {
+	a.state.derived = d
+	if a.state.FollowBackground {
+		a.applyTheme()
+	}
 }
 
 // backgroundRead takes what was read of path, unless another was picked since.

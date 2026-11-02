@@ -96,3 +96,51 @@ func TestBackgroundSettingsPersist(t *testing.T) {
 		t.Fatalf("defaults: %v %v", none.backgroundOpacity(), none.backgroundBlur())
 	}
 }
+
+// Following the background takes its colors once read, and with the image
+// gone or none set, the palette last saved.
+func TestFollowBackgroundFallsBack(t *testing.T) {
+	d := theme.DeriveColors(image.NewRGBA(image.Rect(0, 0, 4, 4)))
+	st := appState{Theme: "copper", FollowBackground: true, BackgroundImage: "/pictures/sea.png", derived: &d}
+	if got := st.palette(false).ID; got != theme.FollowID {
+		t.Fatalf("following: %s", got)
+	}
+	if got := st.palette(true).ID; got != theme.FollowID {
+		t.Fatalf("following, light: %s", got)
+	}
+	gone := st
+	gone.derived = nil
+	if got := gone.palette(false).ID; got != "copper" {
+		t.Fatalf("image gone: %s", got)
+	}
+	none := st
+	none.BackgroundImage = ""
+	if got := none.palette(false).ID; got != "copper" {
+		t.Fatalf("no image: %s", got)
+	}
+
+	app := New(Options{})
+	app.onMain = func(fn func()) { fn() }
+	app.state = st
+	app.setDerived(nil)
+	if theme.Current().ID != "copper" {
+		t.Fatalf("after a failed read: %s", theme.Current().ID)
+	}
+	app.setDerived(&d)
+	if theme.Current().ID != theme.FollowID {
+		t.Fatalf("after a read: %s", theme.Current().ID)
+	}
+	theme.Apply(theme.Default)
+}
+
+// The choice is saved per device, what it derived isn't.
+func TestFollowBackgroundPersists(t *testing.T) {
+	d := theme.DeriveColors(image.NewRGBA(image.Rect(0, 0, 4, 4)))
+	data, err := json.Marshal(appState{FollowBackground: true, derived: &d})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(string(data), "followBackground") || strings.Contains(string(data), "erived") {
+		t.Fatalf("saved %s", data)
+	}
+}

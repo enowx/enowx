@@ -29,6 +29,10 @@ type appState struct {
 	// BackgroundImage is this device's image behind the panels, "" for the
 	// theme's own; BackgroundOpacity how opaque the main surfaces over it are,
 	// nil for the default; BackgroundBlur its blur's sigma, nil for the default.
+	// FollowBackground derives the palette from BackgroundImage, Theme being the
+	// one to go back to; derived is those colors, as read from it, not saved.
+	FollowBackground  bool `json:"followBackground,omitempty"`
+	derived           *theme.Derived
 	BackgroundImage   string             `json:"backgroundImage,omitempty"`
 	BackgroundOpacity *float64           `json:"backgroundOpacity,omitempty"`
 	BackgroundBlur    *float64           `json:"backgroundBlur,omitempty"`
@@ -93,11 +97,22 @@ func (st appState) palette(light bool) theme.Palette {
 	if st.Accent != "" {
 		accent = ui.Hex(st.Accent)
 	}
-	p := theme.LookupAppearance(st.Theme, accent, light)
+	var p theme.Palette
+	if st.followsImage() {
+		p = theme.DerivedPalette(*st.derived, accent, light)
+	} else {
+		p = theme.LookupAppearance(st.Theme, accent, light)
+	}
 	if st.BackgroundImage != "" {
 		p = theme.WithBackdrop(p, st.backgroundOpacity())
 	}
 	return p
+}
+
+// followsImage says the palette comes from the image now: asked for, with an
+// image set and read. Otherwise it is the palette last saved.
+func (st appState) followsImage() bool {
+	return st.FollowBackground && st.BackgroundImage != "" && st.derived != nil
 }
 
 // backgroundOpacity is how opaque the panels over the user's image are.

@@ -54,10 +54,11 @@ func (a *App) appearancePage(c *ui.Context) {
 func (a *App) themePicker(c *ui.Context) {
 	ui.Column(c).FillWidth().Gap(theme.S2).Children(func() {
 		ui.Text(c, "Theme").FontSize(theme.TextUI).FontWeight(500)
-		ui.Grid(c).FillWidth().Columns(len(theme.Palettes)).Gap(theme.S3).Children(func() {
+		ui.Grid(c).FillWidth().Columns(len(theme.Palettes) + 1).Gap(theme.S3).Children(func() {
 			for _, preset := range theme.Palettes {
 				p := theme.LookupAppearance(preset.ID, ui.Color{}, a.lightAppearance())
 				if a.paletteCard(c.Key(p.ID), p) {
+					a.state.FollowBackground = false
 					a.state.Theme = p.ID
 					if p.ID == theme.Default.ID {
 						a.state.Theme = ""
@@ -65,8 +66,53 @@ func (a *App) themePicker(c *ui.Context) {
 					a.applyTheme()
 				}
 			}
+			a.followCard(c.Key(theme.FollowID))
 		})
 	})
+}
+
+// followCard is the choice of a palette derived from the background image:
+// disabled, saying why, until there is one to read.
+func (a *App) followCard(c *ui.Context) {
+	can := a.state.BackgroundImage != "" && a.state.derived != nil
+	on := a.state.FollowBackground && can
+	label := "Follow background"
+	tip := "Colors taken from your background image"
+	if !can {
+		label, tip = "Needs an image", "A background image is needed: choose one below"
+	}
+	card := ui.ButtonBase(c).MinWidth(0).Padding(theme.S2).Radius(theme.RadiusCard).Label("Follow background").Tooltip(tip)
+	switch {
+	case on:
+		card.Background(theme.Sunken).InsetShadow(0, 0, 0, 2, theme.Text)
+	case can && card.Hovered():
+		card.Background(theme.Hover)
+	default:
+		card.Background(theme.Sunken)
+	}
+	if can {
+		card.Cursor(ui.CursorPointer)
+	} else {
+		card.Opacity(0.5).Disabled(true)
+	}
+	card.Children(func() {
+		ui.Column(c).FillWidth().MinWidth(0).Gap(theme.S2).Children(func() {
+			ui.Row(c).FillWidth().Height(56).Radius(theme.S3).Clip().Children(func() {
+				if !can {
+					ui.Box(c).Grow(1).Basis(0).FillHeight().Background(theme.Hover)
+					return
+				}
+				p := theme.DerivedPalette(*a.state.derived, ui.Color{}, a.lightAppearance())
+				ui.Box(c).Grow(2).Basis(0).FillHeight().Background(p.Ground)
+				ui.Box(c).Grow(1).Basis(0).FillHeight().Background(p.Accent)
+			})
+			widget.Running(c, label, widget.RunStyle{Size: theme.TextLabel})
+		})
+	})
+	if can && card.Clicked() {
+		a.state.FollowBackground = !a.state.FollowBackground
+		a.applyTheme()
+	}
 }
 
 // accentPicker is the accent: the theme's own, one of the app's, or one typed.
@@ -152,7 +198,7 @@ func parseAccent(s string) (string, bool) {
 // paletteCard is a palette's ground and accent, and its name; it reports whether
 // it was clicked.
 func (a *App) paletteCard(c *ui.Context, p theme.Palette) bool {
-	on := theme.Lookup(a.state.Theme, ui.Color{}).ID == p.ID
+	on := !a.state.followsImage() && theme.Lookup(a.state.Theme, ui.Color{}).ID == p.ID
 	card := ui.ButtonBase(c).MinWidth(0).Padding(theme.S2).Radius(theme.RadiusCard).Cursor(ui.CursorPointer)
 	switch {
 	case on:
