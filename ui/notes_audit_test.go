@@ -132,10 +132,7 @@ func TestLayoutAuditNotes(t *testing.T) {
 	}
 	shots := os.Getenv("SHOTS")
 	var problems []string
-	sizes := auditSizes
-	if shots != "" {
-		sizes = [][2]int{{1280, 800}} // pictures alone: the sizes are the audit's
-	}
+	sizes := drawSizes(auditSizes)
 	for _, st := range states {
 		if !auditWanted("notes-" + st.name) {
 			continue

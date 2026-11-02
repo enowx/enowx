@@ -201,7 +201,11 @@ func TestTrafficTool(t *testing.T) {
 		t.Fatal(err)
 	}
 	drain(func() bool { return v.rules.edit == nil && len(v.rules.list) == 1 }, "the rule saved")
+	v.ShowPage("Rules")
+	drain(func() bool { return tt.HasText("Rules") }, "the rules")
 	shot(t, tt, "traffic-rules.png")
+	v.ShowPage("Requests")
+	tt.Frame()
 	if st, body := get("/api/users"); st != 500 || body != `{"error":"down"}` {
 		t.Fatalf("mocked: %d %s", st, body)
 	}

@@ -47,6 +47,7 @@ func TestCanvasSurfacesAudit(t *testing.T) {
 	t.Setenv("PATH", bin+string(os.PathListSeparator)+os.Getenv("PATH"))
 	h := newCanvasHarness(t)
 	h.app.agents = []proto.AgentInfo{{ID: "claude", Name: "Claude Code", Command: "claude", Installed: true}}
+	h.app.state.RailWide = true
 
 	// No canvas yet: the list says so and the page offers one.
 	var problems []string
@@ -250,18 +251,15 @@ func TestCanvasSurfacesAudit(t *testing.T) {
 
 	shots := os.Getenv("SHOTS")
 	look := func(name string, w, hgt int) {
-		if shots != "" && w == 1280 {
+		if shots != "" {
 			shot(t, h.tt, filepath.Join("surfaces", name+".png"))
 		}
 		for _, pr := range layoutProblems(h.tt, float32(w), float32(hgt), true) {
 			problems = append(problems, fmt.Sprintf("%s-%dx%d: %s", name, w, hgt, pr))
 		}
 	}
-	for _, size := range auditSizes {
+	for _, size := range drawSizes(auditSizes) {
 		w, hgt := size[0], size[1]
-		if shots != "" && w != 1280 {
-			continue // pictures are slow: of one size
-		}
 		h.tt = ui.NewTester(func(c *ui.Context) { h.app.view(c) }, w, hgt)
 		settled()
 		for _, s := range surfaces {

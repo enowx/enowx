@@ -28,6 +28,7 @@ func libraryHome(t *testing.T) string {
 	write(".claude/skills/concise-context/SKILL.md", "# concise-context\n\nAnswer first.\n")
 	write(".claude/skills/handoff/SKILL.md", "# handoff\n\nWrite a handoff.\n")
 	write(".claude/commands/summary.md", "Summarize the branch.\n")
+	write(".claude/CLAUDE.md", "# CLAUDE.md\n\nAlways concise.\n")
 	write(".claude.json", `{"mcpServers":{"coolify":{"command":"npx","args":["-y","coolify-mcp"],"env":{"COOLIFY_TOKEN":"made-up"}}}}`)
 	write(".claude/settings.json", `{"permissions":{"allow":["Bash(go test:*)"],"ask":["Bash(git push:*)"],"deny":["Bash(rm -rf:*)"]},`+
 		`"hooks":{"PreToolUse":[{"matcher":"Bash","hooks":[{"type":"command","command":"./check-command.sh","timeout":30}]}]},`+
@@ -91,7 +92,7 @@ func fileHas(path, text string) bool {
 }
 
 func TestLibraryWalk(t *testing.T) {
-	for _, size := range [][2]int{{1200, 720}, {1920, 1080}} {
+	for _, size := range drawSizes([][2]int{{1200, 720}, {1920, 1080}}) {
 		t.Run(fmt.Sprintf("%dx%d", size[0], size[1]), func(t *testing.T) {
 			home := libraryHome(t)
 			t.Setenv("HOME", home)
@@ -168,6 +169,10 @@ func TestLibraryWalk(t *testing.T) {
 			w.shows("file", "Edit", "acceptEdits")
 
 			// Plugins, as cards, their marketplaces a tab away.
+			w.click("Commands")
+			w.shows("commands", "Summarize the branch.")
+			w.click("Instructions")
+			w.shows("instructions", "Always concise.")
 			w.click("Plugins")
 			w.shows("plugins", "typesafe", "Typed judgments.", "Plugins (1)", "Marketplaces (1)")
 			// Its menu, in the library alone: the first More of the whole window is the top bar's.
