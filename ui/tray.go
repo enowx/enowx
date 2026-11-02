@@ -230,8 +230,7 @@ func (a *App) trayView(c *ui.Context) {
 	c.Root().Background(ui.Transparent)
 	box := ui.Column(c).Fill().TextColor(theme.Text)
 	switch {
-	case c.Vibrancy(): // over the popover's material, on macOS
-	case runtime.GOOS == "windows": // which rounds and outlines the flyout
+	case c.Vibrancy() || runtime.GOOS == "windows": // the system rounds and outlines these
 		box.Background(theme.Dialog)
 	default:
 		box.Background(theme.Dialog).Radius(theme.RadiusSmall).Border(1, theme.BorderStrong)

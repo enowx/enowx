@@ -151,7 +151,7 @@ func Switch(c *ui.Context, on *bool, label string) bool {
 	x := b.AnimateTo("x", map[bool]float32{false: 0, true: 16}[*on], Press)
 	b.Background(QuickTint(b, "track", track)).Children(func() {
 		ui.Box(c).Size(20, 20).Radius(theme.RadiusFull).Shrink(0).Margin(0, 0, 0, 2+x).Background(ui.Hex("#FFFFFF")).
-			Shadow(0, 1, 3, 0, ui.RGBA(0, 0, 0, 0.4))
+			Shadow(0, 1, 2, 0, ui.RGBA(0, 0, 0, 0.2))
 	})
 	if b.Clicked() {
 		*on = !*on

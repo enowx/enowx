@@ -49,7 +49,7 @@ func (v *View) pageView(c *ui.Context, o Options) {
 			})
 			if p.scroll.Y > 480 {
 				top := widget.IconButton(c, icon.ArrowUp, "Back to top", false)
-				widget.Raise(top.Absolute().Right(theme.S5).Bottom(theme.S5).Background(theme.Popover)).Shadow(0, 4, 14, 0, ui.RGBA(0, 0, 0, 0.25))
+				widget.Raise(top.Absolute().Right(theme.S5).Bottom(theme.S5).Background(theme.Popover))
 				if top.Clicked() {
 					p.scroll.ScrollTo(0, 0, ui.Smooth)
 				}

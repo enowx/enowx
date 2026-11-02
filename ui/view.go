@@ -33,7 +33,6 @@ func (a *App) view(c *ui.Context) {
 	}
 	root := ui.Box(c).Fill().Background(theme.Ground).TextColor(theme.Text)
 	root.Children(func() {
-		a.wallpaper(c)
 		ui.Column(c).Absolute().Left(0).Top(0).Right(0).Bottom(0).Padding(theme.WindowInset).Gap(theme.BentoGap).Children(func() {
 			a.titleBar(c)
 			ui.Row(c).Grow(1).FillWidth().MinHeight(0).AlignItems(ui.Stretch).Gap(theme.BentoGap).Children(func() {

@@ -13,8 +13,8 @@ import (
 // titleBarHeight is the height of the capsules at the window's top.
 const titleBarHeight = 40
 
-// titleBar is the window's top: not a bar but separate pieces of glass over
-// the wallpaper. The window controls, the host and project, the pages, the
+// titleBar is the window's top: not a bar but separate panes on
+// the ground. The window controls, the host and project, the pages, the
 // search, and the actions. What is between them drags the window.
 func (a *App) titleBar(c *ui.Context) {
 	a.titleBarWith(c, func() {
@@ -41,9 +41,9 @@ func (a *App) titleBarWith(c *ui.Context, actions func()) {
 	})
 }
 
-// capsule is a piece of the top's glass.
+// capsule is one of the top's panes.
 func capsule(c *ui.Context) ui.Element {
-	return widget.Glass(ui.Row(c).Height(titleBarHeight).Radius(theme.RadiusFull).AlignItems(ui.Center))
+	return widget.Pane(ui.Row(c).Height(titleBarHeight).Radius(theme.RadiusFull).AlignItems(ui.Center))
 }
 
 // contextMax is how wide the host's and the project's names may be in their
@@ -53,7 +53,7 @@ const contextMax = 112
 // contextCapsule is the host and project the app is on, a menu of the others.
 func (a *App) contextCapsule(c *ui.Context) {
 	col, state := a.connectionState()
-	b := widget.Glass(ui.ButtonBase(c.Key("host-switch")).Height(titleBarHeight).PaddingX(theme.S4).Gap(theme.S2).Radius(theme.RadiusFull).
+	b := widget.Pane(ui.ButtonBase(c.Key("host-switch")).Height(titleBarHeight).PaddingX(theme.S4).Gap(theme.S2).Radius(theme.RadiusFull).
 		Cursor(ui.CursorPointer).Shrink(0).Label("Host: " + a.host.Name + ", " + state).Tooltip(a.host.Name + " · " + state))
 	b.Children(func() {
 		if a.client == nil {
@@ -129,7 +129,7 @@ func pageButton(c *ui.Context, label string, on, enabled bool) ui.Element {
 
 // commandButton opens the command palette.
 func (a *App) commandButton(c *ui.Context) {
-	b := widget.Glass(ui.ButtonBase(c.Key("command")).Width(340).Shrink(1).MinWidth(160).Height(titleBarHeight).PaddingX(theme.S4).Gap(theme.S2).
+	b := widget.Pane(ui.ButtonBase(c.Key("command")).Width(340).Shrink(1).MinWidth(160).Height(titleBarHeight).PaddingX(theme.S4).Gap(theme.S2).
 		Radius(theme.RadiusFull).Label("Run a command").Cursor(ui.CursorPointer))
 	b.Justify(ui.Start).TextColor(theme.TextSoft).Children(func() {
 		ui.Icon(c, icon.Search).FontSize(14)

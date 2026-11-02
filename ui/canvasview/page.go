@@ -55,7 +55,7 @@ func (v *View) page(c *ui.Context, o Options) {
 func sizeOf(f proto.CanvasFrame) string { return fmt.Sprintf("%d×%d", f.Width, f.Height) }
 
 // raised is what floats over the stage or the page's views: a pane of the
-// menus' material with glass's edge.
+// menus' material with an overlay's edge.
 func raised(e ui.Element) ui.Element { return widget.Rim(e.Background(theme.Popover)) }
 
 // errorBar says what failed last, until dismissed.

@@ -1,7 +1,6 @@
 package ui
 
 import (
-	"github.com/enowx/enowx/ui/widget"
 	"os"
 	"testing"
 
@@ -11,8 +10,6 @@ import (
 
 func TestMain(m *testing.M) {
 	askArmDelay = 0 // tests click as soon as a card shows
-	// The CPU draws every frame here: frost only what is looked at.
-	widget.Frosted = os.Getenv("SHOTS") != ""
 	testlisten.Serve()
 	// No judge of this machine's (its Claude Code, its vault): the judge's
 	// uses are on by default, and tests mustn't ask real models.

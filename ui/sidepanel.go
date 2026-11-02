@@ -180,7 +180,7 @@ func (a *App) sidePanelView(c *ui.Context) {
 			width = goaPanelWidth // GOA's own lists hold a task and its button on a row
 		}
 	}
-	widget.Bento(ui.Column(c.Key("side-panel")).Width(width).MinWidth(minPanelWidth).Shrink(1).FillHeight(), theme.Fade(theme.Panel, 0.94)).
+	widget.Bento(ui.Column(c.Key("side-panel")).Width(width).MinWidth(minPanelWidth).Shrink(1).FillHeight(), theme.Panel).
 		Transition(widget.PanelMotion(24)).Children(func() {
 		a.panelStrip(c)
 		s, ok := a.selectedSession()
@@ -302,7 +302,7 @@ func (a *App) toolsDock(c *ui.Context) {
 		unread, _ = a.chatUnreadAll()
 	}
 	ui.Column(c.Key("dock-room")).Width(44).Shrink(0).FillHeight().Justify(ui.Center).Children(func() {
-		widget.Glass(ui.Column(c.Key("dock")).FillWidth().Padding(theme.S1, 0).Gap(theme.S1).Radius(theme.RadiusFull).AlignItems(ui.Center)).Children(func() {
+		widget.Pane(ui.Column(c.Key("dock")).FillWidth().Padding(theme.S1, 0).Gap(theme.S1).Radius(theme.RadiusFull).AlignItems(ui.Center)).Children(func() {
 			for _, id := range first {
 				t, _ := findTool(id)
 				if a.dockButton(c.Key("tool:"+id), t, id == front).Clicked() {
