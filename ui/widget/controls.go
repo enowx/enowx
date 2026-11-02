@@ -162,7 +162,7 @@ func Switch(c *ui.Context, on *bool, label string) bool {
 
 // Checkbox is a box with its label; it reports whether it changed.
 func Checkbox(c *ui.Context, checked *bool, label string) bool {
-	b := ui.ButtonBase(c).Gap(theme.S2).Cursor(ui.CursorPointer).Label(label).Shrink(0)
+	b := ui.ButtonBase(c).Gap(theme.S2).Cursor(ui.CursorPointer).Label(label).Shrink(0).AlignSelf(ui.Start)
 	b.Children(func() {
 		box := ui.Box(c).Size(16, 16).Radius(theme.RadiusTail).Center().TextColor(theme.OnAccent)
 		if *checked {
