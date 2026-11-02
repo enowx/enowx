@@ -139,7 +139,7 @@ func (a *App) chatToastCard(c *ui.Context, t *chatToast, now time.Time) {
 			body.Children(func() {
 				ui.Column(c).FillWidth().Gap(2).Children(func() {
 					ui.Row(c).FillWidth().Gap(theme.S1).AlignItems(ui.Center).Children(func() {
-						ui.Text(c, m.Name).FontSize(theme.TextUI).FontWeight(600).TextColor(theme.TextStrong).SingleLine().Shrink(1)
+						ui.Row(c.Key("who")).Shrink(0).MaxWidth(140).Children(func() { widget.Running(c, m.Name, widget.RunStyle{Weight: 600, Color: theme.TextStrong}) })
 						where := a.spaceName(m.Team)
 						if t.mention {
 							where = "mentioned you · " + where
@@ -147,7 +147,9 @@ func (a *App) chatToastCard(c *ui.Context, t *chatToast, now time.Time) {
 						if t.urgent != "" {
 							where = "urgent · " + where
 						}
-						ui.Text(c, where).FontSize(theme.TextLabel).TextColor(theme.Muted).SingleLine().Shrink(1)
+						ui.Row(c.Key("where")).Grow(1).Basis(0).MinWidth(0).Children(func() {
+							widget.Running(c, where, widget.RunStyle{Size: theme.TextLabel, Color: theme.TextSoft})
+						})
 					})
 					text := snippet(m.Text)
 					if text == "" && len(m.Attachments) > 0 {
