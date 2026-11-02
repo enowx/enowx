@@ -106,7 +106,7 @@ func (a *App) sessionsOfTeamProject(p proto.TeamProject) []proto.SessionInfo {
 // started shows who.
 func (a *App) teamProjectSessions(c *ui.Context, p proto.TeamProject) {
 	for _, s := range a.sessionsOfTeamProject(p) {
-		row := ui.ButtonBase(c.Key("s:" + s.ID)).FillWidth().Shrink(0).MinHeight(theme.ControlHeight).Gap(theme.S2).PaddingX(theme.S3).Radius(theme.RadiusControl).Justify(ui.Start).
+		row := ui.ButtonBase(c.Key("s:" + s.ID)).FillWidth().Shrink(0).MinHeight(theme.ControlHeight).Gap(theme.S2).PaddingX(theme.S3).Radius(theme.RadiusFull).Justify(ui.Start).
 			Cursor(ui.CursorPointer).Label("Show " + a.sessionName(s))
 		if row.Hovered() || s.ID == a.selected {
 			row.Background(theme.Hover)

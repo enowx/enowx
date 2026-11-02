@@ -169,7 +169,7 @@ func hudRegions(c *ui.Context, o PanelOptions, run *proto.CanvasUnslopRun) {
 			if o.AgentState != nil {
 				state = o.AgentState(r.Session)
 			}
-			row := ui.ButtonBase(c.Key("region:" + r.ID)).FillWidth().Height(28).PaddingX(theme.S2).Gap(theme.S2).Radius(theme.RadiusSmall).AlignItems(ui.Center).Justify(ui.Start).
+			row := ui.ButtonBase(c.Key("region:" + r.ID)).FillWidth().Height(28).PaddingX(theme.S2).Gap(theme.S2).Radius(theme.RadiusFull).AlignItems(ui.Center).Justify(ui.Start).
 				Label("Show the agent of #" + r.ID).Tooltip("Show what this agent does")
 			if o.OpenSession != nil {
 				row.Cursor(ui.CursorPointer)
@@ -223,7 +223,7 @@ func hudPass(c *ui.Context, run *proto.CanvasUnslopRun, pass string, found int, 
 	for _, r := range run.Regions {
 		active = active || (!r.Done && !run.Done && r.Pass == pass)
 	}
-	row := ui.Row(c.Key(pass)).FillWidth().Height(24).PaddingX(theme.S2).Gap(theme.S2).Radius(theme.RadiusSmall).AlignItems(ui.Center)
+	row := ui.Row(c.Key(pass)).FillWidth().Height(24).PaddingX(theme.S2).Gap(theme.S2).Radius(theme.RadiusFull).AlignItems(ui.Center)
 	if active {
 		// A slow pulse while the agent works on it.
 		a := 0.12 + 0.08*math.Sin(float64(now.UnixMilli())/300)
@@ -373,7 +373,7 @@ func drawSteps(c *ui.Context, run *proto.CanvasUnslopRun) {
 		})
 		ui.Column(c).FillWidth().Gap(2).Children(func() {
 			for i, step := range run.Steps {
-				row := ui.Row(c.Key(step)).FillWidth().Height(24).PaddingX(theme.S2).Gap(theme.S2).Radius(theme.RadiusSmall).AlignItems(ui.Center)
+				row := ui.Row(c.Key(step)).FillWidth().Height(24).PaddingX(theme.S2).Gap(theme.S2).Radius(theme.RadiusFull).AlignItems(ui.Center)
 				active := i == run.Step
 				if active {
 					a := 0.12 + 0.08*math.Sin(float64(now.UnixMilli())/300)
@@ -489,7 +489,7 @@ func hudSteps(c *ui.Context, o PanelOptions, run *proto.CanvasUnslopRun) {
 		})
 		for i, s := range run.Passed {
 			label := unslopStepName(s)
-			b := ui.ButtonBase(c.Key(i)).FillWidth().Height(28).PaddingX(theme.S2).Gap(theme.S2).Radius(theme.RadiusSmall).AlignItems(ui.Center).Justify(ui.Start).
+			b := ui.ButtonBase(c.Key(i)).FillWidth().Height(28).PaddingX(theme.S2).Gap(theme.S2).Radius(theme.RadiusFull).AlignItems(ui.Center).Justify(ui.Start).
 				Cursor(ui.CursorPointer).Label("Play step " + label)
 			if b.Hovered() {
 				b.Background(theme.Hover)

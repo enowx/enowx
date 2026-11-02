@@ -58,9 +58,9 @@ func SideLabel(c *ui.Context, label string) {
 	SectionLabel(c.Key("side:"+label), label, theme.TextSoft).Padding(theme.S3, theme.S3, theme.S1, theme.S3)
 }
 
-// SideEntry is an entry of a SidePanel: a row, lit while on.
+// SideEntry is an entry of a SidePanel: a capsule, lit while on.
 func SideEntry(c *ui.Context, svg *ui.SVG, label string, on bool) ui.Element {
-	b := ui.ButtonBase(c.Key("entry:" + label)).FillWidth().MinHeight(theme.ControlHeight).PaddingX(theme.S3).Gap(theme.S2).Radius(theme.RadiusControl).
+	b := ui.ButtonBase(c.Key("entry:" + label)).FillWidth().MinHeight(theme.ControlHeight).PaddingX(theme.S3).Gap(theme.S2).Radius(theme.RadiusFull).
 		Justify(ui.Start).Label(label).Cursor(ui.CursorPointer).Shrink(0)
 	bg, fg, weight := theme.Fade(theme.Selected, 0), theme.Text, 400
 	switch {
@@ -162,10 +162,10 @@ func ToggleRow(c *ui.Context, title, about string, on *bool) bool {
 	return changed
 }
 
-// Banner says what stands out, a bar tinted by col, with what to do about
+// Banner says what stands out, a capsule tinted by col, with what to do about
 // it after its words, which run when they can't fit.
 func Banner(c *ui.Context, col ui.Color, text string, actions func()) {
-	ui.Row(c.Key("banner")).FillWidth().Shrink(0).MinHeight(40).Padding(0, theme.S1, 0, theme.S4).Gap(theme.S2).Radius(theme.RadiusControl).
+	ui.Row(c.Key("banner")).FillWidth().Shrink(0).MinHeight(40).Padding(0, theme.S1, 0, theme.S4).Gap(theme.S2).Radius(theme.RadiusFull).
 		Background(theme.Fade(col, 0.14)).Children(func() {
 		ui.Row(c).Grow(1).MinWidth(0).Children(func() { Running(c, text, RunStyle{}) })
 		if actions != nil {
@@ -222,7 +222,7 @@ func ToolHeader(c *ui.Context, fn func()) {
 // ListItem is a row of a side panel's list: a dot, a title and a quieter line,
 // which run inside the row, and what follows at its right. It's lit while on.
 func ListItem(c *ui.Context, dot ui.Color, title, sub string, on bool, right func()) ui.Element {
-	b := ui.ButtonBase(c.Key("item:"+title+sub)).FillWidth().MinHeight(36).Padding(theme.S1, theme.S3).Gap(theme.S2).Radius(theme.RadiusControl).
+	b := ui.ButtonBase(c.Key("item:"+title+sub)).FillWidth().MinHeight(36).Padding(theme.S1, theme.S3).Gap(theme.S2).Radius(theme.RadiusCard).
 		Justify(ui.Start).Label(title).Cursor(ui.CursorPointer).Shrink(0)
 	bg := theme.Fade(theme.Selected, 0)
 	switch {

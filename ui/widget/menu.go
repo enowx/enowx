@@ -92,7 +92,7 @@ func MenuItemTip(c *ui.Context, svg *ui.SVG, label, tip string, danger bool) boo
 	if danger {
 		color = theme.Del
 	}
-	b := ui.ButtonBase(c).Gap(theme.S2).Padding(theme.S1, theme.S3).MinHeight(theme.ControlHeight).Radius(theme.RadiusSmall).
+	b := ui.ButtonBase(c).Gap(theme.S2).Padding(theme.S1, theme.S3).MinHeight(theme.ControlHeight).Radius(theme.RadiusFull).
 		Cursor(ui.CursorPointer).Label(label).FillWidth().Justify(ui.Start)
 	if tip != "" {
 		b.Tooltip(tip)
@@ -121,7 +121,7 @@ func MenuItemSub(c *ui.Context, svg *ui.SVG, label, sub string, danger bool) boo
 	if sub != "" {
 		height = menuItemSubHeight
 	}
-	b := ui.ButtonBase(c).Gap(theme.S2).Padding(theme.S1, theme.S3).MinHeight(height).Radius(theme.RadiusControl).
+	b := ui.ButtonBase(c).Gap(theme.S2).Padding(theme.S1, theme.S3).MinHeight(height).Radius(theme.RadiusCard).
 		Cursor(ui.CursorPointer).Label(label).FillWidth().Justify(ui.Start)
 	bg := theme.Fade(theme.Selected, 0)
 	if b.Hovered() {

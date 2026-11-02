@@ -374,7 +374,7 @@ func (a *App) environmentSection(c *ui.Context) {
 				})
 				ui.Column(c).Grow(1).Basis(0).MinWidth(0).Children(func() {
 					widget.Field(c, "Value", func() {
-						f := ui.TextInputBase(c, &hs.newValue).Password().FillWidth().Height(theme.ControlHeight).PaddingX(theme.S3).Radius(theme.RadiusControl).
+						f := ui.TextInputBase(c, &hs.newValue).Password().FillWidth().Height(theme.ControlHeight).PaddingX(theme.S3).Radius(theme.RadiusFull).
 							Placeholder("Its value").Label("Value")
 						widget.Well(f, f.Focused())
 					})

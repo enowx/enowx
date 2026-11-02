@@ -307,7 +307,7 @@ func (a *App) cloudInvite(c *ui.Context, cs *cloudSettings) {
 			link = in.Token
 		}
 		widget.Field(c, "Invite link", func() {
-			box := ui.Row(c).FillWidth().MinWidth(0).Height(theme.ControlHeight).Padding(0, 0, 0, theme.S3).Gap(theme.S2).Radius(theme.RadiusControl)
+			box := ui.Row(c).FillWidth().MinWidth(0).Height(theme.ControlHeight).Padding(0, 0, 0, theme.S3).Gap(theme.S2).Radius(theme.RadiusFull)
 			widget.Well(box, false).Children(func() {
 				ui.Row(c).Grow(1).MinWidth(0).Children(func() { widget.Running(c, link, widget.RunStyle{Mono: true}) })
 				widget.CopyIcon(c.Key("invite-copy"), &ts.copied, icon.Copy, "Copy the link", "Copy the invite link", link)

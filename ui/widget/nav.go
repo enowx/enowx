@@ -28,15 +28,15 @@ func Breadcrumb(c *ui.Context, parts ...string) {
 	})
 }
 
-// Segmented is a row of mutually exclusive options, a well of buttons; it
+// Segmented is a row of mutually exclusive options, a well of capsules; it
 // returns the option clicked, or -1. disabled options are dimmed and can't
 // be picked.
 func Segmented(c *ui.Context, options []string, current int, disabled func(i int) bool) int {
 	clicked := -1
-	ui.Row(c).Shrink(0).Padding(theme.S1).Radius(theme.RadiusControl).Background(theme.Sunken).Children(func() {
+	ui.Row(c).Shrink(0).Padding(theme.S1).Radius(theme.RadiusFull).Background(theme.Sunken).Children(func() {
 		for i, label := range options {
 			off := disabled != nil && disabled(i)
-			b := ui.ButtonBase(c.Key(label)).Height(28).PaddingX(theme.S3).Radius(theme.RadiusSmall).Label(label)
+			b := ui.ButtonBase(c.Key(label)).Height(28).PaddingX(theme.S3).Radius(theme.RadiusFull).Label(label)
 			bg, fg, weight := theme.Fade(theme.Selected, 0), theme.TextSoft, 400
 			switch {
 			case i == current:
@@ -92,7 +92,7 @@ func RailItem(c *ui.Context, svg *ui.SVG, label, group string, wide, on bool, st
 // RailEntry gives e the rail's entry geometry: square while narrow, the
 // rail's width while wide, its content starting where the icon goes.
 func RailEntry(e ui.Element, wide bool) ui.Element {
-	e.Height(RailItemSize).Shrink(0).PaddingX(railIconPad).Gap(theme.S2).Radius(theme.RadiusControl).
+	e.Height(RailItemSize).Shrink(0).PaddingX(railIconPad).Gap(theme.S2).Radius(theme.RadiusFull).
 		AlignItems(ui.Center).Justify(ui.Start)
 	if wide {
 		return e.FillWidth()
@@ -112,7 +112,7 @@ func railFace(c *ui.Context, b ui.Element, svg *ui.SVG, label, group string, on 
 	b.Background(QuickTint(b, "bg", bg)).TextColor(QuickTint(b, "fg", fg))
 	b.Children(func() {
 		if on {
-			SelectionPill(c, group, theme.RadiusControl)
+			SelectionPill(c, group, theme.RadiusFull)
 		}
 		ui.Icon(c, svg).FontSize(RailIconSize)
 		if !wide {
@@ -155,7 +155,7 @@ func SectionLabel(c *ui.Context, label string, col ui.Color) ui.Element {
 // ListRow styles a clickable row of a list and fills it with fn: hovered,
 // or selected with the pill of group, which slides from row to row.
 func ListRow(c *ui.Context, row ui.Element, selected bool, group string, fn func()) ui.Element {
-	row.FillWidth().MinHeight(36).Padding(theme.S1, theme.S3).Gap(theme.S2).Radius(theme.RadiusControl).Cursor(ui.CursorPointer)
+	row.FillWidth().MinHeight(36).Padding(theme.S1, theme.S3).Gap(theme.S2).Radius(theme.RadiusCard).Cursor(ui.CursorPointer)
 	bg := theme.Fade(theme.Hover, 0)
 	if !selected && row.Hovered() {
 		bg = theme.Hover

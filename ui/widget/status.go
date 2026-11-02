@@ -33,7 +33,7 @@ func Badge(c *ui.Context, s Status) {
 	})
 }
 
-// Tag is a small badge, as New, Changed, git; col colors its words,
+// Tag is a small capsule, as New, Changed, git; col colors its words,
 // theme.Text when zero.
 func Tag(c *ui.Context, label string, col ui.Color) {
 	if col.A == 0 {

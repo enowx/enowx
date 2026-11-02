@@ -74,7 +74,7 @@ func (a *App) groupSection(c *ui.Context, e listEntry) int {
 	}
 	open := filtering || !a.foldedGroups[e.group]
 	ui.Row(c).Height(theme.ControlHeight).FillWidth().Gap(theme.S1).Children(func() {
-		row := ui.ButtonBase(c).Grow(1).MinWidth(0).Height(theme.ControlHeight).PaddingX(theme.S2).Gap(theme.S1).Radius(theme.RadiusControl).Justify(ui.Start).Cursor(ui.CursorPointer).Label(e.group)
+		row := ui.ButtonBase(c).Grow(1).MinWidth(0).Height(theme.ControlHeight).PaddingX(theme.S2).Gap(theme.S1).Radius(theme.RadiusFull).Justify(ui.Start).Cursor(ui.CursorPointer).Label(e.group)
 		row.Drag(listDrag{group: e.group})
 		a.dropOnEntry(row, e)
 		if row.Hovered() {

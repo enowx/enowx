@@ -296,7 +296,7 @@ func (a *App) pipelineCard(c *ui.Context, pl proto.Pipeline) {
 
 // stageChip is a stage's name with its status; it opens its session.
 func (a *App) stageChip(c *ui.Context, st proto.PipelineStageRun) {
-	chip := ui.ButtonBase(c).Height(24).PaddingX(theme.S2).Gap(theme.S1).Radius(theme.RadiusSmall).MaxWidth(160).Label(st.Name).Tooltip(st.Name + ": " + st.Status).
+	chip := ui.ButtonBase(c).Height(24).PaddingX(theme.S2).Gap(theme.S1).Radius(theme.RadiusFull).MaxWidth(160).Label(st.Name).Tooltip(st.Name + ": " + st.Status).
 		Background(theme.Sunken)
 	if st.Session != "" {
 		chip.Cursor(ui.CursorPointer)

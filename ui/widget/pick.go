@@ -8,7 +8,7 @@ import (
 
 // The parts of a page that lists things and details the one picked.
 
-// Pick is an entry of a page's list of things to pick from: a raised row
+// Pick is an entry of a page's list of things to pick from: a raised capsule
 // with a title and a quieter line, which run inside it, lit while on.
 func Pick(c *ui.Context, svg *ui.SVG, title, sub string, on bool, right func()) ui.Element {
 	return PickFace(c, title+sub, title, on, func() {
@@ -30,7 +30,7 @@ func Pick(c *ui.Context, svg *ui.SVG, title, sub string, on bool, right func()) 
 // PickFace is a Pick whose inside the caller draws, for entries that aren't a
 // title and a line.
 func PickFace(c *ui.Context, key, label string, on bool, face func()) ui.Element {
-	b := ui.ButtonBase(c.Key("pick:"+key)).FillWidth().Shrink(0).MinHeight(44).Padding(theme.S3, theme.S4).Gap(theme.S3).Radius(theme.RadiusControl).
+	b := ui.ButtonBase(c.Key("pick:"+key)).FillWidth().Shrink(0).MinHeight(44).Padding(theme.S3, theme.S4).Gap(theme.S3).Radius(theme.RadiusCard).
 		Justify(ui.Start).Label(label).Cursor(ui.CursorPointer)
 	bg := theme.Raised
 	switch {

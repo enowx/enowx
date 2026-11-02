@@ -185,7 +185,7 @@ func (v *View) treeHead(c *ui.Context, o Options) {
 // lower edge puts it before or after that one, onto its middle under it.
 func (v *View) treeRow(c *ui.Context, o Options, n proto.NoteInfo, depth int, hasChildren bool, siblings []proto.NoteInfo) {
 	on := n.ID == v.selected
-	row := ui.ButtonBase(c).FillWidth().Height(36).Shrink(0).Padding(0, theme.S1, 0, theme.S3+float32(depth)*theme.S3).Gap(theme.S2).Radius(theme.RadiusControl).
+	row := ui.ButtonBase(c).FillWidth().Height(36).Shrink(0).Padding(0, theme.S1, 0, theme.S3+float32(depth)*theme.S3).Gap(theme.S2).Radius(theme.RadiusCard).
 		Justify(ui.Start).Cursor(ui.CursorPointer).Label(titleOf(n)).AlignItems(ui.Center)
 	row.Drag(noteDrag{id: n.ID})
 	bg := theme.Fade(theme.Selected, 0)
@@ -218,7 +218,7 @@ func (v *View) treeRow(c *ui.Context, o Options, n proto.NoteInfo, depth int, ha
 			}
 		}
 		if hasChildren {
-			chev := ui.ButtonBase(c).Size(theme.ControlHeight-theme.S2, theme.ControlHeight-theme.S2).Radius(theme.RadiusSmall).Center().Shrink(0).
+			chev := ui.ButtonBase(c).Size(theme.ControlHeight-theme.S2, theme.ControlHeight-theme.S2).Radius(theme.RadiusFull).Center().Shrink(0).
 				Cursor(ui.CursorPointer).Label("Fold " + titleOf(n))
 			chev.Children(func() {
 				svg := icon.ChevronDown

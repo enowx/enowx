@@ -264,7 +264,7 @@ func (v *View) remote(c *ui.Context, s *screen) {
 			go s.host.Client.AndroidMirrorInput(proto.AndroidMirrorInput{Serial: s.serial, Kind: "key", Key: code})
 		}
 	}
-	ui.Row(c).Shrink(0).Padding(theme.S1, theme.S2).Gap(theme.S1).Radius(theme.RadiusControl).Background(theme.Panel).AlignItems(ui.Center).Children(func() {
+	ui.Row(c).Shrink(0).Padding(theme.S1, theme.S2).Gap(theme.S1).Radius(theme.RadiusFull).Background(theme.Panel).AlignItems(ui.Center).Children(func() {
 		key(icon.ArrowLeft, "Left", android.KeyLeft)
 		key(icon.ArrowUp, "Up", android.KeyUp)
 		if widget.Button(c, widget.Secondary, nil, "OK", "").Tooltip("The remote's OK (Enter)").Clicked() {

@@ -88,7 +88,7 @@ func (v *View) pageRows(c *ui.Context, o Options) {
 // pageRow is a page in the list: a dot, its address, which runs when too long,
 // and what it is. It reports a click.
 func pageRow(c *ui.Context, dot ui.Color, address, sub string, on bool) bool {
-	b := ui.ButtonBase(c).FillWidth().MinHeight(36).Padding(theme.S1, theme.S3).Gap(theme.S2).Radius(theme.RadiusControl).Justify(ui.Start).
+	b := ui.ButtonBase(c).FillWidth().MinHeight(36).Padding(theme.S1, theme.S3).Gap(theme.S2).Radius(theme.RadiusCard).Justify(ui.Start).
 		Cursor(ui.CursorPointer).Label(address)
 	bg := theme.Fade(theme.Selected, 0)
 	switch {

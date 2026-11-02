@@ -232,7 +232,7 @@ func (a *App) projectNotesRow(c *ui.Context, p proto.ProjectInfo) {
 		chevron = icon.ChevronDown
 	}
 	// Keyed by project: each has its own row, its hover and its click.
-	head := ui.ButtonBase(c.Key("notes-head:" + p.Path)).FillWidth().Height(theme.ControlHeight).Shrink(0).PaddingX(theme.S3).Gap(theme.S2).Radius(theme.RadiusControl).Justify(ui.Start).
+	head := ui.ButtonBase(c.Key("notes-head:" + p.Path)).FillWidth().Height(theme.ControlHeight).Shrink(0).PaddingX(theme.S3).Gap(theme.S2).Radius(theme.RadiusFull).Justify(ui.Start).
 		Cursor(ui.CursorPointer).Label(fmt.Sprintf("Notes of %s (%d)", p.Name, len(list))).AlignItems(ui.Center)
 	if head.Hovered() {
 		head.Background(theme.Hover)
@@ -256,7 +256,7 @@ func (a *App) projectNotesRow(c *ui.Context, p proto.ProjectInfo) {
 	const shown = 8
 	for i, n := range list {
 		if i == shown {
-			more := ui.ButtonBase(c.Key("notes-more:"+p.Path)).FillWidth().Height(theme.ControlHeight).Shrink(0).Padding(0, theme.S3, 0, theme.S5).Radius(theme.RadiusControl).Justify(ui.Start).Cursor(ui.CursorPointer).Label("All notes of " + p.Name)
+			more := ui.ButtonBase(c.Key("notes-more:"+p.Path)).FillWidth().Height(theme.ControlHeight).Shrink(0).Padding(0, theme.S3, 0, theme.S5).Radius(theme.RadiusFull).Justify(ui.Start).Cursor(ui.CursorPointer).Label("All notes of " + p.Name)
 			if more.Hovered() {
 				more.Background(theme.Hover)
 			}
@@ -269,7 +269,7 @@ func (a *App) projectNotesRow(c *ui.Context, p proto.ProjectInfo) {
 			return
 		}
 		// A note can be in several projects: keyed by both.
-		row := ui.ButtonBase(c.Key("note:"+p.Path+":"+n.ID)).FillWidth().Height(theme.ControlHeight).Shrink(0).Padding(0, theme.S3, 0, theme.S5).Gap(theme.S2).Radius(theme.RadiusControl).Justify(ui.Start).
+		row := ui.ButtonBase(c.Key("note:"+p.Path+":"+n.ID)).FillWidth().Height(theme.ControlHeight).Shrink(0).Padding(0, theme.S3, 0, theme.S5).Gap(theme.S2).Radius(theme.RadiusFull).Justify(ui.Start).
 			Cursor(ui.CursorPointer).Label("Note " + noteTitle(n)).AlignItems(ui.Center)
 		if row.Hovered() {
 			row.Background(theme.Hover)

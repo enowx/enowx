@@ -97,7 +97,7 @@ func (v *View) agentBar(c *ui.Context, o Options, cv proto.Canvas) {
 	if o.AgentName != nil && cv.Agent != "" {
 		who = o.AgentName(cv.Agent)
 	}
-	bar := ui.Row(c.Key("agent-bar")).FillWidth().Shrink(0).MinHeight(40).Padding(0, theme.S1, 0, theme.S4).Gap(theme.S2).Radius(theme.RadiusControl).
+	bar := ui.Row(c.Key("agent-bar")).FillWidth().Shrink(0).MinHeight(40).Padding(0, theme.S1, 0, theme.S4).Gap(theme.S2).Radius(theme.RadiusFull).
 		Background(theme.Fade(theme.Accent, 0.14))
 	if cv.Paused {
 		bar.Background(theme.Fade(theme.Warning, 0.14))

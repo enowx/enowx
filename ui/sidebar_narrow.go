@@ -48,7 +48,7 @@ func (a *App) narrowSession(c *ui.Context, s proto.SessionInfo) {
 	if s.Branch != "" && s.Branch != a.sessionName(s) {
 		tip += " · " + s.Branch
 	}
-	b := ui.ButtonBase(c.Key("ns:"+s.ID)).Size(40, 40).Shrink(0).Radius(theme.RadiusControl).Center().Cursor(ui.CursorPointer).Label(a.sessionName(s)).Tooltip(tip)
+	b := ui.ButtonBase(c.Key("ns:"+s.ID)).Size(40, 40).Shrink(0).Radius(theme.RadiusFull).Center().Cursor(ui.CursorPointer).Label(a.sessionName(s)).Tooltip(tip)
 	switch {
 	case active:
 		b.Background(theme.Selected)

@@ -67,7 +67,7 @@ func (v *View) componentBar(c *ui.Context, o Options, s float64, w, h float32) {
 		y = min((cp.box.Y+cp.box.H)*float32(s)+6, h-barH)
 	}
 	bar := raised(ui.Row(c.Key("component-bar")).Absolute().Left(x).Top(max(y, 0)).Width(bw).Height(barH).PaddingX(theme.S2).Gap(theme.S1).
-		AlignItems(ui.Center).Radius(theme.RadiusControl))
+		AlignItems(ui.Center).Radius(theme.RadiusFull))
 	bar.Children(func() {
 		ui.Row(c.Key("id")).MaxWidth(110).MinWidth(0).Shrink(1).Padding(0, 0, 0, theme.S2).Children(func() {
 			widget.Running(c, "#"+cp.id, widget.RunStyle{Size: theme.TextLabel, Color: theme.Accent})

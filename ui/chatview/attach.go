@@ -148,7 +148,7 @@ func (ch *Chat) attachmentChip(c *ui.Context, at *attachment) {
 		if at.path == "" {
 			ui.Box(c).Absolute().Fill().Center().Children(func() { widget.Spinner(c, 14) })
 		}
-		x := ui.ButtonBase(c).Absolute().Top(3).Right(3).Size(18, 18).Radius(theme.RadiusSmall).Center().
+		x := ui.ButtonBase(c).Absolute().Top(3).Right(3).Size(18, 18).Radius(theme.RadiusFull).Center().
 			Background(theme.Fade(theme.Ground, 0.8)).Cursor(ui.CursorPointer).Label("Remove " + at.name)
 		x.Children(func() { ui.Icon(c, icon.Close).FontSize(10).TextColor(theme.Text) })
 		if x.Clicked() {

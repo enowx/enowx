@@ -131,7 +131,7 @@ func (a *App) projectGroup(c *ui.Context, p proto.ProjectInfo) bool {
 	selected := p.Path == a.project
 
 	ui.Row(c).Height(theme.ControlHeight).FillWidth().Margin(theme.S1, 0, 0, 0).Children(func() {
-		row := ui.ButtonBase(c).Grow(1).MinWidth(0).Height(theme.ControlHeight).PaddingX(theme.S2).Gap(theme.S1).Radius(theme.RadiusControl).Justify(ui.Start).Cursor(ui.CursorPointer).Label(p.Name)
+		row := ui.ButtonBase(c).Grow(1).MinWidth(0).Height(theme.ControlHeight).PaddingX(theme.S2).Gap(theme.S1).Radius(theme.RadiusFull).Justify(ui.Start).Cursor(ui.CursorPointer).Label(p.Name)
 		row.Drag(listDrag{path: p.Path})
 		a.dropOnProject(row, p)
 		if row.Hovered() {
@@ -202,7 +202,7 @@ func (a *App) projectGroup(c *ui.Context, p proto.ProjectInfo) bool {
 
 // smallIcon is the 24-DIP round button of a list's row.
 func smallIcon(c *ui.Context, svg *ui.SVG, label string) ui.Element {
-	b := ui.ButtonBase(c).Size(24, 24).Radius(theme.RadiusSmall).Center().Shrink(0).Label(label).Tooltip(label).Cursor(ui.CursorPointer).TextColor(theme.TextSoft)
+	b := ui.ButtonBase(c).Size(24, 24).Radius(theme.RadiusFull).Center().Shrink(0).Label(label).Tooltip(label).Cursor(ui.CursorPointer).TextColor(theme.TextSoft)
 	if b.Hovered() {
 		b.Background(theme.Hover).TextColor(theme.Text)
 	}
@@ -369,7 +369,7 @@ func (a *App) matching(p proto.ProjectInfo, sessions []proto.SessionInfo) []prot
 func (a *App) sessionRow(c *ui.Context, i int, s proto.SessionInfo, project string) {
 	st := statusOf(s)
 	active := s.ID == a.selected
-	row := ui.ButtonBase(c).Label(a.sessionName(s)).Transition(widget.RowMotion(i)).Radius(theme.RadiusControl).Cursor(ui.CursorPointer).
+	row := ui.ButtonBase(c).Label(a.sessionName(s)).Transition(widget.RowMotion(i)).Radius(theme.RadiusCard).Cursor(ui.CursorPointer).
 		FillWidth().PaddingX(theme.S3).Gap(theme.S2).Justify(ui.Start)
 	row.Height(theme.ControlHeight)
 	if project != "" {

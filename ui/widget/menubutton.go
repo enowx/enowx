@@ -9,10 +9,10 @@ import (
 	"github.com/enowx/enowx/ui/theme"
 )
 
-// MenuButton is a button that opens a menu: its label, then a chevron saying
+// MenuButton is a capsule that opens a menu: its label, then a chevron saying
 // so.
 func MenuButton(c *ui.Context, kind ButtonKind, label string) ui.Element {
-	b := ui.ButtonBase(c).Gap(theme.S1).Padding(0, theme.S2, 0, theme.S3).Height(theme.ControlHeight).Radius(theme.RadiusControl).
+	b := ui.ButtonBase(c).Gap(theme.S1).Padding(0, theme.S2, 0, theme.S3).Height(theme.ControlHeight).Radius(theme.RadiusFull).
 		Cursor(ui.CursorPointer).Label(label).Shrink(0)
 	hover := b.Hovered() && !b.IsDisabled()
 	weight := 400
@@ -38,15 +38,15 @@ func MenuButton(c *ui.Context, kind ButtonKind, label string) ui.Element {
 }
 
 // SegmentedFit is Segmented filling the width it is given, for a narrow panel:
-// the options share it, their words cut rather than leaving the button. It
+// the options share it, their words cut rather than leaving the capsule. It
 // returns the option clicked, or -1.
 func SegmentedFit(c *ui.Context, options []string, current int) int {
 	clicked := -1
-	ui.Row(c).FillWidth().Shrink(0).Padding(theme.S1).Radius(theme.RadiusControl).Background(theme.Sunken).Children(func() {
+	ui.Row(c).FillWidth().Shrink(0).Padding(theme.S1).Radius(theme.RadiusFull).Background(theme.Sunken).Children(func() {
 		for i, label := range options {
 			// Shares by length, not evenly: a long word gets the room a short one
 			// leaves, so that narrow cards don't cut labels that would all fit.
-			b := ui.ButtonBase(c.Key(i)).Height(28).Grow(float32(utf8.RuneCountInString(label) + 3)).Basis(0).Shrink(1).MinWidth(0).PaddingX(theme.S1).Radius(theme.RadiusSmall).Label(label).Center()
+			b := ui.ButtonBase(c.Key(i)).Height(28).Grow(float32(utf8.RuneCountInString(label) + 3)).Basis(0).Shrink(1).MinWidth(0).PaddingX(theme.S1).Radius(theme.RadiusFull).Label(label).Center()
 			bg, fg, weight := theme.Fade(theme.Selected, 0), theme.TextSoft, 400
 			switch {
 			case i == current:

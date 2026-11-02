@@ -22,7 +22,7 @@ type Item struct {
 // the row's button, not in it, so that using a switch or a menu there doesn't
 // also pick the row. It returns the button.
 func ItemRow(c *ui.Context, it Item, right func()) ui.Element {
-	row := ui.Row(c).FillWidth().MinHeight(36).Shrink(0).Radius(theme.RadiusControl).Gap(theme.S2)
+	row := ui.Row(c).FillWidth().MinHeight(36).Shrink(0).Radius(theme.RadiusCard).Gap(theme.S2)
 	bg := theme.Fade(theme.Selected, 0)
 	switch {
 	case it.On:

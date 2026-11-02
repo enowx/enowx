@@ -55,7 +55,7 @@ func (ch *Chat) pictureChips(c *ui.Context, text string) {
 	}
 	ui.Row(c.Key("pictures")).FillWidth().Justify(ui.End).Gap(theme.S1).Wrap().Children(func() {
 		for _, p := range pics {
-			b := ui.ButtonBase(c.Key(p)).Height(24).PaddingX(theme.S2).Gap(theme.S1).Radius(theme.RadiusSmall).AlignItems(ui.Center).
+			b := ui.ButtonBase(c.Key(p)).Height(24).PaddingX(theme.S2).Gap(theme.S1).Radius(theme.RadiusFull).AlignItems(ui.Center).
 				MaxWidth(240).Shrink(1).MinWidth(0).Cursor(ui.CursorPointer).Label("Show " + path.Base(p)).Tooltip(p)
 			bg := theme.Raised
 			if b.Hovered() {

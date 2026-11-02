@@ -58,7 +58,7 @@ func (e *editor) imageRenameDialog(c *ui.Context) {
 		if widget.DialogHeader(c, "Rename image", "Used under the image and in its mentions on this page.", true) {
 			r.open = false
 		}
-		in := ui.TextInputBase(c, &r.name).FillWidth().Height(theme.ControlHeight).PaddingX(theme.S3).Radius(theme.RadiusControl).FontSize(theme.TextUI).
+		in := ui.TextInputBase(c, &r.name).FillWidth().Height(theme.ControlHeight).PaddingX(theme.S3).Radius(theme.RadiusFull).FontSize(theme.TextUI).
 			TextColor(theme.Text).Placeholder("Image name").Label("Image name")
 		widget.Well(in, in.Focused())
 		if !r.focused {

@@ -90,7 +90,7 @@ func automationWeekBoard(c *ui.Context, week [7][]automationRun, now time.Time) 
 					ui.Column(c).FillWidth().Gap(theme.S2).Children(func() {
 						for i, run := range runs {
 							ui.Text(c.Key(i), run.at.Format("15:04")+" "+run.name).FontSize(theme.TextLabel).TextColor(text).MaxLines(3).
-								FillWidth().MinWidth(0).Padding(theme.S1, theme.S2).Radius(theme.RadiusSmall).Background(theme.Sunken)
+								FillWidth().MinWidth(0).Padding(theme.S1, theme.S2).Radius(theme.S2).Background(theme.Sunken)
 						}
 					})
 				})

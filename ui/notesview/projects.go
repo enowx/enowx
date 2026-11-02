@@ -69,7 +69,7 @@ func (v *View) projectBadges(c *ui.Context, o Options, n proto.NoteInfo) {
 			v.projectBadge(c.Key(p.Ref), o, n, p, state)
 		}
 		if extra := len(n.Projects) - len(shown); extra > 0 {
-			more := ui.ButtonBase(c).Height(24).PaddingX(theme.S2).Radius(theme.RadiusSmall).Background(theme.Sunken).Cursor(ui.CursorPointer).
+			more := ui.ButtonBase(c).Height(24).PaddingX(theme.S2).Radius(theme.RadiusFull).Background(theme.Sunken).Cursor(ui.CursorPointer).
 				Label(fmt.Sprintf("%d more projects", extra))
 			more.Children(func() { ui.Text(c, fmt.Sprintf("+%d", extra)).FontSize(theme.TextLabel).TextColor(theme.TextSoft) })
 			if more.Clicked() {
@@ -84,7 +84,7 @@ func (v *View) projectBadges(c *ui.Context, o Options, n proto.NoteInfo) {
 			if len(n.Projects) > 0 {
 				label = "Projects…"
 			}
-			add := ui.ButtonBase(c).Height(24).PaddingX(theme.S2).Gap(theme.S1).Radius(theme.RadiusSmall).Cursor(ui.CursorPointer).Label(label)
+			add := ui.ButtonBase(c).Height(24).PaddingX(theme.S2).Gap(theme.S1).Radius(theme.RadiusFull).Cursor(ui.CursorPointer).Label(label)
 			if add.Hovered() {
 				add.Background(theme.Hover)
 			}
@@ -107,7 +107,7 @@ func (v *View) projectBadge(c *ui.Context, o Options, n proto.NoteInfo, p proto.
 	case ProjectBroken:
 		col, tip = theme.Error, "Not on "+p.HostName+" any more: click to attach it again"
 	}
-	b := ui.ButtonBase(c).Height(24).PaddingX(theme.S2).Gap(theme.S1).Radius(theme.RadiusSmall).Background(theme.Sunken).MinWidth(0).Shrink(1).
+	b := ui.ButtonBase(c).Height(24).PaddingX(theme.S2).Gap(theme.S1).Radius(theme.RadiusFull).Background(theme.Sunken).MinWidth(0).Shrink(1).
 		Cursor(ui.CursorPointer).Label("Project " + projectLabel(p)).Tooltip(tip).AlignItems(ui.Center)
 	b.Children(func() {
 		ui.Icon(c, icon.Folder).FontSize(12).TextColor(col)

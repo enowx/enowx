@@ -165,7 +165,7 @@ func (v *View) fileRows(c *ui.Context, o Options) {
 // fileItem is a changed file in the panel: a dot by what happened to it, its
 // path, which runs when too long, and the lines it added and removed.
 func (v *View) fileItem(c *ui.Context, o Options, f proto.DiffFile, on bool) {
-	b := ui.ButtonBase(c).FillWidth().MinHeight(36).Padding(theme.S1, theme.S3).Gap(theme.S2).Radius(theme.RadiusControl).Justify(ui.Start).
+	b := ui.ButtonBase(c).FillWidth().MinHeight(36).Padding(theme.S1, theme.S3).Gap(theme.S2).Radius(theme.RadiusCard).Justify(ui.Start).
 		Cursor(ui.CursorPointer).Label(f.Path)
 	bg := theme.Fade(theme.Selected, 0)
 	switch {

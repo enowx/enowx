@@ -19,7 +19,7 @@ import (
 // body draws the rows while *open. It reports a click on the title.
 func Group(c *ui.Context, title string, count int, open *bool, body func()) {
 	ui.Column(c).FillWidth().Gap(2).Children(func() {
-		h := ui.ButtonBase(c.Key("head")).FillWidth().Height(theme.ControlHeight).PaddingX(theme.S2).Gap(theme.S1).Radius(theme.RadiusControl).
+		h := ui.ButtonBase(c.Key("head")).FillWidth().Height(theme.ControlHeight).PaddingX(theme.S2).Gap(theme.S1).Radius(theme.RadiusFull).
 			Justify(ui.Start).Cursor(ui.CursorPointer).Label(title)
 		if h.Hovered() {
 			h.Background(theme.Hover)
@@ -48,7 +48,7 @@ func Group(c *ui.Context, title string, count int, open *bool, body func()) {
 // and a note under it (each "" for none), with trailing controls at its
 // right (a switch, a menu button).
 func Row(c *ui.Context, title, detail, note string, trailing func()) ui.Element {
-	r := ui.Row(c).FillWidth().Gap(theme.S2).MinHeight(36).Padding(theme.S1, theme.S3).Radius(theme.RadiusControl)
+	r := ui.Row(c).FillWidth().Gap(theme.S2).MinHeight(36).Padding(theme.S1, theme.S3).Radius(theme.RadiusCard)
 	if r.Hovered() {
 		r.Background(theme.Hover)
 	}
@@ -84,7 +84,7 @@ func MoreMenu(c *ui.Context, m *ContextMenu, key string, items func(done func())
 func LogView(c *ui.Context, text string, height float32) {
 	lines := strings.Split(strings.TrimRight(text, "\n"), "\n")
 	slices.Reverse(lines)
-	ui.Scroll(c).FillWidth().Height(height).Radius(theme.RadiusControl).Background(theme.Background).Children(func() {
+	ui.Scroll(c).FillWidth().Height(height).Radius(theme.RadiusCard).Background(theme.Background).Children(func() {
 		ui.Column(c).FillWidth().Padding(theme.S3, theme.S4).Children(func() {
 			for i, line := range lines {
 				col := theme.TextSoft

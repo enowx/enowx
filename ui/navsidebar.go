@@ -154,7 +154,7 @@ func (a *App) hostMenuItems(c *ui.Context, done func()) {
 
 // navMore is the menu of the pages without an entry of their own.
 func (a *App) navMore(c *ui.Context) {
-	more := ui.ButtonBase(c.Key("nav-more")).Height(theme.ControlHeight).PaddingX(theme.S3).Gap(theme.S1).Radius(theme.RadiusControl).
+	more := ui.ButtonBase(c.Key("nav-more")).Height(theme.ControlHeight).PaddingX(theme.S3).Gap(theme.S1).Radius(theme.RadiusFull).
 		Label("More").Tooltip("More pages").Cursor(ui.CursorPointer).Shrink(0)
 	bg, fg, weight := theme.Fade(theme.Selected, 0), theme.TextSoft, 400
 	switch {
@@ -210,7 +210,7 @@ func (a *App) navRunning(c *ui.Context) {
 				break
 			}
 			st := statusOf(s)
-			row := ui.ButtonBase(c.Key("run:" + s.ID)).FillWidth().Height(theme.ControlHeight).PaddingX(theme.S3).Gap(theme.S2).Radius(theme.RadiusControl).AlignItems(ui.Center).
+			row := ui.ButtonBase(c.Key("run:" + s.ID)).FillWidth().Height(theme.ControlHeight).PaddingX(theme.S3).Gap(theme.S2).Radius(theme.RadiusFull).AlignItems(ui.Center).
 				Cursor(ui.CursorPointer).Label("Open " + a.sessionName(s))
 			if row.Hovered() {
 				row.Background(theme.Hover)
