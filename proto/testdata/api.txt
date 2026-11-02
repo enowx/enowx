@@ -1962,6 +1962,7 @@ field SessionInfo.effort string
 field SessionInfo.exitCode int
 field SessionInfo.exitWhy string
 field SessionInfo.exited bool
+field SessionInfo.finishedAt int64
 field SessionInfo.goa bool
 field SessionInfo.goaWorker string
 field SessionInfo.group string

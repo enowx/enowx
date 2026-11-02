@@ -80,6 +80,8 @@ Lines about a task under way (its report, its turn's end, what it asks) go with 
 
 A session's tab in GOA's strip attaches again by itself when the session's program starts again, as a hibernate and wake does (`SessionInfo.Run`, a value for each run). While the session isn't running, the tab says that what it shows is its screen from when it stopped.
 
+The Sessions list in GOA's side panel has what is at work on top (asking the user, working, queued), then what finished, the latest first (`SessionInfo.FinishedAt`: a turn's end, a program's end, or a screen stopping where no hook says).
+
 ### How lines reach GOA
 
 Workers' reports never go through GOA's input box while anything of the user's could be in it: a line typed there took the user's unfinished sentence along with it. By what each agent documents, in this order (`daemon/goa_inject.go`):

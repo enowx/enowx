@@ -89,6 +89,8 @@ type Meta struct {
 	Report        string
 	ReportOutcome string
 	ReportAt      int64
+	// FinishedAt is when it last finished what it was at (SessionInfo.FinishedAt).
+	FinishedAt int64
 	// Group is the fan-out the session is part of (SessionInfo.Group).
 	Group string
 	// Account is the agent's account it runs as (SessionInfo.Account).
@@ -198,6 +200,7 @@ func (s *Session) Info() proto.SessionInfo {
 	return proto.SessionInfo{
 		ID:              s.id,
 		Run:             s.started.UnixNano(),
+		FinishedAt:      s.meta.FinishedAt,
 		Name:            s.meta.Name,
 		Note:            s.meta.Note,
 		Report:          s.meta.Report,
@@ -481,6 +484,7 @@ func (m *Manager) create(spec Spec, old *Session) (*Session, error) {
 		OnExit: func(code int) {
 			s.mu.Lock()
 			s.exited, s.code, s.active = true, code, false
+			s.meta.FinishedAt = time.Now().UnixMilli()
 			s.exitWhy = ExitWhy(code, time.Since(s.started))
 			if time.Since(s.started) < quickExit {
 				s.quickExits++
@@ -582,6 +586,9 @@ func (m *Manager) watchActivity(s *Session) {
 		s.mu.Lock()
 		active := !s.exited && !s.lastChange.IsZero() && now.Sub(s.lastChange) < activeFor
 		changed := active != s.active
+		if s.active && !active && s.state != proto.StateDone && s.state != proto.StateWaiting {
+			s.meta.FinishedAt = now.UnixMilli() // no hook says when: its screen stopped
+		}
 		s.active = active
 		changed = s.countWork(now) || changed
 		changed = s.stateChanged(now) || changed
@@ -642,6 +649,9 @@ func (m *Manager) SetState(s *Session, state string) error {
 	}
 	now := time.Now()
 	s.mu.Lock()
+	if state == proto.StateDone && s.state != proto.StateDone {
+		s.meta.FinishedAt = now.UnixMilli()
+	}
 	s.state, s.stateAt = state, now
 	changed := s.stateChanged(now)
 	s.mu.Unlock()

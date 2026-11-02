@@ -126,8 +126,11 @@ type SessionInfo struct {
 	Created  time.Time `json:"created"`
 	// Run tells one run of its program from the next, in a terminal of its own: a view
 	// attached to another run shows a screen that no longer changes.
-	Run    int64 `json:"run,omitempty"`
-	Active bool  `json:"active"` // the program is producing output
+	Run int64 `json:"run,omitempty"`
+	// FinishedAt is when it last finished what it was at, in Unix milliseconds: its
+	// turn's end, its program's, or its screen stopping where no hook says; 0 for never.
+	FinishedAt int64 `json:"finishedAt,omitempty"`
+	Active     bool  `json:"active"` // the program is producing output
 	// State is what the agent's hooks last said (StateWorking, …), "" when
 	// it has none or they went stale.
 	State string `json:"state,omitempty"`

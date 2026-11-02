@@ -36,6 +36,7 @@ type record struct {
 	Convo    string               `json:"conversation,omitempty"` // Meta.Conversation
 	Exited   bool                 `json:"exited,omitempty"`
 	Note     string               `json:"note,omitempty"`
+	Finished int64                `json:"finishedAt,omitempty"` // Meta.FinishedAt
 	ExitCode int                  `json:"exitCode,omitempty"`
 	Name     string               `json:"name,omitempty"`
 	Prompt   string               `json:"prompt,omitempty"`
@@ -132,7 +133,7 @@ func (p *persistence) update(s *session.Session, command []string) {
 	old, known := p.records[info.ID]
 	r := record{
 		ID: info.ID, Created: info.Created, Dir: info.Dir, Command: info.Command, Relaunch: meta.Relaunch, Restart: meta.Restart,
-		Convo: meta.Conversation, Exited: info.Exited, ExitCode: info.ExitCode, Name: meta.Name, Prompt: info.Prompt,
+		Finished: meta.FinishedAt, Convo: meta.Conversation, Exited: info.Exited, ExitCode: info.ExitCode, Name: meta.Name, Prompt: info.Prompt,
 		Project: meta.Project, Agent: meta.Agent, Branch: meta.Branch, Worktree: meta.Worktree, Skip: meta.SkipPermissions, Unheard: meta.SkipUnheard, Model: meta.Model, Effort: meta.Effort,
 		Budget: int64(meta.Budget / time.Second), Display: meta.Display > 0, Parent: meta.Parent, Note: meta.Note,
 		Group: meta.Group, Account: meta.Account, Config: meta.Config, Member: meta.Member, Private: meta.Private, NotesFor: meta.NotesFor, Canvas: meta.CanvasFor, GOA: meta.GOA, GOAWorker: meta.GOAWorker, Features: meta.Features, Creds: meta.Creds,
@@ -236,7 +237,8 @@ func (s *Server) restore() {
 		spec := session.Spec{
 			ID: r.ID, Dir: r.Dir, Created: r.Created, History: s.persist.loadHistory(r.ID), Env: s.hostEnvFor(r.Member),
 			Meta: session.Meta{
-				Name: r.Name, Prompt: r.Prompt, Project: r.Project, Agent: r.Agent, Branch: r.Branch,
+				FinishedAt: r.Finished,
+				Name:       r.Name, Prompt: r.Prompt, Project: r.Project, Agent: r.Agent, Branch: r.Branch,
 				Worktree: r.Worktree, SkipPermissions: r.Skip, SkipUnheard: r.Unheard, Model: r.Model, Effort: r.Effort, Conversation: r.Convo, Relaunch: r.Relaunch, Restart: r.Restart, Restored: true,
 				Budget: time.Duration(r.Budget) * time.Second, Parent: r.Parent, Note: r.Note, Group: r.Group, Account: r.Account, Config: r.Config, Member: r.Member, Private: r.Private, NotesFor: r.NotesFor, CanvasFor: r.Canvas, GOA: r.GOA, GOAWorker: r.GOAWorker, Features: r.Features, Creds: r.Creds,
 				Hibernated: r.Hibernated, HibernatedByHand: r.HibernatedByHand, HibernatedAt: r.HibernatedAt, NoAutoHibernate: r.NoAutoHibernate,

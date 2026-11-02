@@ -1,6 +1,7 @@
 package ui
 
 import (
+	"cmp"
 	"fmt"
 	"github.com/enowx/enowx/core/hosts"
 	"path/filepath"
@@ -97,7 +98,8 @@ func goaListed(s proto.SessionInfo) bool {
 	return s.Parent == "" && s.NotesFor == "" && s.CanvasFor == "" && !s.GOA
 }
 
-// sessionsTab is the Sessions tool: narrow rows, what needs the user on top.
+// sessionsTab is the Sessions tool: narrow rows, what is at work on top, then what just
+// finished.
 // A host's name heads its rows only where it says something the rows don't:
 // several hosts, or one with nothing to list.
 func (a *App) sessionsTab(c *ui.Context) {
@@ -105,7 +107,7 @@ func (a *App) sessionsTab(c *ui.Context) {
 		every := a.goaEveryHost()
 		for _, h := range every {
 			list := slices.DeleteFunc(slices.Clone(h.sessions), func(s proto.SessionInfo) bool { return !goaListed(s) })
-			slices.SortStableFunc(list, func(x, y proto.SessionInfo) int { return goaRank(x) - goaRank(y) })
+			slices.SortStableFunc(list, goaCompare)
 			if len(every) > 1 || len(list) == 0 {
 				goaHostHead(c.Key("goa-host:"+h.name), h, len(list))
 			}
@@ -133,19 +135,46 @@ func goaHostHead(c *ui.Context, h goaHostSessions, n int) {
 	})
 }
 
-// goaRank orders the Sessions tool: waiting, working, failed, done, the rest.
-func goaRank(s proto.SessionInfo) int {
-	switch statusOf(s).color {
-	case theme.Warning:
-		return 0
-	case theme.Working:
-		return 1
-	case theme.Error:
-		return 2
-	case theme.Done:
+// goaBusy orders what is at work in the Sessions tool: asking the user, working, queued;
+// 3 for all the rest.
+func goaBusy(s proto.SessionInfo) int {
+	switch {
+	case s.Exited:
 		return 3
+	case s.State == proto.StateWaiting:
+		return 0
+	case isWorking(s):
+		return 1
+	case s.Queued:
+		return 2
 	}
-	return 4
+	return 3
+}
+
+// goaCompare orders the Sessions tool: what is at work on top, then what finished, the
+// latest first. A daemon too old to say when has failures before the rest.
+func goaCompare(x, y proto.SessionInfo) int {
+	if c := cmp.Compare(goaBusy(x), goaBusy(y)); c != 0 {
+		return c
+	}
+	if goaBusy(x) < 3 {
+		return 0
+	}
+	if c := cmp.Compare(y.FinishedAt, x.FinishedAt); c != 0 {
+		return c
+	}
+	return cmp.Compare(goaEndRank(x), goaEndRank(y))
+}
+
+// goaEndRank orders what finished at no known time: failed, done, the rest.
+func goaEndRank(s proto.SessionInfo) int {
+	switch statusOf(s).color {
+	case theme.Error:
+		return 0
+	case theme.Done:
+		return 1
+	}
+	return 2
 }
 
 // goaSessionRow is a session: its state, name and what it's on. Clicking it
