@@ -42,7 +42,7 @@ func (a *App) appearancePage(c *ui.Context) {
 	body := ui.Scroll(c.Key("appearance-body")).Grow(1).FillWidth().MinHeight(0)
 	room := body.Bounds().H
 	body.Children(func() {
-		ui.Row(c).FillWidth().MinHeight(room).Padding(theme.S4, theme.S5, theme.S5, theme.S5).Gap(theme.S4).AlignItems(ui.Stretch).Children(func() {
+		widget.PagePad(ui.Row(c).FillWidth().MinHeight(room)).Gap(theme.S4).AlignItems(ui.Stretch).Children(func() {
 			ui.Column(c).Grow(7).Basis(0).MinWidth(0).Gap(theme.S4).Children(func() {
 				a.stylePicker(c)
 				a.themePicker(c)

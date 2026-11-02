@@ -27,6 +27,10 @@ type Style struct {
 	// DockedComposer the composer run across the frame's foot rather than float.
 	Butted, FullDock, DockedComposer bool
 
+	// Tiled has a page's frame give way, its header and sections each a tile on the
+	// ground, unequal columns of them, and a quiet empty tile under the last.
+	Tiled bool
+
 	// Family is the font list of the app's words, "" the system's. A family the
 	// system lacks gives way to the next.
 	Family string
@@ -47,7 +51,7 @@ var LiquidGlass = Style{
 }
 
 // Styles is every style, in the order the app offers them.
-var Styles = []Style{LiquidGlass, Ledger, Tonal}
+var Styles = []Style{LiquidGlass, Ledger, Tonal, Bento}
 
 // style is the style in use.
 var style Style
@@ -74,7 +78,7 @@ func UseStyle(s Style) {
 	RadiusPanel, RadiusBento = s.RadiusPanel, s.RadiusPanel
 	BentoGap, WindowInset, ControlHeight, BarHeight, ScrollWidth = s.BentoGap, s.WindowInset, s.ControlHeight, s.BarHeight, s.ScrollWidth
 	BarRadius, RailWidth, ReadWidth, HeaderHeight = s.BarRadius, s.RailWidth, s.ReadWidth, s.HeaderHeight
-	Butted, FullDock, DockedComposer, Family = s.Butted, s.FullDock, s.DockedComposer, s.Family
+	Butted, FullDock, DockedComposer, Tiled, Family = s.Butted, s.FullDock, s.DockedComposer, s.Tiled, s.Family
 	S1, S2, S3, S4, S5, S6 = s.S1, s.S2, s.S3, s.S4, s.S5, s.S6
 	TextLabel, TextUI, TextRead, TextTitle = s.TextLabel, s.TextUI, s.TextRead, s.TextTitle
 	Flat, Hairline, Scrim = s.Flat, s.Hairline, s.Scrim

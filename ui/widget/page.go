@@ -18,11 +18,82 @@ func ruleWidth() float32 {
 	return 0.5
 }
 
+// SheetPage says the page drawn now is a header over sections (the app sets it per
+// frame, on the main thread), which in a style of tiles are tiles themselves. Other
+// pages keep their one frame, and their room inside it.
+var SheetPage bool
+
+// tiles says the page's parts are tiles now.
+func tiles() bool { return theme.Tiled && SheetPage }
+
+// pageHeaderBar is a PageHeader's own edge: with a frame that gives way, a tile.
+func pageHeaderBar(e ui.Element) ui.Element {
+	if tiles() {
+		return Edge(e.Radius(theme.RadiusPanel).Background(theme.Panel))
+	}
+	return e
+}
+
+// PagePad is the room a page's content keeps inside its frame, none where the frame
+// gives way and its sections are tiles.
+func PagePad(e ui.Element) ui.Element {
+	if tiles() {
+		return e
+	}
+	return e.Padding(theme.S4, theme.S5, theme.S5, theme.S5)
+}
+
+// SheetFrame makes e the frame of a page of sections: the one frame that draws the
+// eye, or with tiles, nothing but their ground.
+func SheetFrame(e ui.Element) ui.Element {
+	if tiles() {
+		return e.Gap(theme.BentoGap)
+	}
+	return BrightFrame(e)
+}
+
+// PageGap spaces what a page is made of: nothing, or with tiles, the gap around them.
+func PageGap(e ui.Element) ui.Element {
+	if tiles() {
+		return e.Gap(theme.BentoGap)
+	}
+	return e
+}
+
+// quietTile fills what is left of a page of tiles.
+func quietTile(c *ui.Context) {
+	ui.Box(c.Key("quiet-tile")).Grow(1).FillWidth().MinHeight(theme.S5).Radius(theme.RadiusPanel).
+		InsetShadow(0, 0, 0, theme.Hairline, theme.Fade(theme.Border, 0.6)).PassThrough()
+}
+
+// tileTracks are n columns of unequal tiles, as a row of Bento's has them.
+func tileTracks(n int) []ui.Track {
+	spans := map[int][]float32{2: {7, 5}, 3: {5, 4, 3}, 4: {4, 3, 3, 2}, 5: {3, 3, 2, 2, 2}}[n]
+	if spans == nil {
+		return nil
+	}
+	out := make([]ui.Track, n)
+	for i, s := range spans {
+		out[i] = ui.Fr(s)
+	}
+	return out
+}
+
+// Columns gives grid g n columns: equal, or in a style of tiles, unequal.
+func Columns(g ui.Element, n int) ui.Element {
+	if theme.Tiled {
+		if t := tileTracks(n); t != nil {
+			return g.ColumnTracks(t...)
+		}
+	}
+	return g.Columns(n)
+}
+
 // PageHeader is a frame's top: its title, what it is about, which runs when
 // it can't fit, and its actions at the right. The frame keeps its height.
 func PageHeader(c *ui.Context, title, sub string, actions func()) {
-	ui.Row(c.Key("page-header")).MinHeight(theme.HeaderHeight).Shrink(0).FillWidth().Padding(theme.S2, theme.S4, theme.S2, theme.S5).Gap(theme.S3).
-		BorderWidth(0, 0, ruleWidth(), 0).BorderColor(theme.Border).Children(func() {
+	pageHeaderBar(ui.Row(c.Key("page-header")).MinHeight(theme.HeaderHeight).Shrink(0).FillWidth().Padding(theme.S2, theme.S4, theme.S2, theme.S5).Gap(theme.S3).
+		BorderWidth(0, 0, ruleWidth(), 0).BorderColor(theme.Border)).Children(func() {
 		ui.Row(c).Grow(1).MinWidth(0).Gap(theme.S3).Children(func() {
 			ui.Row(c).MinWidth(0).Shrink(1).Children(func() {
 				Running(c, title, RunStyle{Size: theme.TextTitle, Weight: 600, Always: true})
@@ -42,13 +113,22 @@ func PageHeader(c *ui.Context, title, sub string, actions func()) {
 // PageBody is what scrolls under a PageHeader; wide leaves it the frame's
 // width, else its column is at most 760 and centered.
 func PageBody(c *ui.Context, wide bool, fn func()) {
-	ui.Scroll(c.Key("page-body")).Grow(1).FillWidth().MinHeight(0).Children(func() {
-		ui.Column(c).FillWidth().Padding(theme.S4, theme.S5, theme.S5, theme.S5).AlignItems(ui.Center).Children(func() {
+	scroll := ui.Scroll(c.Key("page-body")).Grow(1).FillWidth().MinHeight(0)
+	room := scroll.Bounds().H
+	scroll.Children(func() {
+		outer := PagePad(ui.Column(c).FillWidth()).AlignItems(ui.Center)
+		if tiles() {
+			outer.MinHeight(room).Gap(theme.BentoGap)
+		}
+		outer.Children(func() {
 			col := ui.Column(c).FillWidth().Gap(theme.S3)
-			if !wide {
+			if !wide && !tiles() {
 				col.MaxWidth(760)
 			}
 			col.Children(fn)
+			if tiles() {
+				quietTile(c)
+			}
 		})
 	})
 }

@@ -85,10 +85,10 @@ var (
 	S1, S2, S3, S4, S5, S6 float32
 
 	// Effects: see Style.
-	Flat, Butted, FullDock, DockedComposer bool
-	Hairline                               float32
-	Scrim                                  ui.Color
-	Family                                 string
+	Flat, Butted, FullDock, DockedComposer, Tiled bool
+	Hairline                                      float32
+	Scrim                                         ui.Color
+	Family                                        string
 
 	// Type: the steps of every text size.
 	TextLabel float32 // labels, details

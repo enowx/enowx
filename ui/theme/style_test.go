@@ -27,6 +27,20 @@ func TestLiquidGlassKeepsItsValues(t *testing.T) {
 	}
 }
 
+// Bento is Ledger's surfaces with its frame a tile, and a stronger line on what floats.
+func TestBentoIsLedgerInTiles(t *testing.T) {
+	l, b := ledgerSurfaces(Default), bentoSurfaces(Default)
+	if b.Ground != l.Ground || b.Panel != l.Panel || b.Accent != l.Accent {
+		t.Fatalf("not Ledger's: %+v", b)
+	}
+	if b.Frame != b.Panel {
+		t.Fatal("its frame isn't a tile")
+	}
+	if Bento.Scrim.A != 0 || !Bento.Flat || Bento.Butted {
+		t.Fatalf("%+v", Bento)
+	}
+}
+
 // The sample's colors leave the app's own alone.
 func TestStyleColorsKeepTheAppsPalette(t *testing.T) {
 	before := Panel

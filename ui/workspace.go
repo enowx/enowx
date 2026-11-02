@@ -80,10 +80,20 @@ func (a *App) workspace(c *ui.Context) {
 			frame.MinWidth(minNotesWidth)
 		}
 	}
-	widget.BrightFrame(frame).
-		Transition(widget.LayoutMotion).Children(func() {
-		ui.Column(c.Key(view)).Grow(1).FillWidth().MinHeight(0).Transition(widget.PageMotion).Children(func() { a.workspaceView(c) })
+	widget.SheetPage = a.pageIsSheet()
+	widget.SheetFrame(frame).Transition(widget.LayoutMotion).Children(func() {
+		widget.PageGap(ui.Column(c.Key(view)).Grow(1).FillWidth().MinHeight(0).Transition(widget.PageMotion)).Children(func() { a.workspaceView(c) })
 	})
+}
+
+// pageIsSheet says the page shown is a header over sections, which in a style of
+// tiles are tiles themselves. Notes, Canvas and sessions keep their one frame.
+func (a *App) pageIsSheet() bool {
+	switch a.page {
+	case pageSettings, pageAppearance, pageUsage, pageHosts, pageSync, pageCredits:
+		return true
+	}
+	return false
 }
 
 // workspaceView fills the workspace with what it shows now.

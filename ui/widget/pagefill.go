@@ -16,12 +16,12 @@ import (
 func PageBodyGrid(c *ui.Context, cols, n int, minRow float32, before, cards, after func()) {
 	scroll := ui.Scroll(c.Key("page-body")).Grow(1).FillWidth().MinHeight(0)
 	scroll.Children(func() {
-		col := ui.Column(c.Key("page-column")).FillWidth().Padding(theme.S4, theme.S5, theme.S5, theme.S5).Gap(theme.S3)
+		col := PagePad(ui.Column(c.Key("page-column")).FillWidth()).Gap(theme.S3)
 		col.Children(func() {
 			if before != nil {
 				before()
 			}
-			grid := ui.Grid(c.Key("page-grid")).FillWidth().Columns(cols).Gap(theme.S3)
+			grid := Columns(ui.Grid(c.Key("page-grid")).FillWidth(), cols).Gap(theme.S3)
 			rows := max((n+cols-1)/cols, 1)
 			row := minRow
 			if h := scroll.Bounds().H; h > 0 {
@@ -47,7 +47,7 @@ func PageBodyGrid(c *ui.Context, cols, n int, minRow float32, before, cards, aft
 func PageBodyRest(c *ui.Context, minRest float32, before func(), rest func(height float32)) {
 	scroll := ui.Scroll(c.Key("page-body")).Grow(1).FillWidth().MinHeight(0)
 	scroll.Children(func() {
-		col := ui.Column(c.Key("page-column")).FillWidth().Padding(theme.S4, theme.S5, theme.S5, theme.S5).Gap(theme.S3)
+		col := PagePad(ui.Column(c.Key("page-column")).FillWidth()).Gap(theme.S3)
 		col.Children(func() {
 			before()
 			box := ui.Column(c.Key("page-rest")).FillWidth().MinWidth(0)
