@@ -159,6 +159,9 @@ func TestModelAPIInAnAgentsOwnSettings(t *testing.T) {
 	frames(func() bool {
 		return app.accts.loaded && app.agentAPIs.loaded && tt.HasText("A model API in its own settings")
 	}, "Droid's page")
+	for range 3 { // its cards take the room measured on the frame before
+		tt.Frame()
+	}
 	if err := tt.Click("Use an API…"); err != nil {
 		t.Fatalf("%v: %q", err, tt.Texts())
 	}

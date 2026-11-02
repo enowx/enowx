@@ -145,7 +145,7 @@ func TestLibraryWalk(t *testing.T) {
 
 			// An MCP server: what it runs, its secrets, the test.
 			w.click("MCP servers")
-			w.shows("mcp", "Holds COOLIFY_TOKEN. Sync sends them only when asked.", "Test on this Mac", "Runs it where its agent would and lists its tools.", "Command")
+			w.shows("mcp", "Holds env COOLIFY_TOKEN. Sync sends them only when asked.", "Test on this Mac", "Runs it where its agent would and lists its tools.", "Command")
 
 			// Claude Code's settings.json: its lists, edited and saved.
 			w.click("Agent settings")
@@ -155,7 +155,14 @@ func TestLibraryWalk(t *testing.T) {
 			w.click("Save")
 			w.settled("the mode saved", func() bool { return fileHas(filepath.Join(home, ".claude/settings.json"), "acceptEdits") })
 			w.shows("saved-settings", "Saved settings.json")
-			w.click("Hooks")
+			// The rail's Hooks comes first by that name: this is the editor's tab, between two others.
+			h.settle("the editor read again", func() bool { return h.tt.HasText("Permissions") })
+			perm, ok1 := h.tt.Find("Permissions")
+			file, ok2 := h.tt.Find("File")
+			if !ok1 || !ok2 {
+				t.Fatalf("the editor's tabs: %q", h.tt.Texts())
+			}
+			h.tt.ClickAt((perm.X+perm.W+file.X)/2, perm.Y+perm.H/2)
 			w.shows("hooks", "PreToolUse · Bash · 30 s", "./check-command.sh", "Add a hook", "Add the hook")
 			w.click("File")
 			w.shows("file", "Edit", "acceptEdits")

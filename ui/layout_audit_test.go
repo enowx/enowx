@@ -130,7 +130,7 @@ func auditPages() []auditPage {
 		}
 		a.vaultOf().view.OpenAdd("github")
 	}})
-	return append(append(pages, dialogs...), auditCloudPages()...)
+	return append(append(append(pages, dialogs...), auditCloudPages()...), auditSettingsPages()...)
 }
 
 // closeAudit closes what the pages opened, for the next.

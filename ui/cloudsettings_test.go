@@ -120,11 +120,9 @@ func TestCloudSettingsSignInAndInvite(t *testing.T) {
 	if _, ok := tt.Find("Account: Ada"); !ok {
 		t.Fatalf("the rail's account isn't there: %q", tt.Texts())
 	}
-	if !tt.HasText("This Mac · a computer · " + cloud.URL) {
-		t.Fatalf("the device: %q", tt.Texts())
-	}
 
 	click("Teams (0)")
+	settle("the account's line, on the Teams tab", func() bool { return tt.HasText("This Mac · a computer · " + cloud.URL) })
 	click("New team")
 	settle("the new team's dialog", func() bool { return tt.HasText("Make team") })
 	app.cloudSet.teams.newName = "enowX Labs"

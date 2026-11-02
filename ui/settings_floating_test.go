@@ -97,7 +97,8 @@ func TestFloatingSectionBehaviours(t *testing.T) {
 func TestSettingsAppSectionHasNoFloatingControl(t *testing.T) {
 	app := New(Options{})
 	tt := floatingSectionFrame(t, app, app.appSection)
-	if tt.HasText("Floating control") {
+	// Its shortcut stays listed there, so look for the switch and its words.
+	if _, on := tt.Find("Floating control switch"); on || tt.HasText("The panel and its shortcut") {
 		t.Fatalf("App still shows the floating control: %q", tt.Texts())
 	}
 }
