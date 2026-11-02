@@ -42,6 +42,8 @@ type tokenState struct {
 	alerts   tokens.Alerts
 	scanMu   sync.Mutex
 	poke     chan struct{}
+	// recountTried says this run asked for a recount; runTokens' goroutine owns it.
+	recountTried bool
 
 	mu       sync.Mutex
 	hostDays time.Time // when the synced totals were last written
@@ -94,9 +96,33 @@ func (s *Server) runTokens(done <-chan struct{}) {
 			}
 		}
 		if s.tokensOn() {
+			s.recountTokens()
 			s.scanTokens(time.Time{})
 		}
 	}
+}
+
+// recountTokens rebuilds what is stored from the agents' records, once for a new way of
+// counting (tokens.RecountVersion). It only reads their files. A failure is logged and
+// tried again on the next run of the daemon, not on every scan.
+func (s *Server) recountTokens() {
+	t := &s.tok
+	if t.recountTried || !t.store.NeedsRecount() {
+		return
+	}
+	t.recountTried = true
+	t.scanMu.Lock()
+	defer t.scanMu.Unlock()
+	home, _ := os.UserHomeDir()
+	t.scanner.Reset()
+	calls, files := t.scanner.Scan(tokens.Env{Home: home, Dirs: s.tokenDirs()}, time.Time{}, nil)
+	s.attributeAll(calls)
+	if err := t.store.Recount(calls); err != nil {
+		s.logger().Warn("tokens: recount", "err", err)
+		return
+	}
+	s.logger().Info("tokens: recounted", "calls", len(calls), "files", files)
+	s.broadcast(proto.EventTokensChanged, proto.TokensChanged{Sessions: t.store.SessionTotals(time.Now().AddDate(0, 0, -60), s.prices())})
 }
 
 // scanTokens reads what changed in the agents' records (back to since
@@ -140,15 +166,7 @@ func (s *Server) keepCalls(calls []tokens.Call) []tokens.Call {
 	if len(calls) == 0 {
 		return nil
 	}
-	sessions := s.sessions.List()
-	infos := make([]proto.SessionInfo, 0, len(sessions))
-	for _, sess := range sessions {
-		infos = append(infos, sess.Info())
-	}
-	projects := s.projects.List()
-	for i := range calls {
-		s.attribute(&calls[i], infos, projects)
-	}
+	s.attributeAll(calls)
 	added, err := s.tok.store.Add(calls)
 	if err != nil {
 		s.logger().Warn("tokens", "err", err)
@@ -169,6 +187,19 @@ func (s *Server) keepCalls(calls []tokens.Call) []tokens.Call {
 		s.broadcast(proto.EventTokensChanged, proto.TokensChanged{Sessions: list})
 	}
 	return added
+}
+
+// attributeAll ties each of calls to its session and project.
+func (s *Server) attributeAll(calls []tokens.Call) {
+	sessions := s.sessions.List()
+	infos := make([]proto.SessionInfo, 0, len(sessions))
+	for _, sess := range sessions {
+		infos = append(infos, sess.Info())
+	}
+	projects := s.projects.List()
+	for i := range calls {
+		s.attribute(&calls[i], infos, projects)
+	}
 }
 
 // attribute ties call c to the session that made it (the same agent's,

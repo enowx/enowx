@@ -122,6 +122,9 @@ type TokensSummary struct {
 	OwnGroups []TokenGroup `json:"ownGroups,omitempty"`
 	// Budgets are those near or at their limit (80% on).
 	Budgets []TokenBudgetState `json:"budgets,omitempty"`
+	// Approximate says a day of the range keeps older numbers, its agents' records gone
+	// when what was stored was counted again.
+	Approximate bool `json:"approximate,omitempty"`
 }
 
 // TokenDay is one day's use (Day as 2006-01-02, the host's time zone).

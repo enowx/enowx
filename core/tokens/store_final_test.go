@@ -1,6 +1,7 @@
 package tokens
 
 import (
+	"fmt"
 	"os"
 	"path/filepath"
 	"testing"
@@ -142,5 +143,67 @@ func TestCostsAreExact(t *testing.T) {
 	guessed.Cost = 1 // what the agent said it cost
 	if guessed.Counts(p).Estimated != 0 {
 		t.Error("the agent's own cost isn't an estimate")
+	}
+}
+
+// A recount rebuilds what is stored from the records: final counts, once across days, its
+// day and session kept; what the records no longer have stays and marks its day; enowX's own
+// use and rolled-up days are untouched; the files are copied aside; it runs once.
+func TestRecount(t *testing.T) {
+	dir := t.TempDir()
+	s := Open(dir)
+	d1 := time.Now().Add(-72 * time.Hour)
+	d2 := time.Now().Add(-48 * time.Hour)
+	stored := []Call{
+		{ID: "claude:m1", Time: d1, Output: 1, Session: "s1", Agent: "claude", Layer: proto.TokenLayerRecords},
+		{ID: "claude:gone", Time: d2, Output: 7, Agent: "claude", Layer: proto.TokenLayerRecords},
+		{ID: "judge:1", Time: d2, Output: 3, Own: proto.TokensOwnJudge},
+	}
+	if _, err := s.Add(stored); err != nil {
+		t.Fatal(err)
+	}
+	rollups := []byte(`[{"day":"2020-01-01","agent":"claude","output":5}]`)
+	if err := os.WriteFile(filepath.Join(dir, "rollups.json"), rollups, 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if !s.NeedsRecount() {
+		t.Fatal("no recount asked for")
+	}
+	fresh := []Call{
+		{ID: "claude:m1", Time: d2, Output: 50, Agent: "claude", Layer: proto.TokenLayerRecords},
+		{ID: "claude:m1", Time: d2, Output: 90, Agent: "claude", Layer: proto.TokenLayerRecords},
+		{ID: "claude:new", Time: d2, Output: 4, Agent: "claude", Layer: proto.TokenLayerRecords},
+	}
+	if err := s.Recount(fresh); err != nil {
+		t.Fatal(err)
+	}
+	if s.NeedsRecount() {
+		t.Fatal("it would run again")
+	}
+	byID := map[string]Call{}
+	for _, c := range Open(dir).Calls(d1.Add(-time.Hour), time.Now()) {
+		if _, twice := byID[c.ID]; twice {
+			t.Fatalf("%s twice", c.ID)
+		}
+		byID[c.ID] = c
+	}
+	if m := byID["claude:m1"]; m.Output != 90 || m.Session != "s1" || !m.Time.Equal(d1) {
+		t.Errorf("recounted: %+v", m)
+	}
+	if byID["claude:new"].Output != 4 || byID["claude:gone"].Output != 7 || byID["judge:1"].Output != 3 {
+		t.Errorf("%+v", byID)
+	}
+	if !s.Approximate(d2.Add(-time.Hour), d2.Add(time.Hour)) || s.Approximate(d1.Add(-time.Hour), d1.Add(time.Hour)) {
+		t.Error("the wrong days approximate")
+	}
+	if got, _ := os.ReadFile(filepath.Join(dir, "rollups.json")); string(got) != string(rollups) {
+		t.Errorf("rollups: %s", got)
+	}
+	backup := filepath.Join(dir, fmt.Sprintf("before-recount-%d", RecountVersion))
+	if _, err := os.Stat(filepath.Join(backup, "rollups.json")); err != nil {
+		t.Errorf("no copy: %v", err)
+	}
+	if files, _ := filepath.Glob(filepath.Join(backup, "*.jsonl")); len(files) != 2 {
+		t.Errorf("copied %v", files)
 	}
 }

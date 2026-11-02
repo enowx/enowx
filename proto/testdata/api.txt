@@ -2185,6 +2185,7 @@ field TokensSettings.on bool
 field TokensSettings.prices []TokenPrice
 field TokensSettings.screen bool
 field TokensSettings.traffic bool
+field TokensSummary.approximate bool
 field TokensSummary.budgets []TokenBudgetState
 field TokensSummary.days []TokenDay
 field TokensSummary.groups []TokenGroup

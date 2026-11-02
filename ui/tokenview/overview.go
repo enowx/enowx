@@ -29,6 +29,9 @@ func (v *View) overview(c *ui.Context, d Data, o Options) {
 	if note := totalsNote(s.Total); note != "" {
 		widget.CardNote(c, note, 0)
 	}
+	if s.Approximate {
+		widget.CardNote(c, "Some of these days may be approximate: their agents' records are gone, so they keep the numbers counted then.", 0)
+	}
 	ui.Row(c).FillWidth().Shrink(0).Gap(theme.S4).AlignItems(ui.Stretch).Children(func() {
 		widget.Card(c).Grow(7).Basis(0).Children(func() {
 			widget.CardTitle(c, nil, "Each day", nil)
