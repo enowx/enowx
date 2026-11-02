@@ -170,7 +170,7 @@ func (v *View) titleField(c *ui.Context, p *page) {
 		return
 	}
 	natural, _ := c.MeasureText(0, ui.Span{Text: text, Size: theme.TextTitle, Weight: 600})
-	title := ui.TextInputBase(c, &p.title).Width(natural + theme.S2).MinWidth(64).Shrink(1).FontSize(theme.TextTitle).FontWeight(600).
+	title := ui.TextInputBase(c, &p.title).Width(natural + theme.S2).MinWidth(0).Shrink(1).FontSize(theme.TextTitle).FontWeight(600).
 		TextColor(theme.TextStrong).Placeholder("Untitled").Label("Title")
 	if p.ed == nil {
 		return
