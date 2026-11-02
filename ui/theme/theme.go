@@ -95,7 +95,7 @@ var current Palette
 func Current() Palette { return current }
 
 func init() {
-	useStyle(LiquidGlass)
+	UseStyle(LiquidGlass)
 	Apply(Default)
 }
 

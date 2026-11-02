@@ -22,3 +22,14 @@ func TestLiquidGlassKeepsItsValues(t *testing.T) {
 		}
 	}
 }
+
+// The sample's colors leave the app's own alone.
+func TestStyleColorsKeepTheAppsPalette(t *testing.T) {
+	before := Panel
+	for _, s := range Styles {
+		StyleColors(s, Default)
+	}
+	if Panel != before {
+		t.Fatal("a sample changed the app's colors")
+	}
+}

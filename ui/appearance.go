@@ -11,7 +11,10 @@ import (
 
 // applyTheme sets the palette the state names, in every view and
 // terminal at once.
-func (a *App) applyTheme() { a.showPalette(a.state.palette(a.lightAppearance())) }
+func (a *App) applyTheme() {
+	theme.UseStyle(theme.StyleByID(a.state.UIStyle))
+	a.showPalette(a.state.palette(a.lightAppearance()))
+}
 
 // showPalette has every view and terminal take p.
 func (a *App) showPalette(p theme.Palette) {
@@ -41,6 +44,7 @@ func (a *App) appearancePage(c *ui.Context) {
 	body.Children(func() {
 		ui.Row(c).FillWidth().MinHeight(room).Padding(theme.S4, theme.S5, theme.S5, theme.S5).Gap(theme.S4).AlignItems(ui.Stretch).Children(func() {
 			ui.Column(c).Grow(7).Basis(0).MinWidth(0).Gap(theme.S4).Children(func() {
+				a.stylePicker(c)
 				a.themePicker(c)
 				a.backgroundCard(c)
 				ui.Grid(c).FillWidth().Grow(1).Columns(2).Gap(theme.S3).AlignItems(ui.Stretch).Children(func() {

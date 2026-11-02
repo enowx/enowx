@@ -54,8 +54,9 @@ func StyleByID(id string) Style {
 	return LiquidGlass
 }
 
-// useStyle sets the tokens of shape, spacing and type from s.
-func useStyle(s Style) {
+// UseStyle sets the tokens of shape, spacing, type and effects from s. Apply a
+// palette after it, as a style can change what the surfaces take from one.
+func UseStyle(s Style) {
 	style = s
 	RadiusFull, RadiusControl, RadiusTail, RadiusSmall, RadiusCard = s.RadiusFull, s.RadiusControl, s.RadiusTail, s.RadiusSmall, s.RadiusCard
 	RadiusPanel, RadiusBento = s.RadiusPanel, s.RadiusPanel
@@ -73,9 +74,11 @@ func styled(p Palette) Palette {
 	return style.surfaces(p)
 }
 
-// ApplyStyle makes s the style, with palette p: a style can change the colors the
-// surfaces take from a palette, so the two change together.
-func ApplyStyle(s Style, p Palette) {
-	useStyle(s)
-	Apply(p)
+// StyleColors are what a style makes of palette p, for a sample of it: its ground,
+// its panes and its accent, whichever style is in use.
+func StyleColors(s Style, p Palette) (ground, pane, accent ui.Color) {
+	if s.surfaces != nil {
+		p = s.surfaces(p)
+	}
+	return p.Ground, p.Panel, p.Accent
 }

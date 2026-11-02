@@ -347,6 +347,7 @@ func New(opts Options) *App {
 		skipPermissions: true,
 		systemDark:      true,
 	}
+	theme.UseStyle(theme.StyleByID(a.state.UIStyle))
 	theme.Apply(a.state.palette(a.lightAppearance()))
 	a.theme = theme.Window()
 	if a.state.SkipPermissions != nil {
