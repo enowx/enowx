@@ -35,7 +35,7 @@ func (v *View) Draw(c *ui.Context, o Options) {
 			return
 		}
 		v.summary(c)
-		ui.Scroll(c).Grow(1).FillWidth().MinHeight(0).Children(func() {
+		widget.Scroll(c).Grow(1).FillWidth().MinHeight(0).Children(func() {
 			ui.Column(c).FillWidth().Gap(2).Children(func() {
 				if len(v.files) > 0 {
 					section(c, "Files edited", len(v.files))
