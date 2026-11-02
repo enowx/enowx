@@ -226,7 +226,7 @@ func (d *Dialog) section(c *ui.Context, kind string, idx []int) {
 			widget.CardNote(c.Key("folded"), fmt.Sprintf("%d items, %d selected", len(idx), checked), 1)
 			return
 		}
-		ui.Scroll(c.Key("rows")).Grow(1).FillWidth().MinHeight(0).Children(func() {
+		widget.Scroll(c.Key("rows")).Grow(1).FillWidth().MinHeight(0).Children(func() {
 			widget.CardLines(c, func() {
 				for n, i := range idx {
 					d.rowView(c.Key(d.rows[i].item.ID), &d.rows[i], n == 0)
@@ -295,7 +295,7 @@ func (d *Dialog) footer(c *ui.Context) {
 		case d.finished:
 			summary := fmt.Sprintf("Synced %d of %d to %s.", d.total-len(d.failures), d.total, d.destName())
 			ui.Text(c, summary+" Restart running agents there to pick up the changes.").FontSize(theme.TextLabel).TextColor(theme.Done).Shrink(0)
-			ui.Scroll(c.Key("what-went")).FillWidth().MinHeight(0).Children(func() {
+			widget.Scroll(c.Key("what-went")).FillWidth().MinHeight(0).Children(func() {
 				ui.Column(c).FillWidth().Gap(theme.S1).Children(func() {
 					for _, f := range d.failures {
 						ui.Text(c, f).FontSize(theme.TextLabel).TextColor(theme.Error)
