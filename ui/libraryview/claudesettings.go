@@ -167,7 +167,7 @@ func (v *View) permissions(c *ui.Context, e *settingsEditor) {
 					widget.Running(c, l.name, widget.RunStyle{Size: theme.TextRead, Weight: 600})
 				})
 				ui.Text(c, l.about).FontSize(theme.TextLabel).TextColor(theme.TextSoft).Shrink(0)
-				ui.Scroll(c).Grow(1).Basis(0).FillWidth().MinHeight(0).Children(func() {
+				ui.Scroll(c).Shrink(1).FillWidth().MinHeight(0).Children(func() {
 					ui.Column(c).FillWidth().Children(func() {
 						for j, r := range *l.rules {
 							ruleLine(c.Key(strconv.Itoa(j)), j == 0, r, func() {
