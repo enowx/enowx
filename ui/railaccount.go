@@ -91,7 +91,7 @@ func (a *App) accountAction(c *ui.Context) {
 		}
 		if loaded && st.SignedIn {
 			widget.MenuSeparator(c)
-			if widget.MenuItem(c.Key("sign-out"), icon.Close, "Sign out…", false) {
+			if widget.MenuItem(c.Key("sign-out"), icon.Power, "Sign out…", false) {
 				a.cloudSignOut()
 				done()
 			}

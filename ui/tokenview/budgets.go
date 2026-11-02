@@ -98,7 +98,7 @@ func budgetTitle(b proto.TokenBudget, o Options) string {
 	case proto.BudgetConfig:
 		what = "Config " + b.Target
 	case proto.BudgetProject:
-		what = "Project " + b.Target
+		what = b.Target
 	}
 	period := map[string]string{proto.BudgetDay: "a day", proto.BudgetWeek: "a week", proto.BudgetMonth: "a month"}[b.Period]
 	return what + ", " + period
