@@ -22,32 +22,63 @@ import (
 // what each changed, to keep one and discard the others.
 
 // alsoField picks more agents to give the new session's prompt to, when
-// it starts on a new branch: each gets its own.
+// it starts on a new branch: each gets its own. The picks wait while the
+// switch is off, to come back as they were.
 func (a *App) alsoField(c *ui.Context) {
 	f := &a.newSession
 	if _, ok := agent.Find(f.agent); !ok || f.branchMode != proto.BranchNew {
 		return
 	}
-	for _, ag := range a.agents {
-		if !ag.Installed || ag.Command == "" {
-			continue
-		}
+	others := slices.DeleteFunc(slices.Clone(a.agents), func(ag proto.AgentInfo) bool {
+		return !ag.Installed || ag.Command == "" || ag.ID == f.agent
+	})
+	if len(others) == 0 {
+		return
+	}
+	widget.ToggleRow(c, "Fan out", "Give it to more agents, then compare the results", &f.fanOut)
+	if !f.fanOut {
+		return
+	}
+	// Rows of two equal cells, not a grid: its columns would grow to a long name.
+	pick := func(ag proto.AgentInfo) {
 		on := slices.Contains(f.also, ag.ID)
-		if widget.SwitchRow(c.Key("also:"+ag.ID), "Also give it to "+ag.Name, "Fan out, then compare the results", on) {
+		if widget.CheckRow(c.Key("also:"+ag.ID), &on, ag.Name) {
 			if on {
-				f.also = slices.DeleteFunc(f.also, func(id string) bool { return id == ag.ID })
-			} else {
 				f.also = append(f.also, ag.ID)
+			} else {
+				f.also = slices.DeleteFunc(f.also, func(id string) bool { return id == ag.ID })
 			}
 		}
 	}
+	ui.Column(c.Key("also")).FillWidth().MinWidth(0).Children(func() {
+		for pair := range slices.Chunk(others, 2) {
+			ui.Row(c.Key(pair[0].ID)).FillWidth().MinWidth(0).Gap(theme.S3).Children(func() {
+				for i := range 2 {
+					ui.Column(c.Key(i)).Grow(1).Basis(0).MinWidth(0).Children(func() {
+						if i < len(pair) {
+							pick(pair[i])
+						}
+					})
+				}
+			})
+		}
+	})
+}
+
+// fanOutAgents are the agents to give the prompt to besides the form's: none
+// with the switch off. One picked and made the form's own since counts once.
+func (f *newSessionForm) fanOutAgents() []string {
+	if !f.fanOut {
+		return nil
+	}
+	return slices.DeleteFunc(slices.Clone(f.also), func(id string) bool { return id == f.agent })
 }
 
 // startFanOut starts the form's sessions, one per agent, then compares them.
 func (a *App) startFanOut(cl *client.Client, params proto.SessionCreateParams) {
 	f := &a.newSession
 	f.busy, f.err = true, ""
-	agents := append([]string{params.Agent}, f.also...)
+	agents := append([]string{params.Agent}, f.fanOutAgents()...)
 	go func() {
 		list, err := cl.FanOut(proto.FanOutParams{SessionCreateParams: params, Agents: agents})
 		a.onMain(func() {
