@@ -20,7 +20,7 @@ func TestPortsOfThisMachineOpen(t *testing.T) {
 		v.Draw(c, Options{OpenURL: func(url string) { opened = url }})
 	}, 480, 400)
 	tt.Frame()
-	for _, want := range []string{":5173", "node · pid 42 · ", "only this host", ":8080", "every address"} {
+	for _, want := range []string{":5173", "node · pid 42 ·", "only this host", ":8080", "every address"} {
 		if !tt.HasText(want) {
 			t.Errorf("no %q in %q", want, tt.Texts())
 		}

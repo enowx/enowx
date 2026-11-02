@@ -130,7 +130,7 @@ func (v *View) Draw(c *ui.Context, o Options) {
 		case len(v.ports.Ports) == 0:
 			note(c, "No ports open. A dev server the session starts shows here.")
 		default:
-			ui.Scroll(c).Grow(1).FillWidth().MinHeight(0).Children(func() {
+			ui.Scroll(c).FillWidth().Shrink(1).MinHeight(0).Children(func() {
 				ui.Column(c).FillWidth().Gap(2).Children(func() {
 					for _, p := range v.ports.Ports {
 						v.portRow(c.Key(strconv.Itoa(p.Port)+"/"+strconv.Itoa(p.PID)), o, p)
@@ -174,8 +174,8 @@ func (v *View) portRow(c *ui.Context, o Options, p proto.Port) {
 			if forwarded {
 				who += " · forwarded to " + local
 			}
-			ui.Row(c).FillWidth().Children(func() {
-				widget.Running(c.Key("who"), who+" · ", widget.RunStyle{Size: theme.TextLabel, Color: theme.TextSoft})
+			ui.Row(c).FillWidth().Gap(theme.S1).Children(func() {
+				widget.Running(c.Key("who"), who+" ·", widget.RunStyle{Size: theme.TextLabel, Color: theme.TextSoft})
 				if loopback(p.Addr) {
 					ui.Text(c, "only this host").FontSize(theme.TextLabel).TextColor(theme.TextSoft).SingleLine().Shrink(0)
 				} else {
