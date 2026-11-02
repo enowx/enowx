@@ -84,7 +84,7 @@ func (a *App) recoverySheets(c *ui.Context, cs *cloudSettings) {
 				ui.Text(c, rs.shown).Font(theme.MonoFont).FontSize(theme.TextUI).TextColor(widget.CodeText).FillWidth().MinWidth(0).Selectable()
 			})
 		}, func() {
-			widget.CopyIcon(c.Key("rk-copy"), &rs.copied, icon.Copy, "Copy the key", "Copy the recovery key", rs.shown)
+			widget.CopyButton(c.Key("rk-copy"), &rs.copied, "Copy the key", rs.shown)
 			if widget.PrimaryButton(c, nil, "I kept it", "").Clicked() {
 				rs.shown = ""
 			}
