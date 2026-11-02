@@ -67,14 +67,6 @@ func OptionCard(c *ui.Context, on bool, title, body string) bool {
 	}
 	card.Background(QuickTint(card, "bg", bg))
 	card.Children(func() {
-		ring := ui.Box(c).Size(16, 16).Radius(theme.RadiusFull).Center().Margin(2, 0, 0, 0).Shrink(0)
-		if on {
-			ring.Background(theme.Accent).Children(func() {
-				ui.Box(c).Size(6, 6).Radius(theme.RadiusFull).Background(theme.OnAccent)
-			})
-		} else {
-			Well(ring, false)
-		}
 		ui.Column(c).Gap(theme.S1).Grow(1).MinWidth(0).Children(func() {
 			ui.Text(c, title).FontSize(theme.TextUI).FontWeight(500)
 			if body != "" {
