@@ -9,6 +9,7 @@ import (
 	"github.com/enowx/enowx/client"
 	"github.com/enowx/enowx/proto"
 	"github.com/enowx/enowx/ui/icon"
+	"github.com/enowx/enowx/ui/textfmt"
 	"github.com/enowx/enowx/ui/theme"
 	"github.com/enowx/enowx/ui/widget"
 )
@@ -69,7 +70,7 @@ func (v *View) mcpTestPanel(c *ui.Context, o Options, it proto.EnvItem) {
 			testLine(c, t.err, theme.Error)
 		case t.result != nil && t.result.OK:
 			widget.Dot(c, theme.Done, false, 8)
-			testLine(c, fmt.Sprintf("%s lists %d tools in %.1f s", serverName(*t.result, it.Name), len(t.result.Tools), float64(t.result.Took)/1000), theme.Text)
+			testLine(c, fmt.Sprintf("%s lists %d %s in %.1f s", serverName(*t.result, it.Name), len(t.result.Tools), textfmt.Plural(len(t.result.Tools), "tool", "tools"), float64(t.result.Took)/1000), theme.Text)
 		case t.result != nil:
 			ui.Icon(c, icon.Alert).FontSize(14).TextColor(theme.Error)
 			testLine(c, t.result.Error, theme.Error)
