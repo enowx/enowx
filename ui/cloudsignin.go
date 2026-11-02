@@ -66,12 +66,12 @@ func (a *App) cloudSignInDialog(c *ui.Context) {
 			if widget.DialogHeader(c, "Sign in to enowX Cloud", "Your browser opened on this code: approve it there, signed in with GitHub.", true) {
 				open = false
 			}
-			ui.Column(c).FillWidth().Gap(theme.S2).Padding(theme.S4).Radius(theme.RadiusCard).Background(theme.Sunken).AlignItems(ui.Center).Children(func() {
+			ui.Column(c).FillWidth().Padding(theme.S2, 0).AlignItems(ui.Center).Children(func() {
 				ui.Text(c, p.UserCode).Font(theme.MonoFont).FontSize(24).FontWeight(500).LetterSpacing(2).SingleLine()
-				ui.Row(c).Gap(theme.S2).Children(func() {
-					widget.Spinner(c, 12)
-					ui.Text(c, "Waiting for you, until "+p.Expires.Local().Format("15:04")).FontSize(theme.TextLabel).TextColor(theme.TextSoft)
-				})
+			})
+			ui.Row(c).FillWidth().Gap(theme.S2).Children(func() {
+				widget.Spinner(c, 12)
+				ui.Text(c, "Waiting for you, until "+p.Expires.Local().Format("15:04")).FontSize(theme.TextUI).TextColor(theme.TextSoft)
 			})
 			c.After(time.Second)
 			widget.DialogFooter(c, "", func() {

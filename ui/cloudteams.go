@@ -98,7 +98,7 @@ func (a *App) cloudTeamDialogs(c *ui.Context, cs *cloudSettings) {
 			})
 		}, func() {
 			name := strings.TrimSpace(ts.newName)
-			b := widget.PrimaryButton(c, icon.Plus, "Make team", "")
+			b := widget.PrimaryButton(c, nil, "Make team", "")
 			if name == "" {
 				b.Disabled(true)
 			} else if b.Clicked() {
