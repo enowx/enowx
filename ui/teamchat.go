@@ -382,7 +382,7 @@ func (a *App) chatChip(c *ui.Context) {
 	}
 	label := fmt.Sprintf("%d unread", n)
 	b := titleChip(c, "chat-unread", label).Tooltip("Team chat: messages you haven't read")
-	b.TextColor(theme.Accent).Children(func() {
+	b.TextColor(theme.Now).Children(func() {
 		ui.Icon(c, icon.Chat).FontSize(11)
 		ui.Text(c, label).FontSize(theme.TextLabel).SingleLine()
 	})
