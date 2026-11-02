@@ -120,7 +120,8 @@ type View struct {
 	task         taskState
 	detour       *stop // a step "Your settings" sent the user to change
 
-	morph morph
+	morph  morph
+	reduce bool // less motion: what travels is cut to
 }
 
 // New is onboarding, not begun.
@@ -128,7 +129,7 @@ func New() *View { return &View{} }
 
 // begin starts the clock for o's flow.
 func (v *View) begin(o Options) {
-	v.begun, v.flow, v.stops = true, o.Flow, stopsOf(o.Flow, o.Reduce)
+	v.begun, v.flow, v.stops, v.reduce = true, o.Flow, stopsOf(o.Flow, o.Reduce), o.Reduce
 	v.clock = clock{t: startAt(o.Flow, o.Reduce), target: v.stops[0].at}
 	v.hostsAtStart = len(o.Hosts)
 	if o.Reduce {

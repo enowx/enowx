@@ -273,8 +273,8 @@ func (v *View) hostWire(p *ui.Painter, g geometry, t float32) {
 	path.Trim(gone, drawn)
 	wire := fadeColor(theme.Accent, 1-gone)
 	p.StrokePath(path, 1.5, wire)
-	port(p, ax, ay, seg(t, 15700, 15900, easeBack)*(1-gone), theme.Accent, theme.Background)
-	port(p, bx, by, seg(t, 16500, 16700, easeBack)*(1-gone), theme.Accent, theme.Background)
+	port(p, ax, ay, seg(t, 15700, 15900, easeBack)*(1-gone), 1, 4, 1.5, theme.Background, theme.Accent, theme.Accent)
+	port(p, bx, by, seg(t, 16500, 16700, easeBack)*(1-gone), 1, 4, 1.5, theme.Background, theme.Accent, theme.Accent)
 }
 
 func serverRect(g geometry) rect {

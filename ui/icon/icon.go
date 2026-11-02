@@ -21,6 +21,9 @@ func load(name string) *ui.SVG {
 // The icons.
 var (
 	Plus         = load("plus")
+	Monitor      = load("monitor")
+	EnterKey     = load("corner-down-left")
+	Languages    = load("languages")
 	PanelRight   = load("panel-right")
 	ArrowLeft    = load("arrow-left")
 	ArrowRight   = load("arrow-right")
