@@ -9,7 +9,7 @@ Every use is **on** until the user turns it off (Settings → Decisions → Uses
 | Use | When | The judge says | What enowX does |
 |---|---|---|---|
 | A quiet session's state | an agent without hooks of its own (not Claude Code or Codex) goes quiet | done, waiting, stuck, failed | waiting: marks the session waiting and plays the input sound; stuck or failed: plays the error sound with why |
-| Approving commands | a hook **Ask the judge** before a tool runs | allow, ask, refuse | allow: the agent runs it without asking the user (Claude Code); refuse: the agent is told why; ask: the agent's own permission prompt |
+| Approving commands | a hook **Ask the judge** before a tool runs | allow, ask, refuse | allow: the agent runs it without asking the user (Claude Code; Codex still asks, as no PreToolUse hook can spare its prompt, and the log says `left to the agent's prompt`); refuse: the agent is told why; ask: the agent's own permission prompt |
 | Trimming long output | a hook **Trim its long output** before a tool runs | trimmed (with the lines kept), keep | the agent reads only the lines kept, with a note naming the file that holds the whole output; the exit code is unchanged |
 | Stopping loops | three of an agent's last eight commands failed, two of them the same | looping, progress | looping: presses Escape to stop the agent's turn, and asks the user whether to let it go on |
 | A model per prompt | asked: New session's **Suggest a model for this prompt**, `enowx decide route`, MCP `decide_route` | easy, medium, hard | suggests the agent's model and effort to match (below); nothing changes until the user or the agent asking takes it |

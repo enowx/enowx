@@ -71,7 +71,7 @@ Limits: **once a session**, **at most N times a session**, **apart at least** so
 - **Change the command:** Find (a regular expression) in a tool's command is replaced by Replace (`$1` for a group).
   - Claude Code asks the user about the new command, unless the session skips permissions.
   - Codex takes a changed command only as approved, so a Codex session that asks gets it as a refusal naming the command to run instead.
-- **Ask the judge** (before a tool runs): enowX's judge allows the command without asking the user, leaves it to them, or refuses it ([decide.md](decide.md)).
+- **Ask the judge** (before a tool runs): enowX's judge allows the command without asking the user, leaves it to them, or refuses it ([decide.md](decide.md)). On Codex an allow doesn't spare the prompt: its own permission checks stay, and the decision log says `left to the agent's prompt`; the judge can still refuse a command.
 - **Trim its long output** (before a tool runs): the command runs through `enowx decide trim`, and a long output reaches the agent cut by the judge to what matters ([decide.md](decide.md)).
 
 Both run built in while their use is on in Settings → Decisions, without a hook; a hook of the user's with the same action replaces the built-in one.
@@ -92,8 +92,6 @@ Hooks run in this order: the host's, the project's, then the session's, each in 
 - What an agent adds, changes or removes is a proposal (`enowx hooks …` from a session, or the `hooks_*` MCP tools). It changes nothing until the user allows it in Settings → Hooks.
 
 ## How agents hand over events
-
-For Codex, a plain approval by enowX leaves Codex's normal permission checks in place; the judge can still refuse a command.
 
 enowX adds its own hooks when it starts Claude Code (`--settings`) or Codex (`-c hooks.<Event>=…`). They run `"$ENOWX_BIN" hook --event E [--state S]` with the agent's JSON on stdin (`daemon.Hook`).
 
