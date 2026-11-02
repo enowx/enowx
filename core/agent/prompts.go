@@ -2,6 +2,7 @@ package agent
 
 import (
 	"regexp"
+	"slices"
 	"strings"
 )
 
@@ -36,6 +37,11 @@ var (
 	choiceLine = regexp.MustCompile(`^\s*(?:[│|]\s*)?(?:[❯›>▶●]\s*)?(?:\d+[.)]\s+\S|\[\s?[yn]\s?\])|\(y/n\)|\[y/n\]`)
 	selectLine = regexp.MustCompile(`^\s*(?:[│|]\s*)?[❯›▶]\s+\S`)
 )
+
+// interruptedShown is what Claude Code leaves on the screen after an interrupt.
+// It reads as a question, but what it waits for is the next prompt, and it
+// stays there through what follows.
+var interruptedShown = regexp.MustCompile(`(?i)interrupted\s*·\s*what should .+ do instead\?`)
 
 // workingShown are what agents show while they work: no fallback then.
 var workingShown = regexp.MustCompile(`(?i)esc (to )?interrupt|ctrl\+c to (interrupt|stop)|[⠋⠙⠹⠸⠼⠴⠦⠧⠇⠏]`)
@@ -80,7 +86,7 @@ func askedAbove(lines []string, i int) string {
 // The caller says how long it has been still: a long command prints nothing
 // either, but ends on no question.
 func StalledPrompt(screen string) (ScreenPrompt, bool) {
-	lines := tailLines(screen, 12)
+	lines := slices.DeleteFunc(tailLines(screen, 12), interruptedShown.MatchString)
 	if len(lines) == 0 || workingShown.MatchString(strings.Join(lines, "\n")) {
 		return ScreenPrompt{}, false
 	}

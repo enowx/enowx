@@ -36,6 +36,26 @@ func TestPromptShown(t *testing.T) {
 	}
 }
 
+// What an interrupt leaves on the screen isn't an ask, with the composer and
+// its status line under it or not; a real menu under it still is.
+func TestInterruptLeftoverIsNoPrompt(t *testing.T) {
+	for _, screen := range []string{
+		"  ⎿  Interrupted · What should Claude do instead?\n",
+		"● Fixing the parser\n  ⎿  Interrupted · What should Claude do instead?\n\n╭────╮\n❯ Try \"fix the tests\"\n╰────╯\n  ⏵⏵ bypass permissions on\n",
+	} {
+		if p, ok := StalledPrompt(screen); ok {
+			t.Errorf("read as an ask: %q from %q", p.Text, screen)
+		}
+		if p, ok := PromptShown(screen); ok {
+			t.Errorf("read as a known prompt: %q from %q", p.Text, screen)
+		}
+	}
+	menu := "  ⎿  Interrupted · What should Claude do instead?\nWhich database should the new table go in?\n ❯ 1. Main\n   2. Replica\n"
+	if p, ok := StalledPrompt(menu); !ok || !strings.Contains(p.Text, "database") {
+		t.Errorf("a real menu missed: %+v %v", p, ok)
+	}
+}
+
 // A prompt nobody listed is still seen, and work isn't taken for one.
 func TestStalledPrompt(t *testing.T) {
 	for _, screen := range []string{
