@@ -58,6 +58,9 @@ func (a *App) commands() []command {
 		)
 	}
 	out = append(out, command{"goa", "GOD of Agents", "Enter or leave", icon.Sparkle, a.toggleGOA})
+	if a.client != nil {
+		out = append(out, command{"team", "Team", "Page", icon.Users, a.openTeamPage})
+	}
 	out = append(out,
 		command{"vault", "Credentials", "Page", icon.Key, a.openVault},
 		command{"hosts", "Manage hosts", "Page", icon.Server, func() { a.page = pageHosts }},
