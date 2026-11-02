@@ -8,6 +8,10 @@ import (
 // A destructive action the user just asked for (signing out, removing someone,
 // leaving) asks first: confirm sets what to ask, confirmDialog asks it over
 // the window. What an agent asks waits as a card instead (asks.go).
+//
+// Every simple confirm is widget.AlertDialog with other words, so a state of
+// one differs only in its text from those TestConfirmDialogHoldsWhatItAsks
+// draws: the rule the to-dos of simple confirms are ticked by.
 
 type confirmation struct {
 	title, msg, action string
