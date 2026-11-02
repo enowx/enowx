@@ -115,8 +115,28 @@ func (t *Tracker) tightest() (proto.CreditAccount, proto.CreditWindow, bool) {
 	return acc, win, found
 }
 
-// level colors a used percentage.
-func level(used float64) ui.Color { return widget.Level(used / 100) }
+// level colors a used percentage: a limit near its end warns; red is kept for
+// what broke.
+func level(used float64) ui.Color {
+	if used >= 75 {
+		return theme.Warning
+	}
+	return theme.Working
+}
+
+// resetWhen says when a limit starts over: its hour today, else its day.
+func resetWhen(at, now time.Time) string {
+	at, now = at.Local(), now.Local()
+	day := func(x time.Time) time.Time { return time.Date(x.Year(), x.Month(), x.Day(), 0, 0, 0, 0, x.Location()) }
+	days := int(day(at).Sub(day(now)).Hours()/24 + 0.5)
+	switch {
+	case days <= 0:
+		return at.Format("15:04")
+	case days == 1:
+		return "tomorrow"
+	}
+	return "in " + strconv.Itoa(days) + " days"
+}
 
 // Summary is a line for the status bar: each account's limits, short.
 func (t *Tracker) Summary(h Host) string {
@@ -206,7 +226,7 @@ func window(c *ui.Context, w proto.CreditWindow) {
 			ui.Row(c).Grow(1).MinWidth(0).Children(func() { widget.Running(c.Key("name"), w.Label, widget.RunStyle{}) })
 			used := fmt.Sprintf("%.0f%%", w.Used)
 			if !w.ResetsAt.IsZero() {
-				used += " · Resets in " + textfmt.Until(w.ResetsAt, time.Now())
+				used += " · Resets " + resetWhen(w.ResetsAt, time.Now())
 			}
 			ui.Row(c).MinWidth(0).Shrink(1).Children(func() {
 				widget.Running(c.Key("used"), used, widget.RunStyle{Size: theme.TextLabel, Color: theme.TextSoft})
@@ -286,7 +306,7 @@ func (t *Tracker) nextReset() string {
 	if next.IsZero() {
 		return "–"
 	}
-	return "in " + textfmt.Until(next, time.Now())
+	return resetWhen(next, time.Now())
 }
 
 // CheckedLabel says how fresh the reading is, for the page header.
@@ -295,3 +315,8 @@ func (t *Tracker) CheckedLabel() string { return t.checkedLabel() }
 // Show puts a reading in without asking the host, for a development build's
 // sample data.
 func (t *Tracker) Show(r proto.CreditsReport) { t.report, t.loaded, t.err = r, true, "" }
+
+// ShowError puts a failed reading in, for a development build's sample data.
+func (t *Tracker) ShowError(err error) {
+	t.report, t.loaded, t.err = proto.CreditsReport{}, true, describe(err)
+}
