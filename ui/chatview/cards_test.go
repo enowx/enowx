@@ -1,6 +1,9 @@
 package chatview
 
 import (
+	"bytes"
+	"image"
+	"image/png"
 	"strings"
 	"testing"
 
@@ -96,4 +99,56 @@ func TestChatCardsAndComposerStates(t *testing.T) {
 			}
 		}
 	}
+}
+
+// tinyPNG is a small picture to attach.
+func tinyPNG(t *testing.T) []byte {
+	t.Helper()
+	var b bytes.Buffer
+	if err := png.Encode(&b, image.NewRGBA(image.Rect(0, 0, 400, 300))); err != nil {
+		t.Fatal(err)
+	}
+	return b.Bytes()
+}
+
+// A picture attached opens large, with what can be done with it; scrolled up,
+// a button goes back to the latest, saying so by what the agent does.
+func TestChatImageViewerAndJumpToLatest(t *testing.T) {
+	ch := loaded(longChat(30))
+	ch.Attach("screenshot.png", tinyPNG(t))("/tmp/screenshot.png", nil)
+	working := false
+	tt := ui.NewTester(func(c *ui.Context) {
+		c.SetTheme(theme.Window())
+		ui.Column(c).Width(1100).Height(720).Background(theme.Frame).TextColor(theme.Text).Children(func() {
+			ch.View(c, Options{Agent: "claude", AgentName: "Claude Code", Working: working})
+		})
+	}, 1100, 720)
+	for range 3 {
+		tt.Frame()
+	}
+	timelineShot(t, tt, "cards-attachment-image.png")
+	ch.list.ScrollTo(0, ui.Start)
+	for range 3 {
+		tt.Frame()
+	}
+	if !tt.HasText("Jump to the latest") {
+		t.Errorf("scrolled up: %q", tt.Texts())
+	}
+	timelineShot(t, tt, "cards-jump.png")
+	working = true
+	tt.Frame()
+	if !tt.HasText("Follow the agent") {
+		t.Errorf("scrolled up, working: %q", tt.Texts())
+	}
+	if err := tt.Click("screenshot.png"); err != nil {
+		t.Fatal(err)
+	}
+	tt.Frame()
+	tt.Frame()
+	for _, want := range []string{"400 × 300", "Remove", "Close"} {
+		if !tt.HasText(want) {
+			t.Errorf("the viewer: no %q in %q", want, tt.Texts())
+		}
+	}
+	timelineShot(t, tt, "cards-viewer.png")
 }

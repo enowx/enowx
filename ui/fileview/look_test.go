@@ -1,6 +1,8 @@
 package fileview
 
 import (
+	"bytes"
+	"image"
 	"image/png"
 	"os"
 	"path/filepath"
@@ -9,6 +11,7 @@ import (
 	"github.com/egoist/mygo/ui"
 
 	"github.com/enowx/enowx/proto"
+	"github.com/enowx/enowx/ui/textfmt"
 	"github.com/enowx/enowx/ui/theme"
 )
 
@@ -84,6 +87,18 @@ func TestFilesStatesInAPanelAndATab(t *testing.T) {
 	d.err = "the file no longer exists, and a failure long enough to have to wrap in the bar"
 	draw("error", d, "the file no longer exists, and a failure long enough to have to wrap in the bar")
 	draw("reading", NewDoc("a.go"), "Reading…")
+	var pic bytes.Buffer
+	if err := png.Encode(&pic, image.NewRGBA(image.Rect(0, 0, 400, 300))); err != nil {
+		t.Fatal(err)
+	}
+	shown2 := NewDoc("docs/goa-tabs.png")
+	shown2.content = &proto.FileContent{Image: "png", Size: int64(pic.Len())}
+	img, w, h, err := decodeImage("png", pic.Bytes())
+	if err != nil {
+		t.Fatal(err)
+	}
+	shown2.image, shown2.imgW, shown2.imgH = img, w, h
+	draw("image", shown2, "400×300 · "+textfmt.Bytes(uint64(pic.Len())))
 	long := text("docs/session-tab-strip-and-center-viewers-behaviour-notes-with-a-rather-long-name-indeed.md", "# x\n", proto.FileContent{Size: 4})
 	draw("long", long, "Preview")
 	v.err = "the host hung up"
