@@ -124,7 +124,7 @@ func (a *App) featuresSection(c *ui.Context) {
 			widget.Card(c.Key("where")).Children(func() {
 				widget.CardTitle(c, nil, "Where", nil)
 				a.featuresScope(c, hf)
-				widget.CardNote(c, "A feature off costs agents no tokens; the app keeps it. Changes apply to sessions started after them: running ones keep what they had until restarted.", 0)
+				widget.CardNote(c, "Changes apply to sessions started or continued after.", 0)
 				ui.Row(c).FillWidth().Gap(theme.S2).Wrap().Children(func() {
 					ui.Text(c, "Presets").FontSize(theme.TextLabel).TextColor(theme.TextSoft).SingleLine()
 					for _, name := range []string{"Minimal", "Web dev", "Android", "All"} {
