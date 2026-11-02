@@ -25,18 +25,37 @@ var buildStages = []struct{ id, label string }{
 	{proto.BuildCompare, "Compare"}, {proto.BuildRefining, "Refining"}, {proto.BuildReviewing, "Review"}, {proto.BuildDone, "Done"},
 }
 
+// hudBottom is how far over the views' foot the build's panel floats: above
+// Compare's pick buttons and the designs' line and strip, which it would cover.
+func (v *View) hudBottom(cv proto.Canvas) float32 {
+	switch v.view {
+	case viewCompare:
+		return theme.ControlHeight + theme.S2 + theme.S3
+	case viewDesign:
+		bottom := float32(theme.S3)
+		if len(cv.Frames) > 1 || v.frameOf().Description != "" {
+			bottom += theme.ControlHeight + theme.S1 // the line
+		}
+		if len(cv.Frames) > 1 && v.stageRoom() >= stripRoom {
+			bottom += thumbH + theme.S6 // the strip
+		}
+		return bottom
+	}
+	return theme.S3
+}
+
 // buildHUD draws the build's panel at the bottom left of the canvas's
 // views.
 func (v *View) buildHUD(c *ui.Context, o Options, cv proto.Canvas) {
 	switch {
 	case o.Building:
-		raised(ui.Row(c.Key("build-hud")).Absolute().Left(theme.S3).Bottom(theme.S3).Width(hudWidth).MinHeight(40).Padding(theme.S2, theme.S4).Gap(theme.S2).Radius(theme.RadiusCard).AlignItems(ui.Center)).Children(func() {
+		raised(ui.Row(c.Key("build-hud")).Absolute().Left(theme.S3).Bottom(v.hudBottom(cv)).Width(hudWidth).MinHeight(40).Padding(theme.S2, theme.S4).Gap(theme.S2).Radius(theme.RadiusCard).AlignItems(ui.Center)).Children(func() {
 			widget.Spinner(c, 14)
 			ui.Row(c).Grow(1).MinWidth(0).Children(func() { widget.Running(c, "Starting the build…", widget.RunStyle{Color: theme.TextSoft}) })
 		})
 		return
 	case o.BuildErr != "":
-		raised(ui.Row(c.Key("build-hud")).Absolute().Left(theme.S3).Bottom(theme.S3).Width(hudWidth).Padding(theme.S2, theme.S2, theme.S2, theme.S4).Gap(theme.S2).Radius(theme.RadiusCard).AlignItems(ui.Center)).Children(func() {
+		raised(ui.Row(c.Key("build-hud")).Absolute().Left(theme.S3).Bottom(v.hudBottom(cv)).Width(hudWidth).Padding(theme.S2, theme.S2, theme.S2, theme.S4).Gap(theme.S2).Radius(theme.RadiusCard).AlignItems(ui.Center)).Children(func() {
 			ui.Icon(c, icon.Alert).FontSize(14).TextColor(theme.Error)
 			ui.Text(c, "The build didn't start: "+o.BuildErr).FontSize(theme.TextUI).TextColor(theme.TextSoft).Grow(1).Basis(0).MinWidth(0)
 			if o.BuildDismiss != nil && widget.IconButton(c, icon.Close, "Dismiss", false).Clicked() {
@@ -49,7 +68,7 @@ func (v *View) buildHUD(c *ui.Context, o Options, cv proto.Canvas) {
 	if run == nil || run.ID != cv.ID || v.buildClosed == run.What+run.Stage {
 		return
 	}
-	raised(ui.Column(c.Key("build-hud")).Absolute().Left(theme.S3).Bottom(theme.S3).Width(hudWidth).Padding(theme.S3, theme.S4).Gap(theme.S2).Radius(theme.RadiusCard)).Children(func() {
+	raised(ui.Column(c.Key("build-hud")).Absolute().Left(theme.S3).Bottom(v.hudBottom(cv)).Width(hudWidth).Padding(theme.S3, theme.S4).Gap(theme.S2).Radius(theme.RadiusCard)).Children(func() {
 		ui.Row(c.Key("head")).FillWidth().Gap(theme.S2).MinHeight(theme.ControlHeight).AlignItems(ui.Center).Children(func() {
 			ui.Text(c, "Build").FontSize(theme.TextUI).FontWeight(600).TextColor(theme.TextStrong).SingleLine().Shrink(0)
 			ui.Row(c).Grow(1).MinWidth(0).Children(func() {

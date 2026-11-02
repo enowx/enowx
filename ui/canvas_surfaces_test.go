@@ -183,9 +183,15 @@ func TestCanvasSurfacesAudit(t *testing.T) {
 		settled()
 	}, func() { h.app.buildRuns = nil; h.app.canvases.SetView(0) })
 	add("build-starting", func() { h.app.buildStarting = true; settled() }, func() { h.app.buildStarting = false })
-	add("build-error", func() { h.app.buildErr = "The agent couldn't start: claude isn't installed on this host, or it isn't on its path"; settled() }, func() { h.app.buildErr = "" })
+	add("build-error", func() {
+		h.app.buildErr = "The agent couldn't start: claude isn't installed on this host, or it isn't on its path"
+		settled()
+	}, func() { h.app.buildErr = "" })
 	add("unslop-starting", func() { h.app.unslopping = true; settled() }, func() { h.app.unslopping = false })
-	add("unslop-error", func() { h.app.unslopErr = "The design couldn't be copied: the canvas changed while it was read, try again"; settled() }, func() { h.app.unslopErr = "" })
+	add("unslop-error", func() {
+		h.app.unslopErr = "The design couldn't be copied: the canvas changed while it was read, try again"
+		settled()
+	}, func() { h.app.unslopErr = "" })
 	add("agent-bar", func() {
 		c := h.app.canvases.Canvas()
 		el := proto.CanvasElement{ID: "box", Type: proto.ShapeRect, X: 60, Y: 60, W: 300, H: 120, Text: "A box"}
@@ -285,6 +291,7 @@ func TestUnslopSurfacesAudit(t *testing.T) {
 	h.cl.CanvasUnslop(proto.CanvasUnslopParams{ID: cv.ID, Frame: u.Frame, Region: "side", Pass: "7"})
 	h.cl.CanvasUnslop(proto.CanvasUnslopParams{ID: cv.ID, Frame: u.Frame, Region: "main", Pass: "done"})
 	look("unslop-regions")
+	h.settle("the regions", func() bool { r := h.app.unslopRunOf(nil); return r != nil && len(r.Regions) > 0 })
 	h.app.viewRegionAgent(h.app.unslopRunOf(nil).Regions[0].Session)
 	look("region-bar")
 	if os.Getenv("SURFACE") == "" && !h.tt.HasText("Main agent") {
