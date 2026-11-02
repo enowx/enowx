@@ -60,6 +60,7 @@ func tonalSurfaces(p Palette) Palette {
 	p.Panel, p.Frame, p.Raised = t1, t2, t1
 	p.Sunken = shade
 	p.Dialog, p.Popover = t2, t2 // a menu's hover is the selection: on t3 the two are one tone
+	p.composer = t3              // with no lines or shadows here, its tone alone sets it off the frame
 	p.Hover = Fade(ink, 0.09)
 	p.Selected = Mix(base, accent, 0.3)
 	p.picked = Mix(base, accent, 0.84)

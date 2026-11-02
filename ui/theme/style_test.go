@@ -65,7 +65,10 @@ func TestStylesRead(t *testing.T) {
 		for _, light := range []bool{false, true} {
 			for _, id := range []string{Default.ID, Copper.ID} {
 				p := styled(LookupAppearance(id, ui.Color{}, light))
-				for name, ground := range map[string]ui.Color{"panel": p.Panel, "frame": p.Frame, "raised": over(p.Raised, p.Frame), "dialog": p.Dialog, "menu": p.Popover} {
+				for name, ground := range map[string]ui.Color{"panel": p.Panel, "frame": p.Frame, "raised": over(p.Raised, p.Frame), "dialog": p.Dialog, "menu": p.Popover, "composer": p.composer} {
+					if ground.A == 0 {
+						continue // Popover's
+					}
 					if r := contrast(p.Text, ground); r < 4.5 {
 						t.Errorf("%s %s light=%v: words on %s: %.2f", s.ID, id, light, name, r)
 					}

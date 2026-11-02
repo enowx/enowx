@@ -79,13 +79,12 @@ const (
 
 // box is the message and the row of buttons under it.
 func (ch *Chat) box(c *ui.Context, o Options) {
-	box := ui.Column(c).FillWidth().Padding(theme.S3, theme.S2, theme.S2, theme.S2).Gap(theme.S1).Background(theme.Popover)
+	box := ui.Column(c).FillWidth().Padding(theme.S2, theme.S3).Gap(theme.S1).Background(theme.Composer)
 	if theme.DockedComposer {
 		box.InsetShadow(0, theme.Hairline, 0, 0, theme.Border) // docked: only the line along its top
 	} else {
-		widget.Edge(box.Radius(theme.RadiusPanel))
+		widget.SurfaceEdge(box.Radius(theme.RadiusPanel))
 	}
-	widget.DropShadow(box, 10, 30, ui.RGBA(0, 0, 0, float32(0.35*theme.SurfaceOpacity)))
 	// Narrow, as beside the side panel: the settings show as icons and the
 	// context as its percentage, so nothing is cut.
 	width := box.LayoutBounds().W
@@ -106,8 +105,8 @@ func (ch *Chat) box(c *ui.Context, o Options) {
 		// OnTextKey: the slash menu its arrows, Tab, Enter and Escape;
 		// Enter sends otherwise, Shift+Enter breaking the line.
 		send := false
-		in := ui.TextAreaBase(c, &ch.input).FillWidth().Lines(1, 5).Padding(0, widget.ScrollGutter, 0, theme.S2).
-			FontSize(theme.TextRead).LineHeight(readLeading).Placeholder(composerPlaceholder(o)).Label("Message").
+		in := ui.TextAreaBase(c, &ch.input).FillWidth().Lines(2, 5).Padding(0, widget.ScrollGutter, 0, 0).
+			FontSize(theme.TextUI).LineHeight(18.0 / 13).Placeholder(composerPlaceholder(o)).Label("Message").
 			OnPaste(func(text string) bool { return o.Paste != nil && o.Paste(text) }).
 			OnTextKey(func(k ui.TextKey) bool {
 				if k.Mods != 0 {
@@ -169,9 +168,9 @@ func (ch *Chat) box(c *ui.Context, o Options) {
 			in.Focus()
 			ch.focus = false
 		}
-		ui.Row(c).FillWidth().Gap(theme.S1).AlignItems(ui.Center).Children(func() {
-			ui.Row(c).Shrink(0).Gap(theme.S1).AlignItems(ui.Center).Children(func() {
-				if o.AttachFiles != nil && widget.IconButton(c.Key("attach"), icon.Paperclip, "Attach files or images (or drop or paste them)", false).Clicked() {
+		ui.Row(c).FillWidth().Height(roundSize).Gap(2).AlignItems(ui.Center).Children(func() {
+			ui.Row(c).Shrink(0).Gap(2).AlignItems(ui.Center).Children(func() {
+				if o.AttachFiles != nil && attachButton(c.Key("attach")).Clicked() {
 					o.AttachFiles()
 				}
 				ch.settings(c, o)
@@ -210,8 +209,9 @@ func (ch *Chat) box(c *ui.Context, o Options) {
 						return
 					}
 				}
-				if roundButton(c.Key("send"), icon.ArrowUp, "Send (Enter)", empty || ch.attaching(), false).
-					Tooltip("Send (Enter). Shift+Enter makes a new line.").Clicked() {
+				off := empty || ch.attaching()
+				if roundButton(c.Key("send"), icon.ArrowUp, "Send (Enter)", off, false).
+					Tooltip("Send (Enter). Shift+Enter makes a new line.").Clicked() && !off {
 					send = true
 				}
 			})
@@ -310,29 +310,41 @@ func tokens(n int64) string {
 }
 
 // roundSize is the send and stop buttons' size.
-const roundSize = 36
+const roundSize = 28
 
 // roundButton is the composer's send or stop button: in the accent, or
 // quiet when back is set.
 func roundButton(c *ui.Context, svg *ui.SVG, label string, off, back bool) ui.Element {
-	b := ui.ButtonBase(c).Size(roundSize, roundSize).Radius(theme.RadiusFull).Center().Shrink(0).Label(label).Tooltip(label).Cursor(ui.CursorPointer)
-	if back {
-		bg := theme.Selected
-		if b.Hovered() {
-			bg = theme.Hover
-		}
-		b.Background(widget.QuickTint(b, "bg", bg)).TextColor(theme.Text)
-	} else {
-		bg := theme.Accent
-		if b.Hovered() && !off {
-			bg = theme.AccentHigh
-		}
-		b.Background(widget.QuickTint(b, "bg", bg)).TextColor(theme.OnAccent)
+	b := ui.ButtonBase(c).Size(roundSize, roundSize).Radius(theme.RadiusControl).Center().Shrink(0).Label(label).Tooltip(label)
+	bg, fg := theme.Accent, theme.OnAccent
+	switch {
+	case off:
+		// Nothing to send yet: a quiet fill whose arrow still reads, not the accent dimmed.
+		bg, fg = theme.Hover, theme.TextSoft
+	case back && b.Hovered():
+		bg, fg = theme.Hover, theme.Text
+	case back:
+		bg, fg = theme.Selected, theme.Text
+	case b.Hovered():
+		bg = theme.AccentHigh
 	}
-	if off {
-		b.Opacity(0.45).Disabled(true)
+	if !off {
+		b.Cursor(ui.CursorPointer)
 	}
+	b.Background(widget.QuickTint(b, "bg", bg)).TextColor(fg)
 	b.Children(func() { ui.Icon(c, svg).FontSize(14) })
+	return widget.Pressable(b)
+}
+
+// attachButton is the first of the row's chips, the same height as the settings beside it.
+func attachButton(c *ui.Context) ui.Element {
+	const label = "Attach files or images (or drop or paste them)"
+	b := ui.ButtonBase(c).Height(24).PaddingX(theme.S2).Radius(theme.RadiusSmall).Center().Shrink(0).Label(label).Tooltip(label).Cursor(ui.CursorPointer)
+	bg, fg := theme.Fade(theme.Selected, 0), theme.TextSoft
+	if b.Hovered() {
+		bg, fg = theme.Selected, theme.Text
+	}
+	b.Background(widget.QuickTint(b, "bg", bg)).TextColor(fg).Children(func() { ui.Icon(c, icon.Paperclip).FontSize(14) })
 	return widget.Pressable(b)
 }
 
@@ -351,9 +363,8 @@ func (ch *Chat) settings(c *ui.Context, o Options) {
 	}
 }
 
-// The room a setting's option takes in the row: the model's keeps its width,
-// so that changing it doesn't move the others; the rest's are as much as they
-// take, up to this, and run when longer.
+// The most a setting's option takes in the row: as much as it needs, and it runs
+// when longer.
 const (
 	modelWidth  = 132
 	optionWidth = 120
@@ -374,26 +385,22 @@ func (ch *Chat) setting(c *ui.Context, o Options, key string, svg *ui.SVG, list 
 	case !known:
 		label = title
 	}
-	b := ui.ButtonBase(c.Key(key)).Height(theme.ControlHeight).PaddingX(theme.S2).Gap(theme.S1).Radius(theme.RadiusFull).Shrink(0).AlignItems(ui.Center).Justify(ui.Start).
+	b := ui.ButtonBase(c.Key(key)).Height(24).PaddingX(theme.S2).Gap(theme.S1).Radius(theme.RadiusSmall).Shrink(0).AlignItems(ui.Center).Justify(ui.Start).
 		Label(title).Tooltip(title + ": " + label).Cursor(ui.CursorPointer)
 	bg, fg := theme.Fade(theme.Selected, 0), theme.TextSoft
 	if b.Hovered() || ch.menu == key {
 		bg, fg = theme.Selected, theme.Text
 	}
 	if !ch.compact {
-		if key == "model" {
-			b.Width(width)
-		} else {
-			b.MaxWidth(width)
-		}
+		b.MaxWidth(width)
 	}
 	b.Background(widget.QuickTint(b, "bg", bg)).TextColor(fg).Children(func() {
 		if ch.compact {
 			ui.Icon(c, svg).FontSize(14).Shrink(0)
 		} else {
-			widget.Running(c, label, widget.RunStyle{})
+			widget.Running(c, label, widget.RunStyle{Size: 12})
 		}
-		ui.Icon(c, icon.ChevronDown).FontSize(10).Shrink(0)
+		ui.Icon(c, icon.ChevronDown).FontSize(14).Shrink(0)
 	})
 	if widget.Pressable(b).Clicked() {
 		if ch.menu == key {

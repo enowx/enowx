@@ -33,6 +33,7 @@ var (
 	BorderFloat  ui.Color // the line of what floats, in a flat style
 	Dialog       ui.Color // dialogs
 	Popover      ui.Color // menus, pop-overs
+	Composer     ui.Color // where the user writes to an agent
 	Text         ui.Color
 	TextStrong   ui.Color
 	TextSoft     ui.Color
@@ -121,6 +122,10 @@ func Apply(p Palette) {
 	p = styled(p)
 	Background, Panel, Raised, Sunken = p.Background, p.Panel, p.Raised, p.Sunken
 	Ground, Frame, Popover = p.Ground, p.Frame, p.Popover
+	Composer = p.composer
+	if Composer.A == 0 {
+		Composer = p.Popover
+	}
 	Hover, Selected, Dialog = p.Hover, p.Selected, p.Dialog
 	Border, BorderStrong = p.Border, p.BorderStrong
 	Text, TextStrong, TextSoft, Muted = p.Text, p.TextStrong, p.TextSoft, p.Muted

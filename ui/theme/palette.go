@@ -16,6 +16,7 @@ type Palette struct {
 	Wall                              [3]ui.Color // the wallpaper's three lights, their alpha how strong
 	Background, Panel, Raised, Sunken ui.Color
 	Frame, Popover                    ui.Color
+	composer                          ui.Color // where the user writes, zero for Popover's
 	Hover, Selected, Dialog           ui.Color
 	Border, BorderStrong              ui.Color
 	Text, TextStrong, TextSoft, Muted ui.Color
@@ -52,7 +53,7 @@ func glass(id, name, ground string, wall [3]ui.Color, accent, onAccent string) P
 		ID: id, Name: name,
 		Ground: ui.Hex(ground), Wall: wall,
 		Background: ui.Hex("#0D0E16"), Panel: ui.RGBA(38, 40, 54, 0.62), Raised: white(0.07), Sunken: ui.RGBA(0, 0, 0, 0.25),
-		Frame: ui.RGBA(70, 72, 88, 0.92), Popover: ui.RGBA(30, 32, 44, 0.98),
+		Frame: ui.RGBA(70, 72, 88, 0.92), Popover: ui.RGBA(30, 32, 44, 0.98), composer: ui.RGBA(20, 22, 32, 0.9),
 		Hover: white(0.08), Selected: white(0.2), Dialog: ui.RGBA(48, 50, 66, 0.98),
 		Border: white(0.2), BorderStrong: white(0.2),
 		Text: ui.Hex("#F5F6FA"), TextStrong: ui.Hex("#FFFFFF"), TextSoft: ui.Hex("#D8DAE5"), Muted: ui.Hex("#D8DAE5"),

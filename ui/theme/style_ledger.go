@@ -42,6 +42,7 @@ func ledgerSurfaces(p Palette) Palette {
 	p.Panel, p.Raised = step(0.04), step(0.04)
 	p.Sunken = base
 	p.Dialog, p.Popover = step(0.06), step(0.08)
+	p.composer = p.Panel
 	p.Hover = Fade(ink, 0.07)
 	p.Selected = Mix(base, p.Accent, 0.4)
 	p.Border, p.BorderStrong = step(0.16), step(0.16)
