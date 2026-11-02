@@ -537,6 +537,7 @@ field CanvasUnslop.findings []UnslopFinding
 field CanvasUnslop.frame string
 field CanvasUnslop.run *CanvasUnslopRun
 field CanvasUnslop.score int
+field CanvasUnslop.walk *UnslopWalk
 field CanvasUnslopParams.frame string
 field CanvasUnslopParams.id string
 field CanvasUnslopParams.only []string
@@ -2464,6 +2465,8 @@ field UnslopFinding.fix string
 field UnslopFinding.pass string
 field UnslopFinding.rule string
 field UnslopFinding.severity string
+field UnslopFinding.state string
+field UnslopFinding.steps []string
 field UnslopFinding.targets []string
 field UnslopFinding.title string
 field UnslopLeaveOutParams.frame string
@@ -2499,6 +2502,14 @@ field UnslopStory.name string
 field UnslopStory.score int
 field UnslopStory.steps []UnslopStep
 field UnslopStory.width int
+field UnslopWalk.left int
+field UnslopWalk.limit string
+field UnslopWalk.millis int
+field UnslopWalk.states []UnslopWalkState
+field UnslopWalk.tried int
+field UnslopWalkState.findings int
+field UnslopWalkState.name string
+field UnslopWalkState.steps []string
 field Usage.cpu float64
 field Usage.procs int
 field Usage.rss uint64

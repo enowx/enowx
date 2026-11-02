@@ -55,13 +55,19 @@ func (s *Server) canvasUnslop(p proto.CanvasUnslopParams) (proto.CanvasUnslop, e
 	// As rendered too: measured anew at the start, for the mobile pass and
 	// at the end, else as last measured.
 	rendered, measured := s.unslopRuns.layoutOf(cv.ID)
+	var walk *proto.UnslopWalk
 	if p.Start || p.Pass == "12" || strings.EqualFold(p.Pass, "done") || !measured && p.Region == "" {
 		rendered = s.canvasRendered(cv, f)
 		measured = false
+		if len(rendered) > 0 {
+			var states []proto.UnslopFinding
+			walk, states = s.canvasWalk(cv, f, rendered)
+			rendered = append(rendered, states...)
+		}
 	}
 	if len(rendered) > 0 {
 		findings = unslop.WithRendered(findings, rendered)
-		score = unslop.Score(findings)
+		score = unslop.ScoreStates(findings)
 	}
 	theme := unslop.Theme(from.HTML)
 	if !p.Start {
@@ -72,9 +78,9 @@ func (s *Server) canvasUnslop(p proto.CanvasUnslopParams) (proto.CanvasUnslop, e
 		findings = append([]proto.UnslopFinding{fd}, findings...)
 		score = max(score-15, 0)
 	}
-	out := proto.CanvasUnslop{Frame: f.ID, Score: score, Findings: findings}
+	out := proto.CanvasUnslop{Frame: f.ID, Score: score, Findings: findings, Walk: walk}
 	if p.Start {
-		out.Ask = unslopAsk(cv, i+1, n, f, score, len(findings), theme)
+		out.Ask = unslopAsk(cv, i+1, n, f, score, len(findings), theme) + unslop.WalkReport(walk)
 	}
 	switch {
 	case p.Region != "":

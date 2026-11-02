@@ -143,6 +143,9 @@ func Report(score int, findings []proto.UnslopFinding) string {
 			if len(f.Examples) > 0 {
 				fmt.Fprintf(&b, ": %s", strings.Join(f.Examples, " · "))
 			}
+			if f.State != "" {
+				fmt.Fprintf(&b, "\n    in the state “%s”, reached by: %s", f.State, strings.Join(f.Steps, " > "))
+			}
 			fmt.Fprintf(&b, "\n    fix: %s\n", f.Fix)
 		}
 	}

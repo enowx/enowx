@@ -20,6 +20,21 @@ func hasPhoneDesign(cv proto.Canvas) bool {
 	return false
 }
 
+// canvasWalk walks design f, in the app's renderer, out of sight: the states it
+// can reach, each measured (core/unslop). nil when it has nothing to click, or
+// no app renders, or the page went away under it, as a click that navigates can.
+func (s *Server) canvasWalk(cv proto.Canvas, f proto.CanvasFrame, first []proto.UnslopFinding) (*proto.UnslopWalk, []proto.UnslopFinding) {
+	if !unslop.Walkable(f.HTML) {
+		return nil, nil
+	}
+	assets := func(name string) ([]byte, error) { return s.canvasFor(cv.ID).Asset(cv.ID, name) }
+	r, err := s.appRender(proto.CanvasRenderRequest{HTML: canvas.FrameDocument(f, assets), Width: f.Width, Height: f.Height, Script: unslop.WalkScript})
+	if err != nil || r.Text == "" {
+		return nil, nil
+	}
+	return unslop.ParseWalk(r.Text, f.Width, first)
+}
+
 // A canvas's design measured as rendered, by the app: its lint at its own
 // width (contrast, body text, kickers, stripes, cards in cards…) and, a
 // wide design, its layout at a phone's. None when no app renders.
