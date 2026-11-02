@@ -423,7 +423,9 @@ func (v *View) discardDialog(c *ui.Context, o Options) {
 			body += fmt.Sprintf(" Its %d uncommitted %s are lost.", st.Uncommitted, textfmt.Plural(st.Uncommitted, "change", "changes"))
 		}
 		widget.DialogHeader(c, "Discard the worktree of "+st.Branch+"?", body, false)
-		widget.Checkbox(c, &f.deleteBranch, "Also delete the branch "+st.Branch)
+		ui.Row(c).FillWidth().Children(func() {
+			widget.Checkbox(c, &f.deleteBranch, "Also delete the branch "+st.Branch)
+		})
 		widget.DialogFooter(c, "", func() {
 			if widget.Button(c, widget.Secondary, nil, "Cancel", "").Clicked() {
 				f.open = false
