@@ -130,7 +130,7 @@ func (v *View) Draw(c *ui.Context, o Options) {
 		case len(v.ports.Ports) == 0:
 			note(c, "No ports open. A dev server the session starts shows here.")
 		default:
-			ui.Scroll(c).FillWidth().Shrink(1).MinHeight(0).Children(func() {
+			widget.Scroll(c).FillWidth().Shrink(1).MinHeight(0).Children(func() {
 				ui.Column(c).FillWidth().Gap(2).Children(func() {
 					for _, p := range v.ports.Ports {
 						v.portRow(c.Key(strconv.Itoa(p.Port)+"/"+strconv.Itoa(p.PID)), o, p)
