@@ -235,11 +235,11 @@ func (v *View) rotateBanner(c *ui.Context, o Options, now time.Time) {
 	var names []string
 	for _, cr := range o.Credentials {
 		if cr.ExpiresSoon(now, expiringWithin) || cr.State(now) == proto.CredExpired {
-			names = append(names, cr.Name)
+			names = append(names, title(cr, vault.Lookup(cr.Platform)))
 		}
 	}
 	if len(names) > 0 {
-		widget.Banner(c, theme.Warning, "Rotate soon: "+strings.Join(names, ", ")+" expire within a week or have: make new tokens and edit them here.", nil)
+		widget.Banner(c, theme.Warning, "Rotate soon: "+strings.Join(names, ", ")+". Expired, or expiring within a week: make a new token and edit it here.", nil)
 	}
 }
 

@@ -34,11 +34,11 @@ func (v *View) row(c *ui.Context, o Options, cr vault.Credential) {
 				widget.Running(c, title(cr, p), widget.RunStyle{Size: theme.TextRead, Weight: 600})
 			})
 		})
-		label, col, hollow := statusLabel(st), statusColor(st), st == proto.CredUnchecked
+		label, col := statusLabel(st), statusColor(st)
 		if (st == proto.CredValid || st == proto.CredUnchecked) && cr.ExpiresSoon(now, expiringWithin) {
-			label, col, hollow = "Rotate soon", theme.Warning, false
+			label, col = "Rotate soon", theme.Warning
 		}
-		widget.StatusLine(c, col, hollow, label)
+		widget.StatusLine(c, col, false, label)
 		ui.Row(c).FillWidth().Shrink(0).MinWidth(0).Children(func() {
 			widget.Running(c.Key("value"), valueLine(cr, p), widget.RunStyle{Size: theme.TextLabel, Color: theme.TextSoft})
 		})
@@ -53,7 +53,7 @@ func (v *View) row(c *ui.Context, o Options, cr vault.Credential) {
 		}
 		ui.Row(c).FillWidth().Shrink(0).Wrap().Gap(theme.S1).Tooltip(whereLabel(cr, o.Hosts)).Children(func() {
 			if cr.Default {
-				widget.Chip(c, "default", theme.Accent)
+				widget.Chip(c, "default", ui.Color{})
 			}
 			if cr.Auto {
 				widget.Chip(c, "every session", ui.Color{})
@@ -62,6 +62,7 @@ func (v *View) row(c *ui.Context, o Options, cr vault.Credential) {
 				widget.Chip(c, name, ui.Color{})
 			}
 		})
+		ui.Spacer(c) // the foot stays at the card's bottom, however tall the row
 		widget.CardFoot(c, func() {
 			if o.Testing[cr.ID] {
 				widget.Spinner(c, 14)
@@ -132,7 +133,7 @@ func valueLine(cr vault.Credential, p vault.Platform) string {
 // today, else the user's note. warn says the expiry is close.
 func useLine(cr vault.Credential, o Options, now time.Time) (line string, warn bool) {
 	if !cr.Expires.IsZero() && cr.State(now) != proto.CredExpired {
-		return "Expires " + cr.Expires.Local().Format("2 Jan 2006"), cr.ExpiresSoon(now, expiringWithin)
+		return expiryLine(cr.Expires, now), cr.ExpiresSoon(now, expiringWithin)
 	}
 	n := 0
 	for _, e := range o.Audit {
@@ -147,6 +148,19 @@ func useLine(cr vault.Credential, o Options, now time.Time) (line string, warn b
 		return fmt.Sprintf("Used %d times today", n), false
 	}
 	return cr.Notes, false
+}
+
+// expiryLine says when a credential expires: in days while that's close, else
+// its date.
+func expiryLine(at, now time.Time) string {
+	days := int(math.Ceil(at.Sub(now).Hours() / 24))
+	switch {
+	case days <= 1:
+		return "Expires within a day"
+	case days <= 60:
+		return fmt.Sprintf("Expires in %d days", days)
+	}
+	return "Expires " + at.Local().Format("2 Jan 2006")
 }
 
 // whereChips are where it may be used, shortly; whereLabel says it whole.
@@ -209,7 +223,7 @@ func statusColor(st string) ui.Color {
 	case proto.CredInvalid, proto.CredExpired, proto.CredRevoked:
 		return theme.Error
 	}
-	return theme.Muted
+	return theme.Idle
 }
 
 // whereLabel says where a credential may be used without asking.

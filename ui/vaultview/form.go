@@ -100,10 +100,14 @@ func (v *View) formDialog(c *ui.Context, o Options) {
 			v.quickWays(c, o, f, p)
 			widget.Divider(c)
 		}
-		ui.Grid(c).FillWidth().Columns(2).Gap(theme.S3).Children(func() {
-			widget.Field(c, "Name (used in commands)", func() { widget.Input(c, &f.name, p.ID).FillWidth() })
-			widget.Field(c, "Account (optional)", func() { widget.Input(c, &f.account, "you@example.com").FillWidth() })
-		})
+		widget.FieldCols(c,
+			func() {
+				widget.Field(c, "Name (used in commands)", func() { widget.Input(c, &f.name, p.ID).FillWidth() })
+			},
+			func() {
+				widget.Field(c, "Account (optional)", func() { widget.Input(c, &f.account, "you@example.com").FillWidth() })
+			},
+		)
 		for _, fl := range p.Fields {
 			label := fl.Label
 			if fl.Optional {
