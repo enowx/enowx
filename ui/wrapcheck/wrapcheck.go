@@ -140,3 +140,59 @@ func FullWidth(tt *ui.Tester, text string) float32 {
 	}
 	return widest
 }
+
+// How far in from a scroller's right edge MyGo draws its bar, at the width
+// ui/theme gives it: 3 of margin and 8 of thumb.
+const wrapBarReach = 11
+
+// ScrollbarOverlaps are what would lie under the bar of a vertical scroller,
+// whether or not its bar shows now: words, controls and painted backgrounds
+// that reach past the gutter. Plain layout boxes paint nothing there, and what
+// floats or scrolls sideways on its own is judged by its own box.
+func ScrollbarOverlaps(tt *ui.Tester) []string {
+	rt := field(reflect.ValueOf(tt).Elem(), "rt").Elem()
+	ctx := field(rt, "c")
+	if ctx.Kind() == reflect.Pointer {
+		ctx = ctx.Elem()
+	}
+	var out []string
+	seen := map[string]bool{}
+	var under func(scroller, n reflect.Value, edge float32)
+	under = func(scroller, n reflect.Value, edge float32) {
+		for k := field(n, "first"); !k.IsNil(); k = field(k.Elem(), "next") {
+			ch := k.Elem()
+			f := uint32(field(ch, "flags").Uint())
+			if f&(wrapInvisible|wrapAbsolute) != 0 || field(ch, "leaving").Uint() != 0 || field(ch, "attach").Uint() != 0 {
+				continue
+			}
+			x, _, w, h, ok := nodeBox(ch)
+			shows := field(ch, "label").String() != "" || field(ch, "text").String() != "" || field(ch, "bg").FieldByName("A").Uint() != 0
+			if ok && shows && w > 0 && h > 0 && x+w > edge+wrapSlack {
+				line := nodeName(ch) + " under the bar of " + nodeName(scroller) + fmt.Sprintf(": ends at %.0f, the gutter at %.0f", x+w, edge)
+				if !seen[line] {
+					seen[line] = true
+					out = append(out, line)
+				}
+			}
+			if f&(wrapScrollX|wrapClipX) == 0 {
+				under(scroller, ch, edge)
+			}
+		}
+	}
+	var walk func(n reflect.Value)
+	walk = func(n reflect.Value) {
+		f := uint32(field(n, "flags").Uint())
+		if f&wrapScrollY != 0 && f&wrapInvisible == 0 {
+			if x, _, w, _, ok := nodeBox(n); ok && w > 0 {
+				under(n, n, x+w-wrapBarReach-1)
+			}
+		}
+		for k := field(n, "first"); !k.IsNil(); k = field(k.Elem(), "next") {
+			walk(k.Elem())
+		}
+	}
+	if root := field(ctx, "root"); !root.IsNil() {
+		walk(root.Elem())
+	}
+	return out
+}

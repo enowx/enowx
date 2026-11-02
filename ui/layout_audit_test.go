@@ -252,6 +252,7 @@ func layoutProblems(tt *ui.Tester, w, h float32, fill bool) []string {
 			out = append(out, fmt.Sprintf("%q runs out of the window (%.0f > %.0f)", short, r.X+r.W, w))
 		}
 	}
+	out = append(out, wrapcheck.ScrollbarOverlaps(tt)...)
 	return append(out, outOfParents(tt)...)
 }
 

@@ -5,6 +5,7 @@ import (
 
 	"github.com/egoist/mygo/ui"
 
+	"github.com/enowx/enowx/ui/widget"
 	"github.com/enowx/enowx/ui/wrapcheck"
 )
 
@@ -30,5 +31,24 @@ func TestOutOfParentsFindsWhatSticksOut(t *testing.T) {
 	fits.Frame()
 	if got := outOfParents(fits); len(got) != 0 {
 		t.Fatalf("found %q", got)
+	}
+}
+
+// The check sees a row under a scroller's bar, and one that keeps the gutter.
+func TestScrollbarOverlapsFindsWhatLiesUnderTheBar(t *testing.T) {
+	draw := func(scroll func(c *ui.Context) ui.Element) *ui.Tester {
+		tt := ui.NewTester(func(c *ui.Context) {
+			scroll(c).Width(200).Height(100).Children(func() {
+				ui.Text(c, "a row").FillWidth()
+			})
+		}, 300, 200)
+		tt.Frame()
+		return tt
+	}
+	if out := wrapcheck.ScrollbarOverlaps(draw(ui.Scroll)); len(out) == 0 {
+		t.Fatal("a row to the scroller's edge wasn't found")
+	}
+	if out := wrapcheck.ScrollbarOverlaps(draw(widget.Scroll)); len(out) != 0 {
+		t.Fatalf("a row keeping the gutter: %q", out)
 	}
 }
