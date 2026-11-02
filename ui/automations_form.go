@@ -20,7 +20,7 @@ func (a *App) automationForm(c *ui.Context, st *automationsState) {
 		title = "Edit the automation"
 	}
 	about := "Prompts an agent gets on a schedule, each run in a session of its own on " + a.host.Name + ", whether or not this app is open."
-	widget.FormSheet(c, &open, 480, title, about, func() {
+	widget.FormSheet(c, &open, 640, title, about, func() {
 		if st.formErr != "" {
 			widget.Notice(c, icon.Alert, theme.Error, st.formErr, "", nil)
 		}

@@ -180,7 +180,7 @@ func (a *App) createServerDialog(c *ui.Context) {
 	}
 	p, _ := vps.Find(f.provider)
 	picksRegion := f.loaded == f.provider && len(f.regions) > 0 && !f.existing
-	widget.Sheet(c, &f.open, 560, func() {
+	widget.Sheet(c, &f.open, 480, func() {
 		widget.SheetHead(c, &f.open, "Create a server", about)
 	}, func() {
 		if f.err != "" {

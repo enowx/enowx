@@ -128,7 +128,7 @@ func (a *App) agentLimitDialog(c *ui.Context) {
 		return
 	}
 	save := false
-	widget.FormSheet(c, &f.open, 480, "Agents at once on "+a.host.Name,
+	widget.FormSheet(c, &f.open, 420, "Agents at once on "+a.host.Name,
 		"More wait in a queue, and start as others finish.", func() {
 			if !f.loaded {
 				ui.Text(c, "Reading…").FontSize(theme.TextUI).TextColor(theme.TextSoft)
@@ -143,9 +143,11 @@ func (a *App) agentLimitDialog(c *ui.Context) {
 				}
 			}
 			labels[0] = "No limit"
-			if i := widget.Segmented(c.Key("limit"), labels, cur, nil); i >= 0 {
-				f.pick = agentChoices[i]
-			}
+			ui.Row(c).FillWidth().Children(func() { // as wide as its choices, not the dialog
+				if i := widget.Segmented(c.Key("limit"), labels, cur, nil); i >= 0 {
+					f.pick = agentChoices[i]
+				}
+			})
 		}, func() {
 			if f.loaded && widget.PrimaryButton(c, nil, "Save", "").Clicked() {
 				save = true

@@ -46,7 +46,7 @@ func (a *App) attachDialog(c *ui.Context) {
 		a.attaching = nil
 		return
 	}
-	widget.FormSheet(c, &f.open, 560, "Attach to projects",
+	widget.FormSheet(c, &f.open, 480, "Attach to projects",
 		"“"+noteTitle(f.note)+"”, with projects of every host: the plan shows on each, and agents working in them find it.", func() {
 			widget.SearchField(c, &f.filter, "Filter projects", icon.Search)
 			q := strings.ToLower(strings.TrimSpace(f.filter))

@@ -223,7 +223,7 @@ func (a *App) goaDetailDialog(c *ui.Context) {
 	if t == nil {
 		about = "GOD of Agents gave this session no task."
 	}
-	widget.DetailSheet(c, &d.open, 520, a.sessionName(s), about, func() {
+	widget.DetailSheet(c, &d.open, 480, a.sessionName(s), about, func() {
 		if cl == nil {
 			widget.Notice(c, icon.Alert, theme.Warning, d.host+" isn't connected, so this session can't open here now: this list is what it last said. enowX keeps trying, and it opens once the host is back; or go to the host.", "", nil)
 		}

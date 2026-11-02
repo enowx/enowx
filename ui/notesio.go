@@ -110,7 +110,7 @@ func (a *App) noteImportDialog(c *ui.Context) {
 	if done {
 		sheet = widget.FinishedSheet // the import is over: Done alone
 	}
-	sheet(c, &f.open, 560, "Import notes",
+	sheet(c, &f.open, 480, "Import notes",
 		"From Notion, Obsidian or any folder of Markdown, Evernote, Google Keep, Apple Notes (HTML), or an enowX export, into the notes on "+a.host.Name+".", func() {
 			switch {
 			case done:

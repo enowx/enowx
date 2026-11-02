@@ -126,7 +126,7 @@ func (a *App) cloneDialog(c *ui.Context) {
 	}
 	a.checkCloneTarget(f)
 	start := false
-	widget.FormSheet(c, &f.open, 540, "Clone from Git",
+	widget.FormSheet(c, &f.open, 480, "Clone from Git",
 		"Clones the repository on "+a.host.Name+" with its git and credentials (SSH keys, gh, credential helpers), then opens it as a project.", func() {
 			running := f.job != nil
 			widget.Field(c, "Repository", func() {
