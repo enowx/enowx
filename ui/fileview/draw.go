@@ -85,7 +85,7 @@ func (v *View) tree(c *ui.Context, o Options) {
 	rows := v.rows
 	v.list.Key = func(i int) any { return rows[i].path }
 	v.rowMenu = false
-	list := ui.List(c.Key("tree"), &v.list, len(rows), func(i int) {
+	list := widget.List(c.Key("tree"), &v.list, len(rows), func(i int) {
 		v.treeRow(c, o, rows[i])
 	}).Grow(1).FillWidth().MinHeight(0)
 	// The space around the rows is the session's folder's.

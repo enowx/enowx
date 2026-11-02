@@ -297,7 +297,7 @@ func (d *Doc) text(c *ui.Context) {
 			}
 			widget.CodeSpans(c, spans, lines[i]).Font(theme.MonoFont).FontSize(theme.TextUI).TextColor(ui.Hex("#E4E6EE")).SingleLine().Shrink(1)
 		})
-	}).Grow(1).FillWidth().MinHeight(0).Padding(theme.S2, 0)
+	}).Grow(1).FillWidth().MinHeight(0).Padding(theme.S2, widget.ScrollGutter, theme.S2, 0)
 }
 
 // picture shows an image: at its size when it fits, else scaled down to
