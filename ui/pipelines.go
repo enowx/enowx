@@ -77,9 +77,10 @@ func (a *App) pipelineDialog(c *ui.Context) {
 		a.piping = nil
 		return
 	}
-	widget.Dialog(c, &f.open, 600, theme.S3, func() {
-		widget.DialogHeader(c, "New pipeline in “"+f.project.Name+"”",
-			"Agents take the task one after another on a branch of its own: each starts from what the one before ended with, once it is done.", false)
+	widget.Sheet(c, &f.open, 640, func() {
+		widget.SheetHead(c, &f.open, "New pipeline in "+f.project.Name,
+			"Agents take the task one after another on a branch of its own: each starts from what the one before ended with, once it is done.")
+	}, func() {
 		if f.err != "" {
 			widget.Notice(c, icon.Alert, theme.Error, f.err, "", nil)
 		}
@@ -90,7 +91,7 @@ func (a *App) pipelineDialog(c *ui.Context) {
 				f.branch = branchFor(f.task)
 			}
 		})
-		ui.Grid(c.Key("branch")).FillWidth().Columns(2).Gap(theme.S3).Children(func() {
+		branch := func() {
 			widget.Field(c, "Branch", func() {
 				prev := f.branch
 				widget.Input(c, &f.branch, "pipeline/add-search").FillWidth()
@@ -98,10 +99,14 @@ func (a *App) pipelineDialog(c *ui.Context) {
 					f.named = true
 				}
 			})
-			if len(f.branches) > 0 {
+		}
+		if len(f.branches) > 0 {
+			widget.FieldCols(c.Key("branch"), branch, func() {
 				widget.Field(c, "From", func() { branchSelect(c, &f.base, f.branches) })
-			}
-		})
+			})
+		} else {
+			branch()
+		}
 		widget.Field(c, "Stages", func() {
 			ui.Column(c).FillWidth().Gap(theme.S2).Children(func() {
 				for i := range f.stages {
@@ -115,15 +120,17 @@ func (a *App) pipelineDialog(c *ui.Context) {
 			})
 		})
 		a.pipelineTeamRow(c, f)
-		widget.DialogFooter(c, "Skip permission prompts follows New session: "+onOff(a.skipPermissions)+".", func() {
-			if widget.Button(c, widget.Secondary, nil, "Cancel", "").Clicked() {
-				f.open = false
-			}
-			ok := strings.TrimSpace(f.task) != "" && strings.TrimSpace(f.branch) != "" && !f.busy
-			if widget.PrimaryButton(c, icon.Play, "Start", "").Disabled(!ok).Clicked() && ok {
-				a.startPipeline(f)
-			}
+	}, func() {
+		ui.Row(c).Grow(1).MinWidth(0).Children(func() {
+			widget.Running(c, "Skip permission prompts follows New session: "+onOff(a.skipPermissions)+".", widget.RunStyle{Size: theme.TextLabel, Color: theme.TextSoft})
 		})
+		if widget.Button(c, widget.Secondary, nil, "Cancel", "").Clicked() {
+			f.open = false
+		}
+		ok := strings.TrimSpace(f.task) != "" && strings.TrimSpace(f.branch) != "" && !f.busy
+		if widget.PrimaryButton(c, icon.Play, "Start", "").Disabled(!ok).Clicked() && ok {
+			a.startPipeline(f)
+		}
 	})
 }
 

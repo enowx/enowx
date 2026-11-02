@@ -118,8 +118,9 @@ func (a *App) compareDialogView(c *ui.Context) {
 		return
 	}
 	list := a.groupSessions(d.group)
-	widget.Dialog(c, &d.open, 640, theme.S3, func() {
-		widget.DialogHeader(c, "Compare", "One prompt, given to each of these agents on a branch of its own. Look at each, then keep the one you like: the others are discarded, with their worktrees and branches.", false)
+	widget.Sheet(c, &d.open, 640, func() {
+		widget.SheetHead(c, &d.open, "Compare", "One prompt, given to each of these agents on a branch of its own. Look at each, then keep the one you like: the others are discarded, with their worktrees and branches.")
+	}, func() {
 		if d.err != "" {
 			widget.Notice(c, icon.Alert, theme.Error, d.err, "", nil)
 		}
@@ -129,14 +130,13 @@ func (a *App) compareDialogView(c *ui.Context) {
 		for _, s := range list {
 			a.compareRow(c.Key(s.ID), s, list)
 		}
-		widget.DialogFooter(c, "", func() {
-			if widget.Button(c, widget.Secondary, nil, "Refresh", "").Clicked() {
-				a.loadCompare()
-			}
-			if widget.Button(c, widget.Secondary, nil, "Close", "").Clicked() {
-				d.open = false
-			}
-		})
+	}, func() {
+		if widget.Button(c, widget.Secondary, nil, "Refresh", "").Clicked() {
+			a.loadCompare()
+		}
+		if widget.Button(c, widget.Secondary, nil, "Close", "").Clicked() {
+			d.open = false
+		}
 	})
 }
 
@@ -145,7 +145,11 @@ func (a *App) compareRow(c *ui.Context, s proto.SessionInfo, group []proto.Sessi
 	widget.Raise(ui.Row(c).FillWidth().Shrink(0).MinHeight(52).Padding(theme.S2, theme.S3).Gap(theme.S2).Radius(theme.RadiusCard).Background(theme.Raised)).Children(func() {
 		agentTile(c, s.Agent, 24)
 		ui.Column(c).Grow(1).MinWidth(0).Children(func() {
-			widget.Running(c, a.agentName(s.Agent)+" · "+s.Branch, widget.RunStyle{})
+			title := a.agentName(s.Agent)
+			if s.Branch != "" {
+				title += " · " + s.Branch
+			}
+			widget.Running(c, title, widget.RunStyle{})
 			var detail []string
 			if s.State != "" {
 				detail = append(detail, string(s.State))
