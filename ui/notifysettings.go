@@ -23,7 +23,8 @@ import (
 func (a *App) notifySection(c *ui.Context) {
 	st := a.notifySettings()
 	changed := false
-	settingsColumn(c, "Notifications", "The same on every host", nil, func() {
+	widget.PageHeader(c, "Notifications", "The same on every host", nil)
+	widget.PageBodyRest(c, 230, func() {
 		widget.Cols(c, 3).Children(func() {
 			widget.Card(c.Key("sounds")).Children(func() {
 				widget.CardTitle(c, nil, "Sounds", nil)
@@ -109,7 +110,7 @@ func (a *App) notifySection(c *ui.Context) {
 									a.playNamed(picked, st.Volume)
 								}
 							})
-							if widget.IconButton(c, icon.Play, "Test the sound of "+strings.ToLower(label), false).Clicked() {
+							if widget.IconButton(c, icon.VolumeUp, "Test the sound of "+strings.ToLower(label), false).Clicked() {
 								a.playNamed(st.Sounds[k], max(st.Volume, 0.3))
 							}
 						})
@@ -117,12 +118,13 @@ func (a *App) notifySection(c *ui.Context) {
 				}
 			})
 		})
-		widget.Cols(c, 3).Children(func() {
-			widget.Card(c.Key("team-chat")).Children(func() {
+	}, func(rest float32) {
+		widget.Cols(c, 3).RowTracks(ui.Fixed(rest)).Children(func() {
+			widget.GridCard(c.Key("team-chat")).Children(func() {
 				widget.CardTitle(c, nil, "Team chat", nil)
 				modes := []string{"", "mentions", "off"}
 				cur := max(0, slices.Index(modes, st.Chat))
-				if i := segmentedInCard(c, []string{"Every message", "Mentions of me", "Off"}, cur, 300); i >= 0 && i != cur {
+				if i := widget.Segmented(c, []string{"Every message", "Mentions of me", "Off"}, cur, nil); i >= 0 && i != cur {
 					st.Chat, changed = modes[i], true
 				}
 				widget.CardNote(c, "A message from your team, when its chat isn't open: a sound, a card in the window's corner to answer from, and a banner when the window is in the background. Mentions of you and replies to you always notify.", 0)
@@ -175,7 +177,7 @@ func (a *App) notifySection(c *ui.Context) {
 					}
 				}
 			})
-			widget.Card(c.Key("muted")).Children(func() {
+			widget.GridCard(c.Key("muted")).Children(func() {
 				widget.CardTitle(c, nil, "Sessions muted", nil)
 				if len(st.MutedSessions) == 0 {
 					widget.CardNote(c, "No session is muted.", 0)

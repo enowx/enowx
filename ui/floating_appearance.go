@@ -75,13 +75,17 @@ func (a *App) floatingAppearance(c *ui.Context) {
 	ui.Column(c.Key("floating-appearance")).FillWidth().Gap(theme.S3).TextColor(theme.Text).Children(func() {
 		input := ui.Local[string](c.Root(), "floating-accent-input", func() string { return a.state.FloatingAccent })
 		widget.CardNote(c, "Choose a color for this menu, or follow the app theme.", 0)
+		follow := a.state.FloatingAccent == ""
+		if switchRowKey(c, "Follow app theme switch", &follow, "Follow app theme", "") {
+			a.state.FloatingAccent, *input = "", ""
+			if !follow {
+				a.state.FloatingAccent = theme.Hex(theme.Accents[0])
+				*input = a.state.FloatingAccent
+			}
+			a.refreshFloatingAppearance()
+		}
 		// Wraps: a third of a narrow frame doesn't hold every swatch on a line.
 		ui.Row(c).FillWidth().Gap(theme.S2).Wrap().Children(func() {
-			if a.swatch(c.Key("theme"), theme.Accent, a.state.FloatingAccent == "", "Follow app theme") {
-				a.state.FloatingAccent, *input = "", ""
-				a.refreshFloatingAppearance()
-			}
-			ui.Box(c).Width(1).Height(24).Background(theme.Border).Margin(0, theme.S1)
 			for _, color := range theme.Accents {
 				hex := theme.Hex(color)
 				if a.swatch(c.Key(hex), color, strings.EqualFold(a.state.FloatingAccent, hex), "Floating color "+hex) {

@@ -50,6 +50,8 @@ func TestStallLimitsFromSettingsAndGOA(t *testing.T) {
 
 	// Two cards of the section say Change…: this one is the stalled tasks'.
 	frames("the section", func() bool { return tt.HasText("Stalled tasks on this Mac") })
+	tt.Frame() // the lowest cards take the frame's height from the frame before
+	tt.Frame()
 	if err := tt.Click("Change the stall limits"); err != nil {
 		t.Fatalf("the card: %v (%q)", err, tt.Texts())
 	}

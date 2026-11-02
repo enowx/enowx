@@ -140,8 +140,9 @@ func settingsColumn(c *ui.Context, title, sub string, actions, body func()) {
 
 // sessionDefaults are what New session starts with.
 func (a *App) sessionDefaults(c *ui.Context) {
-	settingsColumn(c, "New sessions", "What New session starts with", nil, func() {
-		hs := a.hostSettingsOf()
+	hs := a.hostSettingsOf()
+	widget.PageHeader(c, "New sessions", "What New session starts with", nil)
+	widget.PageBodyRest(c, 260, func() {
 		ui.Row(c.Key("session-defaults")).FillWidth().Gap(theme.S3).AlignItems(ui.Stretch).Children(func() {
 			// As tall as the cards beside it, as last laid out: many agents scroll
 			// in it rather than stretch the cards.
@@ -217,8 +218,9 @@ func (a *App) sessionDefaults(c *ui.Context) {
 				})
 			})
 		})
-		widget.Cols(c, 2).Children(func() {
-			widget.Card(c).Children(func() {
+	}, func(rest float32) {
+		widget.Cols(c, 2).RowTracks(ui.Fixed(rest)).Children(func() {
+			widget.GridCard(c).Children(func() {
 				widget.CardTitle(c, nil, "Hibernate idle agents on "+a.host.Name, nil)
 				widget.CardNote(c, "An agent done with its turn and left idle this long is stopped to free its memory; its session stays, and it comes back on its conversation when shown. Claude Code, Codex and other agents enowX can continue.", 0)
 				labels := make([]string, len(sleepChoices))
@@ -244,8 +246,8 @@ func (a *App) sessionDefaults(c *ui.Context) {
 					}
 				}
 			})
-			ui.Column(c.Key("after")).MinWidth(0).Gap(theme.S3).Children(func() {
-				widget.Card(c).Grow(1).Children(func() {
+			ui.Column(c.Key("after")).MinWidth(0).MinHeight(0).Gap(theme.S3).Children(func() {
+				widget.GridCard(c).Grow(1).Children(func() {
 					widget.CardTitle(c, nil, "What New session starts with", nil)
 					ui.Text(c, a.sessionDefaultsLine()).FontSize(theme.TextRead).FillWidth().MinWidth(0)
 					widget.CardNote(c, "Each session is still free to differ in the New session dialog.", 0)
@@ -377,7 +379,7 @@ func (a *App) environmentSection(c *ui.Context) {
 						widget.Well(f, f.Focused())
 					})
 				})
-				if widget.PrimaryButton(c, nil, "Add", "").Clicked() && strings.TrimSpace(hs.newName) != "" && hs.newValue != "" {
+				if widget.PrimaryButton(c, icon.Plus, "Add", "").Clicked() && strings.TrimSpace(hs.newName) != "" && hs.newValue != "" {
 					a.setVar(strings.TrimSpace(hs.newName), hs.newValue)
 					hs.newName, hs.newValue = "", ""
 				}
@@ -419,9 +421,10 @@ func (a *App) setVar(name, value string) {
 // own, and works the same for a session on this machine and one on a
 // server.
 func (a *App) floatingSection(c *ui.Context) {
-	settingsColumn(c, "Floating control", "A round panel over any app", nil, func() {
-		widget.Cols(c, 3).Children(func() {
-			widget.Card(c.Key("floating-behaviour")).Children(func() {
+	widget.PageHeader(c, "Floating control", "A round panel over any app", nil)
+	widget.PageBodyRest(c, 470, func() {}, func(rest float32) {
+		widget.Cols(c, 3).RowTracks(ui.Fixed(rest)).Children(func() {
+			widget.GridCard(c.Key("floating-behaviour")).Children(func() {
 				widget.CardTitle(c, nil, "Behaviour", nil)
 				floating := a.state.FloatingControl
 				if switchRowKey(c, "Floating control switch", &floating, "Floating control", "The panel and its shortcut. Off, "+floatingKey+" goes back to other apps.") {
@@ -429,7 +432,7 @@ func (a *App) floatingSection(c *ui.Context) {
 				}
 				ui.Row(c).FillWidth().Gap(theme.S2).Children(func() {
 					ui.Text(c, "Shortcut").FontSize(theme.TextUI).Grow(1)
-					widget.Chip(c, floatingKey, ui.Color{})
+					ui.Text(c, floatingKey).FontSize(theme.TextLabel).TextColor(theme.TextSoft).SingleLine().Shrink(0)
 				})
 				widget.CardNote(c, "Listed with the keyboard shortcuts in App.", 0)
 				fold := a.floatingFoldOnBlur()
@@ -448,12 +451,17 @@ func (a *App) floatingSection(c *ui.Context) {
 					a.state.HideSessions = hideSessions
 				}
 			})
-			widget.Card(c.Key("floating-look")).Children(func() {
+			widget.GridCard(c.Key("floating-look")).Children(func() {
 				widget.CardTitle(c, nil, "Appearance", nil)
 				a.floatingAppearance(c)
 			})
-			widget.Card(c.Key("floating-preview")).Children(func() {
-				widget.CardTitle(c, nil, "Preview", nil)
+			widget.GridCard(c.Key("floating-preview")).Children(func() {
+				widget.CardTitle(c, nil, "Preview", func() {
+					if widget.GhostButton(c, "Preview").Label("Show the panel").Disabled(!a.state.FloatingControl).Clicked() {
+						a.summonFloating()
+					}
+				})
+				ui.Spacer(c)
 				a.floatingPreview(c)
 				ui.Spacer(c)
 				widget.CardNote(c, "A radial panel of the main actions, over any app: "+floatingKey+". While it is on, "+floatingKey+" no longer reaches other apps.", 0)
@@ -475,7 +483,8 @@ func (a *App) floatingAtPointer() bool {
 
 // appSection is the app's own preferences.
 func (a *App) appSection(c *ui.Context) {
-	settingsColumn(c, "App", "enowX on this device", nil, func() {
+	widget.PageHeader(c, "App", "enowX on this device", nil)
+	widget.PageBodyRest(c, 470, func() {
 		widget.Cols(c, 3).Children(func() {
 			widget.Card(c.Key("editor")).Children(func() {
 				widget.CardTitle(c, nil, "Editor", nil)
@@ -520,15 +529,16 @@ func (a *App) appSection(c *ui.Context) {
 				}
 			})
 		})
-		ui.Row(c.Key("app-lower")).FillWidth().Gap(theme.S3).AlignItems(ui.Stretch).Children(func() {
-			ui.Column(c).Grow(5).Basis(0).MinWidth(0).Gap(theme.S3).Children(func() {
+	}, func(float32) {
+		ui.Row(c.Key("app-lower")).Grow(1).FillWidth().MinHeight(0).Gap(theme.S3).AlignItems(ui.Stretch).Children(func() {
+			ui.Column(c).Grow(5).Basis(0).MinWidth(0).MinHeight(0).Gap(theme.S3).Children(func() {
 				widget.Card(c.Key("quit")).Children(func() {
 					widget.CardTitle(c, nil, "When enowX quits", nil)
 					a.quitSection(c)
 				})
 				a.commandLineCard(c)
 			})
-			widget.Card(c.Key("keys")).Grow(7).Basis(0).Children(func() {
+			widget.GridCard(c.Key("keys")).Grow(7).Basis(0).Children(func() {
 				list := shortcutList()
 				widget.CardTitle(c, nil, "Keyboard shortcuts", func() {
 					ui.Text(c, strconv.Itoa(len(list))).FontSize(theme.TextLabel).TextColor(theme.TextSoft)
@@ -555,7 +565,7 @@ func (a *App) commandLineCard(c *ui.Context) {
 		return
 	}
 	link, _ := cli.LinkPath()
-	widget.Card(c.Key("command-line")).Children(func() {
+	widget.GridCard(c.Key("command-line")).Grow(1).Children(func() {
 		widget.CardTitle(c, nil, "Command line", nil)
 		note := "enowx-app ls, spawn, send, wait… in any terminal: a link to this app at " + link + "."
 		if cli.Linked(exe) {
@@ -565,7 +575,7 @@ func (a *App) commandLineCard(c *ui.Context) {
 			}
 		}
 		widget.CardNote(c, note, 0)
-		widget.CodeBlockText(c, "enowx-app ls\nenowx-app spawn --agent codex \"…\"\nenowx-app wait ID")
+		logFill(c, "enowx-app ls\nenowx-app spawn --agent codex \"…\"\nenowx-app wait ID")
 		widget.CardFoot(c, func() {
 			ui.Spacer(c)
 			label := "Install"
@@ -614,7 +624,7 @@ func (a *App) diagnosticsSection(c *ui.Context) {
 	})
 	widget.PageFill(c, func() {
 		widget.MasterDetail(c, 380, func() {
-			widget.Card(c.Key("daemon")).Children(func() {
+			widget.Card(c.Key("daemon")).Shrink(0).Children(func() {
 				widget.CardTitle(c, nil, "This daemon", nil)
 				widget.KV(c, "Host", a.host.Name+" · "+info.Hostname, false)
 				widget.KV(c, "Daemon", "enowxd "+info.Version+" · pid "+strconv.Itoa(info.PID), false)
@@ -626,14 +636,15 @@ func (a *App) diagnosticsSection(c *ui.Context) {
 				}
 			})
 			if !info.Display && info.DisplayNote != "" {
-				widget.Card(c.Key("displays")).Children(func() {
+				widget.Card(c.Key("displays")).Shrink(0).Children(func() {
 					widget.CardTitle(c, nil, "Displays", nil)
 					widget.CardNote(c, info.DisplayNote, 0)
 				})
 			}
-			widget.Card(c.Key("restart")).Children(func() {
+			widget.Card(c.Key("restart")).Grow(1).Children(func() {
 				widget.CardTitle(c, nil, "Restart", nil)
 				widget.CardNote(c, "Its sessions continue, as after an update.", 0)
+				ui.Spacer(c)
 				ui.Row(c).FillWidth().Children(func() {
 					if widget.GhostButton(c, "Restart the daemon").Clicked() {
 						a.restartDaemon()

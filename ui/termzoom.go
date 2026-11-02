@@ -3,12 +3,11 @@ package ui
 import (
 	"fmt"
 	"runtime"
+	"slices"
 
 	"github.com/egoist/mygo/plugins/terminal"
 	"github.com/egoist/mygo/ui"
 
-	"github.com/enowx/enowx/ui/icon"
-	"github.com/enowx/enowx/ui/theme"
 	"github.com/enowx/enowx/ui/widget"
 )
 
@@ -68,14 +67,13 @@ func zoomKey() string {
 // termSizeControl changes the terminals' text size, in Settings › Terminal:
 // a step at a time, as the whole range doesn't fit a row of choices.
 func (a *App) termSizeControl(c *ui.Context) {
-	if a.state.TermFontSize != 0 && widget.GhostButton(c, "Default").Clicked() {
-		a.setTermSize(0)
+	sizes := []float32{11, 12, 13, 14, 15, 16}
+	labels := make([]string, len(sizes))
+	for i, s := range sizes {
+		labels[i] = fmt.Sprintf("%g", s)
 	}
-	if widget.IconButton(c, icon.Minus, "Smaller ("+zoomKey()+"−)", false).Clicked() {
-		a.setTermSize(a.termSize() - 1)
-	}
-	ui.Text(c, fmt.Sprintf("%g", a.termSize())).FontSize(theme.TextUI).FontWeight(600).Width(theme.S5).TextAlign(ui.Center).Shrink(0)
-	if widget.IconButton(c, icon.Plus, "Larger ("+zoomKey()+"+)", false).Clicked() {
-		a.setTermSize(a.termSize() + 1)
+	// A size zoomed outside these (in a terminal) lights none.
+	if i := widget.Segmented(c, labels, slices.Index(sizes, a.termSize()), nil); i >= 0 {
+		a.setTermSize(sizes[i])
 	}
 }

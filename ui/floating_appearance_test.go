@@ -36,7 +36,7 @@ func TestFloatingAppearanceIndependentAndPersisted(t *testing.T) {
 	if saved.FloatingAccent != "#0E7490" || !saved.FloatingTint || !saved.FloatingCompact || !saved.FloatingReduceMotion {
 		t.Fatal("floating appearance was not saved")
 	}
-	if err := tt.Click("Follow app theme"); err != nil {
+	if err := tt.Click("Follow app theme switch"); err != nil {
 		t.Fatal(err)
 	}
 	if app.state.FloatingAccent != "" || app.floatingAccent() != theme.Accent {
