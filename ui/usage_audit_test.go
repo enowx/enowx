@@ -5,13 +5,14 @@ import (
 	"time"
 
 	"github.com/enowx/enowx/core/vault"
+	"github.com/enowx/enowx/proto"
 	"github.com/enowx/enowx/ui/tokenview"
 	"github.com/enowx/enowx/ui/vaultview"
 )
 
 // usageAuditPages are Resource usage, Credits and the vault in their states.
 // Last of the audit: they make the vault, which the page above shows locked.
-func usageAuditPages() []auditPage {
+func usageAuditPages(t *testing.T) []auditPage {
 	tokens := func(tab string) func(a *App) {
 		return func(a *App) {
 			a.page = pageUsage
@@ -46,6 +47,23 @@ func usageAuditPages() []auditPage {
 		{name: "usage-coverage", open: tokens(tokenview.TabCoverage)},
 		{name: "credits-sample", open: func(a *App) { a.page = pageCredits; a.devSampleData("credits") }},
 		{name: "vault-open", open: func(a *App) { openVault(a) }},
+		{name: "vault-import-found", open: func(a *App) {
+			v := openVault(a)
+			v.scan = false
+			v.found = []proto.VaultFound{
+				{Platform: "github", Name: "github", Account: "someone", Source: "gh auth token", Fields: map[string]string{"token": "made-up-value-a1b2"}},
+				{Platform: "aws", Name: "aws", Source: "aws configure", Note: "a default profile", Fields: map[string]string{"access_key_id": "made-up-id"}},
+			}
+			v.view.OpenImport()
+		}},
+		{name: "vault-import-scanning", open: func(a *App) { v := openVault(a); v.scan, v.found = true, nil; v.view.OpenImport() }},
+		{name: "vault-import-none", open: func(a *App) { v := openVault(a); v.scan, v.found = false, nil; v.view.OpenImport() }},
+		{name: "vault-form-found", open: func(a *App) {
+			v := openVault(a)
+			v.scan = false
+			v.found = []proto.VaultFound{{Platform: "cloudflare", Name: "cloudflare", Account: "someone", Source: "wrangler", Fields: map[string]string{"token": "made-up-value-77de"}}}
+			v.view.OpenAdd("cloudflare")
+		}},
 		{name: "vault-picker", open: func(a *App) { openVault(a).view.OpenAdd("") }},
 		{name: "vault-form", open: func(a *App) { openVault(a).view.OpenAdd("github") }},
 		{name: "vault-import", open: func(a *App) { openVault(a).view.OpenImport() }},
@@ -59,7 +77,9 @@ func usageAuditPages() []auditPage {
 
 // TestLayoutAuditUsage draws them as TestLayoutAudit draws the others.
 func TestLayoutAuditUsage(t *testing.T) {
+	fakeKeychain(t) // never the owner's: these pages make and open a vault
 	h := newNotesHarness(t)
 	seedAudit(t, h)
-	auditPagesOn(t, h, usageAuditPages(), func() {})
+	auditPagesOn(t, h, append(usageAuditPages(t), usageStatePages(t)...), func() { h.app.watches = nil })
+	auditFlows(t, h, usageFlows(t))
 }
