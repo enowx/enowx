@@ -145,19 +145,15 @@ func (a *App) decideSection(c *ui.Context) {
 			st.tab = i
 			a.loadDecide()
 		}
-		switch st.tab {
-		case 0:
-			busy := len(st.testing) > 0
-			if widget.GhostButton(c, "Test all").Disabled(busy || len(st.judges) == 0).Clicked() {
-				a.testJudges(st, "")
-			}
-			if widget.PrimaryButton(c, icon.Plus, "Add a judge", "").Clicked() {
-				st.adding = judgeForm{open: true, kind: proto.JudgeLocal, url: "http://127.0.0.1:11434/v1"}
-			}
-		case 2:
-			if widget.Button(c, widget.Secondary, icon.Sync, "Refresh", "").Clicked() {
-				a.loadDecide()
-			}
+		if st.tab == 2 && widget.Button(c, widget.Secondary, icon.Sync, "Refresh", "").Clicked() {
+			a.loadDecide()
+		}
+		busy := len(st.testing) > 0
+		if widget.GhostButton(c, "Test all").Disabled(busy || len(st.judges) == 0).Clicked() {
+			a.testJudges(st, "")
+		}
+		if widget.PrimaryButton(c, icon.Plus, "Add a judge", "").Clicked() {
+			st.adding = judgeForm{open: true, kind: proto.JudgeLocal, url: "http://127.0.0.1:11434/v1"}
 		}
 	})
 	switch {
