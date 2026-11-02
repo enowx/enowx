@@ -167,6 +167,7 @@ func (s *Server) watchStalls(done <-chan struct{}) {
 // stallPass looks once at every task said to be running. A host that can't be
 // reached says nothing of its tasks, which wait as they are.
 func (s *Server) stallPass(w *stallWatch) {
+	s.goaFlushIdle()
 	lim := s.goaStall()
 	var open []proto.GOATask
 	for _, t := range s.goa.board.Working() {
@@ -311,7 +312,7 @@ func (s *Server) stallCheck(w *stallWatch, t proto.GOATask, h stallHost, lim pro
 	if look.NoCPU {
 		line += " (its host can't say what its processes use, so it may be a long build)"
 	}
-	s.goaTellLine(goaLine{text: stallLine(t, line, text), task: t.ID})
+	s.goaTellLine(goaLine{Text: stallLine(t, line, text), Task: t.ID})
 }
 
 // stallMark moves task id from one status to another, unless something else

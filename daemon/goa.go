@@ -28,7 +28,7 @@ type goaState struct {
 	board *goa.Board
 
 	mu     sync.Mutex
-	tell   []goaLine         // lines for GOA, typed once it is idle
+	tell   []goaLine         // lines for GOA, typed once it is idle, kept in tellFile
 	urgent map[string]string // worker session → why the user answers what it asks
 	// pending is the tool call of each worker in urgent the user hasn't been
 	// told of, as its agent hasn't asked yet.
@@ -40,11 +40,18 @@ type goaState struct {
 	rulesGiven map[string]string
 	// stallSet tells watchStalls the limits changed.
 	stallSet chan struct{}
+
+	tellFile string
+	// tellSave has one write of tellFile at a time, the latest last. It is taken
+	// before mu, which no file is written under.
+	tellSave sync.Mutex
 }
 
 func (s *Server) newGOA(dir string) {
 	s.goa = goaState{board: goa.OpenBoard(filepath.Join(dir, "goa-board.json")),
-		urgent: map[string]string{}, pending: map[string]proto.HookEvent{}, watch: map[string]*goaWatch{}, stallSet: make(chan struct{}, 1)}
+		urgent: map[string]string{}, pending: map[string]proto.HookEvent{}, watch: map[string]*goaWatch{}, stallSet: make(chan struct{}, 1),
+		tellFile: filepath.Join(dir, "goa-tell.json")}
+	s.loadGOATell()
 }
 
 // goaDir is GOA's own folder, outside every project.
@@ -211,51 +218,125 @@ func (s *Server) goaRanOn(info proto.SessionInfo) {
 }
 
 // goaTell has line typed into GOA once it is idle.
-func (s *Server) goaTell(line string) { s.goaTellLine(goaLine{text: line}) }
+func (s *Server) goaTell(line string) { s.goaTellLine(goaLine{Text: line}) }
 
-// goaLine is a line waiting for GOA. One about a task's progress (task set)
-// says nothing once the task is settled, as it may be by the time GOA is idle.
-type goaLine struct{ text, task string }
+// goaLine is a line waiting for GOA. One about a task's progress (Task set)
+// says nothing once the task is settled, as it may be by the time GOA is idle;
+// a report has no Task, and always goes.
+type goaLine struct {
+	Text string `json:"text"`
+	Task string `json:"task,omitempty"`
+}
 
-// goaTellLine tells GOA line, now if it is idle, else once it is.
+// goaTellMax bounds what waits for a GOA that never comes back, the oldest going.
+const goaTellMax = 200
+
+// goaTellLine tells GOA line, now if it is idle, else once it is: while it is
+// busy, hibernated, stopped or the daemon restarts, the line waits in a file. Only
+// with no GOA on this host at all is there no one to tell.
 func (s *Server) goaTellLine(line goaLine) {
 	g, ok := s.goaSession()
-	if !ok || g.Exited {
+	if !ok {
 		return
 	}
 	s.goa.mu.Lock()
 	s.goa.tell = append(s.goa.tell, line)
+	if over := len(s.goa.tell) - goaTellMax; over > 0 {
+		s.goa.tell = slices.Delete(s.goa.tell, 0, over)
+		s.logger().Warn("goa: too much waits for GOA, the oldest goes", "lines", over)
+	}
 	s.goa.mu.Unlock()
-	if g.State != proto.StateWorking {
+	s.saveGOATell()
+	if !g.Exited && g.State != proto.StateWorking {
+		s.goaFlush(g.ID)
+	}
+}
+
+// saveGOATell keeps what waits for GOA, for it to outlast the daemon.
+func (s *Server) saveGOATell() {
+	s.goa.tellSave.Lock()
+	defer s.goa.tellSave.Unlock()
+	s.goa.mu.Lock()
+	lines := slices.Clone(s.goa.tell)
+	s.goa.mu.Unlock()
+	data, err := json.Marshal(lines)
+	if err == nil {
+		err = os.WriteFile(s.goa.tellFile+".tmp", data, 0o600)
+	}
+	if err == nil {
+		err = os.Rename(s.goa.tellFile+".tmp", s.goa.tellFile)
+	}
+	if err != nil {
+		s.logger().Warn("goa: keep what waits for GOA", "err", err)
+	}
+}
+
+// loadGOATell reads what waited for GOA when the daemon last stopped.
+func (s *Server) loadGOATell() {
+	data, err := os.ReadFile(s.goa.tellFile)
+	if err != nil {
+		return
+	}
+	var lines []goaLine
+	if err := json.Unmarshal(data, &lines); err != nil {
+		s.logger().Warn("goa: read what waits for GOA", "err", err)
+		return
+	}
+	s.goa.mu.Lock()
+	s.goa.tell = lines
+	s.goa.mu.Unlock()
+}
+
+// goaFlushIdle has an idle GOA get what still waits for it: what a failed typing
+// put back, or what waited over a restart with no change of its session to come.
+func (s *Server) goaFlushIdle() {
+	s.goa.mu.Lock()
+	waiting := len(s.goa.tell) > 0
+	s.goa.mu.Unlock()
+	if !waiting {
+		return
+	}
+	if g, ok := s.goaSession(); ok && !g.Exited && g.State != proto.StateWorking {
 		s.goaFlush(g.ID)
 	}
 }
 
 // goaLinesToSay takes what waits for GOA, less what its task's end made moot.
-func (s *Server) goaLinesToSay() []string {
+func (s *Server) goaLinesToSay() []goaLine {
 	s.goa.mu.Lock()
 	lines := s.goa.tell
 	s.goa.tell = nil
 	s.goa.mu.Unlock()
-	var out []string
+	var out []goaLine
 	for _, l := range lines {
-		if l.task == "" || !s.goa.board.IsSettled(l.task) {
-			out = append(out, l.text)
+		if l.Task == "" || !s.goa.board.IsSettled(l.Task) {
+			out = append(out, l)
 		}
 	}
 	return out
 }
 
-// goaFlush types what waits for GOA (session id) as one message.
+// goaFlush types what waits for GOA (session id) as one message. What couldn't
+// be typed goes back, ahead of what came since. The file changes only after: a
+// daemon stopped between the two says a line twice rather than never.
 func (s *Server) goaFlush(id string) {
 	lines := s.goaLinesToSay()
 	if len(lines) == 0 {
+		s.saveGOATell() // moot lines may have gone
 		return
 	}
-	text := strings.Join(lines, "\n")
-	if err := s.input(proto.SessionInputParams{ID: id, Text: text, Paste: true, Enter: true}); err != nil {
-		s.logger().Warn("goa: could not tell GOA", "session", id, "err", err)
+	texts := make([]string, len(lines))
+	for i, l := range lines {
+		texts[i] = l.Text
 	}
+	err := s.input(proto.SessionInputParams{ID: id, Text: strings.Join(texts, "\n"), Paste: true, Enter: true})
+	if err != nil {
+		s.logger().Warn("goa: could not tell GOA", "session", id, "err", err)
+		s.goa.mu.Lock()
+		s.goa.tell = append(lines, s.goa.tell...)
+		s.goa.mu.Unlock()
+	}
+	s.saveGOATell()
 }
 
 // goaCall calls method on host ("" this one) as GOA (from) would: through

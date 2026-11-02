@@ -392,10 +392,10 @@ func TestGOASettledTaskRaisesNoStallLine(t *testing.T) {
 	w := &stallWatch{follows: map[string]*stallFollow{}, sampled: map[string]bool{}}
 	srv.stallCheck(w, snapshot, stallHost{infos: map[string]proto.SessionInfo{}}, proto.GOAStall{Blank: 1, Idle: 1, Stuck: 1})
 	srv.goa.mu.Lock()
-	srv.goa.tell = append(srv.goa.tell, goaLine{text: "moot", task: snapshot.ID}, goaLine{text: "still true"})
+	srv.goa.tell = append(srv.goa.tell, goaLine{Text: "moot", Task: snapshot.ID}, goaLine{Text: "still true"})
 	srv.goa.mu.Unlock()
-	if got := srv.goaLinesToSay(); len(got) != 1 || got[0] != "still true" {
-		t.Fatalf("to say: %q", got)
+	if got := srv.goaLinesToSay(); len(got) != 1 || got[0].Text != "still true" {
+		t.Fatalf("to say: %+v", got)
 	}
 	time.Sleep(2 * time.Second)
 	if lines := stallLinesOf(heard, snapshot.ID); len(lines) != 0 {
