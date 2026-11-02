@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"encoding/json"
 	"fmt"
+	"hash/fnv"
 	"os"
 	"path/filepath"
 	"slices"
@@ -26,6 +27,59 @@ type Store struct {
 
 	mu   sync.Mutex
 	days map[string]*dayCalls
+	// where is the day each kept ID is in, by the ID's hash, built once from the day
+	// files on the first Add and kept small: a call seen again on another day, a
+	// resumed or copied conversation's, is the same call. Nil until then.
+	where map[uint64]int32
+}
+
+// idHash is an ID as where keeps it.
+func idHash(id string) uint64 {
+	h := fnv.New64a()
+	h.Write([]byte(id))
+	return h.Sum64()
+}
+
+// dayNumber is day d as where keeps it, and back.
+func dayNumber(d string) int32 {
+	t, err := time.Parse(time.DateOnly, d)
+	if err != nil {
+		return 0
+	}
+	return int32(t.Unix() / 86400)
+}
+
+func dayOfNumber(n int32) string { return time.Unix(int64(n)*86400, 0).UTC().Format(time.DateOnly) }
+
+// loadWhereLocked builds where from the day files, reading only each line's ID, and
+// leaves the days out of the cache. mu is held.
+func (s *Store) loadWhereLocked() {
+	s.where = map[uint64]int32{}
+	entries, _ := os.ReadDir(s.dir)
+	for _, e := range entries {
+		d, ok := strings.CutSuffix(e.Name(), ".jsonl")
+		if !ok || len(d) != len(time.DateOnly) {
+			continue
+		}
+		f, err := os.Open(filepath.Join(s.dir, e.Name()))
+		if err != nil {
+			continue
+		}
+		n := dayNumber(d)
+		sc := bufio.NewScanner(f)
+		sc.Buffer(make([]byte, 64<<10), 1<<20)
+		for sc.Scan() {
+			var line struct {
+				ID string `json:"id"`
+			}
+			if json.Unmarshal(sc.Bytes(), &line) == nil && line.ID != "" {
+				if _, seen := s.where[idHash(line.ID)]; !seen {
+					s.where[idHash(line.ID)] = n
+				}
+			}
+		}
+		f.Close()
+	}
 }
 
 // dayCalls is a day's calls as read, and where each ID is among them.
@@ -79,12 +133,15 @@ func (s *Store) loadLocked(d string) *dayCalls {
 	return dc
 }
 
-// Add keeps the calls not kept yet (by ID, in their day), corrects those a later
-// record grew (a corrected line after the first, which reading merges), and returns
+// Add keeps the calls not kept yet (by ID, on whichever day each was kept), corrects
+// those a later record grew (a corrected line after the first, which reading merges), and returns
 // both. Calls past KeepDays aren't kept.
 func (s *Store) Add(calls []Call) ([]Call, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
+	if s.where == nil {
+		s.loadWhereLocked()
+	}
 	oldest := s.Now().AddDate(0, 0, -KeepDays)
 	byDay := map[string][]Call{}
 	var added []Call
@@ -93,6 +150,17 @@ func (s *Store) Add(calls []Call) ([]Call, error) {
 			continue
 		}
 		d := day(c.Time)
+		h := idHash(c.ID)
+		if n, known := s.where[h]; known {
+			// A hash can collide, and a day can be rolled up: its day must hold the ID.
+			if k := dayOfNumber(n); k != d {
+				if _, here := s.loadLocked(k).at[c.ID]; here {
+					d = k
+				}
+			}
+		} else {
+			s.where[h] = dayNumber(d)
+		}
 		dc := s.loadLocked(d)
 		if i, seen := dc.at[c.ID]; seen {
 			if dc.calls[i].grow(c) {

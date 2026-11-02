@@ -43,3 +43,30 @@ func TestTotalLeavesOutCacheReads(t *testing.T) {
 		t.Fatalf("%d", c.Total())
 	}
 }
+
+// A call seen again on another day, as a resumed conversation's copy is, counts once,
+// on the day it was first kept, over a reopen too; it can still grow there.
+func TestStoreCountsACallOnceAcrossDays(t *testing.T) {
+	dir := t.TempDir()
+	first := time.Now().Add(-72 * time.Hour)
+	later := time.Now().Add(-time.Hour)
+	c := Call{ID: "claude:m1", Time: first, Output: 10}
+	s := Open(dir)
+	if _, err := s.Add([]Call{c}); err != nil {
+		t.Fatal(err)
+	}
+	copied := c
+	copied.Time = later
+	if got, _ := s.Add([]Call{copied}); len(got) != 0 {
+		t.Fatalf("counted again: %+v", got)
+	}
+	s = Open(dir)
+	copied.Output = 40
+	if got, _ := s.Add([]Call{copied}); len(got) != 1 || got[0].Output != 40 {
+		t.Fatalf("grown: %+v", got)
+	}
+	all := Open(dir).Calls(first.Add(-time.Hour), time.Now())
+	if len(all) != 1 || all[0].Output != 40 || !all[0].Time.Equal(first) {
+		t.Fatalf("%+v", all)
+	}
+}
