@@ -48,6 +48,11 @@ func Run() error {
 	}
 	srv.Log = log
 	go srv.watchProgram(exe)
+	srv.procs.load(procsFile(dir))
+	go func() {
+		srv.endProcsLeftBefore()
+		srv.watchProcs(srv.done)
+	}()
 	if exe != "" {
 		srv.Hash = fileHash(exe)
 	}

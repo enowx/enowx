@@ -341,11 +341,12 @@ func (s *Server) switchAccount(p proto.AccountSwitchParams) (proto.SessionInfo, 
 	}
 	s.acctWatch.restarting(p.Session)
 	if !info.Exited {
+		s.procsLook()
 		if _, err := s.sessions.Replace(stoppedSpec(sess, meta)); err != nil {
 			s.acctWatch.settled(p.Session, sess.Terminal().Text())
 			return proto.SessionInfo{}, err
 		}
-		reapSession(info.ID)
+		s.reapSession(info.ID)
 	} else if _, err := s.sessions.Replace(stoppedSpec(sess, meta)); err != nil {
 		s.acctWatch.settled(p.Session, sess.Terminal().Text())
 		return proto.SessionInfo{}, err

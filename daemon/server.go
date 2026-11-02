@@ -109,6 +109,7 @@ type Server struct {
 	// the method it's for (sessionAwaitsUser).
 	controlAsks sync.Map
 	helpers     helpersState // sessions enowX starts for one piece of work (helpers.go)
+	procs       procTracker  // what sessions started (procs.go)
 	todos       todoState    // to-dos ticked, and the reminder to (todo_ticks.go)
 	// promptAnswered are the sessions whose prompt the judge just answered, for
 	// its leaving the screen not to count as its expiring.
@@ -346,17 +347,20 @@ func (s *Server) Close() {
 		// Sessions come back with the next daemon, and start what they
 		// run again: nothing of theirs should run twice.
 		reapAll(tags)
+		s.endAllProcs()
 		s.catalogs.Wait()
 	})
 }
 
 // deleteSession hangs up a session and forgets it for good.
 func (s *Server) deleteSession(id string) error {
+	s.procsLook() // what it started up to now, while its tree still shows it
 	if err := s.sessions.Kill(id); err != nil {
 		return err
 	}
 	// What it started outside its terminal goes too: no leftovers.
 	reap(tag{key: session.EnvSession, value: id})
+	s.endSessionProcs(id)
 	// Its tabs go with it.
 	for _, tab := range s.sessions.List() {
 		if tab.Meta().Parent == id && s.deleteSession(tab.ID()) == nil {

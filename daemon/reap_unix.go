@@ -10,9 +10,6 @@ import (
 	"github.com/enowx/enowx/core/session"
 )
 
-// reapGrace is how long processes get to exit after SIGTERM.
-const reapGrace = 3 * time.Second
-
 // tag is an environment entry that marks the processes something started
 // (procstat.Tagged): a session's ENOWX_SESSION, a display's app's
 // ENOWX_DISPLAY. sessionless keeps to those no session started.

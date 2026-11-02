@@ -20,6 +20,14 @@ Where there is no systemd (Alpine, containers) or lingering couldn't be turned o
 
 `scripts/test-service.sh` checks it in an Ubuntu container booted with systemd.
 
+## What sessions leave behind
+
+Closing a session hangs up its terminal, which ends its program and foreground, but an agent's servers and helpers in process groups of their own don't hear it. So the daemon writes down each session's process tree every 15 seconds and just before a stop (`session-procs.json`), and on a close, a hibernation or a switch of account asks what's still there to end, then forces it 3 seconds later. Each process goes by its PID and start time together, so a PID used again is left alone, and only processes on that list are ever stopped: never one no session started, the daemon itself or what started it.
+
+A process a session left and nobody looks after (its session closed or ended, or it moved out from under the session) shows in Resource usage under *Left running*, with Stop. What a daemon that crashed left behind ends when the next one starts.
+
+On Windows none of this runs yet: enowX can't tell which process belongs to which session there, so only the console's own closing ends them. Environment tags (`reap`) still apply on Linux, where they also catch what left a tree before it was seen.
+
 ## Its folder
 
 enowX keeps its state in `~/.enowx-app` (`transport.HomeName`), on this device and on servers; `ENOWX_HOME` names another (`make dev` uses `~/.enowx-dev`). Its command line is `enowx-app`, linked at `~/.local/bin/enowx-app`. Before, both were `~/.enowx` and `enowx`, which another app uses too: the first start of a newer app or daemon stops the daemon there and moves enowX's own files across (hosts, projects, sessions and their history, worktrees, settings), repairing git's links to the worktrees, and leaves the rest of `~/.enowx` alone.

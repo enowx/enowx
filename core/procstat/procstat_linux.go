@@ -42,9 +42,14 @@ func processes() ([]Proc, error) {
 		utime, _ := strconv.ParseUint(f[11], 10, 64)
 		stime, _ := strconv.ParseUint(f[12], 10, 64)
 		rss, _ := strconv.ParseUint(f[21], 10, 64)
+		name := ""
+		if open := strings.IndexByte(s, '('); open >= 0 && open < i {
+			name = s[open+1 : i]
+		}
 		out = append(out, Proc{
 			PID: pid, PPID: ppid, RSS: rss * page,
 			CPUTime: time.Duration(utime+stime) * time.Second / clockTicks,
+			Name:    name, Start: f[19],
 		})
 	}
 	return out, nil

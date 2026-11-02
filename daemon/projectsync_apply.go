@@ -296,6 +296,7 @@ func (s *Server) syncConversation(sess *session.Session, ms transfer.Session, da
 		history = sess.History()
 	}
 	// Stopped first: the agent would write over the conversation.
+	s.procsLook()
 	if _, err := s.sessions.Replace(session.Spec{
 		ID: info.ID, Dir: info.Dir, Created: info.Created, History: history,
 		Command: info.Command, Exited: true, Meta: meta,
@@ -303,7 +304,7 @@ func (s *Server) syncConversation(sess *session.Session, ms transfer.Session, da
 		return proto.SessionInfo{}, err
 	}
 	if running {
-		reap(tag{key: session.EnvSession, value: info.ID})
+		s.reapSession(info.ID)
 	}
 	if convo != "" {
 		// Where its agent keeps it here, which an account may have moved.
