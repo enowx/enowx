@@ -27,4 +27,4 @@ With Reduce Motion on (the system's, or the app's own), the opening holds the lo
 
 ## Links
 
-The Community step's links are all in `ui/onboardview/links.go`. A link left empty hides its card, as Discord's is now. They open in the browser, and nothing claims the user followed or starred anything.
+The Community step's links are all in `ui/onboardview/links.go`. A link left empty hides its card. They open in the browser, and nothing claims the user followed or starred anything.

@@ -5,5 +5,5 @@ package onboardview
 const (
 	LinkX       = "https://x.com/enowdev"
 	LinkGitHub  = "https://github.com/enowdev/enowx"
-	LinkDiscord = "" // no server to link to yet
+	LinkDiscord = "https://discord.gg/y8NVRnz8jh"
 )

@@ -39,8 +39,8 @@ func TestFlows(t *testing.T) {
 	if n := stepsShown(stopsOf(FlowNew, true)); n != 7 {
 		t.Errorf("a new user sees %d steps", n)
 	}
-	// No Discord link yet: its card hides, the others stay.
-	if got := communityLinks(); len(got) != 2 {
+	// Every link set has its card.
+	if got := communityLinks(); len(got) != 3 {
 		t.Errorf("links: %+v", got)
 	}
 }

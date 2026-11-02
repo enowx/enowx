@@ -15,6 +15,7 @@
   <a href="docs/agents.md">Agents</a> ·
   <a href="docs/cli.md">Command line</a> ·
   <a href="#documentation">Documentation</a> ·
+  <a href="https://discord.gg/y8NVRnz8jh">Discord</a> ·
   <a href="LICENSE">MIT License</a>
 </p>
 
@@ -67,6 +68,7 @@ So enowX lets the heavy work run somewhere else while it still feels like it run
 - [Try it](#try-it)
 - [Develop](#develop)
 - [Documentation](#documentation)
+- [Community](#community)
 
 ## What it does
 
@@ -265,6 +267,10 @@ The interface is built with [MyGo](https://mygo.egoist.dev/) (its widgets, termi
 | [Model APIs](docs/agent-api.md) | [Copying a project](docs/transfer.md) | [Chat view](docs/chat-view.md) | [Traffic](docs/traffic.md) | [The tray](docs/tray.md) | [Notes](docs/notes.md) |
 | [Team cloud](docs/cloud.md) | | | [Android](docs/android.md) | [Floating control](docs/floating-control.md) | [Canvas](docs/canvas.md) |
 | | | | | [Vault](docs/vault.md) | |
+
+## Community
+
+Ask questions and follow along on [Discord](https://discord.gg/y8NVRnz8jh).
 
 ## License
 
