@@ -207,7 +207,15 @@ func TestCanvasSurfacesAudit(t *testing.T) {
 		el := proto.CanvasElement{ID: "box", Type: proto.ShapeRect, X: 60, Y: 60, W: 300, H: 120, Text: "A box"}
 		h.cl.EditCanvas(proto.CanvasEdit{ID: c.ID, Frame: shapes, Op: proto.CanvasOpElementSet, Element: &el, Session: "agent-1"})
 		settled()
-	}, func() {})
+		// A picture takes longer than the 8 s the bar stays up: keep it up.
+		if c := h.app.canvases.Canvas(); c.Agent != "" {
+			c.AgentAt = time.Now().Add(time.Hour)
+			h.tt.Frame()
+		}
+		if !h.tt.HasText("is designing") {
+			t.Errorf("no agent bar: %q", h.tt.Texts())
+		}
+	}, func() { h.app.canvases.Canvas().AgentAt = time.Time{} })
 	add("agent-paused", func() {
 		h.cl.ControlCanvas(h.app.canvases.Canvas().ID, proto.CanvasPause)
 		settled()
@@ -215,6 +223,30 @@ func TestCanvasSurfacesAudit(t *testing.T) {
 		h.cl.ControlCanvas(h.app.canvases.Canvas().ID, proto.CanvasResume)
 		settled()
 	})
+
+	// One toast: every other of canvas.toasts differs from it only in its words.
+	add("toast", func() {
+		h.app.notify("Unslop: 62/100, 14 findings; the agent redesigns the copy")
+		h.tt.Frame()
+		if want := "Unslop: 62/100, 14 findings; the agent redesigns the copy"; !h.tt.HasText(want) {
+			t.Errorf("no %q: %q", want, h.tt.Texts())
+		}
+	}, func() { h.app.status = "" })
+	// A team's space and the way there, the picker over the list and the More
+	// menu's move.
+	spaces := func() {
+		h.app.spaceList = &hostSpaces{host: h.app.host.ID, list: []proto.Space{{Team: "0123456789abcdef", Name: "Design"}}}
+		settled()
+	}
+	add("team-space", func() {
+		spaces()
+		h.app.showSpace("0123456789abcdef")
+		settled()
+	}, func() { h.app.showSpace(""); h.app.spaceList = nil })
+	add("more-menu-spaces", func() {
+		spaces()
+		clicks("More for this canvas")()
+	}, func() { esc(); h.app.spaceList = nil })
 
 	shots := os.Getenv("SHOTS")
 	look := func(name string, w, hgt int) {

@@ -131,14 +131,13 @@ func TestLayoutAuditNotes(t *testing.T) {
 		{name: "import-notion", then: click("Import and export", "Import…", "Notion (API)")},
 	}
 	shots := os.Getenv("SHOTS")
-	only := os.Getenv("AUDIT")
 	var problems []string
 	sizes := auditSizes
 	if shots != "" {
 		sizes = [][2]int{{1280, 800}} // pictures alone: the sizes are the audit's
 	}
 	for _, st := range states {
-		if only != "" && !strings.Contains("notes-"+st.name, only) {
+		if !auditWanted("notes-" + st.name) {
 			continue
 		}
 		for _, size := range sizes {

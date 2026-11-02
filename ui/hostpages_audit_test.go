@@ -2,7 +2,6 @@ package ui
 
 import (
 	"fmt"
-	"os"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -130,13 +129,12 @@ func TestLayoutAuditHosts(t *testing.T) {
 // fails on what layoutProblems finds.
 func auditPagesOn(t *testing.T, h *notesHarness, pages []auditPage, reset func()) {
 	t.Helper()
-	only := os.Getenv("AUDIT")
 	var problems []string
 	for _, p := range pages {
-		if only != "" && !strings.Contains(p.name, only) {
+		if !auditWanted(p.name) {
 			continue
 		}
-		for _, size := range auditSizes {
+		for _, size := range auditDrawSizes() {
 			closeAudit(h.app)
 			reset()
 			p.open(h.app)

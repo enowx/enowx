@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"regexp"
 	"strings"
 	"testing"
 
@@ -154,12 +155,11 @@ func TestLayoutAudit(t *testing.T) {
 	seedAudit(t, h)
 	shots := os.Getenv("SHOTS")
 	var problems []string
-	only := os.Getenv("AUDIT") // a part of pages' names, to draw those alone
 	for _, p := range auditPages() {
-		if only != "" && !strings.Contains(p.name, only) {
+		if !auditWanted(p.name) {
 			continue
 		}
-		for _, size := range auditSizes {
+		for _, size := range auditDrawSizes() {
 			w, hgt := size[0], size[1]
 			closeAudit(h.app)
 			p.open(h.app)
@@ -246,4 +246,26 @@ func seedAudit(t *testing.T, h *notesHarness) {
 	}
 	h.app.upsert(info)
 	h.settle("the notes", func() bool { return len(h.app.noteList.list) >= 3 })
+}
+
+// auditWanted says whether a page is to be drawn: AUDIT is a regular
+// expression (a part of a name, or several with |) over the pages' names.
+func auditWanted(name string) bool {
+	only := os.Getenv("AUDIT")
+	if only == "" {
+		return true
+	}
+	re, err := regexp.Compile(only)
+	if err != nil {
+		return strings.Contains(name, only)
+	}
+	return re.MatchString(name)
+}
+
+// auditDrawSizes are the audit's sizes, one alone for pictures: they are slow.
+func auditDrawSizes() [][2]int {
+	if os.Getenv("SHOTS") != "" {
+		return [][2]int{{1280, 800}}
+	}
+	return auditSizes
 }

@@ -3,7 +3,6 @@ package ui
 import (
 	"errors"
 	"fmt"
-	"os"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -179,13 +178,12 @@ type auditFlow struct {
 // auditFlows draws each flow's end at the audit's sizes, its layout checked.
 func auditFlows(t *testing.T, h *notesHarness, flows []auditFlow) {
 	t.Helper()
-	only := os.Getenv("AUDIT")
 	var problems []string
 	for _, f := range flows {
-		if only != "" && !strings.Contains(f.name, only) {
+		if !auditWanted(f.name) {
 			continue
 		}
-		for _, size := range auditSizes {
+		for _, size := range auditDrawSizes() {
 			closeAudit(h.app)
 			h.app.watches, h.app.confirming = nil, nil
 			f.open(h.app)
