@@ -153,7 +153,7 @@ func (a *App) navMore(c *ui.Context) {
 		Label("More").Tooltip("More pages").Cursor(ui.CursorPointer).Shrink(0)
 	bg, fg, weight := theme.Fade(theme.Selected, 0), theme.TextSoft, 400
 	switch {
-	case a.page == pageVault || (a.page == pageSync) || a.page == pageHosts || a.page == pageSetup || a.page == pageTeam || a.page == pageTeamHost:
+	case a.page == pageVault || a.page == pageTeam || a.page == pageTeamHost:
 		bg, fg, weight = theme.Selected, theme.TextStrong, 500
 	case more.Hovered():
 		bg, fg = theme.Selected, theme.TextStrong
@@ -172,8 +172,6 @@ func (a *App) navMore(c *ui.Context) {
 		}{
 			{icon.Users, "Team", a.client != nil, a.openTeamPage},
 			{icon.Key, "Credentials", true, a.openVault},
-			{icon.Server, "Hosts", true, func() { a.page = pageHosts }},
-			{icon.Sync, "Sync environment", a.hostIsRemote(), a.openSync},
 		}
 		for _, it := range items {
 			if it.enabled && widget.MenuItem(c.Key(it.label), it.svg, it.label, false) {

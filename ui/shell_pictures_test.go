@@ -49,7 +49,7 @@ func TestShellMenusAndStates(t *testing.T) {
 	}
 	key := func() error { tt.Key(0, ui.KeyEscape); return nil }
 	name := a.sessionName(a.sessions[0])
-	step("more-menu", func() error { return tt.Click("More") }, "Credentials", "Hosts")
+	step("more-menu", func() error { return tt.Click("More") }, "Team", "Credentials")
 	step("more-closed", key)
 	step("session-menu", func() error { return tt.RightClick(name) }, "Rename…", "Delete session…")
 	step("session-closed", key)
