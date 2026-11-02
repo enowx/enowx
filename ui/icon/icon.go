@@ -49,6 +49,7 @@ var (
 	Check        = load("check")
 	Close        = load("x")
 	Tailscale    = load("tailscale")
+	Discord      = load("discord") // its logo, for what labels Discord itself
 	Trash        = load("trash")
 	Sync         = load("sync")
 	Lock         = load("lock")
