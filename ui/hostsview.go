@@ -395,17 +395,12 @@ func (a *App) trustDialog(c *ui.Context) {
 		return
 	}
 	open := true
-	widget.Dialog(c, &open, 520, 14, func() {
-		widget.DialogHeader(c, "Trust this server?", "", false, "Hosts", a.host.Name, "Trust server")
+	widget.FormSheet(c, &open, 480, "Trust this server?", "", func() {
 		trustFacts(c, a.trust)
-		widget.DialogFooter(c, "", func() {
-			if widget.GhostButton(c, "Cancel").Clicked() {
-				a.answerTrust(false)
-			}
-			if widget.PrimaryButton(c, nil, "Trust and connect", "").Clicked() {
-				a.answerTrust(true)
-			}
-		})
+	}, func() {
+		if widget.PrimaryButton(c, nil, "Trust and connect", "").Clicked() {
+			a.answerTrust(true)
+		}
 	})
 	if !open {
 		a.answerTrust(false)
@@ -425,11 +420,9 @@ func (a *App) trustAsk(c *ui.Context) *widget.Ask {
 }
 
 func trustFacts(c *ui.Context, t *trustPrompt) {
-	ui.Text(c, "This is the first connection to "+t.addr+". Check that its key fingerprint matches the server's before trusting it:").
-		FontSize(12.5).TextColor(theme.TextSoft)
-	ui.Text(c, t.fingerprint).Font(theme.MonoFont).FontSize(theme.TextLabel).Padding(10).Radius(theme.RadiusControl).
-		Background(theme.Sunken).Border(1, theme.Border).FillWidth()
-	ui.Text(c, "On the server: for f in /etc/ssh/ssh_host_*_key.pub; do ssh-keygen -lf $f; done").Font(theme.MonoFont).FontSize(theme.TextLabel).TextColor(theme.Muted)
+	widget.CardNote(c.Key("first"), "This is the first connection to "+t.addr+". Check that its key fingerprint matches the server's before trusting it:", 0).FontSize(theme.TextUI)
+	widget.CodeBlockText(c.Key("fingerprint"), t.fingerprint)
+	widget.CardNote(c.Key("on-server"), "On the server: for f in /etc/ssh/ssh_host_*_key.pub; do ssh-keygen -lf $f; done", 0)
 }
 
 // exportHosts saves the host list to a file the user picks, for another

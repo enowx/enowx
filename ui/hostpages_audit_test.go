@@ -12,6 +12,8 @@ import (
 	"github.com/enowx/enowx/core/hosts"
 	"github.com/enowx/enowx/core/setup"
 	"github.com/enowx/enowx/core/tailnet"
+	"github.com/enowx/enowx/core/vps"
+	"github.com/enowx/enowx/hostconn"
 	"github.com/enowx/enowx/proto"
 	"github.com/enowx/enowx/transport"
 	"github.com/enowx/enowx/ui/syncview"
@@ -172,6 +174,85 @@ func hostAuditPages(t *testing.T) []auditPage {
 		}},
 		{name: "sync-page", fill: true, open: func(a *App) { auditSync(a, true) }},
 		{name: "sync-changed", fill: true, open: func(a *App) { auditSync(a, false) }},
+		{name: "dialog-host-tailnet", open: func(a *App) {
+			auditHosts(t, a)
+			a.page = pageHosts
+			a.addHost = addHostForm{open: true}
+			a.peers = append(a.peers, tailnet.Peer{HostName: "a device with a name too long for its row of the dialog, which has to run", IP: "100.2.3.4", OS: "linux"})
+		}},
+		{name: "dialog-host-address", open: func(a *App) {
+			auditHosts(t, a)
+			a.page = pageHosts
+			a.addHost = addHostForm{open: true, manual: true, err: "Run sessions as: use lowercase letters, digits, - and _, starting with a letter."}
+		}},
+		{name: "dialog-host-root", open: func(a *App) {
+			auditHosts(t, a)
+			a.page, a.peers = pageHosts, nil
+			a.peersErr = "Tailscale isn't installed: install it to see your tailnet's devices here."
+			a.addHost = addHostForm{open: true, asRoot: true, device: true}
+		}},
+		{name: "dialog-host-edit", open: func(a *App) {
+			auditHosts(t, a)
+			a.page = pageHosts
+			h := auditLabs
+			h.PasswordAuth = true
+			a.openEditHost(h)
+		}},
+		{name: "dialog-trust", open: func(a *App) {
+			auditHosts(t, a)
+			a.trust = &trustPrompt{addr: "pi-lab:22", fingerprint: "SHA256:sample-fingerprint-not-real (ED25519)", answer: make(chan bool, 1)}
+		}},
+		{name: "dialog-sign-in", open: func(a *App) {
+			auditHosts(t, a)
+			a.signIn = &signInPrompt{host: auditLabs, refusal: &transport.AuthError{Addr: "enowxlabs:22", User: "root", TriedPassword: true}, user: "root", remember: true, err: "Type the password."}
+		}},
+		{name: "dialog-sign-in-keys", open: func(a *App) {
+			auditHosts(t, a)
+			a.signIn = &signInPrompt{host: auditLabs, refusal: &transport.AuthError{Addr: "enowxlabs:22", User: "root", Allowed: []string{"publickey"}}, user: "root"}
+		}},
+		{name: "dialog-passphrase", open: func(a *App) {
+			auditHosts(t, a)
+			a.passphrase = &passphrasePrompt{path: "/Users/enowdev/.ssh/id_ed25519_and_a_name_long_enough_that_it_has_to_wrap_in_the_box_it_shows_in", answer: make(chan passphraseAnswer, 1)}
+		}},
+		{name: "dialog-run-as", open: func(a *App) {
+			auditHosts(t, a)
+			a.runAs = &runAsPrompt{host: auditLabs, user: "enowx", answer: make(chan runAsAnswer, 1), err: "Use lowercase letters, digits, - and _, starting with a letter."}
+		}},
+		{name: "dialog-run-as-users", open: func(a *App) {
+			auditHosts(t, a)
+			a.runAs = &runAsPrompt{host: auditLabs, choice: "deploy", answer: make(chan runAsAnswer, 1), users: []hostconn.ServerUser{{Name: "deploy", Home: "/home/deploy"}, {Name: "enowdev", Home: "/home/enowdev"}}}
+		}},
+		{name: "dialog-vps-regions", open: func(a *App) {
+			auditHosts(t, a)
+			a.page = pageHosts
+			regions := []vps.Option{{ID: "hel", Name: "Helsinki"}, {ID: "fsn", Name: "Falkenstein"}}
+			sizes := []vps.Option{{ID: "cx22", Name: "CX22", Detail: "2 CPU, 4 GB, and a detail long enough to run in its field", Monthly: 4.5}}
+			a.creating = &vpsForm{open: true, provider: vps.Providers[0].ID, token: "sample", loaded: vps.Providers[0].ID, regions: regions, region: "hel", sizes: sizes, size: "cx22", name: "enowx-2", key: "/Users/enowdev/.ssh/id_ed25519.pub", remember: true,
+				busy: "Waiting for the server to start", err: "The provider said no, and a reason long enough to have to wrap inside its notice in the dialog, whatever its width."}
+		}},
+		{name: "dialog-vps-no-key", open: func(a *App) {
+			auditHosts(t, a)
+			a.page = pageHosts
+			a.creating = &vpsForm{open: true, provider: vps.Providers[0].ID, token: "sample", fromVault: true, loaded: vps.Providers[0].ID, regions: []vps.Option{{ID: "hel", Name: "Helsinki"}}, region: "hel", name: "enowx-2"}
+		}},
+		{name: "dialog-vps-existing", open: func(a *App) {
+			auditHosts(t, a)
+			a.page = pageHosts
+			var box string
+			for _, p := range vps.Providers {
+				if vps.NeedsCertificate(p.ID) {
+					box = p.ID
+				}
+			}
+			a.creating = &vpsForm{open: true, provider: box, token: "sample", loaded: box, regions: []vps.Option{{ID: "a", Name: "Here"}}, region: "a", listed: true, existing: true, key: "/Users/enowdev/.ssh/id_ed25519.pub", pick: "s",
+				servers: []vps.Server{{ID: "s", Name: "a box", Status: "suspended", Size: "4 vCPUs, 8 GB"}}, busy: "Reading where to sign in…"}
+		}},
+		{name: "dialog-vps-delete", open: func(a *App) {
+			auditHosts(t, a)
+			a.page = pageHosts
+			h := auditLabs
+			a.deletingServer = &h
+		}},
 		{name: "connecting", open: func(a *App) {
 			a.host, a.client, a.page, a.connecting, a.connectLink = auditLabs, nil, "", "Tailscale wants you to sign in to reach it", "https://login.tailscale.com/a/b"
 		}},
@@ -190,4 +271,5 @@ func closeHostAudit(h *notesHarness) {
 	a := h.app
 	a.host = hosts.Host{ID: hosts.LocalID, Name: "this Mac"}
 	a.client, a.setup, a.sync, a.connecting, a.connectLink, a.connErr, a.connFail = h.cl, nil, nil, "", "", "", nil
+	a.trust, a.signIn, a.passphrase, a.runAs, a.deletingServer = nil, nil, nil, nil, nil
 }

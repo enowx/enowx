@@ -8,6 +8,7 @@ import (
 
 	"github.com/enowx/enowx/core/hosts"
 	"github.com/enowx/enowx/hostconn"
+	"github.com/enowx/enowx/ui/icon"
 	"github.com/enowx/enowx/ui/theme"
 	"github.com/enowx/enowx/ui/widget"
 )
@@ -124,24 +125,20 @@ func (a *App) runAsDialog(c *ui.Context) {
 		return
 	}
 	open := true
-	widget.Dialog(c, &open, 540, 14, func() {
-		widget.DialogHeader(c, "Run agents as a regular user?", "", false, "Hosts", a.host.Name, "Run as")
-		submit := runAsFacts(c, p)
-		widget.DialogFooter(c, "", func() {
-			if widget.GhostButton(c, "Cancel").Clicked() {
-				a.cancelRunAs()
-			}
-			if widget.GhostButton(c, "Keep root").Clicked() {
-				a.answerRunAs("", true)
-			}
-			label, user := "Create user and connect", p.user
-			if p.choice != "" {
-				label, user = "Connect as "+p.choice, p.choice
-			}
-			if widget.PrimaryButton(c, nil, label, "").Clicked() || submit {
-				a.answerRunAs(user, false)
-			}
-		})
+	submit := false
+	widget.FormSheet(c, &open, 540, "Run agents as a regular user?", "", func() {
+		submit = runAsFacts(c, p)
+	}, func() {
+		if widget.GhostButton(c, "Keep root").Clicked() {
+			a.answerRunAs("", true)
+		}
+		label, user := "Create user and connect", p.user
+		if p.choice != "" {
+			label, user = "Connect as "+p.choice, p.choice
+		}
+		if widget.PrimaryButton(c, nil, label, "").Clicked() || submit {
+			a.answerRunAs(user, false)
+		}
 	})
 	if !open {
 		a.cancelRunAs()
@@ -173,11 +170,10 @@ func (a *App) runAsAsk(c *ui.Context) *widget.Ask {
 
 // runAsFacts is what runAsDialog says and asks; submit is Enter in its field.
 func runAsFacts(c *ui.Context, p *runAsPrompt) (submit bool) {
-	ui.Text(c, "You signed in to "+p.host.Name+" as root. Claude Code won't skip permission prompts as root, and agents running as root can change anything on the server. "+
-		"enowX can run its daemon and every session as a regular user instead. SSH still signs in as root.").
-		FontSize(12.5).TextColor(theme.TextSoft)
+	widget.CardNote(c.Key("about"), "You signed in to "+p.host.Name+" as root. Claude Code won't skip permission prompts as root, and agents running as root can change anything on the server. "+
+		"enowX can run its daemon and every session as a regular user instead. SSH still signs in as root.", 0).FontSize(theme.TextUI)
 	if len(p.users) > 0 {
-		ui.Column(c).FillWidth().Gap(6).Children(func() {
+		ui.Column(c.Key("users")).FillWidth().Shrink(0).Gap(theme.S2).Children(func() {
 			for _, u := range p.users {
 				if widget.OptionCard(c.Key(u.Name), p.choice == u.Name, u.Name, u.Home) {
 					p.choice = u.Name
@@ -189,15 +185,15 @@ func runAsFacts(c *ui.Context, p *runAsPrompt) (submit bool) {
 		})
 	}
 	if p.choice == "" {
-		submit = widget.Input(c, &p.user, defaultRunAs).FillWidth().Font(theme.MonoFont).Submitted()
+		submit = widget.Input(c.Key("name"), &p.user, defaultRunAs).FillWidth().Submitted()
 	} else {
-		ui.Text(c, "Agents get "+p.choice+"'s permissions: if it can use sudo, so can they.").FontSize(theme.TextLabel).TextColor(theme.Muted)
+		widget.CardNote(c.Key("sudo"), "Agents get "+p.choice+"'s permissions: if it can use sudo, so can they.", 0).TextColor(theme.Warning)
 	}
 	if p.err != "" {
-		ui.Text(c, p.err).FontSize(theme.TextLabel).TextColor(theme.Error)
+		widget.Notice(c, icon.Alert, theme.Error, p.err, "", nil)
 	}
-	ui.Text(c, "Afterwards, sign in to each agent once from a Shell session (it runs as that user), and keep projects in that user's home. "+
-		"Agents installed only for root, for example with nvm, need installing again.").FontSize(theme.TextLabel).TextColor(theme.Muted)
+	widget.CardNote(c.Key("after"), "Afterwards, sign in to each agent once from a Shell session (it runs as that user), and keep projects in that user's home. "+
+		"Agents installed only for root, for example with nvm, need installing again.", 0)
 	return submit
 }
 

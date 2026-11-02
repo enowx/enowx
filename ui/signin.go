@@ -8,6 +8,7 @@ import (
 
 	"github.com/enowx/enowx/core/hosts"
 	"github.com/enowx/enowx/transport"
+	"github.com/enowx/enowx/ui/icon"
 	"github.com/enowx/enowx/ui/theme"
 	"github.com/enowx/enowx/ui/widget"
 )
@@ -86,17 +87,13 @@ func (a *App) signInDialog(c *ui.Context) {
 		return
 	}
 	open := true
-	widget.Dialog(c, &open, 480, 14, func() {
-		widget.DialogHeader(c, "Sign in to "+p.host.Name, "", false, "Hosts", p.host.Name, "Sign in")
-		submit := signInFields(c, p, true)
-		widget.DialogFooter(c, "", func() {
-			if widget.GhostButton(c, "Cancel").Clicked() {
-				a.signIn = nil
-			}
-			if widget.PrimaryButton(c, nil, "Sign in", "").Clicked() || submit {
-				a.submitSignIn()
-			}
-		})
+	submit := false
+	widget.FormSheet(c, &open, 480, "Sign in to "+p.host.Name, "", func() {
+		submit = signInFields(c, p, true)
+	}, func() {
+		if widget.PrimaryButton(c, nil, "Sign in", "").Clicked() || submit {
+			a.submitSignIn()
+		}
 	})
 	if !open {
 		a.signIn = nil
@@ -130,9 +127,9 @@ func signInFields(c *ui.Context, p *signInPrompt, focus bool) (submit bool) {
 	if p.refusal.TriedPassword {
 		what = "your SSH keys or the saved password"
 	}
-	ui.Text(c, p.refusal.Addr+" didn't accept "+what+" for "+p.refusal.User+".").FontSize(theme.TextUI).TextColor(theme.TextSoft)
+	widget.CardNote(c.Key("refused"), p.refusal.Addr+" didn't accept "+what+" for "+p.refusal.User+".", 0).FontSize(theme.TextUI)
 	widget.Field(c, "User", func() {
-		in := widget.Input(c, &p.user, "root").FillWidth().Font(theme.MonoFont)
+		in := widget.Input(c, &p.user, "root").FillWidth()
 		if focus && !p.refusal.AcceptsPassword() {
 			in.AutoFocus()
 		}
@@ -146,16 +143,12 @@ func signInFields(c *ui.Context, p *signInPrompt, focus bool) (submit bool) {
 			}
 			submit = in.Submitted() || submit
 		})
-		ui.Row(c).FillWidth().Gap(10).Children(func() {
-			ui.Text(c, "Remember the password in the keychain").FontSize(theme.TextUI).TextColor(theme.TextSoft).Grow(1)
-			widget.Switch(c, &p.remember, "Remember the password in the keychain")
-		})
+		widget.ToggleRow(c.Key("remember"), "Remember the password in the keychain", "", &p.remember)
 	} else {
-		ui.Text(c, "This server accepts SSH keys only. Add your public key (~/.ssh/id_ed25519.pub) to the user's ~/.ssh/authorized_keys, or allow passwords in the server's /etc/ssh/sshd_config.").
-			FontSize(12).TextColor(theme.Muted)
+		widget.CardNote(c.Key("keys-only"), "This server accepts SSH keys only. Add your public key (~/.ssh/id_ed25519.pub) to the user's ~/.ssh/authorized_keys, or allow passwords in the server's /etc/ssh/sshd_config.", 0)
 	}
 	if p.err != "" {
-		ui.Text(c, p.err).FontSize(theme.TextLabel).TextColor(theme.Error)
+		widget.Notice(c, icon.Alert, theme.Error, p.err, "", nil)
 	}
 	return submit
 }

@@ -174,45 +174,47 @@ func (a *App) createServerDialog(c *ui.Context) {
 		return
 	}
 	creating := strings.HasPrefix(f.busy, "Creating") || strings.HasPrefix(f.busy, "Waiting") || strings.HasPrefix(f.busy, "Adding")
-	widget.Dialog(c, &f.open, 560, 14, func() {
-		about := "At a cloud provider, with your own account and API token: an Ubuntu 24.04 server with your SSH key, which enowX then sets up and connects to. The provider bills you for it."
-		if vps.NeedsCertificate(f.provider) {
-			about = "A Debian 13 VM at InstaBox, with your API key, reached through InstaBox's SSH gateway with a certificate it signs for your SSH key each time enowX connects. InstaBox bills it by the second while it runs, and pauses it when idle."
-		}
-		widget.DialogHeader(c, "Create a server", about, false)
+	about, detail := "At Hetzner, DigitalOcean or Vultr, with your own API token.", "An Ubuntu 24.04 server with your SSH key, which enowX then sets up and connects to. Paid to the provider."
+	if vps.NeedsCertificate(f.provider) {
+		about, detail = "At InstaBox, with your API key.", "A Debian 13 VM, reached through InstaBox's SSH gateway with a certificate it signs for your SSH key each time enowX connects. InstaBox bills it by the second while it runs, and pauses it when idle."
+	}
+	p, _ := vps.Find(f.provider)
+	picksRegion := f.loaded == f.provider && len(f.regions) > 0 && !f.existing
+	widget.Sheet(c, &f.open, 560, func() {
+		widget.SheetHead(c, &f.open, "Create a server", about)
+	}, func() {
 		if f.err != "" {
 			widget.Notice(c, icon.Alert, theme.Error, f.err, "", nil)
 		}
-		widget.Field(c, "Provider", func() {
-			names := make([]string, len(vps.Providers))
-			cur := 0
-			for i, p := range vps.Providers {
-				names[i] = p.Name
-				if p.ID == f.provider {
-					cur = i
-				}
+		widget.FieldCols(c, func() {
+			widget.Field(c, "Provider", func() { a.providerSelect(c, f) })
+		}, func() {
+			if !picksRegion || (len(f.regions) <= 1 && vps.NeedsCertificate(f.provider)) { // InstaBox has no regions to pick
+				return
 			}
-			if i := widget.Segmented(c, names, cur, nil); i >= 0 && vps.Providers[i].ID != f.provider {
-				*f = vpsForm{open: true, provider: vps.Providers[i].ID, remember: f.remember, name: f.name, key: f.key}
-				a.loadToken(f)
-			}
-		})
-		p, _ := vps.Find(f.provider)
-		widget.Field(c, "API token", func() {
-			ui.Column(c).FillWidth().Gap(5).Children(func() {
-				ui.Row(c).FillWidth().Gap(8).Children(func() {
-					widget.Input(c, &f.token, "Paste the token").Password().Grow(1)
-					if widget.GhostButton(c, "Use it").Disabled(strings.TrimSpace(f.token) == "" || f.busy != "").Clicked() {
-						a.loadRegions(f)
-					}
-				})
-				ui.Text(c, p.TokenHelp+".").FontSize(theme.TextLabel).TextColor(theme.Muted)
-				if f.fromVault {
-					ui.Text(c, "From the vault: its "+p.Name+" credential.").FontSize(theme.TextLabel).TextColor(theme.Done)
-				} else {
-					switchRow(c, &f.remember, "Keep it in the system's keychain", "To create more servers, and to delete this one from enowX.")
+			widget.Field(c, "Region", func() {
+				prev := f.region
+				optionSelect(c, &f.region, f.regions, "Region")
+				if f.region != prev {
+					a.loadSizes(f)
 				}
 			})
+		})
+		widget.Field(c, "API token", func() {
+			ui.Row(c.Key("token")).FillWidth().Shrink(0).Gap(theme.S2).Children(func() {
+				ui.Column(c).Grow(1).Basis(0).MinWidth(0).Children(func() {
+					widget.Input(c, &f.token, "Paste the token").Password().FillWidth()
+				})
+				if widget.GhostButton(c, "Use it").Disabled(strings.TrimSpace(f.token) == "" || f.busy != "").Clicked() {
+					a.loadRegions(f)
+				}
+			})
+			widget.CardNote(c.Key("help"), p.TokenHelp+".", 0)
+			if f.fromVault {
+				widget.StatusLine(c.Key("vault"), theme.Done, false, "From the vault: its "+p.Name+" credential.")
+			} else {
+				switchRow(c, &f.remember, "Keep it in the system's keychain", "To create more servers, and to delete this one from enowX.")
+			}
 		})
 		if f.loaded == f.provider && f.listed {
 			widget.Field(c, "Machine", func() {
@@ -220,69 +222,93 @@ func (a *App) createServerDialog(c *ui.Context) {
 				if f.existing {
 					i = 1
 				}
-				if j := widget.Segmented(c, []string{"New machine", fmt.Sprintf("Use one you have (%d)", len(f.servers))}, i, nil); j >= 0 {
-					f.existing = j == 1
-				}
+				ui.Row(c.Key("machine")).FillWidth().Shrink(0).Children(func() {
+					if j := widget.Segmented(c, []string{"New machine", fmt.Sprintf("Use one you have (%d)", len(f.servers))}, i, nil); j >= 0 {
+						f.existing = j == 1
+					}
+				})
 			})
 		}
 		if f.loaded == f.provider && f.existing {
 			a.existingServers(c, f)
 		}
-		if f.loaded == f.provider && len(f.regions) > 0 && !f.existing {
-			if len(f.regions) > 1 || !vps.NeedsCertificate(f.provider) { // InstaBox has no regions to pick
-				widget.Field(c, "Region", func() {
-					prev := f.region
-					optionSelect(c, &f.region, f.regions, "Region")
-					if f.region != prev {
-						a.loadSizes(f)
-					}
+		if picksRegion {
+			// Under a parent of their own: the provider's row above is also FieldCols.
+			ui.Column(c.Key("size-name")).FillWidth().Shrink(0).Children(func() {
+				widget.FieldCols(c, func() {
+					widget.Field(c, "Size", func() {
+						if len(f.sizes) == 0 {
+							widget.CardNote(c, "No sizes offered there.", 0)
+							return
+						}
+						optionSelect(c, &f.size, f.sizes, "Size")
+					})
+				}, func() {
+					widget.Field(c, "Name", func() { widget.Input(c, &f.name, "enowx-1").FillWidth() })
 				})
-			}
-			widget.Field(c, "Size", func() {
-				if len(f.sizes) == 0 {
-					ui.Text(c, "No sizes offered there.").FontSize(theme.TextLabel).TextColor(theme.Muted)
-					return
-				}
-				optionSelect(c, &f.size, f.sizes, "Size")
 			})
-			widget.Field(c, "Name", func() { widget.Input(c, &f.name, "enowx-1").FillWidth().Font(theme.MonoFont) })
-			widget.Field(c, "SSH key", func() {
-				if f.key != "" {
-					whose := ", for root"
-					if vps.NeedsCertificate(f.provider) {
-						whose = ", which " + p.Name + " signs a certificate for each time enowX connects"
-					}
-					ui.Text(c, f.key+whose).Font(theme.MonoFont).FontSize(theme.TextLabel).TextColor(theme.TextSoft)
-					return
-				}
-				ui.Row(c).FillWidth().Gap(8).Children(func() {
-					ui.Text(c, "You have no SSH key yet.").FontSize(theme.TextLabel).TextColor(theme.Muted).Grow(1)
-					if widget.GhostButton(c, "Make one").Clicked() {
-						a.makeKey(f)
-					}
-				})
+			a.vpsKeyField(c, f, p.Name)
+		}
+		widget.CardNote(c.Key("detail"), detail, 0)
+	}, func() {
+		if f.busy != "" {
+			ui.Row(c.Key("busy")).Grow(1).Basis(0).MinWidth(0).Gap(theme.S2).Children(func() {
+				widget.Spinner(c, 12)
+				ui.Row(c).Grow(1).Basis(0).MinWidth(0).Children(func() { widget.Running(c, f.busy, widget.RunStyle{Size: theme.TextLabel, Color: theme.TextSoft}) })
 			})
 		}
-		widget.DialogFooter(c, f.busy, func() {
-			if widget.GhostButton(c, "Cancel").Disabled(creating).Clicked() && !creating {
-				f.open = false
+		if widget.GhostButton(c, "Cancel").Disabled(creating).Clicked() && !creating {
+			f.open = false
+		}
+		if f.existing {
+			ok := f.pick != "" && f.key != "" && f.busy == ""
+			if widget.PrimaryButton(c, nil, "Connect", "").Disabled(!ok).Clicked() && ok {
+				a.useServer(f)
 			}
-			if f.existing {
-				ok := f.pick != "" && f.key != "" && f.busy == ""
-				if widget.PrimaryButton(c, icon.Server, "Connect", "").Disabled(!ok).Clicked() && ok {
-					a.useServer(f)
-				}
-				return
-			}
-			ok := f.size != "" && f.key != "" && strings.TrimSpace(f.name) != "" && f.busy == ""
-			if widget.PrimaryButton(c, icon.Server, "Create", "").Disabled(!ok).Clicked() && ok {
-				a.createServer(f)
-			}
-		})
+			return
+		}
+		ok := f.size != "" && f.key != "" && strings.TrimSpace(f.name) != "" && f.busy == ""
+		if widget.PrimaryButton(c, nil, "Create", "").Disabled(!ok).Clicked() && ok {
+			a.createServer(f)
+		}
 	})
 	if creating {
 		f.open = true // it finishes, or fails, before the dialog goes
 	}
+}
+
+// providerSelect picks the provider, which starts the form over on its token.
+func (a *App) providerSelect(c *ui.Context, f *vpsForm) {
+	opts := make([]vps.Option, len(vps.Providers))
+	for i, p := range vps.Providers {
+		opts[i] = vps.Option{ID: p.ID, Name: p.Name}
+	}
+	id := f.provider
+	optionSelect(c, &id, opts, "Provider")
+	if id != f.provider {
+		*f = vpsForm{open: true, provider: id, remember: f.remember, name: f.name, key: f.key}
+		a.loadToken(f)
+	}
+}
+
+// vpsKeyField says which of the user's SSH keys a new server takes, or makes one.
+func (a *App) vpsKeyField(c *ui.Context, f *vpsForm, provider string) {
+	widget.Field(c, "SSH key", func() {
+		if f.key == "" {
+			ui.Row(c.Key("no-key")).FillWidth().Shrink(0).Gap(theme.S2).Children(func() {
+				ui.Column(c).Grow(1).Basis(0).MinWidth(0).Children(func() { widget.CardNote(c, "You have no SSH key yet.", 0) })
+				if widget.GhostButton(c, "Make one").Clicked() {
+					a.makeKey(f)
+				}
+			})
+			return
+		}
+		whose := ", for root"
+		if vps.NeedsCertificate(f.provider) {
+			whose = ", which " + provider + " signs a certificate for each time enowX connects"
+		}
+		widget.CardNote(c.Key("key"), f.key+whose, 0)
+	})
 }
 
 // optionSelect is a drop-down of provider options, with prices.
@@ -295,25 +321,33 @@ func optionSelect(c *ui.Context, value *string, opts []vps.Option, label string)
 		}
 	}
 	widget.Trigger(sel.Trigger, sel.Open()).FillWidth().Label(label).Children(func() {
-		ui.Text(c, cur.Name).FontSize(theme.TextUI).SingleLine()
-		ui.Text(c, optionNote(cur)).FontSize(theme.TextLabel).TextColor(theme.Muted).SingleLine().Shrink(1)
-		ui.Spacer(c)
-		ui.Icon(c, icon.ChevronDown).FontSize(12).TextColor(theme.Muted)
+		optionFace(c, cur)
+		ui.Icon(c, icon.ChevronDown).FontSize(12).TextColor(theme.TextSoft)
 	})
 	sel.Popup(func(panel ui.Element) {
-		widget.Popup(panel.Margin(6, 0, 0, 0).Width(480))
+		widget.Popup(panel.Margin(theme.S1, 0, 0, 0).Width(max(sel.Trigger.Bounds().W, 240)))
 		ui.Scroll(c).FillWidth().MaxHeight(320).Children(func() {
 			ui.Column(c).FillWidth().Children(func() {
 				for _, o := range opts {
 					item := sel.Item(o.ID)
 					widget.PopupItem(item, item.Highlighted()).Children(func() {
-						ui.Text(c, o.Name).FontSize(theme.TextUI).SingleLine()
-						ui.Text(c, optionNote(o)).FontSize(theme.TextLabel).TextColor(theme.Muted).SingleLine().Shrink(1)
+						optionFace(c, o)
 					})
 				}
 			})
 		})
 	})
+}
+
+// optionFace is an option's name and, in what's left, its note, each running
+// when it can't fit.
+func optionFace(c *ui.Context, o vps.Option) {
+	ui.Row(c.Key("name")).Grow(1).Basis(0).MinWidth(0).Children(func() { widget.Running(c, o.Name, widget.RunStyle{}) })
+	if note := optionNote(o); note != "" {
+		ui.Row(c.Key("note")).Grow(2).Basis(0).MinWidth(0).Children(func() {
+			widget.Running(c, note, widget.RunStyle{Size: theme.TextLabel, Color: theme.TextSoft})
+		})
+	}
 }
 
 func optionNote(o vps.Option) string {
