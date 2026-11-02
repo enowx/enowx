@@ -314,7 +314,7 @@ func (e *editor) columnsView(c *ui.Context, i int, n noteblocks.Node) {
 			}
 			col.Children(func() {
 				if p.Title != "" {
-					e.label(c, p.Title).FontSize(theme.TextRead).FontWeight(500).TextColor(theme.TextStrong)
+					e.label(c, p.Title).FontSize(theme.TextRead).FontWeight(500).TextColor(theme.TextStrong).PaddingX(6)
 				}
 				e.partView(c, i, p)
 			})
@@ -339,7 +339,7 @@ func (e *editor) cardsView(c *ui.Context, i int, n noteblocks.Node) {
 					p := n.Parts[k]
 					widget.Card(c.Key(k)).Grow(1).Basis(0).Gap(theme.S1).Padding(theme.S3, theme.S4).Children(func() {
 						if p.Title != "" {
-							e.label(c, p.Title).FontSize(theme.TextRead).FontWeight(500).TextColor(theme.TextStrong)
+							e.label(c, p.Title).FontSize(theme.TextRead).FontWeight(500).TextColor(theme.TextStrong).PaddingX(6)
 						}
 						e.partView(c, i, p)
 					})
