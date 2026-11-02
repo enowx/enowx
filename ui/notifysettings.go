@@ -124,7 +124,7 @@ func (a *App) notifySection(c *ui.Context) {
 				widget.CardTitle(c, nil, "Team chat", nil)
 				modes := []string{"", "mentions", "off"}
 				cur := max(0, slices.Index(modes, st.Chat))
-				if i := widget.Segmented(c, []string{"Every message", "Mentions of me", "Off"}, cur, nil); i >= 0 && i != cur {
+				if i := segmentedInCard(c, []string{"Every message", "Mentions of me", "Off"}, cur, 300); i >= 0 && i != cur {
 					st.Chat, changed = modes[i], true
 				}
 				widget.CardNote(c, "A message from your team, when its chat isn't open: a sound, a card in the window's corner to answer from, and a banner when the window is in the background. Mentions of you and replies to you always notify.", 0)
