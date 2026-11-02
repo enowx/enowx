@@ -291,7 +291,7 @@ func (v *View) Draw(c *ui.Context, o Options, wanted func() bool) {
 			v.setupView(c, o)
 			return
 		}
-		ui.Scroll(c.Key("tool")).Grow(1).FillWidth().MinHeight(0).Children(func() {
+		widget.Scroll(c.Key("tool")).Grow(1).FillWidth().MinHeight(0).Children(func() {
 			ui.Column(c).FillWidth().Gap(theme.S2).Children(func() {
 				v.hostNotes(c, o)
 				v.deviceRows(c, o)
@@ -746,7 +746,7 @@ func (v *View) DrawLogcat(c *ui.Context, o Options, wanted func() bool) {
 			}
 			v.readLog(o, d)
 			lines := v.shownLines()
-			ui.List(c.Key("log"), &v.logList, len(lines), func(i int) { logLine(c, lines[i]) }).Grow(1).FillWidth()
+			widget.List(c.Key("log"), &v.logList, len(lines), func(i int) { logLine(c, lines[i]) }).Grow(1).FillWidth()
 		})
 	})
 }
