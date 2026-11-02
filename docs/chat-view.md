@@ -40,6 +40,12 @@ The composer shows the agent's model, permission mode and effort, as the transcr
 
 Other agents show no settings.
 
+## Keeping them
+
+A session keeps its model, effort and permission mode through restarts, wakes, reconnects, app updates and forks. What its agent last said it runs on is kept with the session, and passed on its command line each time it starts or resumes (`--model`, `--effort`, `--permission-mode` for Claude Code, `-c model=…` and `-c model_reasoning_effort=…` for Codex). A change made in the agent, as `/model`, is what its transcript says next, so it becomes the session's. Exceptions: a session on a config has what the config says; one skipping permissions has that flag rather than a mode; Codex's Plan mode can't be asked for on its command line, so it comes back in Default; and a shell tab's agent, started by hand, has what it was started with.
+
+Claude Code saves what `/model` and `/effort` set as its default, in a file all its sessions read, and enowX can't stop that. Sessions already there aren't changed by it, as they say their own at each start. New ones take what Settings, New sessions start on says for that agent; left at "The agent's own", they take whatever that file says by then. A task's routing picks what a new session starts on: a session that already exists keeps its own, unless GOA or the user asks for a model by hand.
+
 ## Editing a message
 
 A pencil beside one of the user's messages (shown while the pointer is over it, and not while the agent works) puts the message in the composer, over a line saying it is being edited, with an × to stop. Sending it asks the daemon to take the agent back to before that message the way its user would (`session.rewind`, `core/agent/rewind.go`), then sends it as any message goes. Files the agent changed since stay as they are.

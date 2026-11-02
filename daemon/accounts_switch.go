@@ -61,7 +61,11 @@ func (s *Server) switchAgent(p proto.AccountSwitchParams) (proto.SessionInfo, er
 		return proto.SessionInfo{}, err
 	}
 	chat.config = run
-	l, err := launchFor(proto.SessionCreateParams{Agent: preset.ID, Prompt: prompt, SkipPermissions: meta.SkipPermissions}, chat)
+	keep := proto.SessionCreateParams{Agent: preset.ID, Prompt: prompt, SkipPermissions: meta.SkipPermissions}
+	if agent.Base(preset.ID) == agent.Base(meta.Agent) {
+		keep.Model, keep.Effort, keep.Mode = meta.Model, meta.Effort, meta.Mode // the same agent: only its account changes
+	}
+	l, err := launchFor(keep, chat)
 	if err != nil {
 		return proto.SessionInfo{}, err
 	}

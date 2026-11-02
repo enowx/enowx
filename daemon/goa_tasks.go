@@ -76,9 +76,9 @@ func (s *Server) goaDelegate(p proto.GOADelegateParams) (proto.GOATask, error) {
 			t.Why = "not routed (" + err.Error() + "): the agent's own model"
 		case rc.Error != "":
 			t.Why = "the judge didn't answer (" + rc.Error + "): the agent's own model"
-		case rc.Config != "" && t.Session != "":
-			// Another provider's model: a running session stays on its own.
-			t.Difficulty, t.Why = rc.Difficulty, rc.Why+" (the session keeps its own config and model)"
+		case t.Session != "":
+			// Routing picks what a task starts on: a session already there keeps its own.
+			t.Difficulty, t.Why = rc.Difficulty, rc.Why+" (the session keeps its own model and effort)"
 		default:
 			t.Model, t.Effort, t.Difficulty, t.Why, switches = rc.Model, rc.Effort, rc.Difficulty, rc.Why, rc.Switch
 			if rc.Config != "" && t.Config == "" {

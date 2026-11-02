@@ -82,7 +82,7 @@ func TestBackgroundSettingsPersist(t *testing.T) {
 	if st.BackgroundImage != "/pictures/sea.png" || st.backgroundOpacity() != 0.95 || st.backgroundBlur() != 0 {
 		t.Fatalf("%+v", st)
 	}
-	if got := st.palette(false).Panel.A; got != uint8(0.95*255+0.5) {
+	if got := st.palette(false).Panel.A; got != 242 { // 0.95 of 255
 		t.Fatalf("panel alpha %d", got)
 	}
 	none := 0.0

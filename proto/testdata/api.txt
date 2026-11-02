@@ -187,6 +187,9 @@ field AgentInfo.install string
 field AgentInfo.installed bool
 field AgentInfo.name string
 field AgentInfo.signIn string
+field AgentStart.effort string
+field AgentStart.mode string
+field AgentStart.model string
 field AndroidADBConn.id uint32
 field AndroidADBConn.listener uint32
 field AndroidADBListener.id uint32
@@ -849,6 +852,7 @@ field DaemonInfo.version string
 field DaemonLog.path string
 field DaemonLog.text string
 field DaemonLogParams.lines int
+field DaemonSettings.agentStart map[string]AgentStart
 field DaemonSettings.hibernateAfter int
 field DaemonSettings.maxAgents int
 field DaemonStats.daemon Usage
@@ -1913,6 +1917,7 @@ field SessionCreateParams.fork bool
 field SessionCreateParams.goa bool
 field SessionCreateParams.goaWorker string
 field SessionCreateParams.group string
+field SessionCreateParams.mode string
 field SessionCreateParams.model string
 field SessionCreateParams.name string
 field SessionCreateParams.notesFor string

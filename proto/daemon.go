@@ -67,11 +67,22 @@ type StopAgentsResult struct {
 	Stopped int `json:"stopped"`
 }
 
+// AgentStart is an agent's model, effort and permission mode for new sessions, each ""
+// for what the agent's own settings say.
+type AgentStart struct {
+	Model  string `json:"model,omitempty"`
+	Effort string `json:"effort,omitempty"`
+	Mode   string `json:"mode,omitempty"`
+}
+
 // DaemonSettings are the host's settings. MaxAgents is how many agents may
 // work at once (0: no limit); sessions started past it wait, queued, for
 // one to finish its turn.
 type DaemonSettings struct {
 	MaxAgents int `json:"maxAgents"`
+	// AgentStart is what new sessions start on, by agent: the user's choice, kept here so
+	// that it doesn't follow what one session wrote to an agent's own settings.
+	AgentStart map[string]AgentStart `json:"agentStart,omitempty"`
 	// HibernateAfter is how many minutes an agent done with its turn may
 	// stay idle before the daemon stops it to free what it holds, keeping
 	// its session to continue; 0 never does.

@@ -60,8 +60,9 @@ type Meta struct {
 	SkipPermissions bool
 	// SkipUnheard: proto.SessionInfo.SkipUnheard.
 	SkipUnheard bool
-	// Model and Effort: what its agent last said it runs on.
-	Model, Effort string
+	// Model and Effort: what its agent last said it runs on. Mode: its permission mode, the
+	// same way. All three go on its command line whenever it starts again.
+	Model, Effort, Mode string
 	// Conversation is its agent's conversation, by the id the agent
 	// resumes it with: it goes on with its own, not the folder's latest.
 	Conversation string

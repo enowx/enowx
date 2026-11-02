@@ -53,12 +53,14 @@ type hostSettings struct {
 	vars     []proto.SessionEnvVar
 	loaded   bool
 	maxAgent int
-	sleep    int  // HibernateAfter, in minutes
-	neverHib bool // new sessions don't hibernate on their own (every host)
-	log      proto.DaemonLog
-	err      string
-	newName  string
-	newValue string
+	sleep    int // HibernateAfter, in minutes
+	// agentStart is what new sessions of each agent start on.
+	agentStart map[string]proto.AgentStart
+	neverHib   bool // new sessions don't hibernate on their own (every host)
+	log        proto.DaemonLog
+	err        string
+	newName    string
+	newValue   string
 }
 
 // hostSettingsOf is the sections' state for the connected host, read anew
@@ -87,7 +89,7 @@ func (a *App) loadHostSettings() {
 			if err != nil {
 				hs.err = client.Explain(err)
 			}
-			hs.vars, hs.maxAgent, hs.sleep, hs.log = vars, st.MaxAgents, st.HibernateAfter, log
+			hs.vars, hs.maxAgent, hs.sleep, hs.log, hs.agentStart = vars, st.MaxAgents, st.HibernateAfter, log, st.AgentStart
 		})
 	}()
 }
@@ -193,6 +195,7 @@ func (a *App) sessionDefaults(c *ui.Context) {
 					})
 					widget.CardNote(c, "They run tools without asking. It also covers GOD of Agents, its workers and the chats of notes and canvases for agents that can't tell enowX they ask, like OpenCode. Claude Code and Codex can switch it in the chat; others keep theirs until they restart.", 0)
 				})
+				a.agentStartCard(c)
 				widget.Card(c).Children(func() {
 					widget.CardTitle(c, nil, "Time budget for agents", nil)
 					labels := []string{"None"}

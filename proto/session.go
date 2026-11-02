@@ -314,8 +314,10 @@ type SessionCreateParams struct {
 	// Model and Effort start the agent on a model and a reasoning effort
 	// (agent.Settings' choices), where its command line takes them.
 	// Older daemons ignore them.
-	Model   string   `json:"model,omitempty"`
-	Effort  string   `json:"effort,omitempty"`
+	Model  string `json:"model,omitempty"`
+	Effort string `json:"effort,omitempty"`
+	// Mode starts the agent in a permission mode, where its command line takes one.
+	Mode    string   `json:"mode,omitempty"`
 	Command []string `json:"command,omitempty"`
 	Dir     string   `json:"dir,omitempty"`
 	Env     []string `json:"env,omitempty"`

@@ -133,6 +133,14 @@ func (m *Manager) SetModel(s *Session, model, effort string) {
 	m.notify(s)
 }
 
+// SetMode records the permission mode session s's agent is in.
+func (m *Manager) SetMode(s *Session, mode string) {
+	s.mu.Lock()
+	s.meta.Mode = mode
+	s.mu.Unlock()
+	m.notify(s)
+}
+
 // nameMax bounds a session's name: a line in the session list.
 const nameMax = 80
 

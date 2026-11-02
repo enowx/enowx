@@ -48,6 +48,7 @@ type record struct {
 	Unheard  bool                 `json:"skipUnheard,omitempty"`
 	Model    string               `json:"model,omitempty"`
 	Effort   string               `json:"effort,omitempty"`
+	Mode     string               `json:"mode,omitempty"`
 	Budget   int64                `json:"budget,omitempty"` // seconds
 	Display  bool                 `json:"display,omitempty"`
 	Parent   string               `json:"parent,omitempty"`
@@ -134,7 +135,7 @@ func (p *persistence) update(s *session.Session, command []string) {
 	r := record{
 		ID: info.ID, Created: info.Created, Dir: info.Dir, Command: info.Command, Relaunch: meta.Relaunch, Restart: meta.Restart,
 		Finished: meta.FinishedAt, Convo: meta.Conversation, Exited: info.Exited, ExitCode: info.ExitCode, Name: meta.Name, Prompt: info.Prompt,
-		Project: meta.Project, Agent: meta.Agent, Branch: meta.Branch, Worktree: meta.Worktree, Skip: meta.SkipPermissions, Unheard: meta.SkipUnheard, Model: meta.Model, Effort: meta.Effort,
+		Project: meta.Project, Agent: meta.Agent, Branch: meta.Branch, Worktree: meta.Worktree, Skip: meta.SkipPermissions, Unheard: meta.SkipUnheard, Model: meta.Model, Effort: meta.Effort, Mode: meta.Mode,
 		Budget: int64(meta.Budget / time.Second), Display: meta.Display > 0, Parent: meta.Parent, Note: meta.Note,
 		Group: meta.Group, Account: meta.Account, Config: meta.Config, Member: meta.Member, Private: meta.Private, NotesFor: meta.NotesFor, Canvas: meta.CanvasFor, GOA: meta.GOA, GOAWorker: meta.GOAWorker, Features: meta.Features, Creds: meta.Creds,
 		Hibernated: meta.Hibernated && info.Exited, HibernatedByHand: meta.HibernatedByHand, HibernatedAt: meta.HibernatedAt,
@@ -239,7 +240,7 @@ func (s *Server) restore() {
 			Meta: session.Meta{
 				FinishedAt: r.Finished,
 				Name:       r.Name, Prompt: r.Prompt, Project: r.Project, Agent: r.Agent, Branch: r.Branch,
-				Worktree: r.Worktree, SkipPermissions: r.Skip, SkipUnheard: r.Unheard, Model: r.Model, Effort: r.Effort, Conversation: r.Convo, Relaunch: r.Relaunch, Restart: r.Restart, Restored: true,
+				Worktree: r.Worktree, SkipPermissions: r.Skip, SkipUnheard: r.Unheard, Model: r.Model, Effort: r.Effort, Mode: r.Mode, Conversation: r.Convo, Relaunch: r.Relaunch, Restart: r.Restart, Restored: true,
 				Budget: time.Duration(r.Budget) * time.Second, Parent: r.Parent, Note: r.Note, Group: r.Group, Account: r.Account, Config: r.Config, Member: r.Member, Private: r.Private, NotesFor: r.NotesFor, CanvasFor: r.Canvas, GOA: r.GOA, GOAWorker: r.GOAWorker, Features: r.Features, Creds: r.Creds,
 				Hibernated: r.Hibernated, HibernatedByHand: r.HibernatedByHand, HibernatedAt: r.HibernatedAt, NoAutoHibernate: r.NoAutoHibernate,
 			},
@@ -277,6 +278,7 @@ func (s *Server) restore() {
 				chat.config = run
 				l := agentLaunch(preset, r.Skip, "", hasConversation(preset, r.Convo), chat)
 				l.Resume = r.Convo // its own, not the folder's latest
+				l.Hooks = append(l.Hooks, keptArgs(spec.Meta)...)
 				spec.Command = thenShell(preset.Argv(l))
 				spec.Meta.Restart = spec.Command
 			}
@@ -388,6 +390,7 @@ func (s *Server) resumeSession(id, convo string) (*session.Session, error) {
 		chat.config = run
 		l := agentLaunch(preset, meta.SkipPermissions, "", hasConversation(preset, convo), chat)
 		l.Resume = convo
+		l.Hooks = append(l.Hooks, keptArgs(meta)...)
 		command = thenShell(preset.Argv(l))
 		if len(preset.Resume) > 0 {
 			meta.Conversation = convo

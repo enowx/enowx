@@ -121,6 +121,10 @@ func (s *Server) createSessionFor(p proto.SessionCreateParams, member *proto.Ses
 		}
 		chat.config, meta.Config = run, run.sessionInfo()
 	}
+	if member == nil && p.Resume == "" && meta.Config == nil {
+		p = s.withAgentStart(p)
+	}
+	meta.Model, meta.Effort, meta.Mode = strings.TrimPrefix(p.Model, "default"), strings.TrimPrefix(p.Effort, "default"), p.Mode
 	launch, err := launchFor(p, chat)
 	if err != nil {
 		s.configForget(id)
@@ -370,14 +374,17 @@ func launchFor(p proto.SessionCreateParams, chat chatFor) (launch, error) {
 		}
 	}
 	first := agentLaunch(preset, skip, prompt, false, chat)
-	first.Hooks = append(first.Hooks, agent.LaunchArgs(preset.ID, p.Model, p.Effort)...)
+	args := agent.StartArgs(preset.ID, p.Model, p.Effort, p.Mode, skip)
+	first.Hooks = append(first.Hooks, args...)
+	again := agentLaunch(preset, skip, "", true, chat)
+	again.Hooks = append(again.Hooks, args...)
 	if p.Resume != "" {
 		first.Resume, first.Fork = p.Resume, p.Fork
 	}
 	l := launch{
 		command:  thenShell(preset.Argv(first)),
 		env:      append(append(append(append(preset.Environ(skip), chat.apiEnv(preset.ID)...), notesEnv(chat.notes != "")...), canvasEnv(chat.canvas != "")...), append(chat.goaEnv(preset.ID), chat.toolEnv(preset.ID)...)...),
-		restart:  thenShell(preset.Argv(agentLaunch(preset, skip, "", true, chat))),
+		restart:  thenShell(preset.Argv(again)),
 		relaunch: len(preset.Continue) > 0,
 		skip:     skip,
 	}
