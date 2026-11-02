@@ -217,3 +217,55 @@ func boardTask(t *testing.T, srv *Server, id string) proto.GOATask {
 	t.Fatalf("no task %s", id)
 	return proto.GOATask{}
 }
+
+// Lines of a task settled before GOA takes them go unsaid; a report sent after arrives
+// once as a correction, and one sent before says nothing.
+func TestSettledTaskRaisesNoLines(t *testing.T) {
+	srv := startServer(t)
+	task, err := srv.goa.board.Add(proto.GOATask{Title: "x", Session: "s5", Status: proto.GOATaskWorking})
+	if err != nil {
+		t.Fatal(err)
+	}
+	srv.goa.mu.Lock()
+	srv.goa.tell = []goaLine{{Task: task.ID, Text: "finished a turn"}, {Text: "another's end"}}
+	srv.goa.mu.Unlock()
+	if _, err := srv.goa.board.Update(task.ID, func(x *proto.GOATask) { x.Status = proto.GOATaskDone }); err != nil {
+		t.Fatal(err)
+	}
+	lines := srv.goaLinesToSay()
+	if len(lines) != 1 || lines[0].Text != "another's end" {
+		t.Fatalf("said: %+v", lines)
+	}
+	settled := boardTask(t, srv, task.ID).Updated.UnixMilli()
+	// Told by goaTell, which reaches no GOA in this server: what it marks is what counts.
+	srv.goaCorrection(proto.SessionInfo{ID: "s5", ReportAt: settled - 1, Report: "before"})
+	if got := boardTask(t, srv, task.ID); got.ReportAt != 0 {
+		t.Fatalf("a report from before counted: %+v", got)
+	}
+	srv.goaCorrection(proto.SessionInfo{ID: "s5", ReportAt: settled + 1, Report: "after"})
+	first := boardTask(t, srv, task.ID)
+	if first.ReportAt != settled+1 {
+		t.Fatalf("no correction: %+v", first)
+	}
+	srv.goaCorrection(proto.SessionInfo{ID: "s5", ReportAt: settled + 1, Report: "after"})
+	if again := boardTask(t, srv, task.ID); again.Updated != first.Updated {
+		t.Fatalf("told twice: %+v", again)
+	}
+}
+
+// Taking a task over ends following a session as one with no task.
+func TestTaskEndsToldFollowing(t *testing.T) {
+	srv := startServer(t)
+	srv.goa.mu.Lock()
+	srv.goa.told["s6"] = goaTold{}
+	srv.goa.mu.Unlock()
+	if _, err := srv.goaAddTask(proto.GOADelegateParams{}, proto.GOATask{Session: "s6", Status: proto.GOATaskWorking}, proto.SessionInfo{ID: "s6"}); err != nil {
+		t.Fatal(err)
+	}
+	srv.goa.mu.Lock()
+	_, still := srv.goa.told["s6"]
+	srv.goa.mu.Unlock()
+	if still {
+		t.Fatal("still followed")
+	}
+}

@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"time"
 
 	"github.com/enowx/enowx/core/goa"
 	"github.com/enowx/enowx/proto"
@@ -64,6 +65,44 @@ func (s *Server) goaToldIDs() []string {
 	return ids
 }
 
+// goaForgetTold stops following session id as one with no task.
+func (s *Server) goaForgetTold(id string) {
+	s.goa.mu.Lock()
+	_, told := s.goa.told[id]
+	delete(s.goa.told, id)
+	s.goa.mu.Unlock()
+	if told {
+		s.saveGOATold()
+	}
+}
+
+// goaCorrection tells GOA, once, of what a session reported after its last task was
+// settled, marked a correction: it asks nothing to be settled, and a report sent before
+// the task was settled, unheard until then, says nothing at all.
+func (s *Server) goaCorrection(info proto.SessionInfo) {
+	if info.ReportAt == 0 {
+		return
+	}
+	var last *proto.GOATask
+	tasks := s.goa.board.List()
+	for i := range tasks {
+		if tasks[i].Session == info.ID && (last == nil || tasks[i].Created.After(last.Created)) {
+			last = &tasks[i]
+		}
+	}
+	if last == nil || !goa.Settled(last.Status) || info.ReportAt <= last.ReportAt || info.ReportAt <= last.Updated.UnixMilli() {
+		return
+	}
+	moved := false
+	if _, err := s.goa.board.Update(last.ID, func(t *proto.GOATask) {
+		moved = info.ReportAt > t.ReportAt
+		t.ReportAt = max(t.ReportAt, info.ReportAt)
+	}); err != nil || !moved {
+		return
+	}
+	s.goaTell(fmt.Sprintf("[enowX GOA] Correction to settled task %s %q: session %s reported %s after it was settled: %s", last.ID, last.Title, info.ID, info.ReportOutcome, clip(oneLine(info.Report), goaResultMax)))
+}
+
 // goaCallTold follows input a session sends through host.call, to any host.
 func (s *Server) goaCallTold(p proto.HostCallParams) {
 	if p.Method != proto.MethodSessionInput || p.From == "" {
@@ -99,6 +138,7 @@ func (s *Server) goaMarkTold(from, host, id string) {
 	s.goa.mu.Lock()
 	t := s.goa.told[id]
 	t.Status, t.Host = "", host // what it does now is news, whatever it did before
+	t.ReportAt = max(t.ReportAt, time.Now().UnixMilli()) // and what it reported before isn't
 	s.goa.told[id] = t
 	s.goa.mu.Unlock()
 	s.saveGOATold()
@@ -110,6 +150,11 @@ func (s *Server) goaMarkTold(from, host, id string) {
 func (s *Server) goaToldChanged(info proto.SessionInfo) {
 	s.goa.mu.Lock()
 	was, told := s.goa.told[info.ID]
+	if !told {
+		s.goa.mu.Unlock()
+		s.goaCorrection(info)
+		return
+	}
 	status := goa.WorkerStatus(info)
 	news := told && (info.ReportAt > was.ReportAt || status != "" && status != proto.GOATaskWorking && status != was.Status)
 	ended := status == proto.GOATaskFailed || status == proto.GOATaskStopped

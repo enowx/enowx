@@ -76,6 +76,8 @@ Sent something again, a task whose turn had ended is at work again, so a screen 
 
 A report belongs to the task under way when it was sent. A task given to a session starts from that session's last report, so it never takes one sent before it; a task only queued takes none. A turn's end told after a task was typed in, with the session no longer done, is the turn before's (on another host, one within 3 seconds of the task); if it really was this task's, the screen says so about 20 seconds later.
 
+Lines about a task under way (its report, its turn's end, what it asks) go with its ID, and are dropped if it is settled before GOA takes them. A settled task raises nothing asking to settle it. What its session reports after it was settled arrives once, marked a correction.
+
 ### How lines reach GOA
 
 Workers' reports never go through GOA's input box while anything of the user's could be in it: a line typed there took the user's unfinished sentence along with it. By what each agent documents, in this order (`daemon/goa_inject.go`):

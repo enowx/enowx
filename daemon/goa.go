@@ -205,12 +205,7 @@ func (s *Server) goaSeen(info proto.SessionInfo) {
 		}()
 		return
 	}
-	s.goa.mu.Lock()
-	_, told := s.goa.told[info.ID]
-	s.goa.mu.Unlock()
-	if told {
-		go s.goaToldChanged(info)
-	}
+	go s.goaToldChanged(info)
 }
 
 // goaRanOn records the model a task's session says it runs on, each change, on
@@ -235,9 +230,9 @@ func (s *Server) goaRanOn(info proto.SessionInfo) {
 // goaTell has line typed into GOA once it is idle.
 func (s *Server) goaTell(line string) { s.goaTellLine(goaLine{Text: line}) }
 
-// goaLine is a line waiting for GOA. One about a task's progress (Task set)
-// says nothing once the task is settled, as it may be by the time GOA is idle;
-// a report has no Task, and always goes.
+// goaLine is a line waiting for GOA. One about a task under way (Task set: its report,
+// its turn's end, what it asks) says nothing once the task is settled, as it may be by
+// the time GOA takes it; one with no Task always goes, as a task's end does.
 type goaLine struct {
 	Text string `json:"text"`
 	Task string `json:"task,omitempty"`
