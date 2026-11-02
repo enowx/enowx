@@ -162,7 +162,7 @@ func (v *View) Draw(c *ui.Context, o Options) {
 			if o.Current != nil {
 				current = o.Current()
 			}
-			ui.Scroll(c).Grow(1).FillWidth().MinHeight(0).Children(func() {
+			widget.Scroll(c).Grow(1).FillWidth().MinHeight(0).Children(func() {
 				ui.Column(c).FillWidth().Gap(2).Children(func() {
 					for _, ch := range v.info.Checks {
 						v.checkRow(c.Key(ch.Name), o, ch, ch.Name == current)
