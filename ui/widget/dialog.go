@@ -60,7 +60,7 @@ func DialogHeader(c *ui.Context, title, description string, closeable bool, crum
 			}
 			ui.Text(c, title).FontSize(theme.TextTitle).FontWeight(600)
 			if description != "" {
-				ui.Text(c, description).FontSize(theme.TextUI).TextColor(theme.TextSoft)
+				ui.Text(c, description).FontSize(theme.TextUI).LineHeight(1.5).TextColor(theme.TextSoft)
 			}
 		})
 		if closeable && IconButton(c, icon.Close, "Close", false).Clicked() {
