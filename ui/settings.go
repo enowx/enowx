@@ -72,7 +72,9 @@ func (a *App) settingsPage(c *ui.Context) {
 	a.settingsBody(c)
 }
 
-// settingsSide lists the sections beside the frame, grouped.
+// settingsSide lists the sections beside the frame, grouped. It keeps its width
+// and its words whatever the window: design-1's side list replaced the narrow
+// state of icons alone, so no such state is left.
 func (a *App) settingsSide(c *ui.Context) {
 	widget.SidePanel(c, 248, func() {
 		for _, g := range settingsGroups {
