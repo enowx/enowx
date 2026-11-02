@@ -164,7 +164,7 @@ func (p *Picker) places(c *ui.Context) {
 
 func (p *Picker) list(c *ui.Context) {
 	// Its frame stays this tall whatever the folder holds.
-	ui.Scroll(c).FillWidth().Height(280).Shrink(0).Children(func() {
+	widget.Scroll(c).FillWidth().Height(280).Shrink(0).Children(func() {
 		ui.Column(c).FillWidth().Children(func() {
 			shown := 0
 			for _, e := range p.entries {
