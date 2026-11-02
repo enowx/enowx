@@ -60,8 +60,10 @@ func PageFill(c *ui.Context, fn func()) {
 // the detail of what's picked, which fills what is left of the height.
 func MasterDetail(c *ui.Context, width float32, list, detail func()) {
 	ui.Row(c.Key("master-detail")).Grow(1).FillWidth().MinHeight(0).AlignItems(ui.Stretch).Gap(theme.S3).Children(func() {
-		ui.Scroll(c.Key("master")).Width(width).Shrink(0).FillHeight().Children(func() {
-			ui.Column(c).FillWidth().Gap(theme.S2).Children(list)
+		master := ui.Scroll(c.Key("master")).Width(width).Shrink(0).FillHeight()
+		master.Children(func() {
+			// At least the scroll's height, so a last card can grow to the bottom.
+			ui.Column(c).FillWidth().MinHeight(master.Bounds().H).Gap(theme.S2).Children(list)
 		})
 		ui.Column(c.Key("detail")).Grow(1).Basis(0).MinWidth(0).FillHeight().Gap(theme.S3).Children(detail)
 	})

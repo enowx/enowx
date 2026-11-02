@@ -40,6 +40,26 @@ func PageBodyGrid(c *ui.Context, cols, n int, minRow float32, before, cards, aft
 	})
 }
 
+// PageBodyRest is a wide PageBody whose last part takes the height the frame
+// has left under before, at least minRest; what doesn't fit scrolls. The height
+// comes from the frame and never from the content, so a page's lowest cards
+// reach its bottom edge.
+func PageBodyRest(c *ui.Context, minRest float32, before func(), rest func(height float32)) {
+	scroll := ui.Scroll(c.Key("page-body")).Grow(1).FillWidth().MinHeight(0)
+	scroll.Children(func() {
+		col := ui.Column(c.Key("page-column")).FillWidth().Padding(theme.S4, theme.S5, theme.S5, theme.S5).Gap(theme.S3)
+		col.Children(func() {
+			before()
+			box := ui.Column(c.Key("page-rest")).FillWidth().MinWidth(0)
+			h := minRest
+			if sh := scroll.Bounds().H; sh > 0 {
+				h = max(minRest, sh-(col.Bounds().H-box.Bounds().H)) // last frame's, as it only follows the frame
+			}
+			box.Height(h).Children(func() { rest(h) })
+		})
+	})
+}
+
 // SheetHead is a Sheet's header as FormSheet draws it, for a sheet whose footer
 // isn't Cancel and a button: its title, a line about it and the ×.
 func SheetHead(c *ui.Context, open *bool, title, description string) {

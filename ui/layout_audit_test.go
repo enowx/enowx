@@ -265,6 +265,11 @@ func auditWanted(name string) bool {
 // auditDrawSizes are the audit's sizes, one alone for pictures: they are slow.
 func auditDrawSizes() [][2]int {
 	if os.Getenv("SHOTS") != "" {
+		// SHOTS_SIZE=1440x900 draws them at the design's size, to compare.
+		var w, h int
+		if _, err := fmt.Sscanf(os.Getenv("SHOTS_SIZE"), "%dx%d", &w, &h); err == nil {
+			return [][2]int{{w, h}}
+		}
 		return [][2]int{{1280, 800}}
 	}
 	return auditSizes
