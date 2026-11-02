@@ -508,7 +508,7 @@ func (v *View) runRow(c *ui.Context, o Options) {
 			what += " · " + v.project.Package
 		}
 		widget.Running(c, what, widget.RunStyle{Size: theme.TextLabel, Color: theme.TextSoft})
-		widget.Input(c, &v.command, "The command that runs it, $ANDROID_SERIAL its device").FillWidth().Font(theme.MonoFont)
+		widget.Input(c, &v.command, "The command that runs it").FillWidth().Font(theme.MonoFont).Tooltip("$ANDROID_SERIAL is the device it runs on")
 	})
 }
 
@@ -605,14 +605,13 @@ func (v *View) connectSheet(c *ui.Context, o Options) {
 		})
 		ui.Column(c).FillWidth().Gap(theme.S2).Children(func() {
 			ui.Text(c, "The first time, pair it: Pair device with pairing code shows these.").FontSize(theme.TextUI).TextColor(theme.TextSoft)
-			ui.Row(c).FillWidth().Gap(theme.S2).Children(func() {
-				ui.Column(c).Grow(1).Basis(0).MinWidth(0).Children(func() {
+			widget.FieldCols(c,
+				func() {
 					widget.Field(c, "Pairing address", func() { widget.Input(c, &f.pair, "192.168.1.5:37099").FillWidth().Font(theme.MonoFont) })
-				})
-				ui.Column(c).Width(140).Children(func() {
+				},
+				func() {
 					widget.Field(c, "Pairing code", func() { widget.Input(c, &f.code, "6 digits").FillWidth().Font(theme.MonoFont) })
 				})
-			})
 		})
 		if f.err != "" {
 			ui.Text(c, f.err).FontSize(theme.TextUI).TextColor(theme.Error)

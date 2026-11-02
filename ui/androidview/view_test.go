@@ -163,6 +163,9 @@ esac
 	tt.Frame()
 	tt.Frame()
 	shotTo(t, tt, "android-connect.png")
+	if !tt.HasText("Make a virtual TV") {
+		t.Fatalf("no virtual TV to make: %q", tt.Texts())
+	}
 }
 
 // stubView stands in for the web view a screen shows in.
