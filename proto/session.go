@@ -101,6 +101,9 @@ type SessionInputParams struct {
 	Text  string `json:"text"`
 	Paste bool   `json:"paste,omitempty"`
 	Enter bool   `json:"enter,omitempty"`
+	// From is the session sending it, when one does (enowx send): GOD of Agents'
+	// makes its target one it follows.
+	From string `json:"from,omitempty"`
 }
 
 // SessionInfo describes a session.

@@ -156,6 +156,9 @@ type GOABoard struct {
 	Agent   string    `json:"agent,omitempty"`
 	Level   string    `json:"level,omitempty"`
 	Tasks   []GOATask `json:"tasks"`
+	// Told are the sessions GOA sent something to with no task (session send),
+	// which report to it all the same: the app relays the other hosts'.
+	Told []string `json:"told,omitempty"`
 }
 
 // GOADelegateParams is a task GOA (From, its session) hands over: to

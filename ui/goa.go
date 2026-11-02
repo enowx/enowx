@@ -96,7 +96,7 @@ func (a *App) goaEvent(ev proto.Event) {
 // goaRelay tells GOA's host that its worker info, on host (as the app
 // names it), changed: only the app sees other hosts.
 func (a *App) goaRelay(host string, info proto.SessionInfo) {
-	if a.client == nil || a.goa.host != a.host.ID || a.goaTaskOf(info.ID) == nil {
+	if a.client == nil || a.goa.host != a.host.ID || a.goaTaskOf(info.ID) == nil && !slices.Contains(a.goa.board.Told, info.ID) {
 		return
 	}
 	cl := a.client

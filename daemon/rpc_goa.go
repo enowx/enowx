@@ -21,6 +21,8 @@ var goaHandlers = map[string]handler{
 				c.srv.goaReportSeen(p.Session)
 				c.srv.goaWorkerChanged(p.Session)
 			}()
+		} else {
+			go c.srv.goaToldChanged(p.Session)
 		}
 		return ok, nil
 	}),

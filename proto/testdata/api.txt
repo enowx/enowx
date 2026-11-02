@@ -1069,6 +1069,7 @@ field GOABoard.agent string
 field GOABoard.level string
 field GOABoard.session string
 field GOABoard.tasks []GOATask
+field GOABoard.told []string
 field GOADelegateParams.agent string
 field GOADelegateParams.branch string
 field GOADelegateParams.config string
@@ -1920,6 +1921,7 @@ field SessionInfo.title string
 field SessionInfo.worked int64
 field SessionInfo.worktree bool
 field SessionInputParams.enter bool
+field SessionInputParams.from string
 field SessionInputParams.id string
 field SessionInputParams.paste bool
 field SessionInputParams.text string

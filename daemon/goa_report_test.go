@@ -56,3 +56,32 @@ func TestGOAReportGoesOnTheTask(t *testing.T) {
 		t.Fatal("not on the task")
 	}
 }
+
+// A session GOA sent something to with no task reports like a worker, once per
+// thing to say, and one nothing was sent to isn't followed.
+func TestToldSessionReports(t *testing.T) {
+	srv := startServer(t)
+	done := proto.SessionInfo{ID: "s2", State: proto.StateDone}
+	srv.goaToldChanged(done)
+	srv.goa.mu.Lock()
+	followed := len(srv.goa.told) != 0
+	srv.goa.told["s2"] = goaTold{}
+	srv.goa.mu.Unlock()
+	if followed {
+		t.Fatal("followed unasked")
+	}
+	srv.goaToldChanged(done)
+	srv.goa.mu.Lock()
+	heard := srv.goa.told["s2"].Status
+	srv.goa.mu.Unlock()
+	if heard != proto.GOATaskTurnEnded {
+		t.Fatalf("heard %q", heard)
+	}
+	srv.goaToldChanged(proto.SessionInfo{ID: "s2", Exited: true, ExitCode: 3})
+	srv.goa.mu.Lock()
+	_, still := srv.goa.told["s2"]
+	srv.goa.mu.Unlock()
+	if still {
+		t.Fatal("still followed after its end")
+	}
+}

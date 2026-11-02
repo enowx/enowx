@@ -41,6 +41,10 @@ type goaState struct {
 	// stallSet tells watchStalls the limits changed.
 	stallSet chan struct{}
 
+	// told are the sessions with no task GOA sent something to, by what it last
+	// heard of each and the report it last heard: it hears of them as of a task.
+	told map[string]goaTold
+
 	tellFile string
 	// tellSave has one write of tellFile at a time, the latest last. It is taken
 	// before mu, which no file is written under.
@@ -50,8 +54,9 @@ type goaState struct {
 func (s *Server) newGOA(dir string) {
 	s.goa = goaState{board: goa.OpenBoard(filepath.Join(dir, "goa-board.json")),
 		urgent: map[string]string{}, pending: map[string]proto.HookEvent{}, watch: map[string]*goaWatch{}, stallSet: make(chan struct{}, 1),
-		tellFile: filepath.Join(dir, "goa-tell.json")}
+		told: map[string]goaTold{}, tellFile: filepath.Join(dir, "goa-tell.json")}
 	s.loadGOATell()
+	s.loadGOATold(dir)
 }
 
 // goaDir is GOA's own folder, outside every project.
@@ -164,6 +169,7 @@ func (s *Server) goaBoard() proto.GOABoard {
 			}
 		}
 	}
+	b.Told = s.goaToldIDs()
 	if g, ok := s.goaSession(); ok {
 		b.Session, b.Agent = g.ID, agent.Base(g.Agent)
 		b.Level, _ = goa.LevelOf(b.Agent)
@@ -196,6 +202,13 @@ func (s *Server) goaSeen(info proto.SessionInfo) {
 				s.goaDeliver(info)
 			}
 		}()
+		return
+	}
+	s.goa.mu.Lock()
+	_, told := s.goa.told[info.ID]
+	s.goa.mu.Unlock()
+	if told {
+		go s.goaToldChanged(info)
 	}
 }
 

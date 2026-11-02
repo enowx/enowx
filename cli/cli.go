@@ -556,7 +556,7 @@ func (r runner) send(args []string) error {
 	if err != nil {
 		return err
 	}
-	return r.c.Input(s.ID, strings.Join(fs.Args()[1:], " "), true, !*noEnter)
+	return r.c.Call(proto.MethodSessionInput, proto.SessionInputParams{ID: s.ID, Text: strings.Join(fs.Args()[1:], " "), Paste: true, Enter: !*noEnter, From: os.Getenv(EnvSession)}, nil)
 }
 
 func (r runner) read(args []string) error {
