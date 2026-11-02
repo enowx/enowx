@@ -347,7 +347,7 @@ func DrawError(c *ui.Context, msg string, dismiss func()) {
 	raised(ui.Row(c.Key("unslop-error")).Absolute().Right(hudMargin).Top(hudMargin).Width(hudWidth).Padding(theme.S2, theme.S2, theme.S2, theme.S4).Gap(theme.S2).AlignItems(ui.Start)).Children(func() {
 		ui.Column(c).Grow(1).Shrink(1).MinWidth(0).Gap(theme.S1).Children(func() {
 			ui.Text(c, "Unslop didn't start").FontSize(theme.TextUI).FontWeight(600).TextColor(theme.Error)
-			ui.Scroll(c.Key("msg")).FillWidth().MaxHeight(200).Children(func() {
+			widget.Scroll(c.Key("msg")).FillWidth().MaxHeight(200).Children(func() {
 				ui.Text(c, msg).FontSize(theme.TextLabel).TextColor(theme.TextSoft)
 			})
 		})
