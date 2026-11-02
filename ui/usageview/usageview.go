@@ -8,6 +8,7 @@ import (
 	"os"
 	"slices"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/egoist/mygo/ui"
@@ -158,7 +159,7 @@ func (u *Meter) Figures(c *ui.Context, h Host) {
 	tones := map[int]ui.Color{}
 	if u.host.Supported {
 		m := u.host.Host
-		figs = append(figs, widget.Fig{Label: "Memory", Value: textfmt.Bytes(m.MemUsed) + " of " + textfmt.Bytes(m.MemTotal)})
+		figs = append(figs, widget.Fig{Label: "Memory", Value: amountOf(m.MemUsed, m.MemTotal)})
 		figs = append(figs, widget.Fig{Label: "CPU", Value: fmt.Sprintf("%.1f of %d cores", m.CPU/100*float64(m.CPUs), m.CPUs)})
 		if m.DiskTotal > 0 {
 			label := "Disk"
@@ -166,7 +167,7 @@ func (u *Meter) Figures(c *ui.Context, h Host) {
 				label = "Disk · Nearly full"
 				tones[len(figs)] = theme.Warning
 			}
-			figs = append(figs, widget.Fig{Label: label, Value: textfmt.Bytes(m.DiskUsed) + " of " + textfmt.Bytes(m.DiskTotal)})
+			figs = append(figs, widget.Fig{Label: label, Value: amountOf(m.DiskUsed, m.DiskTotal)})
 		}
 	}
 	figs = append(figs, widget.Fig{Label: "Sessions here", Value: strconv.Itoa(len(u.host.Sessions))}, widget.Fig{Label: "Agents at work", Value: strconv.Itoa(h.Working)})
@@ -176,8 +177,11 @@ func (u *Meter) Figures(c *ui.Context, h Host) {
 // Details draws the page under its figures: the host's memory, the app and
 // daemon, the other hosts, then every session, biggest first.
 func (u *Meter) Details(c *ui.Context, h Host) {
-	ui.Scroll(c.Key("usage-body")).Grow(1).FillWidth().MinHeight(0).Children(func() {
-		ui.Column(c).FillWidth().Padding(theme.S4, theme.S5, theme.S5, theme.S5).Gap(theme.S4).Children(func() {
+	body := ui.Scroll(c.Key("usage-body")).Grow(1).FillWidth().MinHeight(0)
+	shown := body.Bounds().H
+	body.Children(func() {
+		column := ui.Column(c).FillWidth().Padding(theme.S4, theme.S5, theme.S5, theme.S5).Gap(theme.S4)
+		column.Children(func() {
 			if !u.host.Supported {
 				ui.Text(c, h.Name+" doesn't report its usage.").FontSize(theme.TextUI).TextColor(theme.TextSoft)
 			}
@@ -197,7 +201,7 @@ func (u *Meter) Details(c *ui.Context, h Host) {
 				}
 			})
 			if u.host.Supported {
-				u.sessions(c, h)
+				u.sessions(c, h, column, shown)
 			}
 		})
 	})
@@ -252,7 +256,7 @@ func otherHostCard(c *ui.Context, o OtherHost) {
 		m := o.Usage
 		widget.CardStats(c, []widget.Stat{
 			{Value: strconv.Itoa(o.Sessions), Label: "sessions"},
-			{Value: textfmt.Bytes(m.MemUsed) + " of " + textfmt.Bytes(m.MemTotal), Label: "memory"},
+			{Value: amountOf(m.MemUsed, m.MemTotal), Label: "memory"},
 			{Value: fmt.Sprintf("%.1f of %d", m.CPU/100*float64(m.CPUs), m.CPUs), Label: "cores"},
 		})
 		used := ratio(float64(m.MemUsed), float64(m.MemTotal))
@@ -261,7 +265,7 @@ func otherHostCard(c *ui.Context, o OtherHost) {
 }
 
 // sessions is a card per session, biggest first.
-func (u *Meter) sessions(c *ui.Context, h Host) {
+func (u *Meter) sessions(c *ui.Context, h Host, column ui.Element, shown float32) {
 	list := slices.Clone(u.host.Sessions)
 	slices.SortFunc(list, func(x, y proto.SessionUsage) int { return cmp.Compare(y.RSS, x.RSS) })
 	ui.Column(c).FillWidth().Gap(theme.S2).Children(func() {
@@ -270,13 +274,20 @@ func (u *Meter) sessions(c *ui.Context, h Host) {
 			ui.Text(c, "No session is running.").FontSize(theme.TextUI).TextColor(theme.TextSoft)
 			return
 		}
-		ui.Grid(c).FillWidth().Columns(4).Gap(theme.S3).Children(func() {
+		grid := ui.Grid(c).FillWidth().Columns(sessionColumns).Gap(theme.S3)
+		grid.RowTracks(widget.RowsLeft(grid, column, shown, (len(list)+sessionColumns-1)/sessionColumns, sessionCardHeight)...).Children(func() {
 			for _, su := range list {
 				sessionCard(c.Key(su.ID), h, su, list[0].RSS)
 			}
 		})
 	})
 }
+
+// The grid of sessions: four a row, each at least as tall as what it holds.
+const (
+	sessionColumns    = 4
+	sessionCardHeight = 168
+)
 
 // sessionCard is what one session uses, its meter against the biggest's.
 func sessionCard(c *ui.Context, h Host, su proto.SessionUsage, biggest uint64) {
@@ -285,7 +296,7 @@ func sessionCard(c *ui.Context, h Host, su proto.SessionUsage, biggest uint64) {
 	if agentID != "" && h.AgentName != nil {
 		agentName = h.AgentName(agentID)
 	}
-	widget.Card(c).Children(func() {
+	widget.GridCard(c).Children(func() {
 		widget.CardTitle(c, nil, name, nil)
 		widget.CardStats(c, []widget.Stat{
 			{Value: textfmt.Bytes(su.RSS), Label: "memory"},
@@ -293,6 +304,7 @@ func sessionCard(c *ui.Context, h Host, su proto.SessionUsage, biggest uint64) {
 			{Value: agentName, Label: "agent"},
 		})
 		widget.Meter(c, widget.Segment{Fraction: ratio(float64(su.RSS), float64(biggest)), Color: theme.Working})
+		ui.Spacer(c) // the foot stays at the card's bottom, however tall the row
 		widget.CardFoot(c, func() {
 			about := fmt.Sprintf("%d %s", su.Procs, textfmt.Plural(su.Procs, "process", "processes"))
 			if project != "" {
@@ -313,6 +325,20 @@ func line(c *ui.Context, first bool, title, value string) {
 	widget.CardLine(c, first, title, "", func() {
 		ui.Text(c, value).FontSize(theme.TextLabel).TextColor(theme.TextSoft).SingleLine()
 	})
+}
+
+// amountOf says used of total, the unit once when they share it: 14.2 of 24 GB.
+func amountOf(used, total uint64) string {
+	trim := func(s string) (amount, unit string) {
+		amount, unit, _ = strings.Cut(s, " ")
+		return strings.TrimSuffix(amount, ".0"), unit
+	}
+	u, uu := trim(textfmt.Bytes(used))
+	t, tu := trim(textfmt.Bytes(total))
+	if uu == tu {
+		return u + " of " + t + " " + tu
+	}
+	return u + " " + uu + " of " + t + " " + tu
 }
 
 func ratio(a, b float64) float64 {
