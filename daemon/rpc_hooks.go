@@ -64,6 +64,7 @@ func (s *Server) sessionHook(p proto.SessionHookParams) (proto.HookDecision, err
 			tool = "*"
 		}
 		s.permissionAsked(info, tool)
+		s.goaWorkerAsks(info)
 	}
 	worker, stop := s.goaHook(info, ev) // GOD of Agents' (goa.go)
 	if stop {

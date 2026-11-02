@@ -59,8 +59,8 @@ There is no limit on workers; rate limits fall to accounts' fallback ([accounts.
 
 On the worker's host, before each tool call of a GOA worker (its agent's hooks):
 
-1. **Urgent** calls are the user's: what can't be undone (`rm -rf`, `git reset --hard`, `DROP TABLE`…), money (Stripe, payments, creating servers), publishing (`git push`, `npm publish`, `gh pr merge`, deploys), secrets (`.env`, keys, `printenv`, `creds env`) (`core/goa.Urgent`). Their prompt is left to the user, with a sound and a banner; `session.ask` marks it `urgent`, and GOA's `answer` is refused ("the user's to answer"), on that host and in the app's relay. The judge's sure refusal still stands for them.
-2. Otherwise, with the judge's `approve` use on: its sure yes runs the call unasked, its sure no refuses it; unsure is urgent too.
+1. **Urgent** calls are the user's: what can't be undone (`rm -rf`, `git reset --hard`, `DROP TABLE`…), money (Stripe, payments, creating servers), publishing (`git push`, `npm publish`, `gh pr merge`, deploys), secrets (`.env`, keys, `printenv`, `creds env`) (`core/goa.Urgent`). Their prompt is left to the user, with a sound and a banner once the agent really shows it (its permission-request hook; an agent without that hook, at the call); `session.ask` marks it `urgent`, and GOA's `answer` is refused ("the user's to answer"), on that host and in the app's relay. The judge's sure refusal still stands for them.
+2. Otherwise, with the judge's `approve` use on: its sure yes runs the call unasked, its sure no refuses it; unsure is urgent too. A worker in bypass (by the mode its hook reports, or started so when it reports none) never prompts, so neither urgent nor unsure raises a banner there: the call runs, as bypass promises, and is logged. The judge's sure refusal still stops it.
 3. Edits inside the worker's own folder are its work: allowed.
 4. What is left asks as usual, and GOA, told, answers it (`answer ID allow|deny --host H`).
 

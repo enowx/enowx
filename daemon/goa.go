@@ -30,8 +30,11 @@ type goaState struct {
 	mu     sync.Mutex
 	tell   []string          // lines for GOA, typed once it is idle
 	urgent map[string]string // worker session → why the user answers what it asks
-	flags  []proto.GOAFlag
-	watch  map[string]*goaWatch // watched GOA sessions, by ID (goa_watch.go)
+	// pending is the tool call of each worker in urgent the user hasn't been
+	// told of, as its agent hasn't asked yet.
+	pending map[string]proto.HookEvent
+	flags   []proto.GOAFlag
+	watch   map[string]*goaWatch // watched GOA sessions, by ID (goa_watch.go)
 	// rulesGiven is the hash of the rules each GOA session was last given
 	// (goa_rules.go).
 	rulesGiven map[string]string
@@ -41,7 +44,7 @@ type goaState struct {
 
 func (s *Server) newGOA(dir string) {
 	s.goa = goaState{board: goa.OpenBoard(filepath.Join(dir, "goa-board.json")),
-		urgent: map[string]string{}, watch: map[string]*goaWatch{}, stallSet: make(chan struct{}, 1)}
+		urgent: map[string]string{}, pending: map[string]proto.HookEvent{}, watch: map[string]*goaWatch{}, stallSet: make(chan struct{}, 1)}
 }
 
 // goaDir is GOA's own folder, outside every project.
