@@ -167,11 +167,11 @@ func (v *View) AskCard(c *ui.Context, key string, ask Ask, unlock func(password 
 	case ask.Always:
 		card.Buttons = []widget.AskButton{refuse,
 			{Kind: widget.Secondary, Label: "Allow once", Do: func() { answer(AnswerOnce) }},
-			{Kind: widget.Primary, Icon: icon.Check, Label: "Always on " + ask.Host, Do: func() { answer(AnswerAlways) }}}
+			{Kind: widget.Primary, Label: "Always on " + ask.Host, Do: func() { answer(AnswerAlways) }}}
 	case ask.Danger:
 		card.Buttons = []widget.AskButton{refuse, {Kind: widget.Danger, Label: "Remove", Do: func() { answer(AnswerOnce) }}}
 	default:
-		card.Buttons = []widget.AskButton{refuse, {Kind: widget.Primary, Icon: icon.Check, Label: "Allow", Do: func() { answer(AnswerOnce) }}}
+		card.Buttons = []widget.AskButton{refuse, {Kind: widget.Primary, Label: "Allow", Do: func() { answer(AnswerOnce) }}}
 	}
 	return card
 }

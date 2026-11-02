@@ -268,7 +268,7 @@ func (a *App) hookProposal(c *ui.Context, st *hooksState, p proto.HookProposal) 
 		if widget.GhostButton(c, "Reject").Disabled(st.busy).Clicked() {
 			a.decideHook(st, p.ID, false)
 		}
-		if widget.PrimaryButton(c, icon.Check, "Allow", "").Disabled(st.busy).Clicked() {
+		if widget.PrimaryButton(c, nil, "Allow", "").Disabled(st.busy).Clicked() {
 			a.decideHook(st, p.ID, true)
 		}
 	})
@@ -348,7 +348,7 @@ func (a *App) hookReviewSheet(c *ui.Context, st *hooksState) {
 				}
 			})
 		}, func() {
-			if widget.PrimaryButton(c, icon.Check, "Allow them", "").Disabled(st.busy).Clicked() {
+			if widget.PrimaryButton(c, nil, "Allow them", "").Disabled(st.busy).Clicked() {
 				a.approveHooks(st, ph)
 			}
 		})
