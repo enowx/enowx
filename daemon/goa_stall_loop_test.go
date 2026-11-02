@@ -381,10 +381,11 @@ func TestGOASettledTaskRaisesNoStallLine(t *testing.T) {
 	if _, err := c.CreateSession(proto.SessionCreateParams{Agent: "claude", GOA: true, Cols: 200, Rows: 40}); err != nil {
 		t.Fatal(err)
 	}
-	snapshot, err := srv.goa.board.Add(proto.GOATask{Title: "settled", Session: "gone-session", Status: proto.GOATaskStalled, Created: time.Now().Add(-time.Hour)})
+	snapshot, err := srv.goa.board.Add(proto.GOATask{Title: "settled", Session: "gone-session", Status: proto.GOATaskStalled})
 	if err != nil {
 		t.Fatal(err)
 	}
+	snapshot.Created = time.Now().Add(-time.Hour) // long enough ago to count as not moving
 	if err := c.Call(proto.MethodGOATask, proto.GOATaskParams{ID: snapshot.ID, Status: proto.GOATaskDone}, nil); err != nil {
 		t.Fatal(err)
 	}
