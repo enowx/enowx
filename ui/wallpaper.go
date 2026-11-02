@@ -11,6 +11,11 @@ import (
 // ground, placed by the window's size so that it doesn't matter how it is
 // resized.
 func (a *App) wallpaper(c *ui.Context) {
+	a.keepBackground()
+	if a.background.bmp != nil {
+		a.backgroundImage(c)
+		return
+	}
 	w, h := c.Size()
 	sx, sy := w/1440, h/900
 	wall := theme.Current().Wall

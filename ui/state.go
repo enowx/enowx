@@ -14,35 +14,41 @@ import (
 // appState is what the app remembers between launches, in StateFile: the
 // host it showed, and per host the project and session that were open.
 type appState struct {
-	Host             string             `json:"host,omitempty"`
-	Projects         map[string]string  `json:"projects,omitempty"` // host ID → project path
-	Sessions         map[string]string  `json:"sessions,omitempty"` // host ID → session ID
-	SkipPermissions  *bool              `json:"skipPermissions,omitempty"`
-	Chats            map[string]bool    `json:"chats,omitempty"`            // session IDs shown as a chat
-	NotesAgents      map[string]string  `json:"notesAgents,omitempty"`      // note ID → the agent its Notes page talks to
-	CanvasGridHidden map[string]bool    `json:"canvasGridHidden,omitempty"` // canvases whose guides are hidden, on this device
-	CanvasChatWidth  float32            `json:"canvasChatWidth,omitempty"`  // the Canvas page's agent panel, as the user left it
-	NotesView        map[string]string  `json:"notesView,omitempty"`        // "<note ID> <what>" → how its page was left: tabs, toggles, outline
-	CloneDirs        map[string]string  `json:"cloneDirs,omitempty"`        // host ID → the folder cloned into last
-	Theme            string             `json:"theme,omitempty"`            // palette ID
-	ThemeMode        string             `json:"themeMode,omitempty"`        // dark (default), light, or system
-	Accent           string             `json:"accent,omitempty"`           // #RRGGBB replacing the palette's accent
-	TermFont         string             `json:"termFont,omitempty"`         // the terminals' font family; the system's monospaced font when empty
-	TermFontSize     float32            `json:"termFontSize,omitempty"`     // the terminals' text size; 13 when 0
-	RailWide         bool               `json:"railWide,omitempty"`         // the rail shows labels
-	Space            string             `json:"space,omitempty"`            // the team whose space Notes and Canvas show, "" the user's own
-	Layouts          map[string]layout  `json:"layouts,omitempty"`          // "<host ID> <project path>" → layout
-	Panel            sidePanel          `json:"panel,omitempty"`
-	ChatRead         map[string]string  `json:"chatRead,omitempty"` // the last message read of each team's chat
-	Discord          discordPrefs       `json:"discord,omitempty"`
-	Updates          updatePrefs        `json:"updates,omitempty"`
-	Editor           string             `json:"editor,omitempty"`       // the editor last opened (editor.id)
-	Previews         map[string]preview `json:"previews,omitempty"`     // session ID → where its browser was
-	BrowserViews     map[string]bool    `json:"browserViews,omitempty"` // session IDs showing the Browser as their view
-	TrafficViews     map[string]bool    `json:"trafficViews,omitempty"` // session IDs showing Traffic as their view
-	AutoPreview      map[string][]int   `json:"autoPreview,omitempty"`  // "<host ID> <project>" → ports previewed when opened
-	QuietPorts       bool               `json:"quietPorts,omitempty"`   // no card when a session opens a port
-	CloseQuits       bool               `json:"closeQuits,omitempty"`   // closing the window quits, rather than keeping the app in the tray
+	Host             string            `json:"host,omitempty"`
+	Projects         map[string]string `json:"projects,omitempty"` // host ID → project path
+	Sessions         map[string]string `json:"sessions,omitempty"` // host ID → session ID
+	SkipPermissions  *bool             `json:"skipPermissions,omitempty"`
+	Chats            map[string]bool   `json:"chats,omitempty"`            // session IDs shown as a chat
+	NotesAgents      map[string]string `json:"notesAgents,omitempty"`      // note ID → the agent its Notes page talks to
+	CanvasGridHidden map[string]bool   `json:"canvasGridHidden,omitempty"` // canvases whose guides are hidden, on this device
+	CanvasChatWidth  float32           `json:"canvasChatWidth,omitempty"`  // the Canvas page's agent panel, as the user left it
+	NotesView        map[string]string `json:"notesView,omitempty"`        // "<note ID> <what>" → how its page was left: tabs, toggles, outline
+	CloneDirs        map[string]string `json:"cloneDirs,omitempty"`        // host ID → the folder cloned into last
+	Theme            string            `json:"theme,omitempty"`            // palette ID
+	ThemeMode        string            `json:"themeMode,omitempty"`        // dark (default), light, or system
+	// BackgroundImage is this device's image behind the panels, "" for the
+	// theme's own; BackgroundOpacity how opaque the panels over it are, 0 for
+	// the default; BackgroundBlur its blur's sigma, nil for the default.
+	BackgroundImage   string             `json:"backgroundImage,omitempty"`
+	BackgroundOpacity float64            `json:"backgroundOpacity,omitempty"`
+	BackgroundBlur    *float64           `json:"backgroundBlur,omitempty"`
+	Accent            string             `json:"accent,omitempty"`       // #RRGGBB replacing the palette's accent
+	TermFont          string             `json:"termFont,omitempty"`     // the terminals' font family; the system's monospaced font when empty
+	TermFontSize      float32            `json:"termFontSize,omitempty"` // the terminals' text size; 13 when 0
+	RailWide          bool               `json:"railWide,omitempty"`     // the rail shows labels
+	Space             string             `json:"space,omitempty"`        // the team whose space Notes and Canvas show, "" the user's own
+	Layouts           map[string]layout  `json:"layouts,omitempty"`      // "<host ID> <project path>" → layout
+	Panel             sidePanel          `json:"panel,omitempty"`
+	ChatRead          map[string]string  `json:"chatRead,omitempty"` // the last message read of each team's chat
+	Discord           discordPrefs       `json:"discord,omitempty"`
+	Updates           updatePrefs        `json:"updates,omitempty"`
+	Editor            string             `json:"editor,omitempty"`       // the editor last opened (editor.id)
+	Previews          map[string]preview `json:"previews,omitempty"`     // session ID → where its browser was
+	BrowserViews      map[string]bool    `json:"browserViews,omitempty"` // session IDs showing the Browser as their view
+	TrafficViews      map[string]bool    `json:"trafficViews,omitempty"` // session IDs showing Traffic as their view
+	AutoPreview       map[string][]int   `json:"autoPreview,omitempty"`  // "<host ID> <project>" → ports previewed when opened
+	QuietPorts        bool               `json:"quietPorts,omitempty"`   // no card when a session opens a port
+	CloseQuits        bool               `json:"closeQuits,omitempty"`   // closing the window quits, rather than keeping the app in the tray
 	// What New session starts with (Settings): an agent, the project
 	// folder rather than a new branch, a time budget in minutes.
 	DefaultAgent  string `json:"defaultAgent,omitempty"`
@@ -87,7 +93,27 @@ func (st appState) palette(light bool) theme.Palette {
 	if st.Accent != "" {
 		accent = ui.Hex(st.Accent)
 	}
-	return theme.LookupAppearance(st.Theme, accent, light)
+	p := theme.LookupAppearance(st.Theme, accent, light)
+	if st.BackgroundImage != "" {
+		p = theme.WithBackdrop(p, st.backgroundOpacity())
+	}
+	return p
+}
+
+// backgroundOpacity is how opaque the panels over the user's image are.
+func (st appState) backgroundOpacity() float64 {
+	if st.BackgroundOpacity > 0 {
+		return st.BackgroundOpacity
+	}
+	return backgroundDefaultOpacity
+}
+
+// backgroundBlur is the sigma of the blur over the user's image.
+func (st appState) backgroundBlur() float64 {
+	if st.BackgroundBlur != nil {
+		return *st.BackgroundBlur
+	}
+	return backgroundDefaultBlur
 }
 
 func loadState(path string) appState {

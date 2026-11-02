@@ -124,9 +124,3 @@ func TestStatusColorsReadOnTheirSurfaces(t *testing.T) {
 		}
 	}
 }
-
-// over is translucent c as it reads on the opaque color under.
-func over(c, under ui.Color) ui.Color {
-	at := func(v, u uint8) uint8 { return uint8(float64(u) + (float64(v)-float64(u))*float64(c.A)/255 + 0.5) }
-	return ui.Color{R: at(c.R, under.R), G: at(c.G, under.G), B: at(c.B, under.B), A: 255}
-}

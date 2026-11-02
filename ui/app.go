@@ -185,6 +185,7 @@ type App struct {
 	hibernating        *hibernateForm             // hibernating sessions that would lose work, asked about
 	hibernateAsks      []*hibernateForm           // agents asking to hibernate sessions
 	alwaysAllowedSheet alwaysAllowedState         // Settings → Agents' sessions always allowed
+	background         backgroundState            // the user's own background image, as read
 	hostAsks           []*hostAsk                 // sessions asking to do what can't be undone (hostcontrol.go)
 	hostAskKey         int
 	asks               askLine                   // the cards waiting (asks.go)

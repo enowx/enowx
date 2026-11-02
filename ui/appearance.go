@@ -39,6 +39,7 @@ func (a *App) appearancePage(c *ui.Context) {
 		ui.Row(c).FillWidth().MinHeight(room).Padding(theme.S4, theme.S5, theme.S5, theme.S5).Gap(theme.S4).AlignItems(ui.Stretch).Children(func() {
 			ui.Column(c).Grow(7).Basis(0).MinWidth(0).Gap(theme.S4).Children(func() {
 				a.themePicker(c)
+				a.backgroundCard(c)
 				ui.Grid(c).FillWidth().Grow(1).Columns(2).Gap(theme.S3).AlignItems(ui.Stretch).Children(func() {
 					widget.Card(c).Children(func() { a.appearanceMode(c) })
 					widget.Card(c).Children(func() { a.accentPicker(c) })
