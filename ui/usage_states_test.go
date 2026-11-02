@@ -196,6 +196,10 @@ func auditFlows(t *testing.T, h *notesHarness, flows []auditFlow) {
 			for range 4 {
 				h.settle("", func() bool { return true })
 			}
+			// What opened or closed last has ended its motion: time stands still
+			// in a test until told.
+			tt.Advance(time.Second)
+			tt.Frame()
 			name := fmt.Sprintf("%s-%dx%d", f.name, size[0], size[1])
 			shot(t, tt, filepath.Join("audit", name+".png"))
 			for _, pr := range layoutProblems(tt, float32(size[0]), float32(size[1]), false) {
@@ -303,6 +307,21 @@ func usageFlows(t *testing.T) []auditFlow {
 			tt.Type("made-up one")
 			clicks(t, tt, "Change it")
 			see(t, tt, "The two new passwords differ.")
+		}},
+		{"vault-api-keys-open", func(a *App) {
+			auditCredentials(t, a)
+			a.page, a.settingsSection = pageSettings, sectionAgents
+			a.agentAPIsOf().edit = &agentAPIForm{open: true, agent: proto.AgentAPIInfo{Agent: "opencode", Name: "OpenCode"}, effort: -1}
+		}, func(t *testing.T, tt *ui.Tester) { see(t, tt, "From the vault:") }},
+		{"vault-api-keys-locked", func(a *App) {
+			auditCredentials(t, a)
+			a.vaultLock()
+			a.page, a.settingsSection = pageSettings, sectionAgents
+			a.agentAPIsOf().edit = &agentAPIForm{open: true, agent: proto.AgentAPIInfo{Agent: "opencode", Name: "OpenCode"}, effort: -1}
+		}, func(t *testing.T, tt *ui.Tester) {
+			if tt.HasText("From the vault:") {
+				t.Error("a locked vault offers its keys")
+			}
 		}},
 		{"usage-stop-all", func(a *App) { a.page, a.tok.pageTab = pageUsage, ""; a.devSampleData("usage") }, func(t *testing.T, tt *ui.Tester) {
 			clicks(t, tt, "Stop all agents…")
