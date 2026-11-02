@@ -57,6 +57,22 @@ There is no limit on workers; rate limits fall to accounts' fallback ([accounts.
 
 **Which session a project's task goes to** (`goa.PickSession`): an agent's session of its own in the project's folder, not in a worktree, whose branch is another task's; the user's, not a teammate's; of `--agent` when given, with the same `--yolo`, and the same `--config` when given. Not one working, asking the user, or with an open task on the board, and not a running one of an agent without hooks, as it may be working unseen. Of those, a running one first, then a hibernated one, then one that ended; among equals, the newest. With none, a new session. A running session keeps its own config when the judge's route names another provider's. An agent that quit to the shell in its terminal counts as running, as the daemon can't tell it from one at rest.
 
+## Every session reports to GOA
+
+Every session GOA controls reaches it when a turn ends, when it asks something, and when it fails, with its reply in the line (up to 2,000 characters; `chat ID` has the rest), whatever came of it. A session counts as controlled when it has a task on the board, or when GOA sent it something (`session send`, with no task): the board's `Told`.
+
+Routes, in order:
+
+1. The agent's turn-end hook.
+2. `goa report --outcome done|partly|nothing|blocked|refused|failed "what happened"`, which every task's prompt asks for at the end of each turn. The report stays on the session, on its own host, and reaches GOA as the session's changes do, through the app for another host's. It goes on the task as `Outcome`.
+3. For an agent with no hooks, and one started by hand in a shell tab: the screen. A session no hook speaks for, quiet for 20 seconds, not asking, showing a turn's end (Claude Code's time taken, a prompt mark alone on its line) raises a report, not "isn't moving". A screen only quiet, with no such sign, stays a stall line.
+
+What the session doesn't say, enowX says for it: its process exiting or crashing, with the exit code and its last words, marked `NoReport` on the board and never shown as at work; a turn interrupted; a limit its agent showed; a lost sign-in, as what it asks; going silent, as a stall line; a host that can't be reached, once, after the idle limit.
+
+A line stays until it has gone in: kept in `goa-tell.json` while GOA is busy, hibernated or stopped and over a daemon's restart, put back if typing it fails, the newest 200 kept. Only a stall line of a task since settled is dropped, as moot; a report isn't. With no GOA on the host at all there is no one to tell.
+
+Sent something again, a task whose turn had ended is at work again, so a screen with no hook can report the next turn too.
+
 ## Workers' permission prompts
 
 On the worker's host, before each tool call of a GOA worker (its agent's hooks):

@@ -1127,6 +1127,7 @@ field GOATask.host string
 field GOATask.id string
 field GOATask.items []string
 field GOATask.model string
+field GOATask.noReport bool
 field GOATask.note string
 field GOATask.open []string
 field GOATask.outcome string

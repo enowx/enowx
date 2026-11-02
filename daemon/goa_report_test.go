@@ -85,3 +85,41 @@ func TestToldSessionReports(t *testing.T) {
 		t.Fatal("still followed after its end")
 	}
 }
+
+// A session that ended with no report is marked so, and said to be; one that
+// reported keeps its words.
+func TestEndedWithNoReportIsMarked(t *testing.T) {
+	srv := startServer(t)
+	task, err := srv.goa.board.Add(proto.GOATask{Title: "x", Session: "gone-session"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	got := srv.goaNoteEnded(task)
+	if !got.NoReport || !strings.Contains(goaReportWord(got), "no report") {
+		t.Fatalf("%+v", got)
+	}
+	reported, err := srv.goa.board.Add(proto.GOATask{Title: "y", Session: "other", Outcome: "failed", Said: "no access"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	got = srv.goaNoteEnded(reported)
+	if got.NoReport || got.Said != "no access" {
+		t.Fatalf("%+v", got)
+	}
+}
+
+// A host out of reach is told of once its idle limit has passed.
+func TestHostLostIsTold(t *testing.T) {
+	srv := startServer(t)
+	task, err := srv.goa.board.Add(proto.GOATask{Title: "x", Session: "s", Host: "far", Status: proto.GOATaskWorking})
+	if err != nil {
+		t.Fatal(err)
+	}
+	w := &stallWatch{lost: map[string]time.Time{"far": time.Now().Add(-time.Hour)}}
+	srv.stallHostLost(w, "far", task, proto.GOAStall{Idle: 60})
+	for _, x := range srv.goa.board.List() {
+		if x.ID == task.ID && x.Status != proto.GOATaskStalled {
+			t.Fatalf("%+v", x)
+		}
+	}
+}

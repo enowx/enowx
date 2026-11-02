@@ -222,6 +222,7 @@ func (s *Server) watchLimits(info proto.SessionInfo) {
 	w.note(base, s.accountName(info.Account), l)
 	w.mu.Unlock()
 	go s.limitReached(info, l)
+	go s.goaLimitHit(info, l.Line)
 }
 
 // limitReached acts on session info's account hitting limit l, by its

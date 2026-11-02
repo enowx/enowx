@@ -304,14 +304,56 @@ func (s *Server) goaWorkerChanged(info proto.SessionInfo) {
 			}
 		case proto.GOATaskFailed:
 			s.goaRememberOutcome(t)
-			s.goaTell(head + " failed: its agent ended with an error. Read it (read " + t.Session + hostFlag + ").")
+			t = s.goaNoteEnded(t)
+			s.goaTell(head + fmt.Sprintf(" failed: its agent ended with exit code %d%s. ", info.ExitCode, goaReportWord(t)) + goaLastShown(t) + "Read it (read " + t.Session + hostFlag + ").")
 		case proto.GOATaskStopped:
 			s.goaRememberOutcome(t)
-			s.goaTell(head + " stopped: its agent ended.")
+			t = s.goaNoteEnded(t)
+			s.goaTell(head + fmt.Sprintf(" stopped: its agent ended with exit code %d%s. ", info.ExitCode, goaReportWord(t)) + goaLastShown(t))
 		}
 	}
 	if len(changed) > 0 {
 		s.goaChanged()
+	}
+}
+
+// goaNoteEnded keeps what task t's session last showed, unless it reported, and
+// that it ended with no report if so.
+func (s *Server) goaNoteEnded(t proto.GOATask) proto.GOATask {
+	said := s.goaResult(t)
+	out, err := s.goa.board.Update(t.ID, func(x *proto.GOATask) {
+		if x.Outcome == "" {
+			x.Said, x.NoReport = said, true
+		}
+	})
+	if err != nil {
+		return t
+	}
+	return out
+}
+
+func goaReportWord(t proto.GOATask) string {
+	if t.NoReport {
+		return " and no report"
+	}
+	return ", having reported " + t.Outcome
+}
+
+func goaLastShown(t proto.GOATask) string {
+	if t.Said == "" {
+		return ""
+	}
+	return "Its last words: " + clip(oneLine(t.Said), goaResultMax) + " "
+}
+
+// goaLimitHit tells GOA a session it follows stopped on a limit its agent showed:
+// nothing else would, the session only sitting there.
+func (s *Server) goaLimitHit(info proto.SessionInfo, line string) {
+	s.goa.mu.Lock()
+	_, told := s.goa.told[info.ID]
+	s.goa.mu.Unlock()
+	if told || s.goa.board.Has(info.ID) {
+		s.goaTell(fmt.Sprintf("[enowX GOA] Session %s stopped on a limit: %s", info.ID, clip(oneLine(line), goaResultMax)))
 	}
 }
 

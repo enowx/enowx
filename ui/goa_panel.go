@@ -166,6 +166,9 @@ func (a *App) goaSessionLine(host string, s proto.SessionInfo) (string, ui.Color
 	case t != nil && t.Urgent != "" && t.Status == proto.GOATaskWaiting:
 		return "Needs you: " + t.Asks, theme.Warning
 	case t != nil:
+		if t.NoReport {
+			return t.Title + " · " + t.Status + " · no report", theme.Warning
+		}
 		return t.Title + " · " + t.Status, theme.TextSoft
 	}
 	return host + " · " + goaSentence(statusOf(s).label), theme.TextSoft
@@ -333,6 +336,9 @@ func goaTaskState(c *ui.Context, t proto.GOATask) {
 	label := goaSentence(t.Status)
 	if t.Urgent != "" && t.Status == proto.GOATaskWaiting {
 		label = "Waiting on you"
+	}
+	if t.NoReport {
+		label += ", no report"
 	}
 	widget.Legend(c, goaStatusColor(t), label)
 }

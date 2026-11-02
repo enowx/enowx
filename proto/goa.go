@@ -143,8 +143,10 @@ type GOATask struct {
 	Open  []string `json:"open,omitempty"`
 	// Outcome is what its session last reported, one of GOAOutcomes; ReportAt
 	// that report's time (SessionInfo.ReportAt).
-	Outcome  string    `json:"outcome,omitempty"`
-	ReportAt int64     `json:"reportAt,omitempty"`
+	Outcome  string `json:"outcome,omitempty"`
+	ReportAt int64  `json:"reportAt,omitempty"`
+	// NoReport is that its session ended without one.
+	NoReport bool      `json:"noReport,omitempty"`
 	Created  time.Time `json:"created"`
 	Updated  time.Time `json:"updated"`
 }

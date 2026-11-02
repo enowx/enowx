@@ -148,6 +148,7 @@ type stallHost struct {
 
 // stallWatch is what watchStalls keeps between looks.
 type stallWatch struct {
+	lost    map[string]time.Time    // hosts not reached, since when
 	follows map[string]*stallFollow // by task
 	sampled map[string]bool         // hosts ("" this one) sampled, as CPU use is measured between two
 }
@@ -210,10 +211,16 @@ func (s *Server) stallPass(w *stallWatch) {
 			} else if h == nil {
 				delete(w.sampled, key)
 			}
+			if h != nil || w.sampled[key] {
+				delete(w.lost, key)
+			}
 			hosts[key] = h
 		}
 		switch {
 		case h == nil:
+			if !w.sampled[key] { // else it was reached, and sampled for the first time
+				s.stallHostLost(w, key, t, lim)
+			}
 		case t.Status != proto.GOATaskQueued:
 			s.stallCheck(w, t, *h, lim)
 		case !given[t.Session] && s.queuedCheck(w, t, *h):
@@ -224,6 +231,28 @@ func (s *Server) stallPass(w *stallWatch) {
 		if !seen[id] {
 			delete(w.follows, id)
 		}
+	}
+}
+
+// stallHostLost tells of task t once its host hasn't been reached for as long as
+// an idle session may be: the app, which reaches it, is closed, or the connection
+// dropped. Its session may be fine, and the line says so. A task told of moves to
+// stalled, so it is told once.
+func (s *Server) stallHostLost(w *stallWatch, key string, t proto.GOATask, lim proto.GOAStall) {
+	if w.lost == nil {
+		w.lost = map[string]time.Time{}
+	}
+	since, known := w.lost[key]
+	if !known {
+		w.lost[key] = time.Now()
+		return
+	}
+	limit := stallSeconds(lim.Idle)
+	if limit <= 0 || time.Since(since) < limit || t.Status != proto.GOATaskWorking {
+		return
+	}
+	if s.stallMark(t.ID, proto.GOATaskWorking, proto.GOATaskStalled) {
+		s.goaTellLine(goaLine{Task: t.ID, Text: fmt.Sprintf("[enowX GOA] Task %s %q on %s: its host can't be reached (the app is closed there, or the connection dropped), so what its session does isn't known. It stays open: look again once the host is back.", t.ID, t.Title, nonEmpty(t.Host, "this host"))})
 	}
 }
 
