@@ -335,7 +335,7 @@ func (v *View) row(c *ui.Context, it proto.EnvItem) {
 		lock = func() { ui.Icon(c, icon.Lock).FontSize(12).TextColor(theme.Warning) }
 	}
 	on := v.selected == it.ID
-	if widget.Pick(c, nil, it.Name, it.Detail, on, lock).Clicked() && !on {
+	if widget.Pick(c, nil, shownName(it), it.Detail, on, lock).Clicked() && !on {
 		v.selected = it.ID
 	}
 }

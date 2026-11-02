@@ -78,7 +78,7 @@ func (v *View) detail(c *ui.Context, o Options) {
 		}
 		ui.Row(c.Key("item-head")).FillWidth().Shrink(0).MinHeight(theme.ControlHeight).Gap(theme.S2).Children(func() {
 			ui.Row(c).Grow(1).MinWidth(0).Children(func() {
-				widget.Running(c, it.Name, widget.RunStyle{Size: theme.TextRead, Weight: 600, Always: true})
+				widget.Running(c, shownName(it), widget.RunStyle{Size: theme.TextRead, Weight: 600, Always: true})
 			})
 			v.actions(c, o, it, false)
 		})
@@ -328,4 +328,12 @@ func commonDir(files []proto.EnvFile) string {
 		}
 	}
 	return dir
+}
+
+// shownName is an item's name to read: a command as it's typed in the agent.
+func shownName(it proto.EnvItem) string {
+	if it.Kind == proto.EnvCommand {
+		return "/" + strings.TrimSuffix(strings.TrimSuffix(it.Name, ".md"), ".toml")
+	}
+	return it.Name
 }
