@@ -51,6 +51,8 @@ type Options struct {
 	// Render renders a frame (or, for html without one, the canvas) as
 	// format: png, pdf, svg or html.
 	Render func(id, frame, format string, done func([]byte, error))
+	// OffMain runs work off the main thread, then then on it. Nil runs both at once.
+	OffMain func(work, then func())
 	// PictureCached gives done the picture kept on this device as key, nil for
 	// none; PictureKeep keeps one. Both leave the main thread; done comes back to it.
 	PictureCached func(key string, done func([]byte))

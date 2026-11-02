@@ -119,27 +119,45 @@ func (v *View) pictureIf(c *ui.Context, o Options, f proto.CanvasFrame, width in
 	t.asked = key
 	canvasID, frameID := v.canvas.ID, f.ID
 	store := canvasID + ":" + key
-	show := func(data []byte) error {
-		bmp, err := ui.DecodeBitmap(data)
-		if err == nil && t.asked == key {
-			t.img, t.key = bmp, key
-		}
-		return err
-	}
-	rendered := func(data []byte, err error) {
-		v.thumbsBusy--
-		if err == nil {
-			err = show(data)
-		}
-		if err != nil {
-			if t.asked == key {
-				t.failed, t.failure, t.failedAt = key, err.Error(), time.Now()
+	// A picture is decoded off the main thread: a canvas may hold a hundred designs.
+	decode := func(data []byte, done func(error)) {
+		var bmp *ui.Bitmap
+		var err error
+		work := func() { bmp, err = ui.DecodeBitmap(data) }
+		then := func() {
+			if err == nil && t.asked == key {
+				t.img, t.key = bmp, key
 			}
+			done(err)
+		}
+		if o.OffMain == nil {
+			work()
+			then()
 			return
 		}
-		if o.PictureKeep != nil {
-			o.PictureKeep(store, data)
+		o.OffMain(work, then)
+	}
+	failed := func(err error) {
+		if t.asked == key {
+			t.failed, t.failure, t.failedAt = key, err.Error(), time.Now()
 		}
+	}
+	rendered := func(data []byte, err error) {
+		if err != nil {
+			v.thumbsBusy--
+			failed(err)
+			return
+		}
+		decode(data, func(err error) {
+			v.thumbsBusy--
+			if err != nil {
+				failed(err)
+				return
+			}
+			if o.PictureKeep != nil {
+				o.PictureKeep(store, data)
+			}
+		})
 	}
 	render := func() {
 		if width > 0 {
@@ -153,11 +171,17 @@ func (v *View) pictureIf(c *ui.Context, o Options, f proto.CanvasFrame, width in
 		return t.img
 	}
 	o.PictureCached(store, func(data []byte) {
-		if len(data) > 0 && show(data) == nil {
-			v.thumbsBusy--
+		if len(data) == 0 {
+			render() // none kept
 			return
 		}
-		render() // none kept, or what was kept doesn't read
+		decode(data, func(err error) {
+			if err != nil {
+				render() // what was kept doesn't read
+				return
+			}
+			v.thumbsBusy--
+		})
 	})
 	return t.img
 }

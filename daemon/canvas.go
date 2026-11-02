@@ -72,7 +72,7 @@ func (s *Server) canvasEdit(e proto.CanvasEdit) (proto.Canvas, error) {
 		return proto.Canvas{}, err
 	}
 	c = s.withState(c)
-	s.broadcast(proto.EventCanvasChanged, proto.CanvasChange{Canvas: c, Op: e.Op, Frame: frame, Element: element, Session: e.Session})
+	s.canvasTells.tell(s, proto.CanvasChange{Canvas: c, Op: e.Op, Frame: frame, Element: element, Session: e.Session})
 	if e.Op == proto.CanvasOpMeta {
 		s.canvasesChanged()
 	}

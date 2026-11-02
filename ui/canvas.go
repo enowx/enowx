@@ -249,6 +249,12 @@ func (a *App) canvasOptions() canvasview.Options {
 				return err
 			}, func(err error) { done(data, err) })
 		},
+		OffMain: func(work, then func()) {
+			go func() {
+				work()
+				a.onMain(then)
+			}()
+		},
 		PictureCached: func(key string, done func([]byte)) {
 			go func() {
 				data := readCanvasThumb(canvasThumbDir(), key)
