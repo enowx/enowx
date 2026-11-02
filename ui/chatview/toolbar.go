@@ -50,7 +50,7 @@ func (ch *Chat) chatTools(c *ui.Context, turns []turn, more int) {
 // toolsOverColumn says the column leaves no room at its side for chatTools'
 // two buttons and a margin.
 func (ch *Chat) toolsOverColumn() bool {
-	return ch.width < columnWidth+2*(2*theme.ControlHeight+theme.S5)
+	return ch.width < ch.column+2*(2*theme.ControlHeight+theme.S5)
 }
 
 // statusLine ends the conversation, saying what the agent is at when it isn't

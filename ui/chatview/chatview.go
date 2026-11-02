@@ -57,6 +57,7 @@ type Chat struct {
 	// entries are the conversation's from index base on: older ones load
 	// as the user scrolls up to them.
 	entries   []proto.TranscriptEntry
+	column    float32 // how wide the conversation runs, as last drawn
 	base      int
 	rev       int64
 	supported bool
@@ -405,6 +406,7 @@ type Options struct {
 // View draws the chat: the conversation, a list of its turns in a
 // centered column that follows its end, and the composer under it.
 func (ch *Chat) View(c *ui.Context, o Options) {
+	ch.column = o.columnWidth()
 	ch.links = o.OpenLink
 	ch.showUser = o.ShowUser
 	ch.agentName, ch.dir = o.AgentName, o.Dir

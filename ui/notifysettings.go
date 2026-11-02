@@ -24,7 +24,16 @@ func (a *App) notifySection(c *ui.Context) {
 	st := a.notifySettings()
 	changed := false
 	widget.PageHeader(c, "Notifications", "The same on every host", nil)
-	widget.PageBodyRest(c, 230, func() {
+	// Room for the longest list of the lowest cards: their height comes from
+	// the frame, and what's beyond it would be clipped out of reach.
+	installed := 0
+	for _, ag := range a.agents {
+		if ag.Installed && ag.Command != "" {
+			installed++
+		}
+	}
+	listed := max(len(st.MutedSessions), installed, len(a.spacesOf().list))
+	widget.PageBodyRest(c, 230+float32(listed)*36, func() {
 		widget.Cols(c, 3).Children(func() {
 			widget.Card(c.Key("sounds")).Children(func() {
 				widget.CardTitle(c, nil, "Sounds", nil)
@@ -124,7 +133,7 @@ func (a *App) notifySection(c *ui.Context) {
 				widget.CardTitle(c, nil, "Team chat", nil)
 				modes := []string{"", "mentions", "off"}
 				cur := max(0, slices.Index(modes, st.Chat))
-				if i := segmentedInCard(c, []string{"Every message", "Mentions of me", "Off"}, cur, 300); i >= 0 && i != cur {
+				if i := segmentedInCard(c, []string{"Every message", "Mentions of me", "Off"}, cur, 340); i >= 0 && i != cur {
 					st.Chat, changed = modes[i], true
 				}
 				widget.CardNote(c, "A message from your team, when its chat isn't open: a sound, a card in the window's corner to answer from, and a banner when the window is in the background. Mentions of you and replies to you always notify.", 0)
