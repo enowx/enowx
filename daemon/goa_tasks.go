@@ -20,8 +20,9 @@ import (
 // switchPause lets an agent take a /model or /effort before the next line.
 const switchPause = 1500 * time.Millisecond
 
-// goaResultMax bounds a task's result kept on the board.
-const goaResultMax = 1200
+// goaResultMax bounds a task's result kept on the board and a reply in a line to
+// GOA, which so needn't read the session's screen; chat ID has the rest.
+const goaResultMax = 2000
 
 // goaDelegate hands p's task to its session, routed, and puts it on the
 // board.
@@ -292,7 +293,7 @@ func (s *Server) goaWorkerChanged(info proto.SessionInfo) {
 		case proto.GOATaskTurnEnded:
 			said := s.goaResult(t)
 			t, _ = s.goa.board.Update(t.ID, func(t *proto.GOATask) { t.Said = said })
-			s.goaTell(head + " finished a turn, which may be mid-work: " + clip(oneLine(said), 400) + " Check it (chat " + t.Session + hostFlag + "), then settle it: goa task " + t.ID + " --status done|failed --result \"…\".")
+			s.goaTell(head + " finished a turn, which may be mid-work: " + clip(oneLine(said), goaResultMax) + " Check it (chat " + t.Session + hostFlag + "), then settle it: goa task " + t.ID + " --status done|failed --result \"…\".")
 		case proto.GOATaskWaiting:
 			ask := s.goaAskOf(t)
 			t, _ = s.goa.board.Update(t.ID, func(t *proto.GOATask) { t.Asks, t.Urgent = askLine(ask), ask.Urgent })
