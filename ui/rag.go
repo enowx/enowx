@@ -171,8 +171,9 @@ func (a *App) ragEmbedderCard(c *ui.Context, st *ragSettingsState) {
 		widget.CardNote(c, "Nothing is indexed, and agents read files as they would.", 0)
 		return
 	}
-	widget.Cols(c, 2).Children(func() {
+	widget.FieldCols(c, func() {
 		widget.Field(c, "Model", func() { widget.Input(c, &s.Model, ragModelHints[s.Embedder]).FillWidth().Font(theme.MonoFont) })
+	}, func() {
 		widget.Field(c, "Dimensions", func() { widget.Input(c, &st.dim, "auto").FillWidth() })
 	})
 	if s.Embedder != proto.RAGVoyage {

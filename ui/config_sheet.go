@@ -155,10 +155,9 @@ func (a *App) configAPIFields(c *ui.Context, f *configForm) {
 			quick()
 		}
 	case oneModelOnly(ag.Caps) && ag.Small && len(f.api.models) == 1:
-		widget.Cols(c, 2).Children(func() {
+		widget.FieldCols(c, func() {
 			widget.Field(c, "Model", func() { widget.Input(c, &f.api.models[0].id, "qwen3:8b").FillWidth().Font(theme.MonoFont) })
-			quick()
-		})
+		}, quick)
 	default:
 		a.agentAPIModels(c, f.api)
 		if ag.Small {
@@ -205,7 +204,7 @@ func (a *App) vaultKeyNames(c *ui.Context, value *string) {
 	ui.Row(c).FillWidth().Wrap().Gap(theme.S1).AlignItems(ui.Center).Children(func() {
 		ui.Text(c, "In the vault:").FontSize(theme.TextLabel).TextColor(theme.TextSoft)
 		for _, n := range names {
-			b := ui.ButtonBase(c.Key("cred:"+n)).Height(24).PaddingX(theme.S2).Radius(theme.RadiusFull).Background(theme.Sunken).Cursor(ui.CursorPointer).Label("Use " + n)
+			b := ui.ButtonBase(c.Key("cred:" + n)).Height(24).PaddingX(theme.S2).Radius(theme.RadiusFull).Background(theme.Sunken).Cursor(ui.CursorPointer).Label("Use " + n)
 			if *value == n {
 				b.Background(theme.Selected)
 			} else if b.Hovered() {

@@ -21,10 +21,9 @@ func (a *App) hookFields(c *ui.Context, st *hooksState, f *hookForm) {
 		widget.Field(c, "When", func() { hookSelect(c, "When", &h.Event, proto.HookEvents, hookEventNames) })
 	}
 	if f.adding {
-		widget.Cols(c.Key("kept-when"), 2).Children(func() {
+		widget.FieldCols(c.Key("kept-when"), func() {
 			widget.Field(c, "Kept", func() { a.hookPlacePicker(c, f) })
-			when()
-		})
+		}, when)
 	} else {
 		when()
 	}
@@ -57,9 +56,11 @@ func (a *App) hookFields(c *ui.Context, st *hooksState, f *hookForm) {
 	})
 	widget.Field(c, "How often", func() {
 		switchRow(c, &h.Once, "Once a session", "")
-		widget.Cols(c.Key("how-often"), 3).Children(func() {
+		widget.FieldCols(c.Key("how-often"), func() {
 			hookNumber(c, "At most, a session", f.numbers["max"], "times")
+		}, func() {
 			hookNumber(c, "Apart at least", f.numbers["every"], "seconds")
+		}, func() {
 			widget.Field(c, "Only within", func() { widget.Input(c, &h.Hours, "09-18").FillWidth() })
 		})
 	})

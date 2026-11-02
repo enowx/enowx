@@ -25,8 +25,9 @@ func (a *App) automationForm(c *ui.Context, st *automationsState) {
 			widget.Notice(c, icon.Alert, theme.Error, st.formErr, "", nil)
 		}
 		widget.Field(c, "Name", func() { widget.Input(c, &e.Name, "Weekday triage").FillWidth().AutoFocus() })
-		widget.Cols(c, 2).Children(func() {
+		widget.FieldCols(c, func() {
 			widget.Field(c, "Project", func() { a.automationProjectPick(c, &e.Project) })
+		}, func() {
 			widget.Field(c, "Agent", func() { a.automationAgentPick(c, &e.Agent) })
 		})
 		widget.Field(c, "Schedule", func() {
