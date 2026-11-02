@@ -67,7 +67,7 @@ func (a *App) teamSide(c *ui.Context) {
 		return
 	}
 	ts := &cs.teams
-	widget.Pane(ui.Column(c.Key("team-side")).Width(navWidth).Shrink(0).FillHeight().Radius(theme.RadiusPanel).Clip()).Children(func() {
+	widget.Glass(ui.Column(c.Key("team-side")).Width(navWidth).Shrink(0).FillHeight().Radius(theme.RadiusPanel).Clip()).Children(func() {
 		ui.Row(c.Key("head")).FillWidth().Shrink(0).MinHeight(32).Margin(theme.S2, 0, 0, 0).Padding(0, theme.S2, 0, theme.S4).Gap(theme.S2).Children(func() {
 			ui.Text(c, "Teams").FontSize(theme.TextUI).FontWeight(600).SingleLine().Grow(1)
 			if widget.IconButton(c, icon.Plus, "New team", false).Clicked() {

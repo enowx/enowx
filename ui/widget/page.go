@@ -44,9 +44,9 @@ func PageBody(c *ui.Context, wide bool, fn func()) {
 	})
 }
 
-// SidePanel is a page's own list beside its frame: a pane, as the session list.
+// SidePanel is a page's own list beside its frame: glass, as the session list.
 func SidePanel(c *ui.Context, width float32, fn func()) {
-	Pane(ui.Column(c.Key("page-side")).Width(width).Shrink(0).FillHeight().Radius(theme.RadiusPanel).Clip()).Children(func() {
+	Glass(ui.Column(c.Key("page-side")).Width(width).Shrink(0).FillHeight().Radius(theme.RadiusPanel).Clip()).Children(func() {
 		ui.Scroll(c).Grow(1).FillWidth().MinHeight(0).Children(func() {
 			ui.Column(c).FillWidth().Padding(theme.S2).Gap(theme.S1).Children(fn)
 		})

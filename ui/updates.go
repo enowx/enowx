@@ -213,7 +213,7 @@ func (a *App) updateChip(c *ui.Context) {
 		return
 	}
 	b := titleChip(c, "update", label)
-	// On a pane the accent can't be read: the words carry it, in the color
+	// On the glass the accent can't be read: the words carry it, in the color
 	// of what happens now.
 	b.TextColor(theme.Now).Children(func() {
 		ui.Icon(c, icon.ArrowUp).FontSize(12)

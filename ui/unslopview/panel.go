@@ -303,7 +303,7 @@ const (
 	hudInner  = hudWidth - 2*theme.S4
 )
 
-// raised is a card's material, over the stage: as a menu's, with an overlay's edge.
+// raised is a card's material, over the stage: as a menu's, with glass's edge.
 func raised(e ui.Element) ui.Element {
 	return widget.Rim(e.Radius(theme.RadiusCard).Background(theme.Popover))
 }

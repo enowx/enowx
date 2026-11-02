@@ -35,6 +35,7 @@ var (
 	AccentSoft   ui.Color // accent tint behind selected options
 	AccentLine   ui.Color // accent outline of the selected item
 	OnAccent     ui.Color
+	Highlight    ui.Color // the faint light along a raised surface's top
 
 	Working ui.Color
 	Done    ui.Color
@@ -102,9 +103,11 @@ func Apply(p Palette) {
 	AccentHigh = Mix(p.Accent, ui.Hex("#FFFFFF"), 0.12)
 	AccentSoft = Fade(p.Accent, 0.16)
 	AccentLine = p.Now
+	Highlight = ui.RGBA(255, 255, 255, 0.55)
 	if p.Light {
 		AccentHigh = Mix(p.Accent, ui.Hex("#000000"), 0.08)
 		AccentLine = Fade(p.Accent, 0.75)
+		Highlight = ui.RGBA(255, 255, 255, 0.85)
 	}
 	Add, Del, Now = p.Add, p.Del, p.Now
 	Working, Done, Warning, Error, Idle = p.Working, p.Done, p.Warning, p.Error, p.Idle

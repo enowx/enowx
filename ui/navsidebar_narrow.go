@@ -15,7 +15,7 @@ import (
 const navNarrow = 64
 
 func (a *App) navSidebarNarrow(c *ui.Context) {
-	widget.Pane(ui.Column(c.Key("nav")).Width(navNarrow).Shrink(0).FillHeight().Radius(theme.RadiusPanel).Clip()).
+	widget.Glass(ui.Column(c.Key("nav")).Width(navNarrow).Shrink(0).FillHeight().Radius(theme.RadiusPanel).Clip()).
 		Transition(widget.LayoutMotion).Children(func() {
 		ui.Column(c).FillWidth().Padding(theme.S2, 0).AlignItems(ui.Center).Shrink(0).Children(func() {
 			if widget.IconButton(c.Key("unfold"), icon.Sidebar, "Expand the sidebar ("+modKey+"B)", false).Clicked() {

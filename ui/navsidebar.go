@@ -37,7 +37,7 @@ func (a *App) navShown() bool {
 }
 
 func (a *App) navSidebar(c *ui.Context) {
-	widget.Pane(ui.Column(c.Key("nav")).Width(navWidth).Shrink(0).FillHeight().Radius(theme.RadiusPanel).Clip()).
+	widget.Glass(ui.Column(c.Key("nav")).Width(navWidth).Shrink(0).FillHeight().Radius(theme.RadiusPanel).Clip()).
 		Transition(widget.LayoutMotion).Children(func() {
 		ui.Column(c.Key("nav-list:" + a.navPage())).Grow(1).FillWidth().MinHeight(0).Children(func() {
 			switch a.navPage() {

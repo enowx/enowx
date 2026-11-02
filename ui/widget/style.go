@@ -1,6 +1,7 @@
 package widget
 
 import (
+	"github.com/egoist/mygo/plugins/glass"
 	"github.com/egoist/mygo/ui"
 
 	"github.com/enowx/enowx/ui/theme"
@@ -18,31 +19,44 @@ func tint(e ui.Element, key string, target ui.Color) ui.Color {
 // change theirs.
 func Tint(e ui.Element, key string, target ui.Color) ui.Color { return tint(e, key, target) }
 
-// Rim gives e the edge of what lies over something else: a thin, quiet line
-// around it and a small soft shadow under it.
+// Rim gives e glass's edge: a hairline around it, lit along its top, and
+// a soft shadow under it.
 func Rim(e ui.Element) ui.Element {
-	return e.InsetShadow(0, 0, 0, 0.5, theme.Border).Shadow(0, 4, 16, 0, ui.RGBA(0, 0, 0, 0.18))
+	return e.InsetShadow(0, 0.5, 0, 0, theme.Highlight).InsetShadow(0, 0, 0, 0.5, theme.Border).
+		Shadow(0, 10, 30, 0, ui.RGBA(0, 0, 0, 0.35))
 }
 
-// Pane makes e one of the window's flat tinted surfaces, parted from the ground
-// by its tint and a thin line: the bars' pieces, the session list, the tools.
-func Pane(e ui.Element) ui.Element {
-	return e.Background(theme.Panel).InsetShadow(0, 0, 0, 0.5, theme.Border)
+// Frosted says glass frosts what is under it. Off, as in tests where the CPU
+// draws every frame, it is its tint alone.
+var Frosted = true
+
+// Glass makes e a piece of glass over the wallpaper: what is under it shows
+// through, frosted, tinted by theme.Panel. For the bars' capsules, the
+// session list and the tools.
+func Glass(e ui.Element) ui.Element {
+	if !Frosted {
+		return Rim(e.Background(theme.Panel))
+	}
+	return Rim(e.Material(glass.Glass{Tint: theme.Panel}))
 }
 
-// BrightFrame makes e the frame the user works in.
+// BrightFrame makes e the one frame that draws the eye, the strongest thing
+// on screen: nearly opaque, with the deepest shadow and the brightest rim.
 func BrightFrame(e ui.Element) ui.Element {
-	return e.Radius(theme.RadiusPanel).Clip().Background(theme.Frame).InsetShadow(0, 0, 0, 0.5, theme.Border)
+	return e.Radius(theme.RadiusPanel).Clip().Background(theme.Frame).
+		InsetShadow(0, 1, 0, 0, ui.RGBA(255, 255, 255, 0.6)).InsetShadow(0, 0, 0, 0.5, ui.RGBA(255, 255, 255, 0.3)).
+		Shadow(0, 30, 80, 0, ui.RGBA(0, 0, 0, 0.55))
 }
 
-// Raise gives e the look of a card on a frame: a thin, quiet line around it.
+// Raise gives e the look of a card on a frame: a faint light along its top.
 func Raise(e ui.Element) ui.Element {
-	return e.InsetShadow(0, 0, 0, 0.5, theme.Border)
+	return e.InsetShadow(0, 0.5, 0, 0, ui.RGBA(255, 255, 255, 0.3))
 }
 
-// Bento makes e one of the window's panels: a pane of the given color.
+// Bento makes e one of the window's panels: a pane of the given color with
+// glass's edge.
 func Bento(e ui.Element, bg ui.Color) ui.Element {
-	return e.Radius(theme.RadiusBento).Clip().Background(bg).InsetShadow(0, 0, 0, 0.5, theme.Border)
+	return Rim(e.Radius(theme.RadiusBento).Clip().Background(bg))
 }
 
 // Float gives e the edge of an overlay: menus, pop-ups, dialogs.
