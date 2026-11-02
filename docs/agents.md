@@ -89,7 +89,7 @@ Agents run inside a small `/bin/sh` wrapper (PowerShell on Windows) that starts 
 
 ## Status
 
-The session list shows each agent as working, needing input, done with its turn, or idle. Agents with hooks report it themselves: enowX adds its hooks when it starts them, and they run `"$ENOWX_BIN" hook <state>` (or `hook --event E --state S`, which also hands the user's hooks the event: [hooks.md](hooks.md)), where the daemon sets `ENOWX_BIN` to its own program in every session, so nothing changes in the user's own configuration and the hooks do nothing outside enowX. The other agents, and these between reports, go by their screen: one that changed within the last 1.5 s is working.
+The session list shows each agent as working, needing input, done with its turn, or idle. Agents with hooks report it themselves: enowX adds its hooks when it starts them, and they run `"$ENOWX_BIN" hook <state>` (or `hook --event E --state S`, which also hands the user's hooks the event: [hooks.md](hooks.md)), where the daemon sets `ENOWX_BIN` to a launcher in the data folder (`bin/enowx`, written at each start of the daemon) in every session, so nothing changes in the user's own configuration, the hooks do nothing outside enowX, and moving or replacing the app under a running daemon breaks no session: the launcher runs the program where the daemon started from, or else the same app in Applications. The app warns when it runs from outside Applications, and when it is moved while it runs. The other agents, and these between reports, go by their screen: one that changed within the last 1.5 s is working.
 
 | Agent | How | Reports | Source |
 |---|---|---|---|

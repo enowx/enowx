@@ -17,10 +17,7 @@ var mcpAgents = []struct{ id, dir string }{
 // trafficMCP adds enowX's MCP server, which this daemon's program serves
 // as `mcp`, to the agents set up on this host.
 func (s *Server) trafficMCP() (proto.TrafficMCP, error) {
-	exe, err := os.Executable()
-	if err != nil {
-		return proto.TrafficMCP{}, err
-	}
+	exe := programPath()
 	home, err := os.UserHomeDir()
 	if err != nil {
 		return proto.TrafficMCP{}, err

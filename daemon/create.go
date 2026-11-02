@@ -441,12 +441,11 @@ func (ch chatFor) toolEnv(id string) []string {
 
 // toolEnv is agent.ToolEnv for this program and its user.
 func toolEnv(id string) []string {
-	exe, _ := os.Executable()
 	home, err := os.UserHomeDir()
 	if err != nil {
 		return nil
 	}
-	return agent.ToolEnv(id, exe, home)
+	return agent.ToolEnv(id, programPath(), home)
 }
 
 // goaEnv is what GOA's agent id gets in its environment, nothing for
@@ -499,8 +498,7 @@ func agentLaunch(preset agent.Preset, skip bool, prompt string, cont bool, chat 
 	}
 	var tools []string
 	if !chat.member {
-		exe, _ := os.Executable()
-		tools = agent.ToolArgs(preset.ID, exe)
+		tools = agent.ToolArgs(preset.ID, programPath())
 	}
 	hooks := append(append(agent.HookArgs(preset.ID), tools...), agent.GuideArgsText(preset.ID, guide)...)
 	if agent.Base(preset.ID) == "codex" && len(hooks) > 0 {
@@ -511,14 +509,11 @@ func agentLaunch(preset agent.Preset, skip bool, prompt string, cont bool, chat 
 	}
 	switch {
 	case chat.goa:
-		exe, _ := os.Executable()
-		hooks = append(agent.HookArgs(preset.ID), agent.GOAArgs(preset.ID, exe, guide)...)
+		hooks = append(agent.HookArgs(preset.ID), agent.GOAArgs(preset.ID, programPath(), guide)...)
 	case chat.notes != "":
-		exe, _ := os.Executable()
-		hooks = append(agent.HookArgs(preset.ID), agent.NotesArgs(preset.ID, exe, chat.notes)...)
+		hooks = append(agent.HookArgs(preset.ID), agent.NotesArgs(preset.ID, programPath(), chat.notes)...)
 	case chat.canvas != "":
-		exe, _ := os.Executable()
-		hooks = append(agent.HookArgs(preset.ID), agent.CanvasArgs(preset.ID, exe, chat.canvas, chat.dirs)...)
+		hooks = append(agent.HookArgs(preset.ID), agent.CanvasArgs(preset.ID, programPath(), chat.canvas, chat.dirs)...)
 	}
 	if home, err := os.UserHomeDir(); err == nil && !chat.member && (chat.config == nil || !chat.config.api) {
 		hooks = append(hooks, agentapi.LaunchArgs(home, preset.ID)...) // its model API's config

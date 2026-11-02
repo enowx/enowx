@@ -41,12 +41,13 @@ func Run() error {
 	log := slog.New(slog.NewTextHandler(os.Stderr, nil))
 	useLoginPath(log)
 	exe, _ := os.Executable()
-	srv, err := newServer(dir, exe)
+	srv, err := newServer(dir, useLauncher(dir, exe, log.Warn))
 	if err != nil {
 		l.Close()
 		return err
 	}
 	srv.Log = log
+	go srv.watchProgram(exe)
 	if exe != "" {
 		srv.Hash = fileHash(exe)
 	}

@@ -57,12 +57,8 @@ func (s *Server) androidSetup(p proto.AndroidSetupParams) (proto.SessionInfo, er
 	if p.Session == "" {
 		return proto.SessionInfo{}, errors.New("android: set up from a session")
 	}
-	exe, err := os.Executable()
-	if err != nil {
-		return proto.SessionInfo{}, err
-	}
 	tab, err := s.createSession(proto.SessionCreateParams{
-		Parent: p.Session, Name: "Android setup", Agent: agent.Custom, Command: thenShell(setupArgs(exe, p.TV)),
+		Parent: p.Session, Name: "Android setup", Agent: agent.Custom, Command: thenShell(setupArgs(programPath(), p.TV)),
 	})
 	if err != nil {
 		return proto.SessionInfo{}, err

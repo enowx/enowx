@@ -63,6 +63,7 @@ type App struct {
 	connErr         string          // why the last connection failed
 	connFail        error           // the same, to tell what kind of failure it was
 	notice          string          // a.status is news, not a problem, while it equals this
+	bundleWarned    bool            // warnBundlePlace said it
 	sessionToasts   []*sessionToast // what notifications are about (sessiontoast.go)
 	sessionToastKey int
 	trust           *trustPrompt
