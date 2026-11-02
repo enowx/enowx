@@ -126,7 +126,9 @@ func closeOverlayAudit(a *App) {
 	a.budget, a.agentLimit, a.renaming, a.confirming, a.hibernating, a.piping = nil, nil, nil, nil, nil, nil
 	a.hibernateAsks, a.hostAsks, a.sessionToasts = nil, nil, nil
 	a.updates = updater{source: a.updates.source}
-	a.pipelines = nil
+	if a.pipelines != nil {
+		a.pipelines, a.state.RailWide, a.state.SessionsByProject = nil, false, false
+	}
 	a.issues.open = false
 	a.addProject.Close()
 	a.hostFile.Close()
@@ -151,6 +153,7 @@ func auditOverlayPages() []auditPage {
 	session := func(a *App) proto.SessionInfo { return a.sessions[0] }
 	pipeline := func(a *App) {
 		a.page = ""
+		a.state.RailWide, a.state.SessionsByProject = true, true
 		a.pipelines = []proto.Pipeline{{ID: "p1", Project: withDir(a), Task: "Add search to the notes", Status: proto.PipelineRunning, Error: "The review stage failed: " + ovLong, Stages: []proto.PipelineStageRun{
 			{PipelineStage: proto.PipelineStage{Name: "Plan"}, Status: proto.PipelineDone},
 			{PipelineStage: proto.PipelineStage{Name: "Implement"}, Status: proto.PipelineRunning},
@@ -235,6 +238,15 @@ func auditOverlayPages() []auditPage {
 			}
 		}},
 		{name: "ov-pipeline-card", open: pipeline},
+		{name: "ov-pipeline-card-menu", open: pipeline, after: func(h *notesHarness) {
+			if err := h.tt.Click("More for this pipeline"); err != nil {
+				h.t.Fatal(err)
+			}
+			for range 8 {
+				h.tt.Advance(60 * time.Millisecond)
+				h.tt.Frame()
+			}
+		}},
 
 		{name: "ov-folder", open: func(a *App) { a.page = ""; a.openFolder() }},
 		{name: "ov-file", open: func(a *App) {
