@@ -85,7 +85,6 @@ func (a *App) accountAction(c *ui.Context) {
 			done()
 		}
 		if widget.MenuItem(c.Key("appearance"), icon.Palette, "Appearance", false) {
-			a.accentInput = a.state.Accent
 			a.page = pageAppearance
 			done()
 		}

@@ -268,12 +268,10 @@ type App struct {
 	maximized    string // session shown alone, if any
 	page         string // a rail view shown instead of the sessions, or ""
 	filter       string // the session list's filter
-	// accentInput is the Appearance page's custom accent as typed.
-	accentInput string
-	systemDark  bool   // effective native appearance, owned by the UI thread
-	status      string // last error or news, shown in a toast
-	statusSeen  string // the status statusAt is of
-	statusAt    time.Time
+	systemDark   bool   // effective native appearance, owned by the UI thread
+	status       string // last error or news, shown in a toast
+	statusSeen   string // the status statusAt is of
+	statusAt     time.Time
 
 	skipPermissions bool               // New session's default
 	deleting        *proto.SessionInfo // asking to confirm a delete

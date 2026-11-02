@@ -11,8 +11,11 @@ import (
 
 // applyTheme sets the palette the state names, in every view and
 // terminal at once.
-func (a *App) applyTheme() {
-	theme.Apply(a.state.palette(a.lightAppearance()))
+func (a *App) applyTheme() { a.showPalette(a.state.palette(a.lightAppearance())) }
+
+// showPalette has every view and terminal take p.
+func (a *App) showPalette(p theme.Palette) {
+	theme.Apply(p)
 	a.theme = theme.Window()
 	t := theme.Terminal()
 	for _, p := range a.panes {
@@ -132,20 +135,36 @@ func (a *App) accentPicker(c *ui.Context) {
 		}
 	})
 	widget.Field(c, "Custom", func() {
-		in := widget.Input(c, &a.accentInput, "#RRGGBB").FillWidth().Font(theme.MonoFont).Label("Custom accent")
-		if in.Changed() {
-			if hex, ok := parseAccent(a.accentInput); ok {
-				a.setAccent(hex)
-			}
-		}
-		col := theme.TextSoft
-		if a.accentInput != "" {
-			if _, ok := parseAccent(a.accentInput); !ok {
-				col = theme.Warning
-			}
-		}
-		ui.Text(c, "Type a color as #RRGGBB.").FontSize(theme.TextLabel).TextColor(col)
+		ui.Row(c).FillWidth().MinWidth(0).Gap(theme.S2).Children(func() {
+			widget.ColorPick(c.Key("custom"), "Custom accent", a.accentShown(), func(col ui.Color, done bool) {
+				if done {
+					a.setAccent(theme.Hex(col))
+					return
+				}
+				a.previewAccent(theme.Hex(col))
+			})
+			ui.Row(c).Grow(1).Basis(0).MinWidth(0).Children(func() {
+				widget.Running(c, "Click the swatch to pick any color.", widget.RunStyle{Size: theme.TextLabel, Color: theme.TextSoft})
+			})
+		})
 	})
+}
+
+// accentShown is the color the picker starts from: the custom accent, else the
+// theme's own.
+func (a *App) accentShown() ui.Color {
+	if a.state.Accent != "" {
+		return ui.Hex(a.state.Accent)
+	}
+	return theme.Accent
+}
+
+// previewAccent shows the app in the accent hex while it is being picked: only
+// its release is kept (setAccent).
+func (a *App) previewAccent(hex string) {
+	st := a.state
+	st.Accent = hex
+	a.showPalette(st.palette(a.lightAppearance()))
 }
 
 // themePreview shows the theme on the controls and states the app is made of.

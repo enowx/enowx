@@ -67,7 +67,6 @@ func (a *App) commands() []command {
 		command{"usage", "Resource usage", "Memory and CPU", icon.Usage, func() { a.page = pageUsage }},
 		command{"credits", "Credits", "What each agent account has left", icon.Credits, func() { a.page = pageCredits }},
 		command{"appearance", "Appearance", "Theme and accent", icon.Palette, func() {
-			a.accentInput = a.state.Accent
 			a.page = pageAppearance
 		}},
 		command{"settings", "Settings", "Skills, MCP servers, instructions", icon.Settings, func() { a.page = pageSettings }},
