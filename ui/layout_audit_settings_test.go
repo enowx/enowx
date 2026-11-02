@@ -101,12 +101,29 @@ func auditDecide(a *App) *decideState {
 	return &a.decideSet
 }
 
+// auditIndex opens the session's Index tool on status st.
+func auditIndex(a *App, st proto.RAGStatus) {
+	a.page, a.state.Panel.Open = "", false
+	if len(a.sessions) > 0 {
+		a.selectSession(a.sessions[0])
+	}
+	a.openPanel(panelIndex)
+	a.ragPanel = ragPanelState{key: a.host.ID + "\x00" + a.sessions[0].ID, session: a.sessions[0].ID, dir: a.projects[0].Path, loaded: true, st: st}
+}
+
 func auditSettingsPages() []auditPage {
 	return []auditPage{
 		{name: "settings-new-sessions-agents", open: func(a *App) {
 			auditInstalled(a)
 			a.page, a.settingsSection = pageSettings, sectionSessions
 		}, fill: true},
+		{name: "session-panel-index-indexed", open: func(a *App) {
+			auditIndex(a, proto.RAGStatus{Ready: true, Embedder: "voyage api.voyageai.com", Chunks: 4212, Files: 318, Tokens: 186000, Indexed: time.Now(), Settings: proto.RAGProject{On: true, Consent: "voyage api.voyageai.com"}})
+		}},
+		{name: "session-panel-index-off", open: func(a *App) {
+			auditIndex(a, proto.RAGStatus{Ready: true, Embedder: "voyage api.voyageai.com"})
+		}},
+		{name: "session-panel-index-none", open: func(a *App) { auditIndex(a, proto.RAGStatus{}) }},
 		{name: "settings-agents-filled", open: func(a *App) { auditAgents(a) }, fill: true},
 		{name: "settings-agents-history", open: func(a *App) { auditAgents(a).tab = 1 }, fill: true},
 		{name: "settings-automations-filled", open: func(a *App) { auditAutomations(a) }, fill: true},
