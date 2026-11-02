@@ -303,21 +303,23 @@ func (a *App) ragDetailsSheet(c *ui.Context, st *ragSettingsState) {
 	widget.Sheet(c, &open, 480, func() {
 		widget.SheetHead(c, &open, name, "Its index on "+a.host.Name+".")
 	}, func() {
-		widget.KV(c, "Chunks", count(s.Chunks), false)
-		if s.Files > 0 {
-			files := count(s.Files)
-			if s.Skipped > 0 {
-				files += fmt.Sprintf(", %d skipped", s.Skipped)
+		ui.Column(c.Key("facts")).FillWidth().Shrink(0).Children(func() {
+			widget.KV(c, "Chunks", count(s.Chunks), false)
+			if s.Files > 0 {
+				files := count(s.Files)
+				if s.Skipped > 0 {
+					files += fmt.Sprintf(", %d skipped", s.Skipped)
+				}
+				widget.KV(c, "Files", files, false)
 			}
-			widget.KV(c, "Files", files, false)
-		}
-		if !s.Indexed.IsZero() {
-			last := ragDay(s.Indexed, time.Now()) + " " + s.Indexed.Local().Format("15:04")
-			widget.KV(c, "Last index", fmt.Sprintf("%s, %d added, %d removed", last, s.Added, s.Removed), false)
-		}
-		if s.Tokens > 0 {
-			widget.KV(c, "Sent to "+ragEmbedderShort(st.set.Embedder), count(s.Tokens)+" tokens", false)
-		}
+			if !s.Indexed.IsZero() {
+				last := ragDay(s.Indexed, time.Now()) + " " + s.Indexed.Local().Format("15:04")
+				widget.KV(c, "Last index", fmt.Sprintf("%s, %d added, %d removed", last, s.Added, s.Removed), false)
+			}
+			if s.Tokens > 0 {
+				widget.KV(c, "Sent to "+ragEmbedderShort(st.set.Embedder), count(s.Tokens)+" tokens", false)
+			}
+		})
 		if s.Error != "" {
 			widget.Notice(c, icon.Alert, theme.Error, "The last index failed", s.Error, nil)
 		}
@@ -343,7 +345,6 @@ func (a *App) ragDetailsSheet(c *ui.Context, st *ragSettingsState) {
 				a.setRAGProjectFor(st, dir, set, false)
 			})
 		}
-		ui.Spacer(c)
 		if widget.GhostButton(c, "Index again").Disabled(r.busy || s.Indexing).Clicked() {
 			a.setRAGProjectFor(st, dir, r.detailsForm(s.Settings), true)
 		}
