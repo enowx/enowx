@@ -113,6 +113,7 @@ func (a *App) connect(h hosts.Host) {
 			}
 			a.retrying, a.retryHost = 0, ""
 			a.client = c
+			a.spacesConnected(c)
 			a.pollUsage(c, gen)
 			a.pollCredits(c, gen)
 			a.pollConflicts(c, gen)

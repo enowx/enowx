@@ -3,6 +3,7 @@
 package ui
 
 import (
+	"errors"
 	"net"
 	"os"
 	"path/filepath"
@@ -147,4 +148,121 @@ func TestAccountMenuPicksTheTeamsSpace(t *testing.T) {
 		}
 		return false
 	})
+}
+
+// A failed read of the spaces is tried again, each wait longer up to the most, and
+// a closed connection ends it.
+func TestSpacesRetryWithABackoff(t *testing.T) {
+	tries := 0
+	var got []proto.Space
+	read := func() ([]proto.Space, error) {
+		if tries++; tries < 3 {
+			return nil, errors.New("the daemon is still coming up")
+		}
+		return []proto.Space{{Team: "t1", Name: "enowX"}}, nil
+	}
+	retrySpaces(read, nil, time.Millisecond, 2*time.Millisecond, func(list []proto.Space) { got = list })
+	if tries != 3 || len(got) != 1 {
+		t.Fatalf("%d tries, got %v", tries, got)
+	}
+
+	done := make(chan struct{})
+	close(done)
+	tries = 0
+	retrySpaces(func() ([]proto.Space, error) { tries++; return nil, errors.New("gone") }, done, time.Hour, time.Hour, func([]proto.Space) {
+		t.Error("nothing was read")
+	})
+	if tries != 1 {
+		t.Fatalf("%d tries with the connection closed", tries)
+	}
+}
+
+// Drawn before there is a connection, as the title bar is at the app's start, the
+// list comes with the connection; a new connection reads it again, once however many
+// frames draw it, keeping what it has until it answers.
+func TestSpacesComeWithTheConnection(t *testing.T) {
+	dir := t.TempDir()
+	const team = "0123456789abcdef"
+	if err := hostauth.Open(filepath.Join(dir, "cloud")).Put(hostauth.State{URL: "https://cloud.test", Token: "enxc_test", AccountID: "acc1", Account: "Ada"}); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.MkdirAll(filepath.Join(dir, "teams", team), 0o700); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(dir, "teams", team, "team.json"), []byte(`{"team":"`+team+`","name":"Design","account":"acc1"}`), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	srv, err := daemon.NewServer(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(srv.Close)
+	app := New(Options{})
+	var mu sync.Mutex
+	var later []func()
+	app.onMain = func(fn func()) { mu.Lock(); later = append(later, fn); mu.Unlock() }
+	app.host = hosts.Host{ID: hosts.LocalID, Name: "this Mac"}
+	if got := app.spacesOf().list; len(got) != 0 {
+		t.Fatalf("with no connection: %v", got)
+	}
+	connect := func() *client.Client {
+		a, b := net.Pipe()
+		go srv.ServeConn(a)
+		cl, err := client.New(b, nil)
+		if err != nil {
+			t.Fatal(err)
+		}
+		t.Cleanup(func() { cl.Close() })
+		app.client = cl
+		app.spacesConnected(cl)
+		return cl
+	}
+	settle := func() {
+		t.Helper()
+		deadline := time.Now().Add(10 * time.Second)
+		for {
+			mu.Lock()
+			fns := later
+			later = nil
+			mu.Unlock()
+			for _, fn := range fns {
+				fn()
+			}
+			if len(fns) > 0 {
+				return
+			}
+			if time.Now().After(deadline) {
+				t.Fatal("the spaces were never read")
+			}
+			time.Sleep(10 * time.Millisecond)
+		}
+	}
+	connect()
+	settle()
+	if got := app.spacesOf().list; len(got) != 1 || got[0].Team != team {
+		t.Fatalf("after connecting: %v", got)
+	}
+
+	// Another connection, as after the daemon restarted: the list stays meanwhile.
+	app.client.Close()
+	app.client = nil
+	cl := connect()
+	if got := app.spacesOf().list; len(got) != 1 {
+		t.Fatalf("while reading again: %v", got)
+	}
+	settle()
+	if app.spaceList.client != cl {
+		t.Fatal("not read from the new connection")
+	}
+	for range 3 {
+		app.spacesOf()
+		app.spacesConnected(cl)
+	}
+	time.Sleep(50 * time.Millisecond)
+	mu.Lock()
+	again := len(later)
+	mu.Unlock()
+	if again != 0 {
+		t.Fatalf("%d more reads of one connection", again)
+	}
 }

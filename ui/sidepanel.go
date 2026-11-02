@@ -69,7 +69,7 @@ var panelGroups = []panelGroup{
 // shownGroups are the groups the panel offers: Team while the host is in
 // a team, GOA (first) in GOD of Agents mode.
 func (a *App) shownGroups() []panelGroup {
-	// The spaces as last read (the rail reads them): drawing starts no read.
+	// The spaces as last read (each connection reads them): drawing starts no read.
 	inTeam := a.client != nil && a.spaceList != nil && a.spaceList.host == a.host.ID && len(a.spaceList.list) > 0
 	goaOn := a.goaOn()
 	out := slices.DeleteFunc(slices.Clone(panelGroups), func(g panelGroup) bool { return g.id == "team" && !inTeam || g.id == "goa" })
