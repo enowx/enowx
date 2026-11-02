@@ -54,6 +54,56 @@ func TestSwitchingBackToDarkRestoresPalette(t *testing.T) {
 	}
 }
 
+// Who saved a palette keeps it, and who didn't gets the default.
+func TestSavedPalettesStillLoad(t *testing.T) {
+	for _, id := range []string{"champagne", "obsidian", "midnight", "copper", "graphite"} {
+		if got := Lookup(id, ui.Color{}).ID; got != id {
+			t.Errorf("saved palette %s loads as %s", id, got)
+		}
+	}
+	if got := Lookup("", ui.Color{}).ID; got != "teal" {
+		t.Errorf("no saved palette loads as %s", got)
+	}
+}
+
+// Teal's words read where its wallpaper shines brightest through the glass, and
+// on the opaque surfaces, in dark and light. The surfaces are composed as drawn.
+func TestTealWordsRead(t *testing.T) {
+	for _, light := range []bool{false, true} {
+		p := LookupAppearance("teal", ui.Color{}, light)
+		lit := p.Ground
+		for _, w := range p.Wall {
+			if on := over(w, p.Ground); contrast(on, ui.Hex("#000000")) > contrast(lit, ui.Hex("#000000")) {
+				lit = on
+			}
+		}
+		panel := over(p.Panel, lit)
+		if light { // the ground is pale: its darkest light is the hardest for dark words
+			panel = over(p.Panel, over(p.Wall[2], p.Ground))
+		}
+		frame := over(p.Frame, lit)
+		surfaces := map[string]ui.Color{"panel": panel, "frame": frame, "dialog": over(p.Dialog, p.Ground), "popover": over(p.Popover, p.Ground)}
+		for name, bg := range surfaces {
+			for _, under := range []ui.Color{bg, over(p.Raised, bg), over(p.Sunken, bg), over(p.Hover, bg)} {
+				for _, fg := range []ui.Color{p.Text, p.TextStrong, p.TextSoft, p.Muted, p.Accent} {
+					if r := contrast(fg, under); r < 4.5 {
+						t.Errorf("light=%v %s: %s on %s: %.2f", light, name, Hex(fg), Hex(under), r)
+					}
+				}
+			}
+			selected := over(p.Selected, bg)
+			for _, fg := range []ui.Color{p.Text, p.TextStrong} {
+				if r := contrast(fg, selected); r < 4.5 {
+					t.Errorf("light=%v %s selected: %s on %s: %.2f", light, name, Hex(fg), Hex(selected), r)
+				}
+			}
+		}
+		if r := contrast(p.OnAccent, p.Accent); r < 4.5 {
+			t.Errorf("light=%v: on accent %.2f", light, r)
+		}
+	}
+}
+
 // Status colors read on the surfaces they sit on, the frame and the session
 // list's glass, in every palette dark and light. Hue alone doesn't carry them:
 // the list groups by state in words, and tabs and rows have tooltips.
@@ -73,4 +123,10 @@ func TestStatusColorsReadOnTheirSurfaces(t *testing.T) {
 			}
 		}
 	}
+}
+
+// over is translucent c as it reads on the opaque color under.
+func over(c, under ui.Color) ui.Color {
+	at := func(v, u uint8) uint8 { return uint8(float64(u) + (float64(v)-float64(u))*float64(c.A)/255 + 0.5) }
+	return ui.Color{R: at(c.R, under.R), G: at(c.G, under.G), B: at(c.B, under.B), A: 255}
 }

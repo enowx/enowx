@@ -61,13 +61,15 @@ var (
 		[3]ui.Color{light("#C4743C", 0.45), light("#A83C32", 0.35), light("#6B3A5C", 0.45)}, "#D49A6A", "#1A0F07")
 	Graphite = glass("graphite", "Graphite", "#15182B",
 		[3]ui.Color{light("#2C7BE0", 0.55), light("#D9543C", 0.45), light("#7A3FBF", 0.45)}, "#0A6FE0", "#FFFFFF")
+	Teal = glass("teal", "Teal", "#16292D",
+		[3]ui.Color{light("#80BEBF", 0.4), light("#3F7582", 0.45), light("#377285", 0.5)}, "#A0D9DA", "#0E1C1E")
 )
 
 // Palettes is every built-in palette.
-var Palettes = []Palette{Champagne, Obsidian, Midnight, Copper, Graphite}
+var Palettes = []Palette{Champagne, Obsidian, Midnight, Copper, Graphite, Teal}
 
 // Default is the palette of who hasn't picked one.
-var Default = Graphite
+var Default = Teal
 
 // Accents are the colors a user can give any palette instead of its own.
 var Accents = []ui.Color{

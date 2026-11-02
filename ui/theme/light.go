@@ -40,6 +40,8 @@ func LookupAppearance(id string, accent ui.Color, light bool) Palette {
 		p.Accent = ui.Hex("#355CAD")
 	case Copper.ID:
 		p.Ground, p.Accent = ui.Hex("#F3ECE6"), ui.Hex("#9C5429")
+	case Teal.ID:
+		p.Ground, p.Accent = ui.Hex("#E6F0F0"), ui.Hex("#285F63")
 	}
 	if accent.A != 0 {
 		p.Accent = accent
