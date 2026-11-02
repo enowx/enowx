@@ -81,11 +81,15 @@ func (a *App) themePicker(c *ui.Context) {
 // followCard is the choice of a palette derived from the background image:
 // disabled, saying why, until there is one to read.
 func (a *App) followCard(c *ui.Context) {
-	can := a.state.BackgroundImage != "" && a.state.derived != nil
+	flat := a.state.flatStyle()
+	can := a.state.BackgroundImage != "" && a.state.derived != nil && !flat
 	on := a.state.FollowBackground && can
 	label := "Follow background"
 	tip := "Colors taken from your background image"
-	if !can {
+	switch {
+	case flat:
+		label, tip = "Liquid Glass only", "A background image shows in Liquid Glass only: this style has no glass to see it through"
+	case !can:
 		label, tip = "Needs an image", "A background image is needed: choose one below"
 	}
 	card := ui.ButtonBase(c).MinWidth(0).Padding(theme.S2).Radius(theme.RadiusCard).Label("Follow background").Tooltip(tip)

@@ -106,16 +106,20 @@ func (st appState) palette(light bool) theme.Palette {
 	} else {
 		p = theme.LookupAppearance(st.Theme, accent, light)
 	}
-	if st.BackgroundImage != "" {
+	if st.BackgroundImage != "" && !st.flatStyle() {
 		p = theme.WithBackdrop(p, st.backgroundOpacity())
 	}
 	return p
 }
 
+// flatStyle says the style chosen has no glass: the background image and what comes
+// of it (the panels' opacity, its colors) wait, kept, for Liquid Glass.
+func (st appState) flatStyle() bool { return theme.StyleByID(st.UIStyle).Flat }
+
 // followsImage says the palette comes from the image now: asked for, with an
 // image set and read. Otherwise it is the palette last saved.
 func (st appState) followsImage() bool {
-	return st.FollowBackground && st.BackgroundImage != "" && st.derived != nil
+	return st.FollowBackground && st.BackgroundImage != "" && st.derived != nil && !st.flatStyle()
 }
 
 // backgroundOpacity is how opaque the panels over the user's image are.

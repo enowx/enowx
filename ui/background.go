@@ -164,21 +164,35 @@ func (a *App) chooseBackground() {
 	}()
 }
 
+// backgroundButton is one of the background's actions, disabled in a style without
+// glass.
+func backgroundButton(c *ui.Context, label string, off bool) ui.Element {
+	b := widget.Button(c, widget.Secondary, nil, label, "")
+	if off {
+		b.Disabled(true).Opacity(0.45)
+	}
+	return b
+}
+
 // backgroundCard is the Appearance page's image, its opacity and blur: the
 // window behind it is their preview, as they change.
 func (a *App) backgroundCard(c *ui.Context) {
 	path := a.state.BackgroundImage
+	flat := a.state.flatStyle()
 	widget.Card(c.Key("background-card")).FillWidth().Shrink(0).Children(func() {
 		widget.CardTitle(c, nil, "Background", func() {
-			if path != "" && widget.Button(c.Key("default"), widget.Secondary, nil, "Use the default", "").Clicked() {
+			if path != "" && backgroundButton(c.Key("default"), "Use the default", flat).Clicked() && !flat {
 				a.state.BackgroundImage = ""
 				a.applyTheme()
 			}
-			if widget.Button(c.Key("choose"), widget.Secondary, nil, "Choose an image…", "").Clicked() {
+			if backgroundButton(c.Key("choose"), "Choose an image…", flat).Clicked() && !flat {
 				a.chooseBackground()
 			}
 		})
 		switch {
+		case flat:
+			ui.Text(c, "A background image and the panels' opacity show in Liquid Glass only: this style has no glass to see them through. Yours is kept for when you go back.").
+				FontSize(theme.TextLabel).TextColor(theme.TextSoft)
 		case a.background.err != "":
 			widget.Notice(c, icon.Alert, theme.Warning, a.background.err, "Showing the theme's own background.", nil)
 		case path == "":
@@ -195,7 +209,7 @@ func (a *App) backgroundCard(c *ui.Context) {
 				widget.Field(c, "Panels' opacity", func() {
 					ui.Row(c).FillWidth().MinWidth(0).Gap(theme.S2).Children(func() {
 						v := a.state.backgroundOpacity()
-						if ui.Slider(c, &v, 0, 1).Grow(1).MinWidth(0).Label("Panels' opacity").Changed() {
+						if ui.Slider(c, &v, 0, 1).Grow(1).MinWidth(0).Label("Panels' opacity").Disabled(flat).Changed() && !flat {
 							a.state.BackgroundOpacity = &v
 							a.applyTheme()
 						}
@@ -207,7 +221,7 @@ func (a *App) backgroundCard(c *ui.Context) {
 				widget.Field(c, "Blur", func() {
 					ui.Row(c).FillWidth().MinWidth(0).Gap(theme.S2).Children(func() {
 						v := a.state.backgroundBlur()
-						if ui.Slider(c, &v, 0, backgroundMaxBlur).Grow(1).MinWidth(0).Label("Blur").Changed() {
+						if ui.Slider(c, &v, 0, backgroundMaxBlur).Grow(1).MinWidth(0).Label("Blur").Disabled(flat).Changed() && !flat {
 							a.state.BackgroundBlur = &v
 						}
 						ui.Text(c, fmt.Sprintf("%.0f", v)).FontSize(theme.TextLabel).TextColor(theme.TextSoft).SingleLine().Shrink(0)
