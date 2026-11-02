@@ -35,7 +35,12 @@ func (a *App) chatPlaceholder(team string) string {
 	if a.teamPageChat() != "" {
 		return "Message " + a.spaceName(team) + ", @ to mention"
 	}
-	return "Message " + a.spaceName(team)
+	// One line whatever the team's name: a placeholder that wraps is cut by its box.
+	name := []rune(a.spaceName(team))
+	if len(name) > 16 {
+		name = append(name[:15], '…')
+	}
+	return "Message " + string(name)
 }
 
 func (a *App) chatComposer(c *ui.Context, team string) {
