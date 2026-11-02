@@ -217,6 +217,9 @@ func countsLine(c proto.TokenCounts) string {
 	if c.Unpriced > 0 {
 		line += fmt.Sprintf(", %d unpriced", c.Unpriced)
 	}
+	if c.Estimated > 0 {
+		line += fmt.Sprintf(", %d estimated", c.Estimated)
+	}
 	return line
 }
 

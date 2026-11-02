@@ -2129,6 +2129,7 @@ field TokenCounts.cacheWrite int64
 field TokenCounts.calls int
 field TokenCounts.cost float64
 field TokenCounts.equivalent float64
+field TokenCounts.estimated int
 field TokenCounts.input int64
 field TokenCounts.output int64
 field TokenCounts.reasoning int64
@@ -2150,8 +2151,13 @@ field TokenGroup.key string
 field TokenGroup.label string
 field TokenPrice.cacheRead float64
 field TokenPrice.cacheWrite float64
+field TokenPrice.cacheWrite1h float64
 field TokenPrice.config string
 field TokenPrice.input float64
+field TokenPrice.longAbove int64
+field TokenPrice.longCacheRead float64
+field TokenPrice.longInput float64
+field TokenPrice.longOutput float64
 field TokenPrice.model string
 field TokenPrice.output float64
 field TokenPrice.provider string

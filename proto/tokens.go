@@ -70,6 +70,8 @@ type TokenCounts struct {
 	Cost       float64 `json:"cost,omitempty"`
 	Equivalent float64 `json:"equivalent,omitempty"`
 	Unpriced   int     `json:"unpriced,omitempty"`
+	// Estimated are the calls priced by a model their record doesn't name.
+	Estimated int `json:"estimated,omitempty"`
 }
 
 // Total is what "tokens" means everywhere: input, output and cache write. Cache read
@@ -88,6 +90,7 @@ func (c *TokenCounts) Add(o TokenCounts) {
 	c.Cost += o.Cost
 	c.Equivalent += o.Equivalent
 	c.Unpriced += o.Unpriced
+	c.Estimated += o.Estimated
 }
 
 // TokensQuery asks for a summary: of [Since, Until) (zero: the last 30
@@ -183,6 +186,14 @@ type TokenPrice struct {
 	CacheWrite float64 `json:"cacheWrite"`
 	Output     float64 `json:"output"`
 	Shipped    bool    `json:"shipped,omitempty"`
+	// CacheWrite1h is a write kept for an hour, 0 for what CacheWrite says. Above
+	// LongAbove tokens sent in a request, the whole of it costs the Long prices, each
+	// 0 for the usual one.
+	CacheWrite1h  float64 `json:"cacheWrite1h,omitempty"`
+	LongAbove     int64   `json:"longAbove,omitempty"`
+	LongInput     float64 `json:"longInput,omitempty"`
+	LongCacheRead float64 `json:"longCacheRead,omitempty"`
+	LongOutput    float64 `json:"longOutput,omitempty"`
 }
 
 // Budget periods, scopes and what happens at 100%.

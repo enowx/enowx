@@ -95,6 +95,7 @@ func (c *Call) grow(o Call) bool {
 	before := *c
 	c.Input, c.CacheRead, c.CacheWrite = max(c.Input, o.Input), max(c.CacheRead, o.CacheRead), max(c.CacheWrite, o.CacheWrite)
 	c.Output, c.Reasoning, c.Cost = max(c.Output, o.Output), max(c.Reasoning, o.Reasoning), max(c.Cost, o.Cost)
+	c.CacheWrite1h = max(c.CacheWrite1h, o.CacheWrite1h)
 	return *c != before
 }
 

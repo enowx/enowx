@@ -73,6 +73,8 @@ What "input" means differs between agents (some count cached tokens in it, some 
 
 A price table, US dollars a million tokens (input, cache read, cache write, output), ships with enowX (`core/tokens/prices.json`, the providers' October 2026 prices) and the user's prices go over it (Tokens → Prices): a model ID or a prefix ending in `*`, optionally a provider, or a config's own price (OpenRouter's, a local model's 0). Local models cost nothing. When an agent records the cost itself (OpenCode, Pi, Goose, Aider, …), that cost counts. A model without a price is counted as unpriced, never guessed.
 
+Each type has its own rate: a **cache write kept for an hour** costs its own (`cacheWrite1h`, twice the input on Claude; Claude Code's records split the two) and the rest the 5-minute rate; a **long request** costs the long rates for the whole of it, by what was sent in all (`longAbove`: Claude Haiku 5.5 above 100K, GPT-6 Luna above 272K), each call on its own. A cost is **estimated** when its record doesn't name its model, taken from an earlier record (Pi's, CodeBuddy's, Aider's; Codex says it per turn): the page and `enowx usage` count those calls. GPT-6 Luna's and GLM-5.2's rows come from public price trackers (November 2026), not their makers' own pages: check them. Haiku 5.5's long rate is known only for input and output, so its cache prices stay the usual ones.
+
 Subscriptions: an agent signed in to a plan (Claude Code, Codex, Copilot, Cursor, Kiro, … without a model API of the user's set for it; Codex says its plan) has its tokens shown with the **API-equivalent** cost, marked as such. Its usage limits are in Settings → Agent accounts.
 
 ## Budgets

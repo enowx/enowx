@@ -51,8 +51,11 @@ type claudeLine struct {
 			Input       int64 `json:"input_tokens"`
 			CacheRead   int64 `json:"cache_read_input_tokens"`
 			CacheCreate int64 `json:"cache_creation_input_tokens"`
-			Output      int64 `json:"output_tokens"`
-			Details     struct {
+			CacheSplit  struct {
+				Hour int64 `json:"ephemeral_1h_input_tokens"`
+			} `json:"cache_creation"`
+			Output  int64 `json:"output_tokens"`
+			Details struct {
 				Thinking int64 `json:"thinking_tokens"`
 			} `json:"output_tokens_details"`
 		} `json:"usage"`
@@ -81,7 +84,7 @@ func readClaudeAs(prefix string) func(path string, st *FileState) ([]Call, error
 			u := l.Message.Usage
 			out = append(out, Call{ID: prefix + ":" + l.Message.ID, Time: l.Timestamp, Model: l.Message.Model,
 				Dir: st.Dir, Conversation: st.Conv,
-				Input: u.Input, CacheRead: u.CacheRead, CacheWrite: u.CacheCreate, Output: u.Output, Reasoning: u.Details.Thinking})
+				Input: u.Input, CacheRead: u.CacheRead, CacheWrite: u.CacheCreate, CacheWrite1h: u.CacheSplit.Hour, Output: u.Output, Reasoning: u.Details.Thinking})
 		})
 		return out, err
 	}

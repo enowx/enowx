@@ -117,3 +117,30 @@ func TestCodexRecordsInEveryShape(t *testing.T) {
 		t.Fatalf("a fork's copy: %+v %v", calls, err)
 	}
 }
+
+// A write kept for an hour costs its own rate, a long request the long one for the whole
+// of it, and a model taken from an earlier record makes the cost an estimate.
+func TestCostsAreExact(t *testing.T) {
+	p := NewPrices(nil)
+	near := func(got, want float64) bool { return got > want-1e-9 && got < want+1e-9 }
+	c := Call{Provider: "anthropic", Model: "claude-opus-5-5", CacheWrite: 1_000_000, CacheWrite1h: 400_000}
+	if got, ok := p.Cost(c); !ok || !near(got, 0.6*5+0.4*8) {
+		t.Errorf("5m and 1h: %v %v", got, ok)
+	}
+	short := Call{Provider: "openai", Model: "gpt-6-luna", Input: 100_000, Output: 1000}
+	if got, _ := p.Cost(short); !near(got, 0.1*0.1+0.001*0.5) {
+		t.Errorf("short: %v", got)
+	}
+	long := Call{Provider: "openai", Model: "gpt-6-luna", Input: 100_000, CacheRead: 200_000, Output: 1000}
+	if got, _ := p.Cost(long); !near(got, 0.1*0.2+0.2*0.02+0.001*0.75) {
+		t.Errorf("long: %v", got)
+	}
+	guessed := Call{Provider: "openai", Model: "gpt-6-luna", Input: 10, ModelInferred: true}
+	if n := guessed.Counts(p); n.Estimated != 1 || n.Unpriced != 0 {
+		t.Errorf("%+v", n)
+	}
+	guessed.Cost = 1 // what the agent said it cost
+	if guessed.Counts(p).Estimated != 0 {
+		t.Error("the agent's own cost isn't an estimate")
+	}
+}

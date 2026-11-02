@@ -140,6 +140,9 @@ func totalsNote(t proto.TokenCounts) string {
 	if t.Unpriced > 0 {
 		parts = append(parts, fmt.Sprintf("%d calls of models without a price", t.Unpriced))
 	}
+	if t.Estimated > 0 {
+		parts = append(parts, fmt.Sprintf("%d calls' cost estimated, their model taken from an earlier record", t.Estimated))
+	}
 	return strings.Join(parts, "; ")
 }
 
