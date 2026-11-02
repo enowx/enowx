@@ -35,7 +35,7 @@ func (ch *Chat) outline(c *ui.Context, turns []turn, more int) {
 	ch.outlineFollow()
 	ui.Column(c.Key("outline")).Absolute().Right(theme.S4).Top(theme.S5 + theme.ControlHeight).Width(outlineWidth).MaxHeight(420).Gap(0).Children(func() {
 		ui.Text(c, "Your messages").FontSize(theme.TextLabel).FontWeight(500).TextColor(theme.TextSoft).Padding(0, 0, theme.S1, 0)
-		ui.Scroll(c.Key("outline-rows")).FillWidth().TrackScroll(&ch.outlineScroll).Children(func() {
+		widget.Scroll(c.Key("outline-rows")).FillWidth().TrackScroll(&ch.outlineScroll).Children(func() {
 			ui.Column(c).FillWidth().Children(func() {
 				for _, r := range rows {
 					t := turns[r-more]

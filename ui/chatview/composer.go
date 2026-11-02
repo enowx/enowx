@@ -93,7 +93,7 @@ func (ch *Chat) box(c *ui.Context, o Options) {
 		// OnTextKey: the slash menu its arrows, Tab, Enter and Escape;
 		// Enter sends otherwise, Shift+Enter breaking the line.
 		send := false
-		in := ui.TextAreaBase(c, &ch.input).FillWidth().Lines(1, 5).PaddingX(theme.S2).
+		in := ui.TextAreaBase(c, &ch.input).FillWidth().Lines(1, 5).Padding(0, widget.ScrollGutter, 0, theme.S2).
 			FontSize(theme.TextRead).LineHeight(readLeading).Placeholder(composerPlaceholder(o)).Label("Message").
 			OnPaste(func(text string) bool { return o.Paste != nil && o.Paste(text) }).
 			OnTextKey(func(k ui.TextKey) bool {
