@@ -144,6 +144,7 @@ func (a *App) ragProjectCard(c *ui.Context, st *ragSettingsState, p proto.Projec
 			} else {
 				widget.CardNote(c, "Not indexed. Nothing is sent until you agree.", 0)
 			}
+			ui.Spacer(c)
 			widget.CardFoot(c, func() {
 				b := widget.GhostButton(c, "Turn on…").Disabled(r.busy || st.set.Embedder == "")
 				if b.Clicked() {
@@ -182,6 +183,7 @@ func (a *App) ragProjectOn(c *ui.Context, st *ragSettingsState, p proto.ProjectI
 	default:
 		widget.StatusLine(c, theme.Done, false, "Indexed with "+ragEmbedderShort(st.set.Embedder))
 	}
+	ui.Spacer(c)
 	widget.CardFoot(c, func() {
 		if widget.GhostButton(c, "Details").Clicked() {
 			r.details, r.exclude, r.maxFiles = p.Path, strings.Join(s.Settings.Exclude, ", "), ""
@@ -271,7 +273,7 @@ func (a *App) ragConsentSheet(c *ui.Context, st *ragSettingsState) {
 			widget.Input(c, &r.planEx, "testdata/, *.lock").FillWidth().Font(theme.MonoFont)
 		})
 	}, func() {
-		if widget.PrimaryButton(c, icon.Check, "Agree and index", "").Clicked() {
+		if widget.PrimaryButton(c, nil, "Agree and index", "").Clicked() {
 			open = false
 			set := r.status[dir].Settings
 			set.On, set.Consent, set.Exclude = true, plan.Host, splitList(r.planEx)

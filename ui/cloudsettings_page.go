@@ -245,6 +245,7 @@ func (a *App) cloudTeamsTab(c *ui.Context, cs *cloudSettings) {
 		widget.GridCard(c.Key("add-one")).Children(func() {
 			widget.CardTitle(c, nil, "Add one", nil)
 			widget.CardNote(c, "Each has its own space of notes and canvases, picked in the rail.", 0)
+			ui.Spacer(c)
 			widget.CardFoot(c, func() {
 				if widget.GhostButton(c, "Join with an invite").Clicked() {
 					ts.joining, ts.join = true, ""
