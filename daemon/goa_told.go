@@ -17,6 +17,7 @@ import (
 type goaTold struct {
 	Status   string `json:"status,omitempty"`
 	ReportAt int64  `json:"reportAt,omitempty"`
+	Host     string `json:"host,omitempty"` // "" this one, or from before hosts were kept
 }
 
 func goaToldFile(dir string) string { return filepath.Join(dir, "goa-told.json") }
@@ -70,14 +71,14 @@ func (s *Server) goaCallTold(p proto.HostCallParams) {
 	}
 	var in proto.SessionInputParams
 	if json.Unmarshal(p.Params, &in) == nil {
-		s.goaMarkTold(p.From, in.ID)
+		s.goaMarkTold(p.From, p.Host, in.ID)
 	}
 }
 
 // goaMarkTold follows what GOA (from) types into session id. One with a task whose
 // turn had ended is at work again, for a screen with no hook to tell of the next
 // turn too; one with no task now reports to GOA. Anyone else's input means nothing.
-func (s *Server) goaMarkTold(from, id string) {
+func (s *Server) goaMarkTold(from, host, id string) {
 	g, ok := s.goaSession()
 	if !ok || from != g.ID || id == "" || id == g.ID {
 		return
@@ -97,7 +98,7 @@ func (s *Server) goaMarkTold(from, id string) {
 	}
 	s.goa.mu.Lock()
 	t := s.goa.told[id]
-	t.Status = "" // what it does now is news, whatever it did before
+	t.Status, t.Host = "", host // what it does now is news, whatever it did before
 	s.goa.told[id] = t
 	s.goa.mu.Unlock()
 	s.saveGOATold()

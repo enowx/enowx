@@ -5,6 +5,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/enowx/enowx/core/goa"
 	"github.com/enowx/enowx/proto"
 )
 
@@ -18,13 +19,15 @@ func TestTurnOverOnScreen(t *testing.T) {
 		screen string
 		want   bool
 	}{
-		"in a shell tab":   {stallLook{Still: still}, over, true},
-		"its hooks quiet":  {stallLook{Info: proto.SessionInfo{StateStale: true}, Still: still}, over, true},
-		"its hooks at it":  {stallLook{Info: proto.SessionInfo{State: proto.StateWorking}, Still: still}, over, false},
-		"too soon":         {stallLook{Still: time.Second}, over, false},
-		"something runs":   {stallLook{Still: still, CPU: 80}, over, false},
-		"only quiet":       {stallLook{Still: still}, "compiling the thing\n", false},
-		"cannot see a CPU": {stallLook{Still: still, NoCPU: true, CPU: 80}, over, true},
+		"in a shell tab":    {stallLook{Still: still}, over, true},
+		"its hooks quiet":   {stallLook{Info: proto.SessionInfo{StateStale: true}, Still: still}, over, true},
+		"its hooks at it":   {stallLook{Info: proto.SessionInfo{State: proto.StateWorking}, Still: still}, over, false},
+		"its hooks dead":    {stallLook{Info: proto.SessionInfo{State: proto.StateDone}, Still: still}, over, true},
+		"at rest, not at 0": {stallLook{Still: still, CPU: 1.6}, over, true},
+		"too soon":          {stallLook{Still: time.Second}, over, false},
+		"something runs":    {stallLook{Still: still, CPU: 80}, over, false},
+		"only quiet":        {stallLook{Still: still}, "compiling the thing\n", false},
+		"cannot see a CPU":  {stallLook{Still: still, NoCPU: true, CPU: 80}, over, true},
 	} {
 		if got := turnOverOnScreen(c.look, c.screen); got != c.want {
 			t.Errorf("%s: %v", name, got)
@@ -120,6 +123,58 @@ func TestHostLostIsTold(t *testing.T) {
 	for _, x := range srv.goa.board.List() {
 		if x.ID == task.ID && x.Status != proto.GOATaskStalled {
 			t.Fatalf("%+v", x)
+		}
+	}
+}
+
+// A session GOA sent something to, with no task and no hook, is told of by its screen:
+// its turn's end once, then nothing until GOA sends it more.
+func TestToldSessionReportsByItsScreen(t *testing.T) {
+	info := proto.SessionInfo{ID: "s3"}
+	const over = "The report is in.\n✻ Baked for 27s\n"
+	h := stallHost{infos: map[string]proto.SessionInfo{"s3": info}, cpuKnown: true,
+		cpuOf:  func(string) float64 { return 1.6 },
+		screen: func(string) (string, error) { return over, nil }}
+	lim := goa.StallOr(proto.GOAStall{})
+	srv := startServer(t)
+	srv.goa.mu.Lock()
+	srv.goa.told["s3"] = goaTold{}
+	srv.goa.mu.Unlock()
+	status := func() string {
+		srv.goa.mu.Lock()
+		defer srv.goa.mu.Unlock()
+		return srv.goa.told["s3"].Status
+	}
+	w := &stallWatch{follows: map[string]*stallFollow{}, sampled: map[string]bool{}}
+	srv.toldCheck(w, "s3", goaTold{}, h, lim)
+	if got := status(); got != "" {
+		t.Fatalf("at first sight: %q", got)
+	}
+	w.follows[toldFollow("s3")].since = time.Now().Add(-time.Minute)
+	srv.toldCheck(w, "s3", goaTold{}, h, lim)
+	if got := status(); got != proto.GOATaskTurnEnded {
+		t.Fatalf("after its turn's end: %q", got)
+	}
+}
+
+// One whose screen says nothing of its turn is told of once it has been quiet for
+// the idle limit; one asking something isn't.
+func TestToldGoneQuiet(t *testing.T) {
+	lim := goa.StallOr(proto.GOAStall{})
+	long := stallSeconds(lim.Idle) + time.Second
+	for name, c := range map[string]struct {
+		look   stallLook
+		screen string
+		want   bool
+	}{
+		"quiet":        {stallLook{Still: long}, "something\n", true},
+		"not for long": {stallLook{Still: time.Second}, "something\n", false},
+		"at work":      {stallLook{Still: long, CPU: 90}, "something\n", false},
+		"hooks at it":  {stallLook{Still: long, Info: proto.SessionInfo{State: proto.StateWorking}}, "something\n", false},
+		"it asks":      {stallLook{Still: long}, "Do you want to proceed?\n", false},
+	} {
+		if got := toldGoneQuiet(c.look, c.screen, lim); got != c.want {
+			t.Errorf("%s: %v", name, got)
 		}
 	}
 }

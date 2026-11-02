@@ -72,7 +72,7 @@ var sessionHandlers = map[string]handler{
 	}),
 	proto.MethodSessionInput: with(func(c *conn, p proto.SessionInputParams) (any, error) {
 		if p.From != "" {
-			c.srv.goaMarkTold(p.From, p.ID)
+			c.srv.goaMarkTold(p.From, "", p.ID)
 		}
 		return ok, c.srv.input(p)
 	}),

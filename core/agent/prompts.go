@@ -105,9 +105,16 @@ func askedAbove(lines []string, i int) string {
 	return line
 }
 
-// turnOverShown is what shows at a turn's end, when no hook says so: Claude Code's
-// time taken ("Baked for 27s"), or a prompt mark alone on its line.
-var turnOverShown = regexp.MustCompile(`(?m)^\s*[✻✽✶✢*·]?\s*[A-Z][a-z]+(ed|ing)? for \d+\s*[smh]|^\s*[❯›>$%#]\s*$`)
+// What shows at a turn's end when no hook says so: the time it took ("Baked for 27s",
+// "─ Worked for 1m 03s ─"), or the composer's prompt mark with nothing typed.
+var (
+	timeTaken   = regexp.MustCompile(`^[─━\-\s]*[✻✽✶✢*·•]?\s*[A-Z][a-z]+(ed|ing)? for \d+\s*[smh]`)
+	promptAlone = regexp.MustCompile(`^[│|┃]?\s*[❯›>$%#]\s*[│|┃]?$`)
+)
+
+// turnOverLines is how far up a turn's end is looked for: an agent's footer alone
+// (a status line, its running agents) can take ten lines.
+const turnOverLines = 20
 
 // InterruptShown says a screen's end shows a turn was interrupted.
 func InterruptShown(screen string) bool {
@@ -115,9 +122,40 @@ func InterruptShown(screen string) bool {
 }
 
 // TurnOverShown says a screen, not at work and not asking, shows an agent whose
-// turn has ended.
+// turn has ended. Only what follows its end can say otherwise: above it is what the
+// turn said, in any words ("the usage limit is...", "shall we?"), and under it a
+// footer's words are only that ("Update available").
 func TurnOverShown(screen string) bool {
-	return PromptFree(screen) && turnOverShown.MatchString(strings.Join(tailLines(screen, 12), "\n"))
+	lines := tailLines(screen, turnOverLines)
+	if i := lastMatch(lines, timeTaken); i >= 0 {
+		return !asksOrWorks(lines[i+1:])
+	}
+	i := lastMatch(lines, promptAlone)
+	if i < 0 || i > 0 && strings.HasSuffix(strings.Trim(lines[i-1], promptEdges), "?") {
+		return false // a question right above a bare mark is a program reading its answer
+	}
+	return PromptFree(strings.Join(lines[max(0, i-3):i+1], "\n")) && !asksOrWorks(lines[i+1:])
+}
+
+// lastMatch is the last of lines re matches, -1 for none.
+func lastMatch(lines []string, re *regexp.Regexp) int {
+	for i := len(lines) - 1; i >= 0; i-- {
+		if re.MatchString(lines[i]) {
+			return i
+		}
+	}
+	return -1
+}
+
+// asksOrWorks says lines under a turn's end show it has moved on: an agent at work,
+// or asking to allow something, or picking from a menu.
+func asksOrWorks(lines []string) bool {
+	text := strings.Join(lines, "\n")
+	if workingShown.MatchString(text) || permissionPrompts.MatchString(text) {
+		return true
+	}
+	_, asks := StalledPrompt(text)
+	return asks
 }
 
 // PromptFree says a screen shows an agent neither at work nor asking anything:

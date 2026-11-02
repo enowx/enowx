@@ -65,7 +65,7 @@ Routes, in order:
 
 1. The agent's turn-end hook.
 2. `goa report --outcome done|partly|nothing|blocked|refused|failed "what happened"`, which every task's prompt asks for at the end of each turn. The report stays on the session, on its own host, and reaches GOA as the session's changes do, through the app for another host's. It goes on the task as `Outcome`.
-3. For an agent with no hooks, and one started by hand in a shell tab: the screen. A session no hook speaks for, quiet for 20 seconds, not asking, showing a turn's end (Claude Code's time taken, a prompt mark alone on its line) raises a report, not "isn't moving". A screen only quiet, with no such sign, stays a stall line.
+3. For an agent with no hooks, one started by hand in a shell tab, and one whose hooks fail: the screen. A session no hook speaks for, still for 20 seconds, using under 20% of a core (an agent at rest isn't at 0), showing a turn's end (the time it took, or a prompt mark alone on its line) raises a report, not "isn't moving". Only what follows that end can say otherwise: the turn's own words above it and a footer's under it don't. A screen only quiet, with no such sign, stays a stall line. A session GOA sent something to with no task is watched the same way, on any host: it reports its turn's end, says once if it goes quiet for the idle limit with no sign why, and says if it is gone.
 
 What the session doesn't say, enowX says for it: its process exiting or crashing, with the exit code and its last words, marked `NoReport` on the board and never shown as at work; a turn interrupted; a limit its agent showed; a lost sign-in, as what it asks; going silent, as a stall line; a host that can't be reached, once, after the idle limit.
 

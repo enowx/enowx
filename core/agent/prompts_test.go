@@ -111,6 +111,11 @@ func TestTurnOverShown(t *testing.T) {
 		"The report is in.\n✻ Baked for 27s · done 9:43 PM\n",
 		"Done.\n\n❯ \n  ⏵⏵ bypass permissions on\n",
 		"ok\n$ \n",
+		// A long footer, as a status line gives, and a report's own words above.
+		"The usage limit is what stopped it. Shall we go on?\n✻ Baked for 2m 3s\n───\n❯ \n───\n" + strings.Repeat("  ✓ Bash ×12 | status\n", 9) + "  Update available! Run: brew upgrade\n",
+		"The usage limit is what stopped it.\nMore.\nMore.\nMore.\n───\n❯ \n───\n  Update available! Run: brew upgrade\n",
+		"─ Worked for 1m 03s ─\n\n› \n",
+		"Done.\n│ > │\n",
 	} {
 		if !TurnOverShown(screen) {
 			t.Errorf("not seen: %q", screen)
@@ -121,6 +126,12 @@ func TestTurnOverShown(t *testing.T) {
 		"✶ Thinking… (esc to interrupt)\n",
 		"Do you want to proceed?\n ❯ 1. Yes\n   2. No\n",
 		" \n",
+		// A new turn under the last one's time, at work or asking.
+		"✻ Baked for 27s\nnext\n✶ Thinking… (esc to interrupt)\n",
+		"✻ Baked for 27s\nDo you want to make this edit?\n ❯ 1. Yes\n   2. No\n",
+		// A program reading its answer, and a shell's own prompt.
+		"Overwrite the file?\n> \n",
+		"ada@mac project %\n",
 	} {
 		if TurnOverShown(screen) {
 			t.Errorf("taken for it: %q", screen)

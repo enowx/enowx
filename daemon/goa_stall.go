@@ -119,18 +119,25 @@ func queuedCanGo(l stallLook, screen string) bool {
 		l.Still >= queuedQuiet && (l.NoCPU || l.CPU < stallCPUIdle) && agent.PromptFree(screen)
 }
 
-// stallFollow is what was told of a task. Only watchStalls touches it.
-// turnOverStill is how long a screen shows a turn's end before it counts.
-const turnOverStill = 20 * time.Second
+const (
+	// turnOverStill is how long a screen shows a turn's end before it counts.
+	turnOverStill = 20 * time.Second
+	// turnOverCPU is the percent of a core a session whose screen shows its turn over
+	// may use: an agent at rest isn't at 0 (Claude Code was seen at 1.6, its MCP
+	// servers beside it), and what really works shows it on its screen.
+	turnOverCPU = 20.0
+)
 
-// turnOverOnScreen says a session no hook speaks for (an agent with none, or one
-// started by hand in a shell tab) shows its turn has ended. That is a report, not
+// turnOverOnScreen says a session no hook speaks for (an agent with none, one started
+// by hand in a shell tab, or one whose hooks fail: it still says done from its last
+// turn, GOA having sent it another) shows its turn has ended. That is a report, not
 // "isn't moving". What is only quiet stays a stall.
 func turnOverOnScreen(l stallLook, screen string) bool {
-	silent := l.Info.State == "" || l.Info.StateStale
-	return silent && !l.Info.Exited && l.Still >= turnOverStill && (l.NoCPU || l.CPU < stallCPUIdle) && agent.TurnOverShown(screen)
+	silent := l.Info.State == "" || l.Info.StateStale || l.Info.State == proto.StateDone
+	return silent && !l.Info.Exited && l.Still >= turnOverStill && (l.NoCPU || l.CPU < turnOverCPU) && agent.TurnOverShown(screen)
 }
 
+// stallFollow is what was told of a task. Only watchStalls touches it.
 type stallFollow struct {
 	screen string
 	since  time.Time
@@ -176,8 +183,9 @@ func (s *Server) watchStalls(done <-chan struct{}) {
 	}
 }
 
-// stallPass looks once at every task said to be running. A host that can't be
-// reached says nothing of its tasks, which wait as they are.
+// stallPass looks once at every task said to be running, and every session GOA sent
+// something to with no task. A host that can't be reached says nothing of its
+// sessions, which wait as they are.
 func (s *Server) stallPass(w *stallWatch) {
 	s.goaFlushIdle()
 	lim := s.goaStall()
@@ -187,7 +195,8 @@ func (s *Server) stallPass(w *stallWatch) {
 			open = append(open, t)
 		}
 	}
-	if len(open) == 0 {
+	told := s.goaToldNow()
+	if len(open) == 0 && len(told) == 0 {
 		clear(w.sampled)
 		clear(w.follows)
 		return
@@ -197,25 +206,8 @@ func (s *Server) stallPass(w *stallWatch) {
 	given := map[string]bool{} // sessions given a queued task in this pass
 	for _, t := range open {
 		seen[t.ID] = true
-		key := t.Host
-		if s.thisHost(key) {
-			key = ""
-		}
-		h, looked := hosts[key]
-		if !looked {
-			h = s.stallHostNow(key)
-			if h != nil && !w.sampled[key] {
-				// What this sample says of the CPU counts from the next.
-				w.sampled[key] = true
-				h = nil
-			} else if h == nil {
-				delete(w.sampled, key)
-			}
-			if h != nil || w.sampled[key] {
-				delete(w.lost, key)
-			}
-			hosts[key] = h
-		}
+		key := s.stallKey(t.Host)
+		h := s.stallLookAt(w, hosts, key)
 		switch {
 		case h == nil:
 			if !w.sampled[key] { // else it was reached, and sampled for the first time
@@ -227,11 +219,46 @@ func (s *Server) stallPass(w *stallWatch) {
 			given[t.Session] = true
 		}
 	}
+	for id, was := range told {
+		seen[toldFollow(id)] = true
+		if h := s.stallLookAt(w, hosts, s.stallKey(was.Host)); h != nil {
+			s.toldCheck(w, id, was, *h, lim)
+		}
+	}
 	for id := range w.follows {
 		if !seen[id] {
 			delete(w.follows, id)
 		}
 	}
+}
+
+// stallKey is host as watchStalls keeps it, "" for this one.
+func (s *Server) stallKey(host string) string {
+	if s.thisHost(host) {
+		return ""
+	}
+	return host
+}
+
+// stallLookAt is what host key says now, asked once a pass: nil when it can't be
+// reached, or was sampled for the first time, as CPU use is measured between two.
+func (s *Server) stallLookAt(w *stallWatch, hosts map[string]*stallHost, key string) *stallHost {
+	if h, looked := hosts[key]; looked {
+		return h
+	}
+	h := s.stallHostNow(key)
+	if h != nil && !w.sampled[key] {
+		// What this sample says of the CPU counts from the next.
+		w.sampled[key] = true
+		h = nil
+	} else if h == nil {
+		delete(w.sampled, key)
+	}
+	if h != nil || w.sampled[key] {
+		delete(w.lost, key)
+	}
+	hosts[key] = h
+	return h
 }
 
 // stallHostLost tells of task t once its host hasn't been reached for as long as
