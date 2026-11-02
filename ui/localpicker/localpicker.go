@@ -51,6 +51,9 @@ func (p *Picker) Open(title, about string, pick func(paths []string)) {
 	p.browse(start)
 }
 
+// Close hides the dialog.
+func (p *Picker) Close() { p.open = false }
+
 // IsOpen reports whether the dialog shows.
 func (p *Picker) IsOpen() bool { return p.open }
 
@@ -99,22 +102,22 @@ func (p *Picker) View(c *ui.Context) {
 	if !p.open {
 		return
 	}
-	widget.Dialog(c, &p.open, 640, 12, func() {
-		if widget.DialogHeader(c, p.title, p.about, true) {
-			p.open = false
-		}
+	widget.Sheet(c, &p.open, 480, func() {
+		widget.SheetHead(c, &p.open, p.title, p.about)
+	}, func() {
 		p.toolbar(c)
 		p.places(c)
 		p.list(c)
 		if p.err != "" {
-			ui.Text(c, p.err).FontSize(theme.TextLabel).TextColor(theme.Error)
+			ui.Text(c, p.err).FontSize(theme.TextUI).TextColor(theme.Error)
 		}
+	}, func() {
 		p.footer(c)
 	})
 }
 
 func (p *Picker) toolbar(c *ui.Context) {
-	ui.Row(c).FillWidth().Gap(6).Children(func() {
+	ui.Row(c).FillWidth().Gap(theme.S1).Children(func() {
 		if widget.IconButton(c, icon.ArrowUp, "Up one folder", true).Clicked() {
 			if parent := filepath.Dir(p.dir); parent != p.dir {
 				p.browse(parent)
@@ -123,7 +126,7 @@ func (p *Picker) toolbar(c *ui.Context) {
 		if widget.IconButton(c, icon.Home, "Home folder", true).Clicked() {
 			p.browse("~")
 		}
-		if widget.Input(c, &p.path, "Folder path").Font(theme.MonoFont).Grow(1).Submitted() {
+		if widget.Input(c, &p.path, "Folder path").Grow(1).MinWidth(0).Submitted() {
 			p.browse(p.path)
 		}
 	})
@@ -135,22 +138,22 @@ func (p *Picker) places(c *ui.Context) {
 	if err != nil {
 		return
 	}
-	ui.Row(c).FillWidth().Gap(6).Wrap().Children(func() {
+	ui.Row(c).FillWidth().Gap(theme.S1).Wrap().Children(func() {
 		for _, name := range []string{"Desktop", "Downloads", "Documents", "Pictures"} {
 			dir := filepath.Join(home, name)
 			if _, err := os.Stat(dir); err != nil {
 				continue
 			}
-			b := ui.ButtonBase(c.Key(name)).Gap(6).Padding(4, 9).Radius(theme.RadiusControl).Cursor(ui.CursorPointer).
-				Border(1, theme.Border).Label(name)
+			b := ui.ButtonBase(c.Key(name)).Height(24).Gap(theme.S1).PaddingX(theme.S2).Radius(theme.RadiusFull).Cursor(ui.CursorPointer).
+				Background(theme.Sunken).Label(name)
 			if p.dir == dir {
-				b.Border(1, theme.Accent).Background(theme.AccentSoft)
+				b.Background(theme.Selected)
 			} else if b.Hovered() {
 				b.Background(theme.Hover)
 			}
 			b.Children(func() {
-				ui.Icon(c, icon.Folder).FontSize(12).TextColor(theme.Muted)
-				ui.Text(c, name).FontSize(theme.TextLabel)
+				ui.Icon(c, icon.Folder).FontSize(12).TextColor(theme.TextSoft)
+				ui.Text(c, name).FontSize(theme.TextLabel).SingleLine()
 			})
 			if b.Clicked() {
 				p.browse(dir)
@@ -160,8 +163,9 @@ func (p *Picker) places(c *ui.Context) {
 }
 
 func (p *Picker) list(c *ui.Context) {
-	ui.Scroll(c).FillWidth().Height(340).Radius(theme.RadiusCard).Background(theme.Sunken).Border(1, theme.BorderStrong).Children(func() {
-		ui.Column(c).FillWidth().Padding(4).Gap(1).Children(func() {
+	// Its frame stays this tall whatever the folder holds.
+	ui.Scroll(c).FillWidth().Height(280).Shrink(0).Children(func() {
+		ui.Column(c).FillWidth().Children(func() {
 			shown := 0
 			for _, e := range p.entries {
 				if e.hidden && !p.hidden {
@@ -171,7 +175,7 @@ func (p *Picker) list(c *ui.Context) {
 				p.row(c.Key(e.name), e)
 			}
 			if shown == 0 {
-				ui.Text(c, "Nothing here.").TextColor(theme.Muted).Padding(12)
+				ui.Text(c, "Nothing here.").FontSize(theme.TextUI).TextColor(theme.TextSoft).Padding(theme.S2, theme.S3)
 			}
 		})
 	})
@@ -181,34 +185,37 @@ func (p *Picker) list(c *ui.Context) {
 func (p *Picker) row(c *ui.Context, e entry) {
 	full := filepath.Join(p.dir, e.name)
 	on := p.selected[full]
-	ui.Row(c).FillWidth().Gap(8).Padding(2, 6).Radius(theme.RadiusControl).Children(func() {
-		if widget.Checkbox(c.Key("pick"), &on, "") {
-			if on {
-				p.selected[full] = true
-			} else {
-				delete(p.selected, full)
+	ui.Row(c).FillWidth().Shrink(0).Gap(theme.S1).PaddingX(theme.S3).AlignItems(ui.Start).Children(func() {
+		// A checkbox keeps to its row's start: down to its name's middle.
+		ui.Row(c.Key("box")).Shrink(0).Padding(6, 0, 0, 0).Children(func() {
+			if widget.Checkbox(c.Key("pick"), &on, "") {
+				if on {
+					p.selected[full] = true
+				} else {
+					delete(p.selected, full)
+				}
 			}
-		}
-		b := ui.ButtonBase(c.Key("name")).Grow(1).MinWidth(0).Height(28).PaddingX(6).Gap(8).Radius(theme.RadiusControl).
+		})
+		b := ui.ButtonBase(c.Key("name")).Grow(1).MinWidth(0).Height(28).PaddingX(theme.S2).Gap(theme.S2).Radius(theme.RadiusFull).
 			Justify(ui.Start).Cursor(ui.CursorPointer).Label(e.name)
 		if b.Hovered() {
 			b.Background(theme.Hover)
 		}
 		b.Children(func() {
-			svg, col := icon.File, theme.Muted
+			svg, col := icon.File, theme.TextSoft
 			if e.dir {
-				svg, col = icon.Folder, theme.TextSoft
+				svg = icon.Folder
 			}
 			ui.Icon(c, svg).FontSize(13).TextColor(col)
-			name := ui.Text(c, e.name).FontSize(theme.TextUI).SingleLine().Shrink(1)
+			style := widget.RunStyle{}
 			if e.hidden {
-				name.TextColor(theme.Muted)
+				style.Color = theme.TextSoft
 			}
-			ui.Spacer(c)
+			ui.Row(c).Grow(1).MinWidth(0).Children(func() { widget.Running(c, e.name, style) })
 			if e.dir {
-				ui.Icon(c, icon.ChevronRight).FontSize(11).TextColor(theme.Muted)
+				ui.Icon(c, icon.ChevronRight).FontSize(11).TextColor(theme.TextSoft)
 			} else {
-				ui.Text(c, textfmt.Bytes(uint64(max(e.size, 0)))).FontSize(theme.TextLabel).TextColor(theme.Muted).SingleLine()
+				ui.Text(c, textfmt.Bytes(uint64(max(e.size, 0)))).FontSize(theme.TextLabel).TextColor(theme.TextSoft).SingleLine().Shrink(0)
 			}
 		})
 		if b.Clicked() {
@@ -224,32 +231,33 @@ func (p *Picker) row(c *ui.Context, e entry) {
 }
 
 func (p *Picker) footer(c *ui.Context) {
-	ui.Row(c).FillWidth().Gap(8).Children(func() {
+	ui.Row(c).Grow(1).MinWidth(0).Gap(theme.S2).Children(func() {
 		widget.Switch(c, &p.hidden, "Show hidden files")
-		ui.Text(c, "Hidden files").FontSize(theme.TextLabel).TextColor(theme.TextSoft)
-		ui.Box(c).Grow(1)
-		n := len(p.selected)
-		if n > 0 {
-			ui.Text(c, fmt.Sprintf("%d picked", n)).FontSize(theme.TextLabel).TextColor(theme.TextSoft)
-		}
-		if widget.GhostButton(c, "Cancel").Clicked() {
-			p.open = false
-		}
-		label := "Add"
-		if n > 0 {
-			label = fmt.Sprintf("Add %d", n)
-		}
-		b := widget.PrimaryButton(c, icon.Plus, label, "")
-		if n == 0 {
-			b.Disabled(true).Opacity(0.5)
-		} else if b.Clicked() {
-			paths := make([]string, 0, n)
-			for path := range p.selected {
-				paths = append(paths, path)
-			}
-			slices.Sort(paths)
-			p.open = false
-			p.pick(paths)
-		}
+		ui.Text(c, "Hidden files").FontSize(theme.TextLabel).TextColor(theme.TextSoft).SingleLine()
 	})
+	n := len(p.selected)
+	if n > 0 {
+		ui.Row(c).Height(theme.ControlHeight).Shrink(0).Children(func() {
+			ui.Text(c, fmt.Sprintf("%d picked", n)).FontSize(theme.TextLabel).TextColor(theme.TextSoft).SingleLine()
+		})
+	}
+	if widget.GhostButton(c, "Cancel").Clicked() {
+		p.open = false
+	}
+	label := "Add"
+	if n > 0 {
+		label = fmt.Sprintf("Add %d", n)
+	}
+	b := widget.PrimaryButton(c, icon.Plus, label, "")
+	if n == 0 {
+		b.Disabled(true)
+	} else if b.Clicked() {
+		paths := make([]string, 0, n)
+		for path := range p.selected {
+			paths = append(paths, path)
+		}
+		slices.Sort(paths)
+		p.open = false
+		p.pick(paths)
+	}
 }
