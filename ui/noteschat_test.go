@@ -61,9 +61,9 @@ func TestNotesAgentProposesAndTheUserAccepts(t *testing.T) {
 		t.Fatal(err)
 	}
 	tt := ui.NewTester(func(c *ui.Context) {
+		// The page draws the agent's panel itself, in its frame.
 		ui.Row(c).Width(1200).Height(800).Gap(theme.BentoGap).Background(theme.Ground).Children(func() {
 			widget.Bento(ui.Column(c).Grow(1).FillHeight(), theme.Background).Children(func() { app.notesPage(c) })
-			app.notesAgentPanel(c)
 		})
 	}, 1200, 800)
 	settle := func(what string, done func() bool) {

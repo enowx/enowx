@@ -6,16 +6,20 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/egoist/mygo/ui"
 
 	"github.com/enowx/enowx/proto"
+	"github.com/enowx/enowx/ui/notesview"
 )
 
 // noteAuditBody has every kind of block a note shows.
 const noteAuditBody = "# Heading\n\nSome text, long enough to reach the end of the line in a narrow frame and go on to another one.\n\n## To-do\n\n- [ ] one\n- [x] two\n- a bullet\n1. a number\n\n> A quote.\n\n" +
 	":::callout warning Waiting on the owner\nThe choice isn't made yet.\n:::\n\n:::toggle Where it lives\nIn the project.\n:::\n\n" +
 	"| Area | Surfaces |\n|---|---|\n| Notes | 68 |\n| Canvas | 61 |\n\n```sh\nenowx-app notes check NOTE --item \"shell.title-bar\" --and-a-long-flag-to-see-it-wrap-inside-its-frame-whatever-its-width\n```\n\n" +
+	"| Area | Surfaces |\n|---|---|\n| Shell | 12 |\n| Sessions | 34 |\n| Tools | 56 |\n| Hosts | 7 |\n| Vault | 8 |\n| GOA | 9 |\n\n```svg\n<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 40 20\"><rect width=\"40\" height=\"20\" fill=\"#0090FF\"/></svg>\n```\n\n```svg\nnot a drawing\n```\n\n" +
+	":::callout tip A tip\nA line.\n:::\n\n:::callout danger A danger\nA line.\n:::\n\n::spacer\n\n::embed\n\n" +
 	":::tabs\n::tab Summary\nIts summary.\n::tab Details\nIts details.\n:::\n\n:::columns\n::col Left\nOne side.\n::col Right\nThe other.\n:::\n\n:::cards\n::card First\nA card.\n::card Second\nAnother.\n:::\n\n::toc\n\n::progress\n\n---\n\n::embed canvas:abc\n"
 
 // The notes' surfaces in every state the layout audit should see: a note
@@ -34,6 +38,11 @@ func TestLayoutAuditNotes(t *testing.T) {
 	if _, err := h.cl.SetNoteGroup(rich.ID, "Plans with a long name that runs"); err != nil {
 		t.Fatal(err)
 	}
+	// A second save, for the history to hold an earlier version.
+	if _, err := h.cl.SaveNote(proto.Note{NoteInfo: rich, Body: noteAuditBody + "\nOne more line.\n"}); err != nil {
+		t.Fatal(err)
+	}
+	h.app.agents = []proto.AgentInfo{{ID: "claude", Name: "Claude Code", Command: "claude", Installed: true}, {ID: "codex", Name: "Codex", Command: "codex", Installed: true}}
 	child, err := h.cl.SaveNote(proto.Note{NoteInfo: proto.NoteInfo{Title: "Under it", Parent: rich.ID}, Body: "Text under it."})
 	if err != nil {
 		t.Fatal(err)
@@ -52,6 +61,17 @@ func TestLayoutAuditNotes(t *testing.T) {
 			}
 		}
 	}
+	rightClick := func(label string, then ...string) func() {
+		return func() {
+			h.settle(label, func() bool { _, ok := h.tt.Find(label); return ok })
+			if err := h.tt.RightClick(label); err != nil {
+				t.Error(label, err)
+			}
+			h.settle("", func() bool { return true })
+			click(then...)()
+		}
+	}
+	const group = "Group Plans with a long name that runs"
 	states := []struct {
 		name string
 		note string
@@ -73,19 +93,50 @@ func TestLayoutAuditNotes(t *testing.T) {
 		{name: "import", then: click("Import and export", "Import…")},
 		{name: "jump", note: rich.ID, then: func() { h.app.notes.OpenJump() }},
 		{name: "delete", note: rich.ID, then: click("More for this note", "Delete…")},
+		{name: "row-menu", then: rightClick("Release plan")},
+		{name: "group-menu", then: rightClick(group)},
+		{name: "edit-group", then: rightClick(group, "Edit group…")},
+		{name: "delete-group", then: rightClick(group, "Delete group…")},
+		{name: "new-group-error", then: click("Import and export", "New group…", "Create")},
+		{name: "new-group-icon", then: click("Import and export", "New group…", "Group icon")},
+		{name: "group-filter", then: click("Show: All groups")},
+		{name: "project-filter", then: click("Projects: all pages")},
+		{name: "by-project", then: click("Projects: all pages", "Grouped by project")},
+		{name: "agent-picker", note: rich.ID, then: click("Note agent", "Agent")},
+		{name: "outline-hidden", note: rich.ID, then: click("Outline · ⌘K jumps to a section")},
+		{name: "icon-custom", note: child.ID, then: click("Page icon", "Custom")},
+		{name: "slash", note: child.ID, then: func() {
+			click("Type below")()
+			h.tt.Type("/")
+		}},
+		{name: "block-source", note: rich.ID, then: click("Waiting on the owner")},
+		{name: "filter-none", then: func() {
+			click("Filter notes")()
+			h.tt.Type("nothing is called this")
+		}},
+		{name: "scrolled", note: rich.ID, then: func() {
+			h.tt.Wheel(600, 400, 0, 1500)
+		}},
+		{name: "import-notion", then: click("Import and export", "Import…", "Notion (API)")},
 	}
 	shots := os.Getenv("SHOTS")
 	only := os.Getenv("AUDIT")
 	var problems []string
+	sizes := auditSizes
+	if shots != "" {
+		sizes = [][2]int{{1280, 800}} // pictures alone: the sizes are the audit's
+	}
 	for _, st := range states {
 		if only != "" && !strings.Contains("notes-"+st.name, only) {
 			continue
 		}
-		for _, size := range auditSizes {
+		for _, size := range sizes {
 			closeAudit(h.app)
 			h.app.page = pageNotes
 			h.app.state.RailWide = true
-			h.app.notes.SetMode(0)
+			// A fresh view: a menu or mode the last state left would turn its
+			// button's click into a close.
+			h.app.notes = notesview.View{}
 			h.tt = ui.NewTester(func(c *ui.Context) { h.app.view(c) }, size[0], size[1])
 			h.settle("", func() bool { return true })
 			if st.note != "" {
@@ -98,9 +149,11 @@ func TestLayoutAuditNotes(t *testing.T) {
 			if st.then != nil {
 				st.then()
 			}
-			for range 4 {
-				h.settle("", func() bool { return true })
-			}
+			// Calls to the host come back, then what opens and fades ends.
+			waited := 0
+			h.settle("", func() bool { waited++; return waited > 12 && !h.tt.HasText("Reading…") })
+			h.tt.Advance(time.Second)
+			h.tt.Frame()
 			name := fmt.Sprintf("notes-%s-%dx%d", st.name, size[0], size[1])
 			if shots != "" {
 				shot(t, h.tt, filepath.Join("audit", name+".png"))
@@ -108,6 +161,24 @@ func TestLayoutAuditNotes(t *testing.T) {
 			for _, pr := range layoutProblems(h.tt, float32(size[0]), float32(size[1]), false) {
 				problems = append(problems, name+": "+pr)
 			}
+		}
+	}
+	if shots != "" {
+		// The whole note on one picture, every block in each mode.
+		h.tt = ui.NewTester(func(c *ui.Context) { h.app.view(c) }, 1280, 2800)
+		closeAudit(h.app)
+		h.app.page = pageNotes
+		h.app.notes = notesview.View{}
+		h.settle("", func() bool { return true })
+		h.app.notes.Select(h.app.notesOptions(), rich.ID)
+		h.settle("the note", func() bool { return h.app.notes.Opened() })
+		for mode, name := range []string{"edit", "read"} {
+			h.app.notes.SetMode(mode)
+			waited := 0
+			h.settle("", func() bool { waited++; return waited > 2 })
+			h.tt.Advance(time.Second)
+			h.tt.Frame()
+			shot(t, h.tt, filepath.Join("audit", "notes-tall-"+name+".png"))
 		}
 	}
 	if len(problems) > 0 {
