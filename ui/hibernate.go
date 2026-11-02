@@ -243,20 +243,20 @@ func (a *App) hibernateDialog(c *ui.Context) {
 	}
 	working := slices.ContainsFunc(f.plans, func(pl proto.HibernatePlan) bool { return pl.Working })
 	title := "Hibernate " + textfmt.Plural(len(f.plans), "this session", fmt.Sprintf("these %d sessions", len(f.plans))) + "?"
-	widget.Dialog(c, &open, 460, 14, func() {
-		widget.DialogHeader(c, title, hibernateFrees(f.plans), false)
+	widget.Sheet(c, &open, 480, func() {
+		widget.SheetHead(c, &open, title, hibernateFrees(f.plans))
+	}, func() {
 		hibernatePlans(c, f.plans)
-		widget.DialogFooter(c, "", func() {
-			if widget.GhostButton(c, "Cancel").Clicked() {
-				answer(false, proto.SessionHibernateParams{})
-			}
-			if working && widget.GhostButton(c, "Once done").Tooltip("Hibernate each when its agent is done").Clicked() {
-				answer(true, proto.SessionHibernateParams{IDs: f.ids, WhenDone: true})
-			}
-			if widget.Button(c, widget.Danger, icon.Moon, "Hibernate now", "").Clicked() {
-				answer(true, proto.SessionHibernateParams{IDs: f.ids, Force: true})
-			}
-		})
+	}, func() {
+		if widget.GhostButton(c, "Cancel").Clicked() {
+			answer(false, proto.SessionHibernateParams{})
+		}
+		if working && widget.GhostButton(c, "Once done").Tooltip("Hibernate each when its agent is done").Clicked() {
+			answer(true, proto.SessionHibernateParams{IDs: f.ids, WhenDone: true})
+		}
+		if widget.PrimaryButton(c, icon.Moon, "Hibernate now", "").Clicked() {
+			answer(true, proto.SessionHibernateParams{IDs: f.ids, Force: true})
+		}
 	})
 	if !open && a.hibernating == f {
 		answer(false, proto.SessionHibernateParams{})
@@ -280,7 +280,7 @@ func (a *App) hibernateAsk(c *ui.Context) *widget.Ask {
 		Body:  func() { hibernatePlans(c, f.plans) },
 		Buttons: []widget.AskButton{
 			{Kind: widget.Secondary, Label: "Don't", Do: answer(false)},
-			{Kind: widget.Danger, Icon: icon.Moon, Label: "Hibernate", Do: answer(true)},
+			{Kind: widget.Primary, Icon: icon.Moon, Label: "Hibernate", Do: answer(true)},
 		}}
 }
 
@@ -306,24 +306,19 @@ func hibernatePlans(c *ui.Context, plans []proto.HibernatePlan) {
 
 // hibernatePlanCard is what hibernating a session would stop and free.
 func hibernatePlanCard(c *ui.Context, pl proto.HibernatePlan) {
-	ui.Column(c).FillWidth().Gap(4).Padding(10).Radius(theme.RadiusControl).Border(1, theme.Border).Children(func() {
-		ui.Row(c).FillWidth().Gap(8).AlignItems(ui.Center).Children(func() {
+	widget.Card(c).FillWidth().Shrink(0).Padding(theme.S2, theme.S3).Gap(theme.S1).Children(func() {
+		ui.Row(c).FillWidth().Gap(theme.S2).Children(func() {
 			ui.Icon(c, icon.Moon).FontSize(12).TextColor(theme.TextSoft)
-			name := pl.Name
-			if name == "" {
-				name = pl.ID
-			}
-			ui.Text(c, name).FontSize(theme.TextUI).TextColor(theme.TextStrong).SingleLine().Shrink(1)
-			ui.Spacer(c)
+			ui.Row(c).Grow(1).MinWidth(0).Children(func() { widget.Running(c, nonEmpty(pl.Name, pl.ID), widget.RunStyle{}) })
 			if pl.Blocked == "" {
-				ui.Text(c, "frees "+textfmt.Bytes(pl.RSS)).FontSize(theme.TextLabel).TextColor(theme.Muted)
+				ui.Text(c, "frees "+textfmt.Bytes(pl.RSS)).FontSize(theme.TextLabel).TextColor(theme.TextSoft).SingleLine().Shrink(0)
 			}
 		})
 		line := func(text string, col ui.Color) {
-			ui.Text(c, text).FontSize(theme.TextLabel).TextColor(col).PaddingX(20)
+			ui.Text(c, text).FontSize(theme.TextLabel).TextColor(col).FillWidth().MinWidth(0)
 		}
 		if pl.Blocked != "" {
-			line("Stays as it is: "+pl.Blocked, theme.Muted)
+			line("Stays as it is: "+pl.Blocked, theme.TextSoft)
 			return
 		}
 		if pl.Working {
