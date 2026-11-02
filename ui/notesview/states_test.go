@@ -70,7 +70,9 @@ func TestNotesStates(t *testing.T) {
 			o.SyncState, o.OpenSync = func() (string, bool) { return "2 conflicts to look at", true }, func() {}
 		}, wants: []string{"Roadmap"}},
 		{name: "icon-review", note: func(n *proto.NoteInfo) { n.IconReview, n.Icon = true, "lucide:rocket" }, wants: []string{"Roadmap"}},
-		{name: "badges", note: func(n *proto.NoteInfo) { n.Projects = []proto.NoteProject{broken, offline, on("antares"), on("vega"), on("rigel")} },
+		{name: "badges", note: func(n *proto.NoteInfo) {
+			n.Projects = []proto.NoteProject{broken, offline, on("antares"), on("vega"), on("rigel")}
+		},
 			options: func(o *Options) {
 				o.AttachProjects = func(proto.NoteInfo) {}
 				o.ProjectState = func(p proto.NoteProject) string {

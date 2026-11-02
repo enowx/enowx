@@ -88,3 +88,27 @@ func TestShellMenusAndStates(t *testing.T) {
 		return nil
 	}, "Skips permission prompts")
 }
+
+// A note open in the window, its list in the sidebar's place, to compare with
+// the design's Notes page.
+func TestNotesPageInTheWindow(t *testing.T) {
+	h := newNotesHarness(t)
+	seedAudit(t, h)
+	a := h.app
+	a.state.RailWide = true
+	a.page = pageNotes
+	a.notes.SetAssistant(false)
+	a.notes.Select(a.notesOptions(), a.noteList.list[0].ID)
+	tt := ui.NewTester(func(c *ui.Context) { a.view(c) }, 1440, 900)
+	h.tt = tt
+	title := a.noteList.list[0].Title
+	h.settle("the note open", func() bool { return tt.HasText("one") && tt.HasText(title) })
+	for range 6 {
+		tt.Advance(200 * time.Millisecond)
+		h.settle("", func() bool { return true })
+	}
+	shot(t, tt, filepath.Join("shell", "notes-in-window.png"))
+	for _, p := range outOfParents(tt) {
+		t.Error(p)
+	}
+}

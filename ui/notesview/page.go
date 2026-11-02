@@ -39,10 +39,13 @@ func (v *View) pageView(c *ui.Context, o Options) {
 			sc := ui.Scroll(c).Grow(1).FillWidth().MinHeight(0).TrackScroll(&p.scroll)
 			p.viewport = sc.Bounds()
 			sc.Children(func() {
-				body := ui.Column(c).FillWidth().Padding(theme.S4, docLeft, theme.S5, 0).Gap(0)
-				p.editShortcuts(body)
-				p.width = body.Bounds().W - 2*docLeft - theme.S3
-				body.Children(func() { v.pageBody(c.Key(p.editGeneration), o, p, v.outlineShows(p, agent)) })
+				// A column to read in, centered in the frame, whatever its width.
+				ui.Row(c).FillWidth().Justify(ui.Center).AlignItems(ui.Start).Children(func() {
+					body := ui.Column(c).FillWidth().MaxWidth(readingWidth+2*docLeft).Padding(theme.S4, docLeft, theme.S5, 0).Gap(0)
+					p.editShortcuts(body)
+					p.width = body.Bounds().W - 2*docLeft - theme.S3
+					body.Children(func() { v.pageBody(c.Key(p.editGeneration), o, p, v.outlineShows(p, agent)) })
+				})
 			})
 			if p.scroll.Y > 480 {
 				top := widget.IconButton(c, icon.ArrowUp, "Back to top", false)
@@ -193,6 +196,9 @@ func (v *View) titleField(c *ui.Context, p *page) {
 		p.titleFocus = false
 	}
 }
+
+// readingWidth is how wide a page's text gets.
+const readingWidth = 760
 
 // pageBody is the page's proposals, icon, projects and body, as its mode
 // shows them, then the pages inside it.
