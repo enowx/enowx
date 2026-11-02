@@ -120,7 +120,7 @@ func (a *App) regionBar(c *ui.Context, cv proto.Canvas, hc *hostCanvasChat, s pr
 				chip.Children(func() {
 					ui.Box(c).Size(8, 8).Shrink(0).Radius(theme.RadiusFull).Background(ui.Hex(unslopview.RegionColors[i%len(unslopview.RegionColors)]))
 					ui.Row(c).Shrink(1).MinWidth(0).Children(func() {
-						widget.Running(c, "#"+r.ID, widget.RunStyle{Size: theme.TextLabel, Color: theme.TextSoft})
+						widget.Running(c, "#"+r.ID, widget.RunStyle{Size: theme.TextLabel, Color: theme.SoftOn(on)})
 					})
 					if r.Done {
 						ui.Icon(c, icon.Check).FontSize(12).TextColor(theme.Done)

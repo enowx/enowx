@@ -119,7 +119,7 @@ func (v *View) layerRow(c *ui.Context, o Options, key, id, kind, text string, de
 			if text != "" {
 				sub += " · " + text
 			}
-			widget.Running(c.Key("sub"), sub, widget.RunStyle{Size: theme.TextLabel, Color: theme.TextSoft})
+			widget.Running(c.Key("sub"), sub, widget.RunStyle{Size: theme.TextLabel, Color: theme.SoftOn(v.sel == id)})
 		})
 	})
 }

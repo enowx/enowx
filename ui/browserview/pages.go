@@ -101,7 +101,7 @@ func pageRow(c *ui.Context, dot ui.Color, address, sub string, on bool) bool {
 		widget.Dot(c, dot, false, 8)
 		ui.Column(c).Grow(1).MinWidth(0).Children(func() {
 			widget.Running(c, address, widget.RunStyle{Mono: true, Always: on})
-			widget.Running(c.Key("sub"), sub, widget.RunStyle{Size: theme.TextLabel, Color: theme.TextSoft, Always: on})
+			widget.Running(c.Key("sub"), sub, widget.RunStyle{Size: theme.TextLabel, Color: theme.SoftOn(on), Always: on})
 		})
 	})
 	return b.Clicked()

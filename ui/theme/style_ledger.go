@@ -53,5 +53,5 @@ func ledgerSurfaces(p Palette) Palette {
 		p.Working, p.Done, p.Warning, p.Error, p.Idle = ui.Hex("#55B5E6"), ui.Hex("#46B06E"), ui.Hex("#E5B931"), ui.Hex("#E8645A"), ui.Hex("#8C8C8C")
 		p.Add, p.Del, p.Now = ui.Hex("#7FD49B"), ui.Hex("#F09A92"), ui.Hex("#D6D6D6")
 	}
-	return p
+	return holdWords(p)
 }

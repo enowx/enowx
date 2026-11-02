@@ -161,10 +161,10 @@ func (a *App) choiceRow(c *ui.Context, ch *sessionChoice) bool {
 		bg = theme.Hover
 	}
 	row.Background(widget.QuickTint(row, "bg", bg)).Children(func() {
-		ui.Icon(c, svg).FontSize(14).TextColor(theme.TextSoft)
+		ui.Icon(c, svg).FontSize(14).TextColor(theme.SoftOn(picked))
 		ui.Column(c).Grow(1).MinWidth(0).Children(func() {
 			widget.Running(c, name, widget.RunStyle{Always: picked})
-			widget.Running(c.Key("sub"), sub, widget.RunStyle{Size: theme.TextLabel, Color: theme.TextSoft})
+			widget.Running(c.Key("sub"), sub, widget.RunStyle{Size: theme.TextLabel, Color: theme.SoftOn(picked)})
 		})
 	})
 	return widget.Pressable(row).Clicked()

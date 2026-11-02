@@ -91,7 +91,7 @@ func (a *App) credsField(c *ui.Context) {
 				}
 				b.Children(func() {
 					vaultview.Logo(c, vault.Lookup(cr.Platform), 16)
-					ui.Text(c, cr.Name).FontSize(theme.TextLabel).TextColor(theme.TextSoft)
+					ui.Text(c, cr.Name).FontSize(theme.TextLabel).TextColor(theme.SoftOn(on))
 				})
 				if widget.Pressable(b).Clicked() && !cr.Auto {
 					if on {

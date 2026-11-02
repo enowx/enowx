@@ -146,7 +146,7 @@ func MenuItemSub(c *ui.Context, svg *ui.SVG, label, sub string, danger bool) boo
 		ui.Column(c).Grow(1).MinWidth(0).Children(func() {
 			ui.Text(c, label).FontSize(theme.TextUI).SingleLine().Shrink(1)
 			if sub != "" {
-				ui.Text(c, sub).FontSize(theme.TextLabel).TextColor(theme.TextSoft).SingleLine().Shrink(1)
+				ui.Text(c, sub).FontSize(theme.TextLabel).TextColor(theme.SoftOn(b.Hovered())).SingleLine().Shrink(1)
 			}
 		})
 	})

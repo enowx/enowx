@@ -87,6 +87,27 @@ func UseStyle(s Style) {
 	Flat, Hairline, Scrim = s.Flat, s.Hairline, s.Scrim
 }
 
+// holdWords keeps a flat style's words readable on what is selected and hovered: its
+// selection is a tint, paler until secondary words read on it on every surface, and its
+// secondary words step toward its main ones until they read under the pointer.
+func holdWords(p Palette) Palette {
+	worst := func(fg, top ui.Color) float64 {
+		least := 21.0
+		for _, s := range []ui.Color{p.Panel, p.Frame, p.Popover, p.Dialog} {
+			least = min(least, contrast(fg, over(top, over(s, p.Ground))))
+		}
+		return least
+	}
+	for i := 0; i < 60 && worst(p.TextSoft, p.Selected) < 4.5; i++ {
+		p.Selected = Mix(p.Selected, p.Ground, 0.06)
+	}
+	for i := 0; i < 30 && worst(p.TextSoft, p.Hover) < 4.5; i++ {
+		p.TextSoft = Mix(p.TextSoft, p.Text, 0.1)
+	}
+	p.Muted = p.TextSoft
+	return p
+}
+
 // styled is p as the style in use draws it.
 func styled(p Palette) Palette {
 	if style.surfaces == nil {

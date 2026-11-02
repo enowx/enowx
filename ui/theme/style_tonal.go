@@ -59,7 +59,7 @@ func tonalSurfaces(p Palette) Palette {
 	p.Background = Mix(base, black, 0.3)
 	p.Panel, p.Frame, p.Raised = t1, t2, t1
 	p.Sunken = shade
-	p.Dialog, p.Popover = t2, t3
+	p.Dialog, p.Popover = t2, t2 // a menu's hover is the selection: on t3 the two are one tone
 	p.Hover = Fade(ink, 0.09)
 	p.Selected = Mix(base, accent, 0.3)
 	p.picked = Mix(base, accent, 0.84)
@@ -72,5 +72,5 @@ func tonalSurfaces(p Palette) Palette {
 		p.Working, p.Done, p.Warning, p.Error, p.Idle = ui.Hex("#7FD6E8"), ui.Hex("#86E3A8"), ui.Hex("#F6CE5B"), ui.Hex("#FF8C7A"), ui.Hex("#A9C0B7")
 		p.Add, p.Del, p.Now = ui.Hex("#A4EDBE"), ui.Hex("#FFB4A6"), ui.Hex("#FFD5C2")
 	}
-	return p
+	return holdWords(p)
 }

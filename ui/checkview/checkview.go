@@ -228,7 +228,7 @@ func (v *View) checkRow(c *ui.Context, o Options, ch proto.Check, on bool) {
 			ui.Row(c).Width(16).Shrink(0).Justify(ui.Center).Children(func() { stateMark(c, r.State, ran) })
 			ui.Column(c).Grow(1).MinWidth(0).Children(func() {
 				widget.Running(c, commandOf(ch), widget.RunStyle{Mono: true, Always: on})
-				widget.Running(c.Key("facts"), facts(r, ran), widget.RunStyle{Size: theme.TextLabel, Color: theme.TextSoft, Always: on})
+				widget.Running(c.Key("facts"), facts(r, ran), widget.RunStyle{Size: theme.TextLabel, Color: theme.SoftOn(on), Always: on})
 			})
 		})
 		if b.Clicked() && o.OpenOutput != nil {

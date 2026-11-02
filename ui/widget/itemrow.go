@@ -47,7 +47,7 @@ func ItemRow(c *ui.Context, it Item, right func()) ui.Element {
 				if it.Sub != "" {
 					col := it.SubColor
 					if col.A == 0 {
-						col = theme.TextSoft
+						col = theme.SoftOn(it.On)
 					}
 					Running(c.Key("sub"), it.Sub, RunStyle{Size: theme.TextLabel, Color: col, Always: it.On})
 				}

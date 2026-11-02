@@ -152,7 +152,7 @@ func (p *Picker) places(c *ui.Context) {
 				b.Background(theme.Hover)
 			}
 			b.Children(func() {
-				ui.Icon(c, icon.Folder).FontSize(12).TextColor(theme.TextSoft)
+				ui.Icon(c, icon.Folder).FontSize(12).TextColor(theme.SoftOn(p.dir == dir))
 				ui.Text(c, name).FontSize(theme.TextLabel).SingleLine()
 			})
 			if b.Clicked() {

@@ -211,11 +211,11 @@ func optionRow(c *ui.Context, i int, o string, about []string) ui.Element {
 		bg = theme.Selected
 	}
 	b.Background(widget.QuickTint(b, "bg", bg)).Children(func() {
-		ui.Text(c, strconv.Itoa(i+1)).FontSize(theme.TextUI).TextColor(theme.TextSoft).Shrink(0)
+		ui.Text(c, strconv.Itoa(i+1)).FontSize(theme.TextUI).TextColor(theme.SoftOn(b.Hovered())).Shrink(0)
 		ui.Column(c).Grow(1).MinWidth(0).Children(func() {
 			ui.Text(c, o).FontSize(theme.TextUI).TextColor(theme.Text)
 			if i < len(about) && about[i] != "" {
-				ui.Text(c, about[i]).FontSize(theme.TextLabel).TextColor(theme.TextSoft)
+				ui.Text(c, about[i]).FontSize(theme.TextLabel).TextColor(theme.SoftOn(b.Hovered()))
 			}
 		})
 	})

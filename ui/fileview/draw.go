@@ -120,9 +120,9 @@ func (v *View) treeRow(c *ui.Context, o Options, r row) {
 		letter, col := statusLetter(e.Status)
 		name := theme.Text
 		if e.Ignored {
-			name = theme.TextSoft
+			name = theme.SoftOn(on)
 		}
-		ui.Icon(c, svg).FontSize(14).TextColor(theme.TextSoft)
+		ui.Icon(c, svg).FontSize(14).TextColor(theme.SoftOn(on))
 		ui.Row(c).Grow(1).MinWidth(0).Children(func() {
 			widget.Running(c, e.Name, widget.RunStyle{Color: name, Always: on})
 		})

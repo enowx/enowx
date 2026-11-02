@@ -323,7 +323,7 @@ func ListItem(c *ui.Context, dot ui.Color, title, sub string, on bool, right fun
 		ui.Column(c).Grow(1).MinWidth(0).Children(func() {
 			Running(c, title, RunStyle{Always: on})
 			if sub != "" {
-				Running(c.Key("sub"), sub, RunStyle{Size: theme.TextLabel, Color: theme.TextSoft, Always: on})
+				Running(c.Key("sub"), sub, RunStyle{Size: theme.TextLabel, Color: theme.SoftOn(on), Always: on})
 			}
 		})
 		if right != nil {

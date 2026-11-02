@@ -216,7 +216,7 @@ func (f *Picker) fileRow(c *ui.Context, e proto.FolderEntry) {
 		if isBundle(e.Name) {
 			svg = icon.AppWindow
 		}
-		ui.Icon(c, svg).FontSize(14).TextColor(theme.TextSoft)
+		ui.Icon(c, svg).FontSize(14).TextColor(theme.SoftOnPicked(f.chosen == path))
 		ui.Row(c).Grow(1).MinWidth(0).Children(func() { widget.Running(c, e.Name, widget.RunStyle{}) })
 	})
 	if row.Clicked() {

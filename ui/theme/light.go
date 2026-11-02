@@ -70,6 +70,10 @@ func onWhite(c ui.Color) ui.Color {
 
 func contrastInk(background ui.Color) ui.Color {
 	dark, light := ui.Hex("#101828"), ui.Hex("#FFFFFF")
+	if max(contrast(dark, background), contrast(light, background)) < 4.5 {
+		// A mid-tone between the two: pure black or white always reads on it.
+		dark = ui.Hex("#000000")
+	}
 	if contrast(dark, background) >= contrast(light, background) {
 		return dark
 	}

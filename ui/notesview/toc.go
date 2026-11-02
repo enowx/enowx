@@ -239,7 +239,7 @@ func (v *View) outlineEntry(c *ui.Context, p *page, s noteblocks.Section, active
 				if folded {
 					svg = icon.ChevronRight
 				}
-				ui.Icon(c, svg).FontSize(12).TextColor(theme.TextSoft)
+				ui.Icon(c, svg).FontSize(12).TextColor(theme.SoftOn(active))
 			})
 			if chev.Clicked() {
 				v := "1"
@@ -250,7 +250,7 @@ func (v *View) outlineEntry(c *ui.Context, p *page, s noteblocks.Section, active
 			}
 		}
 		if !strings.HasPrefix(s.Kind, "h") {
-			ui.Icon(c, kindIcon(s.Kind)).FontSize(12).TextColor(theme.TextSoft)
+			ui.Icon(c, kindIcon(s.Kind)).FontSize(12).TextColor(theme.SoftOn(active))
 		}
 		st := widget.RunStyle{Color: theme.TextSoft}
 		if active {
@@ -351,10 +351,10 @@ func (v *View) jumpDialog(c *ui.Context, p *page) {
 					row := ui.ButtonBase(c.Key(s.ID)).Label("Jump to " + s.Title)
 					widget.ListRow(c, row, k == j.pick, "jump", func() {
 						ui.Box(c).Width(float32(max(s.Level-1, 0)) * theme.S3)
-						ui.Icon(c, kindIcon(s.Kind)).FontSize(12).TextColor(theme.TextSoft)
+						ui.Icon(c, kindIcon(s.Kind)).FontSize(12).TextColor(theme.SoftOnPicked(k == j.pick))
 						ui.Row(c).Grow(1).MinWidth(0).Children(func() { widget.Running(c, s.Title, widget.RunStyle{}) })
 						ui.Row(c).MinWidth(0).Shrink(100).MaxWidth(160).Children(func() {
-							widget.Running(c.Key("id"), "#"+s.ID, widget.RunStyle{Size: theme.TextLabel, Color: theme.TextSoft})
+							widget.Running(c.Key("id"), "#"+s.ID, widget.RunStyle{Size: theme.TextLabel, Color: theme.SoftOnPicked(k == j.pick)})
 						})
 					})
 					if row.Clicked() {

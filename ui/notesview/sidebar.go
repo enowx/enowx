@@ -199,7 +199,7 @@ func (v *View) treeRow(c *ui.Context, o Options, n proto.NoteInfo, depth int, ha
 	v.dropOn(row, o, n, siblings)
 	row.Children(func() {
 		if n.Icon != "" {
-			widget.NoteIcon(c, n.Icon, 14, theme.TextSoft, nil)
+			widget.NoteIcon(c, n.Icon, 14, theme.SoftOn(on), nil)
 		}
 		style := widget.RunStyle{Always: on}
 		switch {

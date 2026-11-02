@@ -62,7 +62,7 @@ func (ch *Chat) pictureChips(c *ui.Context, text string) {
 				bg = theme.Selected
 			}
 			b.Background(bg).Children(func() {
-				ui.Icon(c, icon.Image).FontSize(13).TextColor(theme.TextSoft).Shrink(0)
+				ui.Icon(c, icon.Image).FontSize(13).TextColor(theme.SoftOn(b.Hovered())).Shrink(0)
 				widget.Running(c, path.Base(p), widget.RunStyle{Size: theme.TextLabel, Color: theme.Text})
 			})
 			if b.Clicked() && ch.links != nil {

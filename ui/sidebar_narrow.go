@@ -58,7 +58,7 @@ func (a *App) narrowSession(c *ui.Context, s proto.SessionInfo) {
 	if a.picked[s.ID] && !active {
 		b.Border(1, theme.Now)
 	}
-	b.TextColor(theme.TextSoft).Children(func() {
+	b.TextColor(theme.SoftOn(active)).Children(func() {
 		ui.Icon(c, icon.Agent(s.Agent)).FontSize(16)
 		ui.Box(c).Size(8, 8).AttachTo(b, ui.AnchorBottomRight, ui.AnchorBottomRight).Margin(0, 2, 2, 0).Children(func() {
 			widget.Dot(c, st.color, st.hollow, 8)

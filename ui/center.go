@@ -224,7 +224,7 @@ func (a *App) tabFace(c *ui.Context, name, tip string, front, closable bool, dot
 	b.Background(widget.QuickTint(b, "bg", bg)).TextColor(widget.QuickTint(b, "fg", fg))
 	closed := false
 	b.Children(func() {
-		widget.Dot(c, dot, hollow, 8)
+		widget.DotOn(c, dot, hollow, 8, front)
 		ui.Icon(c, svg).FontSize(12)
 		ui.Row(c).Grow(1).MinWidth(0).Children(func() {
 			widget.Running(c, name, widget.RunStyle{Always: front})
@@ -236,7 +236,7 @@ func (a *App) tabFace(c *ui.Context, name, tip string, front, closable bool, dot
 		if x.Hovered() {
 			x.Background(theme.Hover)
 		}
-		x.Children(func() { ui.Icon(c, icon.Close).FontSize(10).TextColor(theme.TextSoft) })
+		x.Children(func() { ui.Icon(c, icon.Close).FontSize(10).TextColor(theme.SoftOnPicked(front)) })
 		closed = x.Clicked()
 	})
 	switch {

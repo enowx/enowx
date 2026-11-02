@@ -24,6 +24,7 @@ var (
 	Sunken       ui.Color // wells: inputs, tracks, segmented controls
 	Hover        ui.Color
 	Selected     ui.Color
+	SoftSelected ui.Color // secondary words and icons on Selected (SoftOn)
 	Picked       ui.Color // what is selected, in the main lists, bars and tabs
 	OnPicked     ui.Color // words on Picked
 	DockGround   ui.Color // the tools dock
@@ -142,6 +143,7 @@ func Apply(p Palette) {
 		CodeGround = p.code
 	}
 	TermGround = Surface(term)
+	SoftSelected = softOnSelected(p)
 	Picked, OnPicked, DockGround = p.Selected, p.TextStrong, p.Panel
 	if p.picked.A != 0 {
 		Picked, OnPicked = p.picked, p.onPicked
@@ -155,6 +157,34 @@ func Apply(p Palette) {
 	}
 	Add, Del, Now = p.Add, p.Del, p.Now
 	Working, Done, Warning, Error, Idle = p.Working, p.Done, p.Warning, p.Error, p.Idle
+}
+
+// softOnSelected is p's secondary words if they read on its selection on every surface,
+// else its main ones.
+func softOnSelected(p Palette) ui.Color {
+	for _, s := range []ui.Color{p.Panel, p.Frame, p.Popover, p.Dialog} {
+		if contrast(p.TextSoft, over(p.Selected, over(s, p.Ground))) < 4.5 {
+			return p.Text
+		}
+	}
+	return p.TextSoft
+}
+
+// SoftOn is the color of secondary words and icons on what is selected or not: anything
+// drawn on Selected takes its secondary color from here.
+func SoftOn(selected bool) ui.Color {
+	if selected {
+		return SoftSelected
+	}
+	return TextSoft
+}
+
+// SoftOnPicked is SoftOn for what is drawn on Picked.
+func SoftOnPicked(picked bool) ui.Color {
+	if picked {
+		return OnPicked
+	}
+	return TextSoft
 }
 
 // Window is the window theme MyGo's own controls draw with: the tokens of

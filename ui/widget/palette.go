@@ -47,12 +47,12 @@ func PaletteRow(c *ui.Context, row ui.Element, picked bool, svg *ui.SVG, label, 
 		bg = theme.Selected
 	}
 	row.Background(QuickTint(row, "bg", bg)).Children(func() {
-		ui.Icon(c, svg).FontSize(14).TextColor(theme.TextSoft)
+		ui.Icon(c, svg).FontSize(14).TextColor(theme.SoftOn(picked || row.Hovered()))
 		ui.Row(c).MinWidth(0).Shrink(1).Children(func() { Running(c, label, RunStyle{Always: picked}) })
 		ui.Spacer(c)
 		if detail != "" {
 			ui.Row(c).MinWidth(0).Shrink(100).Children(func() {
-				Running(c.Key("detail"), detail, RunStyle{Size: theme.TextLabel, Color: theme.TextSoft, Mono: mono})
+				Running(c.Key("detail"), detail, RunStyle{Size: theme.TextLabel, Color: theme.SoftOn(picked || row.Hovered()), Mono: mono})
 			})
 		}
 	})

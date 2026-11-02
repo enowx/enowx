@@ -70,7 +70,7 @@ func OptionCard(c *ui.Context, on bool, title, body string) bool {
 		ui.Column(c).Gap(theme.S1).Grow(1).MinWidth(0).Children(func() {
 			ui.Text(c, title).FontSize(theme.TextUI).FontWeight(500)
 			if body != "" {
-				ui.Text(c, body).FontSize(theme.TextLabel).TextColor(theme.TextSoft)
+				ui.Text(c, body).FontSize(theme.TextLabel).TextColor(theme.SoftOn(on))
 			}
 		})
 	})
