@@ -1,6 +1,7 @@
 package ui
 
 import (
+	"fmt"
 	"testing"
 
 	"github.com/egoist/mygo/ui"
@@ -59,5 +60,37 @@ func TestFontSectionWithNoMonospacedFont(t *testing.T) {
 	}
 	if a.fontsLoading {
 		t.Fatal("the fonts are read again, once a frame")
+	}
+}
+
+// A size saved or zoomed outside the row of choices shows as a further one,
+// picked; picking another changes it, and the size in use is never lost.
+func TestTermSizeOutsideTheChoicesStaysShown(t *testing.T) {
+	a := New(Options{})
+	tt := ui.NewTester(func(c *ui.Context) {
+		ui.Row(c).Width(500).Children(func() { a.termSizeControl(c) })
+	}, 500, 80)
+	for _, size := range []float32{termSizeMin, 20, termSizeMax} {
+		a.state.TermFontSize = size
+		tt.Frame()
+		if !tt.HasText(fmt.Sprintf("%g", size)) {
+			t.Errorf("size %g isn't shown: %q", size, tt.Texts())
+		}
+		if a.termSize() != size {
+			t.Errorf("drawing changed size %g to %g", size, a.termSize())
+		}
+	}
+	if err := tt.Click("14"); err != nil {
+		t.Fatal(err)
+	}
+	tt.Frame()
+	if a.termSize() != 14 {
+		t.Fatalf("picked 14, have %g", a.termSize())
+	}
+	if tt.HasText("32") {
+		t.Errorf("the old size stays a choice once left: %q", tt.Texts())
+	}
+	if !tt.HasText("13") {
+		t.Errorf("the default isn't a choice: %q", tt.Texts())
 	}
 }
