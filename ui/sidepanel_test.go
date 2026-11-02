@@ -46,7 +46,7 @@ func TestDockPicksThePanelsTool(t *testing.T) {
 	}
 }
 
-// Team chat has its own button at the dock's foot, while the host is in a team,
+// Team chat has its own button above More tools, while the host is in a team,
 // and is in the menu no more; the team's other tools stay there.
 func TestDockHasTeamChatAtItsFoot(t *testing.T) {
 	app := New(Options{})
@@ -63,7 +63,7 @@ func TestDockHasTeamChatAtItsFoot(t *testing.T) {
 	tt.Frame()
 	chat, ok := tt.Find("Team chat")
 	more, okMore := tt.Find("More tools")
-	if !ok || !okMore || chat.Y <= more.Y || chat.W != more.W || chat.H != more.H {
+	if !ok || !okMore || chat.Y >= more.Y || chat.W != more.W || chat.H != more.H {
 		t.Fatalf("chat %+v %v, more %+v %v", chat, ok, more, okMore)
 	}
 	if err := tt.Click("More tools"); err != nil {

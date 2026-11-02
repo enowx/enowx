@@ -333,7 +333,7 @@ func (a *App) toolsDock(c *ui.Context) {
 	for _, g := range groups {
 		for _, id := range g.tools {
 			if id == panelChat {
-				continue // its own button, at the dock's foot
+				continue // its own button, above More tools
 			}
 			if !slices.Contains(first, id) {
 				t, _ := findTool(id)
@@ -359,6 +359,20 @@ func (a *App) toolsDock(c *ui.Context) {
 					a.toggleTool(id)
 				}
 			}
+			if chat {
+				t, _ := findTool(panelChat)
+				label := t.name
+				if unread > 0 {
+					label += " · " + strconv.Itoa(unread) + " unread"
+				}
+				b := dockFace(c.Key("tool:"+panelChat), t.svg, label, front == panelChat)
+				if unread > 0 {
+					dockDot(c, b)
+				}
+				if b.Clicked() {
+					a.toggleTool(panelChat)
+				}
+			}
 			more := dockFace(c.Key("tool-more"), icon.More, "More tools", inMenu)
 			a.menu.OpenBelow(more, "tool-more", 36)
 			a.menu.ShowBeside(c, more, "tool-more", func(done func()) {
@@ -379,20 +393,6 @@ func (a *App) toolsDock(c *ui.Context) {
 					}
 				}
 			})
-			if chat {
-				t, _ := findTool(panelChat)
-				label := t.name
-				if unread > 0 {
-					label += " · " + strconv.Itoa(unread) + " unread"
-				}
-				b := dockFace(c.Key("tool:"+panelChat), t.svg, label, front == panelChat)
-				if unread > 0 {
-					dockDot(c, b)
-				}
-				if b.Clicked() {
-					a.toggleTool(panelChat)
-				}
-			}
 		})
 	})
 }
