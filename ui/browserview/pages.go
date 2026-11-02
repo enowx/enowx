@@ -42,7 +42,7 @@ func (v *View) DrawPages(c *ui.Context, o Options) {
 				}
 			})
 		default:
-			ui.Scroll(c).Grow(1).FillWidth().MinHeight(0).Children(func() {
+			widget.Scroll(c).Grow(1).FillWidth().MinHeight(0).Children(func() {
 				ui.Column(c).FillWidth().Gap(2).Children(func() { v.pageRows(c, o) })
 			})
 		}
