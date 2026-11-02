@@ -124,3 +124,48 @@ func TestHookDecisionOutputByAgent(t *testing.T) {
 		})
 	}
 }
+
+// The decision log says what happens: the judge's allow runs the command unasked
+// on Claude Code, and on Codex is left to its prompt, for a worker as for a hook;
+// Approve stays set on both, as a rewrite goes by it.
+func TestJudgeAllowIsLoggedAsWhatHappens(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("uses sh")
+	}
+	srv, _ := hookServer(t)
+	if err := srv.judge.Settings().Set(proto.DecideSettings{Policy: proto.DecideLocalOnly,
+		Own:  []proto.Judge{{Kind: proto.JudgeLocal, URL: judgeServer(t), Model: "judge"}},
+		Uses: map[string]proto.DecideUse{proto.DecideApprove: {On: true}}}); err != nil {
+		t.Fatal(err)
+	}
+	last := func() string {
+		t.Helper()
+		log := srv.judge.Log(proto.DecideLogParams{Use: proto.DecideApprove})
+		if len(log) == 0 {
+			t.Fatal("nothing logged")
+		}
+		newest := log[0]
+		for _, d := range log {
+			if d.Time.After(newest.Time) {
+				newest = d
+			}
+		}
+		return newest.Acted
+	}
+	ev := proto.HookEvent{Event: proto.HookToolBefore, Tool: "Bash", Command: "go test ./..."}
+	for _, c := range []struct{ agent, want string }{{"claude", proto.ActedAllowed}, {"codex", proto.ActedLeft}} {
+		info := proto.SessionInfo{ID: "s-" + c.agent, Agent: c.agent}
+		if d, _ := srv.judgeHook(info, ev); !d.Approve {
+			t.Fatalf("%s: hook %+v", c.agent, d)
+		}
+		if got := last(); got != c.want {
+			t.Errorf("%s: the hook logged %q", c.agent, got)
+		}
+		if d := srv.goaWorkerTool(info, ev); !d.Approve {
+			t.Fatalf("%s: worker %+v", c.agent, d)
+		}
+		if got := last(); got != c.want {
+			t.Errorf("%s: the worker logged %q", c.agent, got)
+		}
+	}
+}

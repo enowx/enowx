@@ -164,6 +164,16 @@ func (s *Server) acted(d proto.Decision, what string, saved int) proto.Decision 
 	return d
 }
 
+// actedOnAllow is what came of the judge allowing a command of session info:
+// the log says what happens, and with an agent whose prompt no hook can spare,
+// the user is still asked. Approve stays set for it, as a rewrite goes by it.
+func actedOnAllow(info proto.SessionInfo) string {
+	if agent.JudgeApprovesByHook(info.Agent) {
+		return proto.ActedAllowed
+	}
+	return proto.ActedLeft
+}
+
 // judgeHook is the hook action judge: session info's agent is about to
 // run ev's command; the judge allows it, leaves it to the user, or
 // refuses it.
@@ -183,7 +193,10 @@ func (s *Server) judgeHook(info proto.SessionInfo, ev proto.HookEvent) (proto.Ho
 	}
 	switch d.Verdict {
 	case proto.VerdictAllow:
-		s.acted(d, proto.ActedAllowed, 0)
+		s.acted(d, actedOnAllow(info), 0)
+		if !agent.JudgeApprovesByHook(info.Agent) {
+			return proto.HookDecision{Approve: true}, "allowed, but its agent still asks: " + d.Why
+		}
 		return proto.HookDecision{Approve: true}, "allowed: " + d.Why
 	case proto.VerdictRefuse:
 		s.acted(d, proto.ActedRefused, 0)

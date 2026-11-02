@@ -112,6 +112,13 @@ var codexEvents = []struct {
 	{"SessionEnd", "session_end", proto.HookSessionEnd, "", 3},
 }
 
+// JudgeApprovesByHook says a PreToolUse hook can spare agent id's user its
+// permission prompt. Codex's can't: it takes no plain allow, and an allow with
+// updatedInput only rewrites the call, which then goes through its approval as
+// any other (codex-rs/core/src/tools/registry.rs, as of 0.166.0). Its
+// PermissionRequest hook is what answers its prompts.
+func JudgeApprovesByHook(id string) bool { return Base(id) != "codex" }
+
 // codexOn builds the same definition for the command line and its trust hash.
 func codexOn(event, state string, timeout int) agentMatcher {
 	group := on("", event, state, timeout)

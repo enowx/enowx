@@ -50,7 +50,7 @@ func (s *Server) goaWorkerTool(info proto.SessionInfo, ev proto.HookEvent) proto
 		s.goaUrgent(info, ev, fmt.Sprintf("%s (%.2f): %s", goa.UrgentUnsure, d.Confidence, d.Why))
 		return proto.HookDecision{}
 	case d.Verdict == proto.VerdictAllow:
-		s.acted(d, proto.ActedAllowed, 0)
+		s.acted(d, actedOnAllow(info), 0)
 		return proto.HookDecision{Approve: true}
 	}
 	s.acted(d, proto.ActedNothing, 0)
