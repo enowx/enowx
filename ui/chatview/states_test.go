@@ -32,9 +32,6 @@ func chatStates() []chatState {
 			want: []string{"Ask Claude Code anything"}},
 		{name: "writing", entries: []proto.TranscriptEntry{ask, {Index: 1, Kind: proto.TranscriptThinking, Text: "Find the call", Time: t0.Add(time.Second)}},
 			o: Options{Agent: "claude", Working: true}, want: []string{"Working", "Thought"}},
-		{name: "thinking", entries: []proto.TranscriptEntry{ask}, o: Options{Agent: "claude", Working: true}, want: []string{"Working"}},
-		{name: "ready", entries: []proto.TranscriptEntry{{Index: 0, Kind: proto.TranscriptNotice, Text: "Session resumed", Time: t0}}, o: Options{Agent: "claude"}, want: []string{"Ready", "Session resumed"}},
-		{name: "ended", entries: []proto.TranscriptEntry{ask, {Index: 1, Kind: proto.TranscriptAssistant, Text: "Done it.", Time: t0.Add(time.Minute)}}, o: Options{Agent: "claude", Ended: true}, want: []string{"Ended"}},
 		{name: "tool", entries: []proto.TranscriptEntry{ask, {Index: 1, Kind: proto.TranscriptTool, Text: "Grep", Detail: "http.Get", Time: t0.Add(time.Second)}},
 			o: Options{Agent: "claude", Working: true}, want: []string{"Searching", "http.Get"}},
 		{name: "diff", entries: []proto.TranscriptEntry{ask, {Index: 1, Kind: proto.TranscriptTool, Text: "Read", Detail: "/p/proxy/installer.go", Done: true, DurationMs: 200}, edit,
@@ -46,6 +43,9 @@ func chatStates() []chatState {
 			{Index: 2, Kind: proto.TranscriptAssistant, Text: "The tests fail; looking."}, {Index: 3, Kind: proto.TranscriptNotice, Text: "API error: overloaded"}},
 			o: Options{Agent: "claude"}, want: []string{"1 failed", "API error: overloaded"}},
 		{name: "long", entries: longChat(120), o: Options{Agent: "claude"}, want: []string{"Message 119"}},
+		{name: "thinking", entries: []proto.TranscriptEntry{ask}, o: Options{Agent: "claude", Working: true}, want: []string{"Working"}},
+		{name: "ready", entries: []proto.TranscriptEntry{{Index: 0, Kind: proto.TranscriptNotice, Text: "Session resumed", Time: t0}}, o: Options{Agent: "claude"}, want: []string{"Ready", "Session resumed"}},
+		{name: "ended", entries: []proto.TranscriptEntry{ask, {Index: 1, Kind: proto.TranscriptAssistant, Text: "Done it.", Time: t0.Add(time.Minute)}}, o: Options{Agent: "claude", Ended: true}, want: []string{"Ended"}},
 	}
 }
 
