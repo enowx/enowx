@@ -27,6 +27,8 @@ type auditPage struct {
 	// fill: the page's content should use the window's width (not a
 	// column kept at a readable width, centered).
 	fill bool
+	// after sets what a host's answers to open would otherwise overwrite.
+	after func(h *notesHarness)
 }
 
 func auditPages() []auditPage {
@@ -130,7 +132,7 @@ func auditPages() []auditPage {
 		}
 		a.vaultOf().view.OpenAdd("github")
 	}})
-	return append(append(append(pages, dialogs...), auditCloudPages()...), auditSettingsPages()...)
+	return append(append(append(append(pages, dialogs...), auditCloudPages()...), auditSettingsPages()...), auditOverlayPages()...)
 }
 
 // closeAudit closes what the pages opened, for the next.
@@ -143,6 +145,7 @@ func closeAudit(a *App) {
 	a.linksForm, a.attaching, a.copying, a.projectSyncing, a.creating, a.cloningTo = nil, nil, nil, nil, nil, nil
 	a.cloudSet, a.ragSet, a.rulesEditing, a.ragOffers, a.cloudSigningIn = nil, ragSettingsState{}, nil, nil, false
 	a.projects = a.projects[:min(1, len(a.projects))]
+	closeOverlayAudit(a)
 }
 
 func TestLayoutAudit(t *testing.T) {
@@ -164,6 +167,12 @@ func TestLayoutAudit(t *testing.T) {
 			h.tt = tt
 			for range 6 {
 				h.settle("", func() bool { return true })
+			}
+			if p.after != nil {
+				p.after(h)
+				for range 4 {
+					h.settle("", func() bool { return true })
+				}
 			}
 			name := fmt.Sprintf("%s-%dx%d", p.name, w, hgt)
 			if shots != "" {
