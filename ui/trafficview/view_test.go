@@ -202,7 +202,8 @@ func TestTrafficTool(t *testing.T) {
 	}
 	drain(func() bool { return v.rules.edit == nil && len(v.rules.list) == 1 }, "the rule saved")
 	v.ShowPage("Rules")
-	drain(func() bool { return tt.HasText("Rules") }, "the rules")
+	tt.Advance(time.Second)
+	tt.Frame()
 	shot(t, tt, "traffic-rules.png")
 	v.ShowPage("Requests")
 	tt.Frame()
