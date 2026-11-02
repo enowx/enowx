@@ -57,7 +57,9 @@ func TestLayoutAuditNotes(t *testing.T) {
 				if err := h.tt.Click(l); err != nil {
 					t.Error(l, err)
 				}
+				// What opens slides in: done before the next click.
 				h.settle("", func() bool { return true })
+				h.tt.Advance(time.Second)
 			}
 		}
 	}

@@ -24,7 +24,7 @@ func TestNoteAttachedToAProject(t *testing.T) {
 	}
 	info, _ := h.cl.Info()
 	h.app.daemonInfo = info
-	n, _ := h.cl.SaveNote(proto.Note{NoteInfo: proto.NoteInfo{Title: "Launch plan"}, Body: "- [ ] ship\n"})
+	n, _ := h.cl.SaveNote(proto.Note{NoteInfo: proto.NoteInfo{Title: "Launch plan"}, Body: "Ship it.\n"})
 	h.settle("the catalog", func() bool {
 		cats, _ := h.cl.Catalogs()
 		return len(cats) == 1 && len(cats[0].Projects) == 1
@@ -41,7 +41,7 @@ func TestNoteAttachedToAProject(t *testing.T) {
 	if err := h.tt.Click("antares"); err != nil {
 		t.Fatal(err)
 	}
-	if err := h.tt.Click("Save"); err != nil {
+	if err := h.tt.Click("Done"); err != nil {
 		t.Fatal(err)
 	}
 	h.settle("attached", func() bool {
