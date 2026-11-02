@@ -73,7 +73,9 @@ func TestChangeFilesFromTheMenus(t *testing.T) {
 
 	tt.RightClickAt(260, 500) // below the rows: the project folder
 	tt.Frame()
+	lookShot(t, tt, "files-space-menu")
 	click("New folder in the project folder…")
+	lookShot(t, tt, "files-name")
 	v.ask.name = "docs"
 	tt.Frame()
 	click("Create")
@@ -84,6 +86,7 @@ func TestChangeFilesFromTheMenus(t *testing.T) {
 		t.Fatal(err)
 	}
 	tt.Frame()
+	lookShot(t, tt, "files-row-menu")
 	click("Rename…")
 	v.ask.name = "GUIDE.md"
 	tt.Frame()
@@ -97,6 +100,7 @@ func TestChangeFilesFromTheMenus(t *testing.T) {
 	tt.Frame()
 	click("Properties")
 	frames(func() bool { return v.ask != nil && v.ask.stat != nil }, "the properties")
+	lookShot(t, tt, "files-properties")
 	if !tt.HasText("Permissions") || !tt.HasText("-rw-r--r--") || !tt.HasText("2 B") {
 		t.Fatalf("properties: %q", tt.Texts())
 	}
@@ -110,6 +114,7 @@ func TestChangeFilesFromTheMenus(t *testing.T) {
 	if !strings.Contains(strings.Join(tt.Texts(), " "), "Delete GUIDE.md?") {
 		t.Fatalf("no confirmation: %q", tt.Texts())
 	}
+	lookShot(t, tt, "files-delete")
 	click("Delete")
 	frames(func() bool { return !exists("GUIDE.md") }, "the delete")
 }

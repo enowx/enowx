@@ -3,6 +3,7 @@ package fileview
 import (
 	"path"
 	"path/filepath"
+	"strings"
 
 	"github.com/egoist/mygo/ui"
 
@@ -110,8 +111,11 @@ func (v *View) treeRow(c *ui.Context, o Options, r row) {
 	}
 	b.Background(widget.QuickTint(b, "bg", bg)).Children(func() {
 		svg := icon.File
-		if e.Dir {
+		switch {
+		case e.Dir:
 			svg = icon.Folder
+		case isPicture(e.Name):
+			svg = icon.Image
 		}
 		letter, col := statusLetter(e.Status)
 		name := theme.Text
@@ -147,6 +151,15 @@ func (v *View) treeRow(c *ui.Context, o Options, r row) {
 			o.OpenFile(r.path)
 		}
 	}
+}
+
+// isPicture says the file at p is an image, by its name.
+func isPicture(p string) bool {
+	switch strings.ToLower(path.Ext(p)) {
+	case ".png", ".jpg", ".jpeg", ".gif", ".webp", ".svg", ".ico", ".bmp":
+		return true
+	}
+	return false
 }
 
 // statusLetter is how the tree marks git's status, and its color; "" for

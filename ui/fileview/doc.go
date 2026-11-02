@@ -186,7 +186,17 @@ func (d *Doc) bar(c *ui.Context, o Options) {
 		ui.Row(c).MinWidth(64).Shrink(1).Children(func() {
 			widget.Running(c, d.path, widget.RunStyle{Size: theme.TextLabel, Mono: true, Always: true})
 		})
+		changed := false
+		if o.Status != nil {
+			if letter, col := statusLetter(o.Status(d.path)); letter != "" {
+				changed = true
+				ui.Text(c, letter).FontSize(theme.TextLabel).FontWeight(500).TextColor(col).SingleLine().Shrink(0)
+			}
+		}
 		ui.Spacer(c)
+		if changed && o.ShowChanges != nil && widget.Button(c.Key("show-changes"), widget.Secondary, icon.Git, "Show changes", "").Height(28).Clicked() {
+			o.ShowChanges(d.path)
+		}
 		if d.markdown && d.content != nil && !d.content.Binary {
 			cur := 0
 			if d.raw {
@@ -226,7 +236,7 @@ func (d *Doc) bar(c *ui.Context, o Options) {
 		if abs != "" {
 			widget.CopyIcon(c.Key("copy-path"), &d.copyPath, icon.Link, "Copy the path", "Copy the path", abs)
 		}
-		if abs != "" && o.OpenInEditor != nil && widget.IconButton(c, icon.Pencil, "Open in "+o.EditorName, false).Clicked() {
+		if abs != "" && o.OpenInEditor != nil && widget.IconButton(c, icon.External, "Open in "+o.EditorName, false).Clicked() {
 			o.OpenInEditor(abs, 0)
 		}
 	})

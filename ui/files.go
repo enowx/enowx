@@ -49,6 +49,8 @@ func (a *App) fileOptions(s proto.SessionInfo, wanted func() bool) fileview.Opti
 		AddFiles:     func(folder string, done func()) { a.addFiles(s, folder, done) },
 		GoToFile:     a.openQuickOpen,
 		Current:      func() string { p, _ := strings.CutPrefix(a.centerFront(s), fileTabPrefix); return p },
+		Status:       a.fileViewOf(s.ID).StatusOf,
+		ShowChanges:  func(p string) { a.openCenter(s, centerDiff+a.diffOf(s.ID).PathOf(p)) },
 	}
 }
 
