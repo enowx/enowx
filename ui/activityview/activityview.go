@@ -115,6 +115,7 @@ type turn struct {
 	tools  []proto.TranscriptEntry
 	failed int
 	edits  int
+	files  map[string]bool // what it edited
 }
 
 // edited is a file the agent changed, with the lines it added and removed.
@@ -156,6 +157,10 @@ func (v *View) reckon(dir string) {
 			if slices.Contains(editTools, e.Text) && !e.Failed && e.Detail != "" {
 				t.edits++
 				p := relative(dir, e.Detail)
+				if t.files == nil {
+					t.files = map[string]bool{}
+				}
+				t.files[p] = true
 				f := files[p]
 				if f == nil {
 					f = &edited{path: p}

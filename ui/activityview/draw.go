@@ -43,7 +43,9 @@ func (v *View) Draw(c *ui.Context, o Options) {
 						v.fileRow(c.Key("file:"+f.path), o, f)
 					}
 				}
-				section(c, "Turns", len(v.turns))
+				if len(v.files) > 0 {
+					section(c, "Turns", len(v.turns))
+				}
 				working := isWorking(o.Session)
 				for i := len(v.turns) - 1; i >= 0; i-- {
 					v.turnRow(c.Key(strconv.Itoa(v.turns[i].start)), o, v.turns[i], working && i == len(v.turns)-1)
@@ -60,7 +62,7 @@ func note(c *ui.Context, text string, col ui.Color) {
 }
 
 func section(c *ui.Context, label string, n int) {
-	ui.Row(c.Key("section:"+label)).FillWidth().Height(28).Shrink(0).PaddingX(theme.S3).Gap(theme.S1).Children(func() {
+	ui.Row(c.Key("section:" + label)).FillWidth().Height(28).Shrink(0).PaddingX(theme.S3).Gap(theme.S1).Children(func() {
 		ui.Text(c, label).FontSize(theme.TextLabel).FontWeight(500).TextColor(theme.TextSoft).SingleLine()
 		ui.Text(c, strconv.Itoa(n)).FontSize(theme.TextLabel).TextColor(theme.TextSoft).SingleLine()
 	})
@@ -150,6 +152,9 @@ func (v *View) turnRow(c *ui.Context, o Options, t turn, running bool) {
 		b := ui.ButtonBase(c).FillWidth().MinHeight(36).Padding(theme.S1, theme.S3).Gap(theme.S2).Radius(theme.RadiusCard).Justify(ui.Start).
 			Cursor(ui.CursorPointer).Label(textfmt.FirstLine(t.prompt, 80))
 		rowFace(b)
+		if !t.at.IsZero() {
+			b.Tooltip(textfmt.Age(t.at, time.Now()) + " ago")
+		}
 		b.Children(func() {
 			ui.Column(c).Grow(1).MinWidth(0).Children(func() {
 				widget.Running(c, prompt, widget.RunStyle{})
@@ -184,27 +189,37 @@ func (v *View) turnRow(c *ui.Context, o Options, t turn, running bool) {
 	})
 }
 
-// turnFacts is a turn's when, how long and what it ran.
+// turnFacts is how long a turn worked and what it ran.
 func (v *View) turnFacts(t turn, running bool) string {
 	var parts []string
 	if !t.at.IsZero() {
-		parts = append(parts, textfmt.Age(t.at, time.Now())+" ago")
 		end := t.end
 		if running {
 			end = time.Now()
 		}
 		if d := end.Sub(t.at).Round(time.Second); d > 0 {
-			parts = append(parts, "worked "+d.String())
+			parts = append(parts, spell(d))
 		}
 	}
 	parts = append(parts, fmt.Sprintf("%d %s", len(t.tools), textfmt.Plural(len(t.tools), "tool", "tools")))
-	if t.edits > 0 {
-		parts = append(parts, fmt.Sprintf("%d %s", t.edits, textfmt.Plural(t.edits, "edit", "edits")))
+	if n := len(t.files); n > 0 {
+		parts = append(parts, fmt.Sprintf("%d %s", n, textfmt.Plural(n, "file", "files")))
 	}
 	if t.failed > 0 {
 		parts = append(parts, fmt.Sprintf("%d failed", t.failed))
 	}
 	return strings.Join(parts, " · ")
+}
+
+// spell writes a duration with room to read it: 4m 12s, 1h 03m.
+func spell(d time.Duration) string {
+	switch {
+	case d < time.Minute:
+		return fmt.Sprintf("%ds", int(d.Seconds()))
+	case d < time.Hour:
+		return fmt.Sprintf("%dm %02ds", int(d.Minutes()), int(d.Seconds())%60)
+	}
+	return fmt.Sprintf("%dh %02dm", int(d.Hours()), int(d.Minutes())%60)
 }
 
 // toolRow is a tool call: its kind and what it worked on (a path in the
