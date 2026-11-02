@@ -3,6 +3,7 @@ package chatview
 import (
 	"cmp"
 	"fmt"
+	"slices"
 	"strings"
 	"time"
 	"unicode/utf8"
@@ -393,7 +394,12 @@ func (ch *Chat) setting(c *ui.Context, o Options, key string, svg *ui.SVG, list 
 	}
 	open := true
 	ui.PopoverBase(c, b, &open, func(panel ui.Element) {
-		widget.Popup(panel.AttachTo(b, ui.AnchorTopLeft, ui.AnchorBottomLeft).Margin(0, 0, theme.S1, 0).Width(250))
+		// Notes under the choices take the room; bare choices don't need it.
+		width := float32(160)
+		if slices.ContainsFunc(list, func(ch agent.Choice) bool { return ch.Note != "" }) {
+			width = 250
+		}
+		widget.Popup(panel.AttachTo(b, ui.AnchorTopLeft, ui.AnchorBottomLeft).Margin(0, 0, theme.S1, 0).Width(width))
 		for _, choice := range list {
 			item := ui.ButtonBase(c.Key(choice.ID)).Label(choice.Label).Cursor(ui.CursorPointer).AlignItems(ui.Center).Justify(ui.Start)
 			widget.PopupItem(item, item.Hovered()).Children(func() {
