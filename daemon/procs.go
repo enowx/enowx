@@ -9,7 +9,6 @@ import (
 	"time"
 
 	"github.com/enowx/enowx/core/procstat"
-	"github.com/enowx/enowx/core/session"
 )
 
 // What each session started, followed from outside. A hang-up reaches a session's
@@ -145,7 +144,7 @@ func (s *Server) procsLook() {
 	}
 	self := os.Getpid()
 	spare := ancestors(list, self)
-	roots := func(pid int) string { return session.IDFromArgs(procstat.Args(pid)) }
+	roots := sessionOf // by its name where it runs under one, else by its environment
 	t.mu.Lock()
 	defer t.mu.Unlock()
 	known, changed := mergeTrees(t.known, list, self, roots, spare)

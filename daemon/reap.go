@@ -1,9 +1,6 @@
-//go:build !windows
-
 package daemon
 
 import (
-	"syscall"
 	"time"
 
 	"github.com/enowx/enowx/core/procstat"
@@ -20,8 +17,8 @@ type tag struct {
 
 // reap stops the processes tagged with t that outlive what started them: a
 // dev server an agent left in tmux after its session is deleted, a
-// display's D-Bus after the display stops. They get SIGTERM, then SIGKILL
-// after reapGrace, waited for on a goroutine of its own.
+// display's D-Bus after the display stops. They are asked to end (stopProcess), then
+// forced after reapGrace, waited for on a goroutine of its own.
 func reap(t tag) { reapBut(t, nil) }
 
 // reapBut is reap sparing the processes in keep.
@@ -56,7 +53,7 @@ func terminate(t tag, keep map[int]bool) []int {
 	var pids []int
 	for _, pid := range procstat.Tagged(t.key, t.value) {
 		if !keep[pid] && !(t.sessionless && procstat.Env(pid, session.EnvSession) != "") {
-			_ = syscall.Kill(pid, syscall.SIGTERM)
+			stopProcess(pid, false)
 			pids = append(pids, pid)
 		}
 	}
@@ -68,7 +65,7 @@ func terminate(t tag, keep map[int]bool) []int {
 func kill(t tag, pids []int) {
 	for _, pid := range pids {
 		if procstat.Env(pid, t.key) == t.value {
-			_ = syscall.Kill(pid, syscall.SIGKILL)
+			stopProcess(pid, true)
 		}
 	}
 }

@@ -36,7 +36,7 @@ Closing a session hangs up its terminal, which ends its program and foreground, 
 
 A process a session left and nobody looks after (its session closed or ended, or it moved out from under the session) shows in Resource usage under *Left running*, with Stop. What a daemon that crashed left behind ends when the next one starts.
 
-On Windows none of this runs yet: enowX can't tell which process belongs to which session there, so only the console's own closing ends them. Environment tags (`reap`) still apply on Linux, where they also catch what left a tree before it was seen.
+On Windows a session's processes are told by `ENOWX_SESSION` in their environment, read from each process's memory, as its own user may (`core/procstat/procstat_windows.go`). Closing the console is what asks them to end, and what still runs 3 seconds later is forced. A parent started after its child is a PID used again, so it doesn't count as the parent. A process run elevated, which the daemon may not read, isn't seen. Environment tags (`reap`) also apply on Linux and Windows, where they catch what left a tree before it was seen. Resource usage measures processes on Windows too now.
 
 ## Its folder
 
