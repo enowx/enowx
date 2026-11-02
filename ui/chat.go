@@ -83,14 +83,19 @@ func (a *App) chatViewSending(c *ui.Context, s proto.SessionInfo, shown func() b
 			return gen == a.gen && shown() && a.chats[s.ID] == ch
 		})
 	}
+	column := float32(0)
+	if goa, ok := a.goaSession(); ok && a.goaOn() && goa.ID == s.ID {
+		column = 2000 // GOA's chat runs the frame's width, its list taking the side
+	}
 	ch.View(c, chatview.Options{
-		Agent:     s.Agent,
-		Dir:       s.Dir,
-		AgentName: a.agentName(s.Agent),
-		Working:   isWorking(s),
-		Send:      send,
-		Interrupt: func() { a.interruptSession(s) },
-		Set:       func(setting, id string) { a.setAgentSetting(s, setting, id) },
+		ColumnWidth: column,
+		Agent:       s.Agent,
+		Dir:         s.Dir,
+		AgentName:   a.agentName(s.Agent),
+		Working:     isWorking(s),
+		Send:        send,
+		Interrupt:   func() { a.interruptSession(s) },
+		Set:         func(setting, id string) { a.setAgentSetting(s, setting, id) },
 		Paste: func(text string) bool {
 			if paste != nil {
 				return paste(ch, text)

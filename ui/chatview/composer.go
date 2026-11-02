@@ -22,7 +22,7 @@ import (
 // changed, the context) keeps to the row's free end.
 func (ch *Chat) composer(c *ui.Context, o Options) {
 	ui.Row(c.Key("composer")).Absolute().Left(0).Bottom(theme.S4).FillWidth().Justify(ui.Center).PaddingX(theme.S5).PassThrough().Children(func() {
-		ui.Column(c).Grow(1).MinWidth(0).MaxWidth(columnWidth).Gap(theme.S2).PassThrough().Children(func() {
+		ui.Column(c).Grow(1).MinWidth(0).MaxWidth(o.columnWidth()).Gap(theme.S2).PassThrough().Children(func() {
 			ch.slashMenu(c)
 			ch.box(c, o)
 		})

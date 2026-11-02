@@ -331,11 +331,21 @@ func (ch *Chat) reckon() {
 	}
 }
 
+func (o Options) columnWidth() float32 {
+	if o.ColumnWidth > 0 {
+		return o.ColumnWidth
+	}
+	return columnWidth
+}
+
 // Options are what the chat needs of its session.
 type Options struct {
 	Agent     string // preset ID
 	Dir       string // the session's folder: what's in it reads from there
 	AgentName string
+	// ColumnWidth is how wide the conversation and its composer run; 0 is
+	// columnWidth, the frame's width for GOD of Agents' chat is more.
+	ColumnWidth float32
 	// Placeholder is what the composer says while empty, for a panel too narrow
 	// for the usual words; "" says them.
 	Placeholder string
@@ -424,7 +434,7 @@ func (ch *Chat) View(c *ui.Context, o Options) {
 		case len(ch.turns) == 0 && o.Empty != nil && (o.Fresh || ch.loaded && ch.supported):
 			ui.Scroll(c).Grow(1).FillWidth().Children(func() {
 				ui.Row(c).FillWidth().Justify(ui.Center).Padding(theme.S4, theme.S5, ch.footRoom(), theme.S5).Children(func() {
-					ui.Column(c).Grow(1).MinWidth(0).MaxWidth(columnWidth).Children(func() { o.Empty(c) })
+					ui.Column(c).Grow(1).MinWidth(0).MaxWidth(o.columnWidth()).Children(func() { o.Empty(c) })
 				})
 			})
 		case !ch.loaded && !o.Fresh:
@@ -458,7 +468,7 @@ func (ch *Chat) firstPrompt(c *ui.Context, o Options) {
 	ch.editable = false // nothing recorded to go back to yet
 	ui.Column(c).Grow(1).FillWidth().MinHeight(0).Padding(theme.S4, theme.S5, ch.footRoom(), theme.S5).Children(func() {
 		ui.Row(c).FillWidth().Justify(ui.Center).Children(func() {
-			ui.Column(c).Grow(1).MinWidth(0).MaxWidth(columnWidth).Children(func() {
+			ui.Column(c).Grow(1).MinWidth(0).MaxWidth(o.columnWidth()).Children(func() {
 				first := proto.TranscriptEntry{Kind: proto.TranscriptUser, Text: o.FirstPrompt}
 				ch.turnTimeline(c, turn{prompt: &first}, true)
 			})
@@ -537,7 +547,7 @@ func (ch *Chat) conversationList(c *ui.Context, turns []turn, more int, o Option
 	}
 	ui.List(c, &ch.list, len(turns)+more+status, func(i int) {
 		ui.Row(c).FillWidth().Justify(ui.Center).Children(func() {
-			ui.Column(c).Grow(1).MinWidth(0).MaxWidth(columnWidth).Children(func() {
+			ui.Column(c).Grow(1).MinWidth(0).MaxWidth(o.columnWidth()).Children(func() {
 				switch {
 				case i < more:
 					ch.olderRow(c)
