@@ -34,7 +34,7 @@ type budgetForm struct {
 
 // budgets lists the budgets and how much of each is used.
 func (v *View) budgets(c *ui.Context, d Data, o Options) {
-	widget.CardNote(c, "At 80% a notification; at 100% what each budget says. Budgets are synced: the same on every host, each host counting its own use.", 0)
+	widget.CardNote(c, "Token limits count input, output and cache write, not cache reads, so a limit set before this counted more than it does now. At 80% a notification; at 100% what each budget says. Budgets are synced: the same on every host, each host counting its own use.", 0)
 	if len(d.Budgets) == 0 {
 		widget.EmptyState(c, icon.Gauge, "No budgets", "Cap the tokens or the cost of a day, a week or a month: for everything, an agent, a config or a project.", nil)
 		return

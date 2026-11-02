@@ -200,9 +200,10 @@ func groupName(g proto.TokenGroup) string {
 	return orDefault(g.Key, "unknown")
 }
 
-// countsLine says counts in a line: input, cached, output, cost.
+// countsLine says counts in a line: tokens as the page counts them, what they are
+// made of, cache read beside them, and the cost.
 func countsLine(c proto.TokenCounts) string {
-	line := fmt.Sprintf("%s in, %s cached, %s written to cache, %s out", tokenCount(c.Input), tokenCount(c.CacheRead), tokenCount(c.CacheWrite), tokenCount(c.Output))
+	line := fmt.Sprintf("%s tokens (%s in, %s out, %s cache write), %s cache read", tokenCount(c.Total()), tokenCount(c.Input), tokenCount(c.Output), tokenCount(c.CacheWrite), tokenCount(c.CacheRead))
 	if c.Reasoning > 0 {
 		line += " (" + tokenCount(c.Reasoning) + " reasoning)"
 	}
@@ -261,13 +262,13 @@ func parseSince(s string, now time.Time) (time.Time, error) {
 // usageTools are token usage as MCP tools: what this session and the
 // host's agents spend, for GOA and agents to weigh.
 var usageTools = []mcpTool{
-	{name: "usage_summary", description: "Tokens the host's agents used: total, per day, split by agent, model, project, session, config or host, with costs (subscriptions' API-equivalent) and budgets near their limit. Near a budget, prefer cheaper models.",
+	{name: "usage_summary", description: "Tokens the host's agents used (input, output and cache write; cache read beside them, not added): total, per day, split by agent, model, project, session, config or host, with costs (subscriptions' API-equivalent) and budgets near their limit. Near a budget, prefer cheaper models.",
 		props: map[string]mcpProp{"by": {"string", "Split by: agent, model, project, session, config, host"}, "since": {"string", "How far back: 30m, 24h, 7d (default), 2w, or a date"},
 			"host": {"string", "Another host's synced totals, by name"}},
 		args: func(a map[string]any) []string {
 			return withFlag(withFlag(withFlag([]string{"summary"}, a, "by", "by"), a, "since", "since"), a, "host", "host")
 		}},
-	{name: "usage_session", description: "Tokens a session used so far (this one by default), by model, with its cost.",
+	{name: "usage_session", description: "Tokens a session used so far (this one by default; input, output and cache write, with cache read beside them), by model, with its cost.",
 		props: map[string]mcpProp{"session": {"string", "A session's ID or name (default: this session)"}},
 		args: func(a map[string]any) []string {
 			if s := str(a, "session"); s != "" {

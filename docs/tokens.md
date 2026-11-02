@@ -13,6 +13,12 @@ Each agent is tracked by the best layer it allows, and the app says which (Token
 3. **Its screen.** With **Read the counts agents print** on, the screens of running agents that have no records and aren't metered are read for the lines agents print their counts in. Only Aider's line is known (`Tokens: 4.4k sent, … received`); no other agent here prints per-call counts.
 4. **None.** Shown as not tracked, never guessed.
 
+## What "tokens" means
+
+The headline **Tokens**, everywhere (the Usage page, a session's line, `enowx usage`, `usage_summary` and `usage_session`, token budgets), is **input + output + cache write**. **Cache read is shown beside it and never added**: it is the same context read again on every call, on one Mac 4.8B against 70M of the rest over a week. **Input** means new input, without the cache. **Cost still prices every type**, cache read included.
+
+**Existing token budgets count less than they did**: a limit set when cache reads counted now takes far longer to reach. Nothing about a budget is changed for you; the Budgets tab says so, and a limit can be lowered there. Cost limits are as they were.
+
 ## Coverage
 
 "Checked" means checked against a real install on the developer's machine (October 2026); the others against the agents' documentation and source (for closed-source agents, open-source usage trackers that parse them), with fixtures written from that format.

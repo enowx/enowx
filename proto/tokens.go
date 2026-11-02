@@ -72,8 +72,10 @@ type TokenCounts struct {
 	Unpriced   int     `json:"unpriced,omitempty"`
 }
 
-// Total is every token counted.
-func (c TokenCounts) Total() int64 { return c.Input + c.CacheRead + c.CacheWrite + c.Output }
+// Total is what "tokens" means everywhere: input, output and cache write. Cache read
+// is shown beside it and never added: it is the same context read again on every
+// call, and would drown the rest. Cost still prices every type.
+func (c TokenCounts) Total() int64 { return c.Input + c.Output + c.CacheWrite }
 
 // Add adds o to c.
 func (c *TokenCounts) Add(o TokenCounts) {

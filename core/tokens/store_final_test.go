@@ -3,6 +3,8 @@ package tokens
 import (
 	"testing"
 	"time"
+
+	"github.com/enowx/enowx/proto"
 )
 
 // A call written over several records keeps each field's largest, whichever record
@@ -31,5 +33,13 @@ func TestStoreKeepsEachCallsFinalCounts(t *testing.T) {
 	again := Open(dir).Calls(at.Add(-time.Minute), at.Add(time.Minute))
 	if len(again) != 1 || again[0].Output != 500 || again[0].CacheRead != 120 {
 		t.Fatalf("reopened: %+v", again)
+	}
+}
+
+// Tokens are input, output and cache write: cache read is beside them.
+func TestTotalLeavesOutCacheReads(t *testing.T) {
+	c := proto.TokenCounts{Input: 1, Output: 2, CacheWrite: 4, CacheRead: 1000}
+	if c.Total() != 7 {
+		t.Fatalf("%d", c.Total())
 	}
 }
