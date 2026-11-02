@@ -17,10 +17,10 @@ import (
 // every turn's work at once, and the button back to the latest; and at the
 // conversation's end, the line of what the agent is at.
 
-// chatTools are the search and the fold, in the frame's corner: bare beside a
-// centered column, in a capsule where they'd lie over its text. turns are
-// the list's rows, more after the row of older ones.
-func (ch *Chat) chatTools(c *ui.Context, turns []turn, more int) {
+// chatTools are the search, the fold and the outline when folded, in the frame's
+// corner: bare beside a centered column, in a capsule where they'd lie over its
+// text. turns are the list's rows, more after the row of older ones.
+func (ch *Chat) chatTools(c *ui.Context, turns []turn, more int, outline bool) {
 	r := ui.Row(c.Key("chat-bar")).Absolute().Top(theme.S2).Right(theme.S3).Gap(theme.S1).AlignItems(ui.Center)
 	if ch.width > 0 {
 		r.MaxWidth(ch.width - 2*theme.S3)
@@ -41,6 +41,9 @@ func (ch *Chat) chatTools(c *ui.Context, turns []turn, more int) {
 		if widget.IconButton(c.Key("fold"), icon.ChevronsUD, label, false).Clicked() {
 			ch.foldAll(turns, open)
 		}
+		if outline && !ch.finding {
+			ch.outlineButton(c, turns, more)
+		}
 	})
 	if c.Shortcut(ui.Cmd, ui.KeyF) {
 		ch.finding, ch.focusFind = true, true
@@ -48,9 +51,9 @@ func (ch *Chat) chatTools(c *ui.Context, turns []turn, more int) {
 }
 
 // toolsOverColumn says the column leaves no room at its side for chatTools'
-// two buttons and a margin.
+// three buttons and a margin.
 func (ch *Chat) toolsOverColumn() bool {
-	return ch.width < ch.column+2*(2*theme.ControlHeight+theme.S5)
+	return ch.width < ch.column+2*(3*theme.ControlHeight+theme.S5)
 }
 
 // statusLine ends the conversation, saying what the agent is at when it isn't

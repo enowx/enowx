@@ -120,6 +120,35 @@ func TestOutline(t *testing.T) {
 	}
 }
 
+// The outline never lies over the column, in any style's reading width and in a
+// column running the frame's width.
+func TestOutlineClearsTheColumn(t *testing.T) {
+	side := outlineSide()
+	for _, read := range []float32{740, 800} {
+		for width := float32(320); width <= 3000; width += 7 {
+			for _, column := range []float32{read, 2000} {
+				shown := min(column, width-2*theme.S5)
+				switch outlineFit(width, column, read) {
+				case outlineBeside:
+					if right := width/2 + shown/2; right > width-side {
+						t.Errorf("width %v, column %v: the column ends at %v, into the outline", width, column, right)
+					}
+				case outlineOwn:
+					if room := width - side - theme.S5; room < read {
+						t.Errorf("width %v, column %v: %v left to read in", width, column, room)
+					}
+				}
+			}
+		}
+	}
+	if got := outlineFit(1212, 800, 800); got != outlineFolded {
+		t.Errorf("at the width it used to overlap: %v", got)
+	}
+	if got := outlineFit(1400, 2000, 800); got != outlineOwn {
+		t.Errorf("GOD of Agents' column: %v", got)
+	}
+}
+
 // Durations read as short as they can.
 func TestTook(t *testing.T) {
 	for ms, want := range map[int64]string{400: "0.4s", 12_400: "12s", 185_000: "3m 05s", 7_560_000: "2h 06m"} {

@@ -33,10 +33,6 @@ const (
 	checkEvery = 5 * time.Second
 )
 
-// outlineFrom is how wide the conversation must be for the outline of the
-// user's messages beside it.
-const outlineFrom = 1212
-
 // Supported reports whether the session's agent could show as a chat:
 // its daemon reads the conversations of some agents only.
 func Supported(s proto.SessionInfo) bool { return transcript.Supports(s.Agent) }
@@ -78,7 +74,8 @@ type Chat struct {
 	// outlineLeft that the user took it from its end (outline.go).
 	outlineScroll ui.ScrollState
 	outlineLeft   bool
-	width         float32 // the conversation's, last laid out
+	outlineOpen   bool    // folded to a button, it is open
+	width, height float32 // the conversation's, last laid out
 	composerH     float32 // the composer's height, last laid out: what floats over the end
 
 	// The agent's settings as the daemon last read them.
@@ -512,17 +509,22 @@ func (ch *Chat) conversation(c *ui.Context, o Options) {
 		ch.scrollToEnd = false
 	}
 	area := ui.Column(c.Key("conversation")).Grow(1).FillWidth().MinHeight(0)
-	if w := area.Bounds().W; w > 0 {
-		ch.width = w
+	if bounds := area.Bounds(); bounds.W > 0 {
+		ch.width, ch.height = bounds.W, bounds.H
 	}
 	area.Children(func() {
 		ch.conversationList(c, turns, more, o)
-		if ch.width >= outlineFrom {
+		if ch.outlinePlace(o) != outlineFolded {
 			ch.outline(c, turns, more)
 		}
-		ch.chatTools(c, turns, more)
+		ch.chatTools(c, turns, more, ch.outlinePlace(o) == outlineFolded)
 		ch.toLatest(c, o.Working)
 	})
+}
+
+// outlinePlace is where the outline goes in this frame.
+func (ch *Chat) outlinePlace(o Options) outlinePlace {
+	return outlineFit(ch.width, o.columnWidth(), theme.ReadWidth)
 }
 
 // conversationList is the turns' virtual list, centered at the reading
@@ -545,6 +547,10 @@ func (ch *Chat) conversationList(c *ui.Context, turns []turn, more int, o Option
 	if ch.toolsOverColumn() {
 		top = theme.S4 + theme.ControlHeight + theme.S2
 	}
+	right := float32(theme.S5)
+	if ch.outlinePlace(o) == outlineOwn {
+		right = outlineSide()
+	}
 	ui.List(c, &ch.list, len(turns)+more+status, func(i int) {
 		ui.Row(c).FillWidth().Justify(ui.Center).Children(func() {
 			ui.Column(c).Grow(1).MinWidth(0).MaxWidth(o.columnWidth()).Children(func() {
@@ -563,7 +569,7 @@ func (ch *Chat) conversationList(c *ui.Context, turns []turn, more int, o Option
 				}
 			})
 		})
-	}).Grow(1).FillWidth().MinHeight(0).Padding(top, theme.S5, ch.footRoom(), theme.S5).Gap(theme.S4)
+	}).Grow(1).FillWidth().MinHeight(0).Padding(top, right, ch.footRoom(), theme.S5).Gap(theme.S4)
 }
 
 // Seed shows t as if read from the agent, and stops asking for more: for a
