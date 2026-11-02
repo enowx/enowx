@@ -100,7 +100,7 @@ func (a *App) notesAssistant(c *ui.Context, n proto.NoteInfo) {
 	s, ok := a.notesSession(n.ID, agentID)
 	ui.Row(c).FillWidth().Height(52).Shrink(0).Padding(0, theme.S2, 0, theme.S4).Gap(theme.S2).Children(func() {
 		ui.Row(c).Grow(1).Basis(0).MinWidth(0).Children(func() {
-			widget.Running(c, "Note agent", widget.RunStyle{Size: theme.TextTitle, Weight: 600})
+			widget.Running(c, "Note agent", widget.RunStyle{Size: theme.TextRead, Weight: 600})
 		})
 		ui.Row(c).Width(148).Shrink(0).Children(func() {
 			pick := ui.ButtonBase(c).Label("Agent").Tooltip("The agent this page talks to")

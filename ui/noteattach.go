@@ -127,17 +127,26 @@ func (a *App) attachDialog(c *ui.Context) {
 
 func (a *App) attachRow(c *ui.Context, f *noteAttachForm, p proto.NoteProject) {
 	_, on := f.picked[p.Ref]
+	toggle := func() {
+		if on {
+			f.picked[p.Ref] = p
+		} else {
+			delete(f.picked, p.Ref)
+		}
+	}
 	ui.Row(c).FillWidth().MinHeight(36).Shrink(0).Padding(theme.S1, theme.S3).Gap(theme.S2).Children(func() {
-		ui.Column(c).Grow(1).MinWidth(0).Children(func() {
+		// Its name turns it on and off as well as its switch.
+		name := ui.ButtonBase(c).Grow(1).MinWidth(0).Column().AlignItems(ui.Start).Cursor(ui.CursorPointer).Label(p.Name)
+		name.Children(func() {
 			widget.Running(c, p.Name, widget.RunStyle{})
 			widget.Running(c.Key("path"), p.Path, widget.RunStyle{Size: theme.TextLabel, Color: theme.TextSoft})
 		})
-		if widget.Switch(c, &on, p.Name) {
-			if on {
-				f.picked[p.Ref] = p
-			} else {
-				delete(f.picked, p.Ref)
-			}
+		if name.Clicked() {
+			on = !on
+			toggle()
+		}
+		if widget.Switch(c, &on, "Attached") {
+			toggle()
 		}
 	})
 }
