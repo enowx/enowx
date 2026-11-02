@@ -1455,6 +1455,11 @@ field NoteStage.data []byte
 field NoteStage.name string
 field NoteStage.path string
 field NoteStaged.path string
+field NoteTick.commit string
+field NoteTick.item string
+field NoteTick.note string
+field NoteTick.session string
+field NoteTick.time time.Time
 field NoteVersion.id string
 field NoteVersion.size int
 field NoteVersion.time time.Time
@@ -2801,6 +2806,8 @@ method note.save
 method note.setAgent
 method note.setGroup
 method note.stage
+method note.tick
+method note.ticks
 method note.version
 method notify.get
 method notify.set

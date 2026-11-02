@@ -109,6 +109,7 @@ type Server struct {
 	// the method it's for (sessionAwaitsUser).
 	controlAsks sync.Map
 	helpers     helpersState // sessions enowX starts for one piece of work (helpers.go)
+	todos       todoState    // to-dos ticked, and the reminder to (todo_ticks.go)
 	// promptAnswered are the sessions whose prompt the judge just answered, for
 	// its leaving the screen not to count as its expiring.
 	promptAnswered sync.Map

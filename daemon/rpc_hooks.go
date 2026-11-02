@@ -92,6 +92,7 @@ func (s *Server) sessionHook(p proto.SessionHookParams) (proto.HookDecision, err
 		s.toolStep(info, ev)
 	case proto.HookPromptStart:
 		s.promptStep(info.ID)
+		s.todoHead(info)
 		if !d.Block {
 			go s.turnStarted(info)
 			if info.GOA {
@@ -105,6 +106,7 @@ func (s *Server) sessionHook(p proto.SessionHookParams) (proto.HookDecision, err
 		}
 	case proto.HookTurnDone:
 		go s.turnEnded(info)
+		go s.remindToDos(info)
 		s.ragSoon(dir)
 	case proto.HookSessionEnd:
 		go s.ragOffer(info)

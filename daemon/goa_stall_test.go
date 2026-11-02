@@ -133,3 +133,23 @@ func TestGOATaskCarriesItsToDos(t *testing.T) {
 		t.Fatalf("a note gone: %q", got)
 	}
 }
+
+// Who ticked what is kept per note; a turn with a commit reminds once.
+func TestTicksAreRecorded(t *testing.T) {
+	srv := startServer(t)
+	for _, tick := range []proto.NoteTick{{Note: "n1", Item: "one", Session: "gone"}, {Note: "n2", Item: "other"}} {
+		if err := srv.recordTick(tick); err != nil {
+			t.Fatal(err)
+		}
+	}
+	got := srv.ticksOf("n1")
+	if len(got) != 1 || got[0].Item != "one" || got[0].Session != "gone" || got[0].Time.IsZero() {
+		t.Fatalf("%+v", got)
+	}
+	if none := srv.ticksOf("n3"); len(none) != 0 {
+		t.Fatalf("%+v", none)
+	}
+	if notes := srv.notesWithOpenToDos(""); notes != nil {
+		t.Fatalf("no project: %q", notes)
+	}
+}

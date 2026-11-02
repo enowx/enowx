@@ -195,3 +195,9 @@ A page attaches to any number of projects, on any host: a plan touching a fronte
 ## A note's agent from anywhere
 
 A note keeps the agent its page talks to (`agent:` in its header, so the same on every host) and its conversations with it, in `notes/chats/<id>.json`: each turn the agent ends there is kept, so what was said on one host shows on the others, under the panel before a conversation starts. Other agents ask it with `enowx-app notes ask NOTE "…" [--wait]` (MCP `notes_ask`), read what was said with `notes chat NOTE` (`notes_chat`), and pick it with `notes agent NOTE --use codex` (`notes_agent`). What agents proposed is listed by `notes proposals`, and settled by `notes accept ID` or `notes reject ID` when the user asks; the note's own agent can't settle its own proposals.
+
+## To-dos and agents
+
+Ticking a to-do is mandatory: every session's guide and GOD of Agents' prompt say a to-do is ticked in the same turn as the commit that finishes it, done meaning built and committed, with what only the owner can test in an item of its own. `notes ticks NOTE` lists those agents ticked, with the session and the commit.
+
+On agents with hooks, a turn that made a commit, in a project with a note's to-dos open, is asked once whether one is done. An agent with no turn-end hook gets the rule from its guide alone, as every agent but Claude Code, OpenClaude, Claude Agent Teams and Codex today (`agent.HookSupport`), and neither does one started by hand in a shell tab.

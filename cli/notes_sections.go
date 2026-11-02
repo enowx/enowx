@@ -3,6 +3,7 @@ package cli
 import (
 	"errors"
 	"fmt"
+	"os"
 	"strings"
 
 	"github.com/enowx/enowx/core/noteblocks"
@@ -106,6 +107,8 @@ func (r runner) noteCheck(ref, item string, done, propose bool) error {
 	state := "Ticked"
 	if !done {
 		state = "Unticked"
+	} else if session := os.Getenv(EnvSession); session != "" {
+		_ = r.c.Call(proto.MethodNoteTick, proto.NoteTick{Note: n.ID, Item: text, Session: session}, nil) // an older daemon has no record
 	}
 	fmt.Fprintf(r.out, "%s %q (line %d).\n", state, text, line+1)
 	return nil
