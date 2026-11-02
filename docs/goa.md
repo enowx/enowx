@@ -4,7 +4,7 @@ GOD of Agents (GOA) is one session the user drives that controls every enowX ses
 
 ## In the app
 
-**GOD of Agents** in the title bar's pages (or ⌘K, "Enter or leave GOD of Agents") enters the mode. With no GOA on the host shown, it asks which agent to run GOA on, each with how far it holds GOA to delegating (below). In the mode:
+**GOD of Agents** in the title bar's pages (or ⌘K, "GOD of Agents") enters the mode. With no GOA on the host shown, it asks which agent to run GOA on, each with how far it holds GOA to delegating (below). In the mode:
 
 - GOA's session is the main view, as a session's: the same header, tab strip, tools dock and panel, with the session list folded away.
 - The title bar reaches the pages as anywhere. GOA's header has **Rules** and **Leave**, which goes back (GOA keeps running), and its More menu **Stall limits**.

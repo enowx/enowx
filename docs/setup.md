@@ -1,6 +1,6 @@
 # Setting up a server like this device
 
-**Set up…** on the connected server's card (Hosts page), or **Set up <host> like this device** in the command palette, brings a server to what this device has, so its agents work as they do here.
+**Set up…** on the connected server's card (Hosts page), or **Set up this host** in the command palette, brings a server to what this device has, so its agents work as they do here.
 
 ## What it brings
 
