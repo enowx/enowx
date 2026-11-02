@@ -380,7 +380,7 @@ func (e *editor) edit(c *ui.Context, i, n int) {
 				lines, label = 1, "Directive"
 			}
 			in = ui.TextAreaBase(c, &b.text).FillWidth().Lines(lines, 40).Font(theme.MonoFont).FontSize(theme.TextUI).Padding(theme.S3, theme.S4).
-				Radius(theme.RadiusCard).Background(widget.CodeGround).TextColor(widget.CodeText).Border(2, theme.Now).Label(label)
+				Radius(theme.RadiusCard).Background(theme.CodeGround).TextColor(widget.CodeText).Border(2, theme.Now).Label(label)
 		})
 	default:
 		row := ui.Row(c).Background(theme.Hover)

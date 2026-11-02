@@ -60,7 +60,7 @@ func (v *View) DrawOutput(c *ui.Context, o Options, name string) {
 		if ran && r.State == proto.CheckFailed && (r.Judging || r.Judged != "") {
 			ui.Row(c).FillWidth().Shrink(0).Padding(theme.S2, 0, 0, 0).Children(func() { v.judgedLine(c, o, r, theme.S4) })
 		}
-		ui.Column(c).Grow(1).FillWidth().MinHeight(0).Background(widget.CodeGround).Children(func() {
+		ui.Column(c).Grow(1).FillWidth().MinHeight(0).Background(theme.CodeGround).Children(func() {
 			ui.Scroll(c).Grow(1).FillWidth().MinHeight(0).Children(func() {
 				ui.Column(c).FillWidth().Padding(theme.S3, theme.S4).Gap(0).Children(func() {
 					code := func(text string, col ui.Color) {

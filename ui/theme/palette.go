@@ -5,15 +5,13 @@ import (
 	"github.com/egoist/mygo/ui"
 )
 
-// Palette is one theme's colors in a light or dark appearance. A palette is
-// a lit wallpaper with glass over it: Ground and Wall are the wallpaper, the
-// surfaces are translucent over them.
+// Palette is one theme's colors in a light or dark appearance: flat, muted
+// surfaces of one tint on a ground of that tint, parted by quiet lines.
 type Palette struct {
 	ID, Name string
 	Light    bool
 
-	Ground                            ui.Color    // the wallpaper's base
-	Wall                              [3]ui.Color // the wallpaper's three lights, their alpha how strong
+	Ground                            ui.Color // what the panels lie on
 	Background, Panel, Raised, Sunken ui.Color
 	Frame, Popover                    ui.Color
 	Hover, Selected, Dialog           ui.Color
@@ -23,60 +21,69 @@ type Palette struct {
 	Working, Done, Warning, Error     ui.Color
 	Idle                              ui.Color
 	Add, Del, Now                     ui.Color
+
+	lightAccent ui.Color // its accent in the light appearance: a pale one only turns grey when deepened
 }
 
-// glass is a dark palette: every palette has the same glass, over a
-// wallpaper and with an accent of its own.
-func glass(id, name, ground string, wall [3]ui.Color, accent, onAccent string) Palette {
-	white := func(a float32) ui.Color { return ui.RGBA(255, 255, 255, a) }
-	return Palette{
+// soft is a dark palette: every palette has the same recipe, from a muted tint
+// the surfaces are lighter or darker shades of, with an accent of its own. What
+// lies on a surface is a faint overlay of white or black, so it keeps the tint.
+func soft(id, name, tint, accent, lightAccent string) Palette {
+	base := ui.Hex(tint)
+	white, black := ui.Hex("#FFFFFF"), ui.Hex("#000000")
+	overWhite := func(a float32) ui.Color { return ui.RGBA(255, 255, 255, a) }
+	overBlack := func(a float32) ui.Color { return ui.RGBA(0, 0, 0, a) }
+	p := Palette{
 		ID: id, Name: name,
-		Ground: ui.Hex(ground), Wall: wall,
-		Background: ui.Hex("#0D0E16"), Panel: ui.RGBA(38, 40, 54, 0.62), Raised: white(0.07), Sunken: ui.RGBA(0, 0, 0, 0.25),
-		Frame: ui.RGBA(70, 72, 88, 0.92), Popover: ui.RGBA(30, 32, 44, 0.98),
-		Hover: white(0.08), Selected: white(0.2), Dialog: ui.RGBA(48, 50, 66, 0.98),
-		Border: white(0.2), BorderStrong: white(0.2),
-		Text: ui.Hex("#F5F6FA"), TextStrong: ui.Hex("#FFFFFF"), TextSoft: ui.Hex("#D8DAE5"), Muted: ui.Hex("#D8DAE5"),
-		Accent: ui.Hex(accent), OnAccent: ui.Hex(onAccent),
-		Working: ui.Hex("#64D2FF"), Done: ui.Hex("#30D158"), Warning: ui.Hex("#FFD60A"), Error: ui.Hex("#FF6961"), Idle: ui.Hex("#AEAEB2"),
-		Add: ui.Hex("#8BF0B0"), Del: ui.Hex("#FFB1AB"), Now: ui.Hex("#BCDCFF"),
+		Ground: Mix(base, black, 0.22), Panel: base, Frame: Mix(base, white, 0.03),
+		Background: Mix(base, black, 0.6), Popover: Mix(base, black, 0.5), Dialog: Mix(base, black, 0.38),
+		Raised: overWhite(0.04), Sunken: overBlack(0.18),
+		Hover: overWhite(0.05), Selected: overWhite(0.1),
+		Border: overWhite(0.09), BorderStrong: overWhite(0.18),
+		Text: Mix(white, base, 0.08), TextStrong: Mix(white, base, 0.02), TextSoft: Mix(white, base, 0.18), Muted: Mix(white, base, 0.2),
+		Working: ui.Hex("#8CCBE0"), Done: ui.Hex("#8DCFA6"), Warning: ui.Hex("#E2C47C"), Error: ui.Hex("#EE9A92"), Idle: ui.Hex("#B4BEC0"),
+		Add: ui.Hex("#9BD6B2"), Del: ui.Hex("#F0ADA6"),
+		lightAccent: ui.Hex(lightAccent),
 	}
+	p.setDarkAccent(ui.Hex(accent))
+	return p
 }
 
-func light(col string, a float32) ui.Color {
-	c := ui.Hex(col)
-	return ui.RGBA(c.R, c.G, c.B, a)
+// setDarkAccent gives a dark palette its accent, lifted as far as it takes to
+// read as words on the surfaces, a selection included.
+func (p *Palette) setDarkAccent(accent ui.Color) {
+	for contrast(accent, p.Panel) < 4.5 || contrast(accent, over(p.Selected, p.Frame)) < 4.5 {
+		accent = Mix(accent, ui.Hex("#FFFFFF"), 0.06)
+	}
+	p.Accent, p.OnAccent = accent, contrastInk(accent)
+	p.Now = Mix(accent, ui.Hex("#FFFFFF"), 0.2)
 }
 
 // The built-in palettes. Status colors keep their meaning in every one:
 // blue works, yellow waits, green is done, red failed.
 var (
-	Champagne = glass("champagne", "Champagne", "#1D1913",
-		[3]ui.Color{light("#C9A15A", 0.45), light("#B5653C", 0.35), light("#6E5A3A", 0.45)}, "#D8C3A0", "#1A150E")
-	Obsidian = glass("obsidian", "Obsidian Silver", "#16171B",
-		[3]ui.Color{light("#8D97A8", 0.35), light("#5C6370", 0.35), light("#3E4450", 0.45)}, "#E2E4E9", "#0B0C0E")
-	Midnight = glass("midnight", "Midnight", "#0E1428",
-		[3]ui.Color{light("#3158C9", 0.55), light("#2A7E9C", 0.35), light("#4B3AA8", 0.45)}, "#9DB6F5", "#0A0F1E")
-	Copper = glass("copper", "Copper", "#1E1614",
-		[3]ui.Color{light("#C4743C", 0.45), light("#A83C32", 0.35), light("#6B3A5C", 0.45)}, "#D49A6A", "#1A0F07")
-	Graphite = glass("graphite", "Graphite", "#15182B",
-		[3]ui.Color{light("#2C7BE0", 0.55), light("#D9543C", 0.45), light("#7A3FBF", 0.45)}, "#0A6FE0", "#FFFFFF")
+	Teal      = soft("teal", "Soft Teal", "#2A4B4E", "#8AD4D0", "#2F7273")
+	Champagne = soft("champagne", "Champagne", "#3B352C", "#D0BC98", "#7A6238")
+	Obsidian  = soft("obsidian", "Obsidian Silver", "#303238", "#C5C9D1", "#525B6B")
+	Midnight  = soft("midnight", "Midnight", "#2A3350", "#A3B6E0", "#3D5A9E")
+	Copper    = soft("copper", "Copper", "#3F312C", "#D2A484", "#96583A")
+	Graphite  = soft("graphite", "Graphite", "#2E3442", "#8FB0DC", "#3E6AA3")
 )
 
-// Palettes is every built-in palette.
-var Palettes = []Palette{Champagne, Obsidian, Midnight, Copper, Graphite}
+// Palettes is every built-in palette. Users have the IDs saved: they only grow.
+var Palettes = []Palette{Teal, Champagne, Obsidian, Midnight, Copper, Graphite}
 
 // Default is the palette of who hasn't picked one.
-var Default = Graphite
+var Default = Teal
 
 // Accents are the colors a user can give any palette instead of its own.
 var Accents = []ui.Color{
-	ui.Hex("#0A6FE0"), // blue
-	ui.Hex("#2B7A5B"), // green
-	ui.Hex("#8A5CF6"), // violet
-	ui.Hex("#C2410C"), // orange
-	ui.Hex("#B4235A"), // rose
-	ui.Hex("#0E7490"), // teal
+	ui.Hex("#7FA8D9"), // blue
+	ui.Hex("#83BD9C"), // green
+	ui.Hex("#A99BDC"), // violet
+	ui.Hex("#D9A37C"), // orange
+	ui.Hex("#D596AC"), // rose
+	ui.Hex("#86C0BF"), // teal
 }
 
 // Lookup is the palette with the given ID, else the default; a non-zero
@@ -89,8 +96,7 @@ func Lookup(id string, accent ui.Color) Palette {
 		}
 	}
 	if accent.A != 0 {
-		p.Accent = accent
-		p.OnAccent = contrastInk(accent)
+		p.setDarkAccent(accent)
 	}
 	return p
 }

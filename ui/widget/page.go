@@ -126,13 +126,8 @@ func FigsNav(c *ui.Context, figs []Fig, current int) int {
 	return clicked
 }
 
-// figGround is the well figures sit in, lighter than an input's.
-func figGround() ui.Color {
-	if theme.Current().Light {
-		return theme.Sunken
-	}
-	return ui.RGBA(20, 22, 32, 0.34)
-}
+// figGround is the well figures sit in.
+func figGround() ui.Color { return theme.Sunken }
 
 func figFace(c *ui.Context, f Fig) {
 	Running(c.Key("l"), f.Label, RunStyle{Size: theme.TextLabel, Color: theme.TextSoft})
@@ -189,15 +184,12 @@ func Chip(c *ui.Context, label string, col ui.Color) {
 	})
 }
 
-// CodeGround is the dark ground code, logs and output sit on in every palette.
-var CodeGround = ui.RGBA(10, 11, 18, 0.94)
-
 // CodeText is their color.
 var CodeText = ui.Hex("#E4E6EE")
 
 // CodeBlockText is output or a file's text on its ground, in a rounded well.
 func CodeBlockText(c *ui.Context, text string) ui.Element {
-	box := ui.Column(c).FillWidth().MinWidth(0).Padding(theme.S3, theme.S4).Radius(theme.RadiusCard).Background(CodeGround).
+	box := ui.Column(c).FillWidth().MinWidth(0).Padding(theme.S3, theme.S4).Radius(theme.RadiusCard).Background(theme.CodeGround).
 		InsetShadow(0, 0, 0, 0.5, theme.Border)
 	box.Children(func() {
 		ui.Text(c, text).Font(theme.MonoFont).FontSize(theme.TextUI).TextColor(CodeText)

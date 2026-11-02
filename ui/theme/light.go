@@ -13,44 +13,38 @@ func LookupAppearance(id string, accent ui.Color, light bool) Palette {
 		return Lookup(id, accent)
 	}
 	dark := Lookup(id, ui.Color{})
-	black := func(a float32) ui.Color { return ui.RGBA(0, 0, 0, a) }
-	white := func(a float32) ui.Color { return ui.RGBA(255, 255, 255, a) }
-	wall := dark.Wall
-	for i := range wall {
-		wall[i].A = 70
-	}
+	base, white := dark.Panel, ui.Hex("#FFFFFF")
+	overBlack := func(a float32) ui.Color { return ui.RGBA(0, 0, 0, a) }
 	p := Palette{
 		ID: dark.ID, Name: dark.Name, Light: true,
-		Ground: ui.Hex("#E9EDF5"), Wall: wall,
-		Background: ui.Hex("#F4F6F9"), Panel: white(0.62), Raised: black(0.035), Sunken: black(0.06),
-		Frame: white(0.88), Popover: ui.RGBA(252, 252, 254, 0.98),
-		Hover: black(0.05), Selected: black(0.1), Dialog: ui.RGBA(252, 252, 254, 0.98),
-		Border: black(0.12), BorderStrong: ui.Hex("#778497"),
-		Text: ui.Hex("#1C2130"), TextStrong: ui.Hex("#0C101C"), TextSoft: ui.Hex("#475467"), Muted: ui.Hex("#536176"),
-		Accent: ui.Hex("#0A63C9"), Working: ui.Hex("#075E8C"), Done: ui.Hex("#166B42"), Warning: ui.Hex("#855300"),
-		Error: ui.Hex("#B3261E"), Idle: ui.Hex("#5F6673"),
-		Add: ui.Hex("#166B42"), Del: ui.Hex("#B3261E"), Now: ui.Hex("#0A63C9"),
-	}
-	switch p.ID {
-	case Champagne.ID:
-		p.Ground, p.Accent = ui.Hex("#F3EFE7"), ui.Hex("#826235")
-	case Obsidian.ID:
-		p.Accent = ui.Hex("#4E5A6B")
-	case Midnight.ID:
-		p.Accent = ui.Hex("#355CAD")
-	case Copper.ID:
-		p.Ground, p.Accent = ui.Hex("#F3ECE6"), ui.Hex("#9C5429")
+		Ground: Mix(base, white, 0.84), Panel: Mix(base, white, 0.9), Frame: Mix(base, white, 0.95),
+		Background: Mix(base, white, 0.96), Popover: Mix(base, white, 0.98), Dialog: Mix(base, white, 0.98),
+		Raised: overBlack(0.025), Sunken: overBlack(0.05),
+		Hover: overBlack(0.04), Selected: overBlack(0.08),
+		Border: overBlack(0.09), BorderStrong: Mix(base, white, 0.26),
+		Text: Mix(base, ui.Hex("#000000"), 0.55), TextStrong: Mix(base, ui.Hex("#000000"), 0.7),
+		TextSoft: Mix(base, white, 0.1), Muted: Mix(base, white, 0.14),
+		Accent: dark.lightAccent, Working: ui.Hex("#2B6580"), Done: ui.Hex("#2C6B4B"), Warning: ui.Hex("#7A5716"),
+		Error: ui.Hex("#A23E36"), Idle: ui.Hex("#5F6A6D"),
+		Add: ui.Hex("#2C6B4B"), Del: ui.Hex("#A23E36"),
 	}
 	if accent.A != 0 {
 		p.Accent = accent
 	}
-	// The dark palettes use pale accents. Keep their hue in light mode,
-	// with enough depth for selected labels and links on white surfaces.
-	for contrast(p.Accent, p.Sunken) < 4.5 || contrast(p.Accent, p.Panel) < 4.5 || contrast(p.Accent, p.Selected) < 4.5 {
+	// An accent the user gave may be pale. Keep its hue, with enough depth for
+	// selected labels and links on these surfaces.
+	for contrast(p.Accent, over(p.Sunken, p.Panel)) < 4.5 || contrast(p.Accent, over(p.Selected, p.Panel)) < 4.5 {
 		p.Accent = Mix(p.Accent, ui.Hex("#000000"), 0.06)
 	}
 	p.OnAccent = contrastInk(p.Accent)
+	p.Now = p.Accent
 	return p
+}
+
+// over is translucent c as it reads on the opaque color under.
+func over(c, under ui.Color) ui.Color {
+	at := func(v, u uint8) uint8 { return uint8(float64(u) + (float64(v)-float64(u))*float64(c.A)/255 + 0.5) }
+	return ui.Color{R: at(c.R, under.R), G: at(c.G, under.G), B: at(c.B, under.B), A: 255}
 }
 
 func onWhite(c ui.Color) ui.Color {

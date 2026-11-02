@@ -196,7 +196,7 @@ func (v *View) actions(c *ui.Context, o Options, it proto.EnvItem, compact bool)
 // left and scrolling inside it.
 func codeFill(c *ui.Context, key string, fn func()) {
 	ui.Scroll(c.Key(key)).Grow(1).Basis(0).FillWidth().MinHeight(96).Radius(theme.RadiusCard).Clip().
-		Background(widget.CodeGround).InsetShadow(0, 0, 0, 0.5, theme.Border).Children(func() {
+		Background(theme.CodeGround).InsetShadow(0, 0, 0, 0.5, theme.Border).Children(func() {
 		ui.Column(c).FillWidth().Padding(theme.S3, theme.S4).Gap(theme.S3).Children(fn)
 	})
 }
