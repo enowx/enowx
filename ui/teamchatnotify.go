@@ -125,7 +125,7 @@ func (a *App) chatToastCard(c *ui.Context, t *chatToast, now time.Time) {
 	if t.urgent != "" {
 		border = theme.Error
 	}
-	card := widget.Float(ui.Column(c).FillWidth().Padding(12, 12, 12, 12).Gap(8).Radius(theme.RadiusCard).
+	card := widget.Float(ui.Column(c).FillWidth().Padding(theme.S3).Gap(theme.S2).Radius(theme.RadiusCard).
 		Background(theme.Dialog).Border(1, border)).Transition(widget.OverlayMotion)
 	if card.Hovered() {
 		t.shown = now // read: it waits
@@ -138,8 +138,8 @@ func (a *App) chatToastCard(c *ui.Context, t *chatToast, now time.Time) {
 			body := ui.ButtonBase(c.Key("open")).Grow(1).MinWidth(0).Cursor(ui.CursorPointer).Label("Open the chat").Tooltip("Open the chat")
 			body.Children(func() {
 				ui.Column(c).FillWidth().Gap(2).Children(func() {
-					ui.Row(c).FillWidth().Gap(6).AlignItems(ui.Center).Children(func() {
-						ui.Text(c, m.Name).FontSize(theme.TextUI).FontWeight(600).TextColor(widget.TeamColor(m.Account)).SingleLine().Shrink(1)
+					ui.Row(c).FillWidth().Gap(theme.S1).AlignItems(ui.Center).Children(func() {
+						ui.Text(c, m.Name).FontSize(theme.TextUI).FontWeight(600).TextColor(theme.TextStrong).SingleLine().Shrink(1)
 						where := a.spaceName(m.Team)
 						if t.mention {
 							where = "mentioned you · " + where

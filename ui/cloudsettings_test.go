@@ -153,7 +153,7 @@ func TestCloudSettingsSignInAndInvite(t *testing.T) {
 	settle("the team's options", func() bool { return tt.HasText("Copying out") })
 	shot(t, tt, "cloud-team-settings.png")
 	click("Activity")
-	settle("the team's log", func() bool { return tt.HasText("@ada made the team") })
+	settle("the team's log", func() bool { return tt.HasText("Ada made the team") })
 
 	// A viewer made a member from their role's menu.
 	bob, _ := db.GitHubAccount(ctx, 2, "bob", "Bob", "", "")

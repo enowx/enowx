@@ -328,11 +328,9 @@ func (a *App) teamHostPage(c *ui.Context) {
 		a.refreshVisit(v)
 	}
 	c.After(3 * time.Second)
-	a.viewHeader(c, func() {
-		widget.Breadcrumb(c, a.spaceName(v.host.Team), v.host.Name)
-		ui.Spacer(c)
+	widget.PageHeader(c, v.host.Name, "Shared by "+v.host.Owner+" with "+a.spaceName(v.host.Team), func() {
 		if v.me.Role != "" {
-			widget.Tag(c, "as "+v.me.Role, theme.TextSoft)
+			widget.Chip(c, "as "+v.me.Role, ui.Color{})
 		}
 		if widget.GhostButton(c, "Leave").Clicked() {
 			a.closeVisit()
@@ -343,54 +341,68 @@ func (a *App) teamHostPage(c *ui.Context) {
 		a.watchView(c, v)
 		return
 	}
-	ui.Scroll(c).Grow(1).FillWidth().Children(func() {
-		ui.Column(c).FillWidth().Padding(20, 24).Gap(16).Children(func() {
-			ui.Text(c, v.host.Owner+" shares "+v.host.Name+" with "+a.spaceName(v.host.Team)+": these projects and their sessions.").FontSize(theme.TextUI).TextColor(theme.TextSoft)
-			if v.busy != "" {
-				ui.Row(c).Gap(8).AlignItems(ui.Center).Children(func() {
-					widget.Spinner(c, 12)
-					ui.Text(c, v.busy).FontSize(theme.TextLabel).TextColor(theme.Muted)
-				})
-			}
-			if v.err != "" {
-				widget.Notice(c, icon.Alert, theme.Error, v.err, "", nil)
-			}
-			for _, p := range v.projects {
-				if v.me.Role != "viewer" {
-					ui.Row(c.Key("vpn:" + p.Path)).FillWidth().Gap(6).AlignItems(ui.Center).Children(func() {
-						ui.Spacer(c)
-						for _, ag := range []struct{ id, name string }{{"claude", "Claude Code"}, {"codex", "Codex"}} {
-							if widget.Button(c.Key(p.Path+":"+ag.id), widget.Secondary, icon.Plus, ag.name+" session", "").
-								Tooltip("A session of yours in " + p.Name + ", as your own " + ag.name + " account on " + v.host.Name).Clicked() {
-								a.startVisitSession(v, p, ag.id)
-							}
+	widget.PageBodyGrid(c, 2, max(len(v.projects), 1), 240, func() {
+		if v.busy != "" {
+			ui.Row(c.Key("busy")).FillWidth().Shrink(0).Gap(theme.S2).Children(func() {
+				widget.Spinner(c, 12)
+				ui.Row(c).Grow(1).Basis(0).MinWidth(0).Children(func() { widget.Running(c, v.busy, widget.RunStyle{Size: theme.TextLabel, Color: theme.TextSoft}) })
+			})
+		}
+		if v.err != "" {
+			widget.Notice(c, icon.Alert, theme.Error, v.err, "", nil)
+		}
+	}, func() {
+		if len(v.projects) == 0 {
+			widget.GridCard(c.Key("none")).Children(func() {
+				widget.CardTitle(c, nil, "Its projects", nil)
+				widget.CardNote(c, v.host.Owner+" shares these projects and their sessions with "+a.spaceName(v.host.Team)+": they show here once read.", 0)
+			})
+		}
+		for _, p := range v.projects {
+			a.visitProjectCard(c.Key("vp:"+p.Path), v, p)
+		}
+	}, nil)
+}
+
+// visitProjectCard is a project of a shared host: its sessions, each to watch,
+// and for those who may, starting one of their own.
+func (a *App) visitProjectCard(c *ui.Context, v *teamVisit, p proto.ProjectInfo) {
+	var in []proto.SessionInfo
+	for _, s := range v.sessions {
+		if s.Project == p.Path || strings.HasPrefix(s.Dir, p.Path) {
+			in = append(in, s)
+		}
+	}
+	widget.GridCard(c).Children(func() {
+		widget.CardTitle(c, nil, p.Name, nil)
+		ui.Scroll(c.Key("sessions")).Grow(1).Basis(0).FillWidth().MinHeight(0).Children(func() {
+			widget.CardLines(c, func() {
+				if len(in) == 0 {
+					widget.CardNote(c.Key("none"), "No session now.", 0)
+				}
+				for i, s := range in {
+					sub := a.agentName(s.Agent)
+					if s.Branch != "" {
+						sub += " · " + s.Branch
+					}
+					widget.CardLine(c.Key("vs:"+s.ID), i == 0, nonEmptyName(s), sub, func() {
+						widget.Badge(c, sessionBadge(s))
+						if !s.Exited && widget.Button(c, widget.Secondary, nil, "Watch", "").Clicked() {
+							a.watchSession(v, s)
 						}
 					})
 				}
-				widget.Field(c.Key("vp:"+p.Path), p.Name, func() {
-					var in []proto.SessionInfo
-					for _, s := range v.sessions {
-						if s.Project == p.Path || strings.HasPrefix(s.Dir, p.Path) {
-							in = append(in, s)
-						}
-					}
-					if len(in) == 0 {
-						ui.Text(c, "No session now.").FontSize(theme.TextLabel).TextColor(theme.Muted)
-					}
-					for _, s := range in {
-						ui.Row(c.Key("vs:"+s.ID)).FillWidth().Gap(10).AlignItems(ui.Center).Padding(8, 10).Radius(theme.RadiusControl).Background(theme.Sunken).Children(func() {
-							widget.Badge(c, sessionBadge(s))
-							ui.Text(c, nonEmptyName(s)).FontSize(theme.TextUI).Grow(1).Shrink(1).MinWidth(0).SingleLine()
-							ui.Text(c, a.agentName(s.Agent)).FontSize(theme.TextLabel).TextColor(theme.Muted)
-							if s.Branch != "" {
-								widget.Tag(c, s.Branch, theme.TextSoft)
-							}
-							if !s.Exited && widget.Button(c, widget.Secondary, icon.Eye, "Watch", "").Clicked() {
-								a.watchSession(v, s)
-							}
-						})
-					}
-				})
+			})
+		})
+		if v.me.Role == "viewer" {
+			return
+		}
+		widget.CardFoot(c, func() {
+			for _, ag := range []struct{ id, name string }{{"claude", "Claude Code"}, {"codex", "Codex"}} {
+				if widget.Button(c.Key(p.Path+":"+ag.id), widget.Secondary, icon.Plus, ag.name+" session", "").
+					Tooltip("A session of yours in " + p.Name + ", as your own " + ag.name + " account on " + v.host.Name).Clicked() {
+					a.startVisitSession(v, p, ag.id)
+				}
 			}
 		})
 	})

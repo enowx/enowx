@@ -55,7 +55,9 @@ func (a *App) replyBar(c *ui.Context) {
 		ui.Icon(c, icon.Reply).FontSize(12).TextColor(theme.Accent)
 		ui.Text(c, "Replying to").FontSize(theme.TextLabel).TextColor(theme.Muted).SingleLine().Shrink(0)
 		ui.Text(c, m.Name).FontSize(theme.TextLabel).FontWeight(600).TextColor(widget.TeamColor(m.Account)).SingleLine().Shrink(0)
-		ui.Text(c, snippet(m.Text)).FontSize(theme.TextLabel).TextColor(theme.TextSoft).SingleLine().Grow(1).Shrink(1).MinWidth(0)
+		ui.Row(c).Grow(1).Basis(0).MinWidth(0).Children(func() {
+			widget.Running(c, snippet(m.Text), widget.RunStyle{Size: theme.TextLabel, Color: theme.TextSoft})
+		})
 		if widget.IconButton(c, icon.Close, "Don't reply (Esc)", false).Clicked() {
 			hc.replyTo = nil
 		}

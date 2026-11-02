@@ -88,6 +88,12 @@ func teamAuditPages() []auditPage {
 			a.openPanel(tool)
 		}
 	}
+	chatPanel := func(fn func(a *App, hc *hostChats)) func(a *App) {
+		return func(a *App) {
+			panel(panelChat)(a)
+			fn(a, a.chatsOf())
+		}
+	}
 	dialog := func(tab string) func(a *App) { return func(a *App) { auditOpenTeam2(a, tab) } }
 	return append(pages,
 		auditPage{name: "team-none", fill: true, open: func(a *App) {
@@ -106,12 +112,112 @@ func teamAuditPages() []auditPage {
 		auditPage{name: "team-panel-chat", open: panel(panelChat)},
 		auditPage{name: "team-panel-projects", open: panel(panelTeamProjects)},
 		auditPage{name: "team-panel-members", open: panel(panelTeamMembers)},
+		auditPage{name: "team-chat-editing", open: chatPanel(func(a *App, hc *hostChats) {
+			m := hc.byTeam["t1"][1]
+			a.startEditing(m)
+			hc.mentions = []proto.ChatMention{{Kind: proto.MentionNote, ID: "n", Title: "Release plan"}}
+		})},
+		auditPage{name: "team-chat-reply", open: chatPanel(func(a *App, hc *hostChats) { a.startReply(hc.byTeam["t1"][2]) })},
+		auditPage{name: "team-chat-mention", open: chatPanel(func(a *App, hc *hostChats) {
+			hc.draft, hc.setCaret, hc.focus = "@", 1, true
+		})},
+		auditPage{name: "team-chat-mention-none", open: chatPanel(func(a *App, hc *hostChats) {
+			hc.draft, hc.setCaret, hc.focus = "@zzz", 4, true
+		})},
+		auditPage{name: "team-chat-reacting", open: chatPanel(func(a *App, hc *hostChats) { hc.reacting = "3" })},
+		auditPage{name: "team-chat-images", open: chatPanel(func(a *App, hc *hostChats) {
+			hc.err = "4 images a message at most, and a reason long enough to wrap inside its notice, as a failed send's can be"
+			hc.pending = []*pendingImage{{key: 1, name: "uploading.png"}, {key: 2, name: "failed.png", err: "too large"}, {key: 3, name: "done.png", att: &proto.ChatAttachment{ID: "up"}}}
+			hc.images["i1"] = &chatImage{asked: true}
+			hc.images["i2"] = &chatImage{asked: true, err: "couldn't read the picture, and a reason long enough to take its three lines and then some"}
+			hc.byTeam["t1"] = append(hc.byTeam["t1"], proto.ChatMessage{ID: "5", Team: "t1", Account: "rina", Name: "Rina", At: time.Now(),
+				Attachments: []proto.ChatAttachment{{ID: "i1", Width: 800, Height: 400}, {ID: "i2", Width: 400, Height: 400}}})
+		})},
+		auditPage{name: "team-chat-viewer", open: func(a *App) {
+			auditTeamData(a)
+			a.page, a.state.Panel.Team = "", "t2"
+			a.chatsOf().byTeam["t2"] = a.chatsOf().byTeam["t1"]
+			a.selectSession(a.sessions[0])
+			a.openPanel(panelChat)
+		}},
+		auditPage{name: "team-chat-empty", open: chatPanel(func(a *App, hc *hostChats) { hc.byTeam["t1"] = nil })},
+		auditPage{name: "team-chat-loading", open: chatPanel(func(a *App, hc *hostChats) { hc.byTeam["t1"] = nil; delete(hc.readGen, "t1") })},
+		auditPage{name: "team-no-team", open: func(a *App) {
+			auditTeamData(a)
+			a.spaceList = &hostSpaces{host: a.host.ID, list: nil}
+			a.page = ""
+			a.selectSession(a.sessions[0])
+			a.state.Panel.Open, a.state.Panel.Tab = true, panelChat
+		}},
+		auditPage{name: "team-toasts", open: func(a *App) {
+			auditTeamData(a)
+			a.page = ""
+			now := time.Now()
+			a.chatToasts = []*chatToast{
+				{msg: proto.ChatMessage{ID: "a", Team: "t1", Account: "rina", Name: "Rina", At: now, Text: "Plain message, long enough that it can't all fit in the three lines the card gives it, whatever the words, and so on and so on and so on and so on and so on"}, shown: now},
+				{msg: proto.ChatMessage{ID: "b", Team: "t1", Account: "bayu", Name: "Bayu", At: now, Attachments: []proto.ChatAttachment{{ID: "x"}}}, mention: true, shown: now, replying: true, err: "Couldn't send: the cloud can't be reached"},
+				{msg: proto.ChatMessage{ID: "c", Team: "t2", Account: "rina", Name: "Rina", At: now, Text: "The build is down"}, urgent: "says production is down, and a reason long enough to take its two lines and some more", shown: now},
+			}
+		}},
+		auditPage{name: "team-unread-chip", open: func(a *App) {
+			auditTeamData(a)
+			a.page = pageHosts
+		}},
+		auditPage{name: "team-host-connecting", fill: true, open: auditVisit(func(v *teamVisit) {
+			v.projects, v.sessions, v.me, v.busy = nil, nil, proto.Visitor{}, "Connecting to studio-mac…"
+		})},
+		auditPage{name: "team-host-error", fill: true, open: auditVisit(func(v *teamVisit) {
+			v.projects, v.sessions, v.me = nil, nil, proto.Visitor{}
+			v.err = "can't reach studio-mac at 100.1.1.1:7422: is its node shared with your Tailscale account, and Tailscale on here? (dial tcp: i/o timeout)"
+		})},
+		auditPage{name: "team-host-page", fill: true, open: auditVisit(func(v *teamVisit) {})},
+		auditPage{name: "team-host-viewer", fill: true, open: auditVisit(func(v *teamVisit) { v.me.Role = "viewer" })},
+		auditPage{name: "team-watch-can-ask", open: auditVisit(func(v *teamVisit) { v.watch = &watchPane{session: "s1"} })},
+		auditPage{name: "team-watch-own", open: auditVisit(func(v *teamVisit) {
+			v.sessions[0].Member = &proto.SessionMember{Account: v.me.Account}
+			v.watch = &watchPane{session: "s1"}
+		})},
+		auditPage{name: "team-watch-control", open: auditVisit(func(v *teamVisit) { v.watch = &watchPane{session: "s1", controls: true} })},
+		auditPage{name: "team-watch-asked", open: auditVisit(func(v *teamVisit) {
+			v.watch = &watchPane{session: "s1", asked: true, err: "the host's user is away, and a reason long enough to have to wrap inside its notice over the terminal, wherever it shows"}
+		})},
+		auditPage{name: "team-watch-viewer", open: auditVisit(func(v *teamVisit) { v.me.Role = "viewer"; v.watch = &watchPane{session: "s1"} })},
+		auditPage{name: "team-presence", open: func(a *App) {
+			auditTeamData(a)
+			a.page = ""
+			a.selectSession(a.sessions[0])
+			a.presenceOf().visitors = []proto.Visitor{
+				{Account: "rina", Name: "Rina", Team: "t1", Role: api.RoleMember, Watching: []string{a.sessions[0].ID}},
+				{Account: "bayu", Name: "Bayu", Team: "t1", Role: api.RoleMember, Watching: []string{a.sessions[0].ID}, Controls: []string{a.sessions[0].ID}},
+			}
+		}},
+		auditPage{name: "team-takeover-ask", open: func(a *App) {
+			auditTeamData(a)
+			a.page = ""
+			a.selectSession(a.sessions[0])
+			a.presenceOf().asks = []proto.TakeoverAsk{{Session: a.sessions[0].ID, Name: "a shell", Visitor: proto.Visitor{Account: "rina", Name: "Rina", Team: "t1", Role: api.RoleMember}}}
+		}},
 		auditPage{name: "team-dialog-projects", open: dialog(tabProjects)},
 		auditPage{name: "team-dialog-hosts", open: dialog(tabHosts)},
 		auditPage{name: "team-dialog-kit", open: dialog(tabKit)},
 		auditPage{name: "team-dialog-activity", open: dialog(tabActivity)},
 		auditPage{name: "team-dialog-options", open: dialog(tabOptions)},
 	)
+}
+
+// auditVisit shows a member's shared host as a visitor sees it.
+func auditVisit(fn func(v *teamVisit)) func(a *App) {
+	return func(a *App) {
+		auditTeamData(a)
+		v := &teamVisit{host: a.teamHostList.hosts[0], me: proto.Visitor{Account: "me", Name: "enowdev", Role: api.RoleMember}, read: time.Now().Add(time.Hour),
+			projects: []proto.ProjectInfo{{Path: "/p/enowx", Name: "enowx"}, {Path: "/p/enowx-web", Name: "enowx-web"}},
+			sessions: []proto.SessionInfo{
+				{ID: "s1", Name: "A session of a member with a name too long for its row of the card it shows in", Agent: "claude", Project: "/p/enowx", Dir: "/p/enowx", Branch: "fix/footer-and-a-branch-whose-name-goes-on", State: proto.StateWorking},
+				{ID: "s2", Name: "Ended one", Agent: "codex", Project: "/p/enowx", Dir: "/p/enowx", Exited: true},
+			}}
+		fn(v)
+		a.visit, a.page = v, pageTeamHost
+	}
 }
 
 // auditOpenTeam2 opens Settings' dialog of the first team, on tab, with the
@@ -127,7 +233,9 @@ func TestLayoutAuditTeam(t *testing.T) {
 	h := newNotesHarness(t)
 	seedAudit(t, h)
 	auditPagesOn(t, h, teamAuditPages(), func() {
-		h.app.spaceList, h.app.teamChats, h.app.teamProjectList, h.app.teamHostList, h.app.teamKitList, h.app.here = nil, nil, nil, nil, nil, nil
+		a := h.app
+		a.spaceList, a.teamChats, a.teamProjectList, a.teamHostList, a.teamKitList, a.here, a.presence, a.chatToasts = nil, nil, nil, nil, nil, nil, nil, nil
+		a.visit = nil
 	})
 }
 

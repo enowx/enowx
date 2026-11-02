@@ -108,7 +108,7 @@ func TestTeamChatInTheSidePanel(t *testing.T) {
 	}
 	tt.Frame()
 	tt.Type("road")
-	settle("the mention menu", func() bool { return tt.HasText("Roadmap") && tt.HasText("MENTION") })
+	settle("the mention menu", func() bool { return tt.HasText("Roadmap") && tt.HasText("Mention") })
 	shot(t, tt, "team-chat-mention.png")
 	tt.Key(0, ui.KeyEnter)
 	settle("the note mentioned", func() bool { return app.chatsOf().draft == "@Roadmap " })

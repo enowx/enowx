@@ -317,7 +317,7 @@ func (a *App) mentionMenu(c *ui.Context, box ui.Element, start, stop int, query 
 				ui.Text(c, msg).FontSize(theme.TextLabel).TextColor(theme.Muted).Padding(8, 10)
 				return
 			}
-			widget.PopupLabel(c, "MENTION")
+			widget.PopupLabel(c, "Mention")
 			for i, o := range options {
 				row := ui.ButtonBase(c.Key(o.m.Kind + ":" + o.m.ID)).Label(o.m.Title).Cursor(ui.CursorPointer)
 				widget.PopupItem(row, i == hc.pick || row.Hovered()).Children(func() {

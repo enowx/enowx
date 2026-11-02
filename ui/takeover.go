@@ -123,10 +123,7 @@ func (a *App) sessionPresence(c *ui.Context, s proto.SessionInfo) {
 		if controls {
 			label = visitorName(v) + " has control"
 		}
-		ui.Row(c.Key("watch:"+v.Account)).Gap(5).Height(22).Padding(0, 8, 0, 6).Radius(theme.RadiusSmall).Background(theme.Fade(widget.TeamColor(v.Team), 0.16)).AlignItems(ui.Center).Children(func() {
-			ui.Icon(c, icon.Eye).FontSize(11).TextColor(theme.TextSoft)
-			ui.Text(c, label).FontSize(theme.TextLabel).TextColor(theme.TextSoft).SingleLine()
-		})
+		ui.Row(c.Key("watch:" + v.Account)).Shrink(0).Children(func() { widget.Chip(c, label, ui.Color{}) })
 		if controls && widget.GhostButton(c, "Take back").Clicked() {
 			cl, account := a.client, v.Account
 			go func() { _ = cl.EndTakeover(s.ID, account) }()
@@ -219,33 +216,27 @@ func (a *App) visitEvent(v *teamVisit, ev proto.Event) {
 // watchView is the session a visitor watches, its controls above it.
 func (a *App) watchView(c *ui.Context, v *teamVisit) {
 	w := v.watch
-	ui.Row(c).FillWidth().Gap(8).AlignItems(ui.Center).Padding(8, 14).BorderWidth(0, 0, 1, 0).BorderColor(theme.Border).Children(func() {
-		ui.Icon(c, icon.Eye).FontSize(13).TextColor(theme.TextSoft)
-		name := w.session
-		for _, s := range v.sessions {
-			if s.ID == w.session {
-				name = nonEmptyName(s)
-			}
+	name := w.session
+	own := false
+	for _, s := range v.sessions {
+		if s.ID == w.session {
+			name = nonEmptyName(s)
+			own = s.Member != nil && s.Member.Account == v.me.Account
 		}
-		ui.Text(c, name).FontSize(theme.TextUI).Grow(1).Shrink(1).MinWidth(0).SingleLine()
-		own := false
-		for _, s := range v.sessions {
-			if s.ID == w.session && s.Member != nil && s.Member.Account == v.me.Account {
-				own = true
-			}
-		}
+	}
+	widget.ViewerBar(c, icon.Eye, name, func() {
 		switch {
 		case own:
-			widget.Tag(c, "your session", theme.Done)
+			widget.Chip(c, "your session", theme.Done)
 		case w.controls:
-			widget.Tag(c, "you have control", theme.Done)
+			widget.Chip(c, "you have control", theme.Done)
 			if widget.GhostButton(c, "Give back").Clicked() {
 				w.controls = false
 				cl, id := v.cl, w.session
 				go func() { _ = cl.EndTakeover(id, "") }()
 			}
 		case w.asked:
-			widget.Tag(c, "asked "+v.host.Owner, theme.TextSoft)
+			widget.Chip(c, "asked "+v.host.Owner, ui.Color{})
 		case v.me.Role != "viewer":
 			if widget.Button(c, widget.Secondary, nil, "Ask to take over", "").Clicked() {
 				w.asked = true
@@ -257,18 +248,20 @@ func (a *App) watchView(c *ui.Context, v *teamVisit) {
 				}()
 			}
 		default:
-			widget.Tag(c, "watching", theme.TextSoft)
+			widget.Chip(c, "watching", ui.Color{})
 		}
 		if widget.IconButton(c, icon.Close, "Stop watching", false).Clicked() {
 			a.stopWatching(v)
 		}
 	})
 	if w.err != "" {
-		widget.Notice(c, icon.Alert, theme.Error, strings.TrimSpace(w.err), "", nil)
+		ui.Column(c.Key("err")).FillWidth().Shrink(0).Padding(theme.S2, theme.S4).Children(func() {
+			widget.Notice(c, icon.Alert, theme.Error, strings.TrimSpace(w.err), "", nil)
+		})
 	}
 	if w.term == nil {
 		ui.Column(c).Grow(1).FillWidth().Center().Children(func() {
-			ui.Text(c, "Connecting…").TextColor(theme.Muted)
+			ui.Text(c, "Connecting…").FontSize(theme.TextUI).TextColor(theme.TextSoft)
 		})
 		return
 	}
