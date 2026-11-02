@@ -219,6 +219,7 @@ func statusLetter(status string) (string, ui.Color) {
 
 // The code's colors, on its own dark ground in every palette.
 var (
+	diffGround  = ui.RGBA(10, 11, 18, 0.94)
 	diffText    = ui.Hex("#E4E6EE")
 	diffNumber  = ui.Hex("#6E7386")
 	diffAdd     = ui.RGBA(46, 160, 67, 0.2)

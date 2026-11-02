@@ -164,7 +164,7 @@ func (v *View) inspector(c *ui.Context, o Options, f proto.CanvasFrame) {
 	}
 	insp := v.htmlInspector(v.sel, src)
 	widget.Running(c.Key("html-id"), "#"+v.sel, widget.RunStyle{Weight: 500})
-	ui.Column(c.Key("html-code")).FillWidth().Height(160).Shrink(0).Radius(theme.RadiusCard).Clip().Background(theme.CodeGround).Children(func() {
+	ui.Column(c.Key("html-code")).FillWidth().Height(160).Shrink(0).Radius(theme.RadiusCard).Clip().Background(widget.CodeGround).Children(func() {
 		ui.TextArea(c.Key("html:"+v.sel), &insp.text).FillWidth().FillHeight().Font(theme.MonoFont).FontSize(theme.TextLabel).TextColor(widget.CodeText).
 			Padding(theme.S2, theme.S3).Label("HTML of " + v.sel)
 	})

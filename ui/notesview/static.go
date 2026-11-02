@@ -18,7 +18,7 @@ import (
 // click on them opens them as text.
 
 func codeView(c *ui.Context, lang, code string) {
-	ui.Column(c).FillWidth().MinWidth(0).Gap(theme.S1).Padding(theme.S3, theme.S4).Radius(theme.RadiusCard).Background(theme.CodeGround).
+	ui.Column(c).FillWidth().MinWidth(0).Gap(theme.S1).Padding(theme.S3, theme.S4).Radius(theme.RadiusCard).Background(widget.CodeGround).
 		InsetShadow(0, 0, 0, 0.5, theme.Border).Children(func() {
 		if lang != "" {
 			ui.Text(c, lang).FontSize(theme.TextLabel).TextColor(widget.CodeText).Opacity(0.6)

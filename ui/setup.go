@@ -302,7 +302,7 @@ func (a *App) setupStep(c *ui.Context, p *setupPage, g setupGroup, s setup.Step)
 		})
 		if p.commands[g.title] && p.picked[s.ID] {
 			ui.Text(c, s.Script).Font(theme.MonoFont).FontSize(theme.TextLabel).TextColor(widget.CodeText).Padding(theme.S2, theme.S3).
-				Radius(theme.RadiusSmall).Background(theme.CodeGround).FillWidth().MinWidth(0)
+				Radius(theme.RadiusSmall).Background(widget.CodeGround).FillWidth().MinWidth(0)
 		}
 	})
 }
@@ -333,7 +333,7 @@ func (a *App) setupSide(c *ui.Context, p *setupPage) {
 				a.scanSetup()
 			}
 		})
-		ui.Column(c.Key("ground")).Grow(1).FillWidth().MinHeight(0).Radius(theme.RadiusCard).Clip().Background(theme.CodeGround).Children(func() {
+		ui.Column(c.Key("ground")).Grow(1).FillWidth().MinHeight(0).Radius(theme.RadiusCard).Clip().Background(widget.CodeGround).Children(func() {
 			if pane := a.panes[p.session]; p.session != "" && pane != nil {
 				terminal.View(c.Key("term"), pane.term).Grow(1).FillWidth().Background(theme.Background).Padding(theme.S2, theme.S3)
 				return

@@ -669,7 +669,7 @@ func (a *App) diagnosticsSection(c *ui.Context) {
 
 // logFill is a log on the code ground, filling the height it has.
 func logFill(c *ui.Context, text string) {
-	ui.Scroll(c.Key("log-text")).Grow(1).FillWidth().MinHeight(0).Radius(theme.RadiusCard).Background(theme.CodeGround).Children(func() {
+	ui.Scroll(c.Key("log-text")).Grow(1).FillWidth().MinHeight(0).Radius(theme.RadiusCard).Background(widget.CodeGround).Children(func() {
 		ui.Column(c).FillWidth().Padding(theme.S3, theme.S4).Children(func() {
 			ui.Text(c, text).Font(theme.MonoFont).FontSize(theme.TextUI).TextColor(widget.CodeText).FillWidth().MinWidth(0)
 		})

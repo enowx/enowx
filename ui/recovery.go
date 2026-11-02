@@ -80,7 +80,7 @@ func (a *App) recoverySheets(c *ui.Context, cs *cloudSettings) {
 		widget.Sheet(c, &open, 480, func() {
 			widget.SheetHead(c, &open, "Your recovery key", "Shown this once. Keep it away from your devices: whoever has it, and signs in as you, gets your teams' keys.")
 		}, func() {
-			ui.Column(c).FillWidth().MinWidth(0).Padding(theme.S3, theme.S4).Radius(theme.RadiusCard).Background(theme.CodeGround).Children(func() {
+			ui.Column(c).FillWidth().MinWidth(0).Padding(theme.S3, theme.S4).Radius(theme.RadiusCard).Background(widget.CodeGround).Children(func() {
 				ui.Text(c, rs.shown).Font(theme.MonoFont).FontSize(theme.TextUI).TextColor(widget.CodeText).FillWidth().MinWidth(0).Selectable()
 			})
 		}, func() {

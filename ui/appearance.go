@@ -148,7 +148,7 @@ func parseAccent(s string) (string, bool) {
 	return "#" + strings.ToUpper(s), true
 }
 
-// paletteCard is a palette's surface and accent, and its name; it reports whether
+// paletteCard is a palette's ground and accent, and its name; it reports whether
 // it was clicked.
 func (a *App) paletteCard(c *ui.Context, p theme.Palette) bool {
 	on := theme.Lookup(a.state.Theme, ui.Color{}).ID == p.ID
@@ -164,7 +164,7 @@ func (a *App) paletteCard(c *ui.Context, p theme.Palette) bool {
 	card.Children(func() {
 		ui.Column(c).FillWidth().MinWidth(0).Gap(theme.S2).Children(func() {
 			ui.Row(c).FillWidth().Height(56).Radius(theme.S3).Clip().Children(func() {
-				ui.Box(c).Grow(2).Basis(0).FillHeight().Background(p.Panel)
+				ui.Box(c).Grow(2).Basis(0).FillHeight().Background(p.Background)
 				ui.Box(c).Grow(1).Basis(0).FillHeight().Background(p.Accent)
 			})
 			widget.Running(c, p.Name, widget.RunStyle{Size: theme.TextLabel})

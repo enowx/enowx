@@ -15,10 +15,9 @@ import (
 // The color tokens. Status colors differ in lightness as well as hue.
 var (
 	Background   ui.Color // window, terminals
-	Ground       ui.Color // what the panels lie on
-	Panel        ui.Color // flat tint: the session list, the bars' pieces, the tools
-	Frame        ui.Color // the frame the user works in
-	CodeGround   ui.Color // code, logs and output, dark in every appearance
+	Ground       ui.Color // the wallpaper the glass sits on
+	Panel        ui.Color // glass: the session list, the bars' capsules, the tools
+	Frame        ui.Color // the one bright frame the user works in
 	Raised       ui.Color // cards on a frame
 	Sunken       ui.Color // wells: inputs, tracks, segmented controls
 	Hover        ui.Color
@@ -32,7 +31,7 @@ var (
 	TextSoft     ui.Color
 	Muted        ui.Color
 	Accent       ui.Color
-	AccentHigh   ui.Color // the accent under the pointer
+	AccentHigh   ui.Color // the light end of the accent's gradient
 	AccentSoft   ui.Color // accent tint behind selected options
 	AccentLine   ui.Color // accent outline of the selected item
 	OnAccent     ui.Color
@@ -107,10 +106,6 @@ func Apply(p Palette) {
 		AccentHigh = Mix(p.Accent, ui.Hex("#000000"), 0.08)
 		AccentLine = Fade(p.Accent, 0.75)
 	}
-	CodeGround = p.Background
-	if p.Light {
-		CodeGround = Lookup(p.ID, ui.Color{}).Background
-	}
 	Add, Del, Now = p.Add, p.Del, p.Now
 	Working, Done, Warning, Error, Idle = p.Working, p.Done, p.Warning, p.Error, p.Idle
 }
@@ -158,7 +153,7 @@ func Fade(c ui.Color, a float64) ui.Color {
 	return c
 }
 
-// Solid is translucent c as it reads on the ground, opaque: for
+// Solid is translucent c as it reads on the wallpaper's ground, opaque: for
 // what has no ground under it.
 func Solid(c ui.Color) ui.Color {
 	at := func(v, g uint8) uint8 {

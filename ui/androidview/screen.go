@@ -197,7 +197,7 @@ func (v *View) DrawScreen(c *ui.Context, o Options, wanted func() bool) {
 		}
 		widget.ViewerBar(c, icon.Android, title, func() { v.screenKeys(c, o) })
 		v.noticeBanner(c)
-		ui.Column(c).Grow(1).FillWidth().MinHeight(0).Background(theme.CodeGround).Children(func() {
+		ui.Column(c).Grow(1).FillWidth().MinHeight(0).Background(widget.CodeGround).Children(func() {
 			switch {
 			case ok && v.screen != nil && v.screen.key == d.key():
 				v.screenView(c, o, d)
