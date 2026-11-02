@@ -73,7 +73,7 @@ func (v *View) fileBar(c *ui.Context, o Options, path string) {
 func (v *View) lines(c *ui.Context) {
 	rows, list := v.rows, &v.fileList
 	list.Key = func(i int) any { return rows[i] }
-	ui.List(c.Key(v.file), list, len(rows), func(i int) {
+	widget.List(c.Key(v.file), list, len(rows), func(i int) {
 		r := rows[i]
 		switch r.kind {
 		case rowHunk:

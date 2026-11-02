@@ -153,7 +153,7 @@ func (v *View) fileRows(c *ui.Context, o Options) {
 	if o.Current != nil {
 		current = o.Current()
 	}
-	ui.Scroll(c).Grow(1).FillWidth().MinHeight(0).Children(func() {
+	widget.Scroll(c).Grow(1).FillWidth().MinHeight(0).Children(func() {
 		ui.Column(c).FillWidth().Gap(2).Children(func() {
 			for _, f := range v.diff.Files {
 				v.fileItem(c.Key(f.Path), o, f, f.Path == current)

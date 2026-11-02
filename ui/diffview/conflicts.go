@@ -35,7 +35,7 @@ func (v *View) conflictBanner(c *ui.Context, o Options) {
 			title := fmt.Sprintf("%d %s also changed in another session", len(o.Conflicts), textfmt.Plural(len(o.Conflicts), "file", "files"))
 			ui.Row(c).Grow(1).MinWidth(0).Children(func() { widget.Running(c, title, widget.RunStyle{Size: theme.TextLabel}) })
 		})
-		ui.Scroll(c).FillWidth().Shrink(1).MinHeight(0).Children(func() {
+		widget.Scroll(c).FillWidth().Shrink(1).MinHeight(0).Children(func() {
 			ui.Column(c).FillWidth().Children(func() {
 				for i, n := range o.Conflicts {
 					v.conflictRow(c.Key(i), o, n)
