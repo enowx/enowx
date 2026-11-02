@@ -255,7 +255,7 @@ func (a *App) canvasOptions() canvasview.Options {
 				a.status = err.Error()
 				return
 			}
-			a.status = "Saved to " + path
+			a.notify("Saved to " + path)
 		},
 		Projects: a.canvasProjects(),
 		MakeCode: a.makeCode,

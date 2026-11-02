@@ -101,7 +101,7 @@ func (a *App) saveGOARules(f *goaRulesForm, clear bool) {
 				return
 			}
 			f.open = false
-			a.status = "Saved: GOD of Agents follows them from its next prompt"
+			a.notify("Saved: GOD of Agents follows them from its next prompt")
 		})
 	}()
 }

@@ -134,7 +134,7 @@ func (a *App) deleteServer(h hosts.Host) {
 			if a.host.ID == h.ID {
 				a.connect(LocalHost())
 			}
-			a.status = h.Name + " was deleted."
+			a.notify(h.Name + " was deleted.")
 		})
 	}()
 }

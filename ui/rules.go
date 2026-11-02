@@ -155,7 +155,7 @@ func (a *App) saveRules(f *rulesForm, clear bool) {
 				return
 			}
 			f.open = false
-			a.status = "Saved: new sessions in " + f.project.Name + " read them"
+			a.notify("Saved: new sessions in " + f.project.Name + " read them")
 		})
 	}()
 }
