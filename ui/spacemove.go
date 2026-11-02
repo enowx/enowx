@@ -95,7 +95,7 @@ func (a *App) spaceMoveDialog(c *ui.Context) {
 	}
 	widget.FormSheet(c, &f.open, 500, "Move or copy “"+f.title+"”", "To your own space or a team's: a team sees it, and keeps it when you leave.", func() {
 		widget.Field(c, "To", func() {
-			ui.Column(c).FillWidth().Gap(4).Children(func() {
+			ui.Column(c.Key("spaces")).FillWidth().Shrink(0).Gap(theme.S1).Children(func() {
 				for _, sp := range a.spacesToMove(f.from) {
 					a.spaceMoveChoice(c, f, sp)
 				}
@@ -123,7 +123,7 @@ func (a *App) spaceMoveDialog(c *ui.Context) {
 				})
 			})
 		}
-		ui.Text(c, a.spaceMoveSays(f, what)).FontSize(theme.TextLabel).TextColor(theme.TextSoft)
+		widget.CardNote(c.Key("says"), a.spaceMoveSays(f, what), 0)
 		if f.err != "" {
 			widget.Notice(c, icon.Alert, theme.Error, f.err, "", nil)
 		}
@@ -146,36 +146,23 @@ func (a *App) spaceMoveDialog(c *ui.Context) {
 }
 
 func (a *App) spaceMoveChoice(c *ui.Context, f *spaceMoveForm, sp proto.Space) {
-	on := f.to == sp.Team
-	row := ui.ButtonBase(c.Key("to:"+sp.Team)).FillWidth().Padding(8, 10).Gap(10).AlignItems(ui.Center).Justify(ui.Start).
-		Radius(theme.RadiusControl).Border(1, theme.Border).Cursor(ui.CursorPointer).Label("To " + sp.Name)
-	if on {
-		row.Background(theme.AccentSoft).Border(1, theme.AccentLine)
-	} else if row.Hovered() {
-		row.Background(theme.Hover)
+	sub := "Only you, on your devices"
+	if sp.Team != spacePersonal {
+		sub = "Team"
+		if t, ok := f.teams[sp.Team]; ok && len(t.Members) > 0 {
+			sub = fmt.Sprintf("Team · %d members", len(t.Members))
+		}
 	}
-	row.Children(func() {
+	row := widget.PickFace(c, "to:"+sp.Team, "To "+sp.Name, f.to == sp.Team, func() {
 		if sp.Team == spacePersonal {
-			ui.Box(c).Size(22, 22).Radius(theme.RadiusSmall).Background(theme.Hover).Center().Children(func() {
-				ui.Icon(c, icon.Account).FontSize(13).TextColor(theme.TextSoft)
-			})
+			ui.Icon(c, icon.Account).FontSize(16).Shrink(0)
 		} else {
 			widget.TeamMark(c, sp.Team, sp.Name, 22)
 		}
-		ui.Column(c).Grow(1).Shrink(1).MinWidth(0).Children(func() {
-			ui.Text(c, sp.Name).FontSize(theme.TextUI).SingleLine()
-			sub := "Only you, on your devices"
-			if sp.Team != spacePersonal {
-				sub = "Team"
-				if t, ok := f.teams[sp.Team]; ok && len(t.Members) > 0 {
-					sub = fmt.Sprintf("Team · %d members", len(t.Members))
-				}
-			}
-			ui.Text(c, sub).FontSize(theme.TextLabel).TextColor(theme.Muted).SingleLine()
+		ui.Column(c).Grow(1).Basis(0).MinWidth(0).Children(func() {
+			widget.Running(c, sp.Name, widget.RunStyle{Weight: 500})
+			widget.Running(c.Key("sub"), sub, widget.RunStyle{Size: theme.TextLabel, Color: theme.TextSoft})
 		})
-		if on {
-			ui.Icon(c, icon.Check).FontSize(13).TextColor(theme.Accent)
-		}
 	})
 	if row.Clicked() {
 		f.to = sp.Team

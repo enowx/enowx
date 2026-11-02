@@ -103,20 +103,16 @@ func (a *App) linksDialog(c *ui.Context) {
 		return
 	}
 	widget.Sheet(c, &f.open, 640, func() {
-		ui.Column(c).Grow(1).MinWidth(0).Gap(4).Children(func() {
-			ui.Text(c, "Sync & push “"+f.project.Name+"”").FontSize(theme.TextRead).TextColor(theme.TextStrong)
-			ui.Text(c, a.originLine(f)).FontSize(theme.TextLabel).TextColor(theme.Muted)
-		})
-		if widget.IconButton(c, icon.Close, "Close", false).Clicked() {
-			f.open = false
-		}
+		widget.SheetHead(c, &f.open, "Sync & push “"+f.project.Name+"”", a.originLine(f))
 	}, func() {
 		if f.err != "" {
 			widget.Notice(c, icon.Alert, theme.Error, f.err, "", nil)
 		}
-		if i := widget.Segmented(c, []string{"Copies", "Autopush", "History"}, f.tab, nil); i >= 0 {
-			f.tab = i
-		}
+		ui.Row(c.Key("tabs")).FillWidth().Shrink(0).Children(func() {
+			if i := widget.Segmented(c, []string{"Copies", "Autopush", "History"}, f.tab, nil); i >= 0 {
+				f.tab = i
+			}
+		})
 		switch f.tab {
 		case linksTabCopies:
 			a.linksCopies(c, f)
@@ -131,7 +127,7 @@ func (a *App) linksDialog(c *ui.Context) {
 			f.open = false
 			a.openCopy(f.project)
 		}
-		if widget.PrimaryButton(c, icon.Check, "Done", "").Clicked() {
+		if widget.PrimaryButton(c, nil, "Done", "").Clicked() {
 			f.open = false
 		}
 	})
@@ -180,17 +176,15 @@ func (a *App) linksCopies(c *ui.Context, f *linksForm) {
 func (a *App) linkCard(c *ui.Context, f *linksForm, l proto.ProjectLinkState) {
 	_, srcOn := a.reach(l.Source.Daemon)
 	_, dstOn := a.reach(l.Target.Daemon)
-	widget.Card(c).FillWidth().Gap(10).Children(func() {
-		ui.Row(c).FillWidth().Gap(10).AlignItems(ui.Center).Children(func() {
-			ui.Icon(c, icon.Server).FontSize(15).TextColor(theme.Muted)
-			ui.Column(c).Grow(1).MinWidth(0).Gap(3).Children(func() {
-				ui.Row(c).Gap(6).AlignItems(ui.Center).Children(func() {
-					endLabel(c, l.Source, srcOn)
-					ui.Icon(c, directionIcon(l.Direction)).FontSize(12).TextColor(theme.Muted)
-					endLabel(c, l.Target, dstOn)
+	widget.Card(c).FillWidth().Shrink(0).Gap(theme.S2).Children(func() {
+		ui.Row(c.Key("head")).FillWidth().Shrink(0).Gap(theme.S2).Children(func() {
+			ui.Column(c).Grow(1).Basis(0).MinWidth(0).Children(func() {
+				ui.Row(c.Key("ends")).FillWidth().Gap(theme.S1).Children(func() {
+					endLabel(c.Key("src"), l.Source, srcOn)
+					ui.Icon(c, directionIcon(l.Direction)).FontSize(12).TextColor(theme.TextSoft)
+					endLabel(c.Key("dst"), l.Target, dstOn)
 				})
-				ui.Text(c, textfmt.ShortHome(l.Source.Path)+"  →  "+textfmt.ShortHome(l.Target.Path)).
-					FontSize(11).TextColor(theme.Muted).SingleLine()
+				widget.Running(c.Key("paths"), textfmt.ShortHome(l.Source.Path)+"  →  "+textfmt.ShortHome(l.Target.Path), widget.RunStyle{Size: theme.TextLabel, Color: theme.TextSoft})
 			})
 			auto := l.Auto
 			if widget.Switch(c, &auto, "Sync on its own") {
@@ -199,10 +193,10 @@ func (a *App) linkCard(c *ui.Context, f *linksForm, l proto.ProjectLinkState) {
 				a.saveLink(f, d)
 			}
 		})
-		ui.Text(c, a.linkStatus(l, srcOn && dstOn)).FontSize(theme.TextLabel).TextColor(statusColor(l))
-		ui.Row(c).FillWidth().Gap(8).Children(func() {
+		widget.CardNote(c.Key("status"), a.linkStatus(l, srcOn && dstOn), 0).TextColor(statusColor(l))
+		ui.Row(c.Key("acts")).FillWidth().Shrink(0).Gap(theme.S2).Children(func() {
 			doing := a.links.running[l.ID]
-			b := widget.Button(c, widget.Secondary, icon.Sync, "Sync now", "").Disabled(!srcOn || !dstOn || doing != "")
+			b := widget.Button(c, widget.Secondary, nil, "Sync now", "").Disabled(!srcOn || !dstOn || doing != "")
 			if b.Clicked() && srcOn && dstOn && doing == "" {
 				a.syncLinkNow(l.ID, func(_ proto.ProjectLinkState, err error) {
 					if err != nil {
@@ -240,10 +234,10 @@ func (a *App) linkCard(c *ui.Context, f *linksForm, l proto.ProjectLinkState) {
 			})
 		})
 		if f.editing == l.ID {
-			a.linkSettings(c, f)
+			a.linkSettings(c.Key("settings"), f)
 		}
 		if len(l.Status.Conflicts) > 0 {
-			a.linkConflicts(c, f, l)
+			a.linkConflicts(c.Key("conflicts"), f, l)
 		}
 	})
 }
@@ -253,8 +247,8 @@ func endLabel(c *ui.Context, e proto.ProjectEnd, online bool) {
 	if !online {
 		col = theme.Idle
 	}
-	widget.Dot(c, col, !online, 6)
-	ui.Text(c, e.Host).FontSize(theme.TextUI).FontWeight(600).SingleLine().TextColor(theme.Text)
+	widget.Dot(c, col, !online, 8)
+	ui.Text(c, e.Host).FontSize(theme.TextUI).FontWeight(500).SingleLine().Shrink(1)
 }
 
 func directionIcon(dir string) *ui.SVG {
@@ -372,7 +366,7 @@ func (a *App) linksHistory(c *ui.Context, f *linksForm) {
 	}
 	now := time.Now()
 	for i, e := range f.history {
-		ui.Row(c.Key(i)).FillWidth().Gap(10).AlignItems(ui.Start).Children(func() {
+		ui.Row(c.Key(i)).FillWidth().Shrink(0).MinHeight(36).Gap(theme.S2).BorderWidth(0.5, 0, 0, 0).BorderColor(theme.Border).Children(func() {
 			svg, col := icon.Sync, theme.Done
 			if e.Kind == "push" {
 				svg = icon.ArrowRight
@@ -380,15 +374,14 @@ func (a *App) linksHistory(c *ui.Context, f *linksForm) {
 			if !e.OK {
 				col = theme.Error
 			}
-			ui.Icon(c, svg).FontSize(13).TextColor(col)
-			ui.Column(c).Grow(1).MinWidth(0).Gap(2).Children(func() {
-				label := map[string]string{"sync": "Sync", "push": "Push"}[e.Kind] + " · " + e.Summary
-				ui.Text(c, label).FontSize(theme.TextLabel).SingleLine().TextColor(theme.Text)
+			ui.Icon(c, svg).FontSize(14).TextColor(col)
+			ui.Column(c).Grow(1).Basis(0).MinWidth(0).Children(func() {
+				widget.Running(c, map[string]string{"sync": "Sync", "push": "Push"}[e.Kind]+" · "+e.Summary, widget.RunStyle{Size: theme.TextLabel})
 				if e.Err != "" {
-					ui.Text(c, e.Err).FontSize(theme.TextLabel).TextColor(theme.Error)
+					widget.CardNote(c.Key("err"), e.Err, 0).TextColor(theme.Error)
 				}
 			})
-			ui.Text(c, textfmt.Age(e.Time, now)).FontSize(theme.TextLabel).TextColor(theme.Muted).SingleLine()
+			ui.Text(c, textfmt.Age(e.Time, now)).FontSize(theme.TextLabel).TextColor(theme.TextSoft).SingleLine()
 		})
 	}
 }

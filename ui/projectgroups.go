@@ -282,7 +282,7 @@ func (a *App) groupDialog(c *ui.Context) {
 			}
 		}
 		if len(groups) > 0 {
-			ui.Row(c).FillWidth().Gap(6).Wrap().Children(func() {
+			ui.Row(c.Key("groups")).FillWidth().Gap(theme.S1).Wrap().Children(func() {
 				for _, g := range groups {
 					if widget.GhostButton(c.Key(g), g).Label("Group “" + g + "”").Clicked() {
 						f.name = g
@@ -291,9 +291,9 @@ func (a *App) groupDialog(c *ui.Context) {
 			})
 		}
 	}, func() {
-		b := widget.PrimaryButton(c, icon.Check, verb, "")
+		b := widget.PrimaryButton(c, nil, verb, "")
 		if strings.TrimSpace(f.name) == "" {
-			b.Disabled(true).Opacity(0.45)
+			b.Disabled(true)
 		} else if b.Clicked() {
 			save = true
 		}

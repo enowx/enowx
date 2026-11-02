@@ -87,7 +87,10 @@ func TestSyncWithAnotherHost(t *testing.T) {
 	app.projectSyncing = f
 	tt := ui.NewTester(func(c *ui.Context) {
 		ui.Column(c).Width(600).Height(640).Padding(20).Gap(14).Background(theme.Dialog).TextColor(theme.Text).Children(func() {
-			app.projectSyncView(c, f, (f.step == syncComparing || f.step == syncRunning) && f.err == "")
+			app.projectSyncBody(c, f)
+			ui.Row(c.Key("foot")).FillWidth().Children(func() {
+				app.projectSyncFooter(c, f, (f.step == syncComparing || f.step == syncRunning) && f.err == "")
+			})
 		})
 	}, 600, 640)
 	drain := func(until func() bool, what string) {

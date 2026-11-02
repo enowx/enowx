@@ -137,13 +137,13 @@ func (a *App) cloneDialog(c *ui.Context) {
 				}
 				if u := strings.TrimSpace(f.url); u != "" {
 					if err := gitclone.Valid(u); err != nil {
-						ui.Text(c, err.Error()).FontSize(theme.TextLabel).TextColor(theme.Warning)
+						widget.CardNote(c.Key("invalid"), err.Error(), 0).TextColor(theme.Warning)
 					}
 				} else if len(f.recent) > 0 && !running {
-					ui.Row(c).FillWidth().Gap(6).Wrap().Children(func() {
-						ui.Text(c, "Lately:").FontSize(theme.TextLabel).TextColor(theme.Muted)
+					ui.Row(c.Key("lately")).FillWidth().Gap(theme.S1).Wrap().Children(func() {
+						ui.Text(c, "Lately").FontSize(theme.TextLabel).TextColor(theme.TextSoft).Height(theme.ControlHeight)
 						for i, u := range f.recent[:min(5, len(f.recent))] {
-							if widget.GhostButton(c.Key(i), gitclone.Name(u)).Height(24).Tooltip(u).Clicked() {
+							if widget.GhostButton(c.Key(i), gitclone.Name(u)).Tooltip(u).Clicked() {
 								f.url = u
 							}
 						}
@@ -151,61 +151,61 @@ func (a *App) cloneDialog(c *ui.Context) {
 				}
 			})
 			widget.Field(c, "Into", func() {
-				ui.Row(c).FillWidth().Gap(6).Children(func() {
+				ui.Row(c).FillWidth().Gap(theme.S2).Children(func() {
 					before := f.dir
-					widget.Input(c, &f.dir, "~/code").Grow(1).Font(theme.MonoFont)
+					ui.Column(c).Grow(1).Basis(0).MinWidth(0).Children(func() { widget.Input(c, &f.dir, "~/code").FillWidth() })
 					if f.dir != before {
 						f.dirTyped = true
 					}
-					if widget.Button(c, widget.Secondary, icon.Folder, "Choose…", "").Clicked() && a.client != nil {
+					if widget.Button(c, widget.Secondary, nil, "Choose…", "").Clicked() && a.client != nil {
 						f.picker.Open(a.client, a.onMain)
 					}
 				})
 			})
 			widget.Field(c, "Folder name", func() {
 				before := f.name
-				widget.Input(c, &f.name, "repo").FillWidth().Font(theme.MonoFont)
+				widget.Input(c, &f.name, "repo").FillWidth()
 				if f.name != before {
 					f.named = true
 				}
 			})
 			target := cloneTarget(f)
-			ui.Text(c, "Clones into "+target).Font(theme.MonoFont).FontSize(theme.TextLabel).TextColor(theme.TextSoft)
+			widget.Running(c.Key("target"), "Clones into "+target, widget.RunStyle{Size: theme.TextLabel, Color: theme.TextSoft})
 			if f.taken != "" && f.taken == target {
-				ui.Text(c, "A folder of that name is there already: the clone needs it empty or gone. Pick another name.").FontSize(theme.TextLabel).TextColor(theme.Warning)
+				widget.CardNote(c.Key("taken"), "A folder of that name is there already: the clone needs it empty or gone. Pick another name.", 0).TextColor(theme.Warning)
 			}
 			widget.Field(c, "Branch or tag (optional)", func() {
-				widget.Input(c, &f.branch, "main").FillWidth().Font(theme.MonoFont)
+				widget.Input(c, &f.branch, "main").FillWidth()
 			})
 			switchRow(c, &f.shallow, "Shallow clone", "Only the latest commit (--depth 1): quicker for big repositories, without their history.")
 			switchRow(c, &f.submodules, "Submodules", "Clone the repositories it includes too.")
 			if j := f.job; j != nil {
-				ui.Column(c).FillWidth().Gap(6).Children(func() {
-					ui.Row(c).FillWidth().Children(func() {
-						ui.Text(c, j.Phase).FontSize(theme.TextLabel).TextColor(theme.Text).Grow(1)
+				ui.Column(c.Key("job")).FillWidth().Shrink(0).Gap(theme.S1).Children(func() {
+					ui.Row(c).FillWidth().Gap(theme.S2).Children(func() {
+						ui.Row(c).Grow(1).Basis(0).MinWidth(0).Children(func() { widget.Running(c, j.Phase, widget.RunStyle{Size: theme.TextLabel}) })
 						if j.Percent > 0 {
-							ui.Text(c, strconv.Itoa(j.Percent)+"%").FontSize(theme.TextLabel).TextColor(theme.Muted)
+							ui.Text(c, strconv.Itoa(j.Percent)+"%").FontSize(theme.TextLabel).TextColor(theme.TextSoft)
 						}
 					})
 					widget.Meter(c, widget.Segment{Fraction: float64(j.Percent) / 100, Color: theme.Accent})
 					if j.Line != "" {
-						ui.Text(c, j.Line).Font(theme.MonoFont).FontSize(theme.TextLabel).TextColor(theme.Muted).SingleLine()
+						widget.Running(c.Key("line"), j.Line, widget.RunStyle{Size: theme.TextLabel, Color: theme.TextSoft, Mono: true})
 					}
 				})
 			}
 			if f.err != "" {
-				ui.Text(c, f.err).FontSize(theme.TextLabel).TextColor(theme.Error)
+				widget.Notice(c, icon.Alert, theme.Error, f.err, "", nil)
 			}
 		}, func() {
 			if f.job != nil {
-				if widget.Button(c, widget.Secondary, icon.Stop, "Stop", "").Clicked() {
+				if widget.Button(c, widget.Secondary, nil, "Stop", "").Clicked() {
 					a.stopClone(f)
 				}
 				return
 			}
-			b := widget.PrimaryButton(c, icon.ArrowDown, "Clone", "")
+			b := widget.PrimaryButton(c, nil, "Clone", "")
 			if gitclone.Valid(f.url) != nil || strings.TrimSpace(f.dir) == "" || strings.TrimSpace(f.name) == "" {
-				b.Disabled(true).Opacity(0.45)
+				b.Disabled(true)
 			} else if b.Clicked() {
 				start = true
 			}

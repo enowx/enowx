@@ -86,49 +86,25 @@ func (a *App) cloneToDialog(c *ui.Context) {
 		a.cloningTo = nil
 		return
 	}
-	widget.Dialog(c, &f.open, 480, 14, func() {
-		if widget.DialogHeader(c, "Clone “"+f.project.Name+"” on another host", "Its repository cloned there from its remote, as a project of that host: the same project for its notes and agents, its files that host's own.", true) {
-			f.open = false
-		}
+	widget.Sheet(c, &f.open, 480, func() {
+		widget.SheetHead(c, &f.open, "Clone “"+f.project.Name+"” on another host", "Its repository cloned there from its remote, as a project of that host: the same project for its notes and agents, its files that host's own.")
+	}, func() {
 		if f.remote != "" {
-			ui.Text(c, f.remote).Font(theme.MonoFont).FontSize(theme.TextLabel).TextColor(theme.TextSoft)
+			widget.Running(c.Key("remote"), f.remote, widget.RunStyle{Size: theme.TextLabel, Color: theme.TextSoft, Mono: true})
 		}
 		widget.Field(c, "On", func() {
-			ui.Column(c).FillWidth().Gap(4).Children(func() {
-				for _, h := range a.allHosts() {
-					if h.ID == a.host.ID {
-						continue
-					}
-					on := h.ID == f.target.ID
-					b := ui.ButtonBase(c.Key(h.ID)).FillWidth().Height(38).PaddingX(12).Gap(10).Radius(theme.RadiusControl).
-						Border(1, theme.Border).Cursor(ui.CursorPointer).Label(h.Name)
-					if on {
-						b.Border(1, theme.AccentLine).Background(theme.Selected)
-					} else if b.Hovered() {
-						b.Background(theme.Hover)
-					}
-					b.Children(func() {
-						ui.Icon(c, hostIcon(h)).FontSize(13).TextColor(theme.TextSoft)
-						ui.Text(c, h.Name).FontSize(theme.TextUI).TextColor(theme.Text)
-						ui.Spacer(c)
-						if on {
-							ui.Icon(c, icon.Check).FontSize(12).TextColor(theme.Accent)
-						}
-					})
-					if b.Clicked() && !f.running {
-						f.target = h
-					}
-				}
-			})
+			if h, ok := a.otherHostPicker(c, f.target); ok && !f.running {
+				f.target = h
+			}
 		})
 		widget.Field(c, "Into the folder", func() {
-			widget.Input(c, &f.dir, "~/code").FillWidth().Font(theme.MonoFont)
+			widget.Input(c, &f.dir, "~/code").FillWidth()
 		})
 		switch {
 		case f.err != "":
-			ui.Text(c, f.err).FontSize(theme.TextLabel).TextColor(theme.Error)
+			widget.Notice(c, icon.Alert, theme.Error, f.err, "", nil)
 		case f.status.State == proto.CloneDone:
-			ui.Text(c, "Cloned on "+f.target.Name+" into "+f.status.Path).FontSize(theme.TextLabel).TextColor(theme.Done)
+			widget.StatusLine(c.Key("done"), theme.Done, false, "Cloned on "+f.target.Name+" into "+f.status.Path)
 		case f.running:
 			line := "Connecting to " + f.target.Name + "…"
 			if f.status.Phase != "" {
@@ -137,19 +113,22 @@ func (a *App) cloneToDialog(c *ui.Context) {
 					line += " " + strconv.Itoa(f.status.Percent) + "%"
 				}
 			}
-			ui.Text(c, line).FontSize(theme.TextLabel).TextColor(theme.Muted)
+			ui.Row(c.Key("running")).FillWidth().Shrink(0).Gap(theme.S2).Children(func() {
+				widget.Spinner(c, 12)
+				ui.Row(c).Grow(1).Basis(0).MinWidth(0).Children(func() { widget.Running(c, line, widget.RunStyle{Size: theme.TextLabel, Color: theme.TextSoft}) })
+			})
 		}
-		widget.DialogFooter(c, "", func() {
-			if widget.GhostButton(c, "Close").Clicked() {
-				f.open = false
-			}
-			b := widget.PrimaryButton(c, icon.Git, "Clone there", "")
-			if f.remote == "" || f.target.ID == "" || f.running || f.status.State == proto.CloneDone {
-				b.Disabled(true).Opacity(0.5)
-			} else if b.Clicked() {
-				a.runCloneTo(f)
-			}
-		})
+	}, func() {
+		ui.Spacer(c)
+		if widget.GhostButton(c, "Close").Clicked() {
+			f.open = false
+		}
+		b := widget.PrimaryButton(c, nil, "Clone there", "")
+		if f.remote == "" || f.target.ID == "" || f.running || f.status.State == proto.CloneDone {
+			b.Disabled(true)
+		} else if b.Clicked() {
+			a.runCloneTo(f)
+		}
 	})
 }
 

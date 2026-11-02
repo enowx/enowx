@@ -93,41 +93,44 @@ func (a *App) copyDialog(c *ui.Context) {
 		return
 	}
 	busy := f.step != "" && f.step != copyDone && f.err == ""
-	widget.Dialog(c, &f.open, 520, 14, func() {
-		widget.DialogHeader(c, "Copy “"+f.project.Name+"” to another host",
-			"Its files (what git keeps, without dependencies such as node_modules) and the sessions picked, each starting again there: Claude Code on its own conversation, a worktree with its work. This host keeps everything.", false)
+	widget.Sheet(c, &f.open, 520, func() {
+		widget.SheetHead(c, &f.open, "Copy “"+f.project.Name+"” to another host",
+			"Its files (what git keeps, without dependencies such as node_modules) and the sessions picked, each starting again there: Claude Code on its own conversation, a worktree with its work. This host keeps everything.")
+	}, func() {
 		if f.step == "" || f.err != "" {
 			a.copyForm(c, f)
 		} else {
 			a.copyProgress(c, f)
 		}
-		widget.DialogFooter(c, "", func() {
-			switch {
-			case f.step == copyDone:
-				if widget.GhostButton(c, "Close").Clicked() {
-					f.open = false
-				}
-				if widget.PrimaryButton(c, icon.ArrowRight, "Open on "+f.target.Name, "").Clicked() {
-					a.openProject = f.result.Project.Path
-					f.open = false
-					a.connect(f.target)
-				}
-			case busy:
-				ui.Row(c).Gap(8).Children(func() {
-					widget.Spinner(c, 14)
-					ui.Text(c, "Copying…").FontSize(theme.TextLabel).TextColor(theme.Muted)
-				})
-			default:
-				if widget.GhostButton(c, "Cancel").Clicked() {
-					f.open = false
-				}
-				ok := f.target.ID != "" && f.dest() != ""
-				b := widget.PrimaryButton(c, icon.Server, "Copy", "").Disabled(!ok)
-				if b.Clicked() && ok {
-					a.startCopy(f)
-				}
+	}, func() {
+		switch {
+		case f.step == copyDone:
+			ui.Spacer(c)
+			if widget.GhostButton(c, "Close").Clicked() {
+				f.open = false
 			}
-		})
+			if widget.PrimaryButton(c, nil, "Open on "+f.target.Name, "").Clicked() {
+				a.openProject = f.result.Project.Path
+				f.open = false
+				a.connect(f.target)
+			}
+		case busy:
+			ui.Row(c.Key("busy")).Gap(theme.S2).Children(func() {
+				widget.Spinner(c, 14)
+				ui.Text(c, "Copying…").FontSize(theme.TextLabel).TextColor(theme.TextSoft)
+			})
+			ui.Spacer(c)
+		default:
+			ui.Spacer(c)
+			if widget.GhostButton(c, "Cancel").Clicked() {
+				f.open = false
+			}
+			ok := f.target.ID != "" && f.dest() != ""
+			b := widget.PrimaryButton(c, nil, "Copy", "").Disabled(!ok)
+			if b.Clicked() && ok {
+				a.startCopy(f)
+			}
+		}
 	})
 	if busy {
 		f.open = true // the copy finishes before the dialog goes
@@ -145,16 +148,14 @@ func (a *App) copyForm(c *ui.Context, f *copyForm) {
 		}
 	})
 	widget.Field(c, "Into the folder", func() {
-		ui.Column(c).FillWidth().Gap(5).Children(func() {
-			widget.Input(c, &f.parent, "~/").FillWidth()
-			if d := f.dest(); d != "" {
-				ui.Text(c, "The folder “"+path.Base(f.project.Path)+"” goes there whole: "+d).FontSize(theme.TextLabel).TextColor(theme.Muted)
-			}
-		})
+		widget.Input(c, &f.parent, "~/").FillWidth()
+		if d := f.dest(); d != "" {
+			widget.CardNote(c.Key("dest"), "The folder “"+path.Base(f.project.Path)+"” goes there whole: "+d, 0)
+		}
 	})
 	if sessions := a.projectSessions(f.project.Path); len(sessions) > 0 {
 		widget.Field(c, "Sessions", func() {
-			ui.Column(c).FillWidth().Gap(4).AlignItems(ui.Start).Children(func() {
+			ui.Column(c.Key("sessions")).FillWidth().Shrink(0).Gap(theme.S1).AlignItems(ui.Start).Children(func() {
 				for _, s := range sessions {
 					on := f.picked[s.ID]
 					label := a.sessionName(s) + " · " + a.agentName(s.Agent)
@@ -168,11 +169,10 @@ func (a *App) copyForm(c *ui.Context, f *copyForm) {
 			})
 		})
 	}
-	ui.Column(c).FillWidth().Gap(4).AlignItems(ui.Start).Children(func() {
+	ui.Column(c.Key("env")).FillWidth().Shrink(0).Gap(theme.S1).AlignItems(ui.Start).Children(func() {
 		widget.Checkbox(c, &f.env, "Include .env files")
 		if f.env {
-			ui.Text(c, "They usually hold secrets (keys, passwords): they will be on "+f.target.Name+" too.").
-				FontSize(11.5).TextColor(theme.Warning)
+			widget.CardNote(c, "They usually hold secrets (keys, passwords): they will be on "+f.target.Name+" too.", 0).TextColor(theme.Warning)
 		}
 	})
 }
@@ -182,24 +182,19 @@ func (a *App) copyForm(c *ui.Context, f *copyForm) {
 func (a *App) otherHostPicker(c *ui.Context, picked hosts.Host) (hosts.Host, bool) {
 	var clicked hosts.Host
 	ok := false
-	ui.Column(c).FillWidth().Gap(6).Children(func() {
+	ui.Column(c.Key("hosts")).FillWidth().Shrink(0).Gap(theme.S1).Children(func() {
+		none := true
 		for _, h := range a.allHosts() {
 			if h.ID == a.host.ID {
 				continue
 			}
-			row := ui.ButtonBase(c.Key(h.ID)).FillWidth().Height(36).PaddingX(10).Gap(10).Radius(theme.RadiusControl).
-				Label(h.Name).Cursor(ui.CursorPointer).Border(1, theme.Border).Justify(ui.Start)
-			if picked.ID == h.ID {
-				row.Border(1, theme.AccentLine).Background(theme.Selected)
-			}
-			row.Children(func() {
-				ui.Icon(c, hostIcon(h)).FontSize(14)
-				ui.Text(c, h.Name).FontSize(theme.TextUI).SingleLine()
-				ui.Text(c, hostDetail(h)).FontSize(theme.TextLabel).TextColor(theme.Muted).SingleLine().Shrink(1)
-			})
-			if row.Clicked() {
+			none = false
+			if widget.Pick(c.Key(h.ID), hostIcon(h), h.Name, hostDetail(h), picked.ID == h.ID, nil).Clicked() {
 				clicked, ok = h, true
 			}
+		}
+		if none {
+			widget.CardNote(c, "No other host yet: add one on the Hosts page.", 0)
 		}
 	})
 	return clicked, ok
@@ -216,14 +211,14 @@ func (a *App) copyProgress(c *ui.Context, f *copyForm) {
 	reached := true
 	for _, st := range steps {
 		current := st.id == f.step
-		ui.Row(c.Key(st.id)).FillWidth().Gap(10).Children(func() {
+		ui.Row(c.Key(st.id)).FillWidth().Shrink(0).MinHeight(28).Gap(theme.S2).Children(func() {
 			switch {
 			case current:
 				widget.Spinner(c, 14)
 			case reached:
-				ui.Icon(c, icon.Check).FontSize(13).TextColor(theme.Done)
+				ui.Icon(c, icon.Check).FontSize(14).TextColor(theme.Done)
 			default:
-				widget.Dot(c, theme.Idle, true, 7)
+				widget.Dot(c, theme.Idle, true, 8)
 			}
 			label := st.label
 			if st.id == copyCarrying && f.total > 0 {
@@ -233,7 +228,7 @@ func (a *App) copyProgress(c *ui.Context, f *copyForm) {
 			if !reached || current {
 				col = theme.TextSoft
 			}
-			ui.Text(c, label).FontSize(theme.TextUI).TextColor(col)
+			ui.Row(c).Grow(1).Basis(0).MinWidth(0).Children(func() { widget.Running(c, label, widget.RunStyle{Color: col}) })
 		})
 		if current {
 			reached = false
@@ -245,8 +240,8 @@ func (a *App) copyProgress(c *ui.Context, f *copyForm) {
 	r := f.result
 	ui.Text(c, fmt.Sprintf("“%s” is on %s at %s, with %s.", f.project.Name, f.target.Name, r.Project.Path,
 		textfmt.Plural(len(r.Sessions), "a session", fmt.Sprintf("%d sessions", len(r.Sessions))))).FontSize(theme.TextUI)
-	for _, n := range r.Notes {
-		ui.Text(c, n).FontSize(theme.TextLabel).TextColor(theme.Muted)
+	for i, n := range r.Notes {
+		widget.CardNote(c.Key(i), n, 0)
 	}
 }
 
