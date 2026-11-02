@@ -3005,6 +3005,7 @@ value ActedNothing=
 value ActedOffered=offered
 value ActedPassed=short: passed on whole
 value ActedPaused=paused
+value ActedPromptGone=prompt gone
 value ActedQuiet=kept quiet
 value ActedReal=marked real
 value ActedRefused=refused

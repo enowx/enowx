@@ -109,6 +109,9 @@ type Server struct {
 	// the method it's for (sessionAwaitsUser).
 	controlAsks sync.Map
 	helpers     helpersState // sessions enowX starts for one piece of work (helpers.go)
+	// promptAnswered are the sessions whose prompt the judge just answered, for
+	// its leaving the screen not to count as its expiring.
+	promptAnswered sync.Map
 	// controlAllowMu guards the file of sessions always allowed (control_allow.go).
 	controlAllowMu sync.Mutex
 	statsState     stats

@@ -23,6 +23,7 @@ type promptFollow struct {
 	since    time.Time
 	asking   bool // this loop put it in waiting
 	deadline string
+	seen     string // the prompt last acted on (promptSeen)
 }
 
 // watchPrompts reads sessions' screens until done closes.
@@ -61,12 +62,25 @@ func (s *Server) watchPrompts(done <-chan struct{}) {
 			}
 			p, asking := promptOn(text, time.Since(f.since))
 			switch {
+			case asking && p.Known && f.seen != p.Text:
+				f.seen = p.Text
+				go s.promptSeen(info, p, text)
+			case !asking:
+				f.seen = ""
+			}
+			switch {
 			case asking && info.State != proto.StateWaiting:
 				f.asking, f.deadline = true, p.Deadline
 				s.sessions.SetState(sess, proto.StateWaiting)
 			case !asking && f.asking && text != "" && time.Since(f.since) >= promptStill:
 				if info.State == proto.StateWaiting {
 					s.sessions.SetState(sess, proto.StateWorking)
+				}
+				if _, answered := s.promptAnswered.LoadAndDelete(info.ID); answered {
+					f.deadline = ""
+				}
+				if f.deadline != "" {
+					s.promptGone(info, f.text, f.deadline)
 				}
 				if f.deadline != "" && s.goa.board.Has(info.ID) {
 					s.goaTell("[enowX GOA] Session " + info.ID + "'s prompt, which gave " + f.deadline + ", no longer shows: it was answered or ran out. Read it (read " + info.ID + ").")

@@ -244,16 +244,19 @@ const (
 	ActedAlerted = "alerted"
 	ActedTrimmed = "trimmed"
 	ActedPassed  = "short: passed on whole"
-	ActedPaused  = "paused"
-	ActedRouted  = "suggested"         // a model and effort for a prompt
-	ActedChosen  = "kept some"         // only the search results that bear on the prompt
-	ActedDropped = "dropped"           // no context, or no memory offered
-	ActedOffered = "offered"           // a memory offered, its text distilled
-	ActedUrgent  = "notified urgently" // sound and banner, whatever the chat's settings
-	ActedQuiet   = "kept quiet"        // counted as unread, nothing more
-	ActedFlaky   = "marked flaky"
-	ActedReal    = "marked real"
-	ActedNothing = ""
+	// ActedPromptGone: a permission prompt that gave a time left the screen
+	// with no answer of the judge's.
+	ActedPromptGone = "prompt gone"
+	ActedPaused     = "paused"
+	ActedRouted     = "suggested"         // a model and effort for a prompt
+	ActedChosen     = "kept some"         // only the search results that bear on the prompt
+	ActedDropped    = "dropped"           // no context, or no memory offered
+	ActedOffered    = "offered"           // a memory offered, its text distilled
+	ActedUrgent     = "notified urgently" // sound and banner, whatever the chat's settings
+	ActedQuiet      = "kept quiet"        // counted as unread, nothing more
+	ActedFlaky      = "marked flaky"
+	ActedReal       = "marked real"
+	ActedNothing    = ""
 )
 
 // DecideLogParams filters the log: by Use, by Session, Limit at most (0:

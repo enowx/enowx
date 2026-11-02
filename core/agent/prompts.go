@@ -29,6 +29,30 @@ var knownPrompts = regexp.MustCompile(`do you want to (proceed|continue|make thi
 	`update available|restart to update|press enter to (continue|update|restart)|` +
 	`api error.*(press|retry\?)|failed.*press enter`)
 
+// permissionPrompts are the known prompts that ask to allow something, which an
+// answer settles: not a sign-in, a limit or an update.
+var permissionPrompts = regexp.MustCompile(`(?i)do you want to (proceed|continue|make this edit|allow|create|run|use)|permission required|allow (once|always)|requires? (your )?approval`)
+
+// PromptAsksPermission says the prompt text asks to allow something.
+func PromptAsksPermission(text string) bool { return permissionPrompts.MatchString(text) }
+
+// ScreenEnd is a screen's last n lines with something on them.
+func ScreenEnd(screen string, n int) string { return strings.Join(tailLines(screen, n), "\n") }
+
+// PromptKeys are the keys answering a prompt in agent id. A shell tab's agent is
+// known by its screen: Claude Code's numbered menu is the one enowX knows.
+func PromptKeys(id, screen string) ApproveKeys {
+	if p, ok := Find(id); ok && p.Approve.Allow != "" {
+		return p.Approve
+	}
+	if strings.Contains(screen, "1. Yes") {
+		if p, ok := Find("claude"); ok {
+			return p.Approve
+		}
+	}
+	return ApproveKeys{}
+}
+
 // deadlineShown is a time a prompt counts down, as "automatically in 1:51".
 var deadlineShown = regexp.MustCompile(`(?i)\b(?:in|within)\s+(\d{1,2}:\d{2}|\d+\s?s(?:ec(?:onds?)?)?)\b`)
 

@@ -79,3 +79,27 @@ func TestStalledPrompt(t *testing.T) {
 		}
 	}
 }
+
+// Only prompts an answer settles are answered, and a shell tab's agent is known
+// by its menu.
+func TestPromptAsksPermission(t *testing.T) {
+	for _, text := range []string{"Do you want to proceed?", "Allow once  Allow always  Reject", "△ Permission required"} {
+		if !PromptAsksPermission(text) {
+			t.Errorf("%q", text)
+		}
+	}
+	for _, text := range []string{"You've reached your usage limit", "Please sign in", "Update available! Press Enter to update"} {
+		if PromptAsksPermission(text) {
+			t.Errorf("%q", text)
+		}
+	}
+	if k := PromptKeys("claude", ""); k.Allow != "1" {
+		t.Errorf("claude: %+v", k)
+	}
+	if k := PromptKeys(Shell, "Do you want to proceed?\n 1. Yes\n 2. No"); k.Allow != "1" {
+		t.Errorf("a shell tab's Claude Code: %+v", k)
+	}
+	if k := PromptKeys(Shell, "$ ls"); k.Allow != "" {
+		t.Errorf("a shell: %+v", k)
+	}
+}
