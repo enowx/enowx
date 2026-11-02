@@ -797,12 +797,14 @@ field DaemonStats.sessions []SessionUsage
 field DaemonStats.supported bool
 field DecideAsk.agent string
 field DecideAsk.command string
+field DecideAsk.exact bool
 field DecideAsk.exit int
 field DecideAsk.from string
 field DecideAsk.judge string
 field DecideAsk.mention bool
 field DecideAsk.output string
 field DecideAsk.parts []string
+field DecideAsk.passed bool
 field DecideAsk.place string
 field DecideAsk.project string
 field DecideAsk.prompt string
@@ -829,6 +831,7 @@ field DecideSettings.own []Judge
 field DecideSettings.policy string
 field DecideSettings.projects map[string]DecideProject
 field DecideSettings.provider string
+field DecideSettings.trimAll bool
 field DecideSettings.uses map[string]DecideUse
 field DecideUse.dailyCalls int
 field DecideUse.judge string
@@ -3000,6 +3003,7 @@ value ActedDropped=dropped
 value ActedFlaky=marked flaky
 value ActedNothing=
 value ActedOffered=offered
+value ActedPassed=short: passed on whole
 value ActedPaused=paused
 value ActedQuiet=kept quiet
 value ActedReal=marked real

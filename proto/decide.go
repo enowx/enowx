@@ -155,6 +155,9 @@ type DecideProject struct {
 // those the user added, each use's, and projects' own policies by project
 // ID.
 type DecideSettings struct {
+	// TrimAll has trimming cover any command, not only tests, builds and
+	// installs. Off until measured.
+	TrimAll  bool                     `json:"trimAll,omitempty"`
 	Policy   string                   `json:"policy,omitempty"` // DecideSameProvider when ""
 	Provider string                   `json:"provider,omitempty"`
 	Order    []string                 `json:"order,omitempty"`
@@ -168,14 +171,19 @@ type DecideSettings struct {
 // Project): a command (Command, its Output and Exit), a screen (Screen), an
 // agent's last steps (Steps).
 type DecideAsk struct {
-	Use     string   `json:"use"`
-	Session string   `json:"session,omitempty"`
-	Project string   `json:"project,omitempty"`
-	Command string   `json:"command,omitempty"`
-	Output  string   `json:"output,omitempty"`
-	Exit    int      `json:"exit,omitempty"`
-	Screen  string   `json:"screen,omitempty"`
-	Steps   []string `json:"steps,omitempty"`
+	Use     string `json:"use"`
+	Session string `json:"session,omitempty"`
+	Project string `json:"project,omitempty"`
+	Command string `json:"command,omitempty"`
+	Output  string `json:"output,omitempty"`
+	Exit    int    `json:"exit,omitempty"`
+	// Exact, a trim's: the agent asked for this content, as a file's lines or
+	// a diff, so it is cut only when the judge is very sure. Passed says the
+	// output was short and went on whole: nothing is asked, only recorded.
+	Exact  bool     `json:"exact,omitempty"`
+	Passed bool     `json:"passed,omitempty"`
+	Screen string   `json:"screen,omitempty"`
+	Steps  []string `json:"steps,omitempty"`
 	// Agent is whose prompt Prompt is (route) when no session says; Parts
 	// the search results to weigh against it (context).
 	Agent  string   `json:"agent,omitempty"`
@@ -235,6 +243,7 @@ const (
 	ActedWaiting = "marked waiting"
 	ActedAlerted = "alerted"
 	ActedTrimmed = "trimmed"
+	ActedPassed  = "short: passed on whole"
 	ActedPaused  = "paused"
 	ActedRouted  = "suggested"         // a model and effort for a prompt
 	ActedChosen  = "kept some"         // only the search results that bear on the prompt

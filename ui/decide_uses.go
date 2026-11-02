@@ -76,6 +76,16 @@ func (a *App) useCard(c *ui.Context, st *decideState, use string) {
 				changed = true
 			}
 		})
+		if use == proto.DecideTrim && u.On {
+			ui.Row(c.Key("trim-all")).FillWidth().Shrink(0).MinHeight(24).Gap(theme.S2).Children(func() {
+				ui.Row(c).Grow(1).Basis(0).MinWidth(0).Children(func() {
+					widget.Running(c, "Any command, not only tests and builds", widget.RunStyle{Size: theme.TextLabel, Color: theme.TextSoft})
+				})
+				if widget.Switch(c.Key("all"), &st.set.TrimAll, "Trim any command") {
+					changed = true
+				}
+			})
+		}
 		widget.CardNote(c, useShort[use], 2).Shrink(0).Tooltip(useInfo[use][1])
 		if !u.On {
 			return

@@ -312,15 +312,25 @@ func (s *Server) judgeLoop(info proto.SessionInfo, steps []step) {
 	s.acted(d, proto.ActedPaused, 0)
 }
 
+// trimExactSure is how sure a trim of content the agent asked for has to be.
+const trimExactSure = 0.97
+
 // trimOutput is enowx decide trim's: command's long output, what the
 // agent needs of it.
 func (s *Server) trimOutput(info proto.SessionInfo, a proto.DecideAsk) (proto.Decision, error) {
+	if a.Passed {
+		d := proto.Decision{ID: newRenderID(), Use: proto.DecideTrim, Session: info.ID, Project: sessionProject(info), Agent: agent.Base(info.Agent),
+			Time: time.Now(), Verdict: proto.VerdictKeep, Input: clip(oneLine(s.maskLent(a.Command)), 300), Acted: proto.ActedPassed}
+		s.judge.Record(d)
+		s.broadcast(proto.EventDecision, d)
+		return d, nil
+	}
 	a.Output = s.maskLent(a.Output)
 	d, err := s.decideFor(info, a)
 	if err != nil {
 		return d, err
 	}
-	if d.Verdict == proto.VerdictTrimmed && s.sure(d) && len(d.Text) < len(a.Output) {
+	if d.Verdict == proto.VerdictTrimmed && s.sure(d) && (!a.Exact || d.Confidence >= trimExactSure) && len(d.Text) < len(a.Output) {
 		return s.acted(d, proto.ActedTrimmed, len(a.Output)-len(d.Text)), nil
 	}
 	d = s.acted(d, proto.ActedNothing, 0)
