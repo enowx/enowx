@@ -4,18 +4,25 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"slices"
 	"strconv"
 	"time"
 
 	"github.com/enowx/enowx/proto"
 )
 
-// Every change makes a version, kept whole, so the user goes back to any
-// and undoes an agent's work as their own. Undo and redo move between
-// versions; a change after an undo forgets those undone.
+// Every change makes a version, so the user goes back to any and undoes an agent's
+// work as their own (history_frames.go says how they're kept). Undo and redo move
+// between versions; a change after an undo forgets those undone. Versions are this
+// host's own, as they aren't synced: a change that came from elsewhere is a version
+// here once it is undone from.
 
-// maxVersions is how many versions a canvas keeps, the oldest going first.
+// maxVersions is how many versions a canvas keeps, the oldest going first, those
+// with a label last: a redesign's passes are what a user goes back to.
 const maxVersions = 400
+
+// pruneEvery is how many versions pass between looks for frames none needs.
+const pruneEvery = 64
 
 func (s *Store) historyFile(id string) string { return filepath.Join(s.dir, id, "history.json") }
 
@@ -44,17 +51,24 @@ func (s *Store) commit(c *proto.Canvas, v proto.CanvasVersion) error {
 		_ = os.Remove(s.versionFile(c.ID, h.Versions[len(h.Versions)-1].N))
 		h.Versions = h.Versions[:len(h.Versions)-1]
 	}
-	v.N = h.Head + 1
+	v.N = max(h.Head, c.Version) + 1
 	v.Time = time.Now().UTC()
 	h.Head = v.N
 	h.Versions = append(h.Versions, v)
 	for len(h.Versions) > maxVersions {
-		_ = os.Remove(s.versionFile(c.ID, h.Versions[0].N))
-		h.Versions = h.Versions[1:]
+		i := slices.IndexFunc(h.Versions, func(x proto.CanvasVersion) bool { return x.Label == "" })
+		if i < 0 {
+			i = 0
+		}
+		_ = os.Remove(s.versionFile(c.ID, h.Versions[i].N))
+		h.Versions = slices.Delete(h.Versions, i, i+1)
 	}
 	c.Version, c.Updated = v.N, v.Time
-	if err := writeJSON(s.versionFile(c.ID, v.N), c); err != nil {
+	if err := s.writeVersion(*c, v.N); err != nil {
 		return fmt.Errorf("canvas: %w", err)
+	}
+	if v.N%pruneEvery == 0 {
+		s.pruneFrames(c.ID, h.Versions)
 	}
 	if err := writeJSON(filepath.Join(s.dir, c.ID, "canvas.json"), c); err != nil {
 		return fmt.Errorf("canvas: %w", err)
@@ -75,8 +89,8 @@ func (s *Store) Version(id string, n int) (proto.Canvas, error) {
 	if _, err := s.folder(id); err != nil {
 		return proto.Canvas{}, err
 	}
-	var c proto.Canvas
-	if err := readJSON(s.versionFile(id, n), &c); err != nil {
+	c, err := s.readVersion(id, n)
+	if err != nil {
 		return proto.Canvas{}, fmt.Errorf("canvas: no version %d of %s", n, id)
 	}
 	return c, nil
@@ -98,18 +112,28 @@ func (s *Store) step(id string, by int) (proto.Canvas, error) {
 	if err != nil {
 		return proto.Canvas{}, err
 	}
-	n := h.Head + by
-	if len(h.Versions) == 0 || n < h.Versions[0].N || n > h.Versions[len(h.Versions)-1].N {
+	cur, err := s.Get(id)
+	if err != nil {
+		return proto.Canvas{}, err
+	}
+	if cur.Version != h.Head && len(h.Versions) > 0 {
+		// A change that came from another host: it must be there to come back to.
+		if err := s.commit(&cur, proto.CanvasVersion{Op: "synced"}); err != nil {
+			return proto.Canvas{}, err
+		}
+		if h, err = s.history(id); err != nil {
+			return proto.Canvas{}, err
+		}
+	}
+	at := slices.IndexFunc(h.Versions, func(v proto.CanvasVersion) bool { return v.N == h.Head })
+	if at < 0 || at+by < 0 || at+by >= len(h.Versions) {
 		if by < 0 {
 			return proto.Canvas{}, fmt.Errorf("canvas: nothing to undo")
 		}
 		return proto.Canvas{}, fmt.Errorf("canvas: nothing to redo")
 	}
+	n := h.Versions[at+by].N
 	c, err := s.Version(id, n)
-	if err != nil {
-		return proto.Canvas{}, err
-	}
-	cur, err := s.Get(id)
 	if err != nil {
 		return proto.Canvas{}, err
 	}

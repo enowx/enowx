@@ -52,6 +52,7 @@ func Run() error {
 	go srv.watchProgram(exe)
 	dog := watchdog.Start(filepath.Join(dir, "watchdog"), "daemon", nil, nil) // its memory: it has no one thread to stall
 	defer dog.Stop()
+	go srv.convertCanvasHistories()
 	srv.procs.load(procsFile(dir))
 	go func() {
 		srv.endProcsLeftBefore()

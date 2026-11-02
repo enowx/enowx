@@ -4,6 +4,7 @@ import (
 	"crypto/rand"
 	"encoding/hex"
 	"fmt"
+	"maps"
 	"path"
 	"slices"
 	"strings"
@@ -53,6 +54,12 @@ func Sync(a, b Side, base *Base) (Report, error) {
 		return rep, err
 	}
 	ha, hb := hashes(ma.Files), hashes(mb.Files)
+	// What is no longer synced stays as it is on each side, and isn't "deleted" on
+	// one by the side that stopped listing it. A host still on an older build lists it.
+	for _, m := range []map[string]string{ha, hb} {
+		maps.DeleteFunc(m, func(p, _ string) bool { return !Synced(p) })
+	}
+	maps.DeleteFunc(base.Files, func(p string, _ BaseFile) bool { return !Synced(p) })
 	skip := map[string]bool{}
 	for _, f := range append(slices.Clip(ma.Files), mb.Files...) {
 		if f.Size > maxFile && Synced(f.Path) && !skip[f.Path] {

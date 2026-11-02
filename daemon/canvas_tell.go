@@ -4,6 +4,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/enowx/enowx/core/canvas"
 	"github.com/enowx/enowx/proto"
 )
 
@@ -51,5 +52,38 @@ func (t *canvasTeller) flush(s *Server, id string) {
 	t.mu.Unlock()
 	if ok {
 		s.broadcast(proto.EventCanvasChanged, ch)
+	}
+}
+
+// convertCanvasHistories turns every canvas's versions kept whole into versions sharing
+// their frames, once, unhurried, at the daemon's start.
+func (s *Server) convertCanvasHistories() {
+	stores := []*canvas.Store{s.canvases}
+	for _, sp := range s.spaces() {
+		if st, err := s.canvasesIn(sp.Team); err == nil {
+			stores = append(stores, st)
+		}
+	}
+	var freed int64
+	for _, st := range stores {
+		list, err := st.List()
+		if err != nil {
+			continue
+		}
+		for _, c := range list {
+			n, err := st.ConvertHistory(c.ID)
+			if err != nil {
+				s.logger().Warn("canvas: convert versions", "err", err)
+			}
+			freed += n
+			select {
+			case <-s.done:
+				return
+			case <-time.After(100 * time.Millisecond):
+			}
+		}
+	}
+	if freed > 0 {
+		s.logger().Info("canvas: versions now share their frames", "freedMB", freed>>20)
 	}
 }
