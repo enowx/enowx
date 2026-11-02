@@ -328,9 +328,9 @@ type pane struct {
 
 // LocalHost is this machine as a host.
 func LocalHost() hosts.Host {
-	name := "This PC"
+	name := "this PC"
 	if runtime.GOOS == "darwin" {
-		name = "This Mac"
+		name = "this Mac"
 	}
 	return hosts.Host{ID: hosts.LocalID, Name: name}
 }

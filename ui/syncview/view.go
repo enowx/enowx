@@ -357,7 +357,7 @@ func kindPlural(kind string) string {
 	case proto.EnvMCP:
 		return "MCP servers"
 	case proto.EnvGit:
-		return "Git"
+		return "Git identity"
 	}
 	return kind
 }

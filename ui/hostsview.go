@@ -164,7 +164,7 @@ func (a *App) hostsFigures(list []hosts.Host) []widget.Fig {
 		{Label: "Hosts", Value: strconv.Itoa(len(list))},
 		{Label: "Connected", Value: strconv.Itoa(connected)},
 		{Label: "Sessions", Value: strconv.Itoa(sessions)},
-		{Label: "Couldn't connect", Value: strconv.Itoa(failed)},
+		{Label: "Couldn't connect", Value: strconv.Itoa(failed), Tone: failedTone(failed)},
 		{Label: "On your tailnet", Value: strconv.Itoa(len(a.newPeers()))},
 	}
 }
@@ -466,4 +466,12 @@ func (a *App) importHosts() {
 		}
 		a.notify(textfmt.Plural(n, "A host", fmt.Sprintf("%d hosts", n)) + " added")
 	})
+}
+
+// failedTone colors the count of hosts that couldn't connect, when there are any.
+func failedTone(failed int) ui.Color {
+	if failed > 0 {
+		return theme.Error
+	}
+	return ui.Color{}
 }
