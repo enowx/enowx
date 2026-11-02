@@ -54,16 +54,19 @@ func (a *App) goaRulesDialog(c *ui.Context) {
 		a.goa.rules = nil
 		return
 	}
-	widget.FormSheet(c, &f.open, 640, "Rules of GOD of Agents", "How it delegates, what it leaves to you, what it tells its workers. Yours: every host's GOD of Agents follows them.", func() {
+	widget.FormSheet(c, &f.open, 640, "Rules of GOD of Agents", "Synced, so every host follows them.", func() {
 		if !f.loaded {
 			rulesNotRead(c, f.err)
 			return
 		}
-		ui.TextArea(c.Key("goa-rules"), &f.text).Height(240).Padding(10, 12).Radius(theme.RadiusControl).Font(theme.MonoFont).FontSize(theme.TextUI).
-			Background(theme.Sunken).Border(1, theme.BorderStrong).
-			Placeholder("- Give frontend tasks to Codex, the rest to Claude Code\n- Ask me before merging to main")
-		ui.Text(c, "No credentials here: agents read these, and rules that look like they hold a secret are refused.").FontSize(theme.TextLabel).TextColor(theme.Muted)
-		a.rulesDraftBox(c, &f.draft, proto.RulesForGOA, "", &f.text)
+		a.rulesAskBox(c, &f.draft, proto.RulesForGOA, "", &f.text)
+		widget.Field(c, "Rules", func() {
+			rules := ui.TextArea(c.Key("goa-rules"), &f.text).Height(136).Padding(theme.S2, theme.S3).Radius(theme.RadiusCard).FontSize(theme.TextUI).
+				Label("Rules").Placeholder("- Give frontend tasks to Codex, the rest to Claude Code\n- Ask me before merging to main")
+			widget.Well(rules, rules.Focused())
+		})
+		ui.Text(c, "No credentials here: agents read these, and rules that look like they hold a secret are refused.").FontSize(theme.TextLabel).TextColor(theme.TextSoft)
+		a.rulesVersionsRow(c, &f.draft, proto.RulesForGOA, "", &f.text)
 		if f.err != "" {
 			widget.Notice(c, icon.Alert, theme.Error, f.err, "", nil)
 		}

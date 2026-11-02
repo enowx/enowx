@@ -442,7 +442,7 @@ func (a *App) goaFlagsList(c *ui.Context) {
 			case f.Reverted:
 				widget.Tag(c, "reverted", theme.Done)
 			case f.Revertable && widget.Button(c, widget.Secondary, nil, "Revert", "").Clicked():
-				a.confirm("Put "+f.File+" back?", "It goes back to how it was when GOD of Agents started, in "+f.Project+". What changed in it since is lost.", "Revert", func() {
+				a.confirm("Revert this file?", f.File+" goes back to how it was when GOD of Agents started, in "+f.Project+". What changed in it since is lost.", "Revert", func() {
 					var out proto.GOAFlag
 					a.goaCall(proto.MethodGOARevert, proto.GOARevertParams{ID: f.ID}, &out, nil)
 				})

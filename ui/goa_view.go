@@ -141,7 +141,7 @@ func (a *App) goaStartDialog(c *ui.Context) {
 		return
 	}
 	start := false
-	widget.FormSheet(c, &f.open, 520, "Start GOD of Agents", "One GOA per host at a time. It runs in a folder of its own on "+a.host.Name+".", func() {
+	widget.FormSheet(c, &f.open, 480, "Start GOD of Agents", "One GOA per host at a time.", func() {
 		if a.goa.err != "" {
 			ui.Text(c, a.goa.err).FontSize(theme.TextUI).TextColor(theme.Error)
 			return
