@@ -249,6 +249,15 @@ func (a *App) canvasOptions() canvasview.Options {
 				return err
 			}, func(err error) { done(data, err) })
 		},
+		PictureCached: func(key string, done func([]byte)) {
+			go func() {
+				data := readCanvasThumb(canvasThumbDir(), key)
+				a.onMain(func() { done(data) })
+			}()
+		},
+		PictureKeep: func(key string, data []byte) {
+			go keepCanvasThumb(canvasThumbDir(), key, data)
+		},
 		SaveFile: func(name string, data []byte) {
 			path, err := saveDownload(strings.NewReplacer("/", "-", "\\", "-", ":", "-").Replace(name), data)
 			if err != nil {

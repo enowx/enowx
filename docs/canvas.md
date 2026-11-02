@@ -23,6 +23,7 @@ The stage shows the frame, scaled to fit.
 - The palette down the stage's side adds shapes. **Connect** draws an arrow from the selected shape to the next one clicked.
 - **Layers** lists the frame's elements: the mockup's by id, and the shapes. The selected one shows its properties: a shape's text, fill and line colors, and a mockup element's HTML to edit and apply.
 - A mockup previews at its frame's size, or at a desktop's, tablet's or phone's width.
+- A design's card shows its picture, never its words. Pictures are kept on the device that renders them and show at once, a restart included, until the design's HTML changes (an image it uses changing under the same HTML keeps the old picture). Only cards in sight are rendered, two asked for at a time; until then the card's frame says "Loading preview", and "Preview failed" if it couldn't be made, tried again after 30 seconds.
 - In **Interact** mode the mockup works as the real thing: buttons, links, forms and hover states.
 
 Every change is made to one element of the canvas as the host has it now. A change the user makes while an agent designs never undoes the agent's work, and the agent's never undoes the user's.

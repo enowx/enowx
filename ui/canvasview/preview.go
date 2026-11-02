@@ -16,7 +16,9 @@ import (
 
 // Designs show small (the strip, the grid) and side by side (compare) as
 // previews: a mockup as the app renders it, a picture fetched once its
-// HTML stopped changing a moment; shapes drawn as they are.
+// HTML stopped changing a moment, kept on this device until it changes again;
+// shapes drawn as they are. A preview is never the design's words: until its
+// picture comes, its frame says it is on its way.
 
 // thumb is a design's picture, of its HTML as of key; the HTML seen last,
 // since when; and the one whose picture was asked for.
@@ -26,7 +28,25 @@ type thumb struct {
 	seen   string
 	seenAt time.Time
 	asked  string
+	// failed is the key whose picture couldn't be made, why and when.
+	failed   string
+	failure  string
+	failedAt time.Time
+	// place is where its card last was, and looked that it has been at all.
+	place  ui.Rect
+	looked bool
 }
+
+const (
+	// thumbsAtOnce is how many pictures are asked for at a time: each takes a
+	// hidden window and a moment on this device, and the rest can wait their turn.
+	thumbsAtOnce = 2
+	// thumbRetry is how long a failed picture rests before it is tried again.
+	thumbRetry = 30 * time.Second
+	// thumbMoved is a look at a card just after it moved: what shows in the window
+	// is known a frame late, and a scroll that stopped draws no more of them.
+	thumbMoved = 60 * time.Millisecond
+)
 
 // settleFor is how long a design's HTML stays the same before its picture
 // is made anew: an agent writing it changes it often.
@@ -46,6 +66,12 @@ func (v *View) picture(c *ui.Context, o Options, f proto.CanvasFrame) ui.ImageSo
 
 // pictureAt is design f's picture reflowed at width (0 its own).
 func (v *View) pictureAt(c *ui.Context, o Options, f proto.CanvasFrame, width int) ui.ImageSource {
+	return v.pictureIf(c, o, f, width, true)
+}
+
+// pictureIf is pictureAt, asking for a picture it lacks only if wanted: a card out
+// of sight has no use for one yet.
+func (v *View) pictureIf(c *ui.Context, o Options, f proto.CanvasFrame, width int, wanted bool) ui.ImageSource {
 	if strings.TrimSpace(f.HTML) == "" || o.Render == nil || v.canvas == nil || width > 0 && o.RenderWidth == nil {
 		return nil
 	}
@@ -62,7 +88,21 @@ func (v *View) pictureAt(c *ui.Context, o Options, f proto.CanvasFrame, width in
 		v.thumbs[id] = t
 	}
 	key := htmlKey(f) + "@" + strconv.Itoa(width)
-	if t.key == key || t.asked == key {
+	if t.key == key {
+		return t.img
+	}
+	if t.failed == key {
+		rest := thumbRetry - time.Since(t.failedAt)
+		if !wanted {
+			return t.img
+		}
+		if rest > 0 {
+			c.After(rest)
+			return t.img
+		}
+		t.failed, t.asked = "", ""
+	}
+	if t.asked == key || !wanted {
 		return t.img
 	}
 	if t.seen != key {
@@ -72,47 +112,105 @@ func (v *View) pictureAt(c *ui.Context, o Options, f proto.CanvasFrame, width in
 		c.After(wait + 20*time.Millisecond)
 		return t.img
 	}
+	if v.thumbsBusy >= thumbsAtOnce {
+		return t.img // the end of one in hand draws a frame, and this one's turn
+	}
+	v.thumbsBusy++
 	t.asked = key
-	done := func(data []byte, err error) {
-		if err != nil || t.asked != key {
-			return
-		}
-		if bmp, err := ui.DecodeBitmap(data); err == nil {
+	canvasID, frameID := v.canvas.ID, f.ID
+	store := canvasID + ":" + key
+	show := func(data []byte) error {
+		bmp, err := ui.DecodeBitmap(data)
+		if err == nil && t.asked == key {
 			t.img, t.key = bmp, key
 		}
+		return err
 	}
-	if width > 0 {
-		o.RenderWidth(v.canvas.ID, f.ID, width, done)
-	} else {
-		o.Render(v.canvas.ID, f.ID, proto.RenderPNG, done)
+	rendered := func(data []byte, err error) {
+		v.thumbsBusy--
+		if err == nil {
+			err = show(data)
+		}
+		if err != nil {
+			if t.asked == key {
+				t.failed, t.failure, t.failedAt = key, err.Error(), time.Now()
+			}
+			return
+		}
+		if o.PictureKeep != nil {
+			o.PictureKeep(store, data)
+		}
 	}
+	render := func() {
+		if width > 0 {
+			o.RenderWidth(canvasID, frameID, width, rendered)
+		} else {
+			o.Render(canvasID, frameID, proto.RenderPNG, rendered)
+		}
+	}
+	if o.PictureCached == nil {
+		render()
+		return t.img
+	}
+	o.PictureCached(store, func(data []byte) {
+		if len(data) > 0 && show(data) == nil {
+			v.thumbsBusy--
+			return
+		}
+		render() // none kept, or what was kept doesn't read
+	})
 	return t.img
 }
 
-// preview shows design f w wide: its picture, else its shapes and its
-// mockup's elements drawn small.
+// thumbFailure is why design f's own picture couldn't be made, "" if it wasn't.
+func (v *View) thumbFailure(f proto.CanvasFrame) string {
+	if t := v.thumbs[f.ID]; t != nil && t.failed == htmlKey(f)+"@0" {
+		return t.failure
+	}
+	return ""
+}
+
+// lookAgainMoved has a card with no picture yet looked at again once it moved, or
+// first showed: whether it is in sight is known only the frame after.
+func (v *View) lookAgainMoved(c *ui.Context, f proto.CanvasFrame, place ui.Rect) {
+	t := v.thumbs[f.ID]
+	if t == nil || t.img != nil || t.looked && t.place == place {
+		return
+	}
+	t.place, t.looked = place, true
+	c.After(thumbMoved)
+}
+
+// designPreview shows design f w wide: its picture, its shapes when it is drawn
+// rather than written, else in its frame that the picture is on its way or failed.
 func (v *View) designPreview(c *ui.Context, o Options, f proto.CanvasFrame, w float32) ui.Element {
 	s := float64(w) / math.Max(float64(f.Width), 1)
 	h := float32(float64(f.Height) * s)
 	box := ui.Box(c).Size(w, h).Shrink(0).Radius(theme.RadiusTail).Clip().Background(color(f.Background, ui.RGB(255, 255, 255)))
-	if img := v.picture(c, o, f); img != nil {
+	if strings.TrimSpace(f.HTML) == "" {
+		box.Draw(func(p *ui.Painter, r ui.Rect) { drawShapes(p, r, f, s) })
+		return box
+	}
+	img := v.pictureIf(c, o, f, 0, box.InView())
+	v.lookAgainMoved(c, f, box.Bounds())
+	if img != nil {
 		box.Children(func() { ui.Image(c, img).Size(w, h) })
 		return box
 	}
-	outline := canvas.Outline(f.HTML)
-	box.Draw(func(p *ui.Painter, r ui.Rect) {
-		y := r.Y + 10*float32(s)/float32(math.Max(s, 0.15))
-		size := float32(math.Max(14*s, 7))
-		for _, el := range outline {
-			if y > r.Y+r.H-size {
-				break
+	word, why := "Loading preview", ""
+	switch failure := v.thumbFailure(f); {
+	case failure != "":
+		word, why = "Preview failed", failure
+	case o.Render == nil:
+		word = "No preview here"
+	}
+	box.Background(theme.Sunken).Children(func() {
+		ui.Row(c.Key("state")).Size(w, h).Center().Children(func() {
+			t := ui.Text(c.Key("word"), word).FontSize(theme.TextLabel).TextColor(theme.TextSoft).MaxLines(1)
+			if why != "" {
+				t.Tooltip(why)
 			}
-			if el.Text != "" && el.Depth >= 1 {
-				p.Text(r.X+8+float32(el.Depth)*6, y, el.Text, size, ui.RGB(71, 85, 105))
-				y += size * 1.6
-			}
-		}
-		drawShapes(p, r, f, s)
+		})
 	})
 	return box
 }

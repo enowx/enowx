@@ -51,6 +51,10 @@ type Options struct {
 	// Render renders a frame (or, for html without one, the canvas) as
 	// format: png, pdf, svg or html.
 	Render func(id, frame, format string, done func([]byte, error))
+	// PictureCached gives done the picture kept on this device as key, nil for
+	// none; PictureKeep keeps one. Both leave the main thread; done comes back to it.
+	PictureCached func(key string, done func([]byte))
+	PictureKeep   func(key string, data []byte)
 	// SaveFile asks where to save data, named name, and saves it.
 	SaveFile func(name string, data []byte)
 	// Projects are the host's projects, to attach a canvas to; MakeCode
@@ -191,6 +195,7 @@ type View struct {
 	// listOutside: it does, so the page has no list of its own.
 	listInSidebar, listOutside bool
 	thumbs                     map[string]*thumb
+	thumbsBusy                 int // pictures asked for, not back yet
 	descr                      *describeForm
 	// pendingFrame is a design to show once the canvas opening loaded.
 	pendingFrame string
