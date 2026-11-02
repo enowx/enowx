@@ -113,7 +113,7 @@ func (a *App) tailnetSection(c *ui.Context) {
 			ui.Text(c, "Sign in as").FontSize(theme.TextLabel).TextColor(theme.TextSoft).SingleLine()
 			ui.Column(c).Width(160).Shrink(0).Children(func() { widget.Input(c, &a.tailUser, localUser()).FillWidth() })
 		})
-		ui.Scroll(c.Key("peers")).FillWidth().MaxHeight(260).Children(func() {
+		widget.Scroll(c.Key("peers")).FillWidth().MaxHeight(260).Children(func() {
 			widget.CardLines(c, func() {
 				for i, p := range a.peers {
 					a.peerRow(c.Key(p.Address()), p, i == 0)

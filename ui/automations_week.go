@@ -86,7 +86,7 @@ func automationWeekBoard(c *ui.Context, week [7][]automationRun, now time.Time) 
 				ui.Row(c).FillWidth().Shrink(0).Children(func() {
 					widget.Running(c, label, widget.RunStyle{Size: theme.TextLabel, Color: theme.TextSoft})
 				})
-				ui.Scroll(c).Grow(1).FillWidth().MinHeight(0).Children(func() {
+				widget.Scroll(c).Grow(1).FillWidth().MinHeight(0).Children(func() {
 					ui.Column(c).FillWidth().Gap(theme.S2).Children(func() {
 						for i, run := range runs {
 							ui.Text(c.Key(i), run.at.Format("15:04")+" "+run.name).FontSize(theme.TextLabel).TextColor(text).MaxLines(3).

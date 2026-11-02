@@ -240,7 +240,7 @@ func (a *App) agentPicker(c *ui.Context) {
 					missing = append(missing, ag)
 				}
 			}
-			ui.Scroll(c).FillWidth().MaxHeight(420).Children(func() {
+			widget.Scroll(c).FillWidth().MaxHeight(420).Children(func() {
 				ui.Column(c).FillWidth().Children(func() {
 					for i, ag := range here {
 						if ag.ID == agent.Shell && i > 0 {
@@ -340,7 +340,7 @@ func branchSelect(c *ui.Context, value *string, branches []string) {
 	})
 	sel.Popup(func(panel ui.Element) {
 		widget.Popup(panel.Margin(theme.S1, 0, 0, 0).MinWidth(180).MaxWidth(360).MaxHeight(280))
-		ui.Scroll(c).FillWidth().Children(func() {
+		widget.Scroll(c).FillWidth().Children(func() {
 			for _, b := range branches {
 				item := sel.Item(b)
 				widget.PopupItem(item, item.Highlighted()).Children(func() {

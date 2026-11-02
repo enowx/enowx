@@ -65,7 +65,7 @@ func (a *App) chatMessages(c *ui.Context, team string, msgs []proto.ChatMessage)
 				a.memberMessage(c, team, m, first, bottom, now)
 			}
 		})
-	}).Grow(1).FillWidth().MinHeight(0).Padding(theme.S2, 0)
+	}).Grow(1).FillWidth().MinHeight(0).Padding(theme.S2, widget.ScrollGutter, theme.S2, 0)
 }
 
 func sameDay(x, y time.Time) bool {

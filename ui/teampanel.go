@@ -47,7 +47,7 @@ func (a *App) teamProjectsTab(c *ui.Context) {
 		return
 	}
 	ui.Scroll(c).Grow(1).FillWidth().MinHeight(0).Children(func() {
-		ui.Column(c).FillWidth().Gap(theme.S1).Padding(theme.S2).Children(func() {
+		ui.Column(c).FillWidth().Gap(theme.S1).Padding(theme.S2, widget.ScrollGutter, theme.S2, theme.S2).Children(func() {
 			for _, p := range list {
 				a.teamProjectCard(c.Key(p.ID), p)
 			}
@@ -180,7 +180,7 @@ func (a *App) teamMembersTab(c *ui.Context) {
 		return boolOrder(a.online(team, y.Account.ID)) - boolOrder(a.online(team, x.Account.ID))
 	})
 	ui.Scroll(c).Grow(1).FillWidth().MinHeight(0).Children(func() {
-		ui.Column(c).FillWidth().Gap(theme.S1).Padding(theme.S2).Children(func() {
+		ui.Column(c).FillWidth().Gap(theme.S1).Padding(theme.S2, widget.ScrollGutter, theme.S2, theme.S2).Children(func() {
 			for _, m := range members {
 				acc := m.Account
 				name := memberTitle(acc.Name, acc.GitHub)

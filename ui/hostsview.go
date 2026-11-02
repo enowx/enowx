@@ -374,7 +374,7 @@ func (a *App) tailnetCard(c *ui.Context) {
 		if note := a.tailnetNote(); note != "" {
 			widget.CardNote(c.Key("note"), note, 0)
 		}
-		ui.Scroll(c.Key("peers")).Grow(1).FillWidth().MinHeight(0).Children(func() {
+		widget.Scroll(c.Key("peers")).Grow(1).FillWidth().MinHeight(0).Children(func() {
 			widget.CardLines(c, func() {
 				for i, p := range a.newPeers() {
 					widget.CardLine(c.Key(p.Address()), i == 0, p.HostName, p.Address()+" · "+p.OS, func() {

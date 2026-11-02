@@ -254,7 +254,7 @@ func (a *App) setupCard(c *ui.Context, p *setupPage, g setupGroup) {
 			col, state = theme.Working, "To bring"
 		}
 		ui.Row(c.Key("status")).FillWidth().Shrink(0).Children(func() { widget.StatusLine(c, col, false, state) })
-		ui.Scroll(c.Key("steps")).Grow(1).FillWidth().MinHeight(0).Children(func() {
+		widget.Scroll(c.Key("steps")).Grow(1).FillWidth().MinHeight(0).Children(func() {
 			ui.Column(c).FillWidth().Gap(theme.S1).Children(func() {
 				for _, s := range g.steps {
 					a.setupStep(c.Key(s.ID), p, g, s)

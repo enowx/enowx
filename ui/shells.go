@@ -76,7 +76,7 @@ func (a *App) terminalSection(c *ui.Context) {
 	hs := a.shellsOf()
 	widget.PageHeader(c, "Terminal", "What terminals start with", nil)
 	ui.Row(c.Key("terminal-page")).Grow(1).FillWidth().MinHeight(0).AlignItems(ui.Stretch).Gap(theme.S3).Padding(theme.S4, theme.S5, theme.S5, theme.S5).Children(func() {
-		ui.Scroll(c.Key("terminal-picks")).Grow(1).Basis(0).MinWidth(0).FillHeight().Children(func() {
+		widget.Scroll(c.Key("terminal-picks")).Grow(1).Basis(0).MinWidth(0).FillHeight().Children(func() {
 			ui.Column(c).FillWidth().Gap(theme.S3).Children(func() {
 				ui.Column(c.Key("shell")).FillWidth().Gap(theme.S2).Children(func() {
 					widget.Heading(c, "Shell")

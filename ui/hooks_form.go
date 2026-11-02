@@ -175,7 +175,7 @@ func (a *App) hookPlacePicker(c *ui.Context, f *hookForm) {
 	})
 	sel.Popup(func(panel ui.Element) {
 		widget.Popup(panel.Margin(theme.S1, 0, 0, 0).Width(320))
-		ui.Scroll(c).FillWidth().MaxHeight(320).Children(func() {
+		widget.Scroll(c).FillWidth().MaxHeight(320).Children(func() {
 			ui.Column(c).FillWidth().Children(func() {
 				for _, p := range places {
 					item := sel.Item(key(p))

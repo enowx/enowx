@@ -75,7 +75,7 @@ func (a *App) teamSide(c *ui.Context) {
 			}
 		})
 		ui.Scroll(c.Key("list")).Grow(1).FillWidth().MinHeight(0).Children(func() {
-			ui.Column(c).FillWidth().Padding(theme.S1, theme.S2, theme.S2, theme.S2).Gap(theme.S1).Children(func() {
+			ui.Column(c).FillWidth().Padding(theme.S1, widget.ScrollGutter, theme.S2, theme.S2).Gap(theme.S1).Children(func() {
 				for _, t := range ts.list {
 					sub := t.Role
 					if full, ok := cs.full[t.ID]; ok {

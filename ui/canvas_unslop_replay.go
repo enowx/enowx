@@ -218,7 +218,7 @@ func (a *App) replaySide(c *ui.Context, r *unslopReplay) {
 		} else {
 			s := r.story.Steps[r.step-1]
 			widget.Running(c.Key("step"), fmt.Sprintf("Step %d · %s", r.step, unslop.StoryName(s)), widget.RunStyle{Weight: 500})
-			ui.Scroll(c.Key("changes")).FillWidth().MaxHeight(330).Children(func() {
+			widget.Scroll(c.Key("changes")).FillWidth().MaxHeight(330).Children(func() {
 				ui.Column(c).FillWidth().Gap(theme.S2).Children(func() {
 					if !s.Measured {
 						ui.Text(c, "Not measured: the design is measured as rendered, by an app connected when the step ended.").FontSize(theme.TextLabel).TextColor(theme.TextSoft)

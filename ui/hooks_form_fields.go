@@ -182,7 +182,7 @@ func hookSelect(c *ui.Context, label string, value *string, options []string, na
 	})
 	sel.Popup(func(panel ui.Element) {
 		widget.Popup(panel.Margin(theme.S1, 0, 0, 0).Width(320))
-		ui.Scroll(c).FillWidth().MaxHeight(360).Children(func() {
+		widget.Scroll(c).FillWidth().MaxHeight(360).Children(func() {
 			ui.Column(c).FillWidth().Children(func() {
 				for _, o := range options {
 					item := sel.Item(o)

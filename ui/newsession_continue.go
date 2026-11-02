@@ -118,7 +118,7 @@ func (a *App) sessionField(c *ui.Context) {
 		ui.PopoverBase(c, b, &f.contOpen, func(panel ui.Element) {
 			widget.Popup(panel.AttachTo(b, ui.AnchorTopLeft, ui.AnchorBottomLeft).Margin(theme.S1, 0, 0, 0).Width(592)).Gap(theme.S1)
 			widget.SearchField(c, &f.contFilter, "Find a session by name or branch", icon.Search)
-			ui.Scroll(c).FillWidth().MaxHeight(280).Children(func() {
+			widget.Scroll(c).FillWidth().MaxHeight(280).Children(func() {
 				ui.Column(c).FillWidth().Children(func() {
 					if a.choiceRow(c, nil) {
 						f.cont, f.contOpen = nil, false

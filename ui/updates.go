@@ -240,7 +240,7 @@ func (a *App) updateDialog(c *ui.Context) {
 		widget.SheetHead(c, &u.dialog, "enowX "+v.Version+" is available", desc)
 	}, func() {
 		if v.Notes != "" {
-			ui.Scroll(c).FillWidth().MaxHeight(280).Children(func() {
+			widget.Scroll(c).FillWidth().MaxHeight(280).Children(func() {
 				ui.Column(c).FillWidth().Gap(theme.S2).Children(func() { widget.Markdown(c, v.Notes) })
 			})
 		}

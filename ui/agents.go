@@ -153,7 +153,7 @@ func (a *App) agentList(c *ui.Context, st *accountsState, list []proto.AgentInfo
 // its own settings, that API. Its cards share the height the rest leaves, down
 // to what they need; then the page scrolls.
 func (a *App) agentPage(c *ui.Context, st *accountsState, apis *agentAPIState, ag proto.AgentInfo) {
-	scroll := ui.Scroll(c.Key("agent-page")).Grow(1).FillWidth().MinHeight(0)
+	scroll := widget.Scroll(c.Key("agent-page")).Grow(1).FillWidth().MinHeight(0)
 	frame := scroll.Bounds()
 	scroll.Children(func() {
 		ui.Column(c).FillWidth().Gap(theme.S3).Children(func() {

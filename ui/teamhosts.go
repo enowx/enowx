@@ -375,7 +375,7 @@ func (a *App) visitProjectCard(c *ui.Context, v *teamVisit, p proto.ProjectInfo)
 	}
 	widget.GridCard(c).Children(func() {
 		widget.CardTitle(c, nil, p.Name, nil)
-		ui.Scroll(c.Key("sessions")).Grow(1).Basis(0).FillWidth().MinHeight(0).Children(func() {
+		widget.Scroll(c.Key("sessions")).Grow(1).Basis(0).FillWidth().MinHeight(0).Children(func() {
 			widget.CardLines(c, func() {
 				if len(in) == 0 {
 					widget.CardNote(c.Key("none"), "No session now.", 0)

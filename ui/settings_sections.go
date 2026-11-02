@@ -149,7 +149,7 @@ func (a *App) sessionDefaults(c *ui.Context) {
 			cardsH := ui.Local[float32](c.Root(), "cards-height", func() float32 { return 0 })
 			ui.Column(c.Key("agents")).Grow(1).Basis(0).MinWidth(0).Gap(theme.S2).Children(func() {
 				widget.Heading(c, "Agent")
-				list := ui.Scroll(c.Key("agent-list")).FillWidth()
+				list := widget.Scroll(c.Key("agent-list")).FillWidth()
 				if *cardsH > 0 {
 					list.MaxHeight(max(*cardsH-32, 60))
 				}

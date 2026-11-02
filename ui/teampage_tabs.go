@@ -68,7 +68,7 @@ func (a *App) teamProjectPageCard(c *ui.Context, p proto.TeamProject, admin bool
 				widget.Chip(c, textfmt.Plural(n, "1 note", fmt.Sprintf("%d notes", n)), ui.Color{})
 			}
 		})
-		ui.Scroll(c.Key("sessions")).Grow(1).Basis(0).FillWidth().MinHeight(0).Children(func() {
+		widget.Scroll(c.Key("sessions")).Grow(1).Basis(0).FillWidth().MinHeight(0).Children(func() {
 			ui.Column(c).FillWidth().Children(func() {
 				if len(p.Here) > 0 {
 					widget.Running(c.Key("path"), textfmt.TildePath(p.Here[0].Path, a.daemonInfo.Home), widget.RunStyle{Size: theme.TextLabel, Color: theme.TextSoft})
@@ -235,7 +235,7 @@ func (a *App) teamPageHosts(c *ui.Context, cs *cloudSettings, t api.Team) {
 	}, func() {
 		widget.GridCard(c.Key("own")).Children(func() {
 			widget.CardTitle(c, nil, a.host.Name, nil)
-			ui.Scroll(c.Key("share")).Grow(1).Basis(0).FillWidth().MinHeight(0).Children(func() {
+			widget.Scroll(c.Key("share")).Grow(1).Basis(0).FillWidth().MinHeight(0).Children(func() {
 				ui.Column(c).FillWidth().Gap(theme.S2).Children(func() { a.hostShareBody(c, t) })
 			})
 		})
@@ -256,7 +256,7 @@ func (a *App) teamHostCard(c *ui.Context, cs *cloudSettings, h proto.TeamHost) {
 	widget.GridCard(c).Children(func() {
 		widget.CardTitle(c, nil, h.Name, nil)
 		widget.CardNote(c, teamHostAbout(h), 1)
-		ui.Scroll(c.Key("projects")).Grow(1).Basis(0).FillWidth().MinHeight(0).Children(func() {
+		widget.Scroll(c.Key("projects")).Grow(1).Basis(0).FillWidth().MinHeight(0).Children(func() {
 			widget.CardLines(c, func() {
 				for i, p := range h.Projects {
 					widget.CardLine(c.Key(p.Path), i == 0, p.Name, "", nil)
@@ -360,7 +360,7 @@ func (a *App) addTemplateCard(c *ui.Context, t api.Team) {
 	tk := a.teamKitOf()
 	widget.GridCard(c).Children(func() {
 		widget.CardTitle(c, nil, "Add a template", nil)
-		ui.Scroll(c.Key("fields")).Grow(1).Basis(0).FillWidth().MinHeight(0).Children(func() {
+		widget.Scroll(c.Key("fields")).Grow(1).Basis(0).FillWidth().MinHeight(0).Children(func() {
 			ui.Column(c).FillWidth().Gap(theme.S2).Children(func() {
 				widget.Input(c, &tk.templateName, "Template name").FillWidth()
 				widget.Input(c.Key("repo"), &tk.templateRepo, "Its Git link").FillWidth().Font(theme.MonoFont)

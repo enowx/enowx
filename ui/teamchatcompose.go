@@ -87,7 +87,7 @@ func (a *App) chatComposer(c *ui.Context, team string) {
 		box := ui.Row(c).FillWidth().Gap(theme.S1).Padding(theme.S1, theme.S2, theme.S1, theme.S4).Radius(theme.RadiusPanel).AlignItems(ui.End)
 		send := false
 		widget.Well(box, box.FocusWithin()).Children(func() {
-			in := ui.TextAreaBase(c, &hc.draft).Grow(1).Shrink(1).MinWidth(0).Lines(1, 6).Padding(theme.S2, 0).FontSize(theme.TextUI).
+			in := ui.TextAreaBase(c, &hc.draft).Grow(1).Shrink(1).MinWidth(0).Lines(1, 6).Padding(theme.S2, widget.ScrollGutter, theme.S2, 0).FontSize(theme.TextUI).
 				Placeholder(a.chatPlaceholder(team)).Label("Message").
 				Tooltip("Enter to send · Shift+Enter for a new line")
 			_, caret := in.TextSelection()

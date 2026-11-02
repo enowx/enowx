@@ -255,7 +255,7 @@ func importPreview(c *ui.Context, pv proto.NoteImportPreview) {
 	if len(pv.Conflicts) > 0 {
 		ui.Text(c, "Titles there already, kept both: "+strings.Join(pv.Conflicts, ", ")).FontSize(theme.TextLabel).TextColor(theme.Warning)
 	}
-	ui.Scroll(c).FillWidth().MaxHeight(300).Children(func() {
+	widget.Scroll(c).FillWidth().MaxHeight(300).Children(func() {
 		ui.Column(c).FillWidth().Gap(1).Children(func() {
 			for i, e := range pv.Notes {
 				if i == 300 {
@@ -318,7 +318,7 @@ func (a *App) importReport(c *ui.Context, st proto.NoteImportStatus) {
 			return
 		}
 		ui.Text(c, title).FontSize(theme.TextLabel).FontWeight(500).TextColor(theme.TextSoft)
-		ui.Scroll(c).FillWidth().MaxHeight(140).Children(func() {
+		widget.Scroll(c).FillWidth().MaxHeight(140).Children(func() {
 			ui.Column(c).FillWidth().Gap(2).Children(func() {
 				for i, it := range list {
 					ui.Text(c.Key(i), it.Where+": "+it.What).FontSize(theme.TextUI).TextColor(theme.Text)

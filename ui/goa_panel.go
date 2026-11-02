@@ -32,7 +32,7 @@ const (
 // width.
 func goaScroll(c *ui.Context, body func()) {
 	ui.Scroll(c).Grow(1).FillWidth().MinHeight(0).Children(func() {
-		ui.Column(c).FillWidth().Padding(0, theme.S2, theme.S2, theme.S2).Gap(theme.S2).Children(body)
+		ui.Column(c).FillWidth().Padding(0, widget.ScrollGutter, theme.S2, theme.S2).Gap(theme.S2).Children(body)
 	})
 }
 
@@ -514,7 +514,7 @@ func goaChoice(c *ui.Context, label string, value *string, choices []agent.Choic
 	})
 	sel.Popup(func(panel ui.Element) {
 		widget.Popup(panel.Margin(theme.S1, 0, 0, 0).MinWidth(220).MaxHeight(280))
-		ui.Scroll(c).FillWidth().Children(func() {
+		widget.Scroll(c).FillWidth().Children(func() {
 			item := func(id, name string) {
 				it := sel.Item(id)
 				widget.PopupItem(it, it.Highlighted()).Children(func() {

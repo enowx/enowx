@@ -276,7 +276,7 @@ func (a *App) syncReview(c *ui.Context, f *projectSyncForm) {
 		return
 	}
 	names := [2]string{a.host.Name, f.target.Name}
-	ui.Scroll(c).FillWidth().MaxHeight(420).Children(func() {
+	widget.Scroll(c).FillWidth().MaxHeight(420).Children(func() {
 		ui.Column(c).FillWidth().Gap(theme.S3).Children(func() {
 			for _, from := range []projectsync.Side{projectsync.There, projectsync.Here} {
 				a.syncDirection(c.Key(fmt.Sprint(from)), f, from, names)

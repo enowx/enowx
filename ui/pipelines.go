@@ -183,7 +183,7 @@ func (a *App) stageAgentSelect(c *ui.Context, st *proto.PipelineStage) {
 	})
 	sel.Popup(func(panel ui.Element) {
 		widget.Popup(panel.Margin(theme.S1, 0, 0, 0).Width(280))
-		ui.Scroll(c).FillWidth().MaxHeight(320).Children(func() {
+		widget.Scroll(c).FillWidth().MaxHeight(320).Children(func() {
 			ui.Column(c).FillWidth().Children(func() {
 				for _, ag := range a.agents {
 					if ag.Command == "" || !ag.Installed {

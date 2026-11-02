@@ -35,7 +35,7 @@ func (a *App) sessionsBody(c *ui.Context) {
 		}
 	})
 	ui.Scroll(c).Grow(1).FillWidth().Children(func() {
-		ui.Column(c).FillWidth().Padding(theme.S1, theme.S2, theme.S2, theme.S2).Children(func() {
+		ui.Column(c).FillWidth().Padding(theme.S1, widget.ScrollGutter, theme.S2, theme.S2).Children(func() {
 			if len(a.projects) == 0 {
 				msg := "No projects yet. Open a folder to start."
 				if a.client == nil {

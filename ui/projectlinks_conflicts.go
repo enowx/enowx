@@ -169,7 +169,7 @@ func (a *App) conflictDiffDialog(c *ui.Context, f *linksForm) {
 		case d.err != "":
 			widget.Notice(c, icon.Alert, theme.Muted, d.err, "", nil)
 		default:
-			ui.Scroll(c.Key("lines")).FillWidth().MaxHeight(440).Radius(theme.RadiusCard).Background(widget.CodeGround).Children(func() {
+			widget.Scroll(c.Key("lines")).FillWidth().MaxHeight(440).Radius(theme.RadiusCard).Background(widget.CodeGround).Children(func() {
 				ui.Column(c).FillWidth().Padding(theme.S2, 0).Children(func() {
 					for i, l := range d.lines {
 						col, bg := widget.CodeText, ui.Color{}
