@@ -28,7 +28,7 @@ type goaState struct {
 	board *goa.Board
 
 	mu     sync.Mutex
-	tell   []string          // lines for GOA, typed once it is idle
+	tell   []goaLine         // lines for GOA, typed once it is idle
 	urgent map[string]string // worker session → why the user answers what it asks
 	// pending is the tool call of each worker in urgent the user hasn't been
 	// told of, as its agent hasn't asked yet.
@@ -211,7 +211,14 @@ func (s *Server) goaRanOn(info proto.SessionInfo) {
 }
 
 // goaTell has line typed into GOA once it is idle.
-func (s *Server) goaTell(line string) {
+func (s *Server) goaTell(line string) { s.goaTellLine(goaLine{text: line}) }
+
+// goaLine is a line waiting for GOA. One about a task's progress (task set)
+// says nothing once the task is settled, as it may be by the time GOA is idle.
+type goaLine struct{ text, task string }
+
+// goaTellLine tells GOA line, now if it is idle, else once it is.
+func (s *Server) goaTellLine(line goaLine) {
 	g, ok := s.goaSession()
 	if !ok || g.Exited {
 		return
@@ -224,12 +231,24 @@ func (s *Server) goaTell(line string) {
 	}
 }
 
-// goaFlush types what waits for GOA (session id) as one message.
-func (s *Server) goaFlush(id string) {
+// goaLinesToSay takes what waits for GOA, less what its task's end made moot.
+func (s *Server) goaLinesToSay() []string {
 	s.goa.mu.Lock()
 	lines := s.goa.tell
 	s.goa.tell = nil
 	s.goa.mu.Unlock()
+	var out []string
+	for _, l := range lines {
+		if l.task == "" || !s.goa.board.IsSettled(l.task) {
+			out = append(out, l.text)
+		}
+	}
+	return out
+}
+
+// goaFlush types what waits for GOA (session id) as one message.
+func (s *Server) goaFlush(id string) {
+	lines := s.goaLinesToSay()
 	if len(lines) == 0 {
 		return
 	}

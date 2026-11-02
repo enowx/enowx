@@ -369,6 +369,39 @@ func TestGOASettlingAStalledTask(t *testing.T) {
 	}
 }
 
+// A settled task raises no stall line: not one looked at from before it was
+// settled, nor one waiting for GOA to be idle when it was.
+func TestGOASettledTaskRaisesNoStallLine(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("uses sh")
+	}
+	heard := stallStandIn(t)
+	srv := startServer(t)
+	c := connect(t, srv, nil)
+	if _, err := c.CreateSession(proto.SessionCreateParams{Agent: "claude", GOA: true, Cols: 200, Rows: 40}); err != nil {
+		t.Fatal(err)
+	}
+	snapshot, err := srv.goa.board.Add(proto.GOATask{Title: "settled", Session: "gone-session", Status: proto.GOATaskStalled, Created: time.Now().Add(-time.Hour)})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := c.Call(proto.MethodGOATask, proto.GOATaskParams{ID: snapshot.ID, Status: proto.GOATaskDone}, nil); err != nil {
+		t.Fatal(err)
+	}
+	w := &stallWatch{follows: map[string]*stallFollow{}, sampled: map[string]bool{}}
+	srv.stallCheck(w, snapshot, stallHost{infos: map[string]proto.SessionInfo{}}, proto.GOAStall{Blank: 1, Idle: 1, Stuck: 1})
+	srv.goa.mu.Lock()
+	srv.goa.tell = append(srv.goa.tell, goaLine{text: "moot", task: snapshot.ID}, goaLine{text: "still true"})
+	srv.goa.mu.Unlock()
+	if got := srv.goaLinesToSay(); len(got) != 1 || got[0] != "still true" {
+		t.Fatalf("to say: %q", got)
+	}
+	time.Sleep(2 * time.Second)
+	if lines := stallLinesOf(heard, snapshot.ID); len(lines) != 0 {
+		t.Fatalf("told of a settled task: %q", lines)
+	}
+}
+
 // Over a restart, a stalled task still shows so; GOA, whose queue went with the
 // daemon, hears again, and the hook isn't fired a second time for the same stall.
 // A session that ended meanwhile settles its task.

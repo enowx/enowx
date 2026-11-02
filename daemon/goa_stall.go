@@ -241,6 +241,9 @@ func (s *Server) stallCheck(w *stallWatch, t proto.GOATask, h stallHost, lim pro
 	if t.Status != proto.GOATaskStalled && !s.stallMark(t.ID, proto.GOATaskWorking, proto.GOATaskStalled) {
 		return // settled meanwhile
 	}
+	if s.goa.board.IsSettled(t.ID) {
+		return // t is as this pass began, and a look at another host takes time
+	}
 	if !f.told.IsZero() && now.Sub(f.told) < stallAgain*limit {
 		return
 	}
@@ -259,7 +262,7 @@ func (s *Server) stallCheck(w *stallWatch, t proto.GOATask, h stallHost, lim pro
 	if look.NoCPU {
 		line += " (its host can't say what its processes use, so it may be a long build)"
 	}
-	s.goaTell(stallLine(t, line, text))
+	s.goaTellLine(goaLine{text: stallLine(t, line, text), task: t.ID})
 }
 
 // stallMark moves task id from one status to another, unless something else
