@@ -18,6 +18,7 @@ import (
 // the keys of the open block's input (OnTextKey) come there too, between
 // frames.
 type editor struct {
+	soft   bool // drawing a callout's lines: small and soft
 	blocks []block
 	open   int // the block open as text, -1 for none
 	// caret is where the caret goes in the block opening (runes; -1 its
@@ -312,6 +313,9 @@ func (e *editor) showBlock(c *ui.Context, i, n int) {
 		e.blockRow(c, row, i, n, func() {
 			size, weight := textStyle(b.kind)
 			switch {
+			case b.text == "" && b.kind == kText && len(e.blocks) > 1:
+				// A blank line between blocks is their gap, not a line of text.
+				ui.Box(c).FillWidth().Height(theme.S1)
 			case b.text == "":
 				ui.Box(c).FillWidth().Height(size * 1.45)
 			case b.kind == kTodo && b.done:
@@ -379,7 +383,7 @@ func (e *editor) edit(c *ui.Context, i, n int) {
 				Radius(theme.RadiusCard).Background(widget.CodeGround).TextColor(widget.CodeText).Border(2, theme.Now).Label(label)
 		})
 	default:
-		row := ui.Row(c).Background(theme.Fade(theme.Hover, 0.6))
+		row := ui.Row(c).Background(theme.Hover)
 		e.blockRow(c, row, i, n, func() {
 			size, weight := textStyle(b.kind)
 			in = ui.TextAreaBase(c, &b.text).FillWidth().Lines(1, 60).FontSize(size).FontWeight(weight).

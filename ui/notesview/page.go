@@ -210,7 +210,7 @@ func (v *View) pageBody(c *ui.Context, o Options, p *page, outline bool) {
 		ui.Column(c).FillWidth().Padding(0, 0, 0, docLeft).Children(func() { v.projectBadges(c, o, n) })
 	}
 	if done, total := noteblocks.Progress(p.ed.markdown()); total > 0 && p.mode != modeSource && !outline {
-		ui.Column(c).FillWidth().Padding(0, 0, theme.S2, docLeft).Children(func() { progressBar(c, "To-dos", done, total) })
+		ui.Column(c).FillWidth().Padding(0, 6, theme.S2, docLeft+6).Children(func() { progressBar(c, "To-dos", done, total) })
 	}
 	if p.mode == modeSource {
 		ui.Column(c).FillWidth().Padding(0, 0, 0, docLeft+6).Children(func() { v.sourceView(c, o, p) })

@@ -107,6 +107,8 @@ func (e *editor) runView(c *ui.Context, i int, n noteblocks.Node) {
 					size, weight := textStyle(b.kind)
 					t := e.label(cc, b.text).FontSize(size).FontWeight(weight).FillWidth()
 					switch {
+					case e.soft && b.kind == kText:
+						t.FontSize(theme.TextUI).TextColor(theme.TextSoft)
 					case b.kind == kTodo && b.done:
 						t.TextColor(theme.TextSoft)
 					case b.kind == kQuote:
@@ -272,12 +274,16 @@ func (e *editor) calloutView(c *ui.Context, i int, n noteblocks.Node) {
 	kind, title := calloutOf(n.Args)
 	k := calloutKinds[kind]
 	col := k.color()
-	ui.Row(c).FillWidth().MinWidth(0).Gap(theme.S3).Padding(theme.S3, theme.S4).Radius(theme.RadiusCard).Background(theme.Sunken).AlignItems(ui.Start).Children(func() {
+	// Its lines keep a block's 6 of margin: the title takes the same, and the
+	// gap gives it back.
+	ui.Row(c).FillWidth().MinWidth(0).Gap(theme.S3-6).Padding(theme.S3, theme.S4).Radius(theme.RadiusCard).Background(theme.Sunken).AlignItems(ui.Start).Children(func() {
 		ui.Icon(c, k.svg).FontSize(16).TextColor(col).Margin(2, 0, 0, 0)
 		ui.Column(c).Grow(1).MinWidth(0).Gap(theme.S1).Children(func() {
 			if title != "" {
-				e.label(c, title).FontSize(theme.TextRead).FontWeight(500).TextColor(col)
+				e.label(c, title).FontSize(theme.TextRead).FontWeight(500).TextColor(theme.TextStrong).PaddingX(6)
 			}
+			e.soft = true
+			defer func() { e.soft = false }()
 			for _, p := range n.Parts {
 				e.partView(c.Key(p.Line), i, p)
 			}

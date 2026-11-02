@@ -162,7 +162,10 @@ func (v *View) projectFilterButton(c *ui.Context, o Options) {
 	v.menu.OpenBelow(b, "project-filter", theme.ControlHeight)
 	v.menu.Show(c, b, "project-filter", func(done func()) {
 		pick := func(c *ui.Context, svg *ui.SVG, label, value string) {
-			if widget.MenuItem(c, svg, label, v.projectFilter == value) {
+			if v.projectFilter == value {
+				svg = icon.Check // the one shown
+			}
+			if widget.MenuItem(c, svg, label, false) {
 				v.projectFilter = value
 				done()
 			}
