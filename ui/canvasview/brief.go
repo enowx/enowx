@@ -59,7 +59,7 @@ func (v *View) briefDialog(c *ui.Context, o Options) {
 		v.briefing = nil
 		return
 	}
-	widget.FormSheet(c, &f.open, 560, "Brief", "What the canvas's designs are for. Agents write it before designing and judge every design against it.", func() {
+	widget.FormSheet(c, &f.open, 480, "Brief", "What the canvas's designs are for. Agents write it before designing and judge every design against it.", func() {
 		ui.Column(c).FillWidth().Gap(theme.S3).Children(func() {
 			for i, kv := range designbrief.Fields(proto.DesignBrief{}) {
 				heading := kv[0]

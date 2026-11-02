@@ -85,7 +85,7 @@ func (v *View) versions(c *ui.Context, o Options) {
 			if widget.IconButton(c.Key("cmp"), icon.Layers, fmt.Sprintf("Compare v%d with the one shown", ver.N), v.compare != nil && v.compare.n == ver.N).Clicked() {
 				v.compareWith(o, ver.N)
 			}
-			if widget.IconButton(c.Key("restore"), icon.History, fmt.Sprintf("Restore v%d", ver.N), false).Clicked() {
+			if widget.GhostButton(c.Key("restore"), "Restore").Label(fmt.Sprintf("Restore v%d", ver.N)).Clicked() {
 				o.Restore(v.canvas.ID, ver.N, func(cv proto.Canvas, err error) {
 					if err != nil {
 						v.err = err.Error()

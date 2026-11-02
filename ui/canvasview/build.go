@@ -73,7 +73,7 @@ func (v *View) buildDialog(c *ui.Context, o Options) {
 		v.building = nil
 		return
 	}
-	widget.FormSheet(c, &f.open, 560, "Build a UI", "The canvas's agent writes the brief, then designs; you follow it here and pick.", func() {
+	widget.FormSheet(c, &f.open, 480, "Build a UI", "The canvas's agent writes the brief, then designs; you follow it here and pick.", func() {
 		col := ui.Column(c.Key("build-form")).FillWidth().Gap(theme.S3)
 		if files := col.DroppedFiles(); len(files) > 0 {
 			f.setImage(readImage(files[0]))
@@ -116,7 +116,7 @@ func (v *View) buildDialog(c *ui.Context, o Options) {
 			}
 		})
 	}, func() {
-		b := widget.PrimaryButton(c, nil, "Start", "").Label("Start the build")
+		b := widget.PrimaryButton(c, icon.Play, "Start", "").Label("Start the build")
 		if !f.ready(o) {
 			b.Disabled(true)
 		} else if b.Clicked() {

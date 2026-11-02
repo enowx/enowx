@@ -46,9 +46,9 @@ func (v *View) grid(c *ui.Context, o Options, cv proto.Canvas) {
 			if n := len(v.comparing(cv)); n > 0 {
 				widget.Running(c.Key("picked"), fmt.Sprintf("%d picked to compare (2 to 4): Compare above shows them side by side", n), widget.RunStyle{Color: theme.TextSoft})
 			}
-			// As many cards a row as fit 280 wide, as wide as the room
+			// As many cards a row as fit 260 wide, as wide as the room
 			// shares out: the grid fills it at any width.
-			const cell, gap = 280, theme.S3
+			const cell, gap = 260, theme.S3
 			cw := float32(cell)
 			if room > 0 {
 				n := max(1, int((room+gap)/(cell+gap)))
