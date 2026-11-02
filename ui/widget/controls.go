@@ -187,6 +187,34 @@ func Checkbox(c *ui.Context, checked *bool, label string) bool {
 	return false
 }
 
+// CheckRow is a checkbox filling the width it is given, for a column of them:
+// its label runs when too long for it.
+func CheckRow(c *ui.Context, checked *bool, label string) bool {
+	b := ui.ButtonBase(c).FillWidth().MinWidth(0).Height(theme.ControlHeight).Gap(theme.S2).Cursor(ui.CursorPointer).Label(label).Justify(ui.Start)
+	b.Children(func() {
+		box := ui.Box(c).Size(16, 16).Shrink(0).Radius(theme.RadiusTail).Center().TextColor(theme.OnAccent)
+		if *checked {
+			box.Background(theme.Accent)
+		} else {
+			Well(box, false)
+			if b.Hovered() {
+				box.Background(theme.Fade(theme.TextStrong, 0.1))
+			}
+		}
+		box.Children(func() {
+			if *checked {
+				ui.Icon(c, icon.Check).FontSize(12)
+			}
+		})
+		ui.Row(c).Grow(1).Basis(0).MinWidth(0).Children(func() { Running(c, label, RunStyle{Color: theme.Text}) })
+	})
+	if b.Clicked() {
+		*checked = !*checked
+		return true
+	}
+	return false
+}
+
 // Field is a form field: a label over its input.
 func Field(c *ui.Context, label string, fn func()) {
 	ui.Column(c).FillWidth().MinWidth(0).Gap(theme.S1).Children(func() {
