@@ -89,7 +89,7 @@ type Stat struct{ Value, Label string }
 func CardStats(c *ui.Context, stats []Stat) {
 	ui.Row(c.Key("card-stats")).FillWidth().Shrink(0).Gap(theme.S2).Children(func() {
 		for _, s := range stats {
-			ui.Column(c.Key(s.Label)).Grow(1).Basis(0).MinWidth(0).Children(func() {
+			ui.Column(c.Key(s.Label)).Grow(1).Basis(0).MinWidth(0).Gap(theme.S1).Children(func() {
 				Running(c.Key("v"), s.Value, RunStyle{Size: theme.TextRead, Weight: 500})
 				Running(c.Key("l"), s.Label, RunStyle{Size: theme.TextLabel, Color: theme.TextSoft})
 			})
