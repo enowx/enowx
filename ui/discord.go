@@ -87,7 +87,10 @@ func (a *App) discordPresence() {
 	d.want <- act
 }
 
-// discordActivity is the selected session, else the app itself.
+// goaPresence is what Discord says in GOD of Agents mode.
+const goaPresence = "Working using GOA"
+
+// discordActivity is GOD of Agents when on, the selected session, else the app itself.
 func (a *App) discordActivity() *discordrpc.Activity {
 	act := &discordrpc.Activity{
 		Assets:  &discordrpc.Assets{LargeImage: "enowx", LargeText: "enowX: coding agents, side by side"},
@@ -98,6 +101,16 @@ func (a *App) discordActivity() *discordrpc.Activity {
 		if !s.Exited {
 			running++
 		}
+	}
+	if a.goaOn() {
+		// GOA's work is across projects, so this says nothing of one, whatever
+		// "Show the project and branch" is.
+		act.Details, act.State = goaPresence, plural(running, "session")
+		act.Timestamps = &discordrpc.Times{Start: a.discord.started.Unix()}
+		if g, ok := a.goaSession(); ok {
+			act.Timestamps.Start = g.Created.Unix()
+		}
+		return act
 	}
 	s, ok := a.selectedSession()
 	if !ok || s.Exited {
@@ -231,6 +244,7 @@ func (a *App) discordSection(c *ui.Context) {
 			}
 			discordSample(c, "With a session selected", details, "Claude Code · "+plural(max(len(a.sessions), 1), "session"))
 			discordSample(c, "With none selected", "In enowX", plural(len(a.sessions), "session")+" open")
+			discordSample(c, "In GOD of Agents mode", goaPresence, plural(max(len(a.sessions), 1), "session"))
 		})
 	})
 }
