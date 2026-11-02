@@ -149,7 +149,7 @@ func (v *View) stage(c *ui.Context, o Options) {
 			if n := o.Web.Wider(); n > 0 {
 				// Past the palette, which keeps the stage's corner in Edit mode.
 				raised(ui.Row(c.Key("wider")).Absolute().Left(theme.S6+theme.S5).Top(theme.S2).Right(theme.S2).MaxWidth(420).Height(theme.ControlHeight).Padding(0, theme.S3).Gap(theme.S2).AlignItems(ui.Center).
-					Radius(theme.RadiusFull)).Tooltip("Something sticks out past the design's width, so its page scrolls sideways: fix it, or ask the agent to").
+					Radius(theme.RadiusControl)).Tooltip("Something sticks out past the design's width, so its page scrolls sideways: fix it, or ask the agent to").
 					Children(func() {
 						ui.Icon(c, icon.Alert).FontSize(14).TextColor(theme.Warning)
 						ui.Row(c).Grow(1).MinWidth(0).Children(func() {

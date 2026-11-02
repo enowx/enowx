@@ -160,7 +160,7 @@ func (a *App) canvasAssistant(c *ui.Context, cv proto.Canvas) {
 func (a *App) canvasChatHeader(c *ui.Context, cv proto.Canvas, hc *hostCanvasChat, agentID string, s proto.SessionInfo, ok bool) {
 	cl := a.client
 	ui.Row(c.Key("agent-head")).FillWidth().Height(52).Shrink(0).Padding(0, theme.S2, 0, theme.S3).Gap(theme.S1).AlignItems(ui.Center).Clip().Children(func() {
-		pick := ui.ButtonBase(c.Key("pick")).Height(theme.ControlHeight).Shrink(1).MinWidth(0).PaddingX(theme.S2).Gap(theme.S1).Radius(theme.RadiusFull).Cursor(ui.CursorPointer).Label("Agent").Tooltip("The agent this canvas talks to")
+		pick := ui.ButtonBase(c.Key("pick")).Height(theme.ControlHeight).Shrink(1).MinWidth(0).PaddingX(theme.S2).Gap(theme.S1).Radius(theme.RadiusControl).Cursor(ui.CursorPointer).Label("Agent").Tooltip("The agent this canvas talks to")
 		if pick.Hovered() {
 			pick.Background(theme.Hover)
 		}

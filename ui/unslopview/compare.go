@@ -69,7 +69,7 @@ func (v *Compare) Draw(c *ui.Context, o CompareOptions) {
 
 // bar is the comparison's top: the sizes, the scores, closing it.
 func (v *Compare) bar(c *ui.Context, o CompareOptions) {
-	widget.Rim(ui.Row(c.Key("compare-bar")).Gap(theme.S3).AlignItems(ui.Center).Height(48).Padding(0, theme.S2, 0, theme.S4).Radius(theme.RadiusFull).Background(theme.Popover)).Children(func() {
+	widget.Rim(ui.Row(c.Key("compare-bar")).Gap(theme.S3).AlignItems(ui.Center).Height(48).Padding(0, theme.S2, 0, theme.S4).Radius(theme.RadiusControl).Background(theme.Popover)).Children(func() {
 		ui.Text(c, "Before and after").FontSize(theme.TextUI).FontWeight(600).TextColor(theme.TextStrong).SingleLine()
 		if len(o.Shots) > 1 {
 			labels := make([]string, len(o.Shots))

@@ -68,7 +68,7 @@ func (v *View) versions(c *ui.Context, o Options) {
 		if ver.Element != "" {
 			what += " " + ver.Element
 		}
-		widget.Raise(ui.Row(c.Key(ver.N)).FillWidth().MinHeight(44).Shrink(0).Padding(theme.S1, theme.S2, theme.S1, theme.S3).Gap(theme.S2).Radius(theme.RadiusCard).AlignItems(ui.Center).Background(theme.Raised)).Children(func() {
+		widget.Raise(ui.Row(c.Key(ver.N)).FillWidth().MinHeight(44).Shrink(0).Padding(theme.S1, theme.S2, theme.S1, theme.S3).Gap(theme.S2).Radius(theme.RadiusControl).AlignItems(ui.Center).Background(theme.Raised)).Children(func() {
 			dot := theme.Muted
 			if ver.N == h.Head {
 				dot = theme.Accent

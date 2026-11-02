@@ -326,7 +326,7 @@ func (a *App) ragHitRow(c *ui.Context, s proto.SessionInfo, h proto.RAGHit) {
 	if where == "" {
 		where = h.Source
 	}
-	b := ui.ButtonBase(c).FillWidth().MinHeight(36).Padding(theme.S1, theme.S3).Gap(theme.S2).Radius(theme.RadiusCard).Justify(ui.Start).
+	b := ui.ButtonBase(c).FillWidth().MinHeight(36).Padding(theme.S1, theme.S3).Gap(theme.S2).Radius(theme.RadiusControl).Justify(ui.Start).
 		Cursor(ui.CursorPointer).Label(where)
 	bg := theme.Fade(theme.Selected, 0)
 	if b.Hovered() {

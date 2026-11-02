@@ -144,7 +144,7 @@ func (p *Picker) places(c *ui.Context) {
 			if _, err := os.Stat(dir); err != nil {
 				continue
 			}
-			b := ui.ButtonBase(c.Key(name)).Height(24).Gap(theme.S1).PaddingX(theme.S2).Radius(theme.RadiusFull).Cursor(ui.CursorPointer).
+			b := ui.ButtonBase(c.Key(name)).Height(24).Gap(theme.S1).PaddingX(theme.S2).Radius(theme.RadiusSmall).Cursor(ui.CursorPointer).
 				Background(theme.Sunken).Label(name)
 			if p.dir == dir {
 				b.Background(theme.Selected)
@@ -196,7 +196,7 @@ func (p *Picker) row(c *ui.Context, e entry) {
 				}
 			}
 		})
-		b := ui.ButtonBase(c.Key("name")).Grow(1).MinWidth(0).Height(28).PaddingX(theme.S2).Gap(theme.S2).Radius(theme.RadiusFull).
+		b := ui.ButtonBase(c.Key("name")).Grow(1).MinWidth(0).Height(28).PaddingX(theme.S2).Gap(theme.S2).Radius(theme.RadiusSmall).
 			Justify(ui.Start).Cursor(ui.CursorPointer).Label(e.name)
 		if b.Hovered() {
 			b.Background(theme.Hover)

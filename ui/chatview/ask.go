@@ -119,9 +119,9 @@ func permissionTitle(e proto.TranscriptEntry, who string) string {
 	return who + " asks to use " + verb
 }
 
-// capsuleOptions says a question's options read as capsules in a line: short,
+// shortOptions says a question's options read as small buttons in a line: short,
 // with nothing to say about them. Otherwise each takes a row.
-func capsuleOptions(q proto.TranscriptQuestion) bool {
+func shortOptions(q proto.TranscriptQuestion) bool {
 	for i, o := range q.Options {
 		if len([]rune(o)) > 48 || i < len(q.About) && q.About[i] != "" {
 			return false
@@ -169,7 +169,7 @@ func (ch *Chat) questionCard(c *ui.Context, e proto.TranscriptEntry) {
 			ch.answered[e.Index] = at + 1
 			ch.ask.answer(keys)
 		}
-		if capsuleOptions(q) {
+		if shortOptions(q) {
 			ui.Row(c).FillWidth().Gap(theme.S2).Wrap().Children(func() {
 				for i, o := range q.Options {
 					kind := widget.Secondary

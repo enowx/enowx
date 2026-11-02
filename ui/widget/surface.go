@@ -109,7 +109,7 @@ func StateCard(c *ui.Context, col ui.Color, svg *ui.SVG, title, msg string, badg
 	Rim(ui.Column(c).Width(460).MaxWidth(9999).Shrink(1).MinWidth(0).Padding(theme.S5).Gap(theme.S3).Radius(theme.RadiusPanel).
 		Background(theme.Frame)).Children(func() {
 		ui.Row(c).FillWidth().Gap(theme.S3).AlignItems(ui.Start).Children(func() {
-			ui.Box(c).Size(40, 40).Shrink(0).Radius(theme.RadiusFull).Background(theme.Sunken).
+			ui.Box(c).Size(40, 40).Shrink(0).Radius(theme.RadiusCard).Background(theme.Sunken).
 				Center().TextColor(col).Children(func() {
 				if badge != nil {
 					badge()
@@ -132,7 +132,7 @@ func StateCard(c *ui.Context, col ui.Color, svg *ui.SVG, title, msg string, badg
 // and the one action that fixes it.
 func EmptyState(c *ui.Context, svg *ui.SVG, title, body string, action func()) {
 	ui.Column(c).Grow(1).FillWidth().Center().Gap(theme.S3).Children(func() {
-		ui.Box(c).Size(48, 48).Radius(theme.RadiusFull).Background(theme.Sunken).Center().TextColor(theme.TextSoft).Children(func() {
+		ui.Box(c).Size(48, 48).Radius(theme.RadiusCard).Background(theme.Sunken).Center().TextColor(theme.TextSoft).Children(func() {
 			ui.Icon(c, svg).FontSize(20)
 		})
 		ui.Text(c, title).FontSize(theme.TextTitle).FontWeight(600)

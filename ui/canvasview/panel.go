@@ -59,9 +59,9 @@ func (v *View) sidePanel(c *ui.Context, o Options) {
 // widths "Comments" wouldn't fit the panel, though all four do.
 func panelSegments(c *ui.Context, labels []string, current int) int {
 	clicked := -1
-	ui.Row(c).FillWidth().MinWidth(0).Padding(theme.S1).Radius(theme.RadiusFull).Background(theme.Sunken).Children(func() {
+	ui.Row(c).FillWidth().MinWidth(0).Padding(theme.S1).Radius(theme.RadiusControl).Background(theme.Sunken).Children(func() {
 		for i, label := range labels {
-			b := ui.ButtonBase(c.Key(i)).Grow(float32(len(label) + 1)).Basis(0).MinWidth(0).Height(28).PaddingX(2).Radius(theme.RadiusFull).Label(label)
+			b := ui.ButtonBase(c.Key(i)).Grow(float32(len(label) + 1)).Basis(0).MinWidth(0).Height(28).PaddingX(2).Radius(theme.RadiusSmall).Label(label)
 			bg, fg, weight := theme.Fade(theme.Selected, 0), theme.TextSoft, 400
 			switch {
 			case i == current:
@@ -94,7 +94,7 @@ func (v *View) showLayers() {
 
 // layerRow is a layer of the frame: a card in the panel, indented by its depth.
 func (v *View) layerRow(c *ui.Context, o Options, key, id, kind, text string, depth int) {
-	r := ui.ButtonBase(c.Key(key)).FillWidth().MinHeight(44).Shrink(0).Padding(theme.S1, theme.S3, theme.S1, theme.S3+float32(min(depth, 4))*theme.S2).Gap(theme.S2).Radius(theme.RadiusCard).
+	r := ui.ButtonBase(c.Key(key)).FillWidth().MinHeight(44).Shrink(0).Padding(theme.S1, theme.S3, theme.S1, theme.S3+float32(min(depth, 4))*theme.S2).Gap(theme.S2).Radius(theme.RadiusControl).
 		Justify(ui.Start).Cursor(ui.CursorPointer).Label("Layer " + id)
 	switch {
 	case v.sel == id:

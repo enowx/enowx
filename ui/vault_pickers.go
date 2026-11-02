@@ -41,7 +41,7 @@ func (a *App) vaultAPIKeys(c *ui.Context, f *agentAPIForm) {
 	ui.Row(c).FillWidth().Wrap().Gap(theme.S2).AlignItems(ui.Center).Children(func() {
 		ui.Text(c, "From the vault:").FontSize(theme.TextLabel).TextColor(theme.TextSoft)
 		for _, cr := range keys {
-			b := ui.ButtonBase(c.Key(cr.ID)).Height(24).PaddingX(theme.S2).Gap(theme.S1).Radius(theme.RadiusFull).Background(theme.Sunken).Cursor(ui.CursorPointer).Label("Use " + cr.Name)
+			b := ui.ButtonBase(c.Key(cr.ID)).Height(24).PaddingX(theme.S2).Gap(theme.S1).Radius(theme.RadiusSmall).Background(theme.Sunken).Cursor(ui.CursorPointer).Label("Use " + cr.Name)
 			if b.Hovered() {
 				b.Background(theme.Hover)
 			}
@@ -81,7 +81,7 @@ func (a *App) credsField(c *ui.Context) {
 					continue
 				}
 				on := slices.Contains(f.creds, cr.Name) || cr.Auto
-				b := ui.ButtonBase(c.Key(cr.ID)).Height(24).PaddingX(theme.S2).Gap(theme.S1).Radius(theme.RadiusFull).Cursor(ui.CursorPointer).Label(cr.Name)
+				b := ui.ButtonBase(c.Key(cr.ID)).Height(24).PaddingX(theme.S2).Gap(theme.S1).Radius(theme.RadiusSmall).Cursor(ui.CursorPointer).Label(cr.Name)
 				if on {
 					b.Background(theme.Selected)
 				} else if b.Hovered() {

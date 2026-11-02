@@ -97,7 +97,7 @@ func TestMemberOpensASharedHost(t *testing.T) {
 	tt := ui.NewTester(func(c *ui.Context) {
 		c.SetTheme(theme.Window())
 		ui.Row(c).Width(1100).Height(700).Background(theme.Background).TextColor(theme.Text).Children(func() {
-			ui.Column(c).Width(navWidth).FillHeight().Children(func() { app.contextCapsule(c) })
+			ui.Column(c).Width(navWidth).FillHeight().Children(func() { app.contextPane(c) })
 			ui.Column(c).Grow(1).FillHeight().Children(func() {
 				if app.page == pageTeamHost {
 					app.teamHostPage(c)

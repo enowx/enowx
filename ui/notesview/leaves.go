@@ -47,7 +47,7 @@ func (e *editor) tocView(c *ui.Context) {
 				continue
 			}
 			shown = true
-			link := ui.ButtonBase(c.Key(s.ID)).FillWidth().Height(theme.ControlHeight).Padding(0, theme.S3, 0, theme.S3+float32(s.Level-1)*theme.S3).Gap(theme.S2).Radius(theme.RadiusFull).
+			link := ui.ButtonBase(c.Key(s.ID)).FillWidth().Height(theme.ControlHeight).Padding(0, theme.S3, 0, theme.S3+float32(s.Level-1)*theme.S3).Gap(theme.S2).Radius(theme.RadiusControl).
 				Justify(ui.Start).AlignItems(ui.Center).Cursor(ui.CursorPointer).Label("Go to " + s.Title)
 			if link.Hovered() {
 				link.Background(theme.Hover)
@@ -119,7 +119,7 @@ func (e *editor) pagesView(c *ui.Context) {
 			ui.Text(c, "No pages inside yet: “Add a page inside” in the page's menu makes one.").FontSize(theme.TextUI).TextColor(theme.TextSoft)
 		}
 		for _, n := range e.env.children {
-			b := ui.ButtonBase(c.Key(n.ID)).FillWidth().Height(theme.ControlHeight).Shrink(0).PaddingX(theme.S2).Gap(theme.S2).Radius(theme.RadiusFull).Justify(ui.Start).AlignItems(ui.Center).
+			b := ui.ButtonBase(c.Key(n.ID)).FillWidth().Height(theme.ControlHeight).Shrink(0).PaddingX(theme.S2).Gap(theme.S2).Radius(theme.RadiusControl).Justify(ui.Start).AlignItems(ui.Center).
 				Cursor(ui.CursorPointer).Label("Open " + titleOf(n))
 			if b.Hovered() {
 				b.Background(theme.Hover)
@@ -192,7 +192,7 @@ func embedCard(c *ui.Context, svg *ui.SVG, title, about, link string) {
 		}
 	}
 	card.Children(func() {
-		ui.Row(c).Size(32, 32).Radius(theme.RadiusFull).Center().Background(theme.Sunken).Shrink(0).Children(func() {
+		ui.Row(c).Size(32, 32).Radius(theme.RadiusControl).Center().Background(theme.Sunken).Shrink(0).Children(func() {
 			ui.Icon(c, svg).FontSize(14).TextColor(theme.TextSoft)
 		})
 		ui.Column(c).Grow(1).MinWidth(0).Children(func() {

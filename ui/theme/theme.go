@@ -53,13 +53,13 @@ const MonoFont = "monospace"
 
 // Shape: the same in every palette.
 const (
-	RadiusFull    = 999 // capsules: half the height, whatever the height is
-	RadiusControl = 16  // buttons, inputs: a capsule at ControlHeight
+	RadiusFull    = 999 // only what is round by nature: switches, dots, badges, avatars
+	RadiusControl = 8   // buttons, inputs, list rows
 	RadiusTail    = 4   // a bubble's corner toward who said it
-	RadiusSmall   = 12  // thumbnails, swatches
-	RadiusCard    = 20  // cards, bubbles, wells, menus
-	RadiusPanel   = 28  // the window's panels, dialogs
-	RadiusBento   = 28  // the window's panels
+	RadiusSmall   = 6   // thumbnails, small buttons, what sits inside a control or a menu
+	RadiusCard    = 10  // cards, bubbles, wells, menus
+	RadiusPanel   = 12  // the window's panels, dialogs
+	RadiusBento   = 12  // the window's panels
 	BentoGap      = 8   // between the window's panels
 	WindowInset   = 12  // around them
 	ControlHeight = 32

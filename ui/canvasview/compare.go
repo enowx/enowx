@@ -267,7 +267,7 @@ func (v *View) pickButton(c *ui.Context, o Options, cv proto.Canvas, f proto.Can
 	if front {
 		kind = widget.Primary
 	}
-	b := ui.ButtonBase(c.Key("pick")).FillWidth().MinWidth(0).Height(theme.ControlHeight).PaddingX(theme.S3).Radius(theme.RadiusFull).Center().Cursor(ui.CursorPointer)
+	b := ui.ButtonBase(c.Key("pick")).FillWidth().MinWidth(0).Height(theme.ControlHeight).PaddingX(theme.S3).Radius(theme.RadiusControl).Center().Cursor(ui.CursorPointer)
 	if kind == widget.Primary {
 		bg := theme.Accent
 		if b.Hovered() {

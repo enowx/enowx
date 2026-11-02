@@ -124,7 +124,7 @@ func (v *View) groupHeader(c *ui.Context, o Options, g proto.NoteGroup, count in
 // groupRow is a line heading pages in the tree: what the design's lists head
 // their groups with, that folds.
 func groupRow(c *ui.Context, label string) ui.Element {
-	return ui.ButtonBase(c).FillWidth().Height(theme.ControlHeight).Shrink(0).Padding(0, theme.S2, 0, theme.S3).Gap(theme.S2).Radius(theme.RadiusCard).
+	return ui.ButtonBase(c).FillWidth().Height(theme.ControlHeight).Shrink(0).Padding(0, theme.S2, 0, theme.S3).Gap(theme.S2).Radius(theme.RadiusControl).
 		Justify(ui.Start).Margin(theme.S1, 0, 0, 0).Cursor(ui.CursorPointer).Label(label).AlignItems(ui.Center)
 }
 
@@ -215,7 +215,7 @@ func (v *View) groupDialog(c *ui.Context, o Options) {
 			save = widget.Input(c, &f.name, "Plans").FillWidth().AutoFocus().Submitted()
 		})
 		widget.Field(c, "Icon", func() {
-			b := widget.Well(ui.ButtonBase(c).AlignSelf(ui.Start).Height(theme.ControlHeight).PaddingX(theme.S3).Gap(theme.S2).Radius(theme.RadiusFull).
+			b := widget.Well(ui.ButtonBase(c).AlignSelf(ui.Start).Height(theme.ControlHeight).PaddingX(theme.S3).Gap(theme.S2).Radius(theme.RadiusControl).
 				Cursor(ui.CursorPointer).Label("Group icon"), f.picking)
 			b.Children(func() {
 				ink := theme.Muted

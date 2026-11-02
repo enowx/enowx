@@ -302,7 +302,7 @@ func (a *App) toolsDock(c *ui.Context) {
 		unread, _ = a.chatUnreadAll()
 	}
 	ui.Column(c.Key("dock-room")).Width(44).Shrink(0).FillHeight().Justify(ui.Center).Children(func() {
-		widget.Pane(ui.Column(c.Key("dock")).FillWidth().Padding(theme.S1, 0).Gap(theme.S1).Radius(theme.RadiusFull).AlignItems(ui.Center)).Children(func() {
+		widget.Pane(ui.Column(c.Key("dock")).FillWidth().Padding(theme.S1, 0).Gap(theme.S1).Radius(theme.RadiusCard).AlignItems(ui.Center)).Children(func() {
 			for _, id := range first {
 				t, _ := findTool(id)
 				if a.dockButton(c.Key("tool:"+id), t, id == front).Clicked() {
@@ -338,7 +338,7 @@ func (a *App) toolsDock(c *ui.Context) {
 
 // dockFace is the round button of a dock's entry.
 func dockFace(c *ui.Context, svg *ui.SVG, label string, on bool) ui.Element {
-	b := ui.ButtonBase(c).Size(36, 36).Radius(theme.RadiusFull).Center().Shrink(0).Label(label).Tooltip(label).Cursor(ui.CursorPointer)
+	b := ui.ButtonBase(c).Size(36, 36).Radius(theme.RadiusControl).Center().Shrink(0).Label(label).Tooltip(label).Cursor(ui.CursorPointer)
 	bg, fg := theme.Fade(theme.Selected, 0), theme.TextSoft
 	if on || b.Hovered() {
 		bg, fg = theme.Selected, theme.Text

@@ -287,7 +287,7 @@ func (a *App) imageViewer(c *ui.Context, team string) {
 		if im != nil && im.bmp != nil {
 			ui.Image(c, im.bmp).Size(iw*scale, ih*scale).Radius(theme.RadiusSmall)
 		}
-		ui.Row(c).Gap(theme.S2).AlignItems(ui.Center).Padding(theme.S2, theme.S2, theme.S2, theme.S3).Radius(theme.RadiusControl+4).Background(theme.Dialog).Border(1, theme.BorderStrong).Children(func() {
+		ui.Row(c).Gap(theme.S2).AlignItems(ui.Center).Padding(theme.S2, theme.S2, theme.S2, theme.S3).Radius(theme.RadiusCard).Background(theme.Dialog).Border(1, theme.BorderStrong).Children(func() {
 			ui.Column(c).Gap(1).Shrink(1).MinWidth(0).Children(func() {
 				ui.Text(c, nonEmptyStr(att.Name, "Image")).FontSize(theme.TextLabel).FontWeight(600).SingleLine()
 				detail := m.Name + " · " + m.At.Local().Format("Mon 2 Jan 15:04")

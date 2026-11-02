@@ -212,7 +212,7 @@ const tabWidth = 160
 // tabFace is a tab of the strip: one width, its status dot, its icon and name,
 // which runs in front or under the pointer, and an × when it can close.
 func (a *App) tabFace(c *ui.Context, name, tip string, front, closable bool, dot ui.Color, hollow bool, svg *ui.SVG, pick, closeIt func()) {
-	b := ui.ButtonBase(c).Width(tabWidth).Height(28).Padding(0, theme.S2).Gap(theme.S1).Radius(theme.RadiusFull).Shrink(0).Justify(ui.Start).
+	b := ui.ButtonBase(c).Width(tabWidth).Height(28).Padding(0, theme.S2).Gap(theme.S1).Radius(theme.RadiusSmall).Shrink(0).Justify(ui.Start).
 		Label(name).Tooltip(tip).Cursor(ui.CursorPointer)
 	bg, fg := theme.Fade(theme.Selected, 0), theme.TextSoft
 	switch {
@@ -232,7 +232,7 @@ func (a *App) tabFace(c *ui.Context, name, tip string, front, closable bool, dot
 		if !closable {
 			return
 		}
-		x := ui.ButtonBase(c).Size(16, 16).Shrink(0).Radius(theme.RadiusFull).Center().Cursor(ui.CursorPointer).Label("Close " + name)
+		x := ui.ButtonBase(c).Size(16, 16).Shrink(0).Radius(theme.RadiusSmall).Center().Cursor(ui.CursorPointer).Label("Close " + name)
 		if x.Hovered() {
 			x.Background(theme.Hover)
 		}

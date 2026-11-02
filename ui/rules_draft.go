@@ -119,7 +119,7 @@ func (a *App) rulesVersionsRow(c *ui.Context, d *rulesDraft, forWhat, path strin
 	widget.Field(c, "Earlier versions", func() {
 		ui.Column(c).FillWidth().Gap(theme.S1).Children(func() {
 			for i, v := range d.versions[:min(len(d.versions), 5)] {
-				b := ui.ButtonBase(c.Key("version:" + strconv.Itoa(i))).FillWidth().Height(28).PaddingX(theme.S2).Radius(theme.RadiusFull).Justify(ui.Start).Cursor(ui.CursorPointer).
+				b := ui.ButtonBase(c.Key("version:" + strconv.Itoa(i))).FillWidth().Height(28).PaddingX(theme.S2).Radius(theme.RadiusSmall).Justify(ui.Start).Cursor(ui.CursorPointer).
 					Label("Bring back the version of " + v.Time.Format("2 Jan 15:04"))
 				if b.Hovered() {
 					b.Background(theme.Hover)

@@ -166,7 +166,7 @@ func (v *View) dots(c *ui.Context) {
 // zoom (a click shows the design at its own size), in, and fit.
 func (v *View) zoomBar(c *ui.Context, aw, ah, width, height float32) {
 	raised(ui.Row(c.Key("zoom")).Absolute().Right(theme.S2).Bottom(theme.S2).Height(40).PaddingX(theme.S1).Gap(theme.S1).AlignItems(ui.Center).
-		Radius(theme.RadiusFull)).Children(func() {
+		Radius(theme.RadiusControl)).Children(func() {
 		if widget.IconButton(c.Key("out"), icon.Minus, "Zoom out", false).Clicked() {
 			v.cam.zoomAt(aw/2, ah/2, 1/1.25)
 		}

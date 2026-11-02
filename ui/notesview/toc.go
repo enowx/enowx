@@ -167,7 +167,7 @@ func (v *View) outlinePanel(c *ui.Context, p *page) {
 					if l == 9 {
 						label = "All"
 					}
-					b := ui.ButtonBase(c.Key(l)).Height(24).MinWidth(24).PaddingX(theme.S1).Radius(theme.RadiusFull).Center().Shrink(0).Cursor(ui.CursorPointer).Label("Outline to level " + label).
+					b := ui.ButtonBase(c.Key(l)).Height(24).MinWidth(24).PaddingX(theme.S1).Radius(theme.RadiusSmall).Center().Shrink(0).Cursor(ui.CursorPointer).Label("Outline to level " + label).
 						Tooltip("Headings down to this level")
 					if l == level {
 						b.Background(theme.Selected)
@@ -204,7 +204,7 @@ func (v *View) outlinePanel(c *ui.Context, p *page) {
 				})
 			})
 			if p.scroll.Y > 480 {
-				top := ui.ButtonBase(c).FillWidth().Height(theme.ControlHeight).Shrink(0).PaddingX(theme.S2).Gap(theme.S2).Radius(theme.RadiusFull).Justify(ui.Start).AlignItems(ui.Center).Cursor(ui.CursorPointer).Label("Back to the top")
+				top := ui.ButtonBase(c).FillWidth().Height(theme.ControlHeight).Shrink(0).PaddingX(theme.S2).Gap(theme.S2).Radius(theme.RadiusControl).Justify(ui.Start).AlignItems(ui.Center).Cursor(ui.CursorPointer).Label("Back to the top")
 				if top.Hovered() {
 					top.Background(theme.Hover)
 				}
@@ -223,7 +223,7 @@ func (v *View) outlinePanel(c *ui.Context, p *page) {
 // outlineEntry is section s in the outline: a click goes there, its
 // chevron folds the sections under it.
 func (v *View) outlineEntry(c *ui.Context, p *page, s noteblocks.Section, active, kids, folded bool) {
-	row := ui.ButtonBase(c).FillWidth().Height(theme.ControlHeight).Shrink(0).Padding(0, theme.S2, 0, theme.S2+float32(max(s.Level-1, 0))*theme.S2).Gap(theme.S1).Radius(theme.RadiusFull).
+	row := ui.ButtonBase(c).FillWidth().Height(theme.ControlHeight).Shrink(0).Padding(0, theme.S2, 0, theme.S2+float32(max(s.Level-1, 0))*theme.S2).Gap(theme.S1).Radius(theme.RadiusControl).
 		Justify(ui.Start).AlignItems(ui.Center).Cursor(ui.CursorPointer).Label("Section " + s.Title)
 	switch {
 	case active:
@@ -233,7 +233,7 @@ func (v *View) outlineEntry(c *ui.Context, p *page, s noteblocks.Section, active
 	}
 	row.Children(func() {
 		if kids {
-			chev := ui.ButtonBase(c).Size(16, 16).Radius(theme.RadiusFull).Center().Shrink(0).Cursor(ui.CursorPointer).Label("Fold " + s.Title)
+			chev := ui.ButtonBase(c).Size(16, 16).Radius(theme.RadiusSmall).Center().Shrink(0).Cursor(ui.CursorPointer).Label("Fold " + s.Title)
 			chev.Children(func() {
 				svg := icon.ChevronDown
 				if folded {

@@ -39,7 +39,7 @@ func (a *App) cloudSignInDialog(c *ui.Context) {
 				open = false
 			}
 			ui.Row(c).FillWidth().Gap(theme.S3).Padding(theme.S3, theme.S4).Radius(theme.RadiusCard).Background(theme.Sunken).Children(func() {
-				ui.Box(c).Size(32, 32).Radius(theme.RadiusFull).Background(theme.Fade(theme.Done, 0.16)).Center().Shrink(0).Children(func() {
+				ui.Box(c).Size(32, 32).Radius(theme.RadiusControl).Background(theme.Fade(theme.Done, 0.16)).Center().Shrink(0).Children(func() {
 					ui.Icon(c, icon.Check).FontSize(16).TextColor(theme.Done)
 				})
 				ui.Column(c).Grow(1).MinWidth(0).Children(func() {

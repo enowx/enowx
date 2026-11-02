@@ -50,7 +50,7 @@ func (v *View) shareDialog(c *ui.Context, o Options) {
 				ui.Column(c.Key("links")).FillWidth().Gap(theme.S2).Children(func() {
 					for _, u := range st.link.URLs {
 						ui.Row(c.Key(u)).FillWidth().Gap(theme.S2).AlignItems(ui.Center).Children(func() {
-							widget.Well(ui.Row(c.Key("url")).Grow(1).MinWidth(0).Height(theme.ControlHeight).PaddingX(theme.S3).Radius(theme.RadiusFull), false).Children(func() {
+							widget.Well(ui.Row(c.Key("url")).Grow(1).MinWidth(0).Height(theme.ControlHeight).PaddingX(theme.S3).Radius(theme.RadiusControl), false).Children(func() {
 								widget.Running(c, u, widget.RunStyle{})
 							})
 							label := "Copy"

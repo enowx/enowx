@@ -112,7 +112,7 @@ func rowFace(b ui.Element) {
 // fileRow is a file the agent edited, in the folder or not; clicking one in the
 // folder shows it in a tab.
 func (v *View) fileRow(c *ui.Context, o Options, f edited) {
-	b := ui.ButtonBase(c).FillWidth().MinHeight(28).PaddingX(theme.S3).Gap(theme.S2).Radius(theme.RadiusCard).Justify(ui.Start).Label(f.path)
+	b := ui.ButtonBase(c).FillWidth().MinHeight(28).PaddingX(theme.S3).Gap(theme.S2).Radius(theme.RadiusControl).Justify(ui.Start).Label(f.path)
 	absolute := strings.HasPrefix(f.path, "/")
 	if !absolute {
 		b.Cursor(ui.CursorPointer)
@@ -149,7 +149,7 @@ func (v *View) turnRow(c *ui.Context, o Options, t turn, running bool) {
 		prompt = "(no prompt)"
 	}
 	ui.Column(c).FillWidth().Children(func() {
-		b := ui.ButtonBase(c).FillWidth().MinHeight(36).Padding(theme.S1, theme.S3).Gap(theme.S2).Radius(theme.RadiusCard).Justify(ui.Start).
+		b := ui.ButtonBase(c).FillWidth().MinHeight(36).Padding(theme.S1, theme.S3).Gap(theme.S2).Radius(theme.RadiusControl).Justify(ui.Start).
 			Cursor(ui.CursorPointer).Label(textfmt.FirstLine(t.prompt, 80))
 		rowFace(b)
 		if !t.at.IsZero() {

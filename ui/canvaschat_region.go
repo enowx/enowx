@@ -76,7 +76,7 @@ func (a *App) regionBar(c *ui.Context, cv proto.Canvas, hc *hostCanvasChat, s pr
 	run, hasRun := a.unslopRuns[cv.ID]
 	ui.Column(c.Key("region-bar")).FillWidth().Shrink(0).Padding(theme.S2, theme.S3).Gap(theme.S2).Children(func() {
 		ui.Row(c.Key("head")).FillWidth().Gap(theme.S2).AlignItems(ui.Center).Children(func() {
-			back := ui.ButtonBase(c.Key("back")).Height(theme.ControlHeight).Padding(0, theme.S3, 0, theme.S2).Gap(theme.S1).Radius(theme.RadiusFull).AlignItems(ui.Center).
+			back := ui.ButtonBase(c.Key("back")).Height(theme.ControlHeight).Padding(0, theme.S3, 0, theme.S2).Gap(theme.S1).Radius(theme.RadiusControl).AlignItems(ui.Center).
 				Label("Back to the main agent").Cursor(ui.CursorPointer)
 			if back.Hovered() {
 				back.Background(theme.Hover)
@@ -110,7 +110,7 @@ func (a *App) regionBar(c *ui.Context, cv proto.Canvas, hc *hostCanvasChat, s pr
 		ui.Row(c.Key("regions")).FillWidth().Gap(theme.S1).Wrap().Children(func() {
 			for i, r := range run.Regions {
 				on := r.Session == s.ID
-				chip := ui.ButtonBase(c.Key("r:" + r.ID)).Height(24).MaxWidth(200).PaddingX(theme.S2).Gap(theme.S1).Radius(theme.RadiusFull).AlignItems(ui.Center).
+				chip := ui.ButtonBase(c.Key("r:" + r.ID)).Height(24).MaxWidth(200).PaddingX(theme.S2).Gap(theme.S1).Radius(theme.RadiusSmall).AlignItems(ui.Center).
 					Label("Show the agent of #" + r.ID).Cursor(ui.CursorPointer).Background(theme.Sunken)
 				if on {
 					chip.Background(theme.Selected)

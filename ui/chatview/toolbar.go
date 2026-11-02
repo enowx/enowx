@@ -18,7 +18,7 @@ import (
 // conversation's end, the line of what the agent is at.
 
 // chatTools are the search and the fold, in the frame's corner: bare beside a
-// centered column, in a capsule where they'd lie over its text. turns are
+// centered column, in a pane where they'd lie over its text. turns are
 // the list's rows, more after the row of older ones.
 func (ch *Chat) chatTools(c *ui.Context, turns []turn, more int) {
 	r := ui.Row(c.Key("chat-bar")).Absolute().Top(theme.S2).Right(theme.S3).Gap(theme.S1).AlignItems(ui.Center)
@@ -26,7 +26,7 @@ func (ch *Chat) chatTools(c *ui.Context, turns []turn, more int) {
 		r.MaxWidth(ch.width - 2*theme.S3)
 	}
 	if ch.finding || ch.toolsOverColumn() {
-		widget.Rim(r.Padding(theme.S1).Radius(theme.RadiusFull).Background(theme.Popover))
+		widget.Rim(r.Padding(theme.S1).Radius(theme.RadiusControl).Background(theme.Popover))
 	}
 	r.Children(func() {
 		if ch.finding {
@@ -221,7 +221,7 @@ func (ch *Chat) toLatest(c *ui.Context, working bool) {
 		label = "Follow the agent"
 	}
 	ui.Row(c.Key("to-latest")).Absolute().Left(0).Bottom(ch.composerH + theme.S4 + theme.S3).FillWidth().Justify(ui.Center).PassThrough().Children(func() {
-		b := ui.ButtonBase(c.Key("button")).Height(theme.ControlHeight).PaddingX(theme.S3).Gap(theme.S1).Radius(theme.RadiusFull).AlignItems(ui.Center).
+		b := ui.ButtonBase(c.Key("button")).Height(theme.ControlHeight).PaddingX(theme.S3).Gap(theme.S1).Radius(theme.RadiusControl).AlignItems(ui.Center).
 			Cursor(ui.CursorPointer).Label(label)
 		bg := theme.Popover
 		if b.Hovered() {

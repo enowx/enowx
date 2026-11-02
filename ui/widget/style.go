@@ -57,7 +57,7 @@ func Popup(panel ui.Element) ui.Element {
 // PopupItem styles one entry of a pop-up: highlighted while hovered or
 // picked with the keyboard.
 func PopupItem(item ui.Element, highlighted bool) ui.Element {
-	item.FillWidth().Gap(theme.S2).MinHeight(theme.ControlHeight).Padding(theme.S1, theme.S3).Radius(theme.RadiusCard)
+	item.FillWidth().Gap(theme.S2).MinHeight(theme.ControlHeight).Padding(theme.S1, theme.S3).Radius(theme.RadiusSmall)
 	bg := theme.Fade(theme.Selected, 0)
 	if highlighted {
 		bg = theme.Selected

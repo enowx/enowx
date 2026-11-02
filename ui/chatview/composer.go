@@ -17,7 +17,7 @@ import (
 	"github.com/enowx/enowx/ui/widget"
 )
 
-// composer is where the user writes to the agent: a capsule floating over the
+// composer is where the user writes to the agent: a box floating over the
 // frame's foot, the conversation scrolling under it, with the message over a
 // row of the agent's settings. What it says of the conversation (the lines
 // changed, the context) keeps to the row's free end.
@@ -302,7 +302,7 @@ const roundSize = 36
 // roundButton is the composer's send or stop button: in the accent, or
 // quiet when back is set.
 func roundButton(c *ui.Context, svg *ui.SVG, label string, off, back bool) ui.Element {
-	b := ui.ButtonBase(c).Size(roundSize, roundSize).Radius(theme.RadiusFull).Center().Shrink(0).Label(label).Tooltip(label).Cursor(ui.CursorPointer)
+	b := ui.ButtonBase(c).Size(roundSize, roundSize).Radius(theme.RadiusControl).Center().Shrink(0).Label(label).Tooltip(label).Cursor(ui.CursorPointer)
 	if back {
 		bg := theme.Selected
 		if b.Hovered() {
@@ -361,7 +361,7 @@ func (ch *Chat) setting(c *ui.Context, o Options, key string, svg *ui.SVG, list 
 	case !known:
 		label = title
 	}
-	b := ui.ButtonBase(c.Key(key)).Height(theme.ControlHeight).PaddingX(theme.S2).Gap(theme.S1).Radius(theme.RadiusFull).Shrink(0).AlignItems(ui.Center).Justify(ui.Start).
+	b := ui.ButtonBase(c.Key(key)).Height(theme.ControlHeight).PaddingX(theme.S2).Gap(theme.S1).Radius(theme.RadiusControl).Shrink(0).AlignItems(ui.Center).Justify(ui.Start).
 		Label(title).Tooltip(title + ": " + label).Cursor(ui.CursorPointer)
 	bg, fg := theme.Fade(theme.Selected, 0), theme.TextSoft
 	if b.Hovered() || ch.menu == key {

@@ -152,7 +152,7 @@ func (a *App) choiceRow(c *ui.Context, ch *sessionChoice) bool {
 		}
 	}
 	picked := ch == nil && f.cont == nil || ch != nil && f.cont != nil && f.cont.key == ch.key
-	row := ui.ButtonBase(c.Key(key)).FillWidth().MinHeight(44).Padding(theme.S1, theme.S3).Gap(theme.S2).Radius(theme.RadiusCard).Justify(ui.Start).Cursor(ui.CursorPointer).Label(name)
+	row := ui.ButtonBase(c.Key(key)).FillWidth().MinHeight(44).Padding(theme.S1, theme.S3).Gap(theme.S2).Radius(theme.RadiusControl).Justify(ui.Start).Cursor(ui.CursorPointer).Label(name)
 	bg := theme.Fade(theme.Selected, 0)
 	switch {
 	case picked:

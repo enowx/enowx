@@ -209,7 +209,7 @@ func (a *App) sshConfigSection(c *ui.Context) {
 		ui.Row(c).FillWidth().Gap(theme.S1).Wrap().Children(func() {
 			for _, h := range offered {
 				on := f.address == h.Alias
-				b := ui.ButtonBase(c.Key(h.Alias)).Height(theme.ControlHeight).PaddingX(theme.S3).Gap(theme.S1).Radius(theme.RadiusFull).
+				b := ui.ButtonBase(c.Key(h.Alias)).Height(theme.ControlHeight).PaddingX(theme.S3).Gap(theme.S1).Radius(theme.RadiusControl).
 					Cursor(ui.CursorPointer).Label(h.Alias).Tooltip(h.Real.String())
 				widget.Well(b, false)
 				if on {

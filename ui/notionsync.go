@@ -79,7 +79,7 @@ func (a *App) notionTokenField(c *ui.Context, f *noteImportForm) {
 			ui.Row(c).FillWidth().Wrap().Gap(theme.S2).AlignItems(ui.Center).Children(func() {
 				ui.Text(c, "From the vault:").FontSize(theme.TextLabel).TextColor(theme.TextSoft)
 				for _, cr := range creds {
-					b := ui.ButtonBase(c.Key(cr.ID)).Height(theme.ControlHeight).PaddingX(theme.S3).Gap(theme.S2).Radius(theme.RadiusFull).Background(theme.Sunken).Cursor(ui.CursorPointer).Label("Use " + cr.Name)
+					b := ui.ButtonBase(c.Key(cr.ID)).Height(theme.ControlHeight).PaddingX(theme.S3).Gap(theme.S2).Radius(theme.RadiusControl).Background(theme.Sunken).Cursor(ui.CursorPointer).Label("Use " + cr.Name)
 					if f.cred == cr.ID {
 						b.Background(theme.Selected)
 					} else if b.Hovered() {

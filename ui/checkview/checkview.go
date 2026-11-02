@@ -214,7 +214,7 @@ func (v *View) toolbar(c *ui.Context, o Options) {
 func (v *View) checkRow(c *ui.Context, o Options, ch proto.Check, on bool) {
 	r, ran := v.run(ch.Name)
 	ui.Column(c).FillWidth().Children(func() {
-		b := ui.ButtonBase(c).FillWidth().MinHeight(36).Padding(theme.S1, theme.S3).Gap(theme.S1).Radius(theme.RadiusCard).Justify(ui.Start).
+		b := ui.ButtonBase(c).FillWidth().MinHeight(36).Padding(theme.S1, theme.S3).Gap(theme.S1).Radius(theme.RadiusControl).Justify(ui.Start).
 			Cursor(ui.CursorPointer).Label(ch.Name)
 		bg := theme.Fade(theme.Selected, 0)
 		switch {

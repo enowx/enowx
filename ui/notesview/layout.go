@@ -182,13 +182,13 @@ func (e *editor) tabsView(c *ui.Context, i int, n noteblocks.Node) {
 	}
 	widget.Raise(ui.Column(c).FillWidth().MinWidth(0).Radius(theme.RadiusCard).Background(theme.Raised)).Children(func() {
 		ui.Row(c).FillWidth().Padding(theme.S1).Children(func() {
-			ui.Row(c).MinWidth(0).Shrink(1).Padding(theme.S1).Gap(0).Radius(theme.RadiusFull).Background(theme.Sunken).Clip().Children(func() {
+			ui.Row(c).MinWidth(0).Shrink(1).Padding(theme.S1).Gap(0).Radius(theme.RadiusControl).Background(theme.Sunken).Clip().Children(func() {
 				for k, p := range n.Parts {
 					title := p.Title
 					if title == "" {
 						title = "Tab " + strconv.Itoa(k+1)
 					}
-					tab := ui.ButtonBase(c.Key(k)).Height(28).PaddingX(theme.S3).Radius(theme.RadiusFull).MinWidth(0).Shrink(1).Center().Cursor(ui.CursorPointer).Label("Tab " + title)
+					tab := ui.ButtonBase(c.Key(k)).Height(28).PaddingX(theme.S3).Radius(theme.RadiusSmall).MinWidth(0).Shrink(1).Center().Cursor(ui.CursorPointer).Label("Tab " + title)
 					switch {
 					case k == at:
 						tab.Background(theme.Selected)

@@ -12,7 +12,7 @@ import (
 // GOD of Agents mode (docs/goa.md): the connected host's GOA session is
 // the one the user drives, the session list folded away, the side panel
 // kept with the Sessions and Tasks tools, Notes, Canvas and the other
-// pages reached from the title bar's capsule. The app also tells GOA's host
+// pages reached from the title bar's pane. The app also tells GOA's host
 // of its workers on other hosts, which only it sees.
 
 // goaApp is the app's side of GOA, on the main thread.

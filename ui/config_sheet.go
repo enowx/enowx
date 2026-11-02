@@ -204,7 +204,7 @@ func (a *App) vaultKeyNames(c *ui.Context, value *string) {
 	ui.Row(c).FillWidth().Wrap().Gap(theme.S1).AlignItems(ui.Center).Children(func() {
 		ui.Text(c, "In the vault:").FontSize(theme.TextLabel).TextColor(theme.TextSoft)
 		for _, n := range names {
-			b := ui.ButtonBase(c.Key("cred:" + n)).Height(24).PaddingX(theme.S2).Radius(theme.RadiusFull).Background(theme.Sunken).Cursor(ui.CursorPointer).Label("Use " + n)
+			b := ui.ButtonBase(c.Key("cred:" + n)).Height(24).PaddingX(theme.S2).Radius(theme.RadiusSmall).Background(theme.Sunken).Cursor(ui.CursorPointer).Label("Use " + n)
 			if *value == n {
 				b.Background(theme.Selected)
 			} else if b.Hovered() {

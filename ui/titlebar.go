@@ -10,7 +10,7 @@ import (
 	"github.com/enowx/enowx/ui/widget"
 )
 
-// titleBarHeight is the height of the capsules at the window's top.
+// titleBarHeight is the height of the panes at the window's top.
 const titleBarHeight = 40
 
 // titleBar is the window's top: not a bar but separate panes on
@@ -33,27 +33,27 @@ func (a *App) titleBarWith(c *ui.Context, actions func()) {
 	ui.Row(c).Height(max(bar.Height, titleBarHeight)).Shrink(0).FillWidth().
 		Padding(0, bar.Right, 0, bar.Left).Gap(theme.S2).DragWindow().Children(func() {
 		ui.Row(c).Height(titleBarHeight).PaddingX(theme.S3).Shrink(0).Children(func() { a.windowButtons(c) })
-		a.contextCapsule(c)
-		a.pagesCapsule(c)
+		a.contextPane(c)
+		a.pagesPane(c)
 		a.commandButton(c)
 		ui.Spacer(c)
-		capsule(c).Shrink(0).Gap(theme.S1).PaddingX(theme.S1).Children(actions)
+		topPane(c).Shrink(0).Gap(theme.S1).PaddingX(theme.S1).Children(actions)
 	})
 }
 
-// capsule is one of the top's panes.
-func capsule(c *ui.Context) ui.Element {
-	return widget.Pane(ui.Row(c).Height(titleBarHeight).Radius(theme.RadiusFull).AlignItems(ui.Center))
+// topPane is one of the top's panes.
+func topPane(c *ui.Context) ui.Element {
+	return widget.Pane(ui.Row(c).Height(titleBarHeight).Radius(theme.RadiusControl).AlignItems(ui.Center))
 }
 
 // contextMax is how wide the host's and the project's names may be in their
-// capsule; longer, they run.
+// pane; longer, they run.
 const contextMax = 112
 
-// contextCapsule is the host and project the app is on, a menu of the others.
-func (a *App) contextCapsule(c *ui.Context) {
+// contextPane is the host and project the app is on, a menu of the others.
+func (a *App) contextPane(c *ui.Context) {
 	col, state := a.connectionState()
-	b := widget.Pane(ui.ButtonBase(c.Key("host-switch")).Height(titleBarHeight).PaddingX(theme.S4).Gap(theme.S2).Radius(theme.RadiusFull).
+	b := widget.Pane(ui.ButtonBase(c.Key("host-switch")).Height(titleBarHeight).PaddingX(theme.S4).Gap(theme.S2).Radius(theme.RadiusControl).
 		Cursor(ui.CursorPointer).Shrink(0).Label("Host: " + a.host.Name + ", " + state).Tooltip(a.host.Name + " · " + state))
 	b.Children(func() {
 		if a.client == nil {
@@ -73,9 +73,9 @@ func (a *App) contextCapsule(c *ui.Context) {
 	a.menu.Show(c, b, "host-switch", func(done func()) { a.hostMenuItems(c, done) })
 }
 
-// pagesCapsule is the app's pages.
-func (a *App) pagesCapsule(c *ui.Context) {
-	capsule(c).Shrink(0).PaddingX(theme.S1).Gap(theme.S1).Children(func() {
+// pagesPane is the app's pages.
+func (a *App) pagesPane(c *ui.Context) {
+	topPane(c).Shrink(0).PaddingX(theme.S1).Gap(theme.S1).Children(func() {
 		page := func(label string, on, enabled bool, open func()) {
 			if pageButton(c, label, on, enabled).Clicked() && enabled && !on {
 				open()
@@ -105,9 +105,9 @@ func (a *App) pagesCapsule(c *ui.Context) {
 	})
 }
 
-// pageButton is a page's entry in the pages' capsule.
+// pageButton is a page's entry in the pages' pane.
 func pageButton(c *ui.Context, label string, on, enabled bool) ui.Element {
-	b := ui.ButtonBase(c.Key("page:" + label)).Height(theme.ControlHeight).PaddingX(theme.S3).Gap(theme.S1).Radius(theme.RadiusFull).
+	b := ui.ButtonBase(c.Key("page:" + label)).Height(theme.ControlHeight).PaddingX(theme.S3).Gap(theme.S1).Radius(theme.RadiusSmall).
 		Label(label).Shrink(0)
 	bg, fg, weight := theme.Fade(theme.Selected, 0), theme.TextSoft, 400
 	switch {
@@ -130,7 +130,7 @@ func pageButton(c *ui.Context, label string, on, enabled bool) ui.Element {
 // commandButton opens the command palette.
 func (a *App) commandButton(c *ui.Context) {
 	b := widget.Pane(ui.ButtonBase(c.Key("command")).Width(340).Shrink(1).MinWidth(160).Height(titleBarHeight).PaddingX(theme.S4).Gap(theme.S2).
-		Radius(theme.RadiusFull).Label("Run a command").Cursor(ui.CursorPointer))
+		Radius(theme.RadiusControl).Label("Run a command").Cursor(ui.CursorPointer))
 	b.Justify(ui.Start).TextColor(theme.TextSoft).Children(func() {
 		ui.Icon(c, icon.Search).FontSize(14)
 		ui.Text(c, "Search sessions, hosts and actions").FontSize(theme.TextUI).SingleLine().Shrink(1).MinWidth(0)
@@ -153,9 +153,9 @@ func (a *App) newSessionAction(c *ui.Context) {
 	}
 }
 
-// actionButton is an entry of the actions' capsule, with its words or an icon alone.
+// actionButton is an entry of the actions' pane, with its words or an icon alone.
 func actionButton(c *ui.Context, key, label string, svg *ui.SVG, iconOnly bool) ui.Element {
-	b := ui.ButtonBase(c.Key(key)).Height(theme.ControlHeight).MinWidth(theme.ControlHeight).PaddingX(theme.S2).Gap(theme.S1).Radius(theme.RadiusFull).
+	b := ui.ButtonBase(c.Key(key)).Height(theme.ControlHeight).MinWidth(theme.ControlHeight).PaddingX(theme.S2).Gap(theme.S1).Radius(theme.RadiusSmall).
 		Center().Label(label).Cursor(ui.CursorPointer).Shrink(0)
 	bg := theme.Fade(theme.Selected, 0)
 	if b.Hovered() {
@@ -207,9 +207,9 @@ func (a *App) settingsAction(c *ui.Context) {
 // hostIsRemote says the app is connected to a host other than this device.
 func (a *App) hostIsRemote() bool { return a.client != nil && a.host.ID != hosts.LocalID }
 
-// titleChip is a small button of the actions' capsule, its words its own.
+// titleChip is a small button of the actions' pane, its words its own.
 func titleChip(c *ui.Context, key, label string) ui.Element {
-	b := ui.ButtonBase(c.Key(key)).Height(theme.ControlHeight).PaddingX(theme.S2).Gap(theme.S1).Radius(theme.RadiusFull).Shrink(0).
+	b := ui.ButtonBase(c.Key(key)).Height(theme.ControlHeight).PaddingX(theme.S2).Gap(theme.S1).Radius(theme.RadiusSmall).Shrink(0).
 		Label(label).Tooltip(label).Cursor(ui.CursorPointer)
 	bg := theme.Fade(theme.Selected, 0)
 	if b.Hovered() {

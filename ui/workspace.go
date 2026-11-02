@@ -277,7 +277,7 @@ func (a *App) sessionBanner(c *ui.Context, s proto.SessionInfo) {
 		return
 	}
 	ui.Row(c.Key("banner")).Shrink(0).FillWidth().Padding(theme.S3, theme.S5, 0, theme.S5).Children(func() {
-		ui.Row(c).Grow(1).MinWidth(0).Height(40).Padding(0, theme.S1, 0, theme.S4).Gap(theme.S2).Radius(theme.RadiusFull).
+		ui.Row(c).Grow(1).MinWidth(0).Height(40).Padding(0, theme.S1, 0, theme.S4).Gap(theme.S2).Radius(theme.RadiusControl).
 			Background(theme.Fade(col, 0.14)).Children(func() {
 			ui.Row(c).Grow(1).MinWidth(0).Children(func() { widget.Running(c, text, widget.RunStyle{}) })
 			if can && widget.GhostButton(c, "Continue").Clicked() {

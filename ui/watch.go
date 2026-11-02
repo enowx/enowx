@@ -391,7 +391,7 @@ func liveSessions(st hostStatus, filter string, a *App) []proto.SessionInfo {
 // to h and shows it.
 func (a *App) otherSessionRow(c *ui.Context, h hosts.Host, s proto.SessionInfo) {
 	st := statusOf(s)
-	row := ui.ButtonBase(c).FillWidth().Height(theme.ControlHeight).PaddingX(theme.S3).Gap(theme.S2).Radius(theme.RadiusFull).
+	row := ui.ButtonBase(c).FillWidth().Height(theme.ControlHeight).PaddingX(theme.S3).Gap(theme.S2).Radius(theme.RadiusControl).
 		Justify(ui.Start).Cursor(ui.CursorPointer).Label(a.sessionName(s) + " on " + h.Name)
 	if row.Hovered() {
 		row.Background(theme.Hover)

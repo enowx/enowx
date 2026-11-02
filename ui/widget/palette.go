@@ -41,7 +41,7 @@ func Palette(c *ui.Context, open *bool, query *string, placeholder string, onKey
 // PaletteRow is a result: its icon, its name and, far right, a word about it.
 // Both run when they don't fit, sharing the row with what is picked.
 func PaletteRow(c *ui.Context, row ui.Element, picked bool, svg *ui.SVG, label, detail string, mono bool) ui.Element {
-	row.FillWidth().Shrink(0).MinHeight(32).Padding(theme.S1, theme.S3).Gap(theme.S2).Radius(theme.RadiusFull).Justify(ui.Start).Cursor(ui.CursorPointer)
+	row.FillWidth().Shrink(0).MinHeight(32).Padding(theme.S1, theme.S3).Gap(theme.S2).Radius(theme.RadiusSmall).Justify(ui.Start).Cursor(ui.CursorPointer)
 	bg := theme.Fade(theme.Selected, 0)
 	if picked || row.Hovered() {
 		bg = theme.Selected

@@ -132,7 +132,7 @@ func (v *View) libraryIcons(c *ui.Context, o Options, current string, pick func(
 		shown := p.libraries()
 		for _, l := range iconlib.Libraries {
 			on := slices.Contains(shown, l.ID)
-			b := ui.ButtonBase(c.Key(l.ID)).Height(24).PaddingX(theme.S2).Radius(theme.RadiusFull).Background(theme.Sunken).Cursor(ui.CursorPointer).
+			b := ui.ButtonBase(c.Key(l.ID)).Height(24).PaddingX(theme.S2).Radius(theme.RadiusSmall).Background(theme.Sunken).Cursor(ui.CursorPointer).
 				Label("Library " + l.Name)
 			if on {
 				b.Background(theme.Selected)
@@ -221,7 +221,7 @@ func (v *View) iconSection(c *ui.Context, label string, refs []string, current s
 		ui.Text(c, label).FontSize(theme.TextLabel).FontWeight(500).TextColor(theme.TextSoft)
 		ui.Row(c).FillWidth().Gap(2).Wrap().Children(func() {
 			for _, ref := range refs {
-				b := ui.ButtonBase(c.Key(ref)).Size(36, 32).Radius(theme.RadiusFull).Center().Cursor(ui.CursorPointer).Label("Icon " + ref).Tooltip(ref)
+				b := ui.ButtonBase(c.Key(ref)).Size(36, 32).Radius(theme.RadiusControl).Center().Cursor(ui.CursorPointer).Label("Icon " + ref).Tooltip(ref)
 				if sameIcon(ref, current) {
 					b.Background(theme.Selected)
 				} else if b.Hovered() {

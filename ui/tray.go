@@ -275,7 +275,7 @@ func (a *App) trayView(c *ui.Context) {
 }
 
 func (a *App) traySessionRow(c *ui.Context, s proto.SessionInfo) {
-	row := ui.ButtonBase(c).FillWidth().Height(36).Shrink(0).PaddingX(theme.S2).Gap(theme.S2).Radius(theme.RadiusCard).Justify(ui.Start).
+	row := ui.ButtonBase(c).FillWidth().Height(36).Shrink(0).PaddingX(theme.S2).Gap(theme.S2).Radius(theme.RadiusControl).Justify(ui.Start).
 		Label(a.sessionName(s)).Cursor(ui.CursorPointer)
 	if row.Hovered() {
 		row.Background(theme.Hover)

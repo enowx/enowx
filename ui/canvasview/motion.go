@@ -115,7 +115,7 @@ func (w *Web) motionBar(c *ui.Context, aw, ah float32) {
 	}
 	width := min(aw-32, 520)
 	raised(ui.Row(c.Key("motion-bar")).Absolute().Left((aw - width) / 2).Top(ah - motionBarRoom + 4).Width(width).Height(36).
-		PaddingX(theme.S1).Gap(theme.S1).AlignItems(ui.Center).Radius(theme.RadiusFull)).Children(func() {
+		PaddingX(theme.S1).Gap(theme.S1).AlignItems(ui.Center).Radius(theme.RadiusControl)).Children(func() {
 		if m.P {
 			if widget.IconButton(c.Key("motion-pause"), icon.Pause, "Pause", false).Clicked() {
 				w.pauseMotion()
