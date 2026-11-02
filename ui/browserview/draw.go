@@ -3,6 +3,7 @@ package browserview
 import (
 	"context"
 	"slices"
+	"strings"
 	"time"
 
 	"github.com/egoist/mygo/ui"
@@ -157,7 +158,7 @@ func navButton(c *ui.Context, svg *ui.SVG, label string, can bool) bool {
 // elsewhere on the port.
 func (v *View) addressField(c *ui.Context, o Options) {
 	if !v.editing {
-		v.address = v.shown()
+		v.address = addressShown(v.shown())
 		if v.home {
 			v.address = "" // as a new tab's: what is typed goes in clean
 		}
@@ -172,6 +173,16 @@ func (v *View) addressField(c *ui.Context, o Options) {
 	if submitted {
 		v.navigate(o)
 	}
+}
+
+// addressShown is a page's URL as the field reads: this machine's without its
+// scheme and bare root, which target() puts back.
+func addressShown(u string) string {
+	rest, ok := strings.CutPrefix(u, "http://")
+	if !ok || !strings.HasPrefix(rest, "localhost") && !strings.HasPrefix(rest, "127.0.0.1") {
+		return u
+	}
+	return strings.TrimSuffix(rest, "/")
 }
 
 // sizeMenu picks the page's width, as a phone's, a tablet's or a desktop's.
