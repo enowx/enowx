@@ -45,8 +45,16 @@ type videoExport struct {
 
 // ffmpegPath is ffmpeg's program, "" when there is none.
 func ffmpegPath() string {
-	p, _ := exec.LookPath("ffmpeg")
-	return p
+	if p, err := exec.LookPath("ffmpeg"); err == nil {
+		return p
+	}
+	// An app opened from the desktop doesn't get a login shell's PATH.
+	for _, p := range []string{"/opt/homebrew/bin/ffmpeg", "/usr/local/bin/ffmpeg", "/usr/bin/ffmpeg"} {
+		if info, err := os.Stat(p); err == nil && !info.IsDir() {
+			return p
+		}
+	}
+	return ""
 }
 
 func (a *App) videoButtons(c *ui.Context, r *unslopReplay) {

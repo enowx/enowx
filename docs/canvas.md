@@ -83,9 +83,17 @@ A design can really move: a product's animation in its mockup, a logo's reveal, 
 - **Interact mode** has a bar under a moving design: play or pause, restart, and a scrubber, driven through the page as its links are. The board shows the design finished and doesn't play it. It isn't a timeline editor: what moves is the design's own code, so an agent changes it.
 - **The shared page** has the same controls under each moving design, by postMessage, as its frame's sandbox leaves nothing else. A single frame's HTML export plays alone with no controls, so a viewer with reduced motion sees it finished.
 
-Stills catch one moment, the same each time: the end, or a loop's start. `canvas screenshot` and `canvas export` say so for a moving design, and Export's menu marks PNG, SVG and PDF "(one frame)". Only HTML keeps the motion; there is no video export or sound.
+Stills catch one moment, the same each time: the end, or a loop's start. `canvas screenshot` and `canvas export` say so for a moving design, and Export's menu marks PNG, SVG and PDF "(one frame)". HTML keeps the motion, and an MP4 records it, without sound.
 
 Agents check motion from moments of it: `canvas frames ID [DESIGN] --at 0,25,50,75,100` (MCP `canvas_frames`) loads the page once and moves it to each moment (a percent of its length, or `1500ms`), keeps them as files, lays them on one sheet in order, and says when two are the same picture. The guide's Motion section has when to use what; `canvas guide motion` has timing, easing, choreography, what looks cheap and how to check it.
+
+### As an MP4
+
+**Export, MP4…** on a design that moves, `canvas export --format mp4` and MCP `canvas_export` render it frame by frame, not by recording the screen: the design's clock moves to each frame's time, the frame is captured and encoded, so the file comes out the same each time, however fast the machine is. It runs in the background, one at a time, in a hidden window of the app, with a card in the window's corner: how far, the time left, Cancel, which leaves no file, then Open and Show in folder. Files go to Downloads.
+
+- **Choices:** the range (all of it, or from and to), 30 or 60 frames a second, and its size (the frame's, twice that, or a width). All of it, 30 and the frame's size by default. A loop renders one cycle. A design with no motion has the option off.
+- **Encoder:** ffmpeg where the app runs, on macOS, Windows and Linux alike, found on the PATH or where Homebrew and Linux keep it; without it the dialog says to install it. It takes `libx264`, which gives the same file each time, or else the system's H.264 encoder through ffmpeg (`h264_videotoolbox`, `h264_mf`) or `libopenh264`, which may not. H.264, yuv420p, even dimensions, two threads, no sound. Bundling ffmpeg would add tens of megabytes and x264's GPL; calling the systems' encoders directly would need code per platform this can't test here.
+- **What can't be exact:** motion a design draws by its own `requestAnimationFrame` or `setAnimationLoop`, which the clock can't move. It says so; anything added with `enowx.motion.add` follows. What plays is the design's clock: clicks in an interactive design aren't part of it.
 
 ## At any window size
 

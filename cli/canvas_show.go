@@ -217,7 +217,10 @@ func (r runner) canvasFrame(c proto.Canvas, pos []string, f *canvasFlags, edit f
 func (r runner) canvasExport(c proto.Canvas, f *canvasFlags) error {
 	format := strings.ToLower(*f.format)
 	if format == "" {
-		return errors.New("usage: enowx-app canvas export CANVAS --format png|pdf|svg|html [--frame F] [--out PATH]")
+		return errors.New("usage: enowx-app canvas export CANVAS --format png|pdf|svg|html|mp4 [--frame F] [--out PATH]")
+	}
+	if format == "mp4" {
+		return r.canvasExportVideo(c, f)
 	}
 	out, err := r.c.RenderCanvas(proto.CanvasRenderParams{ID: c.ID, Frame: *f.frame, Format: format})
 	if err != nil {
@@ -241,6 +244,30 @@ func (r runner) canvasExport(c proto.Canvas, f *canvasFlags) error {
 	}
 	if out.Motion != nil {
 		fmt.Fprintf(r.out, "note: this design moves, and a %s catches one frame of it, at %.1f s of %.1f s; canvas frames samples it, and HTML keeps the motion\n", format, out.Motion.At/1000, out.Motion.Duration/1000)
+	}
+	return nil
+}
+
+// canvasExportVideo has the app render a moving design to an MP4. The file is kept where
+// the app runs, and written to --out too when it's small enough to carry here.
+func (r runner) canvasExportVideo(c proto.Canvas, f *canvasFlags) error {
+	out, err := r.c.CanvasVideo(proto.CanvasVideoParams{ID: c.ID, Frame: *f.frame, FPS: *f.fps, Width: *f.width, From: *f.fromMs, To: *f.toMs})
+	if err != nil {
+		return err
+	}
+	fmt.Fprintf(r.out, "Rendered %d frames, %.1f s, %d×%d, by the app: %s\n", out.Frames, out.Seconds, out.Width, out.Height, out.Path)
+	if *f.out != "" {
+		if len(out.Data) == 0 {
+			fmt.Fprintln(r.out, "note: it's too large to carry here, so it stays where the app runs")
+		} else if err := os.WriteFile(*f.out, out.Data, 0o644); err != nil {
+			return err
+		} else {
+			abs, _ := filepath.Abs(*f.out)
+			fmt.Fprintf(r.out, "Wrote %s\n", abs)
+		}
+	}
+	if out.Warning != "" {
+		fmt.Fprintln(r.out, "warning: "+out.Warning)
 	}
 	return nil
 }

@@ -33,7 +33,8 @@ const canvasUsage = `usage: enowx-app canvas COMMAND (CANVAS: its ID or title; F
   remove CANVAS --element E [--frame F]           remove an HTML element or a shape
   frame CANVAS add NAME [--size WxH] | set F [--name N] [--size WxH] [--background #RRGGBB] | rm F
   screenshot CANVAS FILE [--frame F|desktop|tablet|mobile]   a PNG of a frame, to look at what you made (a moving design's end; frames samples it)
-  export CANVAS --format png|pdf|svg|html [--frame F] [--out PATH]   (html without --frame: all of it, read-only, to share)
+  export CANVAS --format png|pdf|svg|html|mp4 [--frame F] [--out PATH]   (html without --frame: all of it, read-only, to share)
+                                   mp4, of a design that moves: [--fps 30|60] [--width W] [--from-ms T] [--to-ms T], rendered by the app, one cycle of a loop; needs ffmpeg
   comments CANVAS [--all]          the user's comments on its elements, to work on; --all the resolved too
   comment CANVAS TEXT [--element E] [--frame F] | resolve CANVAS COMMENT
   history CANVAS | undo CANVAS | redo CANVAS | restore CANVAS N
@@ -71,6 +72,8 @@ type canvasFlags struct {
 	fill, stroke, color, from, to, src    *string
 	format, out, name, size, background   *string
 	x, y, w, h, fontSize, radius, strokeW *float64
+	fps, width                            *int
+	fromMs, toMs                          *float64
 	bold, showHTML, all, copy             *bool
 	frames                                []string
 }
@@ -90,6 +93,8 @@ func newCanvasFlags(cmd string) *canvasFlags {
 	for p, name := range map[**float64]string{&f.x: "x", &f.y: "y", &f.w: "w", &f.h: "h", &f.fontSize: "size-text", &f.radius: "radius", &f.strokeW: "stroke-width"} {
 		*p = fs.Float64(name, 0, "")
 	}
+	f.fps, f.width = fs.Int("fps", 0, ""), fs.Int("width", 0, "")
+	f.fromMs, f.toMs = fs.Float64("from-ms", 0, ""), fs.Float64("to-ms", 0, "")
 	f.bold = fs.Bool("bold", false, "")
 	f.all = fs.Bool("all", false, "")
 	f.copy = fs.Bool("copy", false, "")

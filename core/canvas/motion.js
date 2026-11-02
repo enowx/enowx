@@ -134,7 +134,7 @@
 
   function state() {
     var d = length();
-    return { d: d, t: Math.min(t, d), p: playing, n: sources.length, f: drawn };
+    return { d: d, t: Math.min(t, d), p: playing, n: sources.length, f: drawn, l: looping() };
   }
 
   function report(now) {

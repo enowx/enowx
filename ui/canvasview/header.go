@@ -132,11 +132,13 @@ func (v *View) exportMenu(c *ui.Context, o Options, cv proto.Canvas, f proto.Can
 				done()
 			}
 		}
+		v.videoMenuItem(c, o, f, done)
 		if widget.MenuItem(c.Key("page"), nil, "Share as a page (read-only HTML)…", false) {
 			v.export(o, cv, "", proto.RenderHTML)
 			done()
 		}
 	})
+	v.videoDialog(c, o, cv)
 }
 
 // makeCodeMenu has an agent build the canvas in a project.

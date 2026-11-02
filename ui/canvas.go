@@ -85,6 +85,12 @@ func (a *App) canvasEvent(ev proto.Event) func() {
 			}
 			a.canvases.Apply(a.canvasOptions(), ch)
 		}
+	case proto.EventCanvasVideo:
+		var req proto.CanvasVideoRequest
+		if json.Unmarshal(ev.Data, &req) != nil {
+			return nil
+		}
+		return func() { a.startCanvasVideo(req) }
 	case proto.EventCanvasRender:
 		var req proto.CanvasRenderRequest
 		if json.Unmarshal(ev.Data, &req) != nil {
@@ -254,6 +260,13 @@ func (a *App) canvasOptions() canvasview.Options {
 				work()
 				a.onMain(then)
 			}()
+		},
+		VideoWhyNot: videoWhyNot,
+		ExportVideo: func(p proto.CanvasVideoParams, done func(error)) {
+			call(func() error {
+				_, err := cl.CanvasVideo(p)
+				return err
+			}, done)
 		},
 		PictureCached: func(key string, done func([]byte)) {
 			go func() {

@@ -51,6 +51,10 @@ type Options struct {
 	// Render renders a frame (or, for html without one, the canvas) as
 	// format: png, pdf, svg or html.
 	Render func(id, frame, format string, done func([]byte, error))
+	// VideoWhyNot says why this device can't make an MP4, "" when it can; ExportVideo
+	// has one made, in the background, done when it ends.
+	VideoWhyNot func() string
+	ExportVideo func(p proto.CanvasVideoParams, done func(error))
 	// OffMain runs work off the main thread, then then on it. Nil runs both at once.
 	OffMain func(work, then func())
 	// PictureCached gives done the picture kept on this device as key, nil for
@@ -197,7 +201,8 @@ type View struct {
 	// listOutside: it does, so the page has no list of its own.
 	listInSidebar, listOutside bool
 	thumbs                     map[string]*thumb
-	thumbsBusy                 int // pictures asked for, not back yet
+	thumbsBusy                 int        // pictures asked for, not back yet
+	video                      *videoForm // Export's MP4 dialog (video.go)
 	descr                      *describeForm
 	// pendingFrame is a design to show once the canvas opening loaded.
 	pendingFrame string

@@ -14,10 +14,11 @@ import (
 // cornerCards are the cards over the window's bottom right corner: a new
 // version, teams deleted, then ports a session opened.
 func (a *App) cornerCards(c *ui.Context) {
-	if !a.showsUpdateCard() && !a.spacesGoneShown() && (len(a.portOffers) == 0 || a.client == nil) {
+	if !a.showsUpdateCard() && !a.spacesGoneShown() && !a.showsVideoCard() && (len(a.portOffers) == 0 || a.client == nil) {
 		return
 	}
 	ui.Column(c.Key("corner-cards")).Absolute().Right(theme.S4).Bottom(40).Width(340).Gap(theme.S2).TextColor(theme.Text).Children(func() {
+		a.videoCard(c.Key("video"))
 		a.updateCard(c.Key("update"))
 		a.spacesGoneCards(c)
 		a.portOfferCards(c)

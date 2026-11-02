@@ -57,7 +57,7 @@ A still catches one moment: canvas screenshot, PNG, PDF and SVG exports show the
 - 100: exactly the design, nothing left offset or at partial opacity?
 - Read what it prints: "the same picture" means nothing moved there, so it's a dead stretch, or the motion isn't on the clock. "No motion" means the page never reported any.
 - Run canvas unslop too: it applies as to any design.
-Only HTML exports and the shared page keep the motion. There is no video export yet; say so if asked for one.
+HTML exports and the shared page keep the motion. To save it as a video: "$ENOWX_BIN" canvas export ID --format mp4 [--frame F] [--fps 30|60] [--width W] [--from-ms T] [--to-ms T] [--out PATH]. The app renders it frame by frame, and it needs ffmpeg where the app runs. Motion that draws by its own requestAnimationFrame or setAnimationLoop won't follow: add it with enowx.motion.add.
 
 ## Examples
 A logo's reveal, in SVG:

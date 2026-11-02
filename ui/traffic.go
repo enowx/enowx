@@ -95,6 +95,15 @@ func (a *App) trafficOptions(s proto.SessionInfo) trafficview.Options {
 // saveDownload keeps data in the Downloads folder, named name (made unique),
 // and returns where.
 func saveDownload(name string, data []byte) (string, error) {
+	path, err := downloadPath(name)
+	if err != nil {
+		return "", err
+	}
+	return path, os.WriteFile(path, data, 0o600)
+}
+
+// downloadPath is a path for name in Downloads, not taken yet.
+func downloadPath(name string) (string, error) {
 	home, err := os.UserHomeDir()
 	if err != nil {
 		return "", err
@@ -106,12 +115,11 @@ func saveDownload(name string, data []byte) (string, error) {
 	path := filepath.Join(dir, name)
 	for i := 2; ; i++ {
 		if _, err := os.Stat(path); os.IsNotExist(err) {
-			break
+			return path, nil
 		}
 		ext := filepath.Ext(name)
 		path = filepath.Join(dir, name[:len(name)-len(ext)]+"-"+strconv.Itoa(i)+ext)
 	}
-	return path, os.WriteFile(path, data, 0o600)
 }
 
 // trafficEvent applies the interceptor's events to the tool's view.

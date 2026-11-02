@@ -225,3 +225,20 @@ func (c *Client) CanvasMatch(p proto.CanvasMatchParams) (proto.CanvasMatch, erro
 	err := c.Call(proto.MethodCanvasMatch, p, &out)
 	return out, err
 }
+
+// CanvasVideo has the app render a moving design to an MP4, and waits for it.
+func (c *Client) CanvasVideo(p proto.CanvasVideoParams) (proto.CanvasVideoResult, error) {
+	var out proto.CanvasVideoResult
+	err := c.Call(proto.MethodCanvasVideo, p, &out)
+	return out, err
+}
+
+// CanvasVideoProgress says how far a video the daemon asked for has got.
+func (c *Client) CanvasVideoProgress(p proto.CanvasVideoProgress) error {
+	return c.Call(proto.MethodCanvasVideoProgress, p, nil)
+}
+
+// CanvasVideoReply answers the daemon's request for a video.
+func (c *Client) CanvasVideoReply(r proto.CanvasVideoReply) error {
+	return c.Call(proto.MethodCanvasVideoReply, r, nil)
+}

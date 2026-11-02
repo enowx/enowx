@@ -31,6 +31,7 @@ event canvas.chat
 event canvas.listed
 event canvas.render
 event canvas.unslop
+event canvas.video
 event checks.changed
 event cloud.changed
 event decide.made
@@ -608,6 +609,35 @@ field CanvasVersion.session string
 field CanvasVersion.time time.Time
 field CanvasVersionRef.id string
 field CanvasVersionRef.n int
+field CanvasVideoParams.fps int
+field CanvasVideoParams.frame string
+field CanvasVideoParams.from float64
+field CanvasVideoParams.id string
+field CanvasVideoParams.to float64
+field CanvasVideoParams.width int
+field CanvasVideoProgress.done int
+field CanvasVideoProgress.id string
+field CanvasVideoProgress.total int
+field CanvasVideoReply.error string
+field CanvasVideoReply.id string
+field CanvasVideoReply.result CanvasVideoResult
+field CanvasVideoRequest.fps int
+field CanvasVideoRequest.from float64
+field CanvasVideoRequest.height int
+field CanvasVideoRequest.html string
+field CanvasVideoRequest.id string
+field CanvasVideoRequest.name string
+field CanvasVideoRequest.outWidth int
+field CanvasVideoRequest.to float64
+field CanvasVideoRequest.warning string
+field CanvasVideoRequest.width int
+field CanvasVideoResult.data []byte
+field CanvasVideoResult.frames int
+field CanvasVideoResult.height int
+field CanvasVideoResult.path string
+field CanvasVideoResult.seconds float64
+field CanvasVideoResult.warning string
+field CanvasVideoResult.width int
 field Catalog.host string
 field Catalog.name string
 field Catalog.projects []CatalogProject
@@ -2742,6 +2772,9 @@ method canvas.unslop
 method canvas.unslopLeaveOut
 method canvas.unslopSteps
 method canvas.version
+method canvas.video
+method canvas.videoProgress
+method canvas.videoReply
 method catalog.list
 method checks.list
 method checks.run

@@ -114,6 +114,36 @@ func (a *App) renderCanvas(req proto.CanvasRenderRequest) {
 	}()
 }
 
+// loadRenderPage loads html in pg, and waits for it to be laid out.
+func loadRenderPage(pg *mygo.Page, html string) error {
+	loaded := make(chan struct{}, 1)
+	off := pg.OnDidFinishLoad(func() {
+		select {
+		case loaded <- struct{}{}:
+		default:
+		}
+	})
+	defer off()
+	pg.LoadHTML(html, designOrigin())
+	select {
+	case <-loaded:
+	case <-time.After(20 * time.Second):
+		return errors.New("the page didn't load")
+	}
+	time.Sleep(400 * time.Millisecond) // fonts and images settle
+	// A web view is laid out only once its window draws it: until then
+	// the page measures at no width.
+	for try := 0; try < 15; try++ {
+		if v, err := pg.Eval("window.innerWidth"); err == nil {
+			if n, ok := v.(float64); ok && n > 0 {
+				return nil
+			}
+		}
+		time.Sleep(200 * time.Millisecond)
+	}
+	return errors.New("the web view gave no picture: it was never laid out")
+}
+
 // keptFor is how long a page rendered for a run of moments waits for the next.
 const keptFor = 15 * time.Second
 
@@ -202,37 +232,12 @@ type rendered struct {
 // renderIn loads req's page in pg, then measures it, runs its script, or
 // captures it with capture.
 func renderIn(pg *mygo.Page, capture func() ([]byte, error), req proto.CanvasRenderRequest) rendered {
-	loaded := make(chan struct{}, 1)
-	off := pg.OnDidFinishLoad(func() {
-		select {
-		case loaded <- struct{}{}:
-		default:
-		}
-	})
-	defer off()
-	pg.LoadHTML(req.HTML, designOrigin())
-	select {
-	case <-loaded:
-	case <-time.After(20 * time.Second):
-		return rendered{err: errors.New("the page didn't load")}
-	}
-	time.Sleep(400 * time.Millisecond) // fonts and images settle
-	// A web view is laid out only once its window draws it: until then
-	// the page measures at no width.
 	var r rendered
-	for try := 0; try < 15 && !r.laidOut; try++ {
-		if v, err := pg.Eval("window.innerWidth"); err == nil {
-			if n, ok := v.(float64); ok && n > 0 {
-				r.laidOut = true
-				break
-			}
-		}
-		time.Sleep(200 * time.Millisecond)
-	}
-	if !r.laidOut {
-		r.err = errors.New("the web view gave no picture: it was never laid out")
+	if err := loadRenderPage(pg, req.HTML); err != nil {
+		r.err = err
 		return r
 	}
+	r.laidOut = true
 	// A moving page shows one moment, the same each time, whatever the load took.
 	if v, err := pg.Eval(canvas.SettleScript); err == nil {
 		if r.motion = canvas.ParseMotion(evalText(v)); r.motion != nil {

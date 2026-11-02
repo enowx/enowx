@@ -65,6 +65,7 @@ type App struct {
 	connFail        error           // the same, to tell what kind of failure it was
 	notice          string          // a.status is news, not a problem, while it equals this
 	bundleWarned    bool            // warnBundlePlace said it
+	video           *videoJob       // the MP4 being made (canvas_video.go)
 	onboard         onboardingState // the first run's setup
 	cacheState      *cacheSettings  // Settings' Clean cache
 	watchdog        *watchdog.Watch // the main thread's, once the window is open
@@ -516,7 +517,7 @@ func (a *App) handleEvent(gen int, ev proto.Event) {
 		if apply = a.buildEvent(ev.Data); apply == nil {
 			return
 		}
-	case proto.EventCanvasesChanged, proto.EventCanvasChanged, proto.EventCanvasRender:
+	case proto.EventCanvasesChanged, proto.EventCanvasChanged, proto.EventCanvasRender, proto.EventCanvasVideo:
 		if apply = a.canvasEvent(ev); apply == nil {
 			return
 		}
