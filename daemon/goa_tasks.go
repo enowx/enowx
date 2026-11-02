@@ -136,6 +136,7 @@ func (s *Server) goaAddTask(p proto.GOADelegateParams, t proto.GOATask, target p
 	if target.Model != "" {
 		t.Ran = []string{target.Model + " · " + nonEmpty(target.Effort, "unknown")}
 	}
+	t.ReportAt = target.ReportAt // what its session reported so far is another task's
 	t, err := s.goa.board.Add(t)
 	if err != nil {
 		return t, err
@@ -196,6 +197,7 @@ func (s *Server) goaDeliver(info proto.SessionInfo) {
 	_, _ = s.goa.board.Update(next.ID, func(t *proto.GOATask) {
 		if t.Status == proto.GOATaskQueued {
 			t.Status, claimed = proto.GOATaskWorking, true
+			t.ReportAt = info.ReportAt // what it reported while this waited was the task before's
 		}
 	})
 	if !claimed {
@@ -265,6 +267,20 @@ func (s *Server) goaSessionOn(from, host, id string) (proto.SessionInfo, error) 
 	return found[0], nil
 }
 
+// goaTurnLeast is how soon after a task is given to another host's session a turn's end
+// can't be its own. One that really was goes unheard only until the screen shows it.
+const goaTurnLeast = 3 * time.Second
+
+// goaTurnStale says a turn's end told of session info is from before task t: here, the
+// session is no longer done, a task having been typed in since; on another host, which
+// can't be asked as simply, it came just after the task was given.
+func (s *Server) goaTurnStale(info proto.SessionInfo, t proto.GOATask) bool {
+	if sess, err := s.sessions.Get(info.ID); err == nil {
+		return sess.Info().State != proto.StateDone
+	}
+	return time.Since(t.Updated) < goaTurnLeast
+}
+
 // goaWorkerChanged puts worker info's change on the board, and tells GOA
 // what it needs to act on: a task done (its result), waiting (what it
 // asks, and whose it is to answer), failed or stopped.
@@ -279,6 +295,9 @@ func (s *Server) goaWorkerChanged(info proto.SessionInfo) {
 		}
 		if t.Status == proto.GOATaskStalled && status == proto.GOATaskWorking {
 			return false // working is what it said while stalled: watchStalls sees it move
+		}
+		if status == proto.GOATaskTurnEnded && s.goaTurnStale(info, *t) {
+			return false // the turn before this task's: this change was on its way as it was given
 		}
 		t.Status = status
 		if status != proto.GOATaskWaiting {
@@ -381,7 +400,9 @@ func (s *Server) goaReportSeen(info proto.SessionInfo) {
 		return
 	}
 	changed := s.goa.board.Of(info.ID, func(t *proto.GOATask) bool {
-		if t.ReportAt >= info.ReportAt {
+		// A report belongs to the task under way when it was sent: not to one only
+		// queued, nor to one given after it.
+		if t.Status == proto.GOATaskQueued || t.ReportAt >= info.ReportAt {
 			return false
 		}
 		t.Outcome, t.ReportAt, t.Said = info.ReportOutcome, info.ReportAt, info.Report

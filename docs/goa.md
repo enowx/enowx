@@ -74,6 +74,8 @@ A line stays until it has gone in: kept in `goa-tell.json` while GOA is busy, hi
 Sent something again, a task whose turn had ended is at work again, so a screen with no hook can report the next turn too.
 
 
+A report belongs to the task under way when it was sent. A task given to a session starts from that session's last report, so it never takes one sent before it; a task only queued takes none. A turn's end told after a task was typed in, with the session no longer done, is the turn before's (on another host, one within 3 seconds of the task); if it really was this task's, the screen says so about 20 seconds later.
+
 ### How lines reach GOA
 
 Workers' reports never go through GOA's input box while anything of the user's could be in it: a line typed there took the user's unfinished sentence along with it. By what each agent documents, in this order (`daemon/goa_inject.go`):

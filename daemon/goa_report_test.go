@@ -178,3 +178,42 @@ func TestToldGoneQuiet(t *testing.T) {
 		}
 	}
 }
+
+// A task given to a session that has reported already doesn't take that report: only
+// what comes after it. One queued meanwhile takes none, and starts clean when given.
+func TestNewTaskDoesntTakeAnOldReport(t *testing.T) {
+	srv := startServer(t)
+	old := proto.SessionInfo{ID: "s4", ReportAt: 1000, ReportOutcome: "done", Report: "the task before's"}
+	task, err := srv.goaAddTask(proto.GOADelegateParams{}, proto.GOATask{Session: "s4", Status: proto.GOATaskWorking, Title: "new"}, old)
+	if err != nil {
+		t.Fatal(err)
+	}
+	srv.goaReportSeen(old)
+	if got := boardTask(t, srv, task.ID); got.Said != "" || got.Outcome != "" {
+		t.Fatalf("took the old report: %+v", got)
+	}
+	queued, err := srv.goaAddTask(proto.GOADelegateParams{}, proto.GOATask{Session: "s4", Status: proto.GOATaskQueued, Title: "next"}, old)
+	if err != nil {
+		t.Fatal(err)
+	}
+	fresh := old
+	fresh.ReportAt, fresh.Report = 2000, "this task's"
+	srv.goaReportSeen(fresh)
+	if got := boardTask(t, srv, task.ID); got.Said != "this task's" {
+		t.Fatalf("missed its own report: %+v", got)
+	}
+	if got := boardTask(t, srv, queued.ID); got.Said != "" || got.ReportAt == 2000 {
+		t.Fatalf("a queued task took a report: %+v", got)
+	}
+}
+
+func boardTask(t *testing.T, srv *Server, id string) proto.GOATask {
+	t.Helper()
+	for _, task := range srv.goa.board.List() {
+		if task.ID == id {
+			return task
+		}
+	}
+	t.Fatalf("no task %s", id)
+	return proto.GOATask{}
+}
