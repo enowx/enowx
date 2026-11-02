@@ -142,7 +142,7 @@ func (ch *Chat) attachmentChip(c *ui.Context, at *attachment) {
 		} else {
 			ui.Row(c).Fill().Gap(6).PaddingX(8).Children(func() {
 				ui.Icon(c, icon.File).FontSize(13).TextColor(theme.Muted)
-				ui.Text(c, at.name).FontSize(theme.TextLabel).SingleLine().Shrink(1)
+				widget.Running(c, at.name, widget.RunStyle{Size: theme.TextLabel})
 			})
 		}
 		if at.path == "" {

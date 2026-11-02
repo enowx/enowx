@@ -156,28 +156,40 @@ func summary(tools []proto.TranscriptEntry) string {
 // A failed one says so in the color of a failure.
 func (ch *Chat) toolRow(c *ui.Context, e proto.TranscriptEntry) {
 	svg, verb := lookOf(e)
-	l := lineLook{svg: svg, label: doneVerb(verb), detail: toolDetailShown(e), name: verb}
+	l := lineLook{svg: svg, label: doneVerb(verb), detail: ch.toolDetailShown(e), name: verb}
 	if e.Failed {
 		l.svg, l.color, l.label, l.note = icon.Alert, theme.Del, "", "failed"
+		if why := firstLine(e.Result); why != "" {
+			l.note += ": " + why
+		}
 		if l.detail == "" {
 			l.label = doneVerb(verb)
 		}
 	}
 	l.right = func(hovered bool) {
 		figures(c, e.Added, e.Removed)
-		// Figures speak for an edit; its time shows only when asked for.
-		if e.Done && e.DurationMs > 0 && (e.Added+e.Removed == 0 || hovered) {
+		passed := verb == "Run" && e.Done && !e.Failed
+		if passed {
+			ui.Text(c, "passed").FontSize(theme.TextUI).TextColor(theme.Add).SingleLine()
+		}
+		// Figures and a pass speak for a call; its time shows only when asked for.
+		if e.Done && e.DurationMs > 0 && (e.Added+e.Removed == 0 && !passed || hovered) {
 			ui.Text(c, took(e.DurationMs)).FontSize(theme.TextUI).TextColor(theme.TextSoft).SingleLine()
 		}
 	}
 	ch.stepLine(c, e.Index, l, func() { ch.toolBody(c, e) })
 }
 
-// toolDetailShown is a call's detail as the row shows it: a file by its
-// name, then its folder.
-func toolDetailShown(e proto.TranscriptEntry) string {
+// toolDetailShown is a call's detail as the row shows it: a file of the
+// session's folder from there, another by its name, then its folder.
+func (ch *Chat) toolDetailShown(e proto.TranscriptEntry) string {
 	switch e.Text {
 	case "Read", "Edit", "MultiEdit", "Write", "NotebookRead", "NotebookEdit":
+		if ch.dir != "" {
+			if rel, ok := strings.CutPrefix(e.Detail, strings.TrimSuffix(ch.dir, "/")+"/"); ok {
+				return rel
+			}
+		}
 		if strings.HasPrefix(e.Detail, "/") && !strings.Contains(e.Detail, ", ") {
 			return path.Base(e.Detail) + "  " + path.Dir(e.Detail)
 		}

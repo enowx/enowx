@@ -85,6 +85,7 @@ func (a *App) chatViewSending(c *ui.Context, s proto.SessionInfo, shown func() b
 	}
 	ch.View(c, chatview.Options{
 		Agent:     s.Agent,
+		Dir:       s.Dir,
 		AgentName: a.agentName(s.Agent),
 		Working:   isWorking(s),
 		Send:      send,

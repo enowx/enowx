@@ -182,7 +182,7 @@ func (ch *Chat) nowLine(c *ui.Context, t turn, cur *proto.TranscriptEntry) {
 		return
 	}
 	_, verb := lookOf(*cur)
-	l.label, l.detail, l.name = nowVerb(verb), toolDetailShown(*cur), verb
+	l.label, l.detail, l.name = nowVerb(verb), ch.toolDetailShown(*cur), verb
 	e := *cur
 	ui.Column(c).FillWidth().Children(func() {
 		ch.stepLine(c, e.Index, l, func() { ch.toolBody(c, e) })

@@ -94,6 +94,7 @@ type Chat struct {
 	// last frame gave them.
 	showUser  func(string) string
 	agentName string
+	dir       string // Options.Dir, as the last frame gave it
 	// The agent's slash commands, once its daemon has read them, and the
 	// slash menu: the command highlighted, and the input it was closed on.
 	commands     []proto.AgentCommand
@@ -333,6 +334,7 @@ func (ch *Chat) reckon() {
 // Options are what the chat needs of its session.
 type Options struct {
 	Agent     string // preset ID
+	Dir       string // the session's folder: what's in it reads from there
 	AgentName string
 	Working   bool // the agent is busy
 	// Send sends a message, with the paths of the files attached to it.
@@ -392,7 +394,7 @@ type Options struct {
 func (ch *Chat) View(c *ui.Context, o Options) {
 	ch.links = o.OpenLink
 	ch.showUser = o.ShowUser
-	ch.agentName = o.AgentName
+	ch.agentName, ch.dir = o.AgentName, o.Dir
 	ch.openChanges = o.OpenChanges
 	ch.editable = o.Edit != nil && agent.CanRewind(o.Agent) && !o.Ended
 	ch.ask = asking{waiting: o.Waiting && !o.Ended, answer: o.Answer, terminal: o.ShowTerminal}

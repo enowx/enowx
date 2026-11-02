@@ -6,6 +6,7 @@ import (
 	"github.com/egoist/mygo/ui"
 
 	"github.com/enowx/enowx/ui/theme"
+	"github.com/enowx/enowx/ui/widget"
 )
 
 // The outline beside a wide conversation: the user's messages, the one
@@ -49,7 +50,7 @@ func (ch *Chat) outline(c *ui.Context, turns []turn, more int) {
 						col = theme.TextSoft
 					}
 					b.BorderColor(edge).Children(func() {
-						ui.Text(c, firstLine(t.prompt.Text)).FontSize(theme.TextLabel).TextColor(col).SingleLine().MinWidth(0).Shrink(1)
+						widget.Running(c, firstLine(t.prompt.Text), widget.RunStyle{Size: theme.TextLabel, Color: col})
 					})
 					if b.Clicked() {
 						ch.list.ScrollTo(r, ui.Start)

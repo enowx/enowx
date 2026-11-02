@@ -81,7 +81,7 @@ func (ch *Chat) box(c *ui.Context, o Options) {
 	}
 	// An inset ring, as a border would move what is inside when focus comes.
 	if box.FocusWithin() {
-		box.InsetShadow(0, 0, 0, 2, theme.Now)
+		box.InsetShadow(0, 0, 0, 1, theme.Now)
 	}
 	box.Children(func() {
 		ch.editBanner(c)
@@ -159,17 +159,6 @@ func (ch *Chat) box(c *ui.Context, o Options) {
 			ui.Row(c).Shrink(0).Gap(theme.S1).AlignItems(ui.Center).Children(func() {
 				if o.AttachFiles != nil && widget.IconButton(c.Key("attach"), icon.Paperclip, "Attach files or images (or drop or paste them)", false).Clicked() {
 					o.AttachFiles()
-				}
-				if widget.IconButton(c.Key("mention"), icon.AtSign, "Mention a file (@)", false).Clicked() {
-					ch.input += "@"
-					ch.focus = true
-				}
-				if widget.IconButton(c.Key("slash"), icon.Slash, "Commands (/)", false).Clicked() {
-					if !strings.HasPrefix(ch.input, "/") {
-						// Commands only run at the start of a message.
-						ch.input, ch.slashClosed = "/"+ch.input, ""
-					}
-					ch.focus = true
 				}
 				ch.settings(c, o)
 			})
