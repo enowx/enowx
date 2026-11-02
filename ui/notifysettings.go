@@ -18,6 +18,9 @@ import (
 	"github.com/enowx/enowx/ui/widget"
 )
 
+// teamChatWordsWidth is the card that holds Team chat's whole words.
+const teamChatWordsWidth = 300
+
 // notifySection is Settings' Notifications: the sounds the app plays when
 // agents finish, ask for input or fail, wherever they run.
 func (a *App) notifySection(c *ui.Context) {
@@ -129,11 +132,18 @@ func (a *App) notifySection(c *ui.Context) {
 		})
 	}, func(rest float32) {
 		widget.Cols(c, 3).RowTracks(ui.Fixed(rest)).Children(func() {
-			widget.GridCard(c.Key("team-chat")).Children(func() {
+			chat := widget.GridCard(c.Key("team-chat"))
+			// The smallest window's card can't hold the whole words: the
+			// shorter ones of a team's own choice, rather than cut ones.
+			labels := []string{"Every message", "Mentions of me", "Off"}
+			if w := chat.Bounds().W; w > 0 && w < teamChatWordsWidth {
+				labels = []string{"All", "Mentions", "Off"}
+			}
+			chat.Children(func() {
 				widget.CardTitle(c, nil, "Team chat", nil)
 				modes := []string{"", "mentions", "off"}
 				cur := max(0, slices.Index(modes, st.Chat))
-				if i := segmentedInCard(c, []string{"Every message", "Mentions of me", "Off"}, cur, 340); i >= 0 && i != cur {
+				if i := segmentedInCard(c, labels, cur, 340); i >= 0 && i != cur {
 					st.Chat, changed = modes[i], true
 				}
 				widget.CardNote(c, "A message from your team, when its chat isn't open: a sound, a card in the window's corner to answer from, and a banner when the window is in the background. Mentions of you and replies to you always notify.", 0)
