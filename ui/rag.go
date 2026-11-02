@@ -107,7 +107,7 @@ func (a *App) ragSection(c *ui.Context) {
 	if w, _ := c.Size(); w >= 1400 {
 		cols = 5
 	}
-	widget.PageBodyGrid(c, cols, len(a.projects), 190, func() {
+	widget.PageBodyGrid(c, cols, len(a.projects), 236, func() {
 		a.ragForm(c, st)
 		ui.Row(c.Key("rag-projects")).FillWidth().Shrink(0).Margin(theme.S1, 0, 0, 0).Children(func() { widget.Heading(c, "Projects") })
 	}, func() {
