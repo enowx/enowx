@@ -2,6 +2,7 @@ package ui
 
 import (
 	"cmp"
+	"fmt"
 	"slices"
 	"strings"
 	"time"
@@ -47,6 +48,7 @@ func (a *App) usageHost() usageview.Host {
 				}
 			}
 		},
+		StopProcess: a.stopLeftProcess,
 	}
 	for _, s := range a.sessions {
 		if s.State == proto.StateWorking {
@@ -112,4 +114,23 @@ func (a *App) watchUsageShown() {
 		a.usage.Poke()
 	}
 	a.usageShown = shown
+}
+
+// stopLeftProcess stops a process a session left running, once the user says so.
+func (a *App) stopLeftProcess(p proto.LeftProcess, session string) {
+	a.confirm("Stop "+p.Name+"?", fmt.Sprintf("Process %d was started by %s. Whatever it holds unsaved is lost.", p.PID, session), "Stop the process", func() {
+		cl := a.client
+		if cl == nil {
+			return
+		}
+		go func() {
+			err := cl.StopProcess(p)
+			a.onMain(func() {
+				if err != nil {
+					a.status = "Couldn't stop " + p.Name + ": " + client.Explain(err)
+				}
+				a.usage.Poke()
+			})
+		}()
+	})
 }

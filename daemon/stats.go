@@ -87,6 +87,7 @@ func (s *Server) stats() proto.DaemonStats {
 			out.Sessions = append(out.Sessions, *u)
 		}
 	}
+	out.Left = s.procsLeft(func(pid int) proto.Usage { return usage(st.sampler.One(pid)) })
 	st.cached = out
 	return out
 }

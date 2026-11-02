@@ -8,3 +8,8 @@ func (c *Client) Stats() (proto.DaemonStats, error) {
 	err := c.Call(proto.MethodDaemonStats, struct{}{}, &out)
 	return out, err
 }
+
+// StopProcess stops a process the daemon's stats name as left running.
+func (c *Client) StopProcess(p proto.LeftProcess) error {
+	return c.Call(proto.MethodDaemonStopProcess, proto.StopProcessParams{PID: p.PID, Start: p.Start}, nil)
+}

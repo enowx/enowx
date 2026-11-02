@@ -3,6 +3,7 @@ embed AutopushStatus AutopushSettings
 embed BrowserRequest BrowserAction
 embed Canvas CanvasInfo
 embed FanOutParams SessionCreateParams
+embed LeftProcess Usage
 embed Note NoteInfo
 embed PipelineStageRun PipelineStage
 embed ProjectDetail ProjectInfo
@@ -793,6 +794,7 @@ field DaemonSettings.hibernateAfter int
 field DaemonSettings.maxAgents int
 field DaemonStats.daemon Usage
 field DaemonStats.host HostUsage
+field DaemonStats.left []LeftProcess
 field DaemonStats.sessions []SessionUsage
 field DaemonStats.supported bool
 field DecideAsk.agent string
@@ -1328,6 +1330,10 @@ field JudgeKey.id string
 field JudgeKey.key string
 field JudgeRef.id string
 field KitTemplateData.repo string
+field LeftProcess.name string
+field LeftProcess.pid int
+field LeftProcess.session string
+field LeftProcess.start string
 field MCPTest.error string
 field MCPTest.ok bool
 field MCPTest.protocol string
@@ -1994,6 +2000,8 @@ field SpaceMoveParams.id string
 field SpaceMoveParams.team string
 field SpaceRef.team string
 field StopAgentsResult.stopped int
+field StopProcessParams.pid int
+field StopProcessParams.start string
 field StreamRef.stream uint32
 field SyncApplied.from string
 field SyncApplied.paths []string
@@ -2720,6 +2728,7 @@ method daemon.setSettings
 method daemon.settings
 method daemon.stats
 method daemon.stopAgents
+method daemon.stopProcess
 method decide.ask
 method decide.judges
 method decide.log

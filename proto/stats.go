@@ -29,6 +29,26 @@ type DaemonStats struct {
 	Host      HostUsage      `json:"host"`
 	Daemon    Usage          `json:"daemon"`   // the daemon alone
 	Sessions  []SessionUsage `json:"sessions"` // each with all it started
+	// Left is what sessions started and still runs with none looking after it.
+	Left []LeftProcess `json:"left,omitempty"`
+}
+
+// MethodDaemonStopProcess stops a process DaemonStats.Left names, and no other.
+const MethodDaemonStopProcess = "daemon.stopProcess"
+
+// LeftProcess is a process a session started that outlived it, or left from under it.
+type LeftProcess struct {
+	PID     int    `json:"pid"`
+	Start   string `json:"start"` // with PID it names this process
+	Name    string `json:"name"`
+	Session string `json:"session"`
+	Usage
+}
+
+// StopProcessParams names a process to stop.
+type StopProcessParams struct {
+	PID   int    `json:"pid"`
+	Start string `json:"start"`
 }
 
 // SessionUsage is what a session's processes use.

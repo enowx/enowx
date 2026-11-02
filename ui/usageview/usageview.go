@@ -64,6 +64,8 @@ type Host struct {
 	Others []OtherHost
 	// Select shows a session.
 	Select func(id string)
+	// StopProcess asks to stop a process left running.
+	StopProcess func(p proto.LeftProcess, session string)
 }
 
 // OtherHost is another host the app watches, as it last told.
@@ -201,6 +203,7 @@ func (u *Meter) Details(c *ui.Context, h Host) {
 				}
 			})
 			if u.host.Supported {
+				leftCard(c, h, u.host.Left)
 				u.sessions(c, h, column, shown)
 			}
 		})
@@ -262,6 +265,41 @@ func otherHostCard(c *ui.Context, o OtherHost) {
 		used := ratio(float64(m.MemUsed), float64(m.MemTotal))
 		widget.Meter(c, widget.Segment{Fraction: used, Color: widget.Level(used)})
 	})
+}
+
+// leftCard lists what sessions started and still runs with none looking after it,
+// each a click from stopped; nothing when there is none.
+func leftCard(c *ui.Context, h Host, left []proto.LeftProcess) {
+	if len(left) == 0 {
+		return
+	}
+	ui.Column(c.Key("left")).FillWidth().Gap(theme.S2).Children(func() {
+		ui.Text(c, "Left running").FontSize(theme.TextUI).FontWeight(500)
+		widget.GridCard(c).Children(func() {
+			widget.CardNote(c, "Sessions started these and no longer look after them. enowX only offers to stop what its sessions started.", 0)
+			widget.CardLines(c, func() {
+				for i, p := range left {
+					name := leftSessionName(h, p.Session)
+					sub := fmt.Sprintf("%s · %s · %s", name, textfmt.Bytes(p.RSS), textfmt.CPU(p.CPU))
+					widget.CardLine(c.Key(p.PID), i == 0, fmt.Sprintf("%s (%d)", p.Name, p.PID), sub, func() {
+						if widget.GhostButton(c.Key("stop"), "Stop").Label("Stop "+p.Name).Clicked() && h.StopProcess != nil {
+							h.StopProcess(p, name)
+						}
+					})
+				}
+			})
+		})
+	})
+}
+
+// leftSessionName is the session a process was left by, as the user knows it.
+func leftSessionName(h Host, id string) string {
+	if h.Session != nil {
+		if name, _, _ := h.Session(id); name != id {
+			return name
+		}
+	}
+	return "a session now closed"
 }
 
 // sessions is a card per session, biggest first.
