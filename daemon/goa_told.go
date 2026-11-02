@@ -137,7 +137,7 @@ func (s *Server) goaMarkTold(from, host, id string) {
 	}
 	s.goa.mu.Lock()
 	t := s.goa.told[id]
-	t.Status, t.Host = "", host // what it does now is news, whatever it did before
+	t.Status, t.Host = "", host                          // what it does now is news, whatever it did before
 	t.ReportAt = max(t.ReportAt, time.Now().UnixMilli()) // and what it reported before isn't
 	s.goa.told[id] = t
 	s.goa.mu.Unlock()
