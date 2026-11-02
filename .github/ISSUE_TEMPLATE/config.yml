@@ -1,5 +1,5 @@
 blank_issues_enabled: false
 contact_links:
   - name: Security issue
-    url: https://github.com/enowx/enowx/security/advisories/new
+    url: https://github.com/enowdev/enowx/security/advisories/new
     about: Report vulnerabilities privately, not as an issue.

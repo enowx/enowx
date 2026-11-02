@@ -14,7 +14,7 @@ Development builds (`make dev`) and builds without an update feed don't update t
 
 ## Where updates come from
 
-GitHub Releases of `enowx/enowx` (`updates.github` in `cmd/enowx/mygo.json`): apps read the update manifests of the latest published release, and check each update's signature against `updates.publicKey`, built into them.
+GitHub Releases of `enowdev/enowx` (`updates.github` in `cmd/enowx/mygo.json`): apps read the update manifests of the latest published release, and check each update's signature against `updates.publicKey`, built into them.
 
 The secret half of that key signs every release. It is the repository secret `MYGO_UPDATER_PRIVATE_KEY`, and a copy is kept by the maintainer outside the repository: installed apps accept only updates signed with it, so losing it strands them, and whoever has it can ship code to every user. Never commit it.
 
