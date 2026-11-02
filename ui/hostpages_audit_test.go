@@ -6,6 +6,7 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/egoist/mygo/ui"
 
@@ -272,4 +273,38 @@ func closeHostAudit(h *notesHarness) {
 	a.host = hosts.Host{ID: hosts.LocalID, Name: "this Mac"}
 	a.client, a.setup, a.sync, a.connecting, a.connectLink, a.connErr, a.connFail = h.cl, nil, nil, "", "", "", nil
 	a.trust, a.signIn, a.passphrase, a.runAs, a.deletingServer = nil, nil, nil, nil, nil
+}
+
+// The Create a server dialog's drop-downs open within the window, each option
+// running inside its row.
+func TestVPSOptionPicker(t *testing.T) {
+	h := newNotesHarness(t)
+	seedAudit(t, h)
+	a := h.app
+	auditHosts(t, a)
+	a.page = pageHosts
+	long := "2 CPU, 4 GB, and a detail long enough to run in its row of the list"
+	a.creating = &vpsForm{open: true, provider: vps.Providers[0].ID, token: "sample", loaded: vps.Providers[0].ID, name: "enowx-2", region: "hel", size: "cx22",
+		regions: []vps.Option{{ID: "hel", Name: "Helsinki"}, {ID: "fsn", Name: "Falkenstein"}},
+		sizes:   []vps.Option{{ID: "cx22", Name: "CX22", Detail: long, Monthly: 4.5}, {ID: "cx32", Name: "CX32", Detail: "4 CPU, 8 GB", Monthly: 8}}}
+	tt := ui.NewTester(func(c *ui.Context) { a.view(c) }, 1280, 800)
+	h.tt = tt
+	tt.Advance(time.Second)
+	r, ok := tt.Find("Helsinki")
+	if !ok {
+		t.Fatalf("no Helsinki: %q", tt.Texts())
+	}
+	tt.ClickAt(r.X+r.W/2, r.Y+r.H/2)
+	tt.Advance(time.Second)
+	h.settle("the regions offered", func() bool { return tt.HasText("Falkenstein") })
+	shot(t, tt, filepath.Join("audit", "vps-picker.png"))
+	for _, pr := range layoutProblems(tt, 1280, 800, false) {
+		t.Error(pr)
+	}
+	r, ok = tt.Find("Falkenstein")
+	if !ok {
+		t.Fatalf("no Falkenstein: %q", tt.Texts())
+	}
+	tt.ClickAt(r.X+r.W/2, r.Y+r.H/2)
+	h.settle("the region picked", func() bool { return a.creating.region == "fsn" })
 }
