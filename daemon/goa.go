@@ -6,7 +6,6 @@ import (
 	"os"
 	"path/filepath"
 	"slices"
-	"strings"
 	"sync"
 
 	"github.com/enowx/enowx/core/agent"
@@ -28,7 +27,8 @@ type goaState struct {
 	board *goa.Board
 
 	mu     sync.Mutex
-	tell   []goaLine         // lines for GOA, typed once it is idle, kept in tellFile
+	tell   []goaLine         // lines for GOA until it takes them, kept in tellFile
+	waker  *goaWaker         // its idle agent's background hook, the latest (goa_inject.go)
 	urgent map[string]string // worker session → why the user answers what it asks
 	// pending is the tool call of each worker in urgent the user hasn't been
 	// told of, as its agent hasn't asked yet.
@@ -170,6 +170,7 @@ func (s *Server) goaBoard() proto.GOABoard {
 		}
 	}
 	b.Told = s.goaToldIDs()
+	b.Waiting = s.goaWaitingLines()
 	if g, ok := s.goaSession(); ok {
 		b.Session, b.Agent = g.ID, agent.Base(g.Agent)
 		b.Level, _ = goa.LevelOf(b.Agent)
@@ -245,8 +246,8 @@ type goaLine struct {
 // goaTellMax bounds what waits for a GOA that never comes back, the oldest going.
 const goaTellMax = 200
 
-// goaTellLine tells GOA line, now if it is idle, else once it is: while it is
-// busy, hibernated, stopped or the daemon restarts, the line waits in a file. Only
+// goaTellLine tells GOA line as soon as a route to it is open (goa_inject.go): while
+// it is busy, hibernated, stopped or the daemon restarts, the line waits in a file. Only
 // with no GOA on this host at all is there no one to tell.
 func (s *Server) goaTellLine(line goaLine) {
 	g, ok := s.goaSession()
@@ -264,6 +265,7 @@ func (s *Server) goaTellLine(line goaLine) {
 	if !g.Exited && g.State != proto.StateWorking {
 		s.goaFlush(g.ID)
 	}
+	s.goaChanged() // the app shows what waits
 }
 
 // saveGOATell keeps what waits for GOA, for it to outlast the daemon.
@@ -328,29 +330,6 @@ func (s *Server) goaLinesToSay() []goaLine {
 		}
 	}
 	return out
-}
-
-// goaFlush types what waits for GOA (session id) as one message. What couldn't
-// be typed goes back, ahead of what came since. The file changes only after: a
-// daemon stopped between the two says a line twice rather than never.
-func (s *Server) goaFlush(id string) {
-	lines := s.goaLinesToSay()
-	if len(lines) == 0 {
-		s.saveGOATell() // moot lines may have gone
-		return
-	}
-	texts := make([]string, len(lines))
-	for i, l := range lines {
-		texts[i] = l.Text
-	}
-	err := s.input(proto.SessionInputParams{ID: id, Text: strings.Join(texts, "\n"), Paste: true, Enter: true})
-	if err != nil {
-		s.logger().Warn("goa: could not tell GOA", "session", id, "err", err)
-		s.goa.mu.Lock()
-		s.goa.tell = append(lines, s.goa.tell...)
-		s.goa.mu.Unlock()
-	}
-	s.saveGOATell()
 }
 
 // goaCall calls method on host ("" this one) as GOA (from) would: through

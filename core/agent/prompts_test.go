@@ -104,6 +104,31 @@ func TestPromptAsksPermission(t *testing.T) {
 	}
 }
 
+// Only a composer sure to hold nothing counts as empty: anything else may be a draft.
+func TestPromptEmpty(t *testing.T) {
+	for _, screen := range []string{
+		"Done.\n───\n❯ \n───\n  ⏵⏵ bypass permissions on\n",
+		"Done.\n› Ask Codex to do anything\n",
+		"$ \n",
+	} {
+		if !PromptEmpty(screen) {
+			t.Errorf("not empty: %q", screen)
+		}
+	}
+	for _, screen := range []string{
+		"───\n❯ oiya lalu tambahkan\n───\n",
+		"› halfway through a sentence\n",
+		"✶ Thinking… (esc to interrupt)\n❯ \n",
+		"Overwrite the file?\n> \n",
+		"compiling\n",
+		"",
+	} {
+		if PromptEmpty(screen) {
+			t.Errorf("taken for empty: %q", screen)
+		}
+	}
+}
+
 // A turn's end shows on the screen of an agent no hook speaks for, and what is
 // only quiet isn't taken for it.
 func TestTurnOverShown(t *testing.T) {

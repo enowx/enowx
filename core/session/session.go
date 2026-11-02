@@ -324,6 +324,16 @@ func truncate(s string, n int) string {
 
 // QuietFor is how long it has been since anything was typed in or shown, as of
 // now; a long time when nothing has been since it was brought back.
+// TypedFor is how long since anything was typed into the session.
+func (s *Session) TypedFor(now time.Time) time.Duration {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if s.lastInput.IsZero() {
+		return 365 * 24 * time.Hour
+	}
+	return now.Sub(s.lastInput)
+}
+
 func (s *Session) QuietFor(now time.Time) time.Duration {
 	s.mu.Lock()
 	defer s.mu.Unlock()

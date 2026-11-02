@@ -161,6 +161,22 @@ type GOABoard struct {
 	// Told are the sessions GOA sent something to with no task (session send),
 	// which report to it all the same: the app relays the other hosts'.
 	Told []string `json:"told,omitempty"`
+	// Waiting are the lines waiting for GOA to take them.
+	Waiting []string `json:"waiting,omitempty"`
+}
+
+// MethodGOAWake waits for lines for GOD of Agents, for its idle agent's background hook:
+// GOAWakeParams → GOAWakeReply, Text "" when a later hook took over or the session ended.
+const MethodGOAWake = "goa.wake"
+
+// GOAWakeParams names GOA's session.
+type GOAWakeParams struct {
+	ID string `json:"id"`
+}
+
+// GOAWakeReply is what to wake it with.
+type GOAWakeReply struct {
+	Text string `json:"text,omitempty"`
 }
 
 // GOADelegateParams is a task GOA (From, its session) hands over: to

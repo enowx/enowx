@@ -204,6 +204,8 @@ type HookDecision struct {
 	Context string `json:"context,omitempty"`
 	Command string `json:"command,omitempty"`
 	Approve bool   `json:"approve,omitempty"`
+	// Continue keeps a turn going to take this, at its end: lines for GOD of Agents.
+	Continue string `json:"continue,omitempty"`
 }
 
 // SessionHookParams is an event from session ID's agent, with the state

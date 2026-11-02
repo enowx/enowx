@@ -36,6 +36,8 @@ func Hook(args []string, stdin io.Reader, stdout, stderr io.Writer) int {
 	var event, state string
 	for i := 0; i < len(args); i++ {
 		switch {
+		case args[i] == "--wake":
+			return goaWakeHook(id, stderr)
 		case args[i] == "--event" && i+1 < len(args):
 			i++
 			event = args[i]
@@ -80,6 +82,12 @@ func Hook(args []string, stdin io.Reader, stdout, stderr io.Writer) int {
 	}
 	if d.Context != "" && (event == proto.HookPromptStart || event == proto.HookSessionStart) {
 		fmt.Fprintln(stdout, d.Context)
+	}
+	if d.Context != "" && event == proto.HookToolAfter {
+		fmt.Fprintln(stdout, contextOutput(data, d.Context))
+	}
+	if d.Continue != "" && event == proto.HookTurnDone {
+		fmt.Fprintln(stdout, continueOutput(data, d.Continue))
 	}
 	return 0
 }

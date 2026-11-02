@@ -509,7 +509,7 @@ func agentLaunch(preset agent.Preset, skip bool, prompt string, cont bool, chat 
 	}
 	switch {
 	case chat.goa:
-		hooks = append(agent.HookArgs(preset.ID), agent.GOAArgs(preset.ID, programPath(), guide)...)
+		hooks = append(agent.GOAHookArgs(preset.ID), agent.GOAArgs(preset.ID, programPath(), guide)...)
 	case chat.notes != "":
 		hooks = append(agent.HookArgs(preset.ID), agent.NotesArgs(preset.ID, programPath(), chat.notes)...)
 	case chat.canvas != "":

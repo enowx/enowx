@@ -26,6 +26,8 @@ type conn struct {
 	adb        adbBridge
 	nextStream uint32
 	closed     bool
+	// gone closes with the connection, for a request waiting on something else.
+	gone chan struct{}
 	// greeted is set once the handshake is done: events reach the
 	// connection only after, as its client reads none before.
 	greeted atomic.Bool
@@ -36,7 +38,7 @@ type conn struct {
 }
 
 func newConn(s *Server, nc net.Conn) *conn {
-	return &conn{srv: s, nc: nc, streams: map[uint32]*stream{}}
+	return &conn{srv: s, nc: nc, streams: map[uint32]*stream{}, gone: make(chan struct{})}
 }
 
 func (c *conn) serve() error {
@@ -207,6 +209,9 @@ func (c *conn) send(f proto.Frame) {
 
 func (c *conn) close() {
 	c.mu.Lock()
+	if !c.closed && c.gone != nil {
+		close(c.gone)
+	}
 	c.closed = true
 	streams := c.streams
 	c.streams = map[uint32]*stream{}

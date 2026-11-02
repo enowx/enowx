@@ -27,6 +27,9 @@ var goaHandlers = map[string]handler{
 		return ok, nil
 	}),
 	proto.MethodGOAReport: with(func(c *conn, p proto.GOAReportParams) (any, error) { return ok, c.srv.goaReport(p) }),
+	proto.MethodGOAWake: with(func(c *conn, p proto.GOAWakeParams) (any, error) {
+		return c.srv.goaWake(p.ID, c.gone), nil
+	}),
 	proto.MethodGOAFlags:  bare(func(c *conn) (any, error) { return c.srv.goaFlags(), nil }),
 	proto.MethodGOARevert: with(func(c *conn, p proto.GOARevertParams) (any, error) { return c.srv.goaRevert(p.ID) }),
 	proto.MethodGOARemember: with(func(c *conn, p proto.GOARememberParams) (any, error) {

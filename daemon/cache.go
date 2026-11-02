@@ -14,6 +14,11 @@ import (
 	"github.com/enowx/enowx/proto"
 )
 
+func init() {
+	// They walk the whole folder.
+	slowMethods[proto.MethodCacheList], slowMethods[proto.MethodCacheClean] = true, true
+}
+
 // cacheEnv is what cacheclean needs of this host. It looks a little more each time:
 // what's running and who uses what change between looking and cleaning.
 func (s *Server) cacheEnv(olderDays int) cacheclean.Env {

@@ -130,11 +130,34 @@ func TurnOverShown(screen string) bool {
 	if i := lastMatch(lines, timeTaken); i >= 0 {
 		return !asksOrWorks(lines[i+1:])
 	}
+	return bareMark(lines) >= 0
+}
+
+// bareMark is which of lines is a composer's prompt mark with nothing typed, under
+// nothing asked and with nothing at work below it; -1 for none.
+func bareMark(lines []string) int {
 	i := lastMatch(lines, promptAlone)
 	if i < 0 || i > 0 && strings.HasSuffix(strings.Trim(lines[i-1], promptEdges), "?") {
-		return false // a question right above a bare mark is a program reading its answer
+		return -1 // a question right above a bare mark is a program reading its answer
 	}
-	return PromptFree(strings.Join(lines[max(0, i-3):i+1], "\n")) && !asksOrWorks(lines[i+1:])
+	if !PromptFree(strings.Join(lines[max(0, i-3):i+1], "\n")) || asksOrWorks(lines[i+1:]) {
+		return -1
+	}
+	return i
+}
+
+// emptyPlaceholder is what composers show, dim, when nothing is typed in them. A
+// terminal's text can't tell dim from typed, so only these exact words count.
+var emptyPlaceholder = regexp.MustCompile(`^[│|┃]?\s*[❯›>]\s*(Ask Codex to do anything|Type your message or @path/to/file|Try "[^"]*")\s*[│|┃]?$`)
+
+// PromptEmpty says the screen shows a composer with no draft in it, sure of it: what
+// it can't read counts as a draft, for nothing to be sent with one.
+func PromptEmpty(screen string) bool {
+	lines := tailLines(screen, turnOverLines)
+	if lastMatch(lines, emptyPlaceholder) >= 0 {
+		return !workingShown.MatchString(strings.Join(lines, "\n"))
+	}
+	return bareMark(lines) >= 0
 }
 
 // lastMatch is the last of lines re matches, -1 for none.

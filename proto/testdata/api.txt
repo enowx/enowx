@@ -1098,6 +1098,7 @@ field GOABoard.level string
 field GOABoard.session string
 field GOABoard.tasks []GOATask
 field GOABoard.told []string
+field GOABoard.waiting []string
 field GOADelegateParams.agent string
 field GOADelegateParams.branch string
 field GOADelegateParams.config string
@@ -1178,6 +1179,8 @@ field GOATask.woken bool
 field GOATaskParams.id string
 field GOATaskParams.result string
 field GOATaskParams.status string
+field GOAWakeParams.id string
+field GOAWakeReply.text string
 field GOAWorkerParams.host string
 field GOAWorkerParams.session SessionInfo
 field GridArea.col int
@@ -1244,6 +1247,7 @@ field HookDecision.approve bool
 field HookDecision.block bool
 field HookDecision.command string
 field HookDecision.context string
+field HookDecision.continue string
 field HookDecision.reason string
 field HookEvent.agent string
 field HookEvent.allowed bool
@@ -2813,6 +2817,7 @@ method goa.rules.save
 method goa.stall
 method goa.stall.save
 method goa.task
+method goa.wake
 method goa.worker
 method hooks.approve
 method hooks.decide

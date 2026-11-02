@@ -87,6 +87,7 @@ func (s *Server) sessionHook(p proto.SessionHookParams) (proto.HookDecision, err
 	if dir == "" {
 		dir = info.Dir
 	}
+	continuing := s.goaHookLines(sess, info, ev, &d)
 	switch ev.Event {
 	case proto.HookToolAfter:
 		s.toolStep(info, ev)
@@ -105,6 +106,9 @@ func (s *Server) sessionHook(p proto.SessionHookParams) (proto.HookDecision, err
 			}
 		}
 	case proto.HookTurnDone:
+		if continuing {
+			break // it goes on, to take what it was given
+		}
 		go s.turnEnded(info)
 		go s.remindToDos(info)
 		s.ragSoon(dir)

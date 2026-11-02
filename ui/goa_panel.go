@@ -1,6 +1,7 @@
 package ui
 
 import (
+	"fmt"
 	"github.com/enowx/enowx/core/hosts"
 	"path/filepath"
 	"slices"
@@ -272,6 +273,7 @@ func (a *App) watchedHost(name string) (hosts.Host, bool) {
 // tasksTab is the Tasks tool: the board, newest first, then what a watched
 // GOA did itself.
 func (a *App) tasksTab(c *ui.Context) {
+	a.goaWaitingStrip(c)
 	goaScroll(c, func() {
 		b := a.goa.board
 		if b.Level != "" {
@@ -553,4 +555,21 @@ func orOwn(s string) string {
 		return "its own"
 	}
 	return s
+}
+
+// goaWaitingStrip shows the lines waiting for GOD of Agents to take them: they don't go
+// through its input box, so this is where they can be seen meanwhile.
+func (a *App) goaWaitingStrip(c *ui.Context) {
+	waiting := a.goa.board.Waiting
+	if len(waiting) == 0 {
+		return
+	}
+	ui.Column(c.Key("goa-waiting")).FillWidth().Shrink(0).Padding(theme.S2).Gap(theme.S1).Children(func() {
+		ui.Text(c, fmt.Sprintf("Waiting for GOA (%d)", len(waiting))).FontSize(theme.TextLabel).FontWeight(500).TextColor(theme.TextSoft).SingleLine()
+		for i, line := range waiting[:min(len(waiting), 3)] {
+			ui.Row(c.Key(i)).FillWidth().MinWidth(0).Children(func() {
+				widget.Running(c, line, widget.RunStyle{Size: theme.TextLabel, Color: theme.TextSoft})
+			})
+		}
+	})
 }

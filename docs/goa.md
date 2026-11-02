@@ -73,6 +73,18 @@ A line stays until it has gone in: kept in `goa-tell.json` while GOA is busy, hi
 
 Sent something again, a task whose turn had ended is at work again, so a screen with no hook can report the next turn too.
 
+
+### How lines reach GOA
+
+Workers' reports never go through GOA's input box while anything of the user's could be in it: a line typed there took the user's unfinished sentence along with it. By what each agent documents, in this order (`daemon/goa_inject.go`):
+
+| When | Claude Code | Codex | An agent with no hooks |
+|---|---|---|---|
+| In a turn | `additionalContext` at the next prompt or tool's end | The same | None |
+| At a turn's end | Its `Stop` hook's `additionalContext` keeps the turn going | `decision: "block"` with the lines as the reason | None |
+| Idle | A background hook (`asyncRewake`, 24 hours at most, armed at each start and turn's end) wakes it on exit code 2, the lines as a system reminder | No way in documented: below | Below |
+
+Idle with no such route, or that hook gone: the line waits, and is typed only into a composer sure to be empty, with no key pressed for 5 seconds and nothing at work or asked. A prompt the screen can't be sure of counts as a draft, so the line goes on waiting, shown in GOA's Tasks panel under Waiting for GOA. It never sends with a draft in the prompt. A line waiting goes with the next turn, however that starts. Claude Code's channels also push into an idle session, but they are a research preview, a custom one needs a development flag at each start, and they need Anthropic sign-in, so they aren't used.
 ## Workers' permission prompts
 
 On the worker's host, before each tool call of a GOA worker (its agent's hooks):
