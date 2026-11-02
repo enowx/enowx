@@ -445,12 +445,14 @@ func (st *ragSettingsState) keysToSave() []proto.RAGKey {
 // for the user's other hosts: done runs after, on the main thread.
 func (a *App) keysToVaultRow(c *ui.Context, st *keysMove, done func()) {
 	widget.Notice(c, icon.Key, theme.Warning, "Some keys here are on this host alone", "Your other hosts get these settings but not the keys. Keep them in the vault, without typing them again: the app asks you first, and each host the first time it uses one.", func() {
-		b := widget.GhostButton(c, "Keep them in the vault")
-		if st.busy {
-			b.Disabled(true)
-		} else if b.Clicked() {
-			a.moveKeysToVault(st, done)
-		}
+		ui.Row(c).Children(func() { // at its own width, not the notice's
+			b := widget.GhostButton(c, "Keep them in the vault")
+			if st.busy {
+				b.Disabled(true)
+			} else if b.Clicked() {
+				a.moveKeysToVault(st, done)
+			}
+		})
 	})
 	if st.said != "" {
 		ui.Text(c, st.said).FontSize(theme.TextLabel).TextColor(theme.Muted)
