@@ -213,9 +213,11 @@ func (a *App) updateChip(c *ui.Context) {
 		return
 	}
 	b := titleChip(c, "update", label)
-	b.TextColor(theme.Accent).Children(func() {
-		ui.Icon(c, icon.ArrowUp).FontSize(11)
-		ui.Text(c, label).FontSize(theme.TextLabel).SingleLine()
+	// On the glass the accent can't be read: the words carry it, in the color
+	// of what happens now.
+	b.TextColor(theme.Now).Children(func() {
+		ui.Icon(c, icon.ArrowUp).FontSize(12)
+		ui.Text(c, label).FontSize(theme.TextUI).SingleLine()
 	})
 	if b.Clicked() {
 		a.updates.dialog = true

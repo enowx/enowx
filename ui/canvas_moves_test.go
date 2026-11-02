@@ -126,7 +126,7 @@ func TestTypingSurvivesAgentsAsking(t *testing.T) {
 	}
 	hc := h.app.canvasesOf()
 	hc.open = cv.ID
-	h.settle("the canvas open", func() bool { return h.tt.HasText("Welcome back") })
+	h.settle("the canvas open", func() bool { _, ok := h.tt.Find("hero"); return ok })
 	if err := h.tt.Click("hero"); err != nil {
 		t.Fatal(err)
 	}
