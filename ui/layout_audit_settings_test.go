@@ -128,6 +128,18 @@ func auditSettingsPages() []auditPage {
 		{name: "dialog-settings-judge", open: func(a *App) {
 			auditDecide(a).adding = judgeForm{open: true, kind: proto.JudgeDecision}
 		}},
+		{name: "dialog-settings-hook-review", open: func(a *App) {
+			st := auditHooks(a)
+			st.review, st.seeing = st.info.Pending[0], true
+		}},
+		{name: "dialog-settings-fallback", open: func(a *App) {
+			auditAgents(a)
+			a.acctAsks = []*proto.AccountFallback{{Session: "s1", Agent: "claude", From: "Default", To: "Work account", ToID: "work", Reason: "usage", Until: time.Now().Add(time.Hour), Ask: true}}
+		}},
+		{name: "dialog-settings-decision", open: func(a *App) {
+			auditDecide(a)
+			a.decisions = []*proto.Decision{{ID: "d9", Use: "loop", Session: "s1", Verdict: "stuck", Confidence: 0.9, Why: "The same failure, over and over, with no fix tried.", Acted: "paused"}}
+		}},
 		{name: "dialog-settings-judge-key", open: func(a *App) {
 			st := auditDecide(a)
 			st.keying = &st.judges[2]

@@ -137,7 +137,7 @@ func auditPages() []auditPage {
 func closeAudit(a *App) {
 	a.newSession.open = false
 	a.notes.SetAssistant(false)
-	a.clone, a.featAsks = nil, nil
+	a.clone, a.featAsks, a.acctAsks, a.decisions = nil, nil, nil, nil
 	a.addHost.open = false
 	a.noteImport, a.noteExport = nil, nil
 	a.linksForm, a.attaching, a.copying, a.projectSyncing, a.creating, a.cloningTo = nil, nil, nil, nil, nil, nil
