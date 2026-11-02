@@ -157,9 +157,11 @@ func (a *App) portOfferCard(c *ui.Context, o portOffer, remote bool) {
 			a.sessions[i].Project != "" && webViewAvailable() {
 			s := a.sessions[i]
 			always := a.alwaysPreviews(s, o.port.Port)
-			if widget.Checkbox(c, &always, "Always preview :"+strconv.Itoa(o.port.Port)+" in this project") {
-				a.setAlwaysPreview(s, o.port.Port, always)
-			}
+			ui.Row(c).FillWidth().Children(func() {
+				if widget.Checkbox(c, &always, "Always preview :"+strconv.Itoa(o.port.Port)+" in this project") {
+					a.setAlwaysPreview(s, o.port.Port, always)
+				}
+			})
 		}
 		ui.Row(c).FillWidth().Gap(theme.S2).Justify(ui.End).Children(func() {
 			if widget.GhostButton(c, "Ports").Clicked() {
