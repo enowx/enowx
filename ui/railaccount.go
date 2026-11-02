@@ -5,6 +5,7 @@ import (
 
 	"github.com/enowx/enowx/proto"
 	"github.com/enowx/enowx/ui/icon"
+	"github.com/enowx/enowx/ui/theme"
 	"github.com/enowx/enowx/ui/widget"
 )
 
@@ -32,7 +33,7 @@ func (a *App) accountAction(c *ui.Context) {
 		tip = st.Account + " · enowX Cloud · " + where
 	}
 	b := actionButton(c, "account", label, icon.Account, true).Tooltip(tip)
-	a.menu.OpenBelow(b, "account", titleBarHeight)
+	a.menu.OpenBelow(b, "account", theme.BarHeight)
 	a.menu.Show(c, b, "account", func(done func()) {
 		switch {
 		case !loaded:

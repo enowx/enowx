@@ -177,7 +177,7 @@ func (ch *Chat) imageViewer(c *ui.Context) {
 	}
 	open := true
 	ui.DialogBase(c, &open, func(backdrop, panel ui.Element) {
-		backdrop.Background(widget.Backdrop)
+		backdrop.Background(theme.Scrim)
 		widget.Float(panel.Padding(theme.S3).Gap(theme.S2).Radius(theme.RadiusPanel).Background(theme.Dialog)).Transition(widget.OverlayMotion)
 		w, h := float32(max(at.w, 1)), float32(max(at.h, 1))
 		scale := min(1, viewerWidth/w, viewerHeight/h)

@@ -167,7 +167,7 @@ func (a *App) navMore(c *ui.Context) {
 		ui.Text(c, "More").FontSize(theme.TextUI).FontWeight(weight).SingleLine()
 		ui.Icon(c, icon.ChevronDown).FontSize(12)
 	})
-	a.menu.OpenBelow(more, "nav-more", titleBarHeight)
+	a.menu.OpenBelow(more, "nav-more", theme.BarHeight)
 	a.menu.Show(c, more, "nav-more", func(done func()) {
 		items := []struct {
 			svg     *ui.SVG

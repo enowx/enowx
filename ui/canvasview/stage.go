@@ -114,7 +114,8 @@ func (v *View) stage(c *ui.Context, o Options) {
 		// itself, free form, with nothing drawn under them.
 		board := ui.Box(c.Key("board:"+f.ID)).Absolute().Left(design.X).Top(design.Y).Size(design.W, design.H).Label("Frame " + f.Name)
 		if hasHTML {
-			board.Background(color(f.Background, ui.RGB(255, 255, 255))).Clip().Shadow(0, 2, 12, 0, theme.Fade(theme.TextStrong, 0.12))
+			board.Background(color(f.Background, ui.RGB(255, 255, 255))).Clip()
+			widget.DropShadow(board, 2, 12, theme.Fade(theme.TextStrong, 0.12))
 		}
 		if v.mode == modeDesign && board.Clicked() {
 			v.deselect(o)

@@ -100,7 +100,7 @@ func (v *View) tree(c *ui.Context, o Options) {
 func (v *View) treeRow(c *ui.Context, o Options, r row) {
 	e := r.entry
 	on := !e.Dir && o.Current != nil && o.Current() == r.path
-	b := ui.ButtonBase(c).FillWidth().Height(rowHeight).Padding(0, theme.S3, 0, float32(theme.S3+r.depth*indent)).Gap(theme.S2).
+	b := ui.ButtonBase(c).FillWidth().Height(rowHeight).Padding(0, theme.S3, 0, theme.S3+float32(r.depth*indent)).Gap(theme.S2).
 		Radius(theme.RadiusCard).Justify(ui.Start).Cursor(ui.CursorPointer).Label(r.path)
 	bg := theme.Fade(theme.Selected, 0)
 	switch {

@@ -27,7 +27,7 @@ func Dialog(c *ui.Context, open *bool, width, gap float32, body func()) {
 // dialogMotion fades the backdrop in and grows the panel in over it.
 func dialogMotion(backdrop, panel ui.Element) {
 	fade := &ui.Motion{Opacity: 0}
-	backdrop.Background(Backdrop).Transition(ui.ElementTransition{Duration: 240 * time.Millisecond, Ease: Out, Enter: fade, Exit: fade})
+	backdrop.Background(theme.Scrim).Transition(ui.ElementTransition{Duration: 240 * time.Millisecond, Ease: Out, Enter: fade, Exit: fade})
 	panel.Transition(OverlayMotion)
 }
 

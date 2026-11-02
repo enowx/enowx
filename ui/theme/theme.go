@@ -57,36 +57,35 @@ var SurfaceOpacity float64 = 1
 // MonoFont is the font of paths, code and command output.
 const MonoFont = "monospace"
 
-// Shape: the same in every palette.
-const (
-	RadiusFull    = 999 // capsules: half the height, whatever the height is
-	RadiusControl = 16  // buttons, inputs: a capsule at ControlHeight
-	RadiusTail    = 4   // a bubble's corner toward who said it
-	RadiusSmall   = 12  // thumbnails, swatches
-	RadiusCard    = 20  // cards, bubbles, wells, menus
-	RadiusPanel   = 28  // the window's panels, dialogs
-	RadiusBento   = 28  // the window's panels
-	BentoGap      = 8   // between the window's panels
-	WindowInset   = 12  // around them
-	ControlHeight = 32
-)
+// Shape, spacing and type are the style's (style.go), the same in every palette.
+// They are read while drawing, as the colors are, and belong to the main thread.
+var (
+	RadiusFull    float32 // capsules: half the height, whatever the height is
+	RadiusControl float32 // buttons, inputs: a capsule at ControlHeight
+	RadiusTail    float32 // a bubble's corner toward who said it
+	RadiusSmall   float32 // thumbnails, swatches
+	RadiusCard    float32 // cards, bubbles, wells, menus
+	RadiusPanel   float32 // the window's panels, dialogs
+	RadiusBento   float32 // the window's panels
+	BentoGap      float32 // between the window's panels
+	WindowInset   float32 // around them
+	ControlHeight float32
+	BarHeight     float32 // the title bar's pieces
+	ScrollWidth   float32 // a scroll bar's thickness
 
-// Spacing: the steps of every gap and padding.
-const (
-	S1 = 4
-	S2 = 8
-	S3 = 12
-	S4 = 16
-	S5 = 24
-	S6 = 32
-)
+	// Spacing: the steps of every gap and padding.
+	S1, S2, S3, S4, S5, S6 float32
 
-// Type: the steps of every text size.
-const (
-	TextLabel = 12 // labels, details
-	TextUI    = 13 // controls, lists: the default
-	TextRead  = 15 // what is read: conversations, notes
-	TextTitle = 17 // the title of a frame or dialog
+	// Effects: see Style.
+	Flat     bool
+	Hairline float32
+	Scrim    ui.Color
+
+	// Type: the steps of every text size.
+	TextLabel float32 // labels, details
+	TextUI    float32 // controls, lists: the default
+	TextRead  float32 // what is read: conversations, notes
+	TextTitle float32 // the title of a frame or dialog
 )
 
 // current is the palette applied last.
@@ -95,11 +94,15 @@ var current Palette
 // Current is the palette in use.
 func Current() Palette { return current }
 
-func init() { Apply(Default) }
+func init() {
+	useStyle(LiquidGlass)
+	Apply(Default)
+}
 
 // Apply sets every token from p.
 func Apply(p Palette) {
 	current = p
+	p = styled(p)
 	Background, Panel, Raised, Sunken = p.Background, p.Panel, p.Raised, p.Sunken
 	Ground, Frame, Popover = p.Ground, p.Frame, p.Popover
 	Hover, Selected, Dialog = p.Hover, p.Selected, p.Dialog
@@ -120,6 +123,9 @@ func Apply(p Palette) {
 		SurfaceOpacity = p.opacity
 	}
 	CodeGround = Surface(ui.RGBA(10, 11, 18, 0.94))
+	if p.code.A != 0 {
+		CodeGround = p.code
+	}
 	TermGround = Surface(terminalGround(p))
 	Add, Del, Now = p.Add, p.Del, p.Now
 	Working, Done, Warning, Error, Idle = p.Working, p.Done, p.Warning, p.Error, p.Idle
@@ -151,7 +157,7 @@ func Window() *ui.Theme {
 	t.Radius = RadiusControl
 	t.Inverse, t.InverseText = Popover, Text
 	t.Scrollbar = Selected
-	t.ScrollbarWidth = 8
+	t.ScrollbarWidth = ScrollWidth
 	t.FontSize = TextUI
 	return &t
 }

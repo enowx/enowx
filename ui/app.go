@@ -373,7 +373,7 @@ func (a *App) Open() *mygo.Window {
 		BackgroundColor: theme.Hex(theme.Background),
 		// The view draws the title bar: the command bar sits in it.
 		TitleBarStyle:  mygo.TitleBarHidden,
-		TitleBarHeight: titleBarHeight,
+		TitleBarHeight: int(theme.BarHeight),
 		// The view draws the window's buttons, the same on every system
 		// (windowButtons); the window keeps its shadow and resizing edges.
 		HideWindowButtons: true,

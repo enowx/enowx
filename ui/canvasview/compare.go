@@ -91,7 +91,7 @@ func (v *View) compareView(c *ui.Context, o Options, cv proto.Canvas) {
 		for _, f := range list {
 			widest = max(widest, v.compareWidth(f))
 		}
-		const gap = theme.S3
+		gap := theme.S3
 		w := float32(360)
 		if b.W > 0 {
 			w = (b.W - widget.ScrollGutter - float32(len(list)-1)*gap) / float32(len(list))

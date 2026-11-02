@@ -2,15 +2,13 @@ package widget
 
 import (
 	"github.com/egoist/mygo/ui"
-
-	"github.com/enowx/enowx/ui/theme"
 )
 
 // ScrollGutter is the room kept along a scroller's right edge for its bar,
 // which MyGo draws over the content, 3 to 11 DIPs in from the edge (at the
 // theme's ScrollbarWidth of 8). It is kept whether or not the bar shows, so
 // nothing shifts when it does.
-const ScrollGutter = theme.S3
+const ScrollGutter = 12
 
 // Scroll is a column that scrolls, its content ending before the bar's gutter.
 // A scroller whose content has at least the gutter as its own right padding

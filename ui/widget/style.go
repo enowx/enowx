@@ -7,9 +7,6 @@ import (
 	"github.com/enowx/enowx/ui/theme"
 )
 
-// Backdrop dims what is under a dialog.
-var Backdrop = ui.RGBA(0, 0, 0, 0.5)
-
 // tint animates one of e's colors toward target.
 func tint(e ui.Element, key string, target ui.Color) ui.Color {
 	return e.AnimateColor(key, target, ease)
@@ -22,8 +19,31 @@ func Tint(e ui.Element, key string, target ui.Color) ui.Color { return tint(e, k
 // Rim gives e glass's edge: a hairline around it, lit along its top, and
 // a soft shadow under it.
 func Rim(e ui.Element) ui.Element {
+	if theme.Flat {
+		return Edge(e)
+	}
 	return e.InsetShadow(0, 0.5, 0, 0, theme.Highlight).InsetShadow(0, 0, 0, 0.5, theme.Border).
 		Shadow(0, 10, 30, 0, ui.RGBA(0, 0, 0, 0.35))
+}
+
+// Edge is what tells e from what is around it in a style with no material: the
+// style's one line, if it has any, drawn inside e so that it takes no room.
+func Edge(e ui.Element) ui.Element {
+	if theme.Flat && theme.Hairline == 0 {
+		return e
+	}
+	if theme.Flat {
+		return e.InsetShadow(0, 0, 0, theme.Hairline, theme.Border)
+	}
+	return e.InsetShadow(0, 0, 0, 0.5, theme.Border)
+}
+
+// DropShadow is a shadow under e, in a style that has shadows.
+func DropShadow(e ui.Element, y, blur float32, col ui.Color) ui.Element {
+	if theme.Flat {
+		return e
+	}
+	return e.Shadow(0, y, blur, 0, col)
 }
 
 // Frosted says glass frosts what is under it. Off, as in tests where the CPU
@@ -34,6 +54,9 @@ var Frosted = true
 // fade with the slider over the user's own image, its hairline stays, for
 // panels to be told apart when nothing else of them shows.
 func SurfaceEdge(e ui.Element) ui.Element {
+	if theme.Flat {
+		return Edge(e)
+	}
 	o := float64(theme.SurfaceOpacity)
 	return e.InsetShadow(0, 0.5, 0, 0, theme.Fade(theme.Highlight, float64(theme.Highlight.A)/255*o)).InsetShadow(0, 0, 0, 0.5, theme.Border).
 		Shadow(0, 10, 30, 0, ui.RGBA(0, 0, 0, float32(0.35*o)))
@@ -49,6 +72,8 @@ const glassLeastOpacity = 0.25
 // not at all near the slider's lowest.
 func Glass(e ui.Element) ui.Element {
 	switch {
+	case theme.Flat:
+		return Edge(e.Background(theme.Panel))
 	case !Frosted, theme.SurfaceOpacity < glassLeastOpacity:
 		return SurfaceEdge(e.Background(theme.Panel))
 	case theme.SurfaceOpacity < 1:
@@ -60,6 +85,9 @@ func Glass(e ui.Element) ui.Element {
 // BrightFrame makes e the one frame that draws the eye, the strongest thing
 // on screen: nearly opaque, with the deepest shadow and the brightest rim.
 func BrightFrame(e ui.Element) ui.Element {
+	if theme.Flat {
+		return Edge(e.Radius(theme.RadiusPanel).Clip().Background(theme.Frame))
+	}
 	o := float32(theme.SurfaceOpacity)
 	return e.Radius(theme.RadiusPanel).Clip().Background(theme.Frame).
 		InsetShadow(0, 1, 0, 0, ui.RGBA(255, 255, 255, 0.6*o)).InsetShadow(0, 0, 0, 0.5, ui.RGBA(255, 255, 255, 0.3)).
@@ -68,6 +96,9 @@ func BrightFrame(e ui.Element) ui.Element {
 
 // Raise gives e the look of a card on a frame: a faint light along its top.
 func Raise(e ui.Element) ui.Element {
+	if theme.Flat {
+		return Edge(e)
+	}
 	return e.InsetShadow(0, 0.5, 0, 0, ui.RGBA(255, 255, 255, 0.3))
 }
 

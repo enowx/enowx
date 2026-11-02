@@ -16,6 +16,9 @@ func (a *App) wallpaper(c *ui.Context) {
 		a.backgroundImage(c)
 		return
 	}
+	if theme.Flat {
+		return // what shows is the ground alone
+	}
 	w, h := c.Size()
 	sx, sy := w/1440, h/900
 	wall := theme.Current().Wall

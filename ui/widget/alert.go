@@ -19,7 +19,7 @@ func AlertDialog(c *ui.Context, open *bool, title, message string, buttons ...st
 	}
 	chosen, dismissed := -1, false
 	ui.Overlay(c, func() {
-		back := ui.Box(c).Absolute().Left(0).Top(0).Right(0).Bottom(0).Center().Background(Backdrop).Modal()
+		back := ui.Box(c).Absolute().Left(0).Top(0).Right(0).Bottom(0).Center().Background(theme.Scrim).Modal()
 		dismissed = back.OverlayShortcut(0, ui.KeyEscape)
 		back.Children(func() {
 			w, h := c.Size()

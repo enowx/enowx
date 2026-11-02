@@ -142,7 +142,7 @@ func (p *Panel) Draw(c *ui.Context, run *proto.CanvasUnslopRun, o PanelOptions) 
 			if run.Done {
 				done = 1
 			}
-			ui.Box(c).Width(hudInner * done).Height(4).Radius(theme.RadiusFull).Background(col)
+			ui.Box(c).Width(hudInner() * done).Height(4).Radius(theme.RadiusFull).Background(col)
 		})
 		ui.Column(c).FillWidth().Gap(2).Children(func() {
 			for _, p := range run.Passes {
@@ -296,12 +296,14 @@ func scoreColor(score int) ui.Color {
 }
 
 // hudMargin is what a card leaves around it in the element it is over;
-// hudWidth its width; hudInner the room inside its padding.
+// hudWidth its width.
 const (
-	hudMargin = theme.S3
+	hudMargin = 12
 	hudWidth  = 288
-	hudInner  = hudWidth - 2*theme.S4
 )
+
+// hudInner is the room inside a card's padding.
+func hudInner() float32 { return hudWidth - 2*theme.S4 }
 
 // raised is a card's material, over the stage: as a menu's, with glass's edge.
 func raised(e ui.Element) ui.Element {
@@ -369,7 +371,7 @@ func drawSteps(c *ui.Context, run *proto.CanvasUnslopRun) {
 			ui.Text(c, fmt.Sprintf("%d/%d", min(run.Step+1, len(run.Steps)), len(run.Steps))).FontSize(theme.TextLabel).TextColor(theme.TextSoft).SingleLine().Shrink(0)
 		})
 		ui.Box(c.Key("progress")).FillWidth().Height(4).Shrink(0).Radius(theme.RadiusFull).Clip().Background(theme.Sunken).Children(func() {
-			ui.Box(c).Width(hudInner * min(float32(run.Step)/float32(len(run.Steps)), 1)).Height(4).Radius(theme.RadiusFull).Background(theme.Accent)
+			ui.Box(c).Width(hudInner() * min(float32(run.Step)/float32(len(run.Steps)), 1)).Height(4).Radius(theme.RadiusFull).Background(theme.Accent)
 		})
 		ui.Column(c).FillWidth().Gap(2).Children(func() {
 			for i, step := range run.Steps {

@@ -48,7 +48,8 @@ func (v *View) grid(c *ui.Context, o Options, cv proto.Canvas) {
 			}
 			// As many cards a row as fit 260 wide, as wide as the room
 			// shares out: the grid fills it at any width.
-			const cell, gap = 260, theme.S3
+			const cell = 260
+			gap := theme.S3
 			cw := float32(cell)
 			if room > 0 {
 				n := max(1, int((room+gap)/(cell+gap)))

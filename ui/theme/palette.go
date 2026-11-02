@@ -31,6 +31,9 @@ type Palette struct {
 	// darkOf is the dark palette a derived light one came from: it has no ID
 	// to look it up by, and terminals stay dark.
 	darkOf *Palette
+	// code is the ground of code and logs a style gives it, none keeping the
+	// app's own.
+	code ui.Color
 }
 
 // glass is a dark palette: every palette has the same glass, over a
@@ -123,7 +126,7 @@ func darkPalette(p Palette) Palette {
 // Terminal keeps a dark ground even in light appearance: CLI programs often
 // draw their own pale input text without adapting to the app's colors.
 func Terminal() *terminal.Theme {
-	p := darkPalette(current)
+	p := styled(darkPalette(current))
 	t := terminal.DarkTheme()
 	fg := ui.Hex("#E8EAF2")
 	t.Foreground, t.Background = fg, terminalGround(p)

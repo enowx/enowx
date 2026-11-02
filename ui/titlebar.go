@@ -10,9 +10,6 @@ import (
 	"github.com/enowx/enowx/ui/widget"
 )
 
-// titleBarHeight is the height of the capsules at the window's top.
-const titleBarHeight = 40
-
 // titleBar is the window's top: not a bar but separate pieces of glass over
 // the wallpaper. The window controls, the host and project, the pages, the
 // search, and the actions. What is between them drags the window.
@@ -30,9 +27,9 @@ func (a *App) titleBar(c *ui.Context) {
 // titleBarWith is the title bar with actions on its right.
 func (a *App) titleBarWith(c *ui.Context, actions func()) {
 	bar := c.TitleBar()
-	ui.Row(c).Height(max(bar.Height, titleBarHeight)).Shrink(0).FillWidth().
+	ui.Row(c).Height(max(bar.Height, theme.BarHeight)).Shrink(0).FillWidth().
 		Padding(0, bar.Right, 0, bar.Left).Gap(theme.S2).DragWindow().Children(func() {
-		ui.Row(c).Height(titleBarHeight).PaddingX(theme.S3).Shrink(0).Children(func() { a.windowButtons(c) })
+		ui.Row(c).Height(theme.BarHeight).PaddingX(theme.S3).Shrink(0).Children(func() { a.windowButtons(c) })
 		a.contextCapsule(c)
 		a.pagesCapsule(c)
 		a.commandButton(c)
@@ -43,7 +40,7 @@ func (a *App) titleBarWith(c *ui.Context, actions func()) {
 
 // capsule is a piece of the top's glass.
 func capsule(c *ui.Context) ui.Element {
-	return widget.Glass(ui.Row(c).Height(titleBarHeight).Radius(theme.RadiusFull).AlignItems(ui.Center))
+	return widget.Glass(ui.Row(c).Height(theme.BarHeight).Radius(theme.RadiusFull).AlignItems(ui.Center))
 }
 
 // contextMax is how wide the host's and the project's names may be in their
@@ -53,7 +50,7 @@ const contextMax = 112
 // contextCapsule is the host and project the app is on, a menu of the others.
 func (a *App) contextCapsule(c *ui.Context) {
 	col, state := a.connectionState()
-	b := widget.Glass(ui.ButtonBase(c.Key("host-switch")).Height(titleBarHeight).PaddingX(theme.S4).Gap(theme.S2).Radius(theme.RadiusFull).
+	b := widget.Glass(ui.ButtonBase(c.Key("host-switch")).Height(theme.BarHeight).PaddingX(theme.S4).Gap(theme.S2).Radius(theme.RadiusFull).
 		Cursor(ui.CursorPointer).Shrink(0).Label("Host: " + a.host.Name + ", " + state).Tooltip(a.host.Name + " · " + state))
 	b.Children(func() {
 		if a.client == nil {
@@ -69,7 +66,7 @@ func (a *App) contextCapsule(c *ui.Context) {
 			})
 		}
 	})
-	a.menu.OpenBelow(b, "host-switch", titleBarHeight)
+	a.menu.OpenBelow(b, "host-switch", theme.BarHeight)
 	a.menu.Show(c, b, "host-switch", func(done func()) { a.hostMenuItems(c, done) })
 }
 
@@ -129,7 +126,7 @@ func pageButton(c *ui.Context, label string, on, enabled bool) ui.Element {
 
 // commandButton opens the command palette.
 func (a *App) commandButton(c *ui.Context) {
-	b := widget.Glass(ui.ButtonBase(c.Key("command")).Width(340).Shrink(1).MinWidth(160).Height(titleBarHeight).PaddingX(theme.S4).Gap(theme.S2).
+	b := widget.Glass(ui.ButtonBase(c.Key("command")).Width(340).Shrink(1).MinWidth(160).Height(theme.BarHeight).PaddingX(theme.S4).Gap(theme.S2).
 		Radius(theme.RadiusFull).Label("Run a command").Cursor(ui.CursorPointer))
 	b.Justify(ui.Start).TextColor(theme.TextSoft).Children(func() {
 		ui.Icon(c, icon.Search).FontSize(14)
