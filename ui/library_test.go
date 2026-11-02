@@ -170,6 +170,19 @@ func TestLibraryWalk(t *testing.T) {
 			// Plugins, as cards, their marketplaces a tab away.
 			w.click("Plugins")
 			w.shows("plugins", "typesafe", "Typed judgments.", "Plugins (1)", "Marketplaces (1)")
+			// Its menu, in the library alone: the first More of the whole window is the top bar's.
+			whole := h.tt
+			h.tt = ui.NewTester(func(c *ui.Context) { h.app.settingsPage(c) }, size[0], size[1])
+			h.settle("the plugins alone", func() bool { return h.tt.HasText("typesafe") })
+			if err := h.tt.Click("More"); err != nil {
+				t.Fatalf("%v: %q", err, h.tt.Texts())
+			}
+			w.shows("plugin-menu", "Update", "Uninstall")
+			h.tt.Press(1, 1)
+			h.tt.Release(1, 1)
+			h.tt.Frame()
+			h.tt = whole
+			w.settled("the menu closed", func() bool { return !h.tt.HasText("Uninstall") })
 			w.click("Marketplaces (1)")
 			w.shows("marketplaces", "typesafe-ai", "typesafe-ai/plugins")
 

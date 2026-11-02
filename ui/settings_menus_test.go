@@ -90,6 +90,15 @@ func TestSettingsConfigMenus(t *testing.T) {
 	h.settle("the API's menu", func() bool { return tt.HasText("Back to its own API") })
 	shot(t, tt, "settings-menu-api.png")
 
+	// New session offers the agent's configs, Official among them.
+	app.page = ""
+	app.openNewSession(app.projects[0])
+	app.newSession.agent = "claude"
+	tt = draw(app.view)
+	h.settle("the Config field", func() bool { return tt.HasText("Work account") })
+	shot(t, tt, "settings-new-session-config.png")
+	app.newSession.open = false
+
 	s := proto.SessionInfo{ID: "s1", Agent: "claude", Account: "work"}
 	tt = draw(func(c *ui.Context) { app.switchAccountItems(c, s, func() {}) })
 	if !tt.HasText("Switch to the official config") {
