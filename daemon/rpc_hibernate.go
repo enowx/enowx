@@ -7,6 +7,9 @@ var hibernateHandlers = map[string]handler{
 		mode := ""
 		if !c.remote {
 			mode = c.srv.sessionBypasses(p.From)
+			if mode == "" && c.srv.alwaysAllowed(p.From, proto.MethodSessionHibernate) {
+				mode = proto.ControlAlways
+			}
 		}
 		return c.srv.hibernateSessions(p, mode)
 	}),

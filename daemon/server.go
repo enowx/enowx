@@ -108,8 +108,10 @@ type Server struct {
 	// controlAsks are the sessions waiting for the user's yes in the app, and
 	// the method it's for (sessionAwaitsUser).
 	controlAsks sync.Map
-	statsState  stats
-	credits     credits.Checker
+	// controlAllowMu guards the file of sessions always allowed (control_allow.go).
+	controlAllowMu sync.Mutex
+	statsState     stats
+	credits        credits.Checker
 	// commandCache keeps the agents' slash commands (see commands).
 	commandCache commandCache
 	checkStore   *checks.Store

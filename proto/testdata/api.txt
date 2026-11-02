@@ -717,6 +717,11 @@ field ConfigAPI.smallModel string
 field Conflict.file string
 field Conflict.lines bool
 field Conflict.sessions []string
+field ControlAllow.name string
+field ControlAllow.session string
+field ControlAllow.since time.Time
+field ControlAllowParams.off bool
+field ControlAllowParams.session string
 field ControlLogEntry.bypass string
 field ControlLogEntry.err string
 field ControlLogEntry.from string
@@ -2737,6 +2742,8 @@ method hooks.saveProject
 method hooks.saveSession
 method hooks.test
 method host.call
+method host.controlAllow
+method host.controlAllowed
 method host.controlLog
 method host.keysToVault
 method host.share
@@ -3096,6 +3103,7 @@ value CommandRecent=recent
 value CommandSaved=saved
 value ConfigKindAPI=api
 value ConfigKindAccount=
+value ControlAlways=always allowed
 value CredExpired=expired
 value CredInvalid=invalid
 value CredRevoked=revoked

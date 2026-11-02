@@ -32,8 +32,11 @@ type hibernateForm struct {
 	plans []proto.HibernatePlan
 	// asker is the session of the agent asking, whose answer reply sends.
 	asker string
-	reply func(yes bool)
-	until time.Time // past it, the daemon waits no more
+	// from is the asking session; teammate says it is a teammate's on this host.
+	from     string
+	teammate bool
+	reply    func(yes bool)
+	until    time.Time // past it, the daemon waits no more
 }
 
 // hibernateTargets are the sessions a Hibernate on s acts on: those
@@ -219,11 +222,11 @@ func (a *App) hibernateAsked(cl *client.Client, req proto.AppRequest, reply func
 				reply(nil, err)
 				return
 			}
-			asker := p.From
+			asker, teammate := p.From, false
 			if s, ok := a.sessionByID(p.From); ok {
-				asker = a.sessionName(s)
+				asker, teammate = a.sessionName(s), s.Member != nil
 			}
-			a.hibernateAsks = append(a.hibernateAsks, &hibernateForm{cl: cl, plans: res.Plans, asker: asker, until: askUntil(hostAskLife), reply: func(yes bool) { reply(yes, nil) }})
+			a.hibernateAsks = append(a.hibernateAsks, &hibernateForm{from: p.From, teammate: teammate, cl: cl, plans: res.Plans, asker: asker, until: askUntil(hostAskLife), reply: func(yes bool) { reply(yes, nil) }})
 		})
 	}()
 }
@@ -275,13 +278,20 @@ func (a *App) hibernateAsk(c *ui.Context) *widget.Ask {
 			f.reply(yes)
 		}
 	}
+	about := ""
+	buttons := []widget.AskButton{{Kind: widget.Secondary, Label: "Don't", Do: answer(false)}}
+	if f.from != "" && !f.teammate {
+		about = alwaysAllowNote(f.asker)
+		buttons = append(buttons, widget.AskButton{Kind: widget.Secondary, Label: "Always allow", Do: func() {
+			a.hibernateAsks = slices.DeleteFunc(a.hibernateAsks, func(x *hibernateForm) bool { return x == f })
+			a.allowAlways(f.cl, f.from, func() { f.reply(true) })
+		}})
+	}
+	buttons = append(buttons, widget.AskButton{Kind: widget.Primary, Icon: icon.Moon, Label: "Hibernate", Do: answer(true)})
 	return &widget.Ask{Key: fmt.Sprintf("hibernate:%p", f), Icon: icon.Moon, Title: "“" + f.asker + "” asks to hibernate",
-		About: "An agent asks to hibernate " + textfmt.Plural(len(f.plans), "this session", "these sessions") + ". " + hibernateFrees(f.plans),
-		Body:  func() { hibernatePlans(c, f.plans) },
-		Buttons: []widget.AskButton{
-			{Kind: widget.Secondary, Label: "Don't", Do: answer(false)},
-			{Kind: widget.Primary, Icon: icon.Moon, Label: "Hibernate", Do: answer(true)},
-		}}
+		About:   "An agent asks to hibernate " + textfmt.Plural(len(f.plans), "this session", "these sessions") + ". " + hibernateFrees(f.plans) + about,
+		Body:    func() { hibernatePlans(c, f.plans) },
+		Buttons: buttons}
 }
 
 // hibernateFrees says what hibernating plans does and gives back.

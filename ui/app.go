@@ -184,6 +184,7 @@ type App struct {
 	picked             map[string]bool            // sessions picked with ⌘ or ⇧ clicks, for Hibernate
 	hibernating        *hibernateForm             // hibernating sessions that would lose work, asked about
 	hibernateAsks      []*hibernateForm           // agents asking to hibernate sessions
+	alwaysAllowedSheet alwaysAllowedState         // Settings → Agents' sessions always allowed
 	hostAsks           []*hostAsk                 // sessions asking to do what can't be undone (hostcontrol.go)
 	hostAskKey         int
 	asks               askLine                   // the cards waiting (asks.go)

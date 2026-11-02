@@ -82,6 +82,19 @@ func (c *Client) ControlLog() ([]proto.ControlLogEntry, error) {
 	return out, err
 }
 
+// ControlAllowed lists the sessions always allowed to hibernate and close
+// sessions.
+func (c *Client) ControlAllowed() ([]proto.ControlAllow, error) {
+	var out []proto.ControlAllow
+	err := c.Call(proto.MethodHostControlAllowed, nil, &out)
+	return out, err
+}
+
+// ControlAllow keeps the choice for a session, or with off revokes it.
+func (c *Client) ControlAllow(session string, off bool) error {
+	return c.Call(proto.MethodHostControlAllow, proto.ControlAllowParams{Session: session, Off: off}, nil)
+}
+
 // InterruptSession stops what session id's agent does, with its own key.
 func (c *Client) InterruptSession(id string) error {
 	return c.Call(proto.MethodSessionInterrupt, proto.SessionRef{ID: id}, nil)

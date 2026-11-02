@@ -424,7 +424,11 @@ func (r runner) controlCmd(args []string) error {
 			res = e.Err
 		}
 		if e.Bypass != "" {
-			res += " (not asked: the agent is in " + e.Bypass + ")"
+			if e.Bypass == proto.ControlAlways {
+				res += " (not asked: the user always allows this session, and nothing would be lost)"
+			} else {
+				res += " (not asked: the agent is in " + e.Bypass + ")"
+			}
 		}
 		fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%s\t%s\n", e.Time.Format("01-02 15:04:05"), orDash(e.From), nonEmpty(e.Host, "here"), e.Method, e.Level, res)
 	}

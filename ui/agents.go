@@ -36,6 +36,9 @@ func (a *App) agentsSection(c *ui.Context) {
 			st.tab = i
 			a.loadAccounts()
 		}
+		if widget.Button(c.Key("always-allowed"), widget.Secondary, nil, "Always allowed", "").Clicked() {
+			a.openAlwaysAllowed()
+		}
 		can := a.canAddConfig(st, list)
 		if widget.PrimaryButton(c, icon.Plus, "New config", "").Disabled(!can).Clicked() && can {
 			st.edit = a.newConfigForm(st.agent, proto.Account{})
@@ -70,6 +73,7 @@ func (a *App) agentsSection(c *ui.Context) {
 	}
 	a.configSheet(c, st)
 	a.agentAPISheet(c, apis)
+	a.alwaysAllowedView(c)
 }
 
 // canAddConfig says whether the agent picked can get a new config here.

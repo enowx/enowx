@@ -134,6 +134,11 @@ func (s *Server) hibernateSessions(p proto.SessionHibernateParams, bypass string
 	if p.DryRun {
 		return out, nil
 	}
+	if bypass == proto.ControlAlways && slices.ContainsFunc(out.Plans, func(pl proto.HibernatePlan) bool {
+		return pl.Blocked == "" && s.stoppingLoses(p.From, pl.ID, ports)
+	}) {
+		bypass = "" // always allowed is for what loses nothing
+	}
 	if p.From != "" && slices.ContainsFunc(out.Plans, func(pl proto.HibernatePlan) bool { return pl.Blocked == "" }) {
 		if bypass != "" {
 			s.control.add(proto.ControlLogEntry{Time: time.Now(), From: p.From, Method: proto.MethodSessionHibernate,
