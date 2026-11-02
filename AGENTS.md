@@ -83,7 +83,6 @@ Go 1.27+ is required (MyGo needs it). With an older `go`, set `GOTOOLCHAIN=go1.2
 | `internal/quietcmd` | Starts programs in the background without a console window on Windows | **No** |
 | `internal/watchdog` | Leaves a report when a thread stops answering (every goroutine's stack, what was on screen), and a line of what memory holds, in the data folder's `watchdog` folder | **No** |
 | `internal/testlisten` | A test binary standing in for a dev server a session starts, for tests of ports | **No** |
-| `tools/contributor-bot` | A small service of its own, in a Go module of its own: the Discord bot giving Contributor for a merged pull request (see its README). Nothing here ships or imports it | **No** |
 | `core/*` (others) | Runner, scheduler, store (later) | **No** |
 | `transport/` | Local socket, SSH, daemon spawning | **No** |
 | `transport/owntailnet` | The app's own device on the user's tailnet (`tsnet`), apart so the server daemon doesn't carry Tailscale | **No** |
