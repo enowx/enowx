@@ -22,6 +22,7 @@ type historyDialog struct {
 	err      string
 	picked   string
 	shown    *proto.Note // the version picked, once read
+	preview  *editor     // shown's blocks, read-only
 }
 
 // openHistory opens the history of page n.
@@ -52,7 +53,7 @@ func (v *View) pickVersion(o Options, h *historyDialog, id string) {
 			h.err = err.Error()
 			return
 		}
-		h.shown = &n
+		h.shown, h.preview = &n, newEditor(n.Body)
 	})
 }
 
@@ -94,7 +95,7 @@ func (v *View) historySheet(c *ui.Context, o Options) {
 					return
 				}
 				ui.Text(c, titleOf(h.shown.NoteInfo)).FontSize(theme.TextTitle).FontWeight(600).TextColor(theme.TextStrong)
-				widget.Markdown(c, h.shown.Body)
+				versionView(c, o, h)
 			})
 		})
 	}, func() {
@@ -120,3 +121,23 @@ func (v *View) historySheet(c *ui.Context, o Options) {
 		}
 	})
 }
+
+// versionView draws the version picked as a page shows it, its layout blocks
+// included: nothing in it can be changed or followed.
+func versionView(c *ui.Context, o Options, h *historyDialog) {
+	h.preview.compact = true
+	h.preview.env = pageEnv{
+		read:     true,
+		width:    historyPreviewWidth,
+		openLink: func(string) bool { return false },
+		jump:     func(string) {},
+		openNote: func(string) {},
+		asset:    o.Asset,
+		kept:     func(string) string { return "" },
+		keep:     func(string, string) {},
+	}
+	h.preview.draw(c)
+}
+
+// historyPreviewWidth is about the room the dialog's card leaves a version.
+const historyPreviewWidth = 400

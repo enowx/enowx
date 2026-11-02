@@ -256,3 +256,15 @@ func TestPagesInsideShowIcons(t *testing.T) {
 		t.Fatalf("the pages: %q", tt.Texts())
 	}
 }
+
+// A version in the history shows its layout blocks as a page does, not their
+// source.
+func TestHistoryPreviewShowsBlocks(t *testing.T) {
+	h := &historyDialog{preview: newEditor(":::callout info A title\nInside the box\n:::\n")}
+	tt := ui.NewTester(func(c *ui.Context) { versionView(c, Options{}, h) }, 500, 300)
+	tt.Frame()
+	tt.Frame()
+	if tt.HasText(":::") || !tt.HasText("Inside the box") {
+		t.Fatalf("shows %q", tt.Texts())
+	}
+}
