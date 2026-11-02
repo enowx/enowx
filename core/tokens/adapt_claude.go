@@ -9,9 +9,11 @@ import (
 
 // Claude Code keeps each conversation as JSON lines under
 // ~/.claude/projects/<folder>/ (its subagents' in <session>/subagents/):
-// each assistant record carries its message's id, model and usage, the
-// same on every record of one message (one per content block). Input
-// there leaves out the cache. OpenClaude (~/.openclaude/projects), ZCode
+// each assistant record carries its message's id, model and usage. One message
+// takes a record per content block, and usage grows over them as it streams, output
+// above all (on this Mac, 28.8% of messages differ between their records, and the
+// first records hold 60% of the output), so Store.Add keeps each field's largest.
+// Input there leaves out the cache. OpenClaude (~/.openclaude/projects), ZCode
 // (~/.zcode/projects) and Qoder CLI (~/.qoder/projects) keep their
 // conversations in the same shape.
 
