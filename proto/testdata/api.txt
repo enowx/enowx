@@ -334,6 +334,32 @@ field BrowserUnslopParams.status bool
 field BuildDirection.done bool
 field BuildDirection.frame string
 field BuildDirection.session string
+field CacheCleanParams.items []string
+field CacheCleanParams.kinds []string
+field CacheCleanParams.olderDays int
+field CacheCleanResult.done int
+field CacheCleanResult.failed []CacheFailed
+field CacheCleanResult.freed int64
+field CacheFailed.path string
+field CacheFailed.why string
+field CacheItem.blocked string
+field CacheItem.bytes int64
+field CacheItem.name string
+field CacheItem.note string
+field CacheItem.path string
+field CacheItem.when time.Time
+field CacheKind.about string
+field CacheKind.bytes int64
+field CacheKind.default bool
+field CacheKind.id string
+field CacheKind.info bool
+field CacheKind.items []CacheItem
+field CacheKind.name string
+field CacheKind.perItem bool
+field CacheKind.warning string
+field CacheListParams.olderDays int
+field CacheReport.kinds []CacheKind
+field CacheReport.total int64
 field Canvas.brief *DesignBrief
 field Canvas.frames []CanvasFrame
 field CanvasAsset.data []byte
@@ -2676,6 +2702,8 @@ method browser.reply
 method browser.serve
 method browser.unslop
 method browser.unslopShots
+method cache.clean
+method cache.list
 method canvas.asset
 method canvas.assetGet
 method canvas.build

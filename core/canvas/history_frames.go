@@ -8,6 +8,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"io/fs"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -218,4 +219,47 @@ func (s *Store) convertVersion(id string, n int) (int64, error) {
 		return 0, nil
 	}
 	return info.Size() - now.Size(), nil
+}
+
+// ThinHistory takes canvas id down to its latest keep versions, those with a label and
+// the one shown, and says how many bytes that freed. The design itself stays.
+func (s *Store) ThinHistory(id string, keep int) (int64, error) {
+	if _, err := s.folder(id); err != nil {
+		return 0, err
+	}
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	before := dirSize(filepath.Join(s.dir, id, "history"))
+	h, err := s.history(id)
+	if err != nil {
+		return 0, err
+	}
+	var kept []proto.CanvasVersion
+	for i, v := range h.Versions {
+		if i >= len(h.Versions)-keep || v.Label != "" || v.N == h.Head {
+			kept = append(kept, v)
+			continue
+		}
+		_ = os.Remove(s.versionFile(id, v.N))
+	}
+	h.Versions = kept
+	if err := writeJSON(s.historyFile(id), h); err != nil {
+		return 0, err
+	}
+	s.pruneFrames(id, h.Versions)
+	return before - dirSize(filepath.Join(s.dir, id, "history")), nil
+}
+
+// dirSize is what the files under dir take.
+func dirSize(dir string) int64 {
+	var total int64
+	_ = filepath.WalkDir(dir, func(_ string, d fs.DirEntry, err error) error {
+		if err == nil && d.Type().IsRegular() {
+			if info, err := d.Info(); err == nil {
+				total += info.Size()
+			}
+		}
+		return nil
+	})
+	return total
 }

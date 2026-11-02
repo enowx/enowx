@@ -8,6 +8,12 @@ import (
 var daemonHandlers = map[string]handler{
 	proto.MethodDaemonInfo:  bare(func(c *conn) (any, error) { return c.srv.info(), nil }),
 	proto.MethodDaemonStats: bare(func(c *conn) (any, error) { return c.srv.stats(), nil }),
+	proto.MethodCacheList: with(func(c *conn, p proto.CacheListParams) (any, error) {
+		return c.srv.cacheList(p), nil
+	}),
+	proto.MethodCacheClean: with(func(c *conn, p proto.CacheCleanParams) (any, error) {
+		return c.srv.cacheClean(p), nil
+	}),
 	proto.MethodDaemonStopProcess: with(func(c *conn, p proto.StopProcessParams) (any, error) {
 		return ok, c.srv.stopLeftProcess(p)
 	}),
