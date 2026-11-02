@@ -9,7 +9,6 @@ import (
 	"github.com/egoist/mygo/ui"
 
 	"github.com/enowx/enowx/proto"
-	"github.com/enowx/enowx/ui/icon"
 	"github.com/enowx/enowx/ui/textfmt"
 	"github.com/enowx/enowx/ui/theme"
 	"github.com/enowx/enowx/ui/widget"
@@ -56,38 +55,30 @@ func (a *App) budgetDialog(c *ui.Context) {
 	}
 	s := f.session
 	save := false
-	widget.Dialog(c, &f.open, 440, 14, func() {
-		worked := "It has worked " + workTime(s.Worked) + " so far."
-		widget.DialogHeader(c, "Time budget of “"+a.sessionName(s)+"”",
-			"How long the agent may work, counting only while it works. Past it, enowX interrupts it. "+worked, false)
-		ui.Row(c).FillWidth().Gap(6).Children(func() {
-			for _, m := range budgetChoices {
-				label := "None"
-				if m > 0 {
-					label = workTime(int64(m) * 60)
-				}
-				if widget.GhostButton(c.Key(m), label).Clicked() {
-					f.minutes = ""
+	worked := "It has worked " + workTime(s.Worked) + " so far."
+	widget.FormSheet(c, &f.open, 480, "Time budget of this session",
+		"How long “"+a.sessionName(s)+"” may work, counting only while it works. Past it, enowX interrupts it. "+worked, func() {
+			widget.Field(c, "Stop after", func() {
+				options, names := []string{}, map[string]string{f.minutes: f.minutes + " minutes"}
+				for _, m := range budgetChoices {
+					id, label := "", "No limit"
 					if m > 0 {
-						f.minutes = strconv.Itoa(m)
+						id, label = strconv.Itoa(m), workTime(int64(m)*60)
 					}
+					options, names[id] = append(options, id), label
 				}
-			}
-		})
-		widget.Field(c, "Minutes", func() {
-			if widget.Input(c, &f.minutes, "no limit").FillWidth().Submitted() {
+				hookSelect(c, "Stop after", &f.minutes, options, names)
+			})
+			widget.Field(c, "Minutes", func() {
+				if widget.Input(c, &f.minutes, "No limit").FillWidth().Submitted() {
+					save = true
+				}
+			})
+		}, func() {
+			if widget.PrimaryButton(c, nil, "Save", "").Clicked() {
 				save = true
 			}
 		})
-		widget.DialogFooter(c, "", func() {
-			if widget.GhostButton(c, "Cancel").Clicked() {
-				f.open = false
-			}
-			if widget.PrimaryButton(c, icon.Check, "Set budget", "").Clicked() {
-				save = true
-			}
-		})
-	})
 	if save {
 		minutes, err := strconv.Atoi(strings.TrimSpace(f.minutes))
 		if strings.TrimSpace(f.minutes) == "" {
@@ -137,34 +128,29 @@ func (a *App) agentLimitDialog(c *ui.Context) {
 		return
 	}
 	save := false
-	widget.Dialog(c, &f.open, 460, 14, func() {
-		widget.DialogHeader(c, "Agents at once on "+a.host.Name,
-			"How many agents may work at the same time. A session started past it waits, queued, and starts when one finishes its turn: for a small server, or to keep this machine responsive.", false)
-		if !f.loaded {
-			ui.Text(c, "Reading…").FontSize(theme.TextLabel).TextColor(theme.Muted)
-			return
-		}
-		labels := make([]string, len(agentChoices))
-		cur := 0
-		for i, n := range agentChoices {
-			labels[i] = strconv.Itoa(n)
-			if n == f.pick {
-				cur = i
+	widget.FormSheet(c, &f.open, 480, "Agents at once on "+a.host.Name,
+		"More wait in a queue, and start as others finish.", func() {
+			if !f.loaded {
+				ui.Text(c, "Reading…").FontSize(theme.TextUI).TextColor(theme.TextSoft)
+				return
 			}
-		}
-		labels[0] = "No limit"
-		if i := widget.Segmented(c.Key("limit"), labels, cur, nil); i >= 0 {
-			f.pick = agentChoices[i]
-		}
-		widget.DialogFooter(c, "", func() {
-			if widget.GhostButton(c, "Cancel").Clicked() {
-				f.open = false
+			labels := make([]string, len(agentChoices))
+			cur := 0
+			for i, n := range agentChoices {
+				labels[i] = strconv.Itoa(n)
+				if n == f.pick {
+					cur = i
+				}
 			}
-			if widget.PrimaryButton(c, icon.Check, "Save", "").Clicked() {
+			labels[0] = "No limit"
+			if i := widget.Segmented(c.Key("limit"), labels, cur, nil); i >= 0 {
+				f.pick = agentChoices[i]
+			}
+		}, func() {
+			if f.loaded && widget.PrimaryButton(c, nil, "Save", "").Clicked() {
 				save = true
 			}
 		})
-	})
 	if save {
 		f.open = false
 		pick := f.pick
