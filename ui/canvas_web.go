@@ -93,16 +93,98 @@ func (a *App) renderCanvas(req proto.CanvasRenderRequest) {
 	go func() {
 		renders.Lock()
 		defer renders.Unlock()
+		if r, ok := renderKept(req); ok {
+			wider, text, motion = r.wider, r.text, r.motion
+			reply(r.data, r.err)
+			return
+		}
 		// A hidden window of its own at the page's size: a web view in the
 		// main window flashed over its content, and wasn't laid out while
 		// the window was behind others.
 		hidden := mygo.NewWindow(mygo.WindowOptions{Hidden: true, Width: req.Width, Height: req.Height, UseContentSize: true,
 			Frameless: true, SkipTaskbar: true, BackgroundColor: "#ffffff"})
 		r := renderIn(hidden.Page(), hidden.CapturePage, req)
-		hidden.Destroy()
+		if req.Keep != "" && r.err == nil && r.motion != nil {
+			keepRender(req, hidden)
+		} else {
+			hidden.Destroy()
+		}
 		wider, text, motion = r.wider, r.text, r.motion
 		reply(r.data, r.err)
 	}()
+}
+
+// keptFor is how long a page rendered for a run of moments waits for the next.
+const keptFor = 15 * time.Second
+
+// keptRender is the page of a run of renders of one design at several moments (a
+// design's frames): loading a large page for each is what ran past the time a render
+// gets. renders guards it.
+var keptPage struct {
+	key   string
+	win   *mygo.Window
+	timer *time.Timer
+}
+
+// keepRender keeps win for run req.Keep, and the one before goes.
+func keepRender(req proto.CanvasRenderRequest, win *mygo.Window) {
+	k := &keptPage
+	dropKept()
+	k.key, k.win = req.Keep, win
+	k.timer = time.AfterFunc(keptFor, func() {
+		renders.Lock()
+		defer renders.Unlock()
+		if k.key == req.Keep {
+			dropKept()
+		}
+	})
+}
+
+// dropKept lets go of the page kept. The caller holds renders.
+func dropKept() {
+	k := &keptPage
+	if k.win == nil {
+		return
+	}
+	k.timer.Stop()
+	k.win.Destroy()
+	k.key, k.win, k.timer = "", nil, nil
+}
+
+// renderKept renders req on the page kept for its run, moved to its moment; false when
+// there is none, for it to be loaded.
+func renderKept(req proto.CanvasRenderRequest) (rendered, bool) {
+	k := &keptPage
+	if req.Keep == "" || req.At == "" || k.win == nil || k.key != req.Keep {
+		return rendered{}, false
+	}
+	script, err := canvas.SeekScript(req.At)
+	if err != nil {
+		return rendered{err: err}, true
+	}
+	k.timer.Reset(keptFor)
+	r := rendered{laidOut: true}
+	v, err := k.win.Page().Eval(script)
+	if err != nil {
+		return rendered{err: err}, true
+	}
+	r.motion = canvas.ParseMotion(evalText(v))
+	time.Sleep(motionPaint)
+	r.data, r.err = capturePainted(k.win.CapturePage)
+	return r, true
+}
+
+// capturePainted captures a web view, which may not be painted at the first try.
+func capturePainted(capture func() ([]byte, error)) ([]byte, error) {
+	png, err := capture()
+	for try := 0; try < 3 && (err != nil || len(png) == 0); try++ {
+		time.Sleep(500 * time.Millisecond)
+		png, err = capture()
+	}
+	if err == nil && len(png) == 0 {
+		err = errors.New("the web view gave no picture")
+	}
+	return png, err
 }
 
 // rendered is a page's render: its picture or PDF, how much wider than
@@ -175,15 +257,6 @@ func renderIn(pg *mygo.Page, capture func() ([]byte, error), req proto.CanvasRen
 		r.data, r.err = pg.PrintToPDF(mygo.PDFOptions{PageSize: size, Margins: &mygo.Margins{}, Background: true})
 		return r
 	}
-	// The web view may not be painted yet at the first try.
-	png, err := capture()
-	for try := 0; try < 3 && (err != nil || len(png) == 0); try++ {
-		time.Sleep(500 * time.Millisecond)
-		png, err = capture()
-	}
-	if err == nil && len(png) == 0 {
-		err = errors.New("the web view gave no picture")
-	}
-	r.data, r.err = png, err
+	r.data, r.err = capturePainted(capture)
 	return r
 }

@@ -340,6 +340,10 @@ type CanvasRenderParams struct {
 	// At, when set, has a design's motion stand at that moment for a still:
 	// "25" (percent of its length) or "1500ms". Older daemons ignore it.
 	At string `json:"at,omitempty"`
+	// Keep names a run of renders of the same design at several moments: the app keeps
+	// its page between them and moves it, rather than loading it for each. Older
+	// daemons and apps ignore it, and load it each time.
+	Keep string `json:"keep,omitempty"`
 }
 
 // CanvasMotion is a design's motion as a render found it, in milliseconds: how
@@ -378,6 +382,10 @@ type CanvasRenderRequest struct {
 	// reply's Text, nothing captured: the page measured as rendered.
 	// Older apps ignore it.
 	Script string `json:"script,omitempty"`
+	// Keep and At are CanvasRenderParams': HTML already stands at At, for an app that
+	// has to load it.
+	Keep string `json:"keep,omitempty"`
+	At   string `json:"at,omitempty"`
 }
 
 // CanvasRenderReply is the app's render for request ID.

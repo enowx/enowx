@@ -85,7 +85,7 @@ A design can really move: a product's animation in its mockup, a logo's reveal, 
 
 Stills catch one moment, the same each time: the end, or a loop's start. `canvas screenshot` and `canvas export` say so for a moving design, and Export's menu marks PNG, SVG and PDF "(one frame)". Only HTML keeps the motion; there is no video export or sound.
 
-Agents check motion from moments of it: `canvas frames ID [DESIGN] --at 0,25,50,75,100` (MCP `canvas_frames`) renders each with the page moved there (a percent of its length, or `1500ms`), keeps them as files, lays them on one sheet in order, and says when two are the same picture. The guide's Motion section has when to use what; `canvas guide motion` has timing, easing, choreography, what looks cheap and how to check it.
+Agents check motion from moments of it: `canvas frames ID [DESIGN] --at 0,25,50,75,100` (MCP `canvas_frames`) loads the page once and moves it to each moment (a percent of its length, or `1500ms`), keeps them as files, lays them on one sheet in order, and says when two are the same picture. The guide's Motion section has when to use what; `canvas guide motion` has timing, easing, choreography, what looks cheap and how to check it.
 
 ## At any window size
 

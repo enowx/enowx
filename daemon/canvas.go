@@ -207,7 +207,7 @@ func (s *Server) canvasRender(p proto.CanvasRenderParams) (proto.CanvasRendered,
 			return proto.CanvasRendered{}, err
 		}
 	}
-	r, err := s.appRender(proto.CanvasRenderRequest{HTML: doc, Width: f.Width, Height: f.Height, Format: format})
+	r, err := s.appRender(proto.CanvasRenderRequest{HTML: doc, Width: f.Width, Height: f.Height, Format: format, Keep: p.Keep, At: p.At})
 	out.Data, out.Wider, out.Motion = r.Data, r.Wider, r.Motion
 	return out, err
 }

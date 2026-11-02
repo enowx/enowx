@@ -532,6 +532,7 @@ field CanvasRenderParams.at string
 field CanvasRenderParams.format string
 field CanvasRenderParams.frame string
 field CanvasRenderParams.id string
+field CanvasRenderParams.keep string
 field CanvasRenderParams.width int
 field CanvasRenderReply.data []byte
 field CanvasRenderReply.error string
@@ -539,10 +540,12 @@ field CanvasRenderReply.id string
 field CanvasRenderReply.motion *CanvasMotion
 field CanvasRenderReply.text string
 field CanvasRenderReply.wider int
+field CanvasRenderRequest.at string
 field CanvasRenderRequest.format string
 field CanvasRenderRequest.height int
 field CanvasRenderRequest.html string
 field CanvasRenderRequest.id string
+field CanvasRenderRequest.keep string
 field CanvasRenderRequest.script string
 field CanvasRenderRequest.width int
 field CanvasRendered.by string

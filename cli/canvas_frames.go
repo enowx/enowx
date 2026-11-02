@@ -13,6 +13,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"time"
 
 	xdraw "golang.org/x/image/draw"
 
@@ -66,8 +67,11 @@ func (r runner) canvasFrames(args []string) error {
 		return err
 	}
 	var pictures [][]byte
+	// One page for all of them: loading a large design for each moment ran past what a
+	// tool call may take.
+	run := fmt.Sprintf("frames-%d", time.Now().UnixNano())
 	for _, m := range moments {
-		out, err := r.c.RenderCanvas(proto.CanvasRenderParams{ID: c.ID, Frame: design, Format: proto.RenderPNG, At: m})
+		out, err := r.c.RenderCanvas(proto.CanvasRenderParams{ID: c.ID, Frame: design, Format: proto.RenderPNG, At: m, Keep: run})
 		if err != nil {
 			return err
 		}
