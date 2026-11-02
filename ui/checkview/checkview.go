@@ -214,7 +214,7 @@ func (v *View) toolbar(c *ui.Context, o Options) {
 func (v *View) checkRow(c *ui.Context, o Options, ch proto.Check, on bool) {
 	r, ran := v.run(ch.Name)
 	ui.Column(c).FillWidth().Children(func() {
-		b := ui.ButtonBase(c).FillWidth().MinHeight(36).Padding(theme.S1, theme.S3).Gap(theme.S2).Radius(theme.RadiusCard).Justify(ui.Start).
+		b := ui.ButtonBase(c).FillWidth().MinHeight(36).Padding(theme.S1, theme.S3).Gap(theme.S1).Radius(theme.RadiusCard).Justify(ui.Start).
 			Cursor(ui.CursorPointer).Label(ch.Name)
 		bg := theme.Fade(theme.Selected, 0)
 		switch {
@@ -224,7 +224,8 @@ func (v *View) checkRow(c *ui.Context, o Options, ch proto.Check, on bool) {
 			bg = theme.Hover
 		}
 		b.Background(widget.QuickTint(b, "bg", bg)).Children(func() {
-			ui.Row(c).Width(12).Shrink(0).Justify(ui.Center).Children(func() { stateMark(c, r.State, ran) })
+			// As wide as the spinner, which takes more than its size.
+			ui.Row(c).Width(16).Shrink(0).Justify(ui.Center).Children(func() { stateMark(c, r.State, ran) })
 			ui.Column(c).Grow(1).MinWidth(0).Children(func() {
 				widget.Running(c, commandOf(ch), widget.RunStyle{Mono: true, Always: on})
 				widget.Running(c.Key("facts"), facts(r, ran), widget.RunStyle{Size: theme.TextLabel, Color: theme.TextSoft, Always: on})
