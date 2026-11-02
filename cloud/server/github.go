@@ -139,26 +139,11 @@ func (s *Server) githubUser(ctx context.Context, code string) (githubUser, error
 	if code == "" {
 		return u, errors.New("no code")
 	}
-	form := url.Values{"client_id": {s.cfg.GitHubClientID}, "client_secret": {s.cfg.GitHubClientSecret}, "code": {code}, "redirect_uri": {s.base() + pathGitHubCallback}}
-	req, _ := http.NewRequestWithContext(ctx, "POST", s.githubWeb()+"/login/oauth/access_token", strings.NewReader(form.Encode()))
-	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
-	req.Header.Set("Accept", "application/json")
-	var tok struct {
-		AccessToken string `json:"access_token"`
-		Error       string `json:"error"`
+	token, err := s.githubToken(ctx, code, s.base()+pathGitHubCallback)
+	if err != nil {
+		return u, err
 	}
-	if err := githubJSON(req, &tok); err != nil {
-		return u, fmt.Errorf("token: %w", err)
-	}
-	if tok.AccessToken == "" {
-		return u, fmt.Errorf("token: %s", tok.Error)
-	}
-	get := func(path string, v any) error {
-		req, _ := http.NewRequestWithContext(ctx, "GET", s.githubAPI()+path, nil)
-		req.Header.Set("Authorization", "Bearer "+tok.AccessToken)
-		req.Header.Set("Accept", "application/vnd.github+json")
-		return githubJSON(req, v)
-	}
+	get := func(path string, v any) error { return s.githubGet(ctx, token, path, v) }
 	if err := get("/user", &u); err != nil {
 		return u, fmt.Errorf("user: %w", err)
 	}
@@ -180,6 +165,33 @@ func (s *Server) githubUser(ctx context.Context, code string) (githubUser, error
 		}
 	}
 	return u, nil
+}
+
+// githubToken trades a callback's code for a token, as of the address it came back to.
+func (s *Server) githubToken(ctx context.Context, code, redirect string) (string, error) {
+	form := url.Values{"client_id": {s.cfg.GitHubClientID}, "client_secret": {s.cfg.GitHubClientSecret}, "code": {code}, "redirect_uri": {redirect}}
+	req, _ := http.NewRequestWithContext(ctx, "POST", s.githubWeb()+"/login/oauth/access_token", strings.NewReader(form.Encode()))
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	req.Header.Set("Accept", "application/json")
+	var tok struct {
+		AccessToken string `json:"access_token"`
+		Error       string `json:"error"`
+	}
+	if err := githubJSON(req, &tok); err != nil {
+		return "", fmt.Errorf("token: %w", err)
+	}
+	if tok.AccessToken == "" {
+		return "", fmt.Errorf("token: %s", tok.Error)
+	}
+	return tok.AccessToken, nil
+}
+
+// githubGet reads path of GitHub's API with token.
+func (s *Server) githubGet(ctx context.Context, token, path string, v any) error {
+	req, _ := http.NewRequestWithContext(ctx, "GET", s.githubAPI()+path, nil)
+	req.Header.Set("Authorization", "Bearer "+token)
+	req.Header.Set("Accept", "application/vnd.github+json")
+	return githubJSON(req, v)
 }
 
 func githubJSON(req *http.Request, v any) error {

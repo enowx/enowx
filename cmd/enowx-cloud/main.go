@@ -50,6 +50,15 @@ func run(log *slog.Logger) error {
 		DefaultRole:        env("ENOWX_CLOUD_DEFAULT_ROLE", ""),
 		DefaultTeamRepo:    env("ENOWX_CLOUD_DEFAULT_TEAM_REPO", ""),
 	}
+	cfg.Contributor = server.ContributorConfig{
+		DiscordPublicKey: env("ENOWX_CLOUD_DISCORD_PUBLIC_KEY", ""),
+		DiscordBotToken:  env("ENOWX_CLOUD_DISCORD_BOT_TOKEN", ""),
+		DiscordGuildID:   env("ENOWX_CLOUD_DISCORD_GUILD_ID", ""),
+		DiscordRoleID:    env("ENOWX_CLOUD_DISCORD_ROLE_ID", ""),
+		WebhookSecret:    env("ENOWX_CLOUD_GITHUB_WEBHOOK_SECRET", ""),
+		LinkSecret:       env("ENOWX_CLOUD_CONTRIBUTOR_LINK_SECRET", ""),
+		Repo:             env("ENOWX_CLOUD_CONTRIBUTOR_REPO", ""),
+	}
 	addr, data := env("ENOWX_CLOUD_ADDR", ":8080"), env("ENOWX_CLOUD_DATA", "data")
 	if err := os.MkdirAll(data, 0o700); err != nil {
 		return err
