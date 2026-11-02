@@ -53,3 +53,24 @@ func TestSwitchingBackToDarkRestoresPalette(t *testing.T) {
 		}
 	}
 }
+
+// Status colors read on the surfaces they sit on, the frame and the session
+// list's glass, in every palette dark and light. Hue alone doesn't carry them:
+// the list groups by state in words, and tabs and rows have tooltips.
+func TestStatusColorsReadOnTheirSurfaces(t *testing.T) {
+	old := Current()
+	defer Apply(old)
+	for _, preset := range Palettes {
+		for _, light := range []bool{false, true} {
+			p := LookupAppearance(preset.ID, ui.Color{}, light)
+			Apply(p)
+			for _, bg := range []ui.Color{Solid(p.Frame), Solid(p.Panel)} {
+				for _, fg := range []ui.Color{p.Working, p.Done, p.Warning, p.Error, p.Idle} {
+					if r := contrast(fg, bg); r < 3 {
+						t.Errorf("%s light=%v: %s on %s: %.2f", p.ID, light, Hex(fg), Hex(bg), r)
+					}
+				}
+			}
+		}
+	}
+}
