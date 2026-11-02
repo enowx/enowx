@@ -55,12 +55,13 @@ func (a *App) notifySection(c *ui.Context) {
 				}
 				if st.Quiet {
 					from, to := st.QuietFrom, st.QuietTo
-					widget.Cols(c, 2).Children(func() {
+					widget.FieldCols(c, func() {
 						widget.Field(c, "From", func() {
 							if widget.Input(c.Key("from"), &from, "22:00").FillWidth().Changed() {
 								st.QuietFrom, changed = from, true
 							}
 						})
+					}, func() {
 						widget.Field(c, "To", func() {
 							if widget.Input(c.Key("to"), &to, "07:00").FillWidth().Changed() {
 								st.QuietTo, changed = to, true
@@ -121,7 +122,7 @@ func (a *App) notifySection(c *ui.Context) {
 				widget.CardTitle(c, nil, "Team chat", nil)
 				modes := []string{"", "mentions", "off"}
 				cur := max(0, slices.Index(modes, st.Chat))
-				if i := widget.Segmented(c, []string{"Every message", "Mentions", "Off"}, cur, nil); i >= 0 && i != cur {
+				if i := segmentedInCard(c, []string{"Every message", "Mentions of me", "Off"}, cur, 300); i >= 0 && i != cur {
 					st.Chat, changed = modes[i], true
 				}
 				widget.CardNote(c, "A message from your team, when its chat isn't open: a sound, a card in the window's corner to answer from, and a banner when the window is in the background. Mentions of you and replies to you always notify.", 0)

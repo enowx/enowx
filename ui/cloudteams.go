@@ -264,7 +264,7 @@ func (a *App) setMemberRole(cs *cloudSettings, account, role string) {
 func (a *App) cloudInvite(c *ui.Context, cs *cloudSettings) {
 	ts := &cs.teams
 	widget.Field(c, "Invite as", func() {
-		if picked := widget.Segmented(c, []string{"Member", "Viewer", "Admin"}, ts.role, nil); picked >= 0 {
+		if picked := segmentedInCard(c, []string{"Member", "Viewer", "Admin"}, ts.role, 240); picked >= 0 {
 			ts.role = picked
 		}
 		widget.CardNote(c, roleAbout(inviteRoles[ts.role]), 0)

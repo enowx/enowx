@@ -1,6 +1,7 @@
 package ui
 
 import (
+	"cmp"
 	"slices"
 	"strings"
 
@@ -110,11 +111,12 @@ func (a *App) fontList(c *ui.Context, families []ui.FontFamily) {
 // fontRow is one font of the section's list, its name drawn in it.
 func (a *App) fontRow(c *ui.Context, family, label string) {
 	on := a.state.TermFont == family
+	face := cmp.Or(family, theme.MonoFont) // no family is the system's monospaced font
 	b := widget.PickFace(c, "font:"+family, label, on, func() {
 		ui.Row(c).Grow(1).MinWidth(0).Children(func() {
-			ui.Text(c, label).Font(family).FontSize(theme.TextUI).FontWeight(500).SingleLine().Shrink(1).MinWidth(0)
+			ui.Text(c, label).Font(face).FontSize(theme.TextUI).FontWeight(500).SingleLine().Shrink(1).MinWidth(0)
 		})
-		ui.Text(c, "Aa 0123").Font(family).FontSize(theme.TextLabel).TextColor(theme.TextSoft).SingleLine().Shrink(0)
+		ui.Text(c, "Aa 0123").Font(face).FontSize(theme.TextLabel).TextColor(theme.TextSoft).SingleLine().Shrink(0)
 	})
 	if b.Clicked() && !on {
 		a.setTermFont(family)

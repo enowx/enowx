@@ -1,6 +1,7 @@
 package ui
 
 import (
+	"cmp"
 	"github.com/egoist/mygo/ui"
 
 	"github.com/enowx/enowx/client"
@@ -96,7 +97,7 @@ func (a *App) terminalSection(c *ui.Context) {
 		widget.Card(c.Key("terminal-look")).Grow(1).Basis(0).FillHeight().Children(func() {
 			widget.CardTitle(c, nil, "How terminals look", func() { a.termSizeControl(c) })
 			ui.Scroll(c.Key("term-sample")).Grow(1).FillWidth().MinHeight(0).Radius(theme.RadiusCard).Background(widget.CodeGround).Children(func() {
-				ui.Text(c, a.termSample(hs)).Font(a.state.TermFont).FontSize(a.termSize()).TextColor(widget.CodeText).FillWidth().MinWidth(0).Padding(theme.S3, theme.S4)
+				ui.Text(c, a.termSample(hs)).Font(cmp.Or(a.state.TermFont, theme.MonoFont)).FontSize(a.termSize()).TextColor(widget.CodeText).FillWidth().MinWidth(0).Padding(theme.S3, theme.S4)
 			})
 			widget.CardNote(c, "The font terminals draw with on this device, whatever host they run on. A Nerd Font draws the icons some programs print; the system's monospaced font shows them as boxes. The size is every terminal's: "+zoomKey()+"+ and "+zoomKey()+"− in a terminal (or its scroll wheel with "+zoomKey()+" held) change it too, "+zoomKey()+"0 back to the default.", 0)
 		})

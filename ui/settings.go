@@ -54,8 +54,8 @@ func settingsSections() []string {
 
 var sectionIcons = map[string]*ui.SVG{
 	sectionLibrary: icon.Brain, sectionSessions: icon.Plus, sectionAgents: icon.Bot,
-	sectionAutomations: icon.History, sectionHooks: icon.Terminal, sectionRAG: icon.Search, sectionDecide: icon.Shield, sectionEnvironment: icon.Lock, sectionTerminal: icon.Terminal, sectionFeatures: icon.Layers,
-	sectionSync: icon.Sync, sectionDiagnostics: icon.Gauge, sectionCloud: icon.Globe, sectionApp: icon.AppWindow,
+	sectionAutomations: icon.History, sectionHooks: icon.Terminal, sectionRAG: icon.Search, sectionDecide: icon.Gauge, sectionEnvironment: icon.Key, sectionTerminal: icon.Terminal, sectionFeatures: icon.Layers,
+	sectionSync: icon.Sync, sectionDiagnostics: icon.Gauge, sectionCloud: icon.Account, sectionApp: icon.Settings,
 	sectionNotify: icon.VolumeUp, sectionFloating: icon.Floating, sectionDiscord: icon.Chat,
 }
 

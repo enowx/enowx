@@ -46,7 +46,8 @@ func (a *App) recoveryCard(c *ui.Context, cs *cloudSettings) {
 		if rs.done != "" {
 			ui.Text(c, rs.done).FontSize(theme.TextLabel).TextColor(theme.Done).FillWidth().MinWidth(0)
 		}
-		widget.CardFoot(c, func() {
+		// Wraps: a third of a narrow frame holds one of these buttons, not both.
+		ui.Row(c.Key("recovery-foot")).FillWidth().Shrink(0).Gap(theme.S2).Wrap().Children(func() {
 			label := "Make a recovery key"
 			if set {
 				label = "Make a new one…"

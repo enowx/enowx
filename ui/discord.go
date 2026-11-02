@@ -201,7 +201,7 @@ func (a *App) discordSection(c *ui.Context) {
 			widget.Card(c.Key("device")).Children(func() {
 				widget.CardTitle(c, nil, "On this device", nil)
 				on := !a.state.Discord.Off
-				if switchRow(c, &on, "Show in Discord", "The selected session: its project, branch and agent, and how long it has run.") {
+				if switchRow(c, &on, "Show what you work on", "Discord shows it under your name while it runs here.") {
 					a.state.Discord.Off = !on
 				}
 				names := !a.state.Discord.HideProject

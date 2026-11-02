@@ -143,7 +143,7 @@ func (a *App) sessionDefaults(c *ui.Context) {
 	settingsColumn(c, "New sessions", "What New session starts with", nil, func() {
 		hs := a.hostSettingsOf()
 		ui.Row(c.Key("session-defaults")).FillWidth().Gap(theme.S3).AlignItems(ui.Stretch).Children(func() {
-			ui.Column(c).Width(cardColumn).Shrink(0).Gap(theme.S2).Children(func() {
+			ui.Column(c.Key("agents")).Grow(1).Basis(0).MinWidth(0).Gap(theme.S2).Children(func() {
 				widget.Heading(c, "Agent")
 				for _, ag := range a.agents {
 					if ag.ID == "custom" || ag.Command != "" && !ag.Installed {
@@ -154,100 +154,112 @@ func (a *App) sessionDefaults(c *ui.Context) {
 					}
 				}
 			})
-			ui.Column(c).Grow(1).Basis(0).MinWidth(0).Gap(theme.S3).Children(func() {
-				widget.Cols(c, 2).Children(func() {
-					widget.Card(c).Children(func() {
-						widget.CardTitle(c, nil, "In a git project", nil)
-						if widget.OptionCard(c, !a.state.ProjectFolder, "A new branch and worktree", "Its own branch and folder, so sessions don't touch each other's files.") {
-							a.state.ProjectFolder = false
-						}
-						if widget.OptionCard(c, a.state.ProjectFolder, "The project folder", "It works in the folder as it is, on the branch checked out.") {
-							a.state.ProjectFolder = true
-						}
-					})
-					widget.Card(c).Children(func() {
-						if switchRow(c, &a.skipPermissions, "Agents skip permission prompts", "They run tools without asking. It also covers GOD of Agents, its workers and the chats of notes and canvases for agents that can't tell enowX they ask, like OpenCode. Claude Code and Codex can switch it in the chat; others keep theirs until they restart.") {
+			// Two thirds of the frame beside the agents' third, the gap between counted in.
+			ui.Grid(c.Key("cards")).Grow(2).Basis(theme.S3).MinWidth(0).Columns(2).Gap(theme.S3).Children(func() {
+				widget.Card(c).Children(func() {
+					widget.CardTitle(c, nil, "In a git project", nil)
+					if widget.OptionCard(c, !a.state.ProjectFolder, "A new branch and worktree", "Its own branch and folder, so sessions don't touch each other's files.") {
+						a.state.ProjectFolder = false
+					}
+					if widget.OptionCard(c, a.state.ProjectFolder, "The project folder", "It works in the folder as it is, on the branch checked out.") {
+						a.state.ProjectFolder = true
+					}
+				})
+				widget.Card(c).Children(func() {
+					widget.CardTitle(c, nil, "Agents skip permission prompts", func() {
+						if widget.Switch(c, &a.skipPermissions, "Agents skip permission prompts") {
 							a.saveState()
 						}
 					})
-					widget.Card(c).Children(func() {
-						widget.CardTitle(c, nil, "Time budget for agents", nil)
-						labels := []string{"None"}
-						for _, m := range budgetChoices[1:] {
-							labels = append(labels, workTime(int64(m)*60))
-						}
-						cur := slices.Index(budgetChoices, a.state.DefaultBudget)
-						if i := widget.Segmented(c, labels, max(cur, 0), nil); i >= 0 {
-							a.state.DefaultBudget = budgetChoices[i]
-						}
-					})
-					widget.Card(c).Children(func() {
-						widget.CardTitle(c, nil, "Agents at once on "+a.host.Name, nil)
-						ui.Row(c).FillWidth().Gap(theme.S2).Children(func() {
-							n := "No limit"
-							if hs.maxAgent > 0 {
-								n = strconv.Itoa(hs.maxAgent)
-							}
-							ui.Row(c).Grow(1).MinWidth(0).Children(func() { widget.Running(c, n, widget.RunStyle{Size: 24, Weight: 600}) })
-							if widget.GhostButton(c, "Change…").Clicked() {
-								a.askAgentLimit()
-							}
-						})
-						note := "All start at once."
-						if hs.maxAgent > 0 {
-							note = "The rest wait in a queue."
-						}
-						widget.CardNote(c, note, 0)
-					})
-					widget.Card(c).Children(func() {
-						widget.CardTitle(c, nil, "Stalled tasks on "+a.host.Name, nil)
-						widget.CardNote(c, "How long a task of GOD of Agents may not move before it is told", 0)
-						widget.CardFoot(c, func() {
-							ui.Spacer(c)
-							if widget.GhostButton(c.Key("goa-stall-limits"), "Change…").Clicked() {
-								a.openGOAStall()
-							}
-						})
-					})
-					widget.Card(c).Children(func() {
-						widget.CardTitle(c, nil, "What New session starts with", nil)
-						ui.Text(c, a.sessionDefaultsLine()).FontSize(theme.TextRead).FillWidth().MinWidth(0)
-						widget.CardNote(c, "Each session is still free to differ in the New session dialog.", 0)
-					})
+					widget.CardNote(c, "They run tools without asking. It also covers GOD of Agents, its workers and the chats of notes and canvases for agents that can't tell enowX they ask, like OpenCode. Claude Code and Codex can switch it in the chat; others keep theirs until they restart.", 0)
 				})
 				widget.Card(c).Children(func() {
-					widget.CardTitle(c, nil, "Hibernate idle agents on "+a.host.Name, nil)
-					widget.CardNote(c, "An agent done with its turn and left idle this long is stopped to free its memory; its session stays, and it comes back on its conversation when shown. Claude Code, Codex and other agents enowX can continue.", 0)
-					labels := make([]string, len(sleepChoices))
-					for i, m := range sleepChoices {
-						labels[i] = "Never"
-						if m > 0 {
-							labels[i] = workTime(int64(m) * 60)
+					widget.CardTitle(c, nil, "Time budget for agents", nil)
+					labels := []string{"None"}
+					for _, m := range budgetChoices[1:] {
+						labels = append(labels, workTime(int64(m)*60))
+					}
+					cur := slices.Index(budgetChoices, a.state.DefaultBudget)
+					if i := segmentedInCard(c, labels, max(cur, 0), 250); i >= 0 {
+						a.state.DefaultBudget = budgetChoices[i]
+					}
+				})
+				widget.Card(c).Children(func() {
+					widget.CardTitle(c, nil, "Agents at once on "+a.host.Name, nil)
+					ui.Row(c).FillWidth().Gap(theme.S2).Children(func() {
+						n := "No limit"
+						if hs.maxAgent > 0 {
+							n = strconv.Itoa(hs.maxAgent)
 						}
-					}
-					cur := max(slices.Index(sleepChoices, hs.sleep), 0)
-					if i := widget.Segmented(c, labels, cur, nil); i >= 0 && sleepChoices[i] != hs.sleep {
-						a.setHibernation(sleepChoices[i])
-					}
-					if switchRow(c, &hs.neverHib, "New sessions don't hibernate on their own",
-						"For sessions to keep running however long they're idle; the same on every host. A session's menu sets it for that session, and Hibernate stops one by hand.") {
-						never, cl := hs.neverHib, a.client
-						if cl != nil {
-							go func() {
-								if err := cl.SetAutoHibernate(proto.SessionAutoHibernateParams{Default: true, Never: never}); err != nil {
-									a.onMain(func() { a.status = client.Explain(err) })
-								}
-							}()
+						ui.Row(c).Grow(1).MinWidth(0).Children(func() { widget.Running(c, n, widget.RunStyle{Size: 24, Weight: 600}) })
+						if widget.GhostButton(c, "Change…").Clicked() {
+							a.askAgentLimit()
 						}
+					})
+					note := "All start at once."
+					if hs.maxAgent > 0 {
+						note = "The rest wait in a queue."
 					}
+					widget.CardNote(c, note, 0)
+				})
+			})
+		})
+		widget.Cols(c, 2).Children(func() {
+			widget.Card(c).Children(func() {
+				widget.CardTitle(c, nil, "Hibernate idle agents on "+a.host.Name, nil)
+				widget.CardNote(c, "An agent done with its turn and left idle this long is stopped to free its memory; its session stays, and it comes back on its conversation when shown. Claude Code, Codex and other agents enowX can continue.", 0)
+				labels := make([]string, len(sleepChoices))
+				for i, m := range sleepChoices {
+					labels[i] = "Never"
+					if m > 0 {
+						labels[i] = workTime(int64(m) * 60)
+					}
+				}
+				cur := max(slices.Index(sleepChoices, hs.sleep), 0)
+				if i := segmentedInCard(c, labels, cur, 250); i >= 0 && sleepChoices[i] != hs.sleep {
+					a.setHibernation(sleepChoices[i])
+				}
+				if switchRow(c, &hs.neverHib, "New sessions don't hibernate on their own",
+					"For sessions to keep running however long they're idle; the same on every host. A session's menu sets it for that session, and Hibernate stops one by hand.") {
+					never, cl := hs.neverHib, a.client
+					if cl != nil {
+						go func() {
+							if err := cl.SetAutoHibernate(proto.SessionAutoHibernateParams{Default: true, Never: never}); err != nil {
+								a.onMain(func() { a.status = client.Explain(err) })
+							}
+						}()
+					}
+				}
+			})
+			ui.Column(c.Key("after")).MinWidth(0).Gap(theme.S3).Children(func() {
+				widget.Card(c).Grow(1).Children(func() {
+					widget.CardTitle(c, nil, "What New session starts with", nil)
+					ui.Text(c, a.sessionDefaultsLine()).FontSize(theme.TextRead).FillWidth().MinWidth(0)
+					widget.CardNote(c, "Each session is still free to differ in the New session dialog.", 0)
+				})
+				widget.Card(c).Children(func() {
+					widget.CardTitle(c, nil, "Stalled tasks on "+a.host.Name, func() {
+						// Labeled apart: the card of agents at once says Change… too.
+						if widget.GhostButton(c.Key("goa-stall-limits"), "Change…").Label("Change the stall limits").Clicked() {
+							a.openGOAStall()
+						}
+					})
+					widget.CardNote(c, "How long a task of GOD of Agents may not move before it is told", 0)
 				})
 			})
 		})
 	})
 }
 
-// cardColumn is the width of a page's column beside its cards.
-const cardColumn = 320
+// segmentedInCard is a Segmented whose choices share a narrow card's width, and
+// keep to their own in a wide one.
+func segmentedInCard(c *ui.Context, labels []string, current int, width float32) int {
+	picked := -1
+	ui.Row(c.Key("segmented")).FillWidth().MaxWidth(width).Shrink(0).Children(func() {
+		picked = widget.SegmentedFit(c, labels, current)
+	})
+	return picked
+}
 
 // sessionDefaultsLine says in words what New session starts with.
 func (a *App) sessionDefaultsLine() string {
@@ -395,7 +407,7 @@ func (a *App) setVar(name, value string) {
 // server.
 func (a *App) floatingSection(c *ui.Context) {
 	settingsColumn(c, "Floating control", "A round panel over any app", nil, func() {
-		widget.Cols(c, 2).Children(func() {
+		widget.Cols(c, 3).Children(func() {
 			widget.Card(c.Key("floating-behaviour")).Children(func() {
 				widget.CardTitle(c, nil, "Behaviour", nil)
 				floating := a.state.FloatingControl
@@ -406,7 +418,7 @@ func (a *App) floatingSection(c *ui.Context) {
 					ui.Text(c, "Shortcut").FontSize(theme.TextUI).Grow(1)
 					widget.Chip(c, floatingKey, ui.Color{})
 				})
-				widget.CardNote(c, "Listed with the keyboard shortcuts in App. While it is on, "+floatingKey+" no longer reaches other apps.", 0)
+				widget.CardNote(c, "Listed with the keyboard shortcuts in App.", 0)
 				fold := a.floatingFoldOnBlur()
 				if switchRowKey(c, "Fold when you go elsewhere switch", &fold, "Fold when you go elsewhere", "Clicking another app, or the desktop, folds the panel away. Off, it stays until you pick an action, press Escape, or press "+floatingKey+" again.") {
 					a.state.FloatingFoldOnBlur = &fold
@@ -426,6 +438,12 @@ func (a *App) floatingSection(c *ui.Context) {
 			widget.Card(c.Key("floating-look")).Children(func() {
 				widget.CardTitle(c, nil, "Appearance", nil)
 				a.floatingAppearance(c)
+			})
+			widget.Card(c.Key("floating-preview")).Children(func() {
+				widget.CardTitle(c, nil, "Preview", nil)
+				a.floatingPreview(c)
+				ui.Spacer(c)
+				widget.CardNote(c, "A radial panel of the main actions, over any app: "+floatingKey+". While it is on, "+floatingKey+" no longer reaches other apps.", 0)
 			})
 		})
 	})
@@ -453,7 +471,7 @@ func (a *App) appSection(c *ui.Context) {
 					names[i] = e.name
 				}
 				cur := slices.IndexFunc(editors, func(e editor) bool { return e.id == a.preferredEditor().id })
-				if i := widget.Segmented(c, names, cur, nil); i >= 0 {
+				if i := segmentedInCard(c, names, cur, 200); i >= 0 {
 					a.state.Editor = editors[i].id
 				}
 				widget.CardNote(c, "Files of a session open in it.", 0)
@@ -502,11 +520,12 @@ func (a *App) appSection(c *ui.Context) {
 				widget.CardTitle(c, nil, "Keyboard shortcuts", func() {
 					ui.Text(c, strconv.Itoa(len(list))).FontSize(theme.TextLabel).TextColor(theme.TextSoft)
 				})
-				ui.Column(c).FillWidth().MinWidth(0).Gap(theme.S1).Children(func() {
+				ui.Column(c).FillWidth().MinWidth(0).Children(func() {
 					for _, s := range list {
-						ui.Row(c.Key(s[0])).FillWidth().MinHeight(24).Gap(theme.S3).Children(func() {
+						ui.Box(c).Height(0.5).FillWidth().Shrink(0).Background(theme.Border)
+						ui.Row(c.Key(s[0])).FillWidth().Height(28).Shrink(0).Gap(theme.S3).Children(func() {
 							ui.Row(c).Grow(1).MinWidth(0).Children(func() { widget.Running(c, s[1], widget.RunStyle{}) })
-							widget.Chip(c, s[0], ui.Color{})
+							ui.Text(c, s[0]).FontSize(theme.TextLabel).TextColor(theme.TextSoft).SingleLine().Shrink(0)
 						})
 					}
 				})
@@ -603,7 +622,7 @@ func (a *App) diagnosticsSection(c *ui.Context) {
 				widget.CardTitle(c, nil, "Restart", nil)
 				widget.CardNote(c, "Its sessions continue, as after an update.", 0)
 				ui.Row(c).FillWidth().Children(func() {
-					if widget.Button(c, widget.Secondary, icon.Sync, "Restart the daemon", "").Clicked() {
+					if widget.GhostButton(c, "Restart the daemon").Clicked() {
 						a.restartDaemon()
 					}
 				})
@@ -614,7 +633,7 @@ func (a *App) diagnosticsSection(c *ui.Context) {
 					ui.Row(c).MinWidth(0).Shrink(1).Children(func() {
 						widget.Running(c.Key("path"), hs.log.Path, widget.RunStyle{Size: theme.TextLabel, Mono: true, Color: theme.TextSoft})
 					})
-					if widget.Button(c, widget.Secondary, icon.Sync, "Refresh", "Read the log again").Clicked() {
+					if widget.Button(c, widget.Secondary, icon.Sync, "Refresh", "").Tooltip("Read the log again").Clicked() {
 						a.loadHostSettings()
 					}
 				})

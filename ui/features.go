@@ -157,7 +157,7 @@ func (a *App) featuresSection(c *ui.Context) {
 func (a *App) featuresScope(c *ui.Context, hf *hostFeatures) {
 	scopes := []string{"Everywhere", "This host", "A project"}
 	ids := []string{features.ScopeGlobal, features.ScopeHost, features.ScopeProject}
-	if i := widget.Segmented(c.Key("scope"), scopes, slices.Index(ids, hf.scope), nil); i >= 0 && ids[i] != hf.scope {
+	if i := segmentedInCard(c.Key("scope"), scopes, slices.Index(ids, hf.scope), 270); i >= 0 && ids[i] != hf.scope {
 		hf.scope = ids[i]
 		if hf.scope == features.ScopeProject && hf.project == "" && len(a.projects) > 0 {
 			hf.project = a.projects[0].Path

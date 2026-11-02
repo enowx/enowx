@@ -72,11 +72,11 @@ func (a *App) floatingAnimate(e ui.Element, key string, target float32, animatio
 }
 
 func (a *App) floatingAppearance(c *ui.Context) {
-	ui.Column(c.Key("floating-appearance")).FillWidth().Gap(12).Margin(12, 0, 0, 0).TextColor(theme.Text).Children(func() {
+	ui.Column(c.Key("floating-appearance")).FillWidth().Gap(theme.S3).TextColor(theme.Text).Children(func() {
 		input := ui.Local[string](c.Root(), "floating-accent-input", func() string { return a.state.FloatingAccent })
-		ui.Text(c, "Menu color").FontSize(theme.TextUI).TextColor(theme.TextStrong)
-		ui.Text(c, "Choose a color for this menu, or follow the app theme.").FontSize(theme.TextLabel).TextColor(theme.Muted)
-		ui.Row(c).FillWidth().Gap(8).Children(func() {
+		widget.CardNote(c, "Choose a color for this menu, or follow the app theme.", 0)
+		// Wraps: a third of a narrow frame doesn't hold every swatch on a line.
+		ui.Row(c).FillWidth().Gap(theme.S2).Wrap().Children(func() {
 			if a.swatch(c.Key("theme"), theme.Accent, a.state.FloatingAccent == "", "Follow app theme") {
 				a.state.FloatingAccent, *input = "", ""
 				a.refreshFloatingAppearance()
@@ -90,9 +90,8 @@ func (a *App) floatingAppearance(c *ui.Context) {
 				}
 			}
 		})
-		ui.Row(c).Gap(10).Children(func() {
-			ui.Text(c, "Custom").FontSize(theme.TextLabel).TextColor(theme.TextSoft)
-			field := widget.Input(c, input, "#9DB6F5").Label("Custom floating color").Width(130).Font(theme.MonoFont).TextColor(theme.Text)
+		widget.Field(c, "Custom", func() {
+			field := widget.Input(c, input, "#9DB6F5").Label("Custom floating color").FillWidth().Font(theme.MonoFont).TextColor(theme.Text)
 			if field.Changed() {
 				if hex, ok := parseAccent(*input); ok {
 					a.state.FloatingAccent = hex
@@ -114,23 +113,28 @@ func (a *App) floatingAppearance(c *ui.Context) {
 		if switchRowKey(c, "Reduce floating motion switch", &a.state.FloatingReduceMotion, "Reduce animation", "Open menus directly, without spinning or bouncing.") {
 			a.refreshFloatingAppearance()
 		}
-		ui.Row(c).Gap(14).Children(func() {
-			ui.Box(c).Size(100, 100).PassThrough().Draw(func(p *ui.Painter, r ui.Rect) {
-				cx, cy := r.X+r.W/2, r.Y+r.H/2
-				st := &floatingState{source: -1}
-				for i, slice := range floatingSlicesFor(floatingWedges) {
-					hover := float32(0)
-					if i == 1 {
-						hover = 1
-					}
-					p.FillPath(chart.Sector(cx, cy, 20, 46, slice), a.sliceFill(st, floatingAction{enabled: true}, hover))
+	})
+}
+
+// floatingPreview is the panel as the settings beside it draw it, centered.
+func (a *App) floatingPreview(c *ui.Context) {
+	const size, scale = 220, 2.2
+	ui.Row(c.Key("floating-ring")).FillWidth().Shrink(0).Justify(ui.Center).Children(func() {
+		ui.Box(c).Size(size, size).PassThrough().Draw(func(p *ui.Painter, r ui.Rect) {
+			cx, cy := r.X+r.W/2, r.Y+r.H/2
+			st := &floatingState{source: -1}
+			for i, slice := range floatingSlicesFor(floatingWedges) {
+				hover := float32(0)
+				if i == 1 {
+					hover = 1
 				}
-				hub := ui.Rect{X: cx - 15, Y: cy - 15, W: 30, H: 30}
-				p.Fill(hub, theme.Solid(theme.Panel), 15)
-				p.Stroke(hub, theme.BorderStrong, 15, 1)
-				p.Icon(icon.Logo, ui.Rect{X: cx - 8, Y: cy - 8, W: 16, H: 16}, a.floatingAccent())
-			})
-			ui.Text(c, "Preview").FontSize(theme.TextLabel).TextColor(theme.TextSoft)
+				p.FillPath(chart.Sector(cx, cy, 20*scale, 46*scale, slice), a.sliceFill(st, floatingAction{enabled: true}, hover))
+			}
+			const hubR, logoR = 15 * scale, 8 * scale
+			hub := ui.Rect{X: cx - hubR, Y: cy - hubR, W: 2 * hubR, H: 2 * hubR}
+			p.Fill(hub, theme.Solid(theme.Panel), hubR)
+			p.Stroke(hub, theme.BorderStrong, hubR, 1)
+			p.Icon(icon.Logo, ui.Rect{X: cx - logoR, Y: cy - logoR, W: 2 * logoR, H: 2 * logoR}, a.floatingAccent())
 		})
 	})
 }
