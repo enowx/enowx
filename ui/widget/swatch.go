@@ -62,7 +62,11 @@ func BadgeTag(c *ui.Context, label, hex string) {
 	if !ok {
 		col = theme.Accent
 	}
-	ui.Row(c).PaddingX(theme.S2).Height(18).Gap(theme.S1).Radius(theme.RadiusSmall).Border(1, theme.Fade(col, 0.45)).AlignItems(ui.Center).Shrink(0).Children(func() {
+	chip := ui.Row(c).PaddingX(theme.S2).Height(18).Gap(theme.S1).Radius(theme.RadiusSmall).Border(1, theme.Fade(col, 0.45)).AlignItems(ui.Center).Shrink(0)
+	if theme.Flat {
+		chip.Background(theme.Sunken) // its own ground: it may lie on a solid selection
+	}
+	chip.Children(func() {
 		ui.Box(c).Width(6).Height(6).Radius(theme.RadiusTail).Background(col)
 		ui.Text(c, label).FontSize(theme.TextLabel).TextColor(theme.TextSoft).SingleLine()
 	})

@@ -384,7 +384,7 @@ func (a *App) sessionRow(c *ui.Context, i int, s proto.SessionInfo, project stri
 	}
 	row.Background(widget.QuickTint(row, "bg", bg)).Children(func() {
 		if active {
-			widget.SelectionPill(c, "sessions", theme.RadiusCard)
+			widget.SelectionPill(c, row, "sessions", theme.RadiusCard)
 		}
 		ui.Column(c).Grow(1).MinWidth(0).Children(func() {
 			style := widget.RunStyle{}
@@ -421,7 +421,7 @@ func (a *App) sessionRow(c *ui.Context, i int, s proto.SessionInfo, project stri
 		if a.unread[s.ID] {
 			ui.Box(c).Size(8, 8).Radius(theme.RadiusFull).Background(theme.Now).Shrink(0).Tooltip("Unread: its agent finished or asks something")
 		}
-		widget.Dot(c, st.color, st.hollow, 8)
+		widget.DotOn(c, st.color, st.hollow, 8, active)
 	})
 	a.sessionMenu(c, row, s)
 	if row.DoubleClicked() {

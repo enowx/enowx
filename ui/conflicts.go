@@ -106,5 +106,8 @@ func (a *App) conflictMark(c *ui.Context, s proto.SessionInfo) {
 	if lines > 0 {
 		tip += fmt.Sprintf(", %d at the same lines", lines)
 	}
+	if s.ID == a.selected && theme.OnPicked != theme.TextStrong {
+		col = theme.OnPicked // on a bright field, its words' color reads
+	}
 	ui.Icon(c, icon.Alert).FontSize(12).TextColor(col).Tooltip(tip).Label(tip)
 }

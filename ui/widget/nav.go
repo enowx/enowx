@@ -112,7 +112,7 @@ func railFace(c *ui.Context, b ui.Element, svg *ui.SVG, label, group string, on 
 	b.Background(QuickTint(b, "bg", bg)).TextColor(QuickTint(b, "fg", fg))
 	b.Children(func() {
 		if on {
-			SelectionPill(c, group, theme.RadiusFull)
+			SelectionPill(c, b, group, theme.RadiusFull)
 		}
 		ui.Icon(c, svg).FontSize(RailIconSize)
 		if !wide {
@@ -165,7 +165,7 @@ func ListRow(c *ui.Context, row ui.Element, selected bool, group string, fn func
 	}
 	row.Background(QuickTint(row, "bg", bg)).Children(func() {
 		if selected {
-			SelectionPill(c, group, theme.RadiusCard)
+			SelectionPill(c, row, group, theme.RadiusCard)
 		}
 		fn()
 	})

@@ -16,6 +16,23 @@ func Dot(c *ui.Context, col ui.Color, hollow bool, size float32) {
 	}
 }
 
+// DotOn is Dot on what may be picked: on a bright field a state's color may be lost,
+// so there it has a ring of the field's words.
+func DotOn(c *ui.Context, col ui.Color, hollow bool, size float32, picked bool) {
+	if !picked || theme.OnPicked == theme.TextStrong {
+		Dot(c, col, hollow, size)
+		return
+	}
+	ui.Box(c).Size(size+4, size+4).Radius(size).Shrink(0).Background(theme.OnPicked).Center().Children(func() {
+		d := ui.Box(c).Size(size, size).Radius(size / 2)
+		if hollow {
+			d.Border(1.2, col)
+		} else {
+			d.Background(col)
+		}
+	})
+}
+
 // Status is what a status badge says: its words and color, and whether
 // nothing is happening (a ring instead of a dot).
 type Status struct {
