@@ -125,6 +125,17 @@ func auditSettingsPages() []auditPage {
 		}},
 		{name: "session-panel-index-none", open: func(a *App) { auditIndex(a, proto.RAGStatus{}) }},
 		{name: "settings-agents-filled", open: func(a *App) { auditAgents(a) }, fill: true},
+		{name: "settings-agents-only", open: func(a *App) {
+			projects := "enowx"
+			auditAgents(a).only["claude\x00Work account"] = &projects
+		}, fill: true},
+		{name: "session-panel-index-memories", open: func(a *App) {
+			auditIndex(a, proto.RAGStatus{Ready: true, Embedder: "voyage api.voyageai.com", Chunks: 4212, Files: 318, Indexed: time.Now(), Settings: proto.RAGProject{On: true, Consent: "voyage api.voyageai.com"}})
+			a.ragPanel.mems = []proto.RAGMemory{{ID: "m1", Text: "We keep the index in SQLite."}, {ID: "m2", Text: "The next one, being changed."}}
+			a.ragPanel.editing, a.ragPanel.editText = "m2", "The next one, being changed."
+			a.ragPanel.query, a.ragPanel.searched = "where", "where"
+			a.ragPanel.hits = []proto.RAGHit{{File: "core/rag/store.go", Start: 12, Snippet: "func Search finds the parts nearest a question, and this line runs on long enough to be clipped at its lines."}}
+		}},
 		{name: "settings-agents-history", open: func(a *App) { auditAgents(a).tab = 1 }, fill: true},
 		{name: "settings-automations-filled", open: func(a *App) { auditAutomations(a) }, fill: true},
 		{name: "settings-hooks-filled", open: func(a *App) { auditHooks(a) }, fill: true},

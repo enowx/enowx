@@ -3,9 +3,11 @@ package ui
 import (
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/egoist/mygo/ui"
 
+	"github.com/enowx/enowx/proto"
 	"github.com/enowx/enowx/ui/theme"
 )
 
@@ -55,5 +57,47 @@ func TestSettingsMoreMenus(t *testing.T) {
 				t.Errorf("%s", strings.Join(out, "\n"))
 			}
 		})
+	}
+}
+
+// The agent's API menu offers going back and the backups, and a session's menu
+// switches among the agent's configs.
+func TestSettingsConfigMenus(t *testing.T) {
+	h := newNotesHarness(t)
+	seedAudit(t, h)
+	app := h.app
+	auditAgents(app)
+	draw := func(fn func(c *ui.Context)) *ui.Tester {
+		tt := ui.NewTester(func(c *ui.Context) {
+			c.SetTheme(theme.Window())
+			ui.Column(c).Width(800).Height(600).Background(theme.Background).TextColor(theme.Text).Children(func() { fn(c) })
+		}, 800, 600)
+		h.tt = tt
+		for range 3 {
+			h.settle("", func() bool { return true })
+		}
+		return tt
+	}
+
+	apis := app.agentAPIsOf()
+	apis.loaded = true
+	info := proto.AgentAPIInfo{Agent: "droid", Name: "Droid", Installed: true, Protocols: []string{"openai"},
+		Current: &proto.AgentAPI{BaseURL: "https://gw.example.com/v1", Model: "gw-model"}, Backups: []proto.AgentAPIBackup{{Time: time.Now()}}}
+	tt := draw(func(c *ui.Context) { app.agentAPIRow(c, apis, info) })
+	if err := tt.Click("More"); err != nil {
+		t.Fatalf("%v: %q", err, tt.Texts())
+	}
+	h.settle("the API's menu", func() bool { return tt.HasText("Back to its own API") })
+	shot(t, tt, "settings-menu-api.png")
+
+	s := proto.SessionInfo{ID: "s1", Agent: "claude", Account: "work"}
+	tt = draw(func(c *ui.Context) { app.switchAccountItems(c, s, func() {}) })
+	if !tt.HasText("Switch to the official config") {
+		t.Fatalf("the session's items: %q", tt.Texts())
+	}
+	s.Account = ""
+	tt = draw(func(c *ui.Context) { app.switchAccountItems(c, s, func() {}) })
+	if tt.HasText("Switch to the official config") {
+		t.Fatalf("already on the official config: %q", tt.Texts())
 	}
 }
