@@ -44,7 +44,7 @@ type pill struct{ group string }
 // tint the row's text shows through, and lets the pointer pass.
 func SelectionPill(c *ui.Context, group string, radius float32) {
 	ui.Box(c.Key("pill")).Absolute().Left(0).Top(0).Right(0).Bottom(0).Radius(radius).PassThrough().
-		Background(theme.Selected).
+		Background(theme.Picked).
 		Transition(ui.ElementTransition{Animation: &Spring, Match: pill{group}})
 }
 

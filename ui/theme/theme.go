@@ -24,6 +24,9 @@ var (
 	Sunken       ui.Color // wells: inputs, tracks, segmented controls
 	Hover        ui.Color
 	Selected     ui.Color
+	Picked       ui.Color // what is selected, in the main lists, bars and tabs
+	OnPicked     ui.Color // words on Picked
+	DockGround   ui.Color // the tools dock
 	Border       ui.Color // hairlines between areas
 	BorderStrong ui.Color // outlines of controls
 	BorderFloat  ui.Color // the line of what floats, in a flat style
@@ -134,6 +137,13 @@ func Apply(p Palette) {
 		CodeGround = p.code
 	}
 	TermGround = Surface(term)
+	Picked, OnPicked, DockGround = p.Selected, p.TextStrong, p.Panel
+	if p.picked.A != 0 {
+		Picked, OnPicked = p.picked, p.onPicked
+	}
+	if p.dock.A != 0 {
+		DockGround = p.dock
+	}
 	BorderFloat = p.Border
 	if p.floatLine.A != 0 {
 		BorderFloat = p.floatLine

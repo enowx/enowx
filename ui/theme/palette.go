@@ -36,6 +36,10 @@ type Palette struct {
 	code ui.Color
 	// floatLine is the line of what floats a style gives it, none keeping Border.
 	floatLine ui.Color
+	// picked is the one bright field of what is selected a style gives it, with
+	// onPicked the words on it; none keeps Selected and TextStrong. dock is the
+	// ground of its tools dock, none keeping the panes'.
+	picked, onPicked, dock ui.Color
 	// own says the palette's accent is its own, no accent of the user's over it.
 	own bool
 }

@@ -50,7 +50,7 @@ func SegmentedFit(c *ui.Context, options []string, current int) int {
 			bg, fg, weight := theme.Fade(theme.Selected, 0), theme.TextSoft, 400
 			switch {
 			case i == current:
-				bg, fg, weight = theme.Selected, theme.TextStrong, 500
+				bg, fg, weight = theme.Picked, theme.OnPicked, 500
 			case b.Hovered():
 				bg, fg = theme.Hover, theme.Text
 			}

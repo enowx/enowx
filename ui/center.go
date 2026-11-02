@@ -217,7 +217,7 @@ func (a *App) tabFace(c *ui.Context, name, tip string, front, closable bool, dot
 	bg, fg := theme.Fade(theme.Selected, 0), theme.TextSoft
 	switch {
 	case front:
-		bg, fg = theme.Selected, theme.TextStrong
+		bg, fg = theme.Picked, theme.OnPicked
 	case b.Hovered():
 		bg, fg = theme.Hover, theme.Text
 	}

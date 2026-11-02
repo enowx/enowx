@@ -388,8 +388,11 @@ func (a *App) sessionRow(c *ui.Context, i int, s proto.SessionInfo, project stri
 		}
 		ui.Column(c).Grow(1).MinWidth(0).Children(func() {
 			style := widget.RunStyle{}
-			if active || a.unread[s.ID] {
+			if a.unread[s.ID] {
 				style.Color = theme.TextStrong
+			}
+			if active {
+				style.Color = theme.OnPicked
 			}
 			if a.unread[s.ID] {
 				style.Weight = 600
@@ -558,6 +561,9 @@ func summary(sessions []proto.SessionInfo) string {
 
 // rowDetail is the color of the quiet line of a row, selected or not.
 func rowDetail(active bool) ui.Color {
+	if active && theme.OnPicked != theme.TextStrong {
+		return theme.OnPicked
+	}
 	if active {
 		return theme.Text
 	}

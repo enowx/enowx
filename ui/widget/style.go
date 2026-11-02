@@ -171,8 +171,11 @@ func DockRoom(room ui.Element) ui.Element {
 // DockBar is the tools dock in its region: a capsule, or with a dock that fills it,
 // only its buttons.
 func DockBar(bar ui.Element) ui.Element {
-	if theme.FullDock {
+	switch {
+	case theme.FullDock:
 		return bar
+	case theme.Flat:
+		return bar.Radius(theme.RadiusFull).Background(theme.DockGround)
 	}
 	return Glass(bar.Radius(theme.RadiusFull))
 }

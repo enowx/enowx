@@ -114,7 +114,7 @@ func pageButton(c *ui.Context, label string, on, enabled bool) ui.Element {
 	bg, fg, weight := theme.Fade(theme.Selected, 0), theme.TextSoft, 400
 	switch {
 	case on:
-		bg, fg, weight = theme.Selected, theme.TextStrong, 500
+		bg, fg, weight = theme.Picked, theme.OnPicked, 500
 	case !enabled:
 		b.Opacity(0.45)
 	case b.Hovered():

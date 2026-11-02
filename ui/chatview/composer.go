@@ -83,7 +83,7 @@ func (ch *Chat) box(c *ui.Context, o Options) {
 	if theme.DockedComposer {
 		box.InsetShadow(0, theme.Hairline, 0, 0, theme.Border) // docked: only the line along its top
 	} else {
-		box.Radius(theme.RadiusPanel).InsetShadow(0, 0, 0, 0.5, theme.Border)
+		widget.Edge(box.Radius(theme.RadiusPanel))
 	}
 	widget.DropShadow(box, 10, 30, ui.RGBA(0, 0, 0, float32(0.35*theme.SurfaceOpacity)))
 	// Narrow, as beside the side panel: the settings show as icons and the

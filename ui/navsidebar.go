@@ -159,7 +159,7 @@ func (a *App) navMore(c *ui.Context) {
 	bg, fg, weight := theme.Fade(theme.Selected, 0), theme.TextSoft, 400
 	switch {
 	case a.page == pageVault || a.page == pageTeam || a.page == pageTeamHost:
-		bg, fg, weight = theme.Selected, theme.TextStrong, 500
+		bg, fg, weight = theme.Picked, theme.OnPicked, 500
 	case more.Hovered():
 		bg, fg = theme.Selected, theme.TextStrong
 	}

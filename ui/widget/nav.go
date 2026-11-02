@@ -105,7 +105,7 @@ func railFace(c *ui.Context, b ui.Element, svg *ui.SVG, label, group string, on 
 	bg, fg := theme.Fade(theme.Hover, 0), theme.TextSoft
 	switch {
 	case on:
-		fg = theme.TextStrong
+		fg = theme.OnPicked
 	case b.Hovered():
 		bg, fg = theme.Hover, theme.Text
 	}
@@ -159,6 +159,9 @@ func ListRow(c *ui.Context, row ui.Element, selected bool, group string, fn func
 	bg := theme.Fade(theme.Hover, 0)
 	if !selected && row.Hovered() {
 		bg = theme.Hover
+	}
+	if selected && theme.OnPicked != theme.TextStrong {
+		row.TextColor(theme.OnPicked)
 	}
 	row.Background(QuickTint(row, "bg", bg)).Children(func() {
 		if selected {

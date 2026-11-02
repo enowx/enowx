@@ -9,11 +9,20 @@ import (
 
 // The parts every page is made of, so one look is defined once.
 
+// ruleWidth is the line under a page's header: the style's own in a flat style, none
+// where tones alone separate.
+func ruleWidth() float32 {
+	if theme.Flat {
+		return theme.Hairline
+	}
+	return 0.5
+}
+
 // PageHeader is a frame's top: its title, what it is about, which runs when
 // it can't fit, and its actions at the right. The frame keeps its height.
 func PageHeader(c *ui.Context, title, sub string, actions func()) {
 	ui.Row(c.Key("page-header")).MinHeight(theme.HeaderHeight).Shrink(0).FillWidth().Padding(theme.S2, theme.S4, theme.S2, theme.S5).Gap(theme.S3).
-		BorderWidth(0, 0, 0.5, 0).BorderColor(theme.Border).Children(func() {
+		BorderWidth(0, 0, ruleWidth(), 0).BorderColor(theme.Border).Children(func() {
 		ui.Row(c).Grow(1).MinWidth(0).Gap(theme.S3).Children(func() {
 			ui.Row(c).MinWidth(0).Shrink(1).Children(func() {
 				Running(c, title, RunStyle{Size: theme.TextTitle, Weight: 600, Always: true})
@@ -65,7 +74,7 @@ func SideEntry(c *ui.Context, svg *ui.SVG, label string, on bool) ui.Element {
 	bg, fg, weight := theme.Fade(theme.Selected, 0), theme.Text, 400
 	switch {
 	case on:
-		bg, fg, weight = theme.Selected, theme.TextStrong, 500
+		bg, fg, weight = theme.Picked, theme.OnPicked, 500
 	case b.Hovered():
 		bg = theme.Hover
 	}

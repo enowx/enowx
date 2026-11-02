@@ -404,6 +404,9 @@ func dockFace(c *ui.Context, svg *ui.SVG, label string, on bool) ui.Element {
 	if on || b.Hovered() {
 		bg, fg = theme.Selected, theme.Text
 	}
+	if on && theme.OnPicked != theme.TextStrong {
+		bg, fg = theme.Picked, theme.OnPicked
+	}
 	b.Background(widget.QuickTint(b, "bg", bg)).TextColor(widget.QuickTint(b, "fg", fg)).Children(func() {
 		ui.Icon(c, svg).FontSize(16)
 	})
