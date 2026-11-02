@@ -133,8 +133,14 @@ func (a *App) accountLine(c *ui.Context, st *accountsState, ag proto.AgentInfo, 
 				widget.Running(c, "Only for "+strings.Join(only, ", "), widget.RunStyle{Size: theme.TextLabel, Color: theme.TextSoft})
 			})
 		}
-		configSessions(c, sessions)
-		a.onlyEditor(c, st, ag, pr, name)
+		// The editor takes the sessions' place: the card keeps its height, and both
+		// wouldn't fit in it.
+		if st.only[ag.ID+"\x00"+name] == nil {
+			configSessions(c, sessions)
+		} else {
+			a.onlyEditor(c, st, ag, pr, name)
+			ui.Spacer(c)
+		}
 		ui.Row(c.Key("foot")).FillWidth().Shrink(0).Gap(theme.S2).Children(func() {
 			ui.Row(c).Grow(1).MinWidth(0).Children(func() {
 				widget.Running(c, fmt.Sprintf("Used by %d %s", len(sessions), textfmt.Plural(len(sessions), "session", "sessions")), widget.RunStyle{Size: theme.TextLabel, Color: theme.TextSoft})
