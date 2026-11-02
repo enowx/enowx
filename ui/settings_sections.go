@@ -489,7 +489,12 @@ func (a *App) floatingAtPointer() bool {
 
 // appSection is the app's own preferences.
 func (a *App) appSection(c *ui.Context) {
-	widget.PageHeader(c, "App", "enowX on this device", nil)
+	widget.PageHeader(c, "App", "enowX on this device", func() {
+		if widget.Button(c.Key("setup-again"), widget.Secondary, nil, "Run setup again", "").Clicked() {
+			a.page = ""
+			a.onboardingAgain()
+		}
+	})
 	widget.PageBodyRest(c, 470, func() {
 		widget.Cols(c, 3).Children(func() {
 			widget.Card(c.Key("editor")).Children(func() {

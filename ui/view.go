@@ -28,7 +28,9 @@ func (a *App) view(c *ui.Context) {
 	}
 	c.SetTheme(a.theme)
 	a.winW, _ = c.Size()
-	a.shortcuts(c)
+	if !a.onboardingShows() {
+		a.shortcuts(c)
+	}
 	a.watchUsageShown()
 	a.discordPresence()
 	a.keepHere(c)
@@ -59,6 +61,7 @@ func (a *App) view(c *ui.Context) {
 				a.toolsDock(c)
 			})
 		})
+		a.onboardingView(c)
 		a.statusToast(c)
 	})
 	a.cornerCards(c)

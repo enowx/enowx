@@ -65,6 +65,7 @@ type App struct {
 	connFail        error           // the same, to tell what kind of failure it was
 	notice          string          // a.status is news, not a problem, while it equals this
 	bundleWarned    bool            // warnBundlePlace said it
+	onboard         onboardingState // the first run's setup
 	cacheState      *cacheSettings  // Settings' Clean cache
 	watchdog        *watchdog.Watch // the main thread's, once the window is open
 	sessionToasts   []*sessionToast // what notifications are about (sessiontoast.go)
@@ -320,6 +321,8 @@ type Options struct {
 	// ResumeHost starts on the host shown when the app last quit, if it is
 	// still saved, instead of Start.
 	ResumeHost bool
+	// Onboarding runs the first run's setup on a user or device that hasn't done it.
+	Onboarding bool
 }
 
 // pane shows one attached session.

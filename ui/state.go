@@ -33,8 +33,10 @@ type appState struct {
 	// one to go back to; derived is those colors, as read from it, not saved.
 	// UIStyle is the style the app is built in, kept on this device; "" is the
 	// default, Liquid Glass.
-	UIStyle           string `json:"uiStyle,omitempty"`
-	FollowBackground  bool   `json:"followBackground,omitempty"`
+	UIStyle string `json:"uiStyle,omitempty"`
+	// OnboardedDevice says this device has been through setup's steps of its own.
+	OnboardedDevice   bool `json:"onboardedDevice,omitempty"`
+	FollowBackground  bool `json:"followBackground,omitempty"`
 	derived           *theme.Derived
 	BackgroundImage   string             `json:"backgroundImage,omitempty"`
 	BackgroundOpacity *float64           `json:"backgroundOpacity,omitempty"`

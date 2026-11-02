@@ -115,6 +115,7 @@ func (a *App) connect(h hosts.Host) {
 			a.client = c
 			a.spacesConnected(c)
 			a.warnBundlePlace()
+			a.onboardingCheck(c)
 			a.pollUsage(c, gen)
 			a.pollCredits(c, gen)
 			a.pollConflicts(c, gen)

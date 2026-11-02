@@ -1523,6 +1523,8 @@ field NotifySoundFile.name string
 field NotifySoundParams.kind string
 field NotifySoundParams.session string
 field NotifySoundParams.text string
+field OnboardingState.done time.Time
+field OnboardingState.version int
 field PRParams.base string
 field PRParams.body string
 field PRParams.session string
@@ -2870,6 +2872,8 @@ method notify.set
 method notify.sound
 method notify.soundRead
 method notify.soundSave
+method onboarding.get
+method onboarding.set
 method pipeline.cancel
 method pipeline.list
 method pipeline.remove
