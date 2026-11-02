@@ -66,6 +66,8 @@ func auditPages() []auditPage {
 			a.selectSession(a.sessions[0])
 			a.page = pageNotes
 			a.showTool(panelChanges)
+		}, after: func(h *notesHarness) {
+			h.settle("the note", func() bool { return h.app.notes.Opened() })
 		}},
 		{name: "notes-dock-no-session", open: func(a *App) {
 			a.page, a.selected, a.state.Panel.Open = pageNotes, "", false

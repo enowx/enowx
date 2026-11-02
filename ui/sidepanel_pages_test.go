@@ -6,6 +6,8 @@ import (
 	"testing"
 
 	"github.com/egoist/mygo/ui"
+
+	"github.com/enowx/enowx/proto"
 )
 
 // The dock stays where it is on Notes and Canvas, and opens the panel for the
@@ -98,6 +100,7 @@ func TestNotesPanelAgentAndDockSideBySide(t *testing.T) {
 	t.Setenv("ANDROID_HOME", stubAndroidSDK(t))
 	h := newNotesHarness(t)
 	seedAudit(t, h)
+	h.app.agents = []proto.AgentInfo{{ID: "claude", Name: "Claude Code", Command: "claude", Installed: true}}
 	h.app.selectSession(h.app.sessions[0])
 	h.app.page = pageNotes
 	h.app.notes.Select(h.app.notesOptions(), h.app.noteList.list[0].ID)
@@ -105,9 +108,8 @@ func TestNotesPanelAgentAndDockSideBySide(t *testing.T) {
 	h.app.state.RailWide = true
 	h.app.showTool(panelFiles)
 	h.tt = ui.NewTester(func(c *ui.Context) { h.app.view(c) }, 1200, 720)
-	for range 6 {
-		h.settle("", func() bool { return true })
-	}
+	h.settle("the note", func() bool { return h.app.notes.Opened() })
+	h.settle("the note's agent", func() bool { return h.tt.HasText(notesSuggestions[0].title) })
 	grip, ok := h.tt.Find("Resize the panel")
 	dock, okDock := h.tt.Find("More tools")
 	if !ok || !okDock {
