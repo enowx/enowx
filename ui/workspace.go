@@ -332,7 +332,7 @@ func (a *App) sessionBody(c *ui.Context, s proto.SessionInfo) {
 	case a.showsChat(s.ID):
 		a.chatView(c.Key("chat"), s)
 	case p != nil:
-		v := terminal.View(c.Key("term"), p.term).Grow(1).FillWidth().Background(theme.Background).Padding(theme.S2, theme.S4)
+		v := terminal.View(c.Key("term"), p.term).Grow(1).FillWidth().Background(theme.TermGround).Padding(theme.S2, theme.S4)
 		if text, ok := widget.TakeTextDrag(v); ok {
 			p.term.Paste(text + " ")
 			v.Focus()

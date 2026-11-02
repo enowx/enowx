@@ -82,6 +82,7 @@ func (a *App) openGOATab(host string, cl *client.Client, s proto.SessionInfo) {
 
 func (a *App) attachGOATab(t *goaTab, st *client.Stream) {
 	term, err := terminal.New(terminal.Options{
+		Transparent:  true, // the view's own ground shows, as the slider has it
 		Conn:         &settledResize{ReadWriteCloser: st, resize: st.ResizePixels},
 		ResizeByConn: true,
 		Theme:        theme.Terminal(),
@@ -230,7 +231,7 @@ func (a *App) goaTabView(c *ui.Context, key string) {
 				ui.Text(c, "Connecting…").TextColor(theme.TextSoft)
 			})
 		default:
-			terminal.View(c.Key("goa-term:"+key), t.term).Grow(1).FillWidth().Background(theme.Background)
+			terminal.View(c.Key("goa-term:"+key), t.term).Grow(1).FillWidth().Background(theme.TermGround)
 		}
 	})
 }

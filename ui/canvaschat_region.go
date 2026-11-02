@@ -55,7 +55,7 @@ func (a *App) canvasRegionView(c *ui.Context, cv proto.Canvas, hc *hostCanvasCha
 			a.chatViewSending(c.Key("chat:"+s.ID), s, shown, chatTweaks{showUser: canvasRegionPrompt})
 		})
 	case p != nil:
-		terminal.View(c.Key("term:"+s.ID), p.term).Grow(1).FillWidth()
+		terminal.View(c.Key("term:"+s.ID), p.term).Grow(1).FillWidth().Background(theme.TermGround)
 	default:
 		ui.Text(c, "Connecting…").FontSize(theme.TextUI).TextColor(theme.TextSoft).Padding(theme.S4)
 	}

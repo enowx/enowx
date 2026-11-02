@@ -161,7 +161,7 @@ func (a *App) watchSession(v *teamVisit, s proto.SessionInfo) {
 				w.err = client.Explain(err)
 				return
 			}
-			t, err := terminal.New(terminal.Options{Conn: st, ResizeByConn: true, Theme: theme.Terminal(), DarkTheme: theme.Terminal(),
+			t, err := terminal.New(terminal.Options{Transparent: true, Conn: st, ResizeByConn: true, Theme: theme.Terminal(), DarkTheme: theme.Terminal(),
 				Font: a.termFont(), OnZoom: a.zoomTerms, Padding: terminal.Padding{X: termPadX, Y: termPadY}})
 			if err != nil {
 				st.Close()
@@ -265,5 +265,5 @@ func (a *App) watchView(c *ui.Context, v *teamVisit) {
 		})
 		return
 	}
-	terminal.View(c.Key("watch:"+w.session), w.term).Grow(1).FillWidth()
+	terminal.View(c.Key("watch:"+w.session), w.term).Grow(1).FillWidth().Background(theme.TermGround)
 }

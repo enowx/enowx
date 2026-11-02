@@ -157,7 +157,7 @@ func (a *App) notesAssistant(c *ui.Context, n proto.NoteInfo) {
 	case chatview.Supported(s):
 		ui.Column(c).Grow(1).FillWidth().MinHeight(0).Children(func() { a.chatViewWhile(c.Key("chat:"+s.ID), s, shown) })
 	case p != nil:
-		terminal.View(c.Key("term:"+s.ID), p.term).Grow(1).FillWidth()
+		terminal.View(c.Key("term:"+s.ID), p.term).Grow(1).FillWidth().Background(theme.TermGround)
 	default:
 		ui.Text(c, "Connecting…").FontSize(theme.TextUI).TextColor(theme.TextSoft).Padding(theme.S2, theme.S4)
 	}
