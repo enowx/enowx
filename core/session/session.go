@@ -197,6 +197,7 @@ func (s *Session) Info() proto.SessionInfo {
 	defer s.mu.Unlock()
 	return proto.SessionInfo{
 		ID:              s.id,
+		Run:             s.started.UnixNano(),
 		Name:            s.meta.Name,
 		Note:            s.meta.Note,
 		Report:          s.meta.Report,
@@ -324,6 +325,9 @@ func truncate(s string, n int) string {
 
 // QuietFor is how long it has been since anything was typed in or shown, as of
 // now; a long time when nothing has been since it was brought back.
+// Done closes when the session is replaced or killed: its terminal has no more to show.
+func (s *Session) Done() <-chan struct{} { return s.done }
+
 // TypedFor is how long since anything was typed into the session.
 func (s *Session) TypedFor(now time.Time) time.Duration {
 	s.mu.Lock()

@@ -647,6 +647,19 @@ func (a *App) setProjects(list []proto.ProjectInfo) {
 	}
 }
 
+// viewOutdated says a view attached when session was as old shows a terminal that no
+// longer changes, it being as now: its program started again. Run says so even when
+// the stop between was never seen; a daemon too old for it, by what was seen.
+func viewOutdated(old, now proto.SessionInfo) bool {
+	if now.Exited || now.Queued {
+		return false
+	}
+	if old.Run != 0 && now.Run != 0 && old.Run != now.Run {
+		return true
+	}
+	return old.Exited || old.Queued
+}
+
 // upsert records a session and attaches to it once.
 func (a *App) upsert(info proto.SessionInfo) {
 	if a.removed[info.ID] {
@@ -656,7 +669,7 @@ func (a *App) upsert(info proto.SessionInfo) {
 		// A program that starts again (continued, or a queued agent's)
 		// runs in a new terminal of the daemon: the old stream shows the
 		// last one, so attach anew.
-		if old := a.sessions[i]; (old.Exited || old.Queued) && !info.Exited && !info.Queued {
+		if old := a.sessions[i]; viewOutdated(old, info) {
 			if p := a.panes[info.ID]; p != nil {
 				p.close()
 			}

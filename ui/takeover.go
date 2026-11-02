@@ -140,12 +140,13 @@ type watchPane struct {
 	asked    bool
 	controls bool
 	err      string
+	seen     proto.SessionInfo // as last listed, to see its program start again
 }
 
 // watchSession opens a shared session's terminal for the visit v.
 func (a *App) watchSession(v *teamVisit, s proto.SessionInfo) {
 	a.stopWatching(v)
-	w := &watchPane{session: s.ID}
+	w := &watchPane{session: s.ID, seen: s}
 	v.watch = w
 	cl := v.cl
 	go func() {
@@ -222,6 +223,14 @@ func (a *App) watchView(c *ui.Context, v *teamVisit) {
 		if s.ID == w.session {
 			name = nonEmptyName(s)
 			own = s.Member != nil && s.Member.Account == v.me.Account
+			if viewOutdated(w.seen, s) {
+				// Its program started again: what's attached no longer changes.
+				controls := w.controls
+				a.watchSession(v, s)
+				w = v.watch
+				w.controls = controls
+			}
+			w.seen = s
 		}
 	}
 	widget.ViewerBar(c, icon.Eye, name, func() {

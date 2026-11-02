@@ -124,7 +124,10 @@ type SessionInfo struct {
 	Title    string    `json:"title"`            // set by the program (OSC 0/2)
 	Prompt   string    `json:"prompt,omitempty"` // first prompt, given or typed
 	Created  time.Time `json:"created"`
-	Active   bool      `json:"active"` // the program is producing output
+	// Run tells one run of its program from the next, in a terminal of its own: a view
+	// attached to another run shows a screen that no longer changes.
+	Run    int64 `json:"run,omitempty"`
+	Active bool  `json:"active"` // the program is producing output
 	// State is what the agent's hooks last said (StateWorking, …), "" when
 	// it has none or they went stale.
 	State string `json:"state,omitempty"`

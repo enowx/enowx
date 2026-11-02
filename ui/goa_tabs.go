@@ -28,6 +28,10 @@ type goaTab struct {
 	stream   *client.Stream
 	err      string
 	closed   bool
+	// seen is the session as the view was last attached or looked at, and attaching
+	// that a new attach is on its way.
+	seen      proto.SessionInfo
+	attaching bool
 }
 
 // goaClientOf is the connection to the host the Sessions tool names.
@@ -52,7 +56,7 @@ func (a *App) openGOATab(host string, cl *client.Client, s proto.SessionInfo) {
 		}
 		a.closeGOATab(a.goa.tabs[i]) // an errored tab is opened again
 	}
-	t := &goaTab{key: key, host: host, id: s.ID, agent: s.Agent, cl: cl}
+	t := &goaTab{key: key, host: host, id: s.ID, agent: s.Agent, cl: cl, seen: s, attaching: true}
 	a.goa.tabs = append(a.goa.tabs, t)
 	tabs := a.centerOf(a.goa.board.Session)
 	tabs.tabs, tabs.front = append(tabs.tabs, centerGOA+key), centerGOA+key
@@ -64,20 +68,48 @@ func (a *App) openGOATab(host string, cl *client.Client, s proto.SessionInfo) {
 				return
 			}
 		}
-		st, err := cl.Attach(s.ID)
-		a.onMain(func() {
-			switch {
-			case t.closed:
-				if st != nil {
-					st.Close()
-				}
-			case err != nil:
-				t.err = client.Explain(err)
-			default:
-				a.attachGOATab(t, st)
-			}
-		})
+		a.goaTabAttach(t, s.ID)
 	}()
+}
+
+// goaTabAttach attaches tab t's view to its session, off the main thread.
+func (a *App) goaTabAttach(t *goaTab, id string) {
+	st, err := t.cl.Attach(id)
+	a.onMain(func() {
+		t.attaching = false
+		switch {
+		case t.closed:
+			if st != nil {
+				st.Close()
+			}
+		case err != nil:
+			t.err = client.Explain(err)
+		default:
+			a.attachGOATab(t, st)
+		}
+	})
+}
+
+// goaTabFollow attaches tab t again when its session's program started again, as a
+// hibernate and wake does: the view it has shows a terminal that no longer changes.
+func (a *App) goaTabFollow(t *goaTab) {
+	s, ok := a.goaTabSession(t)
+	if !ok {
+		return
+	}
+	outdated := viewOutdated(t.seen, s)
+	t.seen = s
+	if !outdated || t.attaching {
+		return
+	}
+	if t.term != nil {
+		t.term.Close()
+	}
+	if t.stream != nil {
+		t.stream.Close()
+	}
+	t.term, t.stream, t.err, t.attaching = nil, nil, "", true
+	go a.goaTabAttach(t, s.ID)
 }
 
 func (a *App) attachGOATab(t *goaTab, st *client.Stream) {
@@ -219,9 +251,14 @@ func (a *App) goaTabView(c *ui.Context, key string) {
 	if t == nil {
 		return
 	}
+	a.goaTabFollow(t)
+	note := "Live, on " + t.host + ". Closing this tab closes the view alone; the session runs on."
+	if t.seen.Exited {
+		note = "Not running, on " + t.host + ": this is its screen from when it stopped. It comes back live when the session does."
+	}
 	ui.Column(c).Grow(1).FillWidth().MinHeight(0).Padding(theme.S3, theme.S5, theme.S4, theme.S5).Gap(theme.S3).Children(func() {
 		ui.Row(c).FillWidth().Shrink(0).PaddingX(theme.S4).Children(func() {
-			widget.Running(c, "Live, on "+t.host+". Closing this tab closes the view alone; the session runs on.", widget.RunStyle{Color: theme.TextSoft})
+			widget.Running(c, note, widget.RunStyle{Color: theme.TextSoft})
 		})
 		switch {
 		case t.err != "":

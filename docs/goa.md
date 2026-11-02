@@ -78,6 +78,8 @@ A report belongs to the task under way when it was sent. A task given to a sessi
 
 Lines about a task under way (its report, its turn's end, what it asks) go with its ID, and are dropped if it is settled before GOA takes them. A settled task raises nothing asking to settle it. What its session reports after it was settled arrives once, marked a correction.
 
+A session's tab in GOA's strip attaches again by itself when the session's program starts again, as a hibernate and wake does (`SessionInfo.Run`, a value for each run). While the session isn't running, the tab says that what it shows is its screen from when it stopped.
+
 ### How lines reach GOA
 
 Workers' reports never go through GOA's input box while anything of the user's could be in it: a line typed there took the user's unfinished sentence along with it. By what each agent documents, in this order (`daemon/goa_inject.go`):

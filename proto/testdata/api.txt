@@ -1952,6 +1952,7 @@ field SessionInfo.report string
 field SessionInfo.reportAt int64
 field SessionInfo.reportOutcome string
 field SessionInfo.restored bool
+field SessionInfo.run int64
 field SessionInfo.skipPermissions bool
 field SessionInfo.skipUnheard bool
 field SessionInfo.state string

@@ -82,6 +82,8 @@ func (st *stream) pump() {
 		select {
 		case <-st.done:
 			return
+		case <-st.sess.Done():
+			return // replaced: the app attaches to the new run (SessionInfo.Run)
 		case <-timer.C:
 		case <-st.wake:
 			lastChange, lastWake = time.Now(), time.Now()
