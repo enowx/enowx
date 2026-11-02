@@ -102,6 +102,34 @@ func (a *App) attachGOATab(t *goaTab, st *client.Stream) {
 // closeGOATab closes the view alone: the session runs on.
 func (a *App) closeGOATab(t *goaTab) { a.closeCenter(a.goa.board.Session, centerGOA+t.key) }
 
+// closeGOATabOf closes the tab of a session gone from its host.
+func (a *App) closeGOATabOf(id string) {
+	for _, t := range slices.Clone(a.goa.tabs) {
+		if t.id == id {
+			a.closeGOATab(t)
+		}
+	}
+}
+
+// pruneGOATabs closes the tabs of sessions gone from another host, whose
+// removal reaches this app only as that host's list without them. A host that
+// lists nothing may just not have said yet.
+func (a *App) pruneGOATabs() {
+	if len(a.goa.tabs) == 0 {
+		return
+	}
+	for _, h := range a.goaEveryHost() {
+		if len(h.sessions) == 0 {
+			continue
+		}
+		for _, t := range slices.Clone(a.goa.tabs) {
+			if t.host == h.name && !slices.ContainsFunc(h.sessions, func(s proto.SessionInfo) bool { return s.ID == t.id }) {
+				a.closeGOATab(t)
+			}
+		}
+	}
+}
+
 // dropGOATab lets go of the tab of key, once it left the strip.
 func (a *App) dropGOATab(key string) {
 	i := slices.IndexFunc(a.goa.tabs, func(t *goaTab) bool { return t.key == key })

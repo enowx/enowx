@@ -669,6 +669,7 @@ func (a *App) upsert(info proto.SessionInfo) {
 func (a *App) remove(id string) {
 	a.removed[id] = true
 	a.sessions = slices.DeleteFunc(a.sessions, func(s proto.SessionInfo) bool { return s.ID == id })
+	a.closeGOATabOf(id)
 	a.updateTray()
 	if p := a.panes[id]; p != nil {
 		p.close()

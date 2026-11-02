@@ -69,6 +69,7 @@ func (a *App) showTab(parent, id string) {
 // agents opened beside it, then the viewers tools opened, with the buttons that
 // open another. Every tab is one width; those that don't fit scroll.
 func (a *App) tabStrip(c *ui.Context, s proto.SessionInfo) {
+	a.pruneGOATabs()
 	viewer := a.centerFront(s)
 	front := a.frontTab(s).ID
 	ui.Row(c.Key("tab-strip")).Height(36).Shrink(0).FillWidth().PaddingX(theme.S2).Gap(theme.S1).Background(theme.Sunken).
@@ -152,6 +153,33 @@ func (a *App) openTab(s proto.SessionInfo, id, shell string) {
 			a.showTab(s.ID, info.ID)
 		})
 	}()
+}
+
+// closeFrontTab closes what is in front of the selected session, as Cmd+W: a
+// viewer, or a tab of its own, asking first if its program still runs. Nothing
+// else closes: the session's own tab has no ×, and with no session in front
+// (killed from elsewhere, or a page) there is no tab, which is fine.
+func (a *App) closeFrontTab() {
+	if a.page != "" || a.confirming != nil {
+		return
+	}
+	s, ok := a.selectedSession()
+	if !ok {
+		return
+	}
+	s = a.parentOf(s)
+	if front := a.centerFront(s); front != "" {
+		a.closeCenter(s.ID, front)
+		return
+	}
+	t := a.frontTab(s)
+	switch {
+	case t.ID == s.ID:
+	case t.Exited:
+		a.closeTab(s, t)
+	default:
+		a.confirm("Close this tab?", "“"+a.sessionName(t)+"” is still running, and stops with it.", "Close", func() { a.closeTab(s, t) })
+	}
 }
 
 // closeTab deletes tab t of parent, showing the tab before it.
