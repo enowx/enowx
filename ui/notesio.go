@@ -106,7 +106,11 @@ func (a *App) noteImportDialog(c *ui.Context) {
 	done := j != nil && j.State == proto.ImportDone && !j.DryRun
 	previewed := j != nil && j.State == proto.ImportDone && j.DryRun && j.Preview != nil
 	running := f.busy != "" || j != nil && j.State == proto.ImportRunning
-	widget.FormSheet(c, &f.open, 560, "Import notes",
+	sheet := widget.FormSheet
+	if done {
+		sheet = widget.FinishedSheet // the import is over: Done alone
+	}
+	sheet(c, &f.open, 560, "Import notes",
 		"From Notion, Obsidian or any folder of Markdown, Evernote, Google Keep, Apple Notes (HTML), or an enowX export, into the notes on "+a.host.Name+".", func() {
 			switch {
 			case done:

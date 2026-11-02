@@ -94,6 +94,11 @@ func DetailSheet(c *ui.Context, open *bool, width float32, title, description st
 	formSheet(c, open, width, title, description, "Close", body, buttons)
 }
 
+// FinishedSheet is a FormSheet with nothing left to dismiss: its buttons alone.
+func FinishedSheet(c *ui.Context, open *bool, width float32, title, description string, body, buttons func()) {
+	formSheet(c, open, width, title, description, "", body, buttons)
+}
+
 func formSheet(c *ui.Context, open *bool, width float32, title, description, dismiss string, body, buttons func()) {
 	w, _ := c.Size()
 	width = min(width, max(280, w-32))
@@ -108,7 +113,7 @@ func formSheet(c *ui.Context, open *bool, width float32, title, description, dis
 			*open = false
 		}
 	}, body, func() {
-		if GhostButton(c, dismiss).Clicked() {
+		if dismiss != "" && GhostButton(c, dismiss).Clicked() {
 			*open = false
 		}
 		buttons()
