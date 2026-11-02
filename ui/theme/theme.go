@@ -18,6 +18,8 @@ var (
 	Ground       ui.Color // the wallpaper the glass sits on
 	Panel        ui.Color // glass: the session list, the bars' capsules, the tools
 	Frame        ui.Color // the one bright frame the user works in
+	CodeGround   ui.Color // code, logs and output: dark in every palette
+	TermGround   ui.Color // what a terminal shows on: dark in every palette
 	Raised       ui.Color // cards on a frame
 	Sunken       ui.Color // wells: inputs, tracks, segmented controls
 	Hover        ui.Color
@@ -47,6 +49,10 @@ var (
 	Del ui.Color // lines removed, destructive words
 	Now ui.Color // what happens now, the focus ring
 )
+
+// SurfaceOpacity is how opaque the main surfaces are over the user's own
+// background image, 1 with none. See Surface.
+var SurfaceOpacity float64 = 1
 
 // MonoFont is the font of paths, code and command output.
 const MonoFont = "monospace"
@@ -109,6 +115,12 @@ func Apply(p Palette) {
 		AccentLine = Fade(p.Accent, 0.75)
 		Highlight = ui.RGBA(255, 255, 255, 0.85)
 	}
+	SurfaceOpacity = 1
+	if p.backdrop {
+		SurfaceOpacity = p.opacity
+	}
+	CodeGround = Surface(ui.RGBA(10, 11, 18, 0.94))
+	TermGround = Surface(terminalGround(p))
 	Add, Del, Now = p.Add, p.Del, p.Now
 	Working, Done, Warning, Error, Idle = p.Working, p.Done, p.Warning, p.Error, p.Idle
 }

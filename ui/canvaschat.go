@@ -109,7 +109,7 @@ func (a *App) canvasAgentPanel(c *ui.Context) {
 	if dx, _, ok := edge.Dragged(); ok && dx != 0 {
 		a.state.CanvasChatWidth = min(max(width-dx, 320), 760)
 	}
-	widget.Rim(ui.Column(c.Key("canvas-agent")).Width(width).MinWidth(minPanelWidth).Shrink(1).FillHeight().Radius(theme.RadiusCard).Clip().Background(theme.Popover)).
+	widget.SurfaceEdge(ui.Column(c.Key("canvas-agent")).Width(width).MinWidth(minPanelWidth).Shrink(1).FillHeight().Radius(theme.RadiusCard).Clip().Background(theme.Surface(theme.Popover))).
 		Transition(widget.PanelMotion(24)).Children(func() { a.canvasAssistant(c, *cv) })
 }
 
@@ -149,7 +149,7 @@ func (a *App) canvasAssistant(c *ui.Context, cv proto.Canvas) {
 			})
 		})
 	case p != nil:
-		terminal.View(c.Key("term:"+s.ID), p.term).Grow(1).FillWidth()
+		terminal.View(c.Key("term:"+s.ID), p.term).Grow(1).FillWidth().Background(theme.TermGround)
 	default:
 		ui.Text(c, "Connecting…").FontSize(theme.TextUI).TextColor(theme.TextSoft).Padding(theme.S4)
 	}

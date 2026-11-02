@@ -23,6 +23,11 @@ type Palette struct {
 	Working, Done, Warning, Error     ui.Color
 	Idle                              ui.Color
 	Add, Del, Now                     ui.Color
+
+	// backdrop says the user's own image lies behind, opacity how opaque
+	// the main surfaces are over it (WithBackdrop).
+	backdrop bool
+	opacity  float64
 }
 
 // glass is a dark palette: every palette has the same glass, over a
@@ -97,6 +102,15 @@ func Lookup(id string, accent ui.Color) Palette {
 	return p
 }
 
+// terminalGround is the color terminals show on with p: dark even in light
+// appearance, as Terminal says.
+func terminalGround(p Palette) ui.Color {
+	if p.Light {
+		p = Lookup(p.ID, ui.Color{})
+	}
+	return p.Background
+}
+
 // Terminal keeps a dark ground even in light appearance: CLI programs often
 // draw their own pale input text without adapting to the app's colors.
 func Terminal() *terminal.Theme {
@@ -106,7 +120,7 @@ func Terminal() *terminal.Theme {
 	}
 	t := terminal.DarkTheme()
 	fg := ui.Hex("#E8EAF2")
-	t.Foreground, t.Background = fg, p.Background
+	t.Foreground, t.Background = fg, terminalGround(p)
 	t.Cursor = p.Accent
 	t.Selection = Fade(p.Accent, 0.25)
 	t.Palette = [16]ui.Color{

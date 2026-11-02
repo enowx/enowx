@@ -221,7 +221,7 @@ func (a *App) sidePanelView(c *ui.Context) {
 			width = goaPanelWidth // GOA's own lists hold a task and its button on a row
 		}
 	}
-	widget.Bento(ui.Column(c.Key("side-panel")).Width(width).MinWidth(minPanelWidth).Shrink(1).FillHeight(), theme.Fade(theme.Panel, 0.94)).
+	widget.Bento(ui.Column(c.Key("side-panel")).Width(width).MinWidth(minPanelWidth).Shrink(1).FillHeight(), theme.Surface(theme.Fade(theme.Panel, 0.94))).
 		Transition(widget.PanelMotion(24)).Children(func() {
 		a.panelStrip(c)
 		s, ok := a.selectedSession()

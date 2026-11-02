@@ -174,7 +174,7 @@ func codeGround(d *Doc) ui.Color {
 	if d.markdown && !d.raw {
 		return ui.Transparent
 	}
-	return ui.RGBA(10, 11, 18, 0.94)
+	return theme.CodeGround
 }
 
 // bar is the file's path, its size, and copying it or opening it in the

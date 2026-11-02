@@ -27,10 +27,10 @@ type appState struct {
 	Theme            string            `json:"theme,omitempty"`            // palette ID
 	ThemeMode        string            `json:"themeMode,omitempty"`        // dark (default), light, or system
 	// BackgroundImage is this device's image behind the panels, "" for the
-	// theme's own; BackgroundOpacity how opaque the panels over it are, 0 for
-	// the default; BackgroundBlur its blur's sigma, nil for the default.
+	// theme's own; BackgroundOpacity how opaque the main surfaces over it are,
+	// nil for the default; BackgroundBlur its blur's sigma, nil for the default.
 	BackgroundImage   string             `json:"backgroundImage,omitempty"`
-	BackgroundOpacity float64            `json:"backgroundOpacity,omitempty"`
+	BackgroundOpacity *float64           `json:"backgroundOpacity,omitempty"`
 	BackgroundBlur    *float64           `json:"backgroundBlur,omitempty"`
 	Accent            string             `json:"accent,omitempty"`       // #RRGGBB replacing the palette's accent
 	TermFont          string             `json:"termFont,omitempty"`     // the terminals' font family; the system's monospaced font when empty
@@ -102,8 +102,8 @@ func (st appState) palette(light bool) theme.Palette {
 
 // backgroundOpacity is how opaque the panels over the user's image are.
 func (st appState) backgroundOpacity() float64 {
-	if st.BackgroundOpacity > 0 {
-		return st.BackgroundOpacity
+	if st.BackgroundOpacity != nil {
+		return *st.BackgroundOpacity
 	}
 	return backgroundDefaultOpacity
 }

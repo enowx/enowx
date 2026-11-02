@@ -94,7 +94,7 @@ func (v *View) mcpTestPanel(c *ui.Context, o Options, it proto.EnvItem) {
 		})
 	}
 	if !r.OK && r.Stderr != "" {
-		ui.Scroll(c.Key("mcp-stderr")).FillWidth().Shrink(0).MaxHeight(120).Radius(theme.RadiusCard).Clip().Background(widget.CodeGround).Children(func() {
+		ui.Scroll(c.Key("mcp-stderr")).FillWidth().Shrink(0).MaxHeight(120).Radius(theme.RadiusCard).Clip().Background(theme.CodeGround).Children(func() {
 			ui.Column(c).FillWidth().Padding(theme.S3, theme.S4).Children(func() { codeLine(c, r.Stderr, widget.CodeText) })
 		})
 	}

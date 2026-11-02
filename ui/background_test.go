@@ -69,8 +69,8 @@ func TestBackgroundFallsBackWithAMessage(t *testing.T) {
 // The settings stay over a restart, and asking for opacity only touches the
 // panels while an image is set.
 func TestBackgroundSettingsPersist(t *testing.T) {
-	blur := 0.0
-	data, err := json.Marshal(appState{BackgroundImage: "/pictures/sea.png", BackgroundOpacity: 0.95, BackgroundBlur: &blur})
+	blur, opacity := 0.0, 0.95
+	data, err := json.Marshal(appState{BackgroundImage: "/pictures/sea.png", BackgroundOpacity: &opacity, BackgroundBlur: &blur})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -84,6 +84,10 @@ func TestBackgroundSettingsPersist(t *testing.T) {
 	}
 	if got := st.palette(false).Panel.A; got != uint8(0.95*255+0.5) {
 		t.Fatalf("panel alpha %d", got)
+	}
+	none := 0.0
+	if got := (appState{BackgroundImage: "/pictures/sea.png", BackgroundOpacity: &none}).palette(false).Panel.A; got != 0 {
+		t.Fatalf("the slider at 0 left the panel at %d", got)
 	}
 	if plain, want := (appState{}).palette(false), theme.Default; plain.Panel != want.Panel || plain.Frame != want.Frame {
 		t.Fatal("no image changed the panels")

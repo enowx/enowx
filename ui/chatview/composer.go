@@ -72,7 +72,7 @@ const (
 // box is the message and the row of buttons under it.
 func (ch *Chat) box(c *ui.Context, o Options) {
 	box := ui.Column(c).FillWidth().Padding(theme.S3, theme.S2, theme.S2, theme.S2).Gap(theme.S1).Radius(theme.RadiusPanel).Background(theme.Popover).
-		InsetShadow(0, 0, 0, 0.5, theme.Border).Shadow(0, 10, 30, 0, ui.RGBA(0, 0, 0, 0.35))
+		InsetShadow(0, 0, 0, 0.5, theme.Border).Shadow(0, 10, 30, 0, ui.RGBA(0, 0, 0, float32(0.35*theme.SurfaceOpacity)))
 	// Narrow, as beside the side panel: the settings show as icons and the
 	// context as its percentage, so nothing is cut.
 	width := box.LayoutBounds().W

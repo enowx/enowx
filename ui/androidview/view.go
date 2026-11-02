@@ -739,7 +739,7 @@ func (v *View) DrawLogcat(c *ui.Context, o Options, wanted func() bool) {
 		if online {
 			v.logFilters(c)
 		}
-		ui.Column(c).Grow(1).FillWidth().MinHeight(0).Background(widget.CodeGround).Children(func() {
+		ui.Column(c).Grow(1).FillWidth().MinHeight(0).Background(theme.CodeGround).Children(func() {
 			if !online {
 				groundNote(c, "The device's log shows here once it runs.")
 				return

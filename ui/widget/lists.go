@@ -84,7 +84,7 @@ func MoreMenu(c *ui.Context, m *ContextMenu, key string, items func(done func())
 func LogView(c *ui.Context, text string, height float32) {
 	lines := strings.Split(strings.TrimRight(text, "\n"), "\n")
 	slices.Reverse(lines)
-	ui.Scroll(c).FillWidth().Height(height).Radius(theme.RadiusCard).Background(theme.Background).Children(func() {
+	ui.Scroll(c).FillWidth().Height(height).Radius(theme.RadiusCard).Background(theme.Surface(theme.Background)).Children(func() {
 		ui.Column(c).FillWidth().Padding(theme.S3, theme.S4).Children(func() {
 			for i, line := range lines {
 				col := theme.TextSoft

@@ -58,7 +58,7 @@ func (v *View) pageView(c *ui.Context, o Options) {
 		switch {
 		case agent:
 			ui.Column(c).Shrink(0).FillHeight().Padding(theme.S2, theme.S2, theme.S2, 0).Children(func() {
-				widget.Raise(ui.Column(c.Key("notes-agent")).Width(320).Grow(1).MinHeight(0).Radius(theme.RadiusCard).Clip().Background(theme.Dialog)).
+				widget.Raise(ui.Column(c.Key("notes-agent")).Width(320).Grow(1).MinHeight(0).Radius(theme.RadiusCard).Clip().Background(theme.Surface(theme.Dialog))).
 					Transition(widget.PanelMotion(24)).Children(func() { o.AgentPanel(c) })
 			})
 		case v.outlineShows(p, false):

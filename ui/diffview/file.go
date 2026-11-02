@@ -15,7 +15,7 @@ func (v *View) DrawFile(c *ui.Context, o Options, path string) {
 	v.showFile(path, v.splitWanted)
 	ui.Column(c).Grow(1).FillWidth().MinHeight(0).Children(func() {
 		v.fileBar(c, o, path)
-		ui.Column(c).Grow(1).FillWidth().MinHeight(0).Background(diffGround).Children(func() {
+		ui.Column(c).Grow(1).FillWidth().MinHeight(0).Background(theme.CodeGround).Children(func() {
 			switch {
 			case !v.loaded:
 				centered(c, "Reading the changes…")

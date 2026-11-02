@@ -30,7 +30,6 @@ const (
 	backgroundDefaultOpacity = 0.8
 	backgroundDefaultBlur    = 12
 	backgroundMaxBlur        = 40
-	backgroundLeastOpacity   = 0.3
 )
 
 // backgroundState is the image as read. It belongs to the main thread.
@@ -124,7 +123,7 @@ func (a *App) backgroundImage(c *ui.Context) {
 		if widget.Frosted && sigma > 0 {
 			img.Blur(sigma)
 		}
-		ui.Box(c.Key("scrim")).Absolute().Left(0).Top(0).Right(0).Bottom(0).Background(theme.Fade(theme.Ground, theme.BackdropScrim))
+		ui.Box(c.Key("scrim")).Absolute().Left(0).Top(0).Right(0).Bottom(0).Background(theme.Fade(theme.Ground, theme.BackdropScrim*theme.SurfaceOpacity))
 	})
 }
 
@@ -178,8 +177,8 @@ func (a *App) backgroundCard(c *ui.Context) {
 				widget.Field(c, "Panels' opacity", func() {
 					ui.Row(c).FillWidth().MinWidth(0).Gap(theme.S2).Children(func() {
 						v := a.state.backgroundOpacity()
-						if ui.Slider(c, &v, backgroundLeastOpacity, 1).Grow(1).MinWidth(0).Label("Panels' opacity").Changed() {
-							a.state.BackgroundOpacity = v
+						if ui.Slider(c, &v, 0, 1).Grow(1).MinWidth(0).Label("Panels' opacity").Changed() {
+							a.state.BackgroundOpacity = &v
 							a.applyTheme()
 						}
 						ui.Text(c, fmt.Sprintf("%.0f%%", v*100)).FontSize(theme.TextLabel).TextColor(theme.TextSoft).SingleLine().Shrink(0)
@@ -198,7 +197,7 @@ func (a *App) backgroundCard(c *ui.Context) {
 				})
 			})
 		})
-		ui.Text(c, "Panels stay opaque enough for words to read, however low this goes. Terminals and code keep their own ground.").
+		ui.Text(c, "From fully opaque down to the image alone, terminals and code included: at the low end, how readable it is depends on your image.").
 			FontSize(theme.TextLabel).TextColor(theme.TextSoft)
 	})
 }

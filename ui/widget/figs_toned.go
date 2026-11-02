@@ -10,7 +10,7 @@ import (
 // figure's index, the color of those that do.
 func FigsBandToned(c *ui.Context, figs []Fig, tones map[int]ui.Color) {
 	ui.Column(c.Key("figs-band")).FillWidth().Shrink(0).Padding(theme.S4, theme.S5, 0, theme.S5).Children(func() {
-		ui.Row(c.Key("figs")).FillWidth().Shrink(0).Radius(theme.RadiusCard).Clip().Background(ui.RGBA(20, 22, 32, 0.34)).AlignItems(ui.Stretch).Children(func() {
+		ui.Row(c.Key("figs")).FillWidth().Shrink(0).Radius(theme.RadiusCard).Clip().Background(figGround()).AlignItems(ui.Stretch).Children(func() {
 			for i, f := range figs {
 				cell := ui.Column(c.Key(f.Label)).Grow(1).Basis(0).MinWidth(0).Padding(theme.S3, theme.S4)
 				if i > 0 {

@@ -63,7 +63,7 @@ func CodeOnGround(c *ui.Context, lang, code string) {
 // CodeWell is a scrolling well of CodeGround that fills what its parent has
 // left: what fn draws scrolls inside, the well keeps its frame.
 func CodeWell(c *ui.Context, fn func()) {
-	ui.Scroll(c.Key("code-well")).Grow(1).FillWidth().MinHeight(0).Radius(theme.RadiusCard).Background(CodeGround).
+	ui.Scroll(c.Key("code-well")).Grow(1).FillWidth().MinHeight(0).Radius(theme.RadiusCard).Background(theme.CodeGround).
 		InsetShadow(0, 0, 0, 0.5, theme.Border).Children(func() {
 		ui.Column(c).FillWidth().MinWidth(0).Padding(theme.S3, theme.S4).Gap(theme.S2).TextColor(CodeText).Children(fn)
 	})
