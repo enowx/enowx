@@ -20,6 +20,7 @@ type turn struct {
 	prompt *proto.TranscriptEntry
 	work   []proto.TranscriptEntry
 	answer []proto.TranscriptEntry
+	out    *outgoing // the message on its way this turn stands for
 }
 
 // splitTurns groups entries into turns. Notices stand as turns of their
@@ -76,7 +77,17 @@ func (ch *Chat) turn(c *ui.Context, t turn, running, animate bool) {
 	if animate {
 		col.Transition(widget.RowMotion(0))
 	}
-	col.Children(func() { ch.turnTimeline(c, t, running) })
+	col.Children(func() {
+		if t.out == nil {
+			ch.turnTimeline(c, t, running)
+			return
+		}
+		editable := ch.editable
+		ch.editable = false // nothing recorded to go back to yet
+		ch.turnTimeline(c, t, running)
+		ch.editable = editable
+		ch.outgoingNote(c, t.out, running)
+	})
 }
 
 // edit puts message e in the composer, to send in its place.

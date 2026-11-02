@@ -104,7 +104,12 @@ func (ch *Chat) send(o Options, text string) bool {
 		})
 		return true
 	}
-	o.Send(text, ch.takeAttachments())
+	files := ch.takeAttachments()
+	if o.Fresh {
+		o.Send(text, files) // it starts the session, which shows it as its first prompt
+		return true
+	}
+	ch.outgoingSend(o, text, files)
 	return true
 }
 

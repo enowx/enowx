@@ -84,6 +84,10 @@ type Chat struct {
 	contextUsed, contextWindow int64
 
 	input string
+	// out are the messages sent and not yet recorded; sending is the options
+	// of the last frame, which their Retry sends with (outgoing.go).
+	out     []*outgoing
+	sending Options
 	// showUser is Options.ShowUser and agentName Options.AgentName, as the
 	// last frame gave them.
 	showUser  func(string) string
@@ -257,6 +261,9 @@ func (ch *Chat) apply(t proto.Transcript) {
 	if t.Reset {
 		ch.entries, ch.base, ch.open = nil, 0, map[int]bool{}
 		first = true
+		for _, m := range ch.out {
+			m.after = 0
+		}
 	}
 	if len(ch.entries) == 0 && len(t.Entries) > 0 {
 		ch.base = t.Entries[0].Index
@@ -312,6 +319,7 @@ func (ch *Chat) prepend(older []proto.TranscriptEntry) {
 // chips over the composer show.
 func (ch *Chat) reckon() {
 	ch.turns = splitTurns(ch.entries)
+	ch.outgoingSettle()
 	ch.added, ch.removed, ch.latestTool, ch.asked = 0, 0, nil, time.Time{}
 	for i := range ch.entries {
 		e := &ch.entries[i]
@@ -347,7 +355,10 @@ type Options struct {
 	Placeholder string
 	Working     bool // the agent is busy
 	// Send sends a message, with the paths of the files attached to it.
-	Send      func(text string, files []string)
+	Send func(text string, files []string)
+	// Deliver, when set, is Send that says on the main thread how it went, so that
+	// a message that couldn't go offers Retry.
+	Deliver   func(text string, files []string, done func(error))
 	Interrupt func()
 	// Set changes a setting ("model", "mode" or "effort") to the agent's
 	// value id.
@@ -424,8 +435,12 @@ func (ch *Chat) View(c *ui.Context, o Options) {
 	if text, ok := widget.TakeTextDrag(col); ok {
 		ch.InsertDraft(text)
 	}
+	ch.sending = o
+	ch.outgoingLook(o, time.Now())
 	col.Children(func() {
 		switch {
+		case len(ch.turns) == 0 && len(ch.out) > 0:
+			ch.conversation(c, o)
 		case len(ch.turns) == 0 && strings.TrimSpace(o.FirstPrompt) != "" && (!ch.loaded || ch.supported):
 			ch.firstPrompt(c, o)
 		case len(ch.turns) == 0 && o.Empty != nil && (o.Fresh || ch.loaded && ch.supported):
@@ -495,6 +510,10 @@ func (ch *Chat) conversation(c *ui.Context, o Options) {
 			turns = turns[:len(turns)-1]
 		}
 	}
+	turns = ch.withOutgoing(turns, o.FirstPrompt)
+	running := runningTurn(turns, o.Working)
+	// What the end of the list says of the agent waits with the message.
+	o.Working = o.Working || ch.outgoingFlying()
 	ch.list.Key = func(i int) any {
 		if i < more {
 			return "older"
@@ -513,7 +532,7 @@ func (ch *Chat) conversation(c *ui.Context, o Options) {
 		ch.width, ch.height = bounds.W, bounds.H
 	}
 	area.Children(func() {
-		ch.conversationList(c, turns, more, o)
+		ch.conversationList(c, turns, more, running, o)
 		if ch.outlinePlace(o) != outlineFolded {
 			ch.outline(c, turns, more)
 		}
@@ -530,7 +549,7 @@ func (ch *Chat) outlinePlace(o Options) outlinePlace {
 // conversationList is the turns' virtual list, centered at the reading
 // column's width, ending with the line of what the agent is at and room for
 // the composer over it.
-func (ch *Chat) conversationList(c *ui.Context, turns []turn, more int, o Options) {
+func (ch *Chat) conversationList(c *ui.Context, turns []turn, more, running int, o Options) {
 	status := 0
 	if ch.hasStatus(o) {
 		status = 1
@@ -565,7 +584,7 @@ func (ch *Chat) conversationList(c *ui.Context, turns []turn, more int, o Option
 					if i > more && t.prompt != nil {
 						ui.Box(c).Height(theme.S4).Shrink(0)
 					}
-					ch.turn(c, t, o.Working && i-more == len(turns)-1, t.start >= ch.animateFrom)
+					ch.turn(c, t, i-more == running, t.out == nil && t.start >= ch.animateFrom)
 				}
 			})
 		})

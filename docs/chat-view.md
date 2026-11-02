@@ -24,6 +24,10 @@ Each message of the user's starts a turn. The agent's thoughts, tool calls and w
 
 Beside a wide conversation, **Your messages** lists the user's messages, the one read now lit, each a click away. It stays at the newest as messages come; scrolled up, it stays where it is left and new messages don't move it, until it is scrolled back to its end. The lit row doesn't move it. Each session keeps its own place, starting at the newest.
 
+A message sent shows in the same frame, the composer emptied, without waiting for the host or the agent's file; the entry the agent records takes its row, with nothing doubled. While the agent is busy it says it waits for the agent. If it couldn't reach the session, or stays unrecorded for 45 seconds with the agent free, it says so and offers Retry and Edit, which puts it back in the composer with its files. A command (`/model`) shows no bubble: agents don't record those as messages.
+
+The outline of the user's messages stands at the conversation's side when the column leaves room for it. A column running the frame's width (GOD of Agents') gives up that side; otherwise the outline folds to a button in the chat's corner.
+
 ## Changing the agent's settings
 
 The composer shows the agent's model, permission mode and effort, as the transcript and the screen say them, and changes them the way the agent's user would (`core/agent/settings.go`):
