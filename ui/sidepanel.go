@@ -314,7 +314,7 @@ func (a *App) toolsDock(c *ui.Context) {
 				dockDot(c, more)
 			}
 			a.menu.OpenBelow(more, "tool-more", 36)
-			a.menu.Show(c, more, "tool-more", func(done func()) {
+			a.menu.ShowBeside(c, more, "tool-more", func(done func()) {
 				for _, g := range groups {
 					if len(rest[g.id]) == 0 {
 						continue

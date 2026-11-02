@@ -55,6 +55,24 @@ func (m *ContextMenu) Show(c *ui.Context, anchor ui.Element, key string, items f
 	}
 }
 
+// ShowBeside is Show for a menu whose anchor is at the window's edge: it opens
+// up and to the left of it, clear of what sits under the anchor.
+func (m *ContextMenu) ShowBeside(c *ui.Context, anchor ui.Element, key string, items func(done func())) {
+	at := m.open
+	if at == nil || at.key != key {
+		return
+	}
+	open := true
+	closeMenu := func() { open = false }
+	ui.PopoverBase(c, anchor, &open, func(panel ui.Element) {
+		Popup(panel.AttachTo(anchor, ui.AnchorTopLeft, ui.AnchorBottomRight).Margin(0, theme.S1, theme.S1, 0).MinWidth(190))
+		items(closeMenu)
+	})
+	if !open && m.open == at {
+		m.open = nil
+	}
+}
+
 // MenuItem is an entry of a context menu; danger colors destructive ones.
 func MenuItem(c *ui.Context, svg *ui.SVG, label string, danger bool) bool {
 	tip := ""
@@ -99,7 +117,11 @@ func MenuItemSub(c *ui.Context, svg *ui.SVG, label, sub string, danger bool) boo
 	if danger {
 		color = theme.Del
 	}
-	b := ui.ButtonBase(c).Gap(theme.S2).Padding(theme.S1, theme.S3).MinHeight(theme.ControlHeight).Radius(theme.RadiusCard).
+	height := float32(theme.ControlHeight)
+	if sub != "" {
+		height = menuItemSubHeight
+	}
+	b := ui.ButtonBase(c).Gap(theme.S2).Padding(theme.S1, theme.S3).MinHeight(height).Radius(theme.RadiusCard).
 		Cursor(ui.CursorPointer).Label(label).FillWidth().Justify(ui.Start)
 	bg := theme.Fade(theme.Selected, 0)
 	if b.Hovered() {
@@ -119,6 +141,9 @@ func MenuItemSub(c *ui.Context, svg *ui.SVG, label, sub string, danger bool) boo
 	})
 	return b.Clicked()
 }
+
+// menuItemSubHeight is an entry with a line under its name.
+const menuItemSubHeight = 44
 
 // MenuSeparator separates groups of menu items.
 func MenuSeparator(c *ui.Context) { Divider(c) }

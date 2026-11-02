@@ -80,7 +80,7 @@ func (a *App) hostMenuItems(c *ui.Context, done func()) {
 	}
 	widget.PopupLabel(c, "Hosts")
 	pick := func(h hosts.Host) {
-		if widget.MenuItemSub(c.Key("host:"+h.ID), hostIcon(h), h.Name, hostDetail(h), false) {
+		if widget.MenuItemSub(c.Key("host:"+h.ID), hostIcon(h), h.Name, a.hostFaceOf(h).state, false) {
 			if h.ID != a.host.ID {
 				a.connect(h)
 			}
@@ -125,7 +125,7 @@ func (a *App) hostMenuItems(c *ui.Context, done func()) {
 		}
 	}
 	widget.MenuSeparator(c)
-	if widget.MenuItem(c.Key("open-folder"), icon.FolderPlus, "Open a folder… ("+modKey+"O)", false) {
+	if widget.MenuItem(c.Key("open-folder"), icon.FolderPlus, "Open a folder…", false) {
 		a.openFolder()
 		done()
 	}
@@ -133,8 +133,13 @@ func (a *App) hostMenuItems(c *ui.Context, done func()) {
 		a.openClone()
 		done()
 	}
+	widget.MenuSeparator(c)
 	if a.client != nil && a.host.ID != hosts.LocalID && widget.MenuItem(c.Key("sync"), icon.Sync, "Sync environment…", false) {
 		a.openSync()
+		done()
+	}
+	if a.client != nil && a.host.ID != hosts.LocalID && a.project != "" && widget.MenuItem(c.Key("setup"), icon.Sparkle, "Set up this host…", false) {
+		a.openSetup()
 		done()
 	}
 	if widget.MenuItem(c.Key("add-vps"), icon.Plus, "Add VPS…", false) {
