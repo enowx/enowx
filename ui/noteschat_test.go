@@ -140,6 +140,7 @@ func TestNotesAgentProposesAndTheUserAccepts(t *testing.T) {
 		got, _ := cl.Note(n.ID)
 		return got.Body == "## Errands\n- [ ] buy milk\n- [ ] call mom\n" && tt.HasText("Change accepted.")
 	})
+	shot(t, tt, "notes-accepted.png")
 	if err := tt.Click("Undo"); err != nil {
 		t.Fatal(err)
 	}

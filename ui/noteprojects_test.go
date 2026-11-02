@@ -105,6 +105,7 @@ func TestProjectNotesFoldIntoOneRow(t *testing.T) {
 		t.Fatal(err)
 	}
 	h.settle("unfolded", func() bool { return h.tt.HasText("Launch plan") && h.tt.HasText("Roadmap") && h.tt.HasText("Bugs") })
+	shot(t, h.tt, "notes-project-row.png")
 }
 
 // Each project's notes row is its own: unfolding one leaves the others.

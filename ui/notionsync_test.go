@@ -35,6 +35,7 @@ func TestNotionTokenFromTheVaultAndImportAgain(t *testing.T) {
 	f.token = "ntn_fakeTOKEN0123456789"
 	f.keep = true
 	h.settle("how often", func() bool { return hasFound(h.tt, "Daily") })
+	shot(t, h.tt, "notes-notion-token.png")
 	h.click("Daily")
 	h.app.runNoteImport(f, false)
 	if f.err != "" {
@@ -52,6 +53,7 @@ func TestNotionTokenFromTheVaultAndImportAgain(t *testing.T) {
 		t.Fatal("the app's state holds the token")
 	}
 	h.settle("the vault's token offered", func() bool { return hasFound(h.tt, "Use "+creds[0].Name) })
+	shot(t, h.tt, "notes-notion-vault.png")
 
 	// Due: it runs again with the vault's token.
 	h.app.state.NotionSyncs[0].Last = time.Now().Add(-25 * time.Hour)

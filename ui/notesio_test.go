@@ -96,6 +96,7 @@ func TestImportAndExportInTheNotesPage(t *testing.T) {
 	shot(t, tt, "notes-import-preview.png")
 	click("Import 2 notes")
 	settle("the report", func() bool { return tt.HasText("Imported 2 notes from Vault.zip") })
+	shot(t, tt, "notes-import-report.png")
 	click("Done")
 	settle("the notes in the tree", func() bool {
 		return app.noteImport == nil && tt.HasText("Debloater") && tt.HasText("Ideas") && app.notes.SelectedNote() != ""

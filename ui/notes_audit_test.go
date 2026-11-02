@@ -119,6 +119,15 @@ func TestLayoutAuditNotes(t *testing.T) {
 		{name: "scrolled", note: rich.ID, then: func() {
 			h.tt.Wheel(600, 400, 0, 1500)
 		}},
+		{name: "earlier-chats", note: rich.ID, then: func() {
+			h.app.noteChatLog(rich.ID) // reads it, then what is said is put in its place
+			h.settle("the log", func() bool { return !h.app.noteChatsRead.loading[rich.ID] })
+			h.app.noteChatsRead.logs[rich.ID] = proto.NoteChatLog{Note: rich.ID, Messages: []proto.NoteChatMessage{
+				{Role: proto.TranscriptUser, Text: "Make it a checklist", Time: time.Now().Add(-time.Hour)},
+				{Role: proto.TranscriptAssistant, Agent: "claude", Host: "this Mac", Text: strings.Repeat("A long answer that wraps and stops at four lines. ", 12), Time: time.Now()},
+			}}
+			click("Note agent")()
+		}},
 		{name: "import-notion", then: click("Import and export", "Import…", "Notion (API)")},
 	}
 	shots := os.Getenv("SHOTS")

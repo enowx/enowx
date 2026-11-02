@@ -86,6 +86,7 @@ func TestRenameImageFromContextMenu(t *testing.T) {
 		t.Fatal(err)
 	}
 	tt.Frame()
+	shot(t, tt, "image-menu.png")
 	if err := tt.Click("Rename image…"); err != nil {
 		t.Fatal(err)
 	}
@@ -93,6 +94,7 @@ func TestRenameImageFromContextMenu(t *testing.T) {
 	if !tt.HasText("Rename image") {
 		t.Fatal("rename dialog did not open")
 	}
+	shot(t, tt, "image-rename.png")
 	tt.Type("Architecture")
 	tt.Key(0, ui.KeyEnter)
 	tt.Frame()
