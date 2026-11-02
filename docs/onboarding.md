@@ -15,6 +15,12 @@ Every user goes through it. It can't be skipped, opening included, and optional 
 
 The account's record is `settings/onboarding.json` on the host, which syncs with the user's data; the device's is `onboardedDevice` in `app.json`. A host too old to answer leaves the device's record to go by.
 
+## The change of style
+
+Picking a style plays one change across the window: a wave, each region starting a beat after the last, its place, corners and color crossing together, colors in Oklab. One ring moves between the style cards. A style picked meanwhile follows.
+
+The app's theme is one set of tokens, so a widget can't be in two styles at once. So what's in the regions fades out in the old style (0.12 seconds), the style changes, and it fades back in as the wave passes (about half a second), while the surfaces carry the change. That is a change from the design, where text crosses region by region.
+
 ## Less motion
 
 With Reduce Motion on (the system's, or the app's own), the opening holds the logo and name still for 1.6 seconds, and each stop is cut to.

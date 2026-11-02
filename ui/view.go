@@ -42,6 +42,12 @@ func (a *App) view(c *ui.Context) {
 		root.Font(theme.Family)
 	}
 	root.Children(func() {
+		if a.onboardingShows() {
+			// It covers the window, and redraws sixty times a second as it plays: the
+			// app under it, all its panes, doesn't need building too.
+			a.onboardingView(c)
+			return
+		}
 		a.wallpaper(c)
 		widget.RegionGround(ui.Column(c).Absolute().Left(0).Top(0).Right(0).Bottom(0).Padding(theme.WindowInset).Gap(theme.BentoGap)).Children(func() {
 			a.titleBar(c)
@@ -61,7 +67,6 @@ func (a *App) view(c *ui.Context) {
 				a.toolsDock(c)
 			})
 		})
-		a.onboardingView(c)
 		a.statusToast(c)
 	})
 	a.cornerCards(c)

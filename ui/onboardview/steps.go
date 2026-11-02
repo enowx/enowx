@@ -231,13 +231,14 @@ func (v *View) styleStep(c *ui.Context, o Options) {
 			for _, s := range theme.Styles {
 				on := theme.StyleByID(o.StyleID).ID == s.ID
 				b := ui.ButtonBase(c.Key(s.ID)).FillWidth().Height(64).Radius(theme.RadiusCard).Cursor(ui.CursorPointer).Label(s.Name).Center().Background(theme.Sunken)
-				if on {
-					b.Border(2, theme.Accent)
-				} else {
-					b.Border(1, theme.Border)
-				}
+				b.Border(1, theme.Border)
 				b.Children(func() {
 					ui.Text(c, s.Name).FontSize(theme.TextUI).FontWeight(500).TextColor(theme.Text).SingleLine()
+					if on {
+						// One ring, moving from card to card as the style changes.
+						ui.Box(c.Key("ring")).Absolute().Left(-1).Top(-1).Right(-1).Bottom(-1).Radius(theme.RadiusCard).Border(2, theme.Accent).PassThrough().
+							Transition(ui.ElementTransition{Animation: &widget.Spring, Match: styleRing{}})
+					}
 				})
 				if b.Clicked() && !on {
 					v.morph.start(o, s.ID)
@@ -259,6 +260,9 @@ func (v *View) styleStep(c *ui.Context, o Options) {
 	})
 	v.stepFoot(c, o, false, "Continue")
 }
+
+// styleRing tells MyGo the ring on any style card is the same element.
+type styleRing struct{}
 
 // paletteDot is a palette to pick, and says whether it was clicked.
 func paletteDot(c *ui.Context, col ui.Color, name string, on bool) bool {

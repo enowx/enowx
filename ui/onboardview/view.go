@@ -200,12 +200,14 @@ func (v *View) Draw(c *ui.Context, o Options) {
 		v.begin(o)
 	}
 	v.skipEmpty()
-	if v.clock.tick(time.Now()) || v.morph.running() {
+	now := time.Now()
+	w, h := c.Size()
+	v.morph.step(o, w, h, now)
+	if v.clock.tick(now) || v.morph.running() {
 		c.After(16 * time.Millisecond)
 	}
 	v.settle(o)
 	t := v.clock.t
-	w, h := c.Size()
 	if t >= tEnd && v.current().id == "end" {
 		o.Done()
 	}

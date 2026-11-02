@@ -1,6 +1,8 @@
 package onboardview
 
 import (
+	"time"
+
 	"github.com/egoist/mygo/ui"
 
 	"github.com/enowx/enowx/core/agent"
@@ -18,7 +20,8 @@ type region struct {
 	radius float32
 	from   float32 // when its frame starts drawing
 	mat    [2]float32
-	fill   ui.Color
+	fill   func(tokens) ui.Color
+	delay  float32 // of the wave of a change of style
 }
 
 // regionsAt are the regions, each with its material so far.
@@ -30,15 +33,17 @@ func (v *View) regionsAt(g geometry) []region {
 		}
 		return [2]float32{a, b}
 	}
+	main := func(t tokens) ui.Color { return t.main }
+	side := func(t tokens) ui.Color { return t.panel }
 	return []region{
-		{g.doc, g.radius, 7050, m(17450, 18250), theme.Background},
-		{g.panel, g.radius, 7200, [2]float32{tPanelFrom, tPanelTo}, theme.Panel},
-		{g.side, g.radius, 7260, m(17300, 18100), theme.Panel},
-		{g.ctx, g.barRadius, 7320, m(17500, 18200), theme.Panel},
-		{g.pg, g.barRadius, 7390, m(17580, 18280), theme.Panel},
-		{g.fd, g.barRadius, 7460, m(17660, 18360), theme.Panel},
-		{g.act, g.barRadius, 7530, m(17740, 18440), theme.Panel},
-		{g.rail, g.railRadius, 7520, m(17650, 18300), theme.Panel},
+		{g.doc, g.radius, 7050, m(17450, 18250), main, delayDoc},
+		{g.panel, g.radius, 7200, [2]float32{tPanelFrom, tPanelTo}, side, delayPanel},
+		{g.side, g.radius, 7260, m(17300, 18100), side, delaySide},
+		{g.ctx, g.barRadius, 7320, m(17500, 18200), side, delayCtx},
+		{g.pg, g.barRadius, 7390, m(17580, 18280), side, delayPg},
+		{g.fd, g.barRadius, 7460, m(17660, 18360), side, delayFd},
+		{g.act, g.barRadius, 7530, m(17740, 18440), side, delayAct},
+		{g.rail, g.railRadius, 7520, m(17650, 18300), side, delayRail},
 	}
 }
 
@@ -50,9 +55,10 @@ func (v *View) ground(c *ui.Context, o Options, t float32) {
 		wall = seg(t, tPanelFrom, tPanelTo, easeInOut)
 	}
 	if wall > .004 {
-		ui.Box(c.Key("ob-wall")).Absolute().Left(0).Top(0).Right(0).Bottom(0).Opacity(wall).Background(theme.Ground).Children(func() {
+		ground := v.morph.color(func(t tokens) ui.Color { return t.ground }, 0)
+		ui.Box(c.Key("ob-wall")).Absolute().Left(0).Top(0).Right(0).Bottom(0).Opacity(wall).Background(ground).Children(func() {
 			if o.Wallpaper != nil {
-				o.Wallpaper(c)
+				ui.Box(c.Key("paper")).Absolute().Left(0).Top(0).Right(0).Bottom(0).Opacity(v.morph.wall(1)).Children(func() { o.Wallpaper(c) })
 			}
 		})
 	}
@@ -70,10 +76,11 @@ func (v *View) shell(c *ui.Context, o Options, g geometry, t float32) {
 		for _, r := range regions {
 			mat := seg(t, r.mat[0], r.mat[1], easeInOut)
 			if mat > .004 {
-				p.Fill(r.r.ui(), fadeColor(v.morph.color(r.fill), mat), r.radius)
+				p.Fill(r.r.ui(), fadeColor(v.morph.color(r.fill, r.delay), mat), r.radius)
 			}
 			if g.rim > 0 && mat > .004 {
-				p.Stroke(r.r.ui(), fadeColor(v.morph.color(theme.Border), mat), r.radius, g.rim)
+				edge := v.morph.color(func(t tokens) ui.Color { return t.border }, r.delay)
+				p.Stroke(r.r.ui(), fadeColor(edge, mat), r.radius, g.rim)
 			}
 			drawn := seg(t, r.from, r.from+860, easeInOut)
 			if frame := 1 - mat; drawn > 0 && frame > .004 {
@@ -89,14 +96,16 @@ func (v *View) shell(c *ui.Context, o Options, g geometry, t float32) {
 		}
 		v.hostWire(p, g, t)
 	})
-	if over := seg(t, tFold, tEnd, easeInOut); over < 1 {
-		v.panelContent(c, o, g, t, over)
-	}
-	v.barContent(c, o, g, t)
-	v.sideContent(c, o, g, t)
-	v.docContent(c, o, g, t)
-	v.railContent(c, g, t)
-	v.serverCard(c, o, g, t)
+	ui.Box(c.Key("ob-content")).Absolute().Left(0).Top(0).Right(0).Bottom(0).PassThrough().Opacity(v.morph.content(time.Now())).Children(func() {
+		if over := seg(t, tFold, tEnd, easeInOut); over < 1 {
+			v.panelContent(c, o, g, t, over)
+		}
+		v.barContent(c, o, g, t)
+		v.sideContent(c, o, g, t)
+		v.docContent(c, o, g, t)
+		v.railContent(c, g, t)
+		v.serverCard(c, o, g, t)
+	})
 }
 
 // barContent is the title bar's cells, once they have their material.
