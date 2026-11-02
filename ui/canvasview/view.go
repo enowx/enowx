@@ -464,12 +464,15 @@ func (v *View) empty(c *ui.Context, o Options) {
 // Room the page needs for each thing beside the stage, so the stage keeps
 // a useful width at any window size.
 const (
-	listRoom   = 1000 // the canvases' list shows from this wide on
-	stripRoom  = 480  // the designs' strip, from this much room for the stage on
-	labelRoom  = 1060 // the header's buttons keep their words from this wide on
-	viewRoom   = 700  // its view switch keeps its words from this wide on
-	listWidth  = 248
-	panelWidth = 272
+	listRoom    = 1000 // the canvases' list shows from this wide on
+	stripRoom   = 480  // the designs' strip, from this much room for the stage on
+	labelRoom   = 1060 // the header's buttons keep their words from this wide on
+	viewRoom    = 700  // its view switch keeps its words from this wide on
+	actionsRoom = 560  // the header's actions stand in a row from this wide on
+	toolsRoom   = 360  // the stage's tools stand in a row from this wide on
+	headingRoom = 64   // the least of the header left to the canvas's title
+	listWidth   = 248
+	panelWidth  = 272
 )
 
 // listShown says the canvases' list shows: in a page wide enough, or when

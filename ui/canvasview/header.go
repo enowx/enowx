@@ -22,7 +22,8 @@ func (v *View) header(c *ui.Context, o Options, cv proto.Canvas) {
 				v.listOpen = !v.listOpen
 			}
 		}
-		ui.Row(c.Key("heading")).Grow(1).MinWidth(0).Gap(theme.S3).AlignItems(ui.Center).Children(func() {
+		// Its title keeps some room from the actions, which scroll when short of it.
+		ui.Row(c.Key("heading")).Grow(1).MinWidth(headingRoom).Gap(theme.S3).AlignItems(ui.Center).Children(func() {
 			t := ui.ButtonBase(c).Label("Title").Cursor(ui.CursorText).Shrink(1).MinWidth(0)
 			t.Children(func() {
 				widget.Running(c, cv.Title, widget.RunStyle{Size: theme.TextTitle, Weight: 600, Color: theme.TextStrong, Always: true})
@@ -37,7 +38,14 @@ func (v *View) header(c *ui.Context, o Options, cv proto.Canvas) {
 				})
 			}
 		})
-		ui.Row(c.Key("actions")).Shrink(0).Gap(theme.S2).AlignItems(ui.Center).Children(func() {
+		// In a page too narrow for them all, they scroll in what room there is.
+		var actions ui.Element
+		if v.width > 0 && v.pageRoom() < actionsRoom {
+			actions = ui.ScrollHorizontal(c.Key("actions")).Shrink(1).MinWidth(0)
+		} else {
+			actions = ui.Row(c.Key("actions")).Shrink(0)
+		}
+		actions.Gap(theme.S2).AlignItems(ui.Center).Children(func() {
 			v.viewSwitch(c, cv)
 			if cv.Kind == proto.CanvasMockup || cv.Kind == proto.CanvasWireframe {
 				v.briefButton(c, cv)
