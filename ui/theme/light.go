@@ -13,12 +13,14 @@ func LookupAppearance(id string, accent ui.Color, light bool) Palette {
 		return Lookup(id, accent)
 	}
 	dark := Lookup(id, ui.Color{})
-	base, white := dark.Panel, ui.Hex("#FFFFFF")
+	// The surfaces take their tint from the light accent: the dark tint is too
+	// grey to show once it is this pale.
+	base, tint, white := dark.Panel, dark.lightAccent, ui.Hex("#FFFFFF")
 	overBlack := func(a float32) ui.Color { return ui.RGBA(0, 0, 0, a) }
 	p := Palette{
 		ID: dark.ID, Name: dark.Name, Light: true,
-		Ground: Mix(base, white, 0.84), Panel: Mix(base, white, 0.9), Frame: Mix(base, white, 0.95),
-		Background: Mix(base, white, 0.96), Popover: Mix(base, white, 0.98), Dialog: Mix(base, white, 0.98),
+		Ground: Mix(tint, white, 0.82), Panel: Mix(tint, white, 0.88), Frame: Mix(tint, white, 0.94),
+		Background: Mix(tint, white, 0.95), Popover: Mix(tint, white, 0.97), Dialog: Mix(tint, white, 0.97),
 		Raised: overBlack(0.025), Sunken: overBlack(0.05),
 		Hover: overBlack(0.04), Selected: overBlack(0.08),
 		Border: overBlack(0.09), BorderStrong: Mix(base, white, 0.26),
