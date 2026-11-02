@@ -147,7 +147,7 @@ func (f *Picker) toolbar(c *ui.Context) {
 
 func (f *Picker) list(c *ui.Context) {
 	// Its frame stays this tall whatever the folder holds.
-	ui.Scroll(c).FillWidth().Height(280).Shrink(0).Children(func() {
+	widget.Scroll(c).FillWidth().Height(280).Shrink(0).Children(func() {
 		ui.Column(c).FillWidth().Children(func() {
 			switch {
 			case !f.loaded && f.loading:
