@@ -297,3 +297,57 @@ func TestTeamChatReadsItsHistoryAfterAnEvent(t *testing.T) {
 		t.Fatalf("the messages: %+v", got)
 	}
 }
+
+// A message shows the moment it is sent, its picture from the local bytes, and the
+// composer clears; the real one takes its place in one row, whichever of its answer
+// and event comes first; a failure keeps it with Retry, and Edit gives it all back.
+func TestOutgoingMessageShowsAtOnce(t *testing.T) {
+	app := New(Options{})
+	app.onMain = func(fn func()) { fn() }
+	const team = "t1"
+	hc := app.chatsOf()
+	hc.byTeam[team] = []proto.ChatMessage{{ID: "old", Team: team, Text: "ok", Account: "me"}}
+	var png8 bytes.Buffer
+	png.Encode(&png8, image.NewNRGBA(image.Rect(0, 0, 8, 4)))
+	p := &pendingImage{key: 1, name: "a.png", data: png8.Bytes()}
+	p.preview, _ = ui.DecodeBitmap(png8.Bytes())
+	hc.pending = []*pendingImage{p}
+	app.outboxAdd(team, "ok", nil, "")
+	if len(hc.pending) != 0 || len(hc.out) != 1 {
+		t.Fatalf("pending %d, out %d", len(hc.pending), len(hc.out))
+	}
+	shown := app.chatShown(team)
+	if len(shown) != 2 || shown[1].Text != "ok" || len(shown[1].Attachments) != 1 || shown[1].Attachments[0].Width != 8 {
+		t.Fatalf("%+v", shown)
+	}
+	if im := hc.images[shown[1].Attachments[0].ID]; im == nil || im.bmp == nil {
+		t.Fatal("its picture isn't the local one")
+	}
+	o := hc.out[0]
+
+	// Its image up, and the event first: the old "ok" isn't taken for it.
+	p.att = &proto.ChatAttachment{ID: "real-image"}
+	o.tried = true
+	sent := proto.ChatMessage{ID: "new", Team: team, Text: "ok", Account: "me", Attachments: []proto.ChatAttachment{{ID: "real-image"}}}
+	hc.byTeam[team] = append(hc.byTeam[team], sent)
+	app.outboxSettle(team, "me")
+	if len(hc.out) != 0 || len(hc.byTeam[team]) != 2 || app.rowKey("new") != o.key {
+		t.Fatalf("out %d, messages %d, row %q", len(hc.out), len(hc.byTeam[team]), app.rowKey("new"))
+	}
+	app.outboxDone(o, sent) // the answer, after
+	if len(hc.byTeam[team]) != 2 {
+		t.Fatal("twice")
+	}
+
+	// A failure stays, and comes back to the composer whole.
+	failed := &outgoing{key: "out:9", team: team, text: "words", err: "the cloud is away", images: []*pendingImage{{key: 2, name: "b.png", data: png8.Bytes(), err: "too big"}}, known: map[string]bool{}}
+	hc.out = append(hc.out, failed)
+	if got := app.chatShown(team); got[len(got)-1].ID != "out:9" {
+		t.Fatalf("%+v", got)
+	}
+	hc.draft = "before"
+	app.outboxReturn(failed)
+	if hc.draft != "before\nwords" || len(hc.pending) != 1 || len(hc.out) != 0 {
+		t.Fatalf("draft %q, pending %d, out %d", hc.draft, len(hc.pending), len(hc.out))
+	}
+}

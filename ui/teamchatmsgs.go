@@ -51,7 +51,7 @@ func (a *App) chatMessages(c *ui.Context, team string, msgs []proto.ChatMessage)
 		newDay := i == 0 || !sameDay(msgs[i-1].At, m.At)
 		first := newDay || msgs[i-1].Account != m.Account || m.At.Sub(msgs[i-1].At) > chatGroupGap
 		last := i == len(msgs)-1 || msgs[i+1].Account != m.Account || msgs[i+1].At.Sub(m.At) > chatGroupGap || !sameDay(m.At, msgs[i+1].At)
-		ui.Column(c.Key("m:" + m.ID)).FillWidth().Children(func() {
+		ui.Column(c.Key("m:" + a.rowKey(m.ID))).FillWidth().Children(func() {
 			if newDay {
 				chatDay(c, m.At, now, a.chatPad())
 			}
@@ -59,7 +59,7 @@ func (a *App) chatMessages(c *ui.Context, team string, msgs []proto.ChatMessage)
 			if last {
 				bottom = 8
 			}
-			if m.Account == me && me != "" {
+			if m.Account == me && me != "" || a.outgoingOf(m.ID) != nil {
 				a.ownMessage(c, team, m, first, bottom, now)
 			} else {
 				a.memberMessage(c, team, m, first, bottom, now)
@@ -157,6 +157,10 @@ func (a *App) ownMessage(c *ui.Context, team string, m proto.ChatMessage, first 
 			}
 			a.chatBubble(c, team, m, theme.Accent, border, head)
 		})
+		if o := a.outgoingOf(m.ID); o != nil {
+			a.outgoingState(c, o)
+			return // nothing to react to or change until it is sent
+		}
 		a.reactions(c, team, m)
 		a.messageActions(c, team, m, a.chatPad(), col.Hovered())
 	})

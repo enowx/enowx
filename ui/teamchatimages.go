@@ -34,6 +34,7 @@ const (
 type pendingImage struct {
 	key     int // tells it apart while uploading
 	name    string
+	data    []byte // kept until it is up, to try again
 	preview *ui.Bitmap
 	att     *proto.ChatAttachment // once uploaded
 	err     string
@@ -62,21 +63,34 @@ func (a *App) addChatImage(team, name string, data []byte) {
 		return
 	}
 	hc.nextKey++
-	p := &pendingImage{key: hc.nextKey, name: name}
+	p := &pendingImage{key: hc.nextKey, name: name, data: data}
 	p.preview, _ = ui.DecodeBitmap(data)
 	hc.pending = append(hc.pending, p)
+	a.uploadChatImage(team, p)
+}
+
+// uploadChatImage uploads p, in the draft or in a message on its way, which then
+// goes on.
+func (a *App) uploadChatImage(team string, p *pendingImage) {
+	hc, cl := a.chatsOf(), a.client
+	if cl == nil {
+		p.err = "Not connected"
+		return
+	}
+	name, data := p.name, p.data
 	go func() {
 		att, err := cl.UploadChatImage(proto.ChatUploadParams{Team: team, Name: name, Data: data})
 		a.onMain(func() {
 			if err != nil {
 				p.err = strings.TrimPrefix(client.Explain(err), "teams: ")
-				return
+			} else {
+				p.att, p.data = &att, nil
+				// Shown from here on without fetching it back.
+				if p.preview != nil {
+					hc.images[att.ID] = &chatImage{bmp: p.preview, asked: true}
+				}
 			}
-			p.att = &att
-			// Shown from here on without fetching it back.
-			if p.preview != nil {
-				hc.images[att.ID] = &chatImage{bmp: p.preview, asked: true}
-			}
+			a.outboxStep(team)
 		})
 	}()
 }
@@ -133,20 +147,16 @@ func (a *App) pasteChatImage(team string) bool {
 	return true
 }
 
-// imagesReady are the draft's uploaded images, and whether one still
-// uploads.
-func (a *App) imagesReady() ([]proto.ChatAttachment, bool) {
-	var out []proto.ChatAttachment
-	busy := false
+// imagesSendable are the draft's images uploaded or uploading: one that failed says
+// so on its own, and can't make a message alone.
+func (a *App) imagesSendable() []*pendingImage {
+	var out []*pendingImage
 	for _, p := range a.chatsOf().pending {
-		switch {
-		case p.att != nil:
-			out = append(out, *p.att)
-		case p.err == "":
-			busy = true
+		if p.err == "" {
+			out = append(out, p)
 		}
 	}
-	return out, busy
+	return out
 }
 
 // pendingImages shows the draft's images above the composer.
@@ -237,7 +247,7 @@ func (a *App) messageImages(c *ui.Context, team string, m proto.ChatMessage) {
 	}
 	ui.Row(c).Gap(theme.S2).Wrap().MaxWidth(chatImageW).Children(func() {
 		for _, att := range m.Attachments {
-			im := a.imageOf(team, att)
+			im, up := a.imageOf(team, att), a.uploadOf(att.ID)
 			iw, ih := imageSize(att, w)
 			if len(m.Attachments) > 1 {
 				iw, ih = w, w
@@ -256,12 +266,30 @@ func (a *App) messageImages(c *ui.Context, team string, m proto.ChatMessage) {
 				default:
 					widget.Spinner(c, 14)
 				}
+				uploadState(c, up)
 			})
-			if b.Clicked() && im.bmp != nil {
+			if b.Clicked() && im.bmp != nil && up == nil {
 				hc := a.chatsOf()
 				hc.viewing, hc.viewingOf = &att, m
 			}
 		}
+	})
+}
+
+// uploadState is what lies over a picture on its way: a small spinner in its corner
+// while it uploads, a mark if that failed; nothing once it is up, or for a real one.
+func uploadState(c *ui.Context, up *pendingImage) {
+	if up == nil || up.att != nil {
+		return
+	}
+	face := ui.Box(c.Key("upload")).Absolute().Right(theme.S1).Top(theme.S1).Size(20, 20).Radius(theme.RadiusFull).Background(theme.Dialog).Center()
+	face.Children(func() {
+		if up.err != "" {
+			face.Tooltip(up.err)
+			ui.Icon(c, icon.Alert).FontSize(12).TextColor(theme.Error)
+			return
+		}
+		widget.Spinner(c, 12)
 	})
 }
 

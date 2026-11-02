@@ -165,8 +165,7 @@ func (a *App) chatComposer(c *ui.Context, team string) {
 				hc.draft += "@"
 				hc.setCaret, hc.dismissed, hc.focus = len([]rune(hc.draft)), "", true
 			}
-			images, uploading := a.imagesReady()
-			empty := strings.TrimSpace(hc.draft) == "" && len(images) == 0 || uploading
+			empty := strings.TrimSpace(hc.draft) == "" && len(a.imagesSendable()) == 0
 			b := widget.IconButton(c, icon.Send, "Send", false).Tooltip("Send (Enter)")
 			if empty {
 				b.Disabled(true)

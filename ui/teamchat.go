@@ -75,6 +75,8 @@ type hostChats struct {
 	// The draft's images, the images fetched by ID, and the one opened
 	// large, of message viewingOf (teamchatimages.go).
 	pending   []*pendingImage
+	out       []*outgoing       // messages on their way (teamchatoutbox.go)
+	rowOf     map[string]string // a message sent from here, the row it was shown in
 	nextKey   int
 	images    map[string]*chatImage
 	viewing   *proto.ChatAttachment
@@ -295,6 +297,7 @@ func (a *App) chatBody(c *ui.Context, team string) {
 		}
 		a.state.ChatRead[team] = msgs[n-1].ID
 	}
+	msgs = a.chatShown(team)
 	switch {
 	case len(msgs) == 0 && !hc.wasRead(team, a.gen):
 		// Not "no message yet": they may just not be read, or have come.
