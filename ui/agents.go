@@ -140,7 +140,8 @@ func (a *App) agentList(c *ui.Context, st *accountsState, list []proto.AgentInfo
 		}
 		sub := ""
 		if rank == 1 {
-			sub = textfmt.Plural(1+len(st.accountsOfAgent(ag.ID)), "config", "configs")
+			n := 1 + len(st.accountsOfAgent(ag.ID))
+				sub = strconv.Itoa(n) + " " + textfmt.Plural(n, "config", "configs")
 		}
 		if widget.Pick(c.Key("ag:"+ag.ID), icon.Agent(ag.ID), ag.Name, sub, st.agent == ag.ID, nil).Clicked() {
 			st.agent = ag.ID

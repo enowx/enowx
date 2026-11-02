@@ -143,19 +143,32 @@ func (a *App) sessionDefaults(c *ui.Context) {
 	settingsColumn(c, "New sessions", "What New session starts with", nil, func() {
 		hs := a.hostSettingsOf()
 		ui.Row(c.Key("session-defaults")).FillWidth().Gap(theme.S3).AlignItems(ui.Stretch).Children(func() {
+			// As tall as the cards beside it, as last laid out: many agents scroll
+			// in it rather than stretch the cards.
+			cardsH := ui.Local[float32](c.Root(), "cards-height", func() float32 { return 0 })
 			ui.Column(c.Key("agents")).Grow(1).Basis(0).MinWidth(0).Gap(theme.S2).Children(func() {
 				widget.Heading(c, "Agent")
-				for _, ag := range a.agents {
-					if ag.ID == "custom" || ag.Command != "" && !ag.Installed {
-						continue
-					}
-					if widget.Pick(c, icon.Agent(ag.ID), ag.Name, "", a.defaultAgent() == ag.ID, nil).Clicked() {
-						a.state.DefaultAgent = ag.ID
-					}
+				list := ui.Scroll(c.Key("agent-list")).FillWidth()
+				if *cardsH > 0 {
+					list.MaxHeight(max(*cardsH-32, 60))
 				}
+				list.Children(func() {
+					ui.Column(c).FillWidth().Gap(theme.S2).Children(func() {
+						for _, ag := range a.agents {
+							if ag.ID == "custom" || ag.Command != "" && !ag.Installed {
+								continue
+							}
+							if widget.Pick(c, icon.Agent(ag.ID), ag.Name, "", a.defaultAgent() == ag.ID, nil).Clicked() {
+								a.state.DefaultAgent = ag.ID
+							}
+						}
+					})
+				})
 			})
 			// Two thirds of the frame beside the agents' third, the gap between counted in.
-			ui.Grid(c.Key("cards")).Grow(2).Basis(theme.S3).MinWidth(0).Columns(2).Gap(theme.S3).Children(func() {
+			cards := ui.Grid(c.Key("cards")).Grow(2).Basis(theme.S3).MinWidth(0).Columns(2).Gap(theme.S3).AlignSelf(ui.Start)
+			*cardsH = cards.Bounds().H
+			cards.Children(func() {
 				widget.Card(c).Children(func() {
 					widget.CardTitle(c, nil, "In a git project", nil)
 					if widget.OptionCard(c, !a.state.ProjectFolder, "A new branch and worktree", "Its own branch and folder, so sessions don't touch each other's files.") {

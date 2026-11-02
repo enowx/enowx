@@ -115,12 +115,12 @@ func (a *App) accountLine(c *ui.Context, st *accountsState, ag proto.AgentInfo, 
 		})
 		ui.Row(c.Key("tags")).FillWidth().Shrink(0).Wrap().Gap(theme.S1).Children(func() {
 			if isOther {
-				widget.Chip(c, configKindName(acc), theme.Accent)
+				widget.Chip(c, configKindName(acc), ui.Color{})
 			} else {
-				widget.Chip(c, "Official", theme.Accent)
+				widget.Chip(c, "Official", ui.Color{})
 			}
 			if pr.Default == name && len(order) > 1 {
-				widget.Chip(c, "New sessions", theme.Accent)
+				widget.Chip(c, "New sessions", ui.Color{})
 			}
 			accountStateTag(c, status)
 		})
@@ -137,7 +137,7 @@ func (a *App) accountLine(c *ui.Context, st *accountsState, ag proto.AgentInfo, 
 		a.onlyEditor(c, st, ag, pr, name)
 		ui.Row(c.Key("foot")).FillWidth().Shrink(0).Gap(theme.S2).Children(func() {
 			ui.Row(c).Grow(1).MinWidth(0).Children(func() {
-				widget.Running(c, "Used by "+textfmt.Plural(len(sessions), "session", "sessions"), widget.RunStyle{Size: theme.TextLabel, Color: theme.TextSoft})
+				widget.Running(c, fmt.Sprintf("Used by %d %s", len(sessions), textfmt.Plural(len(sessions), "session", "sessions")), widget.RunStyle{Size: theme.TextLabel, Color: theme.TextSoft})
 			})
 			if widget.IconButton(c.Key("up"), icon.ChevronUp, "Use it sooner", false).Disabled(i == 0).Clicked() && i > 0 {
 				next := slices.Clone(order)
