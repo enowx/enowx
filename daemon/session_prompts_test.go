@@ -29,7 +29,8 @@ func TestGOATold(t *testing.T) {
 	if err := srv.sessions.SetState(g, proto.StateDone); err != nil {
 		t.Fatal(err)
 	}
-	script := `read task; printf 'rm -rf x\nDo you want to proceed?\n > 1. Yes\n   2. No\nIt will block this automatically in 1:51\n'; read answer; printf '\033[2J\033[Hbusy again\n'; sleep 60`
+	// The task comes as a paste of several lines: all of it is read before it asks.
+	script := `while read -r line; do case "$line" in *201~*) break ;; esac; done; printf 'rm -rf x\nDo you want to proceed?\n > 1. Yes\n   2. No\nIt will block this automatically in 1:51\n'; read answer; printf '\033[2J\033[Hbusy again\n'; sleep 60`
 	var w proto.SessionInfo
 	if err := c.Call(proto.MethodSessionCreate, proto.SessionCreateParams{Command: []string{"sh", "-c", script}, Dir: t.TempDir(), Cols: 100, Rows: 24}, &w); err != nil {
 		t.Fatal(err)
@@ -46,8 +47,12 @@ func TestGOATold(t *testing.T) {
 		}
 		return false
 	})
-	waitScreen(t, c, g.ID(), "Do you want to proceed?")
-	waitScreen(t, c, g.ID(), "1:51")
+	// GOA's agent here shows no empty composer, so what it's told waits for its next turn.
+	told := func(want string) func() bool {
+		return func() bool { return strings.Contains(strings.Join(srv.goaWaitingLines(), "\n"), want) }
+	}
+	waitFor(t, "GOA told what's asked", told("Do you want to proceed?"))
+	waitFor(t, "GOA told the time it gives", told("1:51"))
 	var ask proto.SessionAsk
 	if err := c.Call(proto.MethodSessionAsk, proto.SessionRef{ID: w.ID}, &ask); err != nil {
 		t.Fatal(err)
@@ -58,7 +63,7 @@ func TestGOATold(t *testing.T) {
 	if err := c.Input(w.ID, "1", false, true); err != nil {
 		t.Fatal(err)
 	}
-	waitScreen(t, c, g.ID(), "no longer shows")
+	waitFor(t, "GOA told the timed prompt went", told("no longer shows"))
 }
 
 // What a session and its task show is what its agent's transcript says, each

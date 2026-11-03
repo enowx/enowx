@@ -115,8 +115,9 @@ func TestOutline(t *testing.T) {
 	}, 700, 700)
 	narrow.Frame()
 	narrow.Frame()
-	if narrow.HasText("Your messages") {
-		t.Fatal("an outline in a narrow conversation")
+	// Folded to its button: none of the list shows.
+	if !narrow.HasText("Your messages") || narrow.HasText("Go to: Ganti logger ke slog") {
+		t.Fatalf("an outline in a narrow conversation: %q", narrow.Texts())
 	}
 }
 

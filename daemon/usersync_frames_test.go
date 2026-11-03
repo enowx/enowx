@@ -21,7 +21,7 @@ func syncFrameFixture(t *testing.T, srv *Server) ([]string, []proto.SyncChange) 
 	var paths []string
 	var changes []proto.SyncChange
 	for i := 0; i < 6; i++ {
-		path := fmt.Sprintf("canvas/test/history/%d.json", i)
+		path := fmt.Sprintf("canvas/test/assets/%d.json", i)
 		data := bytes.Repeat([]byte{byte('a' + i)}, 3<<20)
 		file := filepath.Join(srv.dataDir, filepath.FromSlash(path))
 		if err := os.MkdirAll(filepath.Dir(file), 0o755); err != nil {

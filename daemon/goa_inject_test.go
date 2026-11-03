@@ -63,7 +63,7 @@ func TestWakerTakesOver(t *testing.T) {
 // What doesn't fit an agent's context stays for the next chance.
 func TestGoaTakeKeepsTheRest(t *testing.T) {
 	srv := startServer(t)
-	long := strings.Repeat("x", goaContextMost-10)
+	long := strings.Repeat("x", goaContextMost-5)
 	srv.goa.mu.Lock()
 	srv.goa.tell = []goaLine{{Text: long}, {Text: "the next"}}
 	srv.goa.mu.Unlock()

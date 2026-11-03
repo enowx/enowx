@@ -93,7 +93,7 @@ func TestSessionToolsHoldTheirFrames(t *testing.T) {
 			a.openCenter(s, centerDiff+long)
 		}},
 		{"files", "ui", func(a *App) { a.openPanel(panelFiles) }},
-		{"file", "package a", func(a *App) {
+		{"file", "File text", func(a *App) {
 			a.openPanel(panelFiles)
 			a.openCenter(s, fileTabPrefix+"ui/goa_tabs.go")
 		}},

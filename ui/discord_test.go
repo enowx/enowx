@@ -14,6 +14,7 @@ func TestDiscordSaysGOA(t *testing.T) {
 	a.host.ID = "local"
 	a.goa.host, a.goa.board.Session = "local", "g1"
 	a.state.GOA = true
+	a.agents = []proto.AgentInfo{{ID: "claude", Name: "Claude Code"}}
 	a.sessions = []proto.SessionInfo{{ID: "g1", GOA: true, Agent: "claude"}, {ID: "s1"}}
 	for _, hide := range []bool{false, true} {
 		a.state.Discord.HideProject = hide

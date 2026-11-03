@@ -91,7 +91,9 @@ func TestGOAControlsAnotherHostEndToEnd(t *testing.T) {
 		t.Fatal("not renamed")
 	}
 
-	// The worker's turn ends on B; the app tells A.
+	// The worker's turn ends on B; the app tells A. Just after a task is given, a turn's end
+	// from another host is taken for the turn before's.
+	time.Sleep(goaTurnLeast)
 	if err := b.sessions.SetState(worker, proto.StateDone); err != nil {
 		t.Fatal(err)
 	}
@@ -102,7 +104,15 @@ func TestGOAControlsAnotherHostEndToEnd(t *testing.T) {
 		tasks := goaBoardOf(t, ca).Tasks
 		return len(tasks) == 1 && tasks[0].Status == proto.GOATaskTurnEnded && tasks[0].Result == "" && strings.Contains(tasks[0].Said, "heard: and add a test")
 	})
-	waitScreen(t, ca, g.ID, "[enowX GOA] Task "+task.ID)
+	// This GOA's screen shows no composer to type into, so the line waits for its hooks.
+	waitFor(t, "GOA told", func() bool {
+		for _, line := range a.goaWaitingLines() {
+			if strings.Contains(line, "[enowX GOA] Task "+task.ID) {
+				return true
+			}
+		}
+		return false
+	})
 
 	// Settled by GOA; the log on A has what it did on B.
 	var settled proto.GOATask

@@ -15,8 +15,9 @@ import (
 
 // The stand-in agent: what it does depends on words in its first prompt. It
 // doesn't echo what's typed, so a screen stays blank until it means otherwise,
-// and writes down what it's sent, a line of GOA's wrapping on no screen. Its
-// loops of work end on their own, should anything outlive a test.
+// and writes down what it's sent, a line of GOA's wrapping on no screen. Started on
+// none of those prompts, it's GOD of Agents, showing a composer with nothing in it: lines
+// are typed only into one. Its loops of work end on their own, should anything outlive a test.
 const stallAgent = `#!/bin/sh
 stty -echo 2>/dev/null
 work() { i=0; while [ $i -lt 300000000 ]; do i=$((i+1)); done; }
@@ -26,10 +27,12 @@ case "$*" in
 *STANDIN-FROZEN*) echo "compiling the thing" ;;
 *STANDIN-BUSYBLANK*) work ;;
 *STANDIN-BUILD*) echo "building"; work ;;
+*) composer=yes; echo ">" ;;
 esac
 while read -r line; do
 	echo "heard: $line"
 	echo "$line" >>"$STALL_HEARD"
+	[ -z "$composer" ] || echo ">"
 done
 `
 
@@ -284,8 +287,11 @@ func TestGOAStalledTaskOnAnotherHost(t *testing.T) {
 	if st := stallStatus(t, ca, busy.ID); st != proto.GOATaskWorking {
 		t.Fatalf("a process at work there was taken for stalled: %s", st)
 	}
-	if st := stallStatus(t, ca, unreached.ID); st != proto.GOATaskWorking {
-		t.Fatalf("a host out of reach counted as stalled: %s", st)
+	// A host out of reach says nothing of its session: what GOA is told says that, once the
+	// limit has passed, and nothing calls it not moving.
+	waitFor(t, "told of the host out of reach", func() bool { return len(stallLinesOf(heard, unreached.ID)) == 1 })
+	if line := stallLinesOf(heard, unreached.ID)[0]; !strings.Contains(line, "can't be reached") || strings.Contains(line, "never started") {
+		t.Errorf("a host out of reach read as a stalled task: %s", line)
 	}
 	log, err := ca.ControlLog()
 	if err != nil {
