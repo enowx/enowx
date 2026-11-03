@@ -3135,6 +3135,7 @@ value ActedAllowed=allowed
 value ActedChosen=kept some
 value ActedDropped=dropped
 value ActedFlaky=marked flaky
+value ActedLeft=left to the agent's prompt
 value ActedNothing=
 value ActedOffered=offered
 value ActedPassed=short: passed on whole

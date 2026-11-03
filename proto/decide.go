@@ -240,6 +240,8 @@ type Decision struct {
 const (
 	ActedAllowed = "allowed"
 	ActedRefused = "refused"
+	// ActedLeft: the judge allowed it, but its agent asks its user all the same.
+	ActedLeft    = "left to the agent's prompt"
 	ActedWaiting = "marked waiting"
 	ActedAlerted = "alerted"
 	ActedTrimmed = "trimmed"

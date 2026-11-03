@@ -138,6 +138,20 @@ var codexEvents = []struct {
 	{"SessionEnd", "session_end", proto.HookSessionEnd, "", 3},
 }
 
+// JudgeApprovesByHook says a PreToolUse hook can spare agent id's user its
+// permission prompt. Codex's can't: it takes no plain allow, and an allow with
+// updatedInput only rewrites the call, which then goes through its approval as
+// any other (codex-rs/core/src/tools/registry.rs, as of 0.166.0). Its
+// PermissionRequest hook is what answers its prompts.
+func JudgeApprovesByHook(id string) bool { return Base(id) != "codex" }
+
+// codexOn builds the same definition for the command line and its trust hash.
+func codexOn(event, state string, timeout int) agentMatcher {
+	group := on("", event, state, timeout)
+	group.Hooks[0].Command += " --agent=codex"
+	return group
+}
+
 // codexHookArgs sets Codex's hooks, each handing the daemon its event,
 // and its notify, which it runs at the end of each turn with the turn as
 // a last argument, to report done and then run the user's own notify
@@ -149,7 +163,7 @@ func codexHookArgs(user []string) []string {
 	// A JSON array of strings is a TOML array too.
 	args := []string{"-c", "notify=" + marshal(argv)}
 	for _, e := range codexEvents {
-		args = append(args, "-c", "hooks."+e.name+"="+tomlInline([]agentMatcher{on("", e.event, e.state, e.timeout)}))
+		args = append(args, "-c", "hooks."+e.name+"="+tomlInline([]agentMatcher{codexOn(e.event, e.state, e.timeout)}))
 	}
 	return args
 }

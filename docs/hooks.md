@@ -71,7 +71,7 @@ Limits: **once a session**, **at most N times a session**, **apart at least** so
 - **Change the command:** Find (a regular expression) in a tool's command is replaced by Replace (`$1` for a group).
   - Claude Code asks the user about the new command, unless the session skips permissions.
   - Codex takes a changed command only as approved, so a Codex session that asks gets it as a refusal naming the command to run instead.
-- **Ask the judge** (before a tool runs): enowX's judge allows the command without asking the user, leaves it to them, or refuses it ([decide.md](decide.md)).
+- **Ask the judge** (before a tool runs): enowX's judge allows the command without asking the user, leaves it to them, or refuses it ([decide.md](decide.md)). On Codex an allow doesn't spare the prompt: its own permission checks stay, and the decision log says `left to the agent's prompt`; the judge can still refuse a command.
 - **Trim its long output** (before a tool runs): the command runs through `enowx decide trim`, and a long output reaches the agent cut by the judge to what matters ([decide.md](decide.md)).
 
 Both run built in while their use is on in Settings → Decisions, without a hook; a hook of the user's with the same action replaces the built-in one.
