@@ -1,6 +1,7 @@
 package fileview
 
 import (
+	"fmt"
 	"path"
 	"strconv"
 	"strings"
@@ -20,8 +21,7 @@ import (
 // lines, numbered. It belongs to the main thread; its poller reports
 // through Options.Update.
 type Doc struct {
-	path     string          // in the session's folder
-	spans    [][]widget.Span // its lines colored, nil for plain text
+	path     string // in the session's folder
 	content  *proto.FileContent
 	lines    []string
 	image    ui.ImageSource // an image file's picture, decoded
@@ -29,7 +29,7 @@ type Doc struct {
 	imgH     int
 	err      string
 	polling  bool
-	list     ui.ListState
+	long     widget.LongText
 	copyText widget.CopyFeedback
 	copyPath widget.CopyFeedback
 	// markdown: the file is Markdown, which shows rendered unless raw.
@@ -98,11 +98,6 @@ func (d *Doc) follow(o Options) {
 			if err == nil && !f.Unchanged && f.Image != "" {
 				pic, w, h, picErr = decodeImage(f.Image, f.Data)
 			}
-			// Nor does lexing a whole file.
-			var spans [][]widget.Span
-			if err == nil && !f.Unchanged && f.Image == "" {
-				spans = widget.HighlightLines(path.Base(p), "", f.Text)
-			}
 			keep := make(chan bool, 1)
 			o.Update(func() {
 				if !o.Wanted() {
@@ -120,7 +115,7 @@ func (d *Doc) follow(o Options) {
 					d.content, d.image, d.err = &f, nil, "Can't show this image: "+picErr.Error()
 					return
 				default:
-					d.content, d.lines, d.spans, d.image, d.imgW, d.imgH = &f, splitLines(f.Text), spans, pic, w, h
+					d.content, d.lines, d.image, d.imgW, d.imgH = &f, splitLines(f.Text), pic, w, h
 				}
 				d.err = ""
 			})
@@ -164,7 +159,7 @@ func (d *Doc) Draw(c *ui.Context, o Options) {
 			o.Page(c, d.path, d.content.Modified)
 			return
 		}
-		ui.Column(c).Grow(1).FillWidth().MinHeight(0).Background(codeGround(d)).Children(func() { d.text(c) })
+		ui.Column(c).Grow(1).FillWidth().MinHeight(0).Background(codeGround(d)).Children(func() { d.text(c, o) })
 	})
 }
 
@@ -243,7 +238,7 @@ func (d *Doc) bar(c *ui.Context, o Options) {
 }
 
 // text is the file's lines, numbered, or why it shows none.
-func (d *Doc) text(c *ui.Context) {
+func (d *Doc) text(c *ui.Context, o Options) {
 	f := d.content
 	switch {
 	case f == nil && d.err == "":
@@ -264,40 +259,21 @@ func (d *Doc) text(c *ui.Context) {
 		centered(c, "This file is empty.")
 		return
 	}
-	lines := d.lines
-	n := len(lines)
-	if f.Truncated {
-		n++
-	}
-	width := max(float32(len(strconv.Itoa(len(lines))))*8+theme.S4, 44)
-	if d.goTo {
+	d.long.Load(widget.LongSource{ID: fmt.Sprint(f.Path, f.Modified, len(f.Text)), Size: len(f.Text), Name: path.Base(d.path), Keep: true,
+		Make: func() (string, string) { return f.Text, "" }}, o.Update)
+	if d.goTo && d.long.Ready() {
 		d.goTo = false
-		d.list.ScrollTo(min(d.from, len(lines))-1, ui.Center)
+		d.long.GoToLine(min(d.from, len(d.lines)))
 	}
-	ui.List(c.Key("doc"), &d.list, n, func(i int) {
-		if i == len(lines) {
-			ui.Row(c).FillWidth().Height(lineHeight + 6).PaddingX(theme.S4).Children(func() {
+	long := widget.LongOptions{Post: o.Update, Numbers: true, MarkFrom: d.from, MarkTo: d.to, Ink: ui.Hex("#E4E6EE")}
+	if f.Truncated {
+		long.Foot = func() {
+			ui.Row(c.Key("rest")).FillWidth().PaddingX(theme.S4).Children(func() {
 				ui.Text(c, "…the rest of this file is too long to show here").FontSize(theme.TextLabel).TextColor(ui.Hex("#8A8FA3")).SingleLine()
 			})
-			return
 		}
-		row := ui.Row(c).FillWidth().Height(lineHeight).Clip()
-		if i+1 >= d.from && i+1 <= d.to {
-			row.Background(theme.Selected)
-		}
-		row.Children(func() {
-			ui.Text(c, strconv.Itoa(i+1)).Font(theme.MonoFont).FontSize(theme.TextUI).TextColor(ui.Hex("#6E7386")).Width(width).PaddingX(theme.S2).
-				TextAlign(ui.End).SingleLine().Shrink(0)
-			var spans []widget.Span
-			if i < len(d.spans) {
-				spans = d.spans[i]
-				if spans == nil {
-					spans = []widget.Span{} // an empty line
-				}
-			}
-			widget.CodeSpans(c, spans, lines[i]).Font(theme.MonoFont).FontSize(theme.TextUI).TextColor(ui.Hex("#E4E6EE")).SingleLine().Shrink(1)
-		})
-	}).Grow(1).FillWidth().MinHeight(0).Padding(theme.S2, widget.ScrollGutter, theme.S2, 0)
+	}
+	d.long.Draw(c.Key("doc"), long).Padding(theme.S2, widget.ScrollGutter, theme.S2, 0)
 }
 
 // picture shows an image: at its size when it fits, else scaled down to

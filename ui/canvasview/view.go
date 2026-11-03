@@ -141,6 +141,10 @@ const (
 
 // View is the Canvas page's state. It belongs to the main thread.
 type View struct {
+	outlinePage string // the page outline was worked out for
+	outline     []canvas.HTMLElement
+	outlineDone bool
+
 	selected string
 	canvas   *proto.Canvas // the canvas open, as last read
 	loading  bool

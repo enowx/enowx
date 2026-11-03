@@ -132,7 +132,7 @@ func (v *View) layers(c *ui.Context, o Options) {
 		v.inspector(c, o, f)
 		widget.Divider(c)
 	}
-	out := canvas.Outline(f.HTML)
+	out := v.outlineOf(f.HTML)
 	if len(out) > 0 {
 		widget.SectionLabel(c.Key("mockup"), "Mockup", theme.TextSoft)
 		for _, el := range out {
@@ -383,4 +383,13 @@ func ago(t time.Time) string {
 func (v *View) onDesign(cm proto.CanvasComment) bool {
 	f := v.frameOf()
 	return cm.Frame == "" || cm.Frame == f.ID || strings.EqualFold(cm.Frame, f.Name)
+}
+
+// outlineOf is page's elements, worked out once for each page: parsing it again each frame
+// is what a long page would feel.
+func (v *View) outlineOf(page string) []canvas.HTMLElement {
+	if page != v.outlinePage || !v.outlineDone {
+		v.outlinePage, v.outline, v.outlineDone = page, canvas.Outline(page), true
+	}
+	return v.outline
 }

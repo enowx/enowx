@@ -1,6 +1,7 @@
 package checkview
 
 import (
+	"fmt"
 	"strconv"
 	"strings"
 
@@ -25,15 +26,25 @@ func (v *View) DrawOutput(c *ui.Context, o Options, name string) {
 			command = commandOf(ch)
 		}
 	}
-	out := ""
-	switch {
-	case !ran:
-	case r.Output == "" && r.State == proto.CheckRunning:
-	default:
-		if out = lastLines(r.Output, outputLines); out == "" {
+	// Long output is read once for each change, off the main thread: it's cleaned line by
+	// line, and only the rows in view are drawn.
+	long := v.outputText(name)
+	long.Load(widget.LongSource{ID: fmt.Sprint(name, ran, r.State, len(r.Output)), Size: len(r.Output), Keep: true, Make: func() (string, string) {
+		switch {
+		case !ran:
+			return "Not run yet.", ""
+		case r.State == proto.CheckQueued:
+			return "Queued.", ""
+		case r.Output == "" && r.State == proto.CheckRunning:
+			return "", ""
+		}
+		out := lastLines(r.Output, outputLines)
+		if out == "" {
 			out = "(no output)"
 		}
-	}
+		return out, ""
+	}}, o.Update)
+	out := long.Text()
 	ui.Column(c).Grow(1).FillWidth().MinHeight(0).Children(func() {
 		widget.ViewerBar(c, icon.ListChecks, command, func() {
 			ui.Row(c).MinWidth(0).Shrink(1).Children(func() {
@@ -60,29 +71,31 @@ func (v *View) DrawOutput(c *ui.Context, o Options, name string) {
 		if ran && r.State == proto.CheckFailed && (r.Judging || r.Judged != "") {
 			ui.Row(c).FillWidth().Shrink(0).Padding(theme.S2, 0, 0, 0).Children(func() { v.judgedLine(c, o, r, theme.S4) })
 		}
-		ui.Column(c).Grow(1).FillWidth().MinHeight(0).Background(theme.CodeGround).Children(func() {
-			ui.Scroll(c).Grow(1).FillWidth().MinHeight(0).Children(func() {
-				ui.Column(c).FillWidth().Padding(theme.S3, theme.S4).Gap(0).Children(func() {
-					code := func(text string, col ui.Color) {
-						ui.Text(c, text).Font(theme.MonoFont).FontSize(theme.TextUI).TextColor(col).FillWidth().Selectable()
-					}
-					dim := ui.Hex("#8A8FA3")
-					code("$ "+command, dim)
-					switch {
-					case !ran:
-						code("Not run yet.", dim)
-					case r.State == proto.CheckQueued:
-						code("Queued.", dim)
-					default:
-						if out != "" {
-							code(out, widget.CodeText)
-						}
-					}
+		ui.Column(c.Key("output")).Grow(1).FillWidth().MinHeight(0).Background(theme.CodeGround).Padding(theme.S3, 0, theme.S3, theme.S4).Children(func() {
+			dim := ui.Hex("#8A8FA3")
+			line := func(key, text string, col ui.Color) {
+				ui.Text(c.Key(key), text).Font(theme.MonoFont).FontSize(theme.TextUI).TextColor(col).FillWidth().Selectable()
+			}
+			long.Draw(c.Key("text"), widget.LongOptions{Post: o.Update, OnCode: true,
+				Head: func() { line("command", "$ "+command, dim) },
+				Foot: func() {
 					if ran && r.State == proto.CheckFailed && strings.TrimSpace(out) != "" {
-						code("exit status "+strconv.Itoa(r.ExitCode), ui.Hex("#FF9D97"))
+						line("exit", "exit status "+strconv.Itoa(r.ExitCode), ui.Hex("#FF9D97"))
 					}
-				})
-			})
+				}})
 		})
 	})
+}
+
+// outputText is what check name's output is prepared in.
+func (v *View) outputText(name string) *widget.LongText {
+	if v.outputs == nil {
+		v.outputs = map[string]*widget.LongText{}
+	}
+	long := v.outputs[name]
+	if long == nil {
+		long = &widget.LongText{}
+		v.outputs[name] = long
+	}
+	return long
 }

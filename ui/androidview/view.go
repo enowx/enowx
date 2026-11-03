@@ -785,7 +785,7 @@ func logLine(c *ui.Context, l proto.AndroidLogLine) {
 		ui.RichText(c,
 			ui.Span{Text: l.Time + " ", Color: widget.CodeDim},
 			ui.Span{Text: l.Level + " " + l.Tag + ": ", Color: head},
-			ui.Span{Text: l.Message, Color: body},
+			ui.Span{Text: widget.LongWords(l.Message), Color: body},
 		).Font(theme.MonoFont).FontSize(theme.TextUI).Grow(1).Basis(0).MinWidth(0).Selectable()
 	})
 }

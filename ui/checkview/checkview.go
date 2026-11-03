@@ -44,6 +44,7 @@ type Options struct {
 // View is one session's checks. It belongs to the main thread; its poller
 // reports through Options.Update.
 type View struct {
+	outputs map[string]*widget.LongText // each check's output, prepared
 	info    proto.ChecksInfo
 	loaded  bool
 	err     string

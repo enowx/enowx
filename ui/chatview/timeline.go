@@ -275,7 +275,7 @@ func (ch *Chat) entryLine(c *ui.Context, e proto.TranscriptEntry, latest bool) {
 			l.color, l.iconColor = theme.Now, theme.Now
 		}
 		ch.stepLine(c, e.Index, l, func() {
-			ui.Text(c, e.Text).FontSize(theme.TextUI).TextColor(theme.TextSoft).Italic().Selectable()
+			ui.Text(c, widget.LongWords(e.Text)).FontSize(theme.TextUI).TextColor(theme.TextSoft).Italic().Selectable()
 		})
 	case proto.TranscriptTool:
 		ch.toolRow(c, e)

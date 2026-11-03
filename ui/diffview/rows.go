@@ -271,7 +271,7 @@ func (v *View) diffLine(c *ui.Context, file string, l proto.DiffLine) {
 				TextAlign(ui.End).SingleLine().Shrink(0)
 		}
 		ui.Text(c, mark).Font(theme.MonoFont).FontSize(theme.TextUI).TextColor(fg).Width(9).SingleLine().Shrink(0)
-		ui.Text(c, l.Text).Font(theme.MonoFont).FontSize(theme.TextUI).TextColor(fg).SingleLine().Shrink(1).MinWidth(0)
+		ui.Text(c, widget.LongLine(l.Text)).Font(theme.MonoFont).FontSize(theme.TextUI).TextColor(fg).SingleLine().Shrink(1).MinWidth(0)
 	})
 }
 
@@ -291,6 +291,6 @@ func pairLine(c *ui.Context, lines []proto.DiffLine, i int, left bool) {
 	cell.Background(bg).Children(func() {
 		ui.Text(c, lineNumber(n)).Font(theme.MonoFont).FontSize(theme.TextUI).TextColor(diffNumber).Width(44).Padding(0, theme.S2, 0, 0).
 			TextAlign(ui.End).SingleLine().Shrink(0)
-		ui.Text(c, l.Text).Font(theme.MonoFont).FontSize(theme.TextUI).TextColor(fg).SingleLine().Shrink(1).MinWidth(0)
+		ui.Text(c, widget.LongLine(l.Text)).Font(theme.MonoFont).FontSize(theme.TextUI).TextColor(fg).SingleLine().Shrink(1).MinWidth(0)
 	})
 }
