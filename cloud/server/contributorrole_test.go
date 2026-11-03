@@ -7,6 +7,7 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
+	"fmt"
 	"io"
 	"log/slog"
 	"net/http"
@@ -184,7 +185,7 @@ func TestContributorOneAccount(t *testing.T) {
 	}
 }
 
-// /disconnect removes the role and the link.
+// Disconnect removes the role and the link, and the role with no link too.
 func TestContributorDisconnect(t *testing.T) {
 	rig := newContributorRig(t)
 	rig.merged = true
@@ -196,8 +197,11 @@ func TestContributorDisconnect(t *testing.T) {
 	if on, _ := rig.db.DiscordLinked(context.Background(), "m1"); on {
 		t.Fatal("still linked")
 	}
-	if got := rig.s.contributorDisconnect(context.Background(), "m1"); !strings.Contains(got, "no GitHub link") {
-		t.Fatal(got)
+	rig.mu.Lock()
+	rig.roles["m1"] = true // given by hand
+	rig.mu.Unlock()
+	if got := rig.s.contributorDisconnect(context.Background(), "m1"); !strings.Contains(got, "no GitHub link") || rig.hasRole("m1") {
+		t.Fatalf("%q, role %v", got, rig.hasRole("m1"))
 	}
 }
 
@@ -242,8 +246,9 @@ func TestContributorLinkCantBeForged(t *testing.T) {
 	}
 }
 
-// Only what Discord signed is taken; a ping is answered as it asks; /connect replies to
-// the member alone with their own link; another server gets none.
+// Only what Discord signed is taken; a ping is answered as it asks; Connect replies to
+// the member who clicked alone with their own link; Disconnect replies to them alone,
+// linked or not; another server gets neither; a slash command is no longer answered.
 func TestContributorInteractions(t *testing.T) {
 	rig := newContributorRig(t)
 	send := func(body string, signed bool) (int, string) {
@@ -268,12 +273,55 @@ func TestContributorInteractions(t *testing.T) {
 	if code, body := send(`{"type":1}`, true); code != http.StatusOK || !strings.Contains(body, `"type":1`) {
 		t.Fatalf("ping: %d %s", code, body)
 	}
-	_, body := send(`{"type":2,"guild_id":"g1","member":{"user":{"id":"m1","username":"ada"}},"data":{"name":"connect"}}`, true)
-	if !strings.Contains(body, pathContributorPage+"?link=") || !strings.Contains(body, `"flags":64`) {
+	click := func(guild, member, button string) string {
+		t.Helper()
+		code, body := send(fmt.Sprintf(`{"type":3,"guild_id":%q,"member":{"user":{"id":%q,"username":"ada"}},"data":{"custom_id":%q,"component_type":2}}`, guild, member, button), true)
+		if code != http.StatusOK || !strings.Contains(body, `"flags":64`) {
+			t.Fatalf("%s: %d %s", button, code, body)
+		}
+		return body
+	}
+	if code, _ := send(`{"type":3,"guild_id":"g1","member":{"user":{"id":"m1"}},"data":{"custom_id":"contributor:connect"}}`, false); code != http.StatusUnauthorized {
+		t.Fatalf("an unsigned click: %d", code)
+	}
+	body := click("g1", "m1", buttonConnect)
+	var reply struct {
+		Data struct {
+			Content string `json:"content"`
+		} `json:"data"`
+	}
+	if err := json.Unmarshal([]byte(body), &reply); err != nil {
+		t.Fatal(err)
+	}
+	_, after, ok := strings.Cut(reply.Data.Content, "?link=")
+	if !ok {
 		t.Fatalf("connect: %s", body)
 	}
-	if _, body := send(`{"type":2,"guild_id":"other","member":{"user":{"id":"m1"}},"data":{"name":"connect"}}`, true); strings.Contains(body, "link=") {
+	token, _, _ := strings.Cut(after, ")")
+	token, err := url.QueryUnescape(token)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if l, ok := rig.s.contributor.readLink(token); !ok || l.Discord != "m1" {
+		t.Fatalf("the link is for %q, good %v", l.Discord, ok)
+	}
+	if body := click("other", "m1", buttonConnect); strings.Contains(body, "link=") {
 		t.Fatalf("another server: %s", body)
+	}
+	rig.mu.Lock()
+	rig.roles["m1"] = true
+	rig.mu.Unlock()
+	if body := click("other", "m1", buttonDisconnect); !rig.hasRole("m1") {
+		t.Fatalf("another server took the role: %s", body)
+	}
+	if body := click("g1", "m1", buttonDisconnect); !strings.Contains(body, "no GitHub link") || rig.hasRole("m1") {
+		t.Fatalf("disconnect: %s, role %v", body, rig.hasRole("m1"))
+	}
+	if body := click("g1", "m1", "something-else"); strings.Contains(body, "link=") {
+		t.Fatalf("an unknown button: %s", body)
+	}
+	if code, body := send(`{"type":2,"guild_id":"g1","member":{"user":{"id":"m1"}},"data":{"name":"connect"}}`, true); code != http.StatusBadRequest || strings.Contains(body, "link=") {
+		t.Fatalf("a slash command: %d %s", code, body)
 	}
 }
 
