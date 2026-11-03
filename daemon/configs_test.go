@@ -123,7 +123,13 @@ func TestClaudeSessionsRunWithTheirOwnConfigs(t *testing.T) {
 	if e, _ := settings["env"].(map[string]any); e["ANTHROPIC_BASE_URL"] != "https://openrouter.ai/api" || e["ANTHROPIC_AUTH_TOKEN"] != nil {
 		t.Fatalf("custom's --settings env: %v", settings["env"])
 	}
-	if !strings.Contains(strings.Join(args, " "), "moonshot/kimi-k3") || strings.Contains(strings.Join(args, " "), key) {
+	if data, _ := os.ReadFile(args[slices.Index(args, "--settings")+1]); strings.Contains(string(data), key) {
+		t.Fatal("the key is in the settings' file")
+	}
+	if data, _ := os.ReadFile(args[slices.Index(args, "--settings")+1]); !strings.Contains(string(data), "moonshot/kimi-k3") && !strings.Contains(strings.Join(args, " "), "moonshot/kimi-k3") {
+		t.Fatalf("custom's models: %q, %s", args, data)
+	}
+	if strings.Contains(strings.Join(args, " "), key) {
 		t.Fatalf("custom's command line: %q", args)
 	}
 
@@ -168,9 +174,13 @@ func settingsArg(t *testing.T, args []string) map[string]any {
 	if i < 0 || i+1 >= len(args) {
 		t.Fatalf("no --settings in %q", args)
 	}
+	data, err := os.ReadFile(args[i+1])
+	if err != nil {
+		t.Fatalf("--settings: %v", err)
+	}
 	var out map[string]any
-	if err := json.Unmarshal([]byte(args[i+1]), &out); err != nil {
-		t.Fatalf("--settings %q: %v", args[i+1], err)
+	if err := json.Unmarshal(data, &out); err != nil {
+		t.Fatalf("--settings %s: %v", data, err)
 	}
 	return out
 }

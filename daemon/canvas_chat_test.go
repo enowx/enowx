@@ -29,7 +29,7 @@ func TestCanvasAgentStartsOnTheCanvas(t *testing.T) {
 	if info.CanvasFor != cv.ID || info.Project != "" || !strings.HasSuffix(info.Dir, filepath.Join("canvas-chat", cv.ID)) {
 		t.Fatalf("session %+v", info)
 	}
-	cmd := strings.Join(info.Command, "\x00")
+	cmd := strings.Join(info.Command, "\x00") + sessionGuide(t, srv, info.ID)
 	for _, want := range []string{agent.CanvasChatGuide, "Many designs in one canvas", "--add-dir\x00", project, "mcp__enowx", "--disallowedTools", "--strict-mcp-config"} {
 		if !strings.Contains(cmd, want) {
 			t.Errorf("command lacks %q", want)

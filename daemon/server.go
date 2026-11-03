@@ -376,6 +376,7 @@ func (s *Server) deleteSession(id string) error {
 	s.displays.stop(id)
 	s.vaultRelease(id)
 	s.configForget(id)
+	s.agentFilesForget(id)
 	_ = os.RemoveAll(s.uploadDir(id))
 	return nil
 }

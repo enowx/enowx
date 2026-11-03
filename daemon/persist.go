@@ -275,6 +275,7 @@ func (s *Server) restore() {
 				chat := s.goaChat(s.chatOf(r.NotesFor, r.Canvas, s.guideFor(spec.Meta)), spec.Meta)
 				chat.member = r.Member != nil
 				chat.store = s.agentStore(r.Agent, r.ID, true)
+				chat.files = s.agentFilesDir(r.ID)
 				chat.config = run
 				l := agentLaunch(preset, r.Skip, "", hasConversation(preset, r.Convo), chat)
 				l.Resume = r.Convo // its own, not the folder's latest
@@ -387,6 +388,7 @@ func (s *Server) resumeSession(id, convo string) (*session.Session, error) {
 		chat := s.goaChat(s.chatOf(meta.NotesFor, meta.CanvasFor, s.guideFor(meta)), meta)
 		chat.member = meta.Member != nil
 		chat.store = s.agentStore(meta.Agent, id, true)
+		chat.files = s.agentFilesDir(id)
 		chat.config = run
 		l := agentLaunch(preset, meta.SkipPermissions, "", hasConversation(preset, convo), chat)
 		l.Resume = convo

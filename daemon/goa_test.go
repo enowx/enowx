@@ -469,10 +469,18 @@ func TestGOAOnClaudeCodeAndCodex(t *testing.T) {
 	if after(args, "--tools") != agent.GOAClaudeTools || !slices.Contains(args, "--strict-mcp-config") || after(args, "--allowedTools") != "mcp__enowx" {
 		t.Errorf("Claude Code's tools aren't only those for files: %q", args)
 	}
-	if !strings.Contains(after(args, "--mcp-config"), `"ENOWX_GOA":"1"`) || !strings.Contains(after(args, "--settings"), "PreToolUse") {
+	held := func(flag string) string {
+		t.Helper()
+		data, err := os.ReadFile(after(args, flag))
+		if err != nil {
+			t.Fatalf("%s: %v", flag, err)
+		}
+		return string(data)
+	}
+	if !strings.Contains(held("--mcp-config"), `"ENOWX_GOA":"1"`) || !strings.Contains(held("--settings"), "PreToolUse") {
 		t.Errorf("Claude Code: no enowX MCP server or hooks: %q", args)
 	}
-	if !strings.Contains(after(args, "--append-system-prompt"), "You are GOD of Agents") {
+	if !strings.Contains(held("--append-system-prompt-file"), "You are GOD of Agents") {
 		t.Errorf("Claude Code: no GOA guide")
 	}
 	if !strings.Contains(env, "ENABLE_TOOL_SEARCH=false") || !strings.Contains(env, "PWD="+srv.goaDir()) && cl.Dir != srv.goaDir() {

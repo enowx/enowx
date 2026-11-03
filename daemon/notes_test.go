@@ -58,7 +58,7 @@ func TestNotesAgentStartsOnNotesOnly(t *testing.T) {
 	if info.NotesFor != n.ID || info.Project != "" || !strings.HasSuffix(info.Dir, filepath.Join("notes-chat", n.ID)) {
 		t.Fatalf("session %+v", info)
 	}
-	cmd := strings.Join(info.Command, "\x00")
+	cmd := strings.Join(info.Command, "\x00") + sessionGuide(t, srv, info.ID)
 	for _, want := range []string{agent.NotesGuide, "--strict-mcp-config", "mcp__enowx__notes_write", "--disallowedTools"} {
 		if !strings.Contains(cmd, want) {
 			t.Errorf("command lacks %q", want)

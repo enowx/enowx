@@ -54,3 +54,7 @@ jobs:
         with:
           go-version-file: go.mod
       - run: go test ./ui/icon ./core/iconlib
+      # Agents' commands fit Windows' command line, run through real PowerShell and
+      # cmd.exe (docs/agents.md).
+      - run: go test ./core/agent -run 'TestMoveToFiles|TestShortenGuide'
+      - run: go test ./daemon -run 'TestPsQuote|TestPsThenShell|TestCommandsFit|TestLongPrompt|TestAgentThroughCmdShim'

@@ -6,6 +6,7 @@ import (
 	"path/filepath"
 	"runtime"
 	"slices"
+	"strings"
 	"testing"
 	"time"
 
@@ -119,8 +120,42 @@ func TestRestoredAgentGetsCurrentArguments(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if cmd := sess.Info().Command; !slices.Contains(cmd, "--append-system-prompt") {
+	if cmd := sess.Info().Command; !slices.Contains(cmd, "--append-system-prompt-file") {
 		t.Fatalf("restored with %q", cmd)
+	}
+}
+
+// A command saved before guides went in files, its guide on its command line, comes
+// back with the guide in a fresh file of the session's folder, and no longer inline.
+func TestRestoredAgentFromAnOldCommandGetsFiles(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("uses sh")
+	}
+	t.Setenv("HOME", t.TempDir())
+	dir := t.TempDir()
+	saved := `[{"id":"a1","dir":"` + t.TempDir() + `","agent":"claude","relaunch":true,"restart":["claude","--append-system-prompt","the old guide","--mcp-config","{}"]}]`
+	if err := os.WriteFile(filepath.Join(dir, "sessions.json"), []byte(saved), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	srv, err := NewServer(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(srv.Close)
+	sess, err := srv.sessions.Get("a1")
+	if err != nil {
+		t.Fatal(err)
+	}
+	cmd := sess.Info().Command
+	if slices.Contains(cmd, "--append-system-prompt") || slices.Contains(cmd, "the old guide") {
+		t.Fatalf("still inline: %q", cmd)
+	}
+	data, err := os.ReadFile(filepath.Join(srv.agentFilesDir("a1"), "system-prompt.md"))
+	if err != nil || !strings.Contains(string(data), "enowX") {
+		t.Fatalf("the guide's file: %d bytes, %v", len(data), err)
+	}
+	if !slices.Contains(sess.Meta().Restart, "--append-system-prompt-file") {
+		t.Fatalf("saved anew as %q", sess.Meta().Restart)
 	}
 }
 
