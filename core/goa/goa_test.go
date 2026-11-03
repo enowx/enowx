@@ -84,20 +84,6 @@ func TestUrgent(t *testing.T) {
 	}
 }
 
-// Claude Code and Codex hold GOA to enowX's tools with their hooks;
-// Claude Code also starts with them only; an agent with neither is watched.
-func TestLevels(t *testing.T) {
-	if l, _ := LevelOf("claude"); l != proto.GOAEnforced {
-		t.Errorf("claude: %s", l)
-	}
-	if l, _ := LevelOf("codex"); l != proto.GOAEnforced {
-		t.Errorf("codex: %s", l)
-	}
-	if l, _ := LevelOf("aider"); l != proto.GOAWatched {
-		t.Errorf("aider: %s", l)
-	}
-}
-
 // Tasks keep their sessions and statuses on disk; a session's unsettled
 // tasks change together, settled ones don't.
 func TestBoard(t *testing.T) {

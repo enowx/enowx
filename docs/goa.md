@@ -37,6 +37,13 @@ Leaving the mode asks first, whichever way: the title bar's **Sessions**, **Leav
 
 The app shows each agent's level when picking GOA's; `enowx goa agents` lists them.
 
+On Windows, the POSIX hook commands are disabled: Claude Code is **limited**
+by its tool restrictions and Codex is **watched**. The enforced levels above
+apply where those hooks are available. The Windows watcher recognizes known
+Codex helpers and their console hosts by executable path and same-session
+ancestry; unrelated or unproven processes still raise flags. Identical flags
+remain on the audit list but notify again only after a quiet minute.
+
 No enowX command that runs a program of GOA's choosing works in its session, or in its MCP server: `creds use … -- COMMAND`, `decide trim -- COMMAND`, and `run` of a project command (listing them still works). Those would be a way around the tools it lacks.
 
 Checked with Codex itself, started as GOA: enowX's tools reached it over MCP as `mcp__enowx__…`, as its hooks name them; it read a project's file and wrote one in its own folder, and handed over a write outside it and a `go version`. Checked with Claude Code itself, started as GOA: it read a project's file and wrote one (in auto mode, unasked), and handed `go version` to a session, having no Bash.
