@@ -53,5 +53,17 @@ func WrapTrim(bin, command string) (string, bool) {
 	if strings.TrimSpace(tail) == "" || changesShell.MatchString(tail) || neverEnds.MatchString(tail) {
 		return "", false
 	}
-	return lead + shellQuote(bin) + trimPrefix + shellQuote(tail), true
+	return lead + shellWord(bin) + trimPrefix + shellQuote(tail), true
+}
+
+// plainWord is what a shell reads as it is.
+var plainWord = regexp.MustCompile(`^[A-Za-z0-9_./-]+$`)
+
+// shellWord is s as one word of a command line: as it is where that's safe, so that the
+// command an agent's log shows reads as the one it ran.
+func shellWord(s string) string {
+	if plainWord.MatchString(s) {
+		return s
+	}
+	return shellQuote(s)
 }

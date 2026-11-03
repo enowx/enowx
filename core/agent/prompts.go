@@ -222,7 +222,10 @@ func StalledPrompt(screen string) (ScreenPrompt, bool) {
 	choices, question := 0, ""
 	for i, line := range lines {
 		// A selection is a menu's with more lines under it, as a composer's
-		// prompt mark on its own isn't.
+		// prompt mark on its own isn't, nor one showing its placeholder.
+		if emptyPlaceholder.MatchString(line) {
+			continue
+		}
 		if choiceLine.MatchString(line) || selectLine.MatchString(line) && i < len(lines)-1 {
 			choices++
 		}
@@ -246,7 +249,7 @@ func StalledPrompt(screen string) (ScreenPrompt, bool) {
 // menuBelow says a selection has at least two other short lines under it.
 func menuBelow(lines []string) bool {
 	for i, l := range lines {
-		if selectLine.MatchString(l) && len(lines)-1-i >= 2 {
+		if selectLine.MatchString(l) && !emptyPlaceholder.MatchString(l) && len(lines)-1-i >= 2 {
 			return len(lines[i+1]) < 40 && len(lines[i+2]) < 40 && !strings.Contains(lines[i+1], "shortcuts")
 		}
 	}
