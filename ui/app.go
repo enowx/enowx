@@ -309,6 +309,9 @@ type App struct {
 
 // Options configures the app.
 type Options struct {
+	// TrayIcon is the executable's icon. Windows uses it for both the tray
+	// and fallback notification identity; other platforms keep their template.
+	TrayIcon []byte
 	// Hosts is the device's list of servers.
 	Hosts *hosts.Store
 	// Start is the host to connect to first.
