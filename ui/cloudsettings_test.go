@@ -45,8 +45,8 @@ func TestCloudSettingsSignInAndInvite(t *testing.T) {
 	pa, pb := net.Pipe()
 	go srv.ServeConn(pa)
 	app := New(Options{})
-	var later []func()
-	app.onMain = func(fn func()) { later = append(later, fn) }
+	var later mainQueue
+	app.onMain = later.post
 	cl, err := client.New(pb, func(ev proto.Event) { app.cloudEvent(ev) })
 	if err != nil {
 		t.Fatal(err)
@@ -67,11 +67,7 @@ func TestCloudSettingsSignInAndInvite(t *testing.T) {
 		t.Helper()
 		for deadline := time.Now().Add(15 * time.Second); ; time.Sleep(20 * time.Millisecond) {
 			tt.Frame()
-			fns := later
-			later = nil
-			for _, fn := range fns {
-				fn()
-			}
+			later.run()
 			if done() {
 				tt.Frame()
 				return

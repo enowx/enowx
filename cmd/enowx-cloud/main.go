@@ -11,6 +11,7 @@ import (
 	"os"
 	"os/signal"
 	"path/filepath"
+	"strconv"
 	"syscall"
 	"time"
 
@@ -72,7 +73,11 @@ func run(log *slog.Logger) error {
 	}
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
-	db, err := store.Open(ctx, store.Config{Dir: data, Postgres: os.Getenv("ENOWX_CLOUD_DATABASE_URL"), Schema: os.Getenv("ENOWX_CLOUD_DATABASE_SCHEMA")})
+	conns, err := strconv.Atoi(env("ENOWX_CLOUD_DATABASE_MAX_CONNS", "0"))
+	if err != nil {
+		return fmt.Errorf("ENOWX_CLOUD_DATABASE_MAX_CONNS is a number: %w", err)
+	}
+	db, err := store.Open(ctx, store.Config{Dir: data, Postgres: os.Getenv("ENOWX_CLOUD_DATABASE_URL"), Schema: os.Getenv("ENOWX_CLOUD_DATABASE_SCHEMA"), MaxConns: conns})
 	if err != nil {
 		return err
 	}

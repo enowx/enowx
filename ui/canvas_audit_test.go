@@ -10,8 +10,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/egoist/mygo/ui"
-
 	"github.com/enowx/enowx/proto"
 )
 
@@ -68,7 +66,7 @@ func TestCanvasLayoutAudit(t *testing.T) {
 		st.set()
 		for _, size := range drawSizes(auditSizes) {
 			w, hgt := size[0], size[1]
-			h.tt = ui.NewTester(func(c *ui.Context) { h.app.view(c) }, w, hgt)
+			h.tt = auditTester(h.app, w, hgt)
 			for range 6 {
 				h.settle("", func() bool { return true })
 			}

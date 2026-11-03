@@ -178,7 +178,8 @@ func TestGOAStalledTasksEndToEnd(t *testing.T) {
 			}
 			if len(lines) >= 2 && sc.second.IsZero() {
 				sc.second = now
-				if gap := sc.second.Sub(sc.first); gap < time.Duration(3*sc.limit)*time.Second-time.Second {
+				// When a line reaches GOA varies; TestStallTellsAgainAfterThreeLimits has the exact time.
+				if gap := sc.second.Sub(sc.first); gap < time.Duration(sc.limit)*time.Second {
 					t.Errorf("%s: a further line after only %s (its limit %ds)", sc.name, gap, sc.limit)
 				}
 			}

@@ -24,7 +24,9 @@ func openPostgres(t *testing.T) *store.DB {
 	if os.Getenv(storetest.Env) == "" {
 		t.Skip("needs " + storetest.Env + " (Postgres)")
 	}
-	return storetest.Open(t)
+	db := storetest.Open(t)
+	db.SetMaxOpenConns(0) // these need calls at the same moment
+	return db
 }
 
 func raceAccount(t *testing.T, db *store.DB, gh int64) (api.Account, api.Device) {

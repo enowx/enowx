@@ -151,6 +151,7 @@ docker run -p 8080:8080 -e ENOWX_CLOUD_URL=https://cloud.example.com -e ENOWX_CL
 | `ENOWX_CLOUD_ADDR` | where it listens, `:8080` by default |
 | `ENOWX_CLOUD_DATABASE_URL` | a Postgres URL (`postgres://user:pass@host:5432/db`), required by the image; unset, a server built without `-tags nosqlite` keeps SQLite in its folder |
 | `ENOWX_CLOUD_DATABASE_SCHEMA` | the Postgres schema its tables go in, made when missing: `enowx_cloud` by default, so it can share a database with other apps |
+| `ENOWX_CLOUD_DATABASE_MAX_CONNS` | the most Postgres connections the server holds, 8 by default; half of them at most read pages of items. Keep it under the role's limit, less what other apps of the role use |
 | `ENOWX_CLOUD_DATA` | its folder: SQLite's `cloud.db` when no Postgres is set (not in the image, built without SQLite) |
 | `ENOWX_CLOUD_GITHUB_CLIENT_ID`, `ENOWX_CLOUD_GITHUB_CLIENT_SECRET` | the GitHub OAuth app members sign in with; its callback is `<ENOWX_CLOUD_URL>/v1/auth/github/callback` |
 | `ENOWX_CLOUD_DEFAULT_TEAM_REPO` | a public GitHub repository, `owner/name`, whose contributors join the default team as members; optional |
@@ -165,22 +166,26 @@ It speaks plain HTTP: put it behind a proxy that terminates TLS (Coolify's, Cadd
 
 Optional. With it, a member of the enowX Discord server gets **Contributor** for a merged pull request in the repository. It stays off unless all of it is configured: its routes aren't there, the server starts and behaves as without it, and a part missing is logged once. It has its own table and client, and sign-in and sync don't touch them.
 
-- `/connect` answers privately with a link to a page here, naming the Discord account it's for. Signing in with GitHub links the two accounts. With a merged pull request the role comes at once; without one the member is told so, and gets it when one merges.
-- `/disconnect` removes the role and the link. The role otherwise stays.
+- **Connect**, a button in a channel of the server, answers privately with a link to a page here, naming the Discord account it's for. Signing in with GitHub links the two accounts. With a merged pull request the role comes at once; without one the member is told so, and gets it when one merges.
+- **Disconnect**, the button beside it, removes the role and the link, and answers privately, also for a member with no link. The role otherwise stays.
 - One GitHub account links to one Discord account. Only the two IDs are kept (`discord_links`): no name, email or token.
 
 It uses the GitHub OAuth app of the cloud's sign-in, as that sign-in itself would make an account, join the default team, keep a name and email, and ask for `read:user user:email`. This asks for no scope, so `ENOWX_CLOUD_GITHUB_CLIENT_ID` and its secret must be set too. Its callback is a subfolder of that app's, which GitHub allows, so the app needs no change.
 
-A link can't be made for someone else: it names the member Discord's signed request says ran `/connect`, is signed here, lasts 10 minutes and works once. Its page says whose Discord account it's for, and warns anyone sent it, so that nobody is tricked into crediting another member with their work. The sign-in has to finish in the browser that began it.
+A link can't be made for someone else: it names the member Discord's signed request says clicked Connect, is signed here, lasts 10 minutes and works once. Its page says whose Discord account it's for, and warns anyone sent it, so that nobody is tricked into crediting another member with their work. The sign-in has to finish in the browser that began it.
 
 **To set it up:**
 
-1. **A Discord application** (Developer Portal). Add a bot, and invite it with the scopes `bot` and `applications.commands` and the single permission Manage Roles. On the server, move its role above Contributor. It needs no privileged intents, and no connection stays open.
+1. **A Discord application** (Developer Portal). Add a bot, and invite it with the scope `bot` and the single permission Manage Roles. On the server, move its role above Contributor. It needs no privileged intents, and no connection stays open.
 2. **Interactions:** set **Interactions Endpoint URL** to `<ENOWX_CLOUD_URL>/v1/discord/interactions`. Discord tests it as it's saved, so the server must be running with this configured first.
-3. **Commands,** once, for the server. Each is `{"name": "connect", "description": "Link your GitHub account, to get Contributor for a merged pull request", "type": 1}` and `{"name": "disconnect", "description": "Remove your GitHub link and the Contributor role", "type": 1}`:
+3. **The buttons,** once, in a channel members can read and can't write. The bot needs to see it and send there. Clicks reach the server whatever channel the message is in, and their `custom_id` says which button it was:
    ```sh
-   curl -X PUT "https://discord.com/api/v10/applications/$APP_ID/guilds/$GUILD_ID/commands" \
-     -H "Authorization: Bot $ENOWX_CLOUD_DISCORD_BOT_TOKEN" -H "Content-Type: application/json" -d '[...]'
+   curl -X POST "https://discord.com/api/v10/channels/$CHANNEL_ID/messages" \
+     -H "Authorization: Bot $ENOWX_CLOUD_DISCORD_BOT_TOKEN" -H "Content-Type: application/json" -d '{
+       "content": "...", "allowed_mentions": {"parse": []},
+       "components": [{"type": 1, "components": [
+         {"type": 2, "style": 1, "label": "Connect", "custom_id": "contributor:connect"},
+         {"type": 2, "style": 2, "label": "Disconnect", "custom_id": "contributor:disconnect"}]}]}'
    ```
 4. **A webhook** on the repository (Settings, Webhooks): payload URL `<ENOWX_CLOUD_URL>/v1/github/webhook`, content type `application/json`, a secret you generate, and the single event **Pull requests**.
 
@@ -191,10 +196,10 @@ A link can't be made for someone else: it names the member Discord's signed requ
 | `ENOWX_CLOUD_DISCORD_GUILD_ID` | the server: `1458149049902436578` |
 | `ENOWX_CLOUD_DISCORD_ROLE_ID` | Contributor: `1566927925771636906` |
 | `ENOWX_CLOUD_GITHUB_WEBHOOK_SECRET` | the webhook's secret |
-| `ENOWX_CLOUD_CONTRIBUTOR_LINK_SECRET` | random, signs `/connect` links: `openssl rand -hex 32` |
+| `ENOWX_CLOUD_CONTRIBUTOR_LINK_SECRET` | random, signs Connect's links: `openssl rand -hex 32` |
 | `ENOWX_CLOUD_CONTRIBUTOR_REPO` | only a merged pull request here counts: `enowdev/enowx` |
 
-A delivery that fails to give the role answers an error, so it can be delivered again from the webhook's page; Discord's rate limits aren't retried. A pull request merged while the server was down counts at the member's next `/connect`. Used links are remembered in the server's memory, so run one instance; a restart forgets them, within the 10 minutes a link lives.
+A delivery that fails to give the role answers an error, so it can be delivered again from the webhook's page; Discord's rate limits aren't retried. A pull request merged while the server was down counts at the member's next Connect. Used links are remembered in the server's memory, so run one instance; a restart forgets them, within the 10 minutes a link lives.
 
 ## Phases
 
