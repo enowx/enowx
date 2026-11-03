@@ -439,10 +439,22 @@ func TestAlwaysAllowHibernateAndClose(t *testing.T) {
 		t.Fatalf("the choice: %+v %v", list, err)
 	}
 
-	gone := finished()
-	if err := closes(allowed.ID(), gone); err != nil {
-		t.Fatalf("closing, allowed: %v", err)
+	// What runs in a session can read for a moment as having left it, and a call then asks,
+	// as it should for what would be lost: once it reads at rest, nothing is asked.
+	unasked := func(what string, do func() error) {
+		t.Helper()
+		for deadline := time.Now().Add(20 * time.Second); ; time.Sleep(200 * time.Millisecond) {
+			err := do()
+			if err == nil {
+				return
+			}
+			if !strings.Contains(err.Error(), "needs the user's yes") && !strings.Contains(err.Error(), "no enowX app is connected") || time.Now().After(deadline) {
+				t.Fatalf("%s: %v", what, err)
+			}
+		}
 	}
+	gone := finished()
+	unasked("closing, allowed", func() error { return closes(allowed.ID(), gone) })
 	if _, err := srv.sessions.Get(gone); err == nil {
 		t.Fatal("still there")
 	}
@@ -450,9 +462,14 @@ func TestAlwaysAllowHibernateAndClose(t *testing.T) {
 	if last := log[len(log)-1]; last.Bypass != proto.ControlAlways || last.From != allowed.ID() || last.Err != "" {
 		t.Fatalf("closing's log: %+v", last)
 	}
-	res, err := c.HibernateSessions(proto.SessionHibernateParams{IDs: []string{finished()}, From: allowed.ID()})
-	if err != nil || len(res.Hibernated) != 1 {
-		t.Fatalf("hibernating, allowed: %+v %v", res, err)
+	var res proto.SessionHibernateResult
+	resting := finished()
+	unasked("hibernating, allowed", func() (err error) {
+		res, err = c.HibernateSessions(proto.SessionHibernateParams{IDs: []string{resting}, From: allowed.ID()})
+		return err
+	})
+	if len(res.Hibernated) != 1 {
+		t.Fatalf("hibernating, allowed: %+v", res)
 	}
 	log, _ = c.ControlLog()
 	if last := log[len(log)-1]; last.Method != proto.MethodSessionHibernate || last.Bypass != proto.ControlAlways {
