@@ -79,7 +79,7 @@ func CardNote(c *ui.Context, text string, lines int) ui.Element {
 // CardFoot is a card's row of actions, at the bottom of a card whose middle
 // grows: a Scroll, or a ui.Spacer.
 func CardFoot(c *ui.Context, fn func()) {
-	ui.Row(c.Key("card-foot")).FillWidth().Shrink(0).Gap(theme.S2).Children(fn)
+	ui.Row(c.Key("card-foot")).FillWidth().Shrink(0).Gap(theme.S2).Wrap().Children(fn)
 }
 
 // Stat is a figure of a card, in a row of equal ones.

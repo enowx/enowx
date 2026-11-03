@@ -487,7 +487,7 @@ const (
 	stripRoom   = 480  // the designs' strip, from this much room for the stage on
 	labelRoom   = 1060 // the header's buttons keep their words from this wide on
 	viewRoom    = 700  // its view switch keeps its words from this wide on
-	actionsRoom = 560  // the header's actions stand in a row from this wide on
+	actionsRoom = 780  // the header's actions stand in a row from this wide on, with the title beside them
 	toolsRoom   = 360  // the stage's tools stand in a row from this wide on
 	headingRoom = 64   // the least of the header left to the canvas's title
 	listWidth   = 248

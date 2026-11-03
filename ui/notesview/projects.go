@@ -84,13 +84,13 @@ func (v *View) projectBadges(c *ui.Context, o Options, n proto.NoteInfo) {
 			if len(n.Projects) > 0 {
 				label = "Projects…"
 			}
-			add := ui.ButtonBase(c).Height(24).PaddingX(theme.S2).Gap(theme.S1).Radius(theme.RadiusFull).Cursor(ui.CursorPointer).Label(label)
+			add := ui.ButtonBase(c).Height(24).PaddingX(theme.S2).Gap(theme.S1).Radius(theme.RadiusFull).MinWidth(0).Shrink(1).Cursor(ui.CursorPointer).Label(label)
 			if add.Hovered() {
 				add.Background(theme.Hover)
 			}
 			add.Children(func() {
 				ui.Icon(c, icon.Plus).FontSize(12).TextColor(theme.TextSoft)
-				ui.Text(c, label).FontSize(theme.TextLabel).TextColor(theme.TextSoft)
+				ui.Text(c, label).FontSize(theme.TextLabel).TextColor(theme.TextSoft).SingleLine().MinWidth(0).Shrink(1)
 			})
 			if add.Clicked() {
 				o.AttachProjects(n)

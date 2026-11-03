@@ -96,7 +96,7 @@ func (a *App) terminalSection(c *ui.Context) {
 		})
 		widget.Card(c.Key("terminal-look")).Grow(1).Basis(0).FillHeight().Children(func() {
 			widget.CardTitle(c, nil, "How terminals look", func() { a.termSizeControl(c) })
-			ui.Scroll(c.Key("term-sample")).Grow(1).FillWidth().MinHeight(0).Radius(theme.RadiusCard).Background(theme.CodeGround).Children(func() {
+			widget.Scroll(c.Key("term-sample")).Grow(1).FillWidth().MinHeight(0).Radius(theme.RadiusCard).Background(theme.CodeGround).Children(func() {
 				ui.Text(c, a.termSample(hs)).Font(cmp.Or(a.state.TermFont, theme.MonoFont)).FontSize(a.termSize()).TextColor(widget.CodeText).FillWidth().MinWidth(0).Padding(theme.S3, theme.S4)
 			})
 			widget.CardNote(c, "The font terminals draw with on this device. The size is for every terminal, and "+zoomKey()+"0 goes back to the default.", 0)

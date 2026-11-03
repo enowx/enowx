@@ -338,7 +338,7 @@ func (a *App) setupSide(c *ui.Context, p *setupPage) {
 				terminal.View(c.Key("term"), pane.term).Grow(1).FillWidth().Background(theme.TermGround).Padding(theme.S2, theme.S3)
 				return
 			}
-			ui.Scroll(c.Key("what")).Grow(1).FillWidth().MinHeight(0).Children(func() {
+			widget.Scroll(c.Key("what")).Grow(1).FillWidth().MinHeight(0).Children(func() {
 				ui.Text(c, a.setupIntro(p)).Font(theme.MonoFont).FontSize(theme.TextUI).TextColor(widget.CodeText).Padding(theme.S3, theme.S4).FillWidth().MinWidth(0)
 			})
 		})

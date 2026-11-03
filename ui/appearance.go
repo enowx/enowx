@@ -92,7 +92,7 @@ func (a *App) followCard(c *ui.Context) {
 	case !can:
 		label, tip = "Needs an image", "A background image is needed: choose one below"
 	}
-	card := ui.ButtonBase(c).MinWidth(0).Padding(theme.S2).Radius(theme.RadiusCard).Label("Follow background").Tooltip(tip)
+	card := ui.ButtonBase(c).MinWidth(0).Padding(theme.S2).Radius(theme.RadiusCard).Tooltip(tip)
 	switch {
 	case on:
 		card.Background(theme.Sunken).InsetShadow(0, 0, 0, 2, theme.Text)

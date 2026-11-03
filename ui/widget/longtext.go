@@ -268,7 +268,7 @@ func (l *LongText) Draw(c *ui.Context, o LongOptions) ui.Element {
 	if o.Numbers {
 		numbers = max(float32(len(strconv.Itoa(len(l.lines))))*8+theme.S4, 44)
 	}
-	e := ui.List(c, &l.list, head+body+foot, func(i int) {
+	e := List(c, &l.list, head+body+foot, func(i int) {
 		switch {
 		case i < head:
 			ui.Column(c.Key("head")).FillWidth().Gap(theme.S2).Padding(0, 0, theme.S2, 0).Children(o.Head)
