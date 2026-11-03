@@ -15,6 +15,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/enowx/enowx/core/diag"
 	"github.com/enowx/enowx/proto"
 )
 
@@ -23,9 +24,6 @@ const DefaultDays = 30
 
 // keepVersions is how many of a canvas's latest versions thinning leaves.
 const keepVersions = 50
-
-// logKept is how much of the daemon's log trimming leaves.
-const logKept = 1 << 20
 
 // removable are the only places under the folder anything is removed from.
 var removable = []string{"screenshots/", "reviews/", "unslop/", "trash/", "intercept/profiles/", "canvas-chat/", "notes-chat/", "app-backup/", "worktrees/", "watchdog/"}
@@ -200,11 +198,16 @@ func blockInUse(e Env, items []proto.CacheItem) {
 func logs(e Env) proto.CacheKind {
 	items := olderOnes(e, entries(e, "watchdog"))
 	items = slices.DeleteFunc(items, func(it proto.CacheItem) bool { return !strings.HasSuffix(it.Name, ".txt") })
-	if info, err := os.Stat(filepath.Join(e.Dir, "enowxd.log")); err == nil && info.Size() > logKept {
-		items = append(items, proto.CacheItem{Path: "enowxd.log", Name: "enowxd.log", Bytes: info.Size() - logKept, When: info.ModTime(), Note: "its last megabyte stays"})
+	for _, it := range diag.Removable(e.Dir, e.Now) {
+		items = append(items, proto.CacheItem{Path: it.Rel, Name: path.Base(it.Rel), Bytes: it.Size, When: it.When})
+	}
+	if diag.Held(e.Dir) {
+		for i := range items {
+			items[i].Blocked = "A diagnostics bundle is reading it"
+		}
 	}
 	return proto.CacheKind{ID: "logs", Name: "Logs", Default: true, Items: items,
-		About: "The daemon's log, down to its last megabyte, and freeze reports older than the age chosen. The decisions' log keeps itself short."}
+		About: "Older rotated logs of the app and the daemon, whole outputs agents' commands left in the temporary folder, and freeze reports older than the age chosen. The current logs and each one's most recent rotated copy stay. The decisions' log keeps itself short."}
 }
 
 func trash(e Env) proto.CacheKind {
@@ -310,8 +313,8 @@ func cleanItem(e Env, kind string, it proto.CacheItem) (int64, error) {
 			return 0, errors.New("not on this host")
 		}
 		return e.ThinCanvas(it.Path, keepVersions)
-	case it.Path == "enowxd.log":
-		return trimLog(full)
+	case kind == "logs" && !strings.HasPrefix(it.Path, "watchdog/"):
+		return diag.Remove(e.Dir, e.Now, it.Path)
 	case !Allowed(it.Path):
 		return 0, errors.New("not something this removes")
 	case kind == "worktrees":
@@ -327,31 +330,4 @@ func cleanItem(e Env, kind string, it proto.CacheItem) (int64, error) {
 		return 0, err
 	}
 	return it.Bytes, nil
-}
-
-// trimLog leaves the last of a log, in place, as the daemon has it open to append.
-func trimLog(p string) (int64, error) {
-	f, err := os.OpenFile(p, os.O_RDWR, 0)
-	if err != nil {
-		return 0, err
-	}
-	defer f.Close()
-	info, err := f.Stat()
-	if err != nil {
-		return 0, err
-	}
-	if info.Size() <= logKept {
-		return 0, nil
-	}
-	last := make([]byte, logKept)
-	if _, err := f.ReadAt(last, info.Size()-logKept); err != nil {
-		return 0, err
-	}
-	if _, err := f.WriteAt(last, 0); err != nil {
-		return 0, err
-	}
-	if err := f.Truncate(logKept); err != nil {
-		return 0, err
-	}
-	return info.Size() - logKept, nil
 }
