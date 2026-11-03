@@ -27,9 +27,9 @@
 
 > **Download:** [the latest release](https://github.com/enowdev/enowx/releases/latest) for macOS, Windows and Linux. Not yet signed or notarized, see [docs/install.md](docs/install.md) to open it. It updates itself.
 
-![One prompt given to two Claude Code sessions, each on its own branch, working side by side, then compared](docs/assets/readme/fan-out.gif)
+![Design: one prompt given to Claude Code and Codex, each on its own branch, working side by side, then compared](docs/assets/readme/fan-out.webp)
 
-<sub>Every recording below is the app itself with real Claude Code sessions, on a small notes project. Long waits are sped up.</sub>
+<sub>This clip and the ones below are designs made on an enowX canvas with sample content. They are not recordings of the app: the sessions, files and results in them are made up.</sub>
 
 ## Why I built it
 
@@ -115,15 +115,15 @@ Each session is an agent in a real terminal, on a branch of its own in a git wor
 
 Claude Code and Codex also show as a chat: their own transcript, with tool calls and diffs folded in, a message box with the model, permission mode and effort, and the context used. Edit a message and send it again. The terminal keeps running behind it for approvals and menus ([chat-view.md](docs/chat-view.md)).
 
-![Asking Claude Code for a test from the chat view, and its answer arriving](docs/assets/readme/chat-view.gif)
+![Design: asking Claude Code for a test from the chat view, and its answer arriving](docs/assets/readme/chat-view.webp)
 
 ### Review and ship
 
 The **Git** tab of the side panel shows what the selected session changed against its base, file by file. From there: comments sent back to the agent, commit, push, pull request (`gh`) and merge, or discard the worktree. **Conflict radar** warns when another session changed the same files, and on which lines. Sessions can start from a GitHub issue ([review.md](docs/review.md)).
 
-![The Git panel: the session's changed files, a diff, a warning that another session changed the same lines, and a follow-up sent to the agent](docs/assets/readme/review.gif)
+![Design: the Git panel with the session's changed files, a diff, a warning that another session changed the same lines, and a review comment sent to the agent](docs/assets/readme/review.webp)
 
-![Committing a session's changes from the Git panel, then Merge into main](docs/assets/readme/commit.gif)
+![Design: committing a session's changes from the Git panel, then Merge into main](docs/assets/readme/commit.webp)
 
 Files open in tabs where you can edit them, on any host: undo, find and replace, line numbers, and a choice to make when an agent changes the file under you ([side panel](docs/side-panel.md#files)).
 
@@ -133,7 +133,7 @@ The side panel's other tools: **Checks** (the commands that tell whether the wor
 
 The **Browser** shows the session's dev server in a native web view, with hot reload, an address bar, a design mode to point at an element and hand it to the agent, and screenshots. Agents can drive it themselves from the command line ([preview.md](docs/preview.md)). Desktop apps open on your screen too: [see below](#desktop-apps-built-on-a-server-used-on-your-laptop).
 
-![The notes app the agent changed, running in the session's Browser: notes added, then filtered as you type](docs/assets/readme/preview.gif)
+![Design: a sample notes app running in the session's Browser, with notes added, then filtered by tag as you type](docs/assets/readme/preview.webp)
 
 **Resource usage** shows the memory and CPU of every session, counting everything it started (language servers, MCP servers, dev servers); the title bar shows the totals and each agent's plan limits.
 
@@ -213,7 +213,7 @@ Also `ls`, `status`, `note`, `kill`, `attach`, `agents`, `projects`, `shells`, `
 
 Four UI styles (Liquid Glass, Ledger, Tonal and Bento), palettes that tint any of them, any accent color, your own background image, and a command palette (`Ctrl+K`) for every session, host and action. Settings has the agents' library (skills, MCP servers, subagents, commands, instructions, settings and plugins, global or per project), what new sessions start with, the shell terminals start with (zsh, bash, fish, PowerShell, Git Bash, WSL…), agent accounts, environment variables every session gets (API keys, say), automations, and diagnostics ([settings.md](docs/settings.md)).
 
-![The command palette, then the five themes and a few accent colors](docs/assets/readme/themes.gif)
+![Design: the command palette opening Appearance, with its four styles shown, then a few of its six themes and accent colors](docs/assets/readme/themes.webp)
 
 Closing the window keeps enowX in the menu bar or the notification area: its icon counts the sessions that need you, and a click lists them ([tray.md](docs/tray.md)). Discord shows what you work on, the project, branch and agent, as Rich Presence, which Settings turns off. The app updates itself with signed archives, or a delta from the running version ([updates.md](docs/updates.md)).
 
@@ -221,7 +221,7 @@ Closing the window keeps enowX in the menu bar or the notification area: its ico
 
 enowX Cloud, opt-in, puts a team together around the same projects ([cloud.md](docs/cloud.md)):
 
-![The Team group of the side panel: a message comes from the team, the user mentions the team's note with @ and sends, then the team's projects and members](docs/assets/readme/team-chat.gif)
+![Design: the Team group of the side panel with a sample team, a message comes in, the user mentions the team's note with @ and sends, then the team's projects and members](docs/assets/readme/team-chat.webp)
 
 - **Teams with GitHub sign-in**, owners, admins, members and viewers. An invite is a link that works in the browser too: someone without the app signs in and joins there, then downloads enowX and finds the team.
 - **A team's space:** its notes and canvases, its projects as Git links (cloned in one click, found when you have them already), its kit of skills, commands, subagents, pipelines, automations and templates, and each project's rules for the agents.
