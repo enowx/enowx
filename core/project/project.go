@@ -23,6 +23,7 @@ type Store struct {
 	mu     sync.Mutex
 	paths  []string          // in the user's order
 	groups map[string]string // a project's group, by path; none for most
+	listed map[string]listed // what List last learned of a folder, by path
 }
 
 // Open loads the store at path, which may not exist yet.
@@ -54,11 +55,19 @@ func (s *Store) List() []proto.ProjectInfo {
 	s.mu.Unlock()
 	out := make([]proto.ProjectInfo, 0, len(paths))
 	for _, p := range paths {
-		info := Inspect(p).ProjectInfo
+		info := s.describe(p)
 		info.Group = groups[p]
 		out = append(out, info)
 	}
 	return out
+}
+
+// Paths is the projects' folders in the user's order, for a caller that needs
+// nothing else of them: it runs no git.
+func (s *Store) Paths() []string {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return slices.Clone(s.paths)
 }
 
 // Add registers dir (a git repository registers its root) and returns it.
@@ -98,6 +107,7 @@ func (s *Store) Remove(path string) error {
 		return fmt.Errorf("project: %s is not a project", path)
 	}
 	s.paths = slices.Delete(s.paths, i, i+1)
+	delete(s.listed, path)
 	if _, ok := s.groups[path]; ok {
 		delete(s.groups, path)
 		if err := s.saveGroups(); err != nil {
@@ -130,13 +140,10 @@ func writeAtomic(path string, data []byte) error {
 // Inspect describes the folder at path: whether it is a git repository,
 // its current branch and its local branches.
 func Inspect(path string) proto.ProjectDetail {
-	d := proto.ProjectDetail{ProjectInfo: proto.ProjectInfo{Path: path, Name: filepath.Base(path)}}
-	top, err := git.TopLevel(path)
-	if err != nil || top != filepath.Clean(path) {
+	d := proto.ProjectDetail{ProjectInfo: inspectInfo(path)}
+	if !d.IsGit {
 		return d
 	}
-	d.IsGit = true
-	d.Branch = git.CurrentBranch(path)
 	d.Branches, _ = git.Branches(path)
 	if cfg, err := LoadConfig(path); err == nil {
 		d.Setup, d.Copy = cfg.Worktree.Setup, cfg.Worktree.Copy

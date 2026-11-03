@@ -21,8 +21,9 @@ func (s *Server) hostWants(event string) bool {
 	if slices.ContainsFunc(s.hooks.store.List(), func(h proto.Hook) bool { return h.On && h.Event == event }) {
 		return true
 	}
-	for _, p := range s.projects.List() {
-		if ph, ok := s.hooks.store.Project(p.Path); ok && slices.ContainsFunc(ph.Hooks, func(h proto.Hook) bool { return h.On && h.Event == event }) {
+	// Asked on a timer: the folders are all it needs, and their branches would take git.
+	for _, dir := range s.projects.Paths() {
+		if ph, ok := s.hooks.store.Project(dir); ok && slices.ContainsFunc(ph.Hooks, func(h proto.Hook) bool { return h.On && h.Event == event }) {
 			return true
 		}
 	}
