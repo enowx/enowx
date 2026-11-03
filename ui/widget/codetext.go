@@ -37,29 +37,6 @@ func codeColor(k spanKind) ui.Color {
 	return CodeText
 }
 
-// CodeOnGround is code in lang, highlighted to sit on CodeGround; a lang it
-// doesn't know shows plain.
-func CodeOnGround(c *ui.Context, lang, code string) {
-	ui.RichText(c).Font(theme.MonoFont).FontSize(theme.TextUI).TextColor(CodeText).Selectable().Children(func() {
-		lines := HighlightLines("", lang, code)
-		if lines == nil {
-			ui.Text(c, code)
-			return
-		}
-		n := 0
-		for i, line := range lines {
-			if i > 0 {
-				ui.Text(c.Key(n), "\n")
-				n++
-			}
-			for _, s := range line {
-				ui.Text(c.Key(n), s.Text).TextColor(codeColor(s.kind))
-				n++
-			}
-		}
-	})
-}
-
 // CodeWell is a scrolling well of CodeGround that fills what its parent has
 // left: what fn draws scrolls inside, the well keeps its frame.
 func CodeWell(c *ui.Context, fn func()) {
@@ -67,4 +44,10 @@ func CodeWell(c *ui.Context, fn func()) {
 		InsetShadow(0, 0, 0, 0.5, theme.Border).Children(func() {
 		ui.Column(c).FillWidth().MinWidth(0).Padding(theme.S3, theme.S4).Gap(theme.S2).TextColor(CodeText).Children(fn)
 	})
+}
+
+// CodeFrame is CodeWell's frame around what scrolls itself, as a LongText.
+func CodeFrame(c *ui.Context, fn func()) {
+	ui.Column(c.Key("code-frame")).Grow(1).FillWidth().MinHeight(0).Radius(theme.RadiusCard).Clip().Background(theme.CodeGround).
+		InsetShadow(0, 0, 0, 0.5, theme.Border).Padding(theme.S3, 0, theme.S3, theme.S4).TextColor(CodeText).Children(fn)
 }

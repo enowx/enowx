@@ -294,6 +294,10 @@ func CodeBlock(c *ui.Context, lang, code string) {
 			ui.Spacer(c)
 			copyButton(c, code)
 		})
+		if len(code) > longSelectable {
+			longCode(c, lang, code)
+			return
+		}
 		ui.Scroll(c).FillWidth().Background(theme.Sunken).Children(func() {
 			ui.RichText(c).Font(theme.MonoFont).FontSize(theme.TextLabel).Padding(theme.S2, theme.S3).TextColor(theme.Text).Selectable().Children(func() {
 				highlight(c, lang, code)

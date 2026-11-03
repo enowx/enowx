@@ -10,6 +10,9 @@ Nothing is caught until it is attached. Each thing attached is a **source**, wit
 
 Upstream, certificates are checked, except for loopback (development servers sign their own) and the hosts Settings names. An upstream proxy can be set.
 
+
+Bodies of any length show without the window feeling it (`widget.LongText`): the first megabyte is read, Show more reads up to 16 MB, and the rest is for Export. Formatting, lexing and search run off the main thread, once; only the rows in view are drawn, and a line too long for the width carries on in the next row. JSON cut off partway still lays out. A short body selects from line to line; a long one selects row by row, and Copy takes what's shown.
+
 ## What can be attached (Intercept)
 
 | Target | What it does |

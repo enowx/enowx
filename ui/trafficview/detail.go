@@ -1,8 +1,6 @@
 package trafficview
 
 import (
-	"bytes"
-	"encoding/json"
 	"fmt"
 	"net/url"
 	"slices"
@@ -20,11 +18,12 @@ import (
 	"github.com/enowx/enowx/ui/widget"
 )
 
-// bodyShown bounds a body read for the viewer; Save keeps all of it.
+// bodyShown is how much of a body is read for the viewer at first, and bodyMost the most
+// Show more reads: past it, Save keeps all of it.
 const (
-	bodyShown    = 1 << 20
-	highlightMax = 200 << 10
-	hexShown     = 4 << 10
+	bodyShown = 1 << 20
+	bodyMost  = 16 << 20
+	hexShown  = 4 << 10
 )
 
 // detail is the exchange picked, as read from the host.
@@ -38,6 +37,10 @@ type detail struct {
 	req     proto.TrafficBody
 	res     proto.TrafficBody
 	msgs    []proto.TrafficMessage
+	reqText widget.LongText
+	resText widget.LongText
+	msgList ui.ListState
+	shown   int // how much of its bodies to read
 	tab     int
 	reveal  bool
 	images  map[string]*ui.Bitmap
@@ -58,7 +61,7 @@ func (v *View) detailOf(o Options, id int64) *detail {
 	if d != nil {
 		return d
 	}
-	d = &detail{id: id, tab: tabResponse, images: map[string]*ui.Bitmap{}}
+	d = &detail{id: id, tab: tabResponse, images: map[string]*ui.Bitmap{}, shown: bodyShown}
 	if v.lastRead != nil {
 		d.tab, d.reveal = v.lastRead.tab, v.lastRead.reveal
 	}
@@ -90,14 +93,14 @@ func (v *View) read(o Options, d *detail) {
 		return
 	}
 	d.loading, d.stale = true, false
-	h, id, reveal := o.Host, d.id, d.reveal
+	h, id, reveal, shown := o.Host, d.id, d.reveal, max(d.shown, bodyShown)
 	go func() {
 		ex, err := h.TrafficGet(id, reveal)
 		var req, res proto.TrafficBody
 		var msgs []proto.TrafficMessage
 		if err == nil {
-			req, _ = h.TrafficBody(proto.TrafficBodyParams{ID: id, Which: "request", Size: bodyShown, Reveal: reveal})
-			res, _ = h.TrafficBody(proto.TrafficBodyParams{ID: id, Which: "response", Size: bodyShown, Reveal: reveal})
+			req, _ = h.TrafficBody(proto.TrafficBodyParams{ID: id, Which: "request", Size: shown, Reveal: reveal})
+			res, _ = h.TrafficBody(proto.TrafficBodyParams{ID: id, Which: "response", Size: shown, Reveal: reveal})
 			if ex.Messages > 0 {
 				msgs, _ = h.TrafficMessages(proto.TrafficMessagesParams{ID: id, Limit: 2000})
 			}
@@ -155,14 +158,18 @@ func (v *View) DrawExchange(c *ui.Context, o Options, id int64) {
 			})
 			switch d.tab {
 			case tabRequest:
-				widget.CodeWell(c, func() {
+				v.bodyPane(c, o, d, "request", d.req, &d.reqText, func() {
 					codeText(c, d.ex.Method+" "+d.ex.URL+"\n"+headerText(d.ex.ReqHeaders))
-					bodyView(c, d, "request", d.req)
-				})
+				}, nil)
 			case tabResponse:
-				widget.CodeWell(c, func() { responseView(c, d) })
+				v.bodyPane(c, o, d, "response", d.res, &d.resText, func() { responseHead(c, d) }, func() {
+					if len(d.ex.Trailers) > 0 {
+						ui.Text(c.Key("trailers"), "Trailers").FontSize(theme.TextLabel).TextColor(widget.CodeDim)
+						codeText(c.Key("trailer-text"), headerText(d.ex.Trailers))
+					}
+				})
 			case tabMessages:
-				messagesView(c, d.msgs)
+				messagesView(c, d)
 			case tabTiming:
 				timingView(c, d.ex)
 			}
@@ -174,9 +181,8 @@ func (v *View) DrawExchange(c *ui.Context, o Options, id int64) {
 	}
 }
 
-// responseView is how an exchange was answered: its error, status and protocol,
-// headers, body and trailers.
-func responseView(c *ui.Context, d *detail) {
+// responseHead is how an exchange was answered: its error, status, protocol and headers.
+func responseHead(c *ui.Context, d *detail) {
 	if d.ex.Error != "" {
 		codeText(c, d.ex.Error).TextColor(widget.CodeError)
 	}
@@ -189,11 +195,6 @@ func responseView(c *ui.Context, d *detail) {
 	}
 	if len(head) > 0 {
 		codeText(c, strings.Join(head, "\n"))
-	}
-	bodyView(c, d, "response", d.res)
-	if len(d.ex.Trailers) > 0 {
-		ui.Text(c, "Trailers").FontSize(theme.TextLabel).TextColor(widget.CodeDim)
-		codeText(c, headerText(d.ex.Trailers))
 	}
 }
 
@@ -298,17 +299,52 @@ func headerText(hs []proto.Header) string {
 	return strings.Join(lines, "\n")
 }
 
-// bodyView shows a body by its kind: JSON pretty, code highlighted,
-// images, forms as fields, other binaries as hex.
-func bodyView(c *ui.Context, d *detail, which string, b proto.TrafficBody) {
+// bodyPane is a body in its well: what comes before it scrolls with it, and all that's
+// slow about it happens once, off the main thread, in its LongText.
+func (v *View) bodyPane(c *ui.Context, o Options, d *detail, which string, b proto.TrafficBody, long *widget.LongText, head, foot func()) {
+	long.Load(widget.LongSource{ID: fmt.Sprint(d.id, which, len(b.Data), b.Total, d.reveal), Size: len(b.Data),
+		Make: func() (string, string) { return bodyText(b) }}, o.Update)
+	if len(b.Data) > bodyFindFrom {
+		ui.Row(c.Key("find")).FillWidth().Shrink(0).Gap(theme.S2).AlignItems(ui.Center).Children(func() {
+			long.FindBar(c, o.Update)
+			widget.CopyIcon(c.Key("copy"), &long.Copied, icon.Copy, "Copy the body", "Copy all of what's shown", long.Text())
+		})
+	}
+	widget.CodeFrame(c, func() {
+		long.Draw(c.Key(which), widget.LongOptions{Post: o.Update, OnCode: true,
+			Head: func() {
+				head()
+				bodyHead(c, d, which, b)
+			},
+			Foot: func() {
+				if b.Total > int64(len(b.Data)) {
+					ui.Row(c.Key("more")).FillWidth().Wrap().Gap(theme.S2).AlignItems(ui.Center).Children(func() {
+						ui.Text(c, "… "+textfmt.Bytes(uint64(b.Total-int64(len(b.Data))))+" more: export it to see all").FontSize(theme.TextLabel).TextColor(widget.CodeDim)
+						if d.shown < bodyMost && !d.loading && widget.Button(c.Key("show-more"), widget.Secondary, nil, "Show more", "").Height(26).Clicked() {
+							d.shown = min(max(d.shown, bodyShown)*4, bodyMost)
+							v.read(o, d)
+						}
+					})
+				}
+				if foot != nil {
+					foot()
+				}
+			}})
+	})
+}
+
+// bodyFindFrom is how long a body is to be worth a search and a Copy of its own.
+const bodyFindFrom = 4 << 10
+
+// bodyHead says what a body is: its type and size, what's odd about it, and its picture.
+func bodyHead(c *ui.Context, d *detail, which string, b proto.TrafficBody) {
 	if b.Total == 0 {
 		if b.ContentType != "" {
-			ui.Text(c, "No body").FontSize(theme.TextLabel).TextColor(widget.CodeDim)
+			ui.Text(c.Key("none"), "No body").FontSize(theme.TextLabel).TextColor(widget.CodeDim)
 		}
 		return
 	}
-	kind := kindOf(b.ContentType)
-	ui.Row(c).FillWidth().Wrap().Gap(theme.S2).Children(func() {
+	ui.Row(c.Key("what")).FillWidth().Wrap().Gap(theme.S2).Children(func() {
 		ui.Text(c, strings.TrimSpace(b.ContentType+" · "+textfmt.Bytes(uint64(b.Total)))).FontSize(theme.TextLabel).TextColor(widget.CodeDim)
 		if b.Encoding != "" {
 			widget.Tag(c, b.Encoding+" (not decoded)", widget.CodeWarn)
@@ -317,17 +353,30 @@ func bodyView(c *ui.Context, d *detail, which string, b proto.TrafficBody) {
 			widget.Tag(c, "only the first part was kept", widget.CodeWarn)
 		}
 	})
+	if kindOf(b.ContentType) != "image" {
+		return
+	}
+	bm, ok := d.images[which]
+	if !ok {
+		bm, _ = ui.DecodeBitmap(b.Data)
+		d.images[which] = bm
+	}
+	if bm != nil {
+		ui.Image(c.Key("picture"), bm).MaxWidth(360).MaxHeight(360)
+	}
+}
+
+// bodyText is a body as text to read, and the language it's in. It runs off the main thread
+// for a long one.
+func bodyText(b proto.TrafficBody) (text, lang string) {
 	data := b.Data
+	kind := kindOf(b.ContentType)
 	switch {
+	case b.Total == 0:
+		return "", ""
 	case kind == "image":
-		bm, ok := d.images[which]
-		if !ok {
-			bm, _ = ui.DecodeBitmap(data)
-			d.images[which] = bm
-		}
-		if bm != nil {
-			ui.Image(c, bm).MaxWidth(360).MaxHeight(360)
-			return
+		if bm, _ := ui.DecodeBitmap(data); bm != nil {
+			return "", ""
 		}
 	case kind == "form":
 		if q, err := url.ParseQuery(string(data)); err == nil {
@@ -337,28 +386,25 @@ func bodyView(c *ui.Context, d *detail, which string, b proto.TrafficBody) {
 					hs = append(hs, proto.Header{Name: k, Value: x})
 				}
 			}
-			codeText(c, headerText(hs))
-			return
+			return headerText(hs), ""
 		}
 	}
 	if strings.Contains(b.ContentType, "protobuf") {
 		if pb, ok := intercept.DecodeProtobuf(data); ok {
-			codeText(c, pb)
-			return
+			return pb, ""
 		}
 	}
-	if !utf8.Valid(data) {
-		codeText(c, hexDump(data))
-		return
+	// What was read may end partway through a character, which isn't binary.
+	whole := data
+	for i := 0; i < utf8.UTFMax && len(whole) > 0 && !utf8.Valid(whole); i++ {
+		whole = whole[:len(whole)-1]
 	}
-	text, lang := string(data), ""
+	if !utf8.Valid(whole) {
+		return hexDump(data), ""
+	}
 	switch kind {
 	case "json":
-		var buf bytes.Buffer
-		if json.Indent(&buf, data, "", "  ") == nil {
-			text = buf.String()
-		}
-		lang = "json"
+		return widget.IndentJSON(whole), "json"
 	case "html":
 		lang = "html"
 	case "xml":
@@ -370,14 +416,7 @@ func bodyView(c *ui.Context, d *detail, which string, b proto.TrafficBody) {
 	case "graphql":
 		lang = "graphql"
 	}
-	if lang != "" && len(text) <= highlightMax {
-		widget.CodeOnGround(c, lang, text)
-		return
-	}
-	codeText(c, text)
-	if b.Total > int64(len(data)) {
-		ui.Text(c, "… "+textfmt.Bytes(uint64(b.Total-int64(len(data))))+" more: export it to see all").FontSize(theme.TextLabel).TextColor(widget.CodeDim)
-	}
+	return string(whole), lang
 }
 
 func hexDump(b []byte) string {
@@ -405,14 +444,16 @@ func hexDump(b []byte) string {
 	return s.String()
 }
 
-func messagesView(c *ui.Context, msgs []proto.TrafficMessage) {
+func messagesView(c *ui.Context, d *detail) {
+	msgs := d.msgs
 	if len(msgs) == 0 {
 		note(c, "No messages yet.", theme.TextSoft)
 		return
 	}
-	widget.CodeWell(c, func() {
-		for i, m := range msgs {
-			ui.Row(c.Key(fmt.Sprint(i))).FillWidth().Gap(theme.S2).AlignItems(ui.Start).Children(func() {
+	widget.CodeFrame(c, func() {
+		ui.List(c.Key("messages"), &d.msgList, len(msgs), func(i int) {
+			m := msgs[i]
+			ui.Row(c).FillWidth().Gap(theme.S2).Padding(0, 0, theme.S2, 0).AlignItems(ui.Start).Children(func() {
 				dir, col := "↓", widget.CodeText
 				if m.Sent {
 					dir, col = "↑", widget.CodeDim
@@ -429,9 +470,9 @@ func messagesView(c *ui.Context, msgs []proto.TrafficMessage) {
 				ui.Row(c).Width(72).Shrink(0).Children(func() {
 					widget.Running(c, label, widget.RunStyle{Size: theme.TextLabel, Color: widget.CodeDim})
 				})
-				codeText(c, messageText(m)).Grow(1).Basis(0).MinWidth(0)
+				codeText(c, widget.LongWords(messageText(m))).Grow(1).Basis(0).MinWidth(0)
 			})
-		}
+		}).Grow(1).FillWidth().MinHeight(0).Padding(0, widget.ScrollGutter, 0, 0)
 	})
 }
 
