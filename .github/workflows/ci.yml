@@ -18,7 +18,13 @@ jobs:
         with:
           go-version-file: go.mod
       - run: make daemons
-      - run: go test ./...
+      - run: go test -json ./... > test-${{ matrix.os }}.json
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: test-json-${{ matrix.os }}
+          path: test-${{ matrix.os }}.json
+          retention-days: 7
       - run: make lint
 
   # The cloud's database code against Postgres, as the cloud runs in
