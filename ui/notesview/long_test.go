@@ -101,6 +101,19 @@ func TestLongNoteShowsMoreAndKeepsItsBlocks(t *testing.T) {
 	}
 }
 
+// What's saved is never as of moments ago, on a long note too.
+func TestLongNoteSavesWhatIsThere(t *testing.T) {
+	e := newEditor(framecheck.Lines())
+	if len(e.blocks) <= blocksWhole {
+		t.Fatalf("%d blocks", len(e.blocks))
+	}
+	e.recentMarkdown()
+	e.blocks[0].text = "changed"
+	if got := e.markdown(); !strings.HasPrefix(got, "changed\n") {
+		t.Fatalf("starts %q", got[:16])
+	}
+}
+
 // Worked out once, the Markdown still follows every change to the blocks, however made.
 func TestMarkdownFollowsTheBlocks(t *testing.T) {
 	e := newEditor("one\ntwo\n")

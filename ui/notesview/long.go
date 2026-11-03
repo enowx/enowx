@@ -3,6 +3,7 @@ package notesview
 import (
 	"slices"
 	"strconv"
+	"time"
 
 	"github.com/egoist/mygo/ui"
 
@@ -25,6 +26,9 @@ const (
 	// draws blocksStep at a time.
 	blocksWhole = 2000
 	blocksStep  = 300
+	// longLook is how often what's asked each frame looks through a long note's blocks for
+	// a change: that alone would be felt at every frame. Saving always looks.
+	longLook = 250 * time.Millisecond
 )
 
 // workedOut is what was last worked out of an editor's blocks, and from what.
@@ -32,6 +36,7 @@ type workedOut struct {
 	ready  bool
 	blocks []block
 	md     string
+	at     time.Time // last compared with the blocks
 
 	outlineDone bool
 	outlineFor  string
@@ -49,12 +54,23 @@ func (e *editor) markdown() string {
 	if !w.ready || !slices.Equal(w.blocks, e.blocks) {
 		w.md, w.blocks, w.ready = renderBlocks(e.blocks), slices.Clone(e.blocks), true
 	}
+	w.at = time.Now()
 	return w.md
+}
+
+// recentMarkdown is markdown for what's asked each frame and shows, or follows, what's
+// there: on a long note, as of moments ago.
+func (e *editor) recentMarkdown() string {
+	w := &e.worked
+	if w.ready && len(e.blocks) > blocksWhole && time.Since(w.at) < longLook {
+		return w.md
+	}
+	return e.markdown()
 }
 
 // outline is the page's sections.
 func (e *editor) outline() []noteblocks.Section {
-	md, w := e.markdown(), &e.worked
+	md, w := e.recentMarkdown(), &e.worked
 	if !w.outlineDone || w.outlineFor != md {
 		w.outline, w.outlineFor, w.outlineDone = noteblocks.Outline(md), md, true
 	}
@@ -63,7 +79,7 @@ func (e *editor) outline() []noteblocks.Section {
 
 // progress is how many of the page's to-dos are done, of how many.
 func (e *editor) progress() (done, total int) {
-	md, w := e.markdown(), &e.worked
+	md, w := e.recentMarkdown(), &e.worked
 	if !w.progressDone || w.progressFor != md {
 		w.done, w.total = noteblocks.Progress(md)
 		w.progressFor, w.progressDone = md, true

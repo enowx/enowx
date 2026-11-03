@@ -99,9 +99,9 @@ func (e *editor) remove(i int) {
 // draw builds the blocks, then the space below them, which a click types
 // in: in the last block when it is empty text, else in a new one.
 func (e *editor) draw(c *ui.Context) {
-	numbers := e.numbers()
+	upTo := e.drawnTo()
+	numbers := numbersOf(e.blocks[:upTo])
 	ui.Column(c).FillWidth().Gap(2).Children(func() {
-		upTo := e.drawnTo()
 		for i := range upTo {
 			e.blockLine(c.Key(i), i, numbers[i])
 		}
