@@ -20,7 +20,7 @@ type notesHarness struct {
 	app   *App
 	cl    *client.Client
 	tt    *ui.Tester
-	later []func()
+	later mainQueue
 	dir   string // the daemon's folder
 }
 
@@ -34,7 +34,7 @@ func newNotesHarness(t *testing.T) *notesHarness {
 	a, b := net.Pipe()
 	go srv.ServeConn(a)
 	h := &notesHarness{t: t, app: New(Options{}), dir: dir}
-	h.app.onMain = func(fn func()) { h.later = append(h.later, fn) }
+	h.app.onMain = h.later.post
 	h.cl, err = client.New(b, func(ev proto.Event) {
 		var apply func()
 		switch ev.Name {
@@ -76,10 +76,7 @@ func (h *notesHarness) settle(what string, done func() bool) {
 			h.t.Fatalf("%s: never; shows %q", what, h.tt.Texts())
 		}
 		time.Sleep(10 * time.Millisecond)
-		for _, fn := range h.later {
-			fn()
-		}
-		h.later = nil
+		h.later.run()
 	}
 }
 

@@ -25,11 +25,7 @@ func TestAgentsPageListsEveryAgent(t *testing.T) {
 		for range 6 {
 			tt.Frame()
 			time.Sleep(10 * time.Millisecond)
-			fns := h.later
-			h.later = nil
-			for _, fn := range fns {
-				fn()
-			}
+			h.later.run()
 		}
 	}
 	frames()

@@ -43,8 +43,8 @@ func TestNewSessionGoesOnWithASessionOfTheProject(t *testing.T) {
 		t.Fatal(err)
 	}
 	app := New(Options{})
-	var later []func()
-	app.onMain = func(fn func()) { later = append(later, fn) }
+	var later mainQueue
+	app.onMain = later.post
 	app.client, app.host = cl, hosts.Host{ID: hosts.LocalID, Name: "This Mac"}
 	app.agents = []proto.AgentInfo{{ID: "shell", Name: "Shell", Installed: true}, {ID: "claude", Name: "Claude Code", Command: "claude", Installed: true}}
 	app.sessions = []proto.SessionInfo{sh}
@@ -57,11 +57,7 @@ func TestNewSessionGoesOnWithASessionOfTheProject(t *testing.T) {
 		t.Helper()
 		for deadline := time.Now().Add(8 * time.Second); ; {
 			tt.Frame()
-			fns := later
-			later = nil
-			for _, fn := range fns {
-				fn()
-			}
+			later.run()
 			if done() {
 				return
 			}
@@ -174,8 +170,8 @@ func TestNewSessionWakesAHibernatedSession(t *testing.T) {
 		}
 	}
 	app := New(Options{})
-	var later []func()
-	app.onMain = func(fn func()) { later = append(later, fn) }
+	var later mainQueue
+	app.onMain = later.post
 	app.client, app.host = cl, hosts.Host{ID: hosts.LocalID, Name: "This Mac"}
 	app.agents = []proto.AgentInfo{{ID: "claude", Name: "Claude Code", Command: "claude", Installed: true}}
 	app.sessions = list
@@ -188,11 +184,7 @@ func TestNewSessionWakesAHibernatedSession(t *testing.T) {
 		t.Helper()
 		for deadline := time.Now().Add(10 * time.Second); ; {
 			tt.Frame()
-			fns := later
-			later = nil
-			for _, fn := range fns {
-				fn()
-			}
+			later.run()
 			if done() {
 				return
 			}

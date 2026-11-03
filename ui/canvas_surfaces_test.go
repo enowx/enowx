@@ -27,10 +27,7 @@ func (h *canvasHarness) settled() {
 	for range 6 {
 		h.tt.Frame()
 		time.Sleep(10 * time.Millisecond)
-		for _, fn := range h.later {
-			fn()
-		}
-		h.later = nil
+		h.later.run()
 	}
 	h.tt.Advance(time.Second)
 	h.tt.Frame()
