@@ -23,7 +23,7 @@ import (
 	"github.com/enowx/enowx/cloud/store"
 )
 
-// The Contributor role on Discord (docs/cloud.md): a member runs /connect, signs in with
+// The Contributor role on Discord (docs/cloud.md): a member clicks Connect in a channel, signs in with
 // GitHub on a page here, and gets the role for a merged pull request in one repository,
 // then or when one merges. It's off unless wholly configured: its routes aren't there,
 // and nothing else here depends on it.
@@ -40,11 +40,14 @@ const (
 	pathGitHubWebhook       = "/v1/github/webhook"
 
 	contributorCookie = "enowx_contributor"
-	// linkFor is how long a /connect link works.
+	// linkFor is how long a Connect link works.
 	linkFor = 10 * time.Minute
 	// discordAnswer is what Discord waits for an interaction's reply, a little under.
 	discordAnswer = 2500 * time.Millisecond
-	maxHook       = 8 << 20 // a pull request's delivery can be large
+	// The buttons' custom_id, in the message docs/cloud.md says to post.
+	buttonConnect    = "contributor:connect"
+	buttonDisconnect = "contributor:disconnect"
+	maxHook          = 8 << 20 // a pull request's delivery can be large
 )
 
 // ContributorConfig is the feature's configuration; all of it, or it stays off.
@@ -54,7 +57,7 @@ type ContributorConfig struct {
 	DiscordGuildID   string
 	DiscordRoleID    string
 	WebhookSecret    string // GitHub's webhook's
-	LinkSecret       string // signs /connect links
+	LinkSecret       string // signs Connect links
 	Repo             string // owner/name: only a merged pull request here counts
 	// DiscordURL is Discord's API, its real one when empty (tests give their own).
 	DiscordURL string
@@ -132,7 +135,7 @@ func (s *Server) contributorRoutes() {
 	s.mux.HandleFunc("POST "+pathGitHubWebhook, s.githubWebhook)
 }
 
-// A link names the member Discord said ran /connect, signed, so that nobody can make
+// A link names the member Discord said clicked Connect, signed, so that nobody can make
 // one for another member. What it holds goes no further than the member's own browser.
 type contributorLink struct {
 	Discord string `json:"d"`
@@ -190,7 +193,7 @@ func (r *contributorRole) spend(l contributorLink) bool {
 	return true
 }
 
-// discordInteractions takes Discord's slash commands, once its signature holds.
+// discordInteractions takes clicks on the channel's buttons, once Discord's signature holds.
 func (s *Server) discordInteractions(w http.ResponseWriter, r *http.Request) {
 	body, err := io.ReadAll(http.MaxBytesReader(w, r.Body, 1<<20))
 	if err != nil {
@@ -211,19 +214,19 @@ func (s *Server) discordInteractions(w http.ResponseWriter, r *http.Request) {
 			} `json:"user"`
 		} `json:"member"`
 		Data struct {
-			Name string `json:"name"`
+			CustomID string `json:"custom_id"`
 		} `json:"data"`
 	}
 	if err := json.Unmarshal(body, &in); err != nil {
 		s.fail(w, http.StatusBadRequest, "bad request")
 		return
 	}
-	const ping, command = 1, 2
+	const ping, click = 1, 3
 	switch in.Type {
 	case ping:
 		s.reply(w, map[string]any{"type": 1})
-	case command:
-		s.reply(w, discordReply(s.contributorCommand(r.Context(), in.GuildID, in.Member.User.ID, in.Member.User.Username, in.Data.Name)))
+	case click:
+		s.reply(w, discordReply(s.contributorClick(r.Context(), in.GuildID, in.Member.User.ID, in.Member.User.Username, in.Data.CustomID)))
 	default:
 		s.fail(w, http.StatusBadRequest, "unknown interaction")
 	}
@@ -244,19 +247,19 @@ func discordReply(text string) map[string]any {
 	return map[string]any{"type": message, "data": map[string]any{"content": text, "flags": ephemeral, "allowed_mentions": map[string]any{"parse": []string{}}}}
 }
 
-// contributorCommand answers a slash command.
-func (s *Server) contributorCommand(ctx context.Context, guild, member, name, command string) string {
+// contributorClick answers a click on one of the buttons, for the member who clicked.
+func (s *Server) contributorClick(ctx context.Context, guild, member, name, button string) string {
 	if guild != s.contributor.cfg.DiscordGuildID || member == "" {
-		return "This command works on the enowX server."
+		return "These buttons work on the enowX server."
 	}
-	switch command {
-	case "connect":
+	switch button {
+	case buttonConnect:
 		link := s.base() + pathContributorPage + "?" + url.Values{"link": {s.contributor.makeLink(member, name)}}.Encode()
 		return fmt.Sprintf("[Link your GitHub account](%s) to get Contributor for a merged pull request. This link is yours alone: don't share it. It works once, for 10 minutes.", link)
-	case "disconnect":
+	case buttonDisconnect:
 		return s.contributorDisconnect(ctx, member)
 	}
-	return "I don't know that command."
+	return "I don't know that button."
 }
 
 // contributorDisconnect removes the role, then the link: a role left with no link
@@ -269,12 +272,13 @@ func (s *Server) contributorDisconnect(ctx context.Context, member string) strin
 		s.log.Warn("contributor: read the link", "err", err)
 		return "I couldn't read your link just now. Please try again in a moment."
 	}
-	if !linked {
-		return "Your Discord account has no GitHub link."
-	}
+	// With no link too: Disconnect takes the role away however it came.
 	if err := s.contributor.setRole(ctx, member, false); err != nil {
 		s.log.Warn("contributor: remove the role", "err", err)
-		return "I couldn't remove the role just now, so your link stays. Please try again in a moment."
+		return "I couldn't remove the role just now, so nothing changed. Please try again in a moment."
+	}
+	if !linked {
+		return "Your Discord account has no GitHub link, and it no longer has the Contributor role."
 	}
 	if err := s.db.UnlinkDiscord(ctx, member); err != nil {
 		s.log.Warn("contributor: remove the link", "err", err)
@@ -316,17 +320,17 @@ func (s *Server) contributorPage(w http.ResponseWriter, r *http.Request) {
 	token := r.URL.Query().Get("link")
 	l, ok := s.contributor.readLink(token)
 	if !ok {
-		s.page(w, http.StatusBadRequest, "This link has expired or was used. Run /connect in Discord again.", nil)
+		s.page(w, http.StatusBadRequest, "This link has expired or was used. Click Connect in Discord again.", nil)
 		return
 	}
-	who := "the Discord account that ran /connect"
+	who := "the Discord account that clicked Connect"
 	if l.Name != "" {
 		who = "the Discord account " + l.Name
 	}
 	s.page(w, http.StatusOK, "", &pageData{Title: "Link your GitHub account",
 		Lead:      "This links the GitHub account you sign in with to " + who + ". Only your public identity is read, and only the two accounts' IDs are kept.",
 		SignInURL: pathContributorStart + "?" + url.Values{"link": {token}}.Encode(),
-		Note:      "Continue only if you ran /connect yourself. If someone sent you this link, close this page: it would give them credit for your work."})
+		Note:      "Continue only if you clicked Connect yourself. If someone sent you this link, close this page: it would give them credit for your work."})
 }
 
 // contributorStart sends the browser to GitHub, tying the sign-in to this browser: a
@@ -334,7 +338,7 @@ func (s *Server) contributorPage(w http.ResponseWriter, r *http.Request) {
 func (s *Server) contributorStart(w http.ResponseWriter, r *http.Request) {
 	token := r.URL.Query().Get("link")
 	if _, ok := s.contributor.readLink(token); !ok {
-		s.page(w, http.StatusBadRequest, "This link has expired or was used. Run /connect in Discord again.", nil)
+		s.page(w, http.StatusBadRequest, "This link has expired or was used. Click Connect in Discord again.", nil)
 		return
 	}
 	var b [24]byte
@@ -349,13 +353,13 @@ func (s *Server) contributorStart(w http.ResponseWriter, r *http.Request) {
 // contributorCallback finishes a sign-in: the two IDs linked, a merged pull request
 // looked for, the role given. GitHub's token goes when this returns.
 func (s *Server) contributorCallback(w http.ResponseWriter, r *http.Request) {
-	again := "This link has expired or was used. Run /connect in Discord again."
+	again := "This link has expired or was used. Click Connect in Discord again."
 	q := r.URL.Query()
 	bind, token, _ := strings.Cut(q.Get("state"), "~")
 	c, err := r.Cookie(contributorCookie)
 	http.SetCookie(w, &http.Cookie{Name: contributorCookie, Path: pathGitHub, MaxAge: -1, HttpOnly: true, Secure: s.secure(), SameSite: http.SameSiteLaxMode})
 	if err != nil || bind == "" || subtle.ConstantTimeCompare([]byte(c.Value), []byte(bind)) != 1 {
-		s.page(w, http.StatusBadRequest, "This sign-in didn't start in this browser. Run /connect in Discord again.", nil)
+		s.page(w, http.StatusBadRequest, "This sign-in didn't start in this browser. Click Connect in Discord again.", nil)
 		return
 	}
 	role := s.contributor
@@ -377,28 +381,28 @@ func (s *Server) contributorCallback(w http.ResponseWriter, r *http.Request) {
 	access, err := s.githubToken(ctx, q.Get("code"), s.base()+pathContributorCallback)
 	if err != nil {
 		s.log.Warn("contributor: sign-in", "err", err)
-		s.page(w, http.StatusBadGateway, "GitHub didn't answer as expected, so nothing changed. Run /connect in Discord again.", nil)
+		s.page(w, http.StatusBadGateway, "GitHub didn't answer as expected, so nothing changed. Click Connect in Discord again.", nil)
 		return
 	}
 	var user githubUser
 	if err := s.githubGet(ctx, access, "/user", &user); err != nil || user.ID == 0 || user.Login == "" {
 		s.log.Warn("contributor: identity", "err", err)
-		s.page(w, http.StatusBadGateway, "GitHub didn't answer as expected, so nothing changed. Run /connect in Discord again.", nil)
+		s.page(w, http.StatusBadGateway, "GitHub didn't answer as expected, so nothing changed. Click Connect in Discord again.", nil)
 		return
 	}
 	switch err := s.db.LinkDiscord(ctx, l.Discord, user.ID); {
 	case errors.Is(err, store.ErrGitHubLinked):
-		s.page(w, http.StatusConflict, "That GitHub account is already linked to another Discord account, which has to /disconnect first.", nil)
+		s.page(w, http.StatusConflict, "That GitHub account is already linked to another Discord account, which has to click Disconnect first.", nil)
 		return
 	case err != nil:
 		s.log.Warn("contributor: keep the link", "err", err)
-		s.page(w, http.StatusInternalServerError, "I couldn't keep the link, so nothing changed. Run /connect in Discord again.", nil)
+		s.page(w, http.StatusInternalServerError, "I couldn't keep the link, so nothing changed. Click Connect in Discord again.", nil)
 		return
 	}
 	merged, err := s.mergedPR(ctx, access, user.Login)
 	if err != nil {
 		s.log.Warn("contributor: look for a merged pull request", "err", err)
-		s.page(w, http.StatusBadGateway, "Your account is linked, but I couldn't look for a merged pull request. Run /connect in Discord again in a moment.", nil)
+		s.page(w, http.StatusBadGateway, "Your account is linked, but I couldn't look for a merged pull request. Click Connect in Discord again in a moment.", nil)
 		return
 	}
 	if !merged {
@@ -407,7 +411,7 @@ func (s *Server) contributorCallback(w http.ResponseWriter, r *http.Request) {
 	}
 	if err := role.setRole(ctx, l.Discord, true); err != nil {
 		s.log.Warn("contributor: give the role", "err", err)
-		s.page(w, http.StatusBadGateway, "Your account is linked and has a merged pull request, but I couldn't give the role. Run /connect in Discord again in a moment.", nil)
+		s.page(w, http.StatusBadGateway, "Your account is linked and has a merged pull request, but I couldn't give the role. Click Connect in Discord again in a moment.", nil)
 		return
 	}
 	s.page(w, http.StatusOK, "", &pageData{Title: "You're a Contributor", Done: "The role is yours on the server. You can close this page."})

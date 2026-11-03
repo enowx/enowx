@@ -27,9 +27,9 @@
 
 > **Download:** [the latest release](https://github.com/enowdev/enowx/releases/latest) for macOS, Windows and Linux. Not yet signed or notarized, see [docs/install.md](docs/install.md) to open it. It updates itself.
 
-![One prompt given to two Claude Code sessions, each on its own branch, working side by side, then compared](docs/assets/readme/fan-out.gif)
+![Design: one prompt given to Claude Code and Codex, each on its own branch, working side by side, then compared, and one of them kept](docs/assets/readme/fan-out.webp)
 
-<sub>Every recording below is the app itself with real Claude Code sessions, on a small notes project. Long waits are sped up.</sub>
+<sub>This clip and the pictures below are designs made on an enowX canvas with sample content. They are not recordings of the app: the sessions, files, sites and results in them are made up.</sub>
 
 ## Why I built it
 
@@ -98,7 +98,15 @@ Each session is an agent in a real terminal, on a branch of its own in a git wor
 - **Features on demand:** Settings → Features turns what agents are told about (Traffic, Android, Canvas, Notes, the vault…) on or off everywhere, per host, project or session, so their prompts stay short ([features.md](docs/features.md)).
 - **Floating control:** a round panel over other apps' windows, summoned from anywhere by `⌘⇧Space` (`Ctrl+Shift+Space` on Windows and Linux), with six actions round its center button and a session menu to choose this PC or a VPS, its server and project, then a session and its status; off by default, and turned on in Settings → Floating control ([floating-control.md](docs/floating-control.md)).
 
-![Compare: two sessions given the same prompt, each with the files and lines it changed, and a button to keep it](docs/assets/readme/compare.png)
+![Design: Compare, with two agents given the same prompt, the files and lines each changed, and a button to keep one](docs/assets/readme/compare.webp)
+
+![Design: a sample note with progress, tabs, a callout, cards, to-dos and a table, and the note agent proposing a to-do](docs/assets/readme/notes.webp)
+
+![Design: a finished sample landing page being built on a canvas, layer by layer](docs/assets/readme/canvas.webp)
+
+![Design: the Credentials page, where a server asks for a credential and it is allowed once, with the latest uses listed](docs/assets/readme/credentials.webp)
+
+![Design: Automations on a schedule, hooks on what agents do, then a pipeline of plan, implement and review](docs/assets/readme/automations.webp)
 
 ### Let one agent run the others
 
@@ -109,21 +117,25 @@ Each session is an agent in a real terminal, on a branch of its own in a git wor
 - **A board of tasks:** each with its project, path, session and the model it really ran on, chosen per prompt by the judge. Sessions open in tabs beside it.
 - **Sets enowX up with you:** it carries the docs and a guide to every setting, and stops for your keys and your agreement.
 
+![Design: GOD of Agents handing out two tasks with a model for each, reporting what needs you, with its sessions and its board of tasks](docs/assets/readme/goa.webp)
+
 **RAG** lets agents find a project's code, docs and notes by meaning, in SQLite or PostgreSQL, asking before a project's text goes to an embedder ([rag.md](docs/rag.md)). **Decisions** has a small model answer instead of guessing: a quiet session's state, approving a command, trimming long output, stopping a loop ([decide.md](docs/decide.md)). **Hooks** run on what happens in any agent, in one format ([hooks.md](docs/hooks.md)).
+
+![Design: the judges and the decisions they made, then RAG settings and the consent asked before a project is indexed](docs/assets/readme/judge-rag.webp)
 
 ### Talk to them, in a terminal or a chat
 
 Claude Code and Codex also show as a chat: their own transcript, with tool calls and diffs folded in, a message box with the model, permission mode and effort, and the context used. Edit a message and send it again. The terminal keeps running behind it for approvals and menus ([chat-view.md](docs/chat-view.md)).
 
-![Asking Claude Code for a test from the chat view, and its answer arriving](docs/assets/readme/chat-view.gif)
+![Design: asking Claude Code for a test from the chat view, its answer arriving, the same session as its terminal, then hibernating it](docs/assets/readme/chat-view.webp)
 
 ### Review and ship
 
 The **Git** tab of the side panel shows what the selected session changed against its base, file by file. From there: comments sent back to the agent, commit, push, pull request (`gh`) and merge, or discard the worktree. **Conflict radar** warns when another session changed the same files, and on which lines. Sessions can start from a GitHub issue ([review.md](docs/review.md)).
 
-![The Git panel: the session's changed files, a diff, a warning that another session changed the same lines, and a follow-up sent to the agent](docs/assets/readme/review.gif)
+![Design: the Git panel with the session's changed files, a diff, a warning that another session changed the same lines, and a review comment sent to the agent](docs/assets/readme/review.webp)
 
-![Committing a session's changes from the Git panel, then Merge into main](docs/assets/readme/commit.gif)
+![Design: committing a session's changes from the Git panel, then Merge into main](docs/assets/readme/commit.webp)
 
 Files open in tabs where you can edit them, on any host: undo, find and replace, line numbers, and a choice to make when an agent changes the file under you ([side panel](docs/side-panel.md#files)).
 
@@ -133,11 +145,11 @@ The side panel's other tools: **Checks** (the commands that tell whether the wor
 
 The **Browser** shows the session's dev server in a native web view, with hot reload, an address bar, a design mode to point at an element and hand it to the agent, and screenshots. Agents can drive it themselves from the command line ([preview.md](docs/preview.md)). Desktop apps open on your screen too: [see below](#desktop-apps-built-on-a-server-used-on-your-laptop).
 
-![The notes app the agent changed, running in the session's Browser: notes added, then filtered as you type](docs/assets/readme/preview.gif)
+![Design: a sample trail site in the session's Browser, filtered by tag, then design mode handing an element to the agent](docs/assets/readme/preview.webp)
 
 **Resource usage** shows the memory and CPU of every session, counting everything it started (language servers, MCP servers, dev servers); the title bar shows the totals and each agent's plan limits.
 
-![Resource usage: memory, CPU and disk of the host, and of each session](docs/assets/readme/resource-usage.png)
+![Design: Resource usage with memory, CPU, tokens and budgets, then an agent's configs in the order sessions fall back to them](docs/assets/readme/usage.webp)
 
 ### Your laptop is just the screen
 
@@ -150,6 +162,8 @@ The **Browser** shows the session's dev server in a native web view, with hot re
 - **Keep copies in sync on their own** on a schedule or as files change, conflicts kept both ways and announced, and **push the work to a branch of its own** on GitHub (never your branch, secrets refused) ([transfer.md](docs/transfer.md)).
 - **Your data on every host:** notes, canvases, settings and the vault (encrypted) are the same on this device and every server, merged when changed on two at once, conflicts kept for you to pick ([user-data-sync.md](docs/user-data-sync.md)).
 - **Far servers stay connected:** connections come back by themselves, and keepalives keep them open. Tailscale is built in.
+
+![Design: the Hosts page, a project copied to another host with its sessions, then a session running on that server](docs/assets/readme/hosts.webp)
 
 ### Desktop apps built on a server, used on your laptop
 
@@ -175,6 +189,8 @@ The **Traffic** tool shows what the apps a session runs send and receive, on its
 - **Compose** requests, copy them as curl, fetch, Python, Go, HTTPie or PowerShell, export and import HAR.
 - **Agents use it too:** `enowx-app traffic list|show|watch|mock…`, and the same as MCP tools (`enowx-app mcp`), secrets masked.
 
+![Design: live requests in the Traffic tool, a failed one inspected, then a mock rule saved](docs/assets/readme/traffic.webp)
+
 ### Run mobile apps
 
 The **Android** tool runs the session's app (Flutter, Expo, React Native, Capacitor, NativePHP, Kotlin or Java) on an emulator or a phone, on the session's host or on your laptop for a project on a server ([android.md](docs/android.md)).
@@ -183,6 +199,8 @@ The **Android** tool runs the session's app (Flutter, Expo, React Native, Capaci
 - **Catch its traffic** in Traffic: emulators and rooted phones trust enowX's certificate authority by themselves, other phones get it in Downloads with Settings opened.
 - **Agents test what they build on it:** they take screenshots, read the screen's controls, tap, swipe and type (`enowx-app android screenshot|controls|tap|type…`).
 - **Set up Android** brings a host the JDK, the SDK, an emulator and a virtual phone; **+ Phone** connects one over Wi-Fi.
+
+![Design: the session's sample app on an emulator, a tap on its screen, then its logcat](docs/assets/readme/android.webp)
 
 ### Use your own model API
 
@@ -213,7 +231,7 @@ Also `ls`, `status`, `note`, `kill`, `attach`, `agents`, `projects`, `shells`, `
 
 Four UI styles (Liquid Glass, Ledger, Tonal and Bento), palettes that tint any of them, any accent color, your own background image, and a command palette (`Ctrl+K`) for every session, host and action. Settings has the agents' library (skills, MCP servers, subagents, commands, instructions, settings and plugins, global or per project), what new sessions start with, the shell terminals start with (zsh, bash, fish, PowerShell, Git Bash, WSL…), agent accounts, environment variables every session gets (API keys, say), automations, and diagnostics ([settings.md](docs/settings.md)).
 
-![The command palette, then the five themes and a few accent colors](docs/assets/readme/themes.gif)
+![Design: the command palette opening Appearance, where Liquid Glass stays while themes and accent colors change](docs/assets/readme/themes.webp)
 
 Closing the window keeps enowX in the menu bar or the notification area: its icon counts the sessions that need you, and a click lists them ([tray.md](docs/tray.md)). Discord shows what you work on, the project, branch and agent, as Rich Presence, which Settings turns off. The app updates itself with signed archives, or a delta from the running version ([updates.md](docs/updates.md)).
 
@@ -221,7 +239,7 @@ Closing the window keeps enowX in the menu bar or the notification area: its ico
 
 enowX Cloud, opt-in, puts a team together around the same projects ([cloud.md](docs/cloud.md)):
 
-![The Team group of the side panel: a message comes from the team, the user mentions the team's note with @ and sends, then the team's projects and members](docs/assets/readme/team-chat.gif)
+![Design: the side panel's team chat with a sample team, a note mentioned with @, then the team's projects and members](docs/assets/readme/team-chat.webp)
 
 - **Teams with GitHub sign-in**, owners, admins, members and viewers. An invite is a link that works in the browser too: someone without the app signs in and joins there, then downloads enowX and finds the team.
 - **A team's space:** its notes and canvases, its projects as Git links (cloned in one click, found when you have them already), its kit of skills, commands, subagents, pipelines, automations and templates, and each project's rules for the agents.
