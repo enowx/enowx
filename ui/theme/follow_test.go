@@ -31,8 +31,8 @@ func paint(bands []color.RGBA, shares []int) image.Image {
 // the accent, though less common than a grey; the same image, the same colors.
 func TestDeriveColorsFromAnImage(t *testing.T) {
 	grey, red := color.RGBA{R: 120, G: 120, B: 130, A: 255}, color.RGBA{R: 210, G: 30, B: 30, A: 255}
-	sea := color.RGBA{R: 20, G: 90, B: 160, A: 255}
-	img := paint([]color.RGBA{sea, grey, red}, []int{120, 60, 20})
+	sea := color.RGBA{R: 60, G: 80, B: 100, A: 255}
+	img := paint([]color.RGBA{sea, grey, red}, []int{120, 60, 40})
 	d := DeriveColors(img)
 	if max(d.Ground.R, d.Ground.G, d.Ground.B) > deriveGroundMax || d.Ground.B <= d.Ground.R {
 		t.Fatalf("ground %s isn't a dark blue", Hex(d.Ground))
@@ -47,6 +47,11 @@ func TestDeriveColorsFromAnImage(t *testing.T) {
 	}
 	if again := DeriveColors(img); again != d {
 		t.Fatalf("not the same twice: %+v, %+v", d, again)
+	}
+	// A few red pixels don't beat a blue sea.
+	blue := color.RGBA{R: 20, G: 90, B: 160, A: 255}
+	if a := DeriveColors(paint([]color.RGBA{blue, red}, []int{120, 20})).Accent; a.B <= a.R {
+		t.Fatalf("accent %s isn't the sea", Hex(a))
 	}
 }
 

@@ -30,7 +30,7 @@ func lightOf(dark Palette, accent ui.Color) Palette {
 		Frame: white(0.88), Popover: ui.RGBA(252, 252, 254, 0.98),
 		Hover: black(0.05), Selected: black(0.1), Dialog: ui.RGBA(252, 252, 254, 0.98),
 		Border: black(0.12), BorderStrong: ui.Hex("#778497"),
-		Text: ui.Hex("#1C2130"), TextStrong: ui.Hex("#0C101C"), TextSoft: ui.Hex("#475467"), Muted: ui.Hex("#536176"),
+		Text: ui.Hex("#1C2130"), TextStrong: ui.Hex("#0C101C"), TextSoft: ui.Hex("#475467"), Muted: ui.Hex("#526075"),
 		Accent: ui.Hex("#0A63C9"), Working: ui.Hex("#075E8C"), Done: ui.Hex("#166B42"), Warning: ui.Hex("#855300"),
 		Error: ui.Hex("#B3261E"), Idle: ui.Hex("#5F6673"),
 		Add: ui.Hex("#166B42"), Del: ui.Hex("#B3261E"), Now: ui.Hex("#0A63C9"),
