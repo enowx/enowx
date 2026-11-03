@@ -119,6 +119,8 @@ The **Git** tab of the side panel shows what the selected session changed agains
 
 ![Committing a session's changes from the Git panel, then Merge into main](docs/assets/readme/commit.gif)
 
+Files open in tabs where you can edit them, on any host: undo, find and replace, line numbers, and a choice to make when an agent changes the file under you ([side panel](docs/side-panel.md#files)).
+
 The side panel's other tools: **Checks** (the commands that tell whether the work holds up, run in the session's folder), **Files** (browse, open, add from this device, rename, duplicate, delete), **Ports** (what the session listens on), **Activity**, the **Browser**, **Traffic** and **Android** ([side-panel.md](docs/side-panel.md)).
 
 ### See it running
@@ -203,7 +205,7 @@ Also `ls`, `status`, `note`, `kill`, `attach`, `agents`, `projects`, `shells`, `
 
 ### Make it yours
 
-Five themes, any accent color, and a command palette (`Ctrl+K`) for every session, host and action. Settings has the agents' library (skills, MCP servers, subagents, commands, instructions, settings and plugins, global or per project), what new sessions start with, the shell terminals start with (zsh, bash, fish, PowerShell, Git Bash, WSL…), agent accounts, environment variables every session gets (API keys, say), automations, and diagnostics ([settings.md](docs/settings.md)).
+Four UI styles (Liquid Glass, Ledger, Tonal and Bento), palettes that tint any of them, any accent color, your own background image, and a command palette (`Ctrl+K`) for every session, host and action. Settings has the agents' library (skills, MCP servers, subagents, commands, instructions, settings and plugins, global or per project), what new sessions start with, the shell terminals start with (zsh, bash, fish, PowerShell, Git Bash, WSL…), agent accounts, environment variables every session gets (API keys, say), automations, and diagnostics ([settings.md](docs/settings.md)).
 
 ![The command palette, then the five themes and a few accent colors](docs/assets/readme/themes.gif)
 

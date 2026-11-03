@@ -2,6 +2,29 @@
 
 Each version's section is also what the app's update dialog shows.
 
+## 0.6.0
+
+A new look, a first run that sets everything up, files you can edit, and a lot of work on staying fast. **Please read "When you update" below: going back to 0.5.1 isn't supported.**
+
+- **Four UI styles:** Liquid Glass, Ledger, Tonal and Bento, in Settings → Appearance, saved per device, with Liquid Glass as the default. The whole app has been redrawn, and a background image, panel opacity and blur come with Liquid Glass.
+- **Onboarding:** the app assembles itself while you set up agents, a project, a host, a style, GOD of Agents and a first task. Everything optional has Later, and nothing in it needs an agent or the network. If you already use enowX, it shows your settings to confirm instead. Run it again from Settings → App.
+- **Edit files:** a text or code file opened in a tab can now be edited, on any host: undo, find and replace, go to line, comment out, and ⌘S or Ctrl+S to save. It writes only when you save. If an agent changes the file while you have changes, it asks: compare, keep yours or take theirs. Files over 16 MB, with a line over 8 KB, read-only or not UTF-8 stay read-only, and say why.
+- **Long content stays fast:** Traffic, files, diffs, Checks output, logcat and code blocks draw only what's in view, so an 11 MB response or a one-line file of a megabyte no longer freezes the window.
+- **Sessions keep what you gave them:** a session's model, effort and permission mode now survive restarts and wakes, instead of taking whatever the agent's global settings say by then. Settings → New sessions can set what new ones start on. Claude Code's `/model` and `/effort` still rewrite its own defaults, which is out of our hands: with this set, they don't reach new sessions.
+- **GOD of Agents:** told about everything its workers do, without typing into your input box. Reports for every outcome of a turn, and for sessions you sent something to. Permission prompts answered by the judge or by GOA. Its sessions are ordered by what's at work.
+- **Canvas:** versions no longer copy the whole canvas each time and stay on their host, which took some histories from gigabytes to megabytes. Moving designs export to MP4.
+- **Settings → Clean cache:** see what an enowX folder can do without, and remove it. Nothing goes without asking.
+- **Also:** a sent chat message shows at once, with Retry; an outline of the conversation; token counts rebuilt, with cache reads and estimates shown apart; Resource usage shows what sessions left running, with Stop; a report is left when the app stops answering; many fixes on Windows.
+
+### When you update
+
+- **Update every device and host together.** A 0.5.1 app connecting to a server puts its own 0.5.1 daemon back on it, and canvas versions already converted can't be undone to from 0.5.1 (nothing is lost: updating again brings them back). A 0.5.1 app can't sync with a host on 0.6.0, on purpose: it would delete canvas versions on the other host.
+- **The first start restarts the daemon.** Agents at work stop and continue their conversation when it's back, and commands running in terminal tabs end. So finish what's running first. Servers do the same the first time you connect to them.
+- **Canvas versions are converted once, in the background,** while you keep working: usually seconds, about ten seconds a gigabyte on a recent Mac, and longer on a small server. Each canvas's versions are kept as they were in `~/.enowx-app/canvas-history-backup/` first, and a canvas whose backup fails isn't converted. That folder keeps its disk space until you delete it by hand, which you can do once you're happy. To restore a canvas, see [the canvas docs](https://github.com/enowdev/enowx/blob/main/docs/canvas.md#where-they-are-kept).
+- **Token counts are recounted once** from the agents' records, with a backup, so past figures may change.
+- **Going back to 0.5.1 isn't supported.** It can run, but it won't read converted canvas versions, or show anything of these styles.
+- **The repository moved** to [enowdev/enowx](https://github.com/enowdev/enowx). Updates keep working from older versions.
+
 ## 0.5.1
 
 - **GOD of Agents knows what it is and what's going on:**

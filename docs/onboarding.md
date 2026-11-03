@@ -25,6 +25,10 @@ Wires, ports and what flies are measured from what they join, each frame: an age
 
 Picking a style plays one change across the window: a wave, each region starting a beat after the last, its place, corners, colors and font crossing together, colors in Oklab. Words dip as the wave crosses them, and those on a fill take whichever ink reads on it by then. The wallpaper leaves first and comes in last. One ring moves between the style cards, and a style picked meanwhile follows. The app takes the style at once; only the drawing crosses. Glass is the design's: what's under a region blurred, more as its material comes, then tinted.
 
+## If it fails
+
+Nothing about setting up is worth a window that won't open. A failure while it draws gives way to the app, for good on this device. If it starts three times without finishing, as a crash in it would have it, it stops starting; Settings' Run setup again still runs it. With no agents, no projects, no hosts and no network, every step has a way on.
+
 ## Less motion
 
 With Reduce Motion on (the system's, or the app's own), the opening holds the logo and name still for 2.2 seconds, and each stop is cut to.
