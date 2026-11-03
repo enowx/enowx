@@ -59,11 +59,10 @@ func (s *Server) canvasUnslop(p proto.CanvasUnslopParams) (proto.CanvasUnslop, e
 	if p.Start || p.Pass == "12" || strings.EqualFold(p.Pass, "done") || !measured && p.Region == "" {
 		rendered = s.canvasRendered(cv, f)
 		measured = false
-		if len(rendered) > 0 {
-			var states []proto.UnslopFinding
-			walk, states = s.canvasWalk(cv, f, rendered)
-			rendered = append(rendered, states...)
-		}
+		// A design that reads clean as it opens may still break in the states it can reach.
+		var states []proto.UnslopFinding
+		walk, states = s.canvasWalk(cv, f, rendered)
+		rendered = append(rendered, states...)
 	}
 	if len(rendered) > 0 {
 		findings = unslop.WithRendered(findings, rendered)
