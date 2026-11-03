@@ -19,12 +19,15 @@ import (
 // allows (its hooks refuse the rest here; goa_watch.go flags what an agent
 // without either does). Its board follows its workers on every host: this
 // host's through their updates, others' through the app (goa.worker); what
-// changes is typed into GOA once it is idle, so it never polls.
+// changes reaches GOA through hooks, or waits in Tasks without touching its draft.
 
 // goaState is what the daemon keeps of GOA. The board is safe on its own;
 // mu guards the rest.
 type goaState struct {
 	board *goa.Board
+	// delivery serializes queue checkout, hook handoff and return. Never
+	// hold mu while waiting for it or while saving the queue.
+	delivery sync.Mutex
 
 	mu     sync.Mutex
 	tell   []goaLine         // lines for GOA until it takes them, kept in tellFile
@@ -228,7 +231,7 @@ func (s *Server) goaRanOn(info proto.SessionInfo) {
 	}
 }
 
-// goaTell has line typed into GOA once it is idle.
+// goaTell queues a line for GOA's safe delivery channels.
 func (s *Server) goaTell(line string) { s.goaTellLine(goaLine{Text: line}) }
 
 // goaLine is a line waiting for GOA. One about a task under way (Task set: its report,
@@ -255,14 +258,16 @@ func (s *Server) goaTellLine(line goaLine) {
 	if !ok {
 		return
 	}
+	s.goa.delivery.Lock()
 	s.goa.mu.Lock()
-	s.goa.tell = append(s.goa.tell, line)
+	s.goa.tell = uniqueGOALines(append(s.goa.tell, line))
 	if over := len(s.goa.tell) - goaTellMax; over > 0 {
 		s.goa.tell = slices.Delete(s.goa.tell, 0, over)
 		s.logger().Warn("goa: too much waits for GOA, the oldest goes", "lines", over)
 	}
 	s.goa.mu.Unlock()
 	s.saveGOATell()
+	s.goa.delivery.Unlock()
 	if !g.Exited && g.State != proto.StateWorking {
 		s.goaFlush(g.ID)
 	}
@@ -300,12 +305,12 @@ func (s *Server) loadGOATell() {
 		return
 	}
 	s.goa.mu.Lock()
-	s.goa.tell = lines
+	s.goa.tell = uniqueGOALines(lines)
 	s.goa.mu.Unlock()
 }
 
-// goaFlushIdle has an idle GOA get what still waits for it: what a failed typing
-// put back, or what waited over a restart with no change of its session to come.
+// goaFlushIdle offers an idle GOA's waiting lines to a documented hook.
+// Without one, they stay in Tasks, including across a daemon restart.
 func (s *Server) goaFlushIdle() {
 	s.goa.mu.Lock()
 	waiting := len(s.goa.tell) > 0
