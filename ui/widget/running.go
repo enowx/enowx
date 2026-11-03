@@ -25,6 +25,7 @@ type RunStyle struct {
 // and forth a few times, to show the rest, then rests again. Its tooltip
 // says it whole.
 func Running(c *ui.Context, text string, st RunStyle) ui.Element {
+	text = LongLine(text) // measured each frame, and a row shows no more of it
 	size := st.Size
 	if size == 0 {
 		size = theme.TextUI

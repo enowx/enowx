@@ -51,6 +51,8 @@ type editor struct {
 	mentionCaret     int
 	mentionActive    bool
 	compact          bool // a companion editor stays beside its image
+	worked           workedOut
+	shown            int // blocks drawn of a long note: drawnTo
 	imageEditors     map[string]*imageEditor
 	relatedImages    []noteImage
 	imageMenu        widget.ContextMenu
@@ -64,16 +66,15 @@ func newEditor(md string) *editor {
 	return &editor{blocks: parseBlocks(md), open: -1, iconAt: -1, bounds: map[int]ui.Rect{}, tables: map[int]*tableState{}}
 }
 
-func (e *editor) markdown() string { return renderBlocks(e.blocks) }
-
 // openAt opens block i as text, its caret at caret (-1: its end).
 func (e *editor) openAt(i, caret int) {
 	if i < 0 || i >= len(e.blocks) {
 		return
 	}
-	if e.blocks[i].kind == kDivider || e.env.read {
-		return // nothing to type in
+	if e.blocks[i].kind == kDivider || e.env.read || len(e.blocks[i].text) > longBlock {
+		return // nothing to type in, or too much to lay out as text being typed in
 	}
+	e.shown = max(e.shown, i+1)
 	e.open, e.caret, e.focusing, e.slash = i, caret, true, 0
 }
 
@@ -98,10 +99,15 @@ func (e *editor) remove(i int) {
 // draw builds the blocks, then the space below them, which a click types
 // in: in the last block when it is empty text, else in a new one.
 func (e *editor) draw(c *ui.Context) {
-	numbers := e.numbers()
+	upTo := e.drawnTo()
+	numbers := numbersOf(e.blocks[:upTo])
 	ui.Column(c).FillWidth().Gap(2).Children(func() {
-		for i := range e.blocks {
+		for i := range upTo {
 			e.blockLine(c.Key(i), i, numbers[i])
+		}
+		if upTo < len(e.blocks) {
+			e.showMore(c, upTo)
+			return
 		}
 		if e.env.read {
 			height := float32(80)
@@ -265,6 +271,10 @@ func (e *editor) move(from, to int) {
 func (e *editor) showBlock(c *ui.Context, i, n int) {
 	b := &e.blocks[i]
 	row := ui.ButtonBase(c).Label("Block " + strconv.Itoa(i+1))
+	long := len(b.text) > longBlock
+	if long && !e.env.read {
+		row.Tooltip("Too long to edit as a block")
+	}
 	e.bounds[i] = row.Bounds()
 	if !e.env.read {
 		row.Cursor(ui.CursorText).Drag(blockDrag{i})
@@ -288,16 +298,28 @@ func (e *editor) showBlock(c *ui.Context, i, n int) {
 		return
 	case kCode:
 		row.FillWidth().Padding(theme.S1, 6).Children(func() {
-			if b.lang == "svg" {
+			if b.lang == "svg" && !long {
 				drawingView(c, b.text)
 			} else {
 				codeView(c, b.lang, b.text)
 			}
 		})
 	case kTable:
-		row.FillWidth().Padding(theme.S1, 6).Children(func() { e.tableView(c, i, b.text) })
+		row.FillWidth().Padding(theme.S1, 6).Children(func() {
+			if long {
+				codeView(c, "", b.text) // sorting and filtering it would be felt each frame
+			} else {
+				e.tableView(c, i, b.text)
+			}
+		})
 	case kLayout:
-		row.FillWidth().Padding(theme.S1, 6).Children(func() { e.layoutView(c, i) })
+		row.FillWidth().Padding(theme.S1, 6).Children(func() {
+			if long {
+				codeView(c, "", b.text) // it's parsed for each frame it's drawn
+			} else {
+				e.layoutView(c, i)
+			}
+		})
 	case kLeaf:
 		row.FillWidth().Padding(2, theme.S2).Children(func() { e.leafView(c, i, b.text, e.lineOf(i)) })
 	case kText:
@@ -312,6 +334,7 @@ func (e *editor) showBlock(c *ui.Context, i, n int) {
 	default:
 		e.blockRow(c, row, i, n, func() {
 			size, weight := textStyle(b.kind)
+			shown := widget.LongWords(b.text)
 			switch {
 			case b.text == "" && b.kind == kText && len(e.blocks) > 1:
 				// A blank line between blocks is their gap, not a line of text.
@@ -319,17 +342,17 @@ func (e *editor) showBlock(c *ui.Context, i, n int) {
 			case b.text == "":
 				ui.Box(c).FillWidth().Height(size * 1.45)
 			case b.kind == kTodo && b.done:
-				ui.Text(c, b.text).FontSize(size).TextColor(theme.TextSoft).Strikethrough().FillWidth()
-			case widget.HasInlineIcons(b.text):
+				ui.Text(c, shown).FontSize(size).TextColor(theme.TextSoft).Strikethrough().FillWidth()
+			case widget.HasInlineIcons(shown):
 				ink := theme.Text
 				if b.kind == kQuote {
 					ink = theme.TextSoft
 				} else if b.kind != kText {
 					ink = theme.TextStrong
 				}
-				widget.InlineIcons(c, b.text, size, weight, ink, b.kind == kQuote)
+				widget.InlineIcons(c, shown, size, weight, ink, b.kind == kQuote)
 			default:
-				t := e.label(c, b.text).FontSize(size).FontWeight(weight).FillWidth()
+				t := e.label(c, shown).FontSize(size).FontWeight(weight).FillWidth()
 				if b.kind == kQuote {
 					t.TextColor(theme.TextSoft).Italic()
 				} else if b.kind != kText {

@@ -31,6 +31,9 @@ func Open(t testing.TB) *store.DB {
 	if err != nil {
 		t.Fatal(err)
 	}
+	// One connection, so that a call asking for a second while it holds one, which
+	// a full pool would leave waiting for itself, hangs its test here.
+	db.SetMaxOpenConns(1)
 	t.Cleanup(func() {
 		if cfg.Schema != "" {
 			db.ExecContext(ctx, `DROP SCHEMA `+cfg.Schema+` CASCADE`)

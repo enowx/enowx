@@ -3,7 +3,6 @@ package notesview
 import (
 	"github.com/egoist/mygo/ui"
 
-	"github.com/enowx/enowx/core/noteblocks"
 	"github.com/enowx/enowx/proto"
 	"github.com/enowx/enowx/ui/theme"
 	"github.com/enowx/enowx/ui/widget"
@@ -44,6 +43,10 @@ func (v *View) setMode(p *page, mode int) {
 
 // sourceView is the page's Markdown, written as text.
 func (v *View) sourceView(c *ui.Context, o Options, p *page) {
+	if len(p.src) > sourceEditMost {
+		p.sourceLong(c)
+		return
+	}
 	in := ui.TextAreaBase(c, &p.src).FillWidth().Lines(16, 100000).Font(theme.MonoFont).FontSize(theme.TextUI).Padding(theme.S3, theme.S4).Label("Markdown").
 		Radius(theme.RadiusCard)
 	widget.Well(in, in.Focused())
@@ -80,7 +83,7 @@ func (v *View) env(o Options, p *page) pageEnv {
 	return pageEnv{
 		read:     p.mode == modeRead,
 		width:    p.width,
-		outline:  noteblocks.Outline(p.ed.markdown()),
+		outline:  p.ed.outline(),
 		children: kids,
 		openLink: func(link string) bool { return v.openLink(o, p, link) },
 		jump:     func(id string) { v.jumpTo(p, id) },

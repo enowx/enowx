@@ -57,7 +57,7 @@ func (v *View) Draw(c *ui.Context, o Options) {
 
 func note(c *ui.Context, text string, col ui.Color) {
 	ui.Column(c).Grow(1).FillWidth().Center().Padding(theme.S5).Children(func() {
-		ui.Text(c, text).FontSize(theme.TextUI).TextColor(col).TextAlign(ui.Center)
+		ui.Text(c, widget.LongWords(text)).FontSize(theme.TextUI).TextColor(col).TextAlign(ui.Center)
 	})
 }
 
@@ -232,14 +232,15 @@ func toolRow(c *ui.Context, o Options, e proto.TranscriptEntry) {
 	}
 	detail := textfmt.FirstLine(relative(o.Session.Dir, e.Detail), 140)
 	open := openOf(o, e, detail)
-	b := ui.ButtonBase(c).FillWidth().Height(24).Gap(theme.S2).Radius(theme.RadiusSmall).Justify(ui.Start).Label(e.Text + " " + detail)
+	name := widget.LongLine(e.Text)
+	b := ui.ButtonBase(c).FillWidth().Height(24).Gap(theme.S2).Radius(theme.RadiusSmall).Justify(ui.Start).Label(name + " " + detail)
 	if open != nil {
 		b.Cursor(ui.CursorPointer)
 		rowFace(b)
 	}
 	b.Children(func() {
 		ui.Icon(c, toolIcon(e.Text)).FontSize(14).TextColor(theme.TextSoft)
-		ui.Text(c, e.Text).FontSize(theme.TextUI).TextColor(col).SingleLine().Shrink(0)
+		ui.Text(c, name).FontSize(theme.TextUI).TextColor(col).SingleLine().Shrink(0)
 		ui.Row(c).Grow(1).MinWidth(0).Children(func() {
 			widget.Running(c, detail, widget.RunStyle{Mono: true, Color: col})
 		})

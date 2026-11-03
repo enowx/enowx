@@ -13,6 +13,7 @@ import (
 	"github.com/enowx/enowx/proto"
 	"github.com/enowx/enowx/ui/textfmt"
 	"github.com/enowx/enowx/ui/theme"
+	"github.com/enowx/enowx/ui/widget"
 )
 
 // sessionStatus is what the UI shows for a session's state.
@@ -64,10 +65,10 @@ func isWorking(s proto.SessionInfo) bool {
 // else its branch or agent.
 func (a *App) sessionName(s proto.SessionInfo) string {
 	if s.Name != "" {
-		return s.Name
+		return widget.LongLine(s.Name)
 	}
 	if t := cleanTitle(s.Title); t != "" && !a.genericTitle(s, t) {
-		return t
+		return widget.LongLine(t)
 	}
 	if s.Prompt != "" {
 		return textfmt.FirstLine(s.Prompt, 60)

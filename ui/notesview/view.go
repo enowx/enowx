@@ -199,6 +199,7 @@ type page struct {
 	listed                  bool // the host's list had it: one made now isn't yet
 	mode                    int  // modeEdit, modeRead or modeSource
 	src                     string
+	longSrc                 widget.LongText // src, when it's too long to edit
 	edits                   editHistory
 	editGeneration          int
 	titleFocus, sourceFocus bool

@@ -7,7 +7,6 @@ import (
 
 	"github.com/egoist/mygo/ui"
 
-	"github.com/enowx/enowx/core/canvas"
 	"github.com/enowx/enowx/proto"
 	"github.com/enowx/enowx/ui/theme"
 	"github.com/enowx/enowx/ui/widget"
@@ -38,7 +37,7 @@ func (v *View) videoMenuItem(c *ui.Context, o Options, f proto.CanvasFrame, done
 	if o.ExportVideo == nil {
 		return
 	}
-	if !canvas.UsesMotion(f.HTML) {
+	if !v.usesMotion(f.HTML) {
 		widget.MenuItemOff(c.Key("mp4"), nil, "MP4 (this design doesn't move)")
 		return
 	}

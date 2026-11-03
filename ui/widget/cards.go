@@ -69,7 +69,7 @@ func StatusLine(c *ui.Context, col ui.Color, hollow bool, text string) {
 // CardNote is a card's quiet line, wrapped inside it; at most lines of it show
 // when lines isn't 0.
 func CardNote(c *ui.Context, text string, lines int) ui.Element {
-	t := ui.Text(c, text).FontSize(theme.TextLabel).TextColor(theme.TextSoft).FillWidth().MinWidth(0)
+	t := ui.Text(c, LongWords(text)).FontSize(theme.TextLabel).TextColor(theme.TextSoft).FillWidth().MinWidth(0)
 	if lines > 0 {
 		t.MaxLines(lines)
 	}

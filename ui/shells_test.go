@@ -31,8 +31,8 @@ func TestTerminalSectionPicksTheHostsShell(t *testing.T) {
 	defer cl.Close()
 	defer cl.SetShell("") // the daemon's choice is the process's
 	app := New(Options{})
-	var later []func()
-	app.onMain = func(fn func()) { later = append(later, fn) }
+	var later mainQueue
+	app.onMain = later.post
 	app.client = cl
 	tt := ui.NewTester(func(c *ui.Context) {
 		ui.Column(c).Width(720).Height(560).Padding(20).Gap(16).Background(theme.Background).Children(func() { app.terminalSection(c) })
@@ -45,10 +45,7 @@ func TestTerminalSectionPicksTheHostsShell(t *testing.T) {
 				t.Fatalf("never settled: %q", tt.Texts())
 			}
 			time.Sleep(10 * time.Millisecond)
-			for _, fn := range later {
-				fn()
-			}
-			later = nil
+			later.run()
 			tt.Frame()
 		}
 	}

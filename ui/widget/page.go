@@ -224,7 +224,7 @@ func figFace(c *ui.Context, f Fig) {
 func KV(c *ui.Context, key, value string, mono bool) {
 	ui.Row(c.Key("kv:" + key)).FillWidth().MinHeight(24).Gap(theme.S3).AlignItems(ui.Start).Children(func() {
 		ui.Text(c, key).FontSize(theme.TextUI).TextColor(theme.TextSoft).Width(108).Shrink(0)
-		v := ui.Text(c, value).FontSize(theme.TextUI).Grow(1).Basis(0).MinWidth(0)
+		v := ui.Text(c, LongWords(value)).FontSize(theme.TextUI).Grow(1).Basis(0).MinWidth(0)
 		if mono {
 			v.Font(theme.MonoFont)
 		}

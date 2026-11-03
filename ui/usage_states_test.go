@@ -187,7 +187,7 @@ func auditFlows(t *testing.T, h *notesHarness, flows []auditFlow) {
 			closeAudit(h.app)
 			h.app.watches, h.app.confirming = nil, nil
 			f.open(h.app)
-			tt := ui.NewTester(func(c *ui.Context) { h.app.view(c) }, size[0], size[1])
+			tt := auditTester(h.app, size[0], size[1])
 			h.tt = tt
 			for range 6 {
 				h.settle("", func() bool { return true })
