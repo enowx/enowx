@@ -167,7 +167,7 @@ func (a *App) cacheSection(c *ui.Context) {
 			for i, days := range cacheAges {
 				names[i] = fmt.Sprintf("%d days", days)
 			}
-			if got := widget.SegmentedFit(c.Key("age"), names, current); got != current {
+			if got := widget.Segmented(c.Key("age"), names, current, nil); got >= 0 && got != current {
 				cs.older = cacheAges[got]
 				a.cacheRead(cs)
 			}
