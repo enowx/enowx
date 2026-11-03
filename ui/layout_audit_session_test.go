@@ -8,8 +8,6 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/egoist/mygo/ui"
-
 	"github.com/enowx/enowx/proto"
 )
 

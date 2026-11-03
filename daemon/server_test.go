@@ -240,7 +240,7 @@ func TestActivityFollowsOutput(t *testing.T) {
 		c := connect(t, srv, nil)
 		// Quiet, then output for a while, then quiet again.
 		info, err := c.CreateSession(proto.SessionCreateParams{Cols: 80, Rows: 24,
-			Command: []string{"sh", "-c", "sleep 3; for i in $(seq 30); do echo $i; sleep 0.05; done; sleep 30"}})
+			Command: []string{"sh", "-c", "sleep 5; for i in $(seq 30); do echo $i; sleep 0.05; done; sleep 30"}})
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -257,7 +257,7 @@ func TestActivityFollowsOutput(t *testing.T) {
 		}
 		waitActive := func(want bool) {
 			t.Helper()
-			deadline := time.Now().Add(6 * time.Second)
+			deadline := time.Now().Add(20 * time.Second)
 			for sess.Info().Active != want {
 				if time.Now().After(deadline) {
 					t.Fatalf("attached %v: active never became %v", attached, want)

@@ -10,8 +10,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/egoist/mygo/ui"
-
 	"github.com/enowx/enowx/proto"
 )
 
