@@ -143,6 +143,9 @@ func HighlightLines(name, lang, code string) [][]Span {
 	return lines
 }
 
+// Color is the span's color.
+func (s Span) Color() ui.Color { return s.kind.color() }
+
 // CodeSpans draws one line of HighlightLines in a RichText it returns for
 // the caller to style; plain stands for the line when it has no spans.
 func CodeSpans(c *ui.Context, spans []Span, plain string) ui.Element {

@@ -60,6 +60,13 @@ func (a *App) openCenter(s proto.SessionInfo, tab string) {
 // closeCenter closes tab of session id; the tab before it comes to the front
 // if it was in front, else the session's own.
 func (a *App) closeCenter(id, tab string) {
+	if p, ok := strings.CutPrefix(tab, fileTabPrefix); ok && a.docs[id+"\x00"+p] != nil && a.docs[id+"\x00"+p].Dirty() {
+		a.confirm("Close without saving?", "The changes to "+path.Base(p)+" haven't been saved, and will be lost.", "Close without saving", func() {
+			a.docs[id+"\x00"+p] = nil
+			a.closeCenter(id, tab)
+		})
+		return
+	}
 	t := a.centerOf(id)
 	i := slices.Index(t.tabs, tab)
 	if i < 0 {
@@ -175,6 +182,11 @@ func centerIcon(tab string) *ui.SVG {
 
 // centerDot is the color of a tab's status dot: what is changing moves.
 func (a *App) centerDot(s proto.SessionInfo, tab string) ui.Color {
+	if p, ok := strings.CutPrefix(tab, fileTabPrefix); ok {
+		if d := a.docs[s.ID+"\x00"+p]; d != nil && d.Dirty() {
+			return theme.Warning // not saved
+		}
+	}
 	switch {
 	case strings.HasPrefix(tab, centerDiff):
 		return theme.Working

@@ -30,6 +30,8 @@ type Doc struct {
 	err      string
 	polling  bool
 	long     widget.LongText
+	edit     *editor // the file being edited, nil where it can't be
+	editNote string  // why it can't be, for the bar
 	copyText widget.CopyFeedback
 	copyPath widget.CopyFeedback
 	// markdown: the file is Markdown, which shows rendered unless raw.
@@ -90,7 +92,7 @@ func (d *Doc) follow(o Options) {
 	var seen time.Time // when the file last changed, as last read
 	go func() {
 		for {
-			f, err := cl.ReadFile(id, p, seen)
+			f, err := cl.ReadFileWhole(id, p, seen)
 			// Decoding a picture takes a while: not on the main thread.
 			var pic ui.ImageSource
 			var w, h int
@@ -116,6 +118,7 @@ func (d *Doc) follow(o Options) {
 					return
 				default:
 					d.content, d.lines, d.image, d.imgW, d.imgH = &f, splitLines(f.Text), pic, w, h
+					d.fromDisk(&f)
 				}
 				d.err = ""
 			})
@@ -188,7 +191,19 @@ func (d *Doc) bar(c *ui.Context, o Options) {
 				ui.Text(c, letter).FontSize(theme.TextLabel).FontWeight(500).TextColor(col).SingleLine().Shrink(0)
 			}
 		}
+		if d.editNote != "" {
+			ui.Text(c.Key("edit-note"), d.editNote).FontSize(theme.TextLabel).TextColor(theme.TextSoft).SingleLine().Shrink(0)
+		}
 		ui.Spacer(c)
+		if e := d.edit; e != nil && e.dirty {
+			label := "Save"
+			if e.saving {
+				label = "Saving…"
+			}
+			if widget.PrimaryButton(c.Key("save"), nil, label, "").Tooltip("Save the changes").Clicked() {
+				d.save(o, false)
+			}
+		}
 		if changed && o.ShowChanges != nil && widget.Button(c.Key("show-changes"), widget.Secondary, icon.Git, "Show changes", "").Height(28).Clicked() {
 			o.ShowChanges(d.path)
 		}
@@ -226,7 +241,11 @@ func (d *Doc) bar(c *ui.Context, o Options) {
 			if f.Truncated {
 				label, tip = "Copy displayed text", "Only the displayed part of this file will be copied"
 			}
-			widget.CopyIcon(c.Key("copy-text"), &d.copyText, icon.Copy, label, tip, f.Text)
+			text := f.Text
+			if d.Dirty() && d.edit.text != "" {
+				text = d.edit.text // what's being edited, as long as it's kept as a string
+			}
+			widget.CopyIcon(c.Key("copy-text"), &d.copyText, icon.Copy, label, tip, text)
 		}
 		if abs != "" {
 			widget.CopyIcon(c.Key("copy-path"), &d.copyPath, icon.Link, "Copy the path", "Copy the path", abs)
@@ -254,6 +273,9 @@ func (d *Doc) text(c *ui.Context, o Options) {
 		return
 	case f.Binary:
 		centered(c, "A binary file: nothing to show as text.")
+		return
+	case d.edit != nil:
+		d.editorView(c, o)
 		return
 	case len(d.lines) == 0:
 		centered(c, "This file is empty.")

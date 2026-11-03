@@ -3,9 +3,11 @@ package ui
 import (
 	"fmt"
 	"path"
+	"strconv"
 	"strings"
 	"time"
 
+	"github.com/egoist/mygo"
 	"github.com/egoist/mygo/ui"
 
 	"github.com/enowx/enowx/client"
@@ -146,4 +148,35 @@ func (a *App) docTab(c *ui.Context, s proto.SessionInfo, p string) {
 	d.Draw(c, a.fileOptions(s, func() bool {
 		return gen == a.gen && a.centerShows(s.ID, fileTabPrefix+p) && a.selected == s.ID && a.docs[key] == d
 	}))
+}
+
+// unsavedFiles is how many files have changes not saved.
+func (a *App) unsavedFiles() int {
+	n := 0
+	for _, d := range a.docs {
+		if d != nil && d.Dirty() {
+			n++
+		}
+	}
+	return n
+}
+
+// holdForUnsaved asks before quitting or closing the window would lose changes to a file.
+func (a *App) holdForUnsaved() {
+	ask := func(prevent func(), again func()) {
+		n := a.unsavedFiles()
+		if n == 0 || a.leaveUnsaved {
+			return
+		}
+		prevent()
+		a.quitting = false
+		a.onMain(func() {
+			a.confirm("Quit without saving?", strconv.Itoa(n)+" "+textfmt.Plural(n, "file has", "files have")+" changes that haven't been saved, and will be lost.", "Quit without saving", func() {
+				a.leaveUnsaved = true
+				again()
+			})
+		})
+	}
+	mygo.App.OnBeforeQuit(func(e *mygo.QuitEvent) { ask(e.PreventDefault, mygo.App.Quit) })
+	a.win.OnClose(func(e *mygo.CloseEvent) { ask(e.PreventDefault, func() { a.win.Close() }) })
 }

@@ -54,7 +54,32 @@ var fileHandlers = map[string]handler{
 		}
 		return files.ReadPart(dir, p.Path, p.Abs, p.Offset)
 	}),
+	proto.MethodFileWrite: with(func(c *conn, p proto.FileWrite) (any, error) {
+		if p.Abs {
+			if _, err := c.srv.sessions.Get(p.Session); err != nil {
+				return nil, err
+			}
+			return files.Write("", p)
+		}
+		dir, err := c.srv.sessionDir(p.Session)
+		if err != nil {
+			return nil, err
+		}
+		return files.Write(dir, p)
+	}),
 	proto.MethodFileRead: with(func(c *conn, p proto.FileRef) (any, error) {
+		if p.Whole {
+			dir := ""
+			if !p.Abs {
+				var err error
+				if dir, err = c.srv.sessionDir(p.Session); err != nil {
+					return nil, err
+				}
+			} else if _, err := c.srv.sessions.Get(p.Session); err != nil {
+				return nil, err
+			}
+			return files.ReadWhole(dir, p.Path, p.Abs, p.Unless)
+		}
 		if p.Abs {
 			if _, err := c.srv.sessions.Get(p.Session); err != nil {
 				return nil, err

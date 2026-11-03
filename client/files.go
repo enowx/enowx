@@ -31,6 +31,22 @@ func (c *Client) ReadFile(id, path string, unless time.Time) (proto.FileContent,
 	return f, err
 }
 
+// ReadFileWhole is ReadFile up to proto.MaxEdit, to edit it.
+func (c *Client) ReadFileWhole(id, path string, unless time.Time) (proto.FileContent, error) {
+	var f proto.FileContent
+	ref := proto.FileRef{Session: id, Path: path, Unless: unless, Abs: hostpath.IsAbs(path), Whole: true}
+	err := c.Call(proto.MethodFileRead, ref, &f)
+	return f, err
+}
+
+// WriteFile saves the file path of session id's folder as ReadFile found it: Force writes
+// over what changed since unless.
+func (c *Client) WriteFile(id, path, text string, unless time.Time, force bool) (proto.FileWritten, error) {
+	var out proto.FileWritten
+	err := c.Call(proto.MethodFileWrite, proto.FileWrite{Session: id, Path: path, Abs: hostpath.IsAbs(path), Text: text, Unless: unless, Force: force}, &out)
+	return out, err
+}
+
 // FindFiles finds up to limit files of session id's folder by a few
 // letters of their path, best first.
 func (c *Client) FindFiles(id, query string, limit int) ([]string, error) {

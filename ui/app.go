@@ -205,6 +205,7 @@ type App struct {
 	center             map[string]*centerTabs    // what tools opened in the center, by session ID
 	// docs are the files center tabs show, by session ID and path., by session ID and path.
 	docs            map[string]*fileview.Doc
+	leaveUnsaved    bool                      // the user said to quit without saving
 	pageViews       map[string]*pageView      // file tabs showing their page, by session and path
 	portViews       map[string]*portview.View // by session ID
 	trafficView     *trafficview.View         // the Traffic tool, for connection trafficGen
@@ -397,6 +398,7 @@ func (a *App) Open() *mygo.Window {
 	a.win.OnFocus(func() { a.blurred = false; a.usage.Poke() })
 	a.win.OnBlur(func() { a.blurred = true })
 	setAppMenu(a)
+	a.holdForUnsaved()
 	a.win.OnClosed(func() {
 		stopAppearance()
 		a.disconnect()

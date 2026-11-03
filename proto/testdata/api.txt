@@ -1068,6 +1068,7 @@ field FileContent.data []byte
 field FileContent.image string
 field FileContent.modified time.Time
 field FileContent.path string
+field FileContent.readOnly bool
 field FileContent.size int64
 field FileContent.text string
 field FileContent.truncated bool
@@ -1089,6 +1090,7 @@ field FileRef.abs bool
 field FileRef.path string
 field FileRef.session string
 field FileRef.unless time.Time
+field FileRef.whole bool
 field FileStat.abs string
 field FileStat.dir bool
 field FileStat.files int
@@ -1109,6 +1111,14 @@ field FileUpload.path string
 field FileUpload.session string
 field FileUploaded.path string
 field FileUploaded.placed bool
+field FileWrite.abs bool
+field FileWrite.force bool
+field FileWrite.path string
+field FileWrite.session string
+field FileWrite.text string
+field FileWrite.unless time.Time
+field FileWritten.changed bool
+field FileWritten.modified time.Time
 field FolderEntry.git bool
 field FolderEntry.name string
 field FolderListParams.hidden bool
@@ -2846,6 +2856,7 @@ method file.list
 method file.read
 method file.stat
 method file.upload
+method file.write
 method folder.list
 method folder.make
 method goa.agents
