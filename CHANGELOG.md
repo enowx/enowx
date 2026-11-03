@@ -2,6 +2,28 @@
 
 Each version's section is also what the app's update dialog shows.
 
+## 0.6.1
+
+Fixes sessions that wouldn't start on Windows, and keeps long content fast in more of the app. **On Windows, read "When you update" below.**
+
+- **Windows: sessions start again.** An agent's guide and MCP settings went on its command line, which could pass the 8,191 characters cmd.exe allows, and the session failed with "The command line is too long". They now go in files of the session's own, on the host where the agent runs, at every start, resume, wake and restart. Agents with no way to take a file keep the guide on the command line; on Windows, past the limit, the guide goes in a file and a line tells the agent to read it, and the session's note says so. **How far this is tested:** in CI, through real PowerShell and cmd.exe with a stand-in agent. It hasn't run with a real agent on Windows. If a session still fails, please open an issue.
+- **Windows, with no shell picked:** PowerShell stays open after the agent exits, and the session no longer ends with exit code 1.
+- **Every system:** Claude Code, OpenClaude, Droid, Autohand Code and Continue now read their guide from a file. A version of one too old to take that won't start: update the agent. A secret found in your rules is masked in the guide.
+- **Long content stays fast in more places:** Notes, unslop reports, GOD of Agents' panel, Activity, session lists and the palette, team chat, Token tables and canvas HTML views. Each now has a check with ten megabytes and a line of one. To hold that:
+  - A note of over 2,000 blocks draws 300 at a time, with Show more.
+  - A note block over 64 KB shows as it reads and doesn't open to type in. A table or layout block that long shows as raw text.
+  - A note over 256 KB can be read and copied as Markdown, not edited there.
+  - A canvas element over 64 KB can't be edited in the inspector.
+  - A chat message shows its first 8,000 bytes and says how many more there are. Copy still takes it all.
+- **Less work in the background:** the daemon no longer runs `git` for every project every 5 seconds to look at hooks. What lists projects keeps its answer per folder, and asks again when a checkout changes it, or after 5 minutes.
+
+### When you update
+
+- **On Windows, enowX can update itself even though sessions fail.** Updating doesn't need a session. Open the app and wait for the card at the bottom right, or use **Check for updates** in the command palette (Ctrl+K), then **Restart now**. If you're still in the first-run setup, finish it or leave it first: the card shows after it.
+- **If that doesn't work on Windows:** close enowX, download `enowX.Setup.0.6.1.amd64.exe` from this release and run it. Keep its folder as it offers (`%LOCALAPPDATA%\Programs\enowX`): your data stays in `~/.enowx-app`.
+- **Neither way has been tried on real Windows,** and updating an installed 0.6.0 hasn't been tried on any system. If an update fails, install from this release and tell us.
+- **The first start restarts the daemon,** as with any update: agents at work stop and continue their conversation when it's back, and commands running in terminal tabs end. So finish what's running first. Servers do the same the first time you connect to them.
+
 ## 0.6.0
 
 A new look, a first run that sets everything up, files you can edit, and a lot of work on staying fast. **Please read "When you update" below: going back to 0.5.1 isn't supported.**
