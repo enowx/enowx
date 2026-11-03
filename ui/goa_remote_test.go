@@ -132,7 +132,9 @@ func TestGOAFollowsAWorkerOnAnotherHost(t *testing.T) {
 		return tt.HasText("Server B") && tt.HasText("Fix the totals · working")
 	})
 
-	// Its turn ends on B (its agent's turn.done hook); the app tells A.
+	// Its turn ends on B (its agent's turn.done hook); the app tells A. A turn's end in
+	// a task's first seconds is what it was doing before, so this one comes after them.
+	time.Sleep(3100 * time.Millisecond)
 	if err := clB.Call(proto.MethodSessionState, proto.SessionStateParams{ID: task.Session, State: proto.StateDone}, nil); err != nil {
 		t.Fatal(err)
 	}
@@ -143,9 +145,10 @@ func TestGOAFollowsAWorkerOnAnotherHost(t *testing.T) {
 		}
 		return len(b.Tasks) == 1 && b.Tasks[0].Status == proto.GOATaskTurnEnded
 	})
+	// This stand-in for its agent shows no empty composer, so the line waits for its next turn.
 	frames("GOA told, in its conversation", func() bool {
-		text, err := clA.Screen(g.ID)
-		return err == nil && strings.Contains(text, "[enowX GOA] Task "+task.ID)
+		var b proto.GOABoard
+		return clA.Call(proto.MethodGOABoard, nil, &b) == nil && strings.Contains(strings.Join(b.Waiting, "\n"), "[enowX GOA] Task "+task.ID)
 	})
 	frames("the Sessions tool says its turn ended", func() bool { return tt.HasText("Fix the totals · turn-ended") })
 	shot(t, tt, "goa-remote-worker.png")
@@ -186,7 +189,7 @@ func TestGOAFollowsAWorkerOnAnotherHost(t *testing.T) {
 		return len(b.Tasks) == 2 && b.Tasks[1].Status == proto.GOATaskTurnEnded
 	})
 	frames("GOA told of the second", func() bool {
-		text, err := clA.Screen(g.ID)
-		return err == nil && strings.Contains(text, "[enowX GOA] Task "+task2.ID)
+		var b proto.GOABoard
+		return clA.Call(proto.MethodGOABoard, nil, &b) == nil && strings.Contains(strings.Join(b.Waiting, "\n"), "[enowX GOA] Task "+task2.ID)
 	})
 }

@@ -114,7 +114,7 @@ func TestNotesUndoTitleAndMarkdown(t *testing.T) {
 	if p.title != "New title" {
 		t.Fatalf("title redo: %q", p.title)
 	}
-	tt.Click("Markdown mode")
+	tt.Click("Markdown")
 	tt.Frame()
 	p.sourceFocus = true
 	tt.Frame()
@@ -144,7 +144,7 @@ func TestNotesUndoDoesNotTakeFilterShortcuts(t *testing.T) {
 	tt.Type(" change")
 	tt.Frame()
 	before := p.ed.markdown()
-	tt.Click("Filter pages")
+	tt.Click("Filter notes")
 	tt.Type("unmatched")
 	tt.Frame()
 	tt.Key(ui.Cmd, ui.KeyZ)
@@ -206,7 +206,7 @@ func TestNotesUndoBlockSplitAndReadMode(t *testing.T) {
 	if len(p.ed.blocks) != 2 {
 		t.Fatal("split redo did not restore the block")
 	}
-	tt.Click("Read mode")
+	tt.Click("Read")
 	tt.Frame()
 	before := p.ed.markdown()
 	tt.Key(ui.Cmd, ui.KeyZ)

@@ -11,5 +11,5 @@ func FitGrid(c *ui.Context, cell float32, most int) ui.Element {
 	if w := g.Bounds().W; w > 0 {
 		n = max(1, min(most, int(w/cell)))
 	}
-	return g.Columns(n)
+	return Columns(g, n)
 }

@@ -47,7 +47,7 @@ func readAider(path string, st *FileState) ([]Call, error) {
 		if m == nil {
 			return
 		}
-		c := Call{ID: "aider:" + path + ":" + strconv.FormatInt(st.Offset, 10), Time: at, Model: st.Model, Dir: filepath.Dir(path),
+		c := Call{ID: "aider:" + path + ":" + strconv.FormatInt(st.Offset, 10), Time: at, Model: st.Model, ModelInferred: true, Dir: filepath.Dir(path),
 			Input: rounded(m[1]), CacheWrite: rounded(m[2]), CacheRead: rounded(m[3]), Output: rounded(m[4])}
 		if cm := aiderCost.FindStringSubmatch(text); cm != nil {
 			c.Cost, _ = strconv.ParseFloat(cm[1], 64)

@@ -10,6 +10,9 @@ Nothing is caught until it is attached. Each thing attached is a **source**, wit
 
 Upstream, certificates are checked, except for loopback (development servers sign their own) and the hosts Settings names. An upstream proxy can be set.
 
+
+Bodies of any length show without the window feeling it (`widget.LongText`): the first megabyte is read, Show more reads up to 16 MB, and the rest is for Export. Formatting, lexing and search run off the main thread, once; only the rows in view are drawn, and a line too long for the width carries on in the next row. JSON cut off partway still lays out. A short body selects from line to line; a long one selects row by row, and Copy takes what's shown.
+
 ## What can be attached (Intercept)
 
 | Target | What it does |
@@ -35,16 +38,16 @@ A session's checks run with its traffic caught when it is, so the project's mock
 
 ## The tool
 
-It shows in the side panel, or as a session's view (the view menu of its header: Terminal, Chat, Browser, Traffic), as wide as the workspace.
+The side panel holds its lists; what they open shows in a tab of the session, in the center, with the width.
 
-- **Requests:** the list, live, this session's or **All** of the host's, filtered (below). Picking one shows it below: the request and the response with their headers and body by kind (JSON pretty, HTML, XML, JavaScript and CSS highlighted, images, forms as fields, other binaries as hex), the WebSocket, SSE or gRPC messages, and the timing (connected, TLS, sent, first byte, done), TLS and the rule that matched. **Mock this**, a breakpoint on requests like it, **Edit and send**, **Send to the agent** (secrets masked), pin, **Show secrets**, **Copy as** curl, fetch, Python, Go, HTTPie or PowerShell, copy the URL or the body, export it.
-- **Recording, paused, stopped:** the toolbar says which (a red dot records, amber is paused, grey stopped) with the exchanges not recorded since. **Pause** (⌘⌥P, again to resume) stops recording while traffic still flows through the proxy; its menu pauses everything, only this session's, only browsers', or only what the filter matches, and can pause the rules too (else mocks, forwards and failures keep running). **Stop** (⌘⌥S, again to start) catches nothing at all: what is attached stays pointed at the proxy, which passes its traffic on untouched, without rules, so nothing fails. Pausing or stopping lets requests held at a breakpoint go on (or drops them, as Settings say), and none is held while unrecorded. The list marks each pause and stop where it was ("— paused 14:30–14:42 · 38 not recorded —"). Settings choose whether rules keep running while paused, and can pause on its own after some minutes of recording or some exchanges; those preferences are the user's on every host (`settings/traffic.json`, synced), while whether a host records now is its own.
+- **Requests:** the list, live, this session's or **All** of the host's, filtered (below). Picking one opens it in a tab of the session, with its own Request, Response, Messages and Timing: the request and the response with their headers and body by kind (JSON pretty, HTML, XML, JavaScript and CSS highlighted, images, forms as fields, other binaries as hex), the WebSocket, SSE or gRPC messages, and the timing (connected, TLS, sent, first byte, done), TLS and the rule that matched. **Mock this**, a breakpoint on requests like it, **Edit and send**, **Send to the agent** (secrets masked), pin, **Show secrets**, **Copy as** curl, fetch, Python, Go, HTTPie or PowerShell, copy the URL or the body, export it.
+- **Recording, paused, stopped:** the toolbar says which (a blue dot records, amber is paused, grey stopped) with the exchanges not recorded since. **Pause** (⌘⌥P, again to resume) stops recording while traffic still flows through the proxy; its menu pauses everything, only this session's, only browsers', or only what the filter matches, and can pause the rules too (else mocks, forwards and failures keep running). **Stop** (⌘⌥S, again to start) catches nothing at all: what is attached stays pointed at the proxy, which passes its traffic on untouched, without rules, so nothing fails. Pausing or stopping lets requests held at a breakpoint go on (or drops them, as Settings say), and none is held while unrecorded. The list marks each pause and stop where it was ("— paused 14:30–14:42 · 38 not recorded —"). Settings choose whether rules keep running while paused, and can pause on its own after some minutes of recording or some exchanges; those preferences are the user's on every host (`settings/traffic.json`, synced), while whether a host records now is its own.
 - **Paused:** exchanges a breakpoint holds show on top, each to resume, change (status, headers, body) then resume, or drop. Its session shows as waiting for you meanwhile; a pause ends by itself after 5 minutes.
 - **Rules:** the project's rules, first match wins: each on or off, edited in a form, moved up, deleted, with its hits.
 - **Intercept:** what is attached, and what can be.
 - **Compose:** a request written by hand, or from one caught, sent from the host through the rules or around them, the last ones kept.
 - **Settings** (the gear): certificates not checked, an upstream proxy, names pointed at other addresses (as a hosts file), client certificates for servers that ask, how much the capture keeps, being told when an app's request fails or is answered 5xx, and making the CA anew (what trusted the old one must be attached again).
-- The **…** menu saves the filter with the project (in `.enowx/traffic.json`) and picks a saved one, exports what the list shows as HAR, imports a HAR file of this device, and clears. The globe lists the domains seen, with their counts, to hide or show each.
+- The **…** menu saves the filter with the project (in `.enowx/traffic.json`) and picks a saved one, exports what the list shows as HAR, and imports a HAR file of this device. The bin beside the filter clears the list. The globe lists the domains seen, with their counts, to hide or show each.
 
 ### Filtering
 

@@ -32,8 +32,11 @@ type hibernateForm struct {
 	plans []proto.HibernatePlan
 	// asker is the session of the agent asking, whose answer reply sends.
 	asker string
-	reply func(yes bool)
-	until time.Time // past it, the daemon waits no more
+	// from is the asking session; teammate says it is a teammate's on this host.
+	from     string
+	teammate bool
+	reply    func(yes bool)
+	until    time.Time // past it, the daemon waits no more
 }
 
 // hibernateTargets are the sessions a Hibernate on s acts on: those
@@ -219,11 +222,11 @@ func (a *App) hibernateAsked(cl *client.Client, req proto.AppRequest, reply func
 				reply(nil, err)
 				return
 			}
-			asker := p.From
+			asker, teammate := p.From, false
 			if s, ok := a.sessionByID(p.From); ok {
-				asker = a.sessionName(s)
+				asker, teammate = a.sessionName(s), s.Member != nil
 			}
-			a.hibernateAsks = append(a.hibernateAsks, &hibernateForm{cl: cl, plans: res.Plans, asker: asker, until: askUntil(hostAskLife), reply: func(yes bool) { reply(yes, nil) }})
+			a.hibernateAsks = append(a.hibernateAsks, &hibernateForm{from: p.From, teammate: teammate, cl: cl, plans: res.Plans, asker: asker, until: askUntil(hostAskLife), reply: func(yes bool) { reply(yes, nil) }})
 		})
 	}()
 }
@@ -243,20 +246,20 @@ func (a *App) hibernateDialog(c *ui.Context) {
 	}
 	working := slices.ContainsFunc(f.plans, func(pl proto.HibernatePlan) bool { return pl.Working })
 	title := "Hibernate " + textfmt.Plural(len(f.plans), "this session", fmt.Sprintf("these %d sessions", len(f.plans))) + "?"
-	widget.Dialog(c, &open, 460, 14, func() {
-		widget.DialogHeader(c, title, hibernateFrees(f.plans), false)
+	widget.Sheet(c, &open, 480, func() {
+		widget.SheetHead(c, &open, title, hibernateFrees(f.plans))
+	}, func() {
 		hibernatePlans(c, f.plans)
-		widget.DialogFooter(c, "", func() {
-			if widget.GhostButton(c, "Cancel").Clicked() {
-				answer(false, proto.SessionHibernateParams{})
-			}
-			if working && widget.GhostButton(c, "Once done").Tooltip("Hibernate each when its agent is done").Clicked() {
-				answer(true, proto.SessionHibernateParams{IDs: f.ids, WhenDone: true})
-			}
-			if widget.Button(c, widget.Danger, icon.Moon, "Hibernate now", "").Clicked() {
-				answer(true, proto.SessionHibernateParams{IDs: f.ids, Force: true})
-			}
-		})
+	}, func() {
+		if widget.GhostButton(c, "Cancel").Clicked() {
+			answer(false, proto.SessionHibernateParams{})
+		}
+		if working && widget.GhostButton(c, "Once done").Tooltip("Hibernate each when its agent is done").Clicked() {
+			answer(true, proto.SessionHibernateParams{IDs: f.ids, WhenDone: true})
+		}
+		if widget.PrimaryButton(c, icon.Moon, "Hibernate now", "").Clicked() {
+			answer(true, proto.SessionHibernateParams{IDs: f.ids, Force: true})
+		}
 	})
 	if !open && a.hibernating == f {
 		answer(false, proto.SessionHibernateParams{})
@@ -275,13 +278,20 @@ func (a *App) hibernateAsk(c *ui.Context) *widget.Ask {
 			f.reply(yes)
 		}
 	}
+	about := ""
+	buttons := []widget.AskButton{{Kind: widget.Secondary, Label: "Don't", Do: answer(false)}}
+	if f.from != "" && !f.teammate {
+		about = alwaysAllowNote(f.asker)
+		buttons = append(buttons, widget.AskButton{Kind: widget.Secondary, Label: "Always allow", Do: func() {
+			a.hibernateAsks = slices.DeleteFunc(a.hibernateAsks, func(x *hibernateForm) bool { return x == f })
+			a.allowAlways(f.cl, f.from, func() { f.reply(true) })
+		}})
+	}
+	buttons = append(buttons, widget.AskButton{Kind: widget.Primary, Icon: icon.Moon, Label: "Hibernate", Do: answer(true)})
 	return &widget.Ask{Key: fmt.Sprintf("hibernate:%p", f), Icon: icon.Moon, Title: "“" + f.asker + "” asks to hibernate",
-		About: "An agent asks to hibernate " + textfmt.Plural(len(f.plans), "this session", "these sessions") + ". " + hibernateFrees(f.plans),
-		Body:  func() { hibernatePlans(c, f.plans) },
-		Buttons: []widget.AskButton{
-			{Kind: widget.Secondary, Label: "Don't", Do: answer(false)},
-			{Kind: widget.Danger, Icon: icon.Moon, Label: "Hibernate", Do: answer(true)},
-		}}
+		About:   "An agent asks to hibernate " + textfmt.Plural(len(f.plans), "this session", "these sessions") + ". " + hibernateFrees(f.plans) + about,
+		Body:    func() { hibernatePlans(c, f.plans) },
+		Buttons: buttons}
 }
 
 // hibernateFrees says what hibernating plans does and gives back.
@@ -297,7 +307,7 @@ func hibernateFrees(plans []proto.HibernatePlan) string {
 }
 
 func hibernatePlans(c *ui.Context, plans []proto.HibernatePlan) {
-	ui.Column(c).FillWidth().Gap(8).Children(func() {
+	ui.Column(c).FillWidth().Gap(theme.S2).Children(func() {
 		for _, pl := range plans {
 			hibernatePlanCard(c.Key(pl.ID), pl)
 		}
@@ -306,24 +316,19 @@ func hibernatePlans(c *ui.Context, plans []proto.HibernatePlan) {
 
 // hibernatePlanCard is what hibernating a session would stop and free.
 func hibernatePlanCard(c *ui.Context, pl proto.HibernatePlan) {
-	ui.Column(c).FillWidth().Gap(4).Padding(10).Radius(theme.RadiusControl).Border(1, theme.Border).Children(func() {
-		ui.Row(c).FillWidth().Gap(8).AlignItems(ui.Center).Children(func() {
+	widget.Card(c).FillWidth().Shrink(0).Padding(theme.S2, theme.S3).Gap(theme.S1).Children(func() {
+		ui.Row(c).FillWidth().Gap(theme.S2).Children(func() {
 			ui.Icon(c, icon.Moon).FontSize(12).TextColor(theme.TextSoft)
-			name := pl.Name
-			if name == "" {
-				name = pl.ID
-			}
-			ui.Text(c, name).FontSize(12.5).TextColor(theme.TextStrong).SingleLine().Shrink(1)
-			ui.Spacer(c)
+			ui.Row(c).Grow(1).MinWidth(0).Children(func() { widget.Running(c, nonEmpty(pl.Name, pl.ID), widget.RunStyle{}) })
 			if pl.Blocked == "" {
-				ui.Text(c, "frees "+textfmt.Bytes(pl.RSS)).FontSize(11).TextColor(theme.Muted)
+				ui.Text(c, "frees "+textfmt.Bytes(pl.RSS)).FontSize(theme.TextLabel).TextColor(theme.TextSoft).SingleLine().Shrink(0)
 			}
 		})
 		line := func(text string, col ui.Color) {
-			ui.Text(c, text).FontSize(11.5).TextColor(col).PaddingX(20)
+			ui.Text(c, text).FontSize(theme.TextLabel).TextColor(col).FillWidth().MinWidth(0)
 		}
 		if pl.Blocked != "" {
-			line("Stays as it is: "+pl.Blocked, theme.Muted)
+			line("Stays as it is: "+pl.Blocked, theme.TextSoft)
 			return
 		}
 		if pl.Working {

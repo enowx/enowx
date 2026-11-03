@@ -20,19 +20,19 @@ func (v *View) deviceSection(c *ui.Context, o Options, f *form, p vault.Platform
 	widget.Field(c, "Or sign in in the browser", func() {
 		switch {
 		case d.code != "":
-			ui.Row(c).FillWidth().Gap(10).AlignItems(ui.Center).Children(func() {
-				ui.Text(c, d.code).FontSize(20).FontWeight(700).Font(theme.MonoFont).TextColor(theme.TextStrong).Selectable()
-				if widget.Button(c, widget.Secondary, icon.Copy, "Copy", "").Height(26).PaddingX(10).Clicked() {
+			ui.Row(c).FillWidth().Gap(theme.S2).AlignItems(ui.Center).Children(func() {
+				ui.Text(c, d.code).FontSize(theme.TextTitle).FontWeight(700).Font(theme.MonoFont).TextColor(theme.TextStrong).Selectable()
+				if widget.Button(c, widget.Secondary, icon.Copy, "Copy", "").Clicked() {
 					c.WriteClipboard(d.code)
 				}
 			})
-			ui.Text(c, "Type it at "+d.url+" (opened in your browser), signed in to "+p.Name+"; the token fills in here.").FontSize(11.5).TextColor(theme.Muted)
+			ui.Text(c, "Type it at "+d.url+" (opened in your browser), signed in to "+p.Name+"; the token fills in here.").FontSize(theme.TextLabel).TextColor(theme.TextSoft)
 		case d.waiting:
-			ui.Text(c, "Asking "+p.Name+" for a code…").FontSize(11.5).TextColor(theme.Muted)
+			ui.Text(c, "Asking "+p.Name+" for a code…").FontSize(theme.TextLabel).TextColor(theme.TextSoft)
 		default:
-			ui.Row(c).FillWidth().Gap(8).AlignItems(ui.Center).Children(func() {
-				widget.Input(c, &d.clientID, "Your OAuth app's client ID").Grow(1).Shrink(1).Font(theme.MonoFont)
-				if widget.Button(c, widget.Secondary, icon.Globe, "Sign in", "").Height(30).PaddingX(12).Clicked() {
+			ui.Row(c).FillWidth().Gap(theme.S2).AlignItems(ui.Center).Children(func() {
+				widget.Input(c, &d.clientID, "Your OAuth app's client ID").Grow(1).Shrink(1).MinWidth(0)
+				if widget.Button(c, widget.Secondary, icon.Globe, "Sign in", "").Clicked() {
 					d.waiting, d.err = true, ""
 					o.Actions.DeviceLogin(p.ID, d.clientID, func(code, url string) {
 						d.code, d.url = code, url
@@ -46,13 +46,13 @@ func (v *View) deviceSection(c *ui.Context, o Options, f *form, p vault.Platform
 					})
 				}
 			})
-			ui.Text(c, "No token to make: sign in on "+p.Name+"'s page. It takes an OAuth app of yours: "+p.Device.Help+".").FontSize(11.5).TextColor(theme.Muted)
+			ui.Text(c, "No token to make: sign in on "+p.Name+"'s page. It takes an OAuth app of yours: "+p.Device.Help+".").FontSize(theme.TextLabel).TextColor(theme.TextSoft)
 		}
 		if d.err != "" {
-			ui.Text(c, d.err).FontSize(11.5).TextColor(theme.Error)
+			ui.Text(c, d.err).FontSize(theme.TextLabel).TextColor(theme.Error)
 		}
 		if d.done && d.code == "" && !d.waiting && d.err == "" {
-			ui.Text(c, "Signed in: the token is filled in. Add it to keep it.").FontSize(11.5).TextColor(theme.Done)
+			ui.Text(c, "Signed in: the token is filled in. Add it to keep it.").FontSize(theme.TextLabel).TextColor(theme.Done)
 		}
 	})
 }

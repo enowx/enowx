@@ -11,16 +11,17 @@ import (
 )
 
 // The stall limits' dialog opens from both its ways in, Settings → New
-// sessions' Change… and GOD of Agents' Stall limits, and what is saved in
+// sessions' Change… and GOD of Agents' Stall limits…, and what is saved in
 // it is what the host answers.
 func TestStallLimitsFromSettingsAndGOA(t *testing.T) {
 	app, posted := laterApp(t)
 	app.host.ID, app.host.Name = "local", "this Mac"
 	app.settingsSection = sectionSessions
+	app.agents = app.agents[:2] // every preset's row would push the stalled tasks' card out of the window
 	tt := ui.NewTester(func(c *ui.Context) {
 		c.SetTheme(theme.Window())
 		ui.Column(c).FillWidth().FillHeight().Background(theme.Background).Children(func() {
-			app.goaNav(c)
+			app.goaHeader(c, proto.SessionInfo{}, proto.SessionInfo{})
 			app.settingsPage(c)
 			app.goaStallDialog(c)
 		})
@@ -47,21 +48,23 @@ func TestStallLimitsFromSettingsAndGOA(t *testing.T) {
 		}
 	}
 
-	// Two rows of the section say Change…: this one is the stalled tasks'.
+	// Two cards of the section say Change…: this one is the stalled tasks'.
 	frames("the section", func() bool { return tt.HasText("Stalled tasks on this Mac") })
-	change, ok := tt.Find("Change…")
-	title, ok2 := tt.Find("Stalled tasks on this Mac")
-	note, ok3 := tt.Find("How long a task of GOD of Agents may not move before it is told")
-	if !ok || !ok2 || !ok3 {
-		t.Fatalf("the row: %q", tt.Texts())
+	tt.Frame() // the lowest cards take the frame's height from the frame before
+	tt.Frame()
+	if err := tt.Click("Change the stall limits"); err != nil {
+		t.Fatalf("the card: %v (%q)", err, tt.Texts())
 	}
-	tt.ClickAt(change.X+change.W/2, (title.Y+note.Y+note.H)/2)
 	frames("the dialog from Settings", loaded)
 	app.goa.stall.idle = "5m"
 	tt.Frame()
 	saved("from Settings", proto.GOAStall{Blank: 60, Idle: 300, Stuck: 600})
 
-	if err := tt.Click("Stall limits"); err != nil {
+	if err := tt.Click("More for GOD of Agents"); err != nil {
+		t.Fatal(err)
+	}
+	frames("its menu", func() bool { return tt.HasText("Stall limits…") })
+	if err := tt.Click("Stall limits…"); err != nil {
 		t.Fatal(err)
 	}
 	frames("the dialog from GOD of Agents", loaded)

@@ -23,6 +23,7 @@ The stage shows the frame, scaled to fit.
 - The palette down the stage's side adds shapes. **Connect** draws an arrow from the selected shape to the next one clicked.
 - **Layers** lists the frame's elements: the mockup's by id, and the shapes. The selected one shows its properties: a shape's text, fill and line colors, and a mockup element's HTML to edit and apply.
 - A mockup previews at its frame's size, or at a desktop's, tablet's or phone's width.
+- A design's card shows its picture, never its words. Pictures are kept on the device that renders them and show at once, a restart included, until the design's HTML changes (an image it uses changing under the same HTML keeps the old picture). Only cards in sight are rendered, two asked for at a time; until then the card's frame says "Loading preview", and "Preview failed" if it couldn't be made, tried again after 30 seconds.
 - In **Interact** mode the mockup works as the real thing: buttons, links, forms and hover states.
 
 Every change is made to one element of the canvas as the host has it now. A change the user makes while an agent designs never undoes the agent's work, and the agent's never undoes the user's.
@@ -82,9 +83,17 @@ A design can really move: a product's animation in its mockup, a logo's reveal, 
 - **Interact mode** has a bar under a moving design: play or pause, restart, and a scrubber, driven through the page as its links are. The board shows the design finished and doesn't play it. It isn't a timeline editor: what moves is the design's own code, so an agent changes it.
 - **The shared page** has the same controls under each moving design, by postMessage, as its frame's sandbox leaves nothing else. A single frame's HTML export plays alone with no controls, so a viewer with reduced motion sees it finished.
 
-Stills catch one moment, the same each time: the end, or a loop's start. `canvas screenshot` and `canvas export` say so for a moving design, and Export's menu marks PNG, SVG and PDF "(one frame)". Only HTML keeps the motion; there is no video export or sound.
+Stills catch one moment, the same each time: the end, or a loop's start. `canvas screenshot` and `canvas export` say so for a moving design, and Export's menu marks PNG, SVG and PDF "(one frame)". HTML keeps the motion, and an MP4 records it, without sound.
 
-Agents check motion from moments of it: `canvas frames ID [DESIGN] --at 0,25,50,75,100` (MCP `canvas_frames`) renders each with the page moved there (a percent of its length, or `1500ms`), keeps them as files, lays them on one sheet in order, and says when two are the same picture. The guide's Motion section has when to use what; `canvas guide motion` has timing, easing, choreography, what looks cheap and how to check it.
+Agents check motion from moments of it: `canvas frames ID [DESIGN] --at 0,25,50,75,100` (MCP `canvas_frames`) loads the page once and moves it to each moment (a percent of its length, or `1500ms`), keeps them as files, lays them on one sheet in order, and says when two are the same picture. The guide's Motion section has when to use what; `canvas guide motion` has timing, easing, choreography, what looks cheap and how to check it.
+
+### As an MP4
+
+**Export, MP4…** on a design that moves, `canvas export --format mp4` and MCP `canvas_export` render it frame by frame, not by recording the screen: the design's clock moves to each frame's time, the frame is captured and encoded, so the file comes out the same each time, however fast the machine is. It runs in the background, one at a time, in a hidden window of the app, with a card in the window's corner: how far, the time left, Cancel, which leaves no file, then Open and Show in folder. Files go to Downloads.
+
+- **Choices:** the range (all of it, or from and to), 30 or 60 frames a second, and its size (the frame's, twice that, or a width). All of it, 30 and the frame's size by default. A loop renders one cycle. A design with no motion has the option off.
+- **Encoder:** ffmpeg where the app runs, on macOS, Windows and Linux alike, found on the PATH or where Homebrew and Linux keep it; without it the dialog says to install it. It takes `libx264`, which gives the same file each time, or else the system's H.264 encoder through ffmpeg (`h264_videotoolbox`, `h264_mf`) or `libopenh264`, which may not. H.264, yuv420p, even dimensions, two threads, no sound. Bundling ffmpeg would add tens of megabytes and x264's GPL; calling the systems' encoders directly would need code per platform this can't test here.
+- **What can't be exact:** motion a design draws by its own `requestAnimationFrame` or `setAnimationLoop`, which the clock can't move. It says so; anything added with `enowx.motion.add` follows. What plays is the design's clock: clicks in an interactive design aren't part of it.
 
 ## At any window size
 
@@ -122,7 +131,7 @@ Agents learn how to design from the canvas guide (`enowx-app canvas guide`), whi
 ## Comments, versions, exports
 
 - **Comments** go on the selected element, or on the frame. Agents read them (`canvas comments`), do them, and resolve them.
-- **Versions** lists every change: whose it was, and what it changed. One compares with the version shown, the elements added, removed and changed, and **Restore** makes an old version the newest. Undo and Redo (⌘Z, Shift+⌘Z) step through versions.
+- **Versions** lists every change: whose it was, and what it changed. One compares with the version shown, the elements added, removed and changed, and **Restore** makes an old version the newest. Undo and Redo (⌘Z, Shift+⌘Z) step through versions. A canvas keeps its last 400 versions, those a redesign labeled last of all. A version names its designs by their content, each kept once and compressed (`history/frames`), so one change costs one design. Versions are each host's own, not synced or sent to a team's cloud: a change from elsewhere becomes a version here when you undo from it. Versions kept whole by an older build are converted once at the daemon's start, each read back before its copy goes.
 - **Export** saves the frame as PNG, SVG, PDF or HTML into Downloads. Of a moving design only HTML keeps the motion ([Motion](#motion)).
 - **Share as a page** saves the whole canvas as one read-only HTML file, its images inside. There is no cloud: share the file.
 - **Share a link** has the host serve that page, read-only, to whoever has the link: on this device (`127.0.0.1`) and on the user's tailnet (the host's Tailscale address), never on other networks, nothing going to the internet. The page reloads as the canvas changes. No canvas has a link until the user makes one; **Stop sharing** (or deleting the canvas) ends it. The links are the host's own, kept in `canvas-shares.json` beside the synced folders, and come back when the daemon restarts. `canvas share CANVAS`, `canvas unshare CANVAS` and `canvas shares` do the same from the command line.
@@ -139,8 +148,10 @@ A frame with HTML needs a web engine. The daemon asks the app connected to the h
 On the host, in `~/.enowx-app/canvas/<id>/`:
 
 - `canvas.json`: the canvas as shown.
-- `history/<n>.json`: every version, whole, the last 400.
+- `history/<n>.json`: every version, the last 400: its canvas without its designs, and their names in `history/frames/`, where each design's content is kept once, compressed.
 - `history.json`: which version is shown, and what made each.
+
+Versions kept whole by an older enowX are converted once, in the background, as the daemon starts. Each canvas's are first kept as they were in `canvas-history-backup/personal/<id>/` (`canvas-history-backup/<team>/<id>/` for a team's), a folder sync and Clean cache don't touch, and a backup that fails leaves that canvas unconverted until the next start; the log says which. **To go back:** stop the daemon, then put the backup's `history/` and `history.json` in place of the canvas's own in `canvas/<id>/`. Once you're sure of your canvases, the backup folder can be deleted by hand: until then it keeps the disk space the conversion would free.
 - `comments.json`.
 - `chat.json`: the conversation with the agent beside it.
 - `assets/`: images that shapes show (`--src NAME`) and HTML shows (`assets/NAME`).

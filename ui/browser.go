@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"slices"
 	"strconv"
 	"sync"
 
@@ -15,9 +16,10 @@ import (
 	"github.com/enowx/enowx/ui/browserview"
 )
 
-// The Browser tool of the side panel (see package browserview): one web
-// view per session, made the first time it shows a page and kept while
-// the session lasts, so switching tools or sessions keeps the page.
+// The Browser tool (see package browserview): the side panel lists a session's
+// pages and its center tab shows the page, in one web view per session, made
+// the first time it shows a page and kept while the session lasts, so switching
+// tabs or sessions, or closing the tab, keeps the page.
 
 // webViewAvailable reports, once, whether this device can show pages.
 var webViewAvailable = sync.OnceValue(mygo.WebViewAvailable)
@@ -93,8 +95,13 @@ func (a *App) browserOptions(s proto.SessionInfo) browserview.Options {
 			if gen != a.gen || a.browsers[s.ID] == nil {
 				return false
 			}
-			return a.state.BrowserViews[s.ID] || a.panelShows(panelBrowser) && a.selected == s.ID
+			if a.state.BrowserViews[s.ID] {
+				return true
+			}
+			return a.selected == s.ID && (a.panelShows(panelBrowser) || a.centerShows(s.ID, centerBrowser))
 		},
+		OpenTab: func() { a.openCenter(s, centerBrowser) },
+		Shown:   func() bool { return a.centerShows(s.ID, centerBrowser) },
 		NewPage: func(url string, done func(browserview.Page, error)) {
 			win := a.win
 			if win == nil {
@@ -153,16 +160,32 @@ type preview struct {
 	Path string `json:"path,omitempty"`
 }
 
-// browserTab draws the Browser tool for session s.
+// browserPages draws the Browser tool for session s: its pages.
+func (a *App) browserPages(c *ui.Context, s proto.SessionInfo) {
+	a.browserOf(s.ID).DrawPages(c, a.browserOptions(s))
+}
+
+// browserTab draws session s's page, in a center tab or as its own view: the
+// one place its web view shows.
 func (a *App) browserTab(c *ui.Context, s proto.SessionInfo) {
 	a.browserOf(s.ID).Draw(c, a.browserOptions(s))
+}
+
+// browserTabBehind opens session s's page in a tab that stays behind the one in
+// front: a page opened by itself doesn't take the window.
+func (a *App) browserTabBehind(s proto.SessionInfo) {
+	s = a.parentOf(s)
+	t := a.centerOf(s.ID)
+	if !slices.Contains(t.tabs, centerBrowser) {
+		t.tabs = append(t.tabs, centerBrowser)
+	}
 }
 
 // previewPort shows port p of session s in its browser.
 func (a *App) previewPort(s proto.SessionInfo, p proto.Port) {
 	a.selectSession(s)
 	if !a.state.BrowserViews[s.ID] {
-		a.openPanel(panelBrowser)
+		a.openCenter(s, centerBrowser)
 	}
 	a.browserOf(s.ID).Show(a.browserOptions(s), p)
 }

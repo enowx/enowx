@@ -266,6 +266,9 @@ var supersedes = map[string]string{
 func WithRendered(static, rendered []proto.UnslopFinding) []proto.UnslopFinding {
 	drop := map[string]bool{}
 	for _, f := range rendered {
+		if f.State != "" {
+			continue // of a state the first screen doesn't show
+		}
 		drop[f.Rule] = true
 		if old, ok := supersedes[f.Rule]; ok {
 			drop[old] = true

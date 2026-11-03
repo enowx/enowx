@@ -164,6 +164,16 @@ func (s *Server) acted(d proto.Decision, what string, saved int) proto.Decision 
 	return d
 }
 
+// actedOnAllow is what came of the judge allowing a command of session info:
+// the log says what happens, and with an agent whose prompt no hook can spare,
+// the user is still asked. Approve stays set for it, as a rewrite goes by it.
+func actedOnAllow(info proto.SessionInfo) string {
+	if agent.JudgeApprovesByHook(info.Agent) {
+		return proto.ActedAllowed
+	}
+	return proto.ActedLeft
+}
+
 // judgeHook is the hook action judge: session info's agent is about to
 // run ev's command; the judge allows it, leaves it to the user, or
 // refuses it.
@@ -183,7 +193,10 @@ func (s *Server) judgeHook(info proto.SessionInfo, ev proto.HookEvent) (proto.Ho
 	}
 	switch d.Verdict {
 	case proto.VerdictAllow:
-		s.acted(d, proto.ActedAllowed, 0)
+		s.acted(d, actedOnAllow(info), 0)
+		if !agent.JudgeApprovesByHook(info.Agent) {
+			return proto.HookDecision{Approve: true}, "allowed, but its agent still asks: " + d.Why
+		}
 		return proto.HookDecision{Approve: true}, "allowed: " + d.Why
 	case proto.VerdictRefuse:
 		s.acted(d, proto.ActedRefused, 0)
@@ -312,15 +325,25 @@ func (s *Server) judgeLoop(info proto.SessionInfo, steps []step) {
 	s.acted(d, proto.ActedPaused, 0)
 }
 
+// trimExactSure is how sure a trim of content the agent asked for has to be.
+const trimExactSure = 0.97
+
 // trimOutput is enowx decide trim's: command's long output, what the
 // agent needs of it.
 func (s *Server) trimOutput(info proto.SessionInfo, a proto.DecideAsk) (proto.Decision, error) {
+	if a.Passed {
+		d := proto.Decision{ID: newRenderID(), Use: proto.DecideTrim, Session: info.ID, Project: sessionProject(info), Agent: agent.Base(info.Agent),
+			Time: time.Now(), Verdict: proto.VerdictKeep, Input: clip(oneLine(s.maskLent(a.Command)), 300), Acted: proto.ActedPassed}
+		s.judge.Record(d)
+		s.broadcast(proto.EventDecision, d)
+		return d, nil
+	}
 	a.Output = s.maskLent(a.Output)
 	d, err := s.decideFor(info, a)
 	if err != nil {
 		return d, err
 	}
-	if d.Verdict == proto.VerdictTrimmed && s.sure(d) && len(d.Text) < len(a.Output) {
+	if d.Verdict == proto.VerdictTrimmed && s.sure(d) && (!a.Exact || d.Confidence >= trimExactSure) && len(d.Text) < len(a.Output) {
 		return s.acted(d, proto.ActedTrimmed, len(a.Output)-len(d.Text)), nil
 	}
 	d = s.acted(d, proto.ActedNothing, 0)

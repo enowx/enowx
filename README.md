@@ -15,10 +15,11 @@
   <a href="docs/agents.md">Agents</a> ·
   <a href="docs/cli.md">Command line</a> ·
   <a href="#documentation">Documentation</a> ·
+  <a href="https://discord.gg/y8NVRnz8jh">Discord</a> ·
   <a href="LICENSE">MIT License</a>
 </p>
 
-> **Download:** [the latest release](https://github.com/enowx/enowx/releases/latest) for macOS, Windows and Linux. Not yet signed or notarized, see [docs/install.md](docs/install.md) to open it. It updates itself.
+> **Download:** [the latest release](https://github.com/enowdev/enowx/releases/latest) for macOS, Windows and Linux. Not yet signed or notarized, see [docs/install.md](docs/install.md) to open it. It updates itself.
 
 ![One prompt given to two Claude Code sessions, each on its own branch, working side by side, then compared](docs/assets/readme/fan-out.gif)
 
@@ -67,6 +68,7 @@ So enowX lets the heavy work run somewhere else while it still feels like it run
 - [Try it](#try-it)
 - [Develop](#develop)
 - [Documentation](#documentation)
+- [Community](#community)
 
 ## What it does
 
@@ -116,6 +118,8 @@ The **Git** tab of the side panel shows what the selected session changed agains
 ![The Git panel: the session's changed files, a diff, a warning that another session changed the same lines, and a follow-up sent to the agent](docs/assets/readme/review.gif)
 
 ![Committing a session's changes from the Git panel, then Merge into main](docs/assets/readme/commit.gif)
+
+Files open in tabs where you can edit them, on any host: undo, find and replace, line numbers, and a choice to make when an agent changes the file under you ([side panel](docs/side-panel.md#files)).
 
 The side panel's other tools: **Checks** (the commands that tell whether the work holds up, run in the session's folder), **Files** (browse, open, add from this device, rename, duplicate, delete), **Ports** (what the session listens on), **Activity**, the **Browser**, **Traffic** and **Android** ([side-panel.md](docs/side-panel.md)).
 
@@ -201,7 +205,7 @@ Also `ls`, `status`, `note`, `kill`, `attach`, `agents`, `projects`, `shells`, `
 
 ### Make it yours
 
-Five themes, any accent color, and a command palette (`Ctrl+K`) for every session, host and action. Settings has the agents' library (skills, MCP servers, subagents, commands, instructions, settings and plugins, global or per project), what new sessions start with, the shell terminals start with (zsh, bash, fish, PowerShell, Git Bash, WSL…), agent accounts, environment variables every session gets (API keys, say), automations, and diagnostics ([settings.md](docs/settings.md)).
+Four UI styles (Liquid Glass, Ledger, Tonal and Bento), palettes that tint any of them, any accent color, your own background image, and a command palette (`Ctrl+K`) for every session, host and action. Settings has the agents' library (skills, MCP servers, subagents, commands, instructions, settings and plugins, global or per project), what new sessions start with, the shell terminals start with (zsh, bash, fish, PowerShell, Git Bash, WSL…), agent accounts, environment variables every session gets (API keys, say), automations, and diagnostics ([settings.md](docs/settings.md)).
 
 ![The command palette, then the five themes and a few accent colors](docs/assets/readme/themes.gif)
 
@@ -265,6 +269,10 @@ The interface is built with [MyGo](https://mygo.egoist.dev/) (its widgets, termi
 | [Model APIs](docs/agent-api.md) | [Copying a project](docs/transfer.md) | [Chat view](docs/chat-view.md) | [Traffic](docs/traffic.md) | [The tray](docs/tray.md) | [Notes](docs/notes.md) |
 | [Team cloud](docs/cloud.md) | | | [Android](docs/android.md) | [Floating control](docs/floating-control.md) | [Canvas](docs/canvas.md) |
 | | | | | [Vault](docs/vault.md) | |
+
+## Community
+
+Ask questions and follow along on [Discord](https://discord.gg/y8NVRnz8jh).
 
 ## License
 

@@ -90,7 +90,7 @@ var appSettings = map[string]appSetting{
 			if v != "" && !slices.ContainsFunc(theme.Palettes, func(p theme.Palette) bool { return p.ID == v }) {
 				return fmt.Errorf("no theme %q: %s", v, paletteIDs())
 			}
-			a.state.Theme = v
+			a.state.Theme, a.state.FollowBackground = v, false
 			a.applyTheme()
 			return nil
 		}},

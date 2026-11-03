@@ -37,6 +37,11 @@ func (s *Server) createSession(p proto.SessionCreateParams) (*session.Session, e
 // or the host's own user (nil): a member's session gets none of the host's
 // credentials (membersession.go).
 func (s *Server) createSessionFor(p proto.SessionCreateParams, member *proto.SessionMember) (*session.Session, error) {
+	if member == nil {
+		if convo := s.takeHelperConvo(p); convo != "" {
+			p.Resume = convo // a page's agent that ended idle: the same conversation
+		}
+	}
 	meta := session.Meta{Member: member, Name: strings.TrimSpace(p.Name), Prompt: p.Prompt, Project: p.Project, Agent: p.Agent, Group: p.Group, Account: p.Account, NotesFor: p.NotesFor, CanvasFor: p.CanvasFor, Features: p.Features,
 		NoAutoHibernate: s.hibernatePrefs().NeverByDefault}
 	if err := s.tokenGate(p, p.Project); err != nil {
@@ -116,6 +121,10 @@ func (s *Server) createSessionFor(p proto.SessionCreateParams, member *proto.Ses
 		}
 		chat.config, meta.Config = run, run.sessionInfo()
 	}
+	if member == nil && p.Resume == "" && meta.Config == nil {
+		p = s.withAgentStart(p)
+	}
+	meta.Model, meta.Effort, meta.Mode = strings.TrimPrefix(p.Model, "default"), strings.TrimPrefix(p.Effort, "default"), p.Mode
 	launch, err := launchFor(p, chat)
 	if err != nil {
 		s.configForget(id)
@@ -365,14 +374,17 @@ func launchFor(p proto.SessionCreateParams, chat chatFor) (launch, error) {
 		}
 	}
 	first := agentLaunch(preset, skip, prompt, false, chat)
-	first.Hooks = append(first.Hooks, agent.LaunchArgs(preset.ID, p.Model, p.Effort)...)
+	args := agent.StartArgs(preset.ID, p.Model, p.Effort, p.Mode, skip)
+	first.Hooks = append(first.Hooks, args...)
+	again := agentLaunch(preset, skip, "", true, chat)
+	again.Hooks = append(again.Hooks, args...)
 	if p.Resume != "" {
 		first.Resume, first.Fork = p.Resume, p.Fork
 	}
 	l := launch{
 		command:  thenShell(preset.Argv(first)),
-		env:      append(append(append(append(preset.Environ(skip), chat.apiEnv(preset.ID)...), notesEnv(chat.notes != "")...), canvasEnv(chat.canvas != "")...), chat.goaEnv(preset.ID)...),
-		restart:  thenShell(preset.Argv(agentLaunch(preset, skip, "", true, chat))),
+		env:      append(append(append(append(preset.Environ(skip), chat.apiEnv(preset.ID)...), notesEnv(chat.notes != "")...), canvasEnv(chat.canvas != "")...), append(chat.goaEnv(preset.ID), chat.toolEnv(preset.ID)...)...),
+		restart:  thenShell(preset.Argv(again)),
 		relaunch: len(preset.Continue) > 0,
 		skip:     skip,
 	}
@@ -424,6 +436,25 @@ type chatFor struct {
 	goa bool
 }
 
+// toolEnv is what agent id's environment adds for enowX's tools: for the host's
+// user's ordinary sessions, as the Notes, Canvas and GOA agents have tools of
+// their own and a teammate's session none of this.
+func (ch chatFor) toolEnv(id string) []string {
+	if ch.member || ch.notes != "" || ch.canvas != "" || ch.goa {
+		return nil
+	}
+	return toolEnv(id)
+}
+
+// toolEnv is agent.ToolEnv for this program and its user.
+func toolEnv(id string) []string {
+	home, err := os.UserHomeDir()
+	if err != nil {
+		return nil
+	}
+	return agent.ToolEnv(id, programPath(), home)
+}
+
 // goaEnv is what GOA's agent id gets in its environment, nothing for
 // another session.
 func (ch chatFor) goaEnv(id string) []string {
@@ -472,7 +503,11 @@ func agentLaunch(preset agent.Preset, skip bool, prompt string, cont bool, chat 
 			slog.Warn("could not give the agent its guide", "agent", preset.ID, "err", err)
 		}
 	}
-	hooks := append(agent.HookArgs(preset.ID), agent.GuideArgsText(preset.ID, guide)...)
+	var tools []string
+	if !chat.member {
+		tools = agent.ToolArgs(preset.ID, programPath())
+	}
+	hooks := append(append(agent.HookArgs(preset.ID), tools...), agent.GuideArgsText(preset.ID, guide)...)
 	if agent.Base(preset.ID) == "codex" && len(hooks) > 0 {
 		// Codex runs only hooks it trusts: enowX's own are trusted here.
 		if err := agent.TrustCodexHooks(""); err != nil {
@@ -481,14 +516,11 @@ func agentLaunch(preset agent.Preset, skip bool, prompt string, cont bool, chat 
 	}
 	switch {
 	case chat.goa:
-		exe, _ := os.Executable()
-		hooks = append(agent.HookArgs(preset.ID), agent.GOAArgs(preset.ID, exe, guide)...)
+		hooks = append(agent.GOAHookArgs(preset.ID), agent.GOAArgs(preset.ID, programPath(), guide)...)
 	case chat.notes != "":
-		exe, _ := os.Executable()
-		hooks = append(agent.HookArgs(preset.ID), agent.NotesArgs(preset.ID, exe, chat.notes)...)
+		hooks = append(agent.HookArgs(preset.ID), agent.NotesArgs(preset.ID, programPath(), chat.notes)...)
 	case chat.canvas != "":
-		exe, _ := os.Executable()
-		hooks = append(agent.HookArgs(preset.ID), agent.CanvasArgs(preset.ID, exe, chat.canvas, chat.dirs)...)
+		hooks = append(agent.HookArgs(preset.ID), agent.CanvasArgs(preset.ID, programPath(), chat.canvas, chat.dirs)...)
 	}
 	if home, err := os.UserHomeDir(); err == nil && !chat.member && (chat.config == nil || !chat.config.api) {
 		hooks = append(hooks, agentapi.LaunchArgs(home, preset.ID)...) // its model API's config

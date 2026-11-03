@@ -28,17 +28,40 @@ func ParseMotion(text string) *proto.CanvasMotion {
 	return &proto.CanvasMotion{Duration: m.D, At: m.T}
 }
 
-// MotionAt has doc's motion stand at at for a still: "25" or "25%" of its
-// length, or "1500ms".
-func MotionAt(doc, at string) (string, error) {
+// parseMoment reads a moment: "25" or "25%" of a design's length, or "1500ms".
+func parseMoment(at string) (unit string, v float64, err error) {
 	at = strings.TrimSpace(at)
-	unit, text := "pct", strings.TrimSuffix(at, "%")
+	unit = "pct"
+	text := strings.TrimSuffix(at, "%")
 	if strings.HasSuffix(at, "ms") {
 		unit, text = "ms", strings.TrimSuffix(at, "ms")
 	}
-	v, err := strconv.ParseFloat(text, 64)
+	v, err = strconv.ParseFloat(text, 64)
 	if err != nil || v < 0 || (unit == "pct" && v > 100) {
-		return "", fmt.Errorf("canvas: a moment is 0 to 100 (percent of its length) or a time as 1500ms, not %q", at)
+		return "", 0, fmt.Errorf("canvas: a moment is 0 to 100 (percent of its length) or a time as 1500ms, not %q", at)
+	}
+	return unit, v, nil
+}
+
+// MotionAt has doc's motion stand at at for a still: "25" or "25%" of its
+// length, or "1500ms".
+func MotionAt(doc, at string) (string, error) {
+	unit, v, err := parseMoment(at)
+	if err != nil {
+		return "", err
 	}
 	return WithHead(doc, fmt.Sprintf("<script>window.__enowxMotionAt={%s:%g}</script>", unit, v)), nil
+}
+
+// SeekScript moves a page already loaded to moment at, and answers as SettleScript does.
+func SeekScript(at string) (string, error) {
+	unit, v, err := parseMoment(at)
+	if err != nil {
+		return "", err
+	}
+	ms := fmt.Sprintf("%g", v)
+	if unit == "pct" {
+		ms = fmt.Sprintf("m.state().d*%g/100", v)
+	}
+	return `(function(){var m=window.enowx&&window.enowx.motion;return m?JSON.stringify(m.seek(` + ms + `)):""})()`, nil
 }

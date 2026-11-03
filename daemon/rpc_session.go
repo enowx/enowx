@@ -68,9 +68,15 @@ var sessionHandlers = map[string]handler{
 		if err != nil {
 			return nil, err
 		}
+		if !c.self {
+			c.srv.goaHeardOf(p.From, p.ID)
+		}
 		return proto.SessionScreen{Text: c.srv.maskLent(sess.Terminal().Text())}, nil
 	}),
 	proto.MethodSessionInput: with(func(c *conn, p proto.SessionInputParams) (any, error) {
+		if p.From != "" {
+			c.srv.goaMarkTold(p.From, "", p.ID)
+		}
 		return ok, c.srv.input(p)
 	}),
 	proto.MethodSessionRewind: with(func(c *conn, p proto.SessionRewindParams) (any, error) {

@@ -53,7 +53,7 @@ const (
 	// floatingSliceTarget is the box of the button over a slice's icon: the
 	// aim. Seven wedges leave 90 DIP between two icons, so this never
 	// overlaps its neighbour.
-	floatingSliceTarget = 64
+	floatingSliceTarget = 70
 	// floatingFanGap is the air between the pie's rim and a fan's inner edge:
 	// the children are pulled out of the pie, and must not touch it.
 	floatingFanGap = 3

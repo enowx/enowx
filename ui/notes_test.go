@@ -64,7 +64,7 @@ func TestNotesPageWritesAPage(t *testing.T) {
 		}
 	}
 	settle("the notes listed", func() bool { return app.noteList.loaded })
-	if err := tt.Click("New page"); err != nil {
+	if err := tt.Click("New note"); err != nil {
 		t.Fatal(err)
 	}
 	settle("a page open", func() bool { return tt.HasText("Page icon") })

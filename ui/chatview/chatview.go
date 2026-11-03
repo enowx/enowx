@@ -33,10 +33,6 @@ const (
 	checkEvery = 5 * time.Second
 )
 
-// columnWidth is how wide the conversation runs, centered: lines a reader
-// can follow, however wide the window.
-const columnWidth = 760
-
 // Supported reports whether the session's agent could show as a chat:
 // its daemon reads the conversations of some agents only.
 func Supported(s proto.SessionInfo) bool { return transcript.Supports(s.Agent) }
@@ -53,6 +49,7 @@ type Chat struct {
 	// entries are the conversation's from index base on: older ones load
 	// as the user scrolls up to them.
 	entries   []proto.TranscriptEntry
+	column    float32 // how wide the conversation runs, as last drawn
 	base      int
 	rev       int64
 	supported bool
@@ -77,7 +74,9 @@ type Chat struct {
 	// outlineLeft that the user took it from its end (outline.go).
 	outlineScroll ui.ScrollState
 	outlineLeft   bool
-	width         float32 // the conversation's, last laid out
+	outlineOpen   bool    // folded to a button, it is open
+	width, height float32 // the conversation's, last laid out
+	composerH     float32 // the composer's height, last laid out: what floats over the end
 
 	// The agent's settings as the daemon last read them.
 	model, mode, effort string
@@ -85,8 +84,15 @@ type Chat struct {
 	contextUsed, contextWindow int64
 
 	input string
-	// showUser is Options.ShowUser, as the last frame gave it.
-	showUser func(string) string
+	// out are the messages sent and not yet recorded; sending is the options
+	// of the last frame, which their Retry sends with (outgoing.go).
+	out     []*outgoing
+	sending Options
+	// showUser is Options.ShowUser and agentName Options.AgentName, as the
+	// last frame gave them.
+	showUser  func(string) string
+	agentName string
+	dir       string // Options.Dir, as the last frame gave it
 	// The agent's slash commands, once its daemon has read them, and the
 	// slash menu: the command highlighted, and the input it was closed on.
 	commands     []proto.AgentCommand
@@ -146,6 +152,9 @@ func (ch *Chat) InsertDraft(text string) {
 	}
 	ch.input, ch.focus, ch.caretEnd = ch.input+text+" ", true, true
 }
+
+// Entries is how many of the conversation's entries the chat holds.
+func (ch *Chat) Entries() int { return len(ch.entries) }
 
 // Draft is what the composer holds.
 func (ch *Chat) Draft() string { return ch.input }
@@ -255,6 +264,9 @@ func (ch *Chat) apply(t proto.Transcript) {
 	if t.Reset {
 		ch.entries, ch.base, ch.open = nil, 0, map[int]bool{}
 		first = true
+		for _, m := range ch.out {
+			m.after = 0
+		}
 	}
 	if len(ch.entries) == 0 && len(t.Entries) > 0 {
 		ch.base = t.Entries[0].Index
@@ -310,6 +322,7 @@ func (ch *Chat) prepend(older []proto.TranscriptEntry) {
 // chips over the composer show.
 func (ch *Chat) reckon() {
 	ch.turns = splitTurns(ch.entries)
+	ch.outgoingSettle()
 	ch.added, ch.removed, ch.latestTool, ch.asked = 0, 0, nil, time.Time{}
 	for i := range ch.entries {
 		e := &ch.entries[i]
@@ -323,13 +336,32 @@ func (ch *Chat) reckon() {
 	}
 }
 
+// columnWidth is how wide the conversation and its composer run, centered:
+// the style's reading column, unless the options say otherwise.
+func (o Options) columnWidth() float32 {
+	if o.ColumnWidth > 0 {
+		return o.ColumnWidth
+	}
+	return theme.ReadWidth
+}
+
 // Options are what the chat needs of its session.
 type Options struct {
 	Agent     string // preset ID
+	Dir       string // the session's folder: what's in it reads from there
 	AgentName string
-	Working   bool // the agent is busy
+	// ColumnWidth is how wide the conversation and its composer run; 0 is
+	// columnWidth, the frame's width for GOD of Agents' chat is more.
+	ColumnWidth float32
+	// Placeholder is what the composer says while empty, for a panel too narrow
+	// for the usual words; "" says them.
+	Placeholder string
+	Working     bool // the agent is busy
 	// Send sends a message, with the paths of the files attached to it.
-	Send      func(text string, files []string)
+	Send func(text string, files []string)
+	// Deliver, when set, is Send that says on the main thread how it went, so that
+	// a message that couldn't go offers Retry.
+	Deliver   func(text string, files []string, done func(error))
 	Interrupt func()
 	// Set changes a setting ("model", "mode" or "effort") to the agent's
 	// value id.
@@ -383,8 +415,10 @@ type Options struct {
 // View draws the chat: the conversation, a list of its turns in a
 // centered column that follows its end, and the composer under it.
 func (ch *Chat) View(c *ui.Context, o Options) {
+	ch.column = o.columnWidth()
 	ch.links = o.OpenLink
 	ch.showUser = o.ShowUser
+	ch.agentName, ch.dir = o.AgentName, o.Dir
 	ch.openChanges = o.OpenChanges
 	ch.editable = o.Edit != nil && agent.CanRewind(o.Agent) && !o.Ended
 	ch.ask = asking{waiting: o.Waiting && !o.Ended, answer: o.Answer, terminal: o.ShowTerminal}
@@ -394,6 +428,7 @@ func (ch *Chat) View(c *ui.Context, o Options) {
 	if !ch.ask.waiting {
 		clear(ch.answered)
 	}
+	// The composer floats over this frame's foot, the conversation under it.
 	col := ui.Column(c).Grow(1).FillWidth().MinHeight(0)
 	if o.Drop != nil {
 		if files := col.DroppedFiles(); len(files) > 0 {
@@ -403,14 +438,18 @@ func (ch *Chat) View(c *ui.Context, o Options) {
 	if text, ok := widget.TakeTextDrag(col); ok {
 		ch.InsertDraft(text)
 	}
+	ch.sending = o
+	ch.outgoingLook(o, time.Now())
 	col.Children(func() {
 		switch {
+		case len(ch.turns) == 0 && len(ch.out) > 0:
+			ch.conversation(c, o)
 		case len(ch.turns) == 0 && strings.TrimSpace(o.FirstPrompt) != "" && (!ch.loaded || ch.supported):
 			ch.firstPrompt(c, o)
 		case len(ch.turns) == 0 && o.Empty != nil && (o.Fresh || ch.loaded && ch.supported):
 			ui.Scroll(c).Grow(1).FillWidth().Children(func() {
-				ui.Row(c).FillWidth().Justify(ui.Center).Padding(22, 24, 12, 24).Children(func() {
-					ui.Column(c).Grow(1).MaxWidth(columnWidth).Children(func() { o.Empty(c) })
+				ui.Row(c).FillWidth().Justify(ui.Center).Padding(theme.S4, theme.S5, ch.footRoom(), theme.S5).Children(func() {
+					ui.Column(c).Grow(1).MinWidth(0).MaxWidth(o.columnWidth()).Children(func() { o.Empty(c) })
 				})
 			})
 		case !ch.loaded && !o.Fresh:
@@ -428,14 +467,23 @@ func (ch *Chat) View(c *ui.Context, o Options) {
 	})
 }
 
+// footRoom is what the end of a conversation keeps free, to be read clear of
+// the composer floating over it.
+func (ch *Chat) footRoom() float32 {
+	if ch.composerH == 0 {
+		return 148 // before the composer's first layout: about one line's
+	}
+	return ch.composerH + theme.S4 + 3*theme.S4
+}
+
 // firstPrompt is the message the session started with, the agent at work
 // on it, until the agent records the conversation.
 func (ch *Chat) firstPrompt(c *ui.Context, o Options) {
 	editable := ch.editable
 	ch.editable = false // nothing recorded to go back to yet
-	ui.Column(c).Grow(1).FillWidth().MinHeight(0).Padding(22, 24, 12, 24).Children(func() {
+	ui.Column(c).Grow(1).FillWidth().MinHeight(0).Padding(theme.S4, theme.S5, ch.footRoom(), theme.S5).Children(func() {
 		ui.Row(c).FillWidth().Justify(ui.Center).Children(func() {
-			ui.Column(c).Grow(1).MaxWidth(columnWidth).Children(func() {
+			ui.Column(c).Grow(1).MinWidth(0).MaxWidth(o.columnWidth()).Children(func() {
 				first := proto.TranscriptEntry{Kind: proto.TranscriptUser, Text: o.FirstPrompt}
 				ch.turnTimeline(c, turn{prompt: &first}, true)
 			})
@@ -465,6 +513,10 @@ func (ch *Chat) conversation(c *ui.Context, o Options) {
 			turns = turns[:len(turns)-1]
 		}
 	}
+	turns = ch.withOutgoing(turns, o.FirstPrompt)
+	running := runningTurn(turns, o.Working)
+	// What the end of the list says of the agent waits with the message.
+	o.Working = o.Working || ch.outgoingFlying()
 	ch.list.Key = func(i int) any {
 		if i < more {
 			return "older"
@@ -478,35 +530,75 @@ func (ch *Chat) conversation(c *ui.Context, o Options) {
 		ch.list.ScrollToEnd()
 		ch.scrollToEnd = false
 	}
-	ch.toolbar(c, o, turns, more)
 	area := ui.Column(c.Key("conversation")).Grow(1).FillWidth().MinHeight(0)
-	if w := area.Bounds().W; w > 0 {
-		ch.width = w
+	if bounds := area.Bounds(); bounds.W > 0 {
+		ch.width, ch.height = bounds.W, bounds.H
 	}
 	area.Children(func() {
-		ch.conversationList(c, turns, more, o)
-		if ch.width >= columnWidth+2*(outlineWidth+16) {
+		ch.conversationList(c, turns, more, running, o)
+		if ch.outlinePlace(o) != outlineFolded {
 			ch.outline(c, turns, more)
 		}
+		ch.chatTools(c, turns, more, ch.outlinePlace(o) == outlineFolded)
 		ch.toLatest(c, o.Working)
 	})
 }
 
+// outlinePlace is where the outline goes in this frame.
+func (ch *Chat) outlinePlace(o Options) outlinePlace {
+	return outlineFit(ch.width, o.columnWidth(), theme.ReadWidth)
+}
+
 // conversationList is the turns' virtual list, centered at the reading
-// column's width.
-func (ch *Chat) conversationList(c *ui.Context, turns []turn, more int, o Options) {
-	ui.List(c, &ch.list, len(turns)+more, func(i int) {
+// column's width, ending with the line of what the agent is at and room for
+// the composer over it.
+func (ch *Chat) conversationList(c *ui.Context, turns []turn, more, running int, o Options) {
+	status := 0
+	if ch.hasStatus(o) {
+		status = 1
+	}
+	key := ch.list.Key
+	ch.list.Key = func(i int) any {
+		if i == len(turns)+more {
+			return "status"
+		}
+		return key(i)
+	}
+	// Where the search and fold lie over the column, its start clears them.
+	top := float32(theme.S4)
+	if ch.toolsOverColumn() {
+		top = theme.S4 + theme.ControlHeight + theme.S2
+	}
+	right := float32(theme.S5)
+	if ch.outlinePlace(o) == outlineOwn {
+		right = outlineSide()
+	}
+	ui.List(c, &ch.list, len(turns)+more+status, func(i int) {
 		ui.Row(c).FillWidth().Justify(ui.Center).Children(func() {
-			ui.Column(c).Grow(1).MaxWidth(columnWidth).Children(func() {
-				if i < more {
+			ui.Column(c).Grow(1).MinWidth(0).MaxWidth(o.columnWidth()).Children(func() {
+				switch {
+				case i < more:
 					ch.olderRow(c)
-					return
+				case i == len(turns)+more:
+					ch.statusLine(c, o, turns)
+				default:
+					t := turns[i-more]
+					// A message of the user's starts a new part of the conversation.
+					if i > more && t.prompt != nil {
+						ui.Box(c).Height(theme.S4).Shrink(0)
+					}
+					ch.turn(c, t, i-more == running, t.out == nil && t.start >= ch.animateFrom)
 				}
-				t := turns[i-more]
-				ch.turn(c, t, o.Working && i-more == len(turns)-1, t.start >= ch.animateFrom)
 			})
 		})
-	}).Grow(1).FillWidth().MinHeight(0).Padding(22, 24, 12, 24).Gap(16)
+	}).Grow(1).FillWidth().MinHeight(0).Padding(top, right, ch.footRoom(), theme.S5).Gap(theme.S4)
+}
+
+// Seed shows t as if read from the agent, and stops asking for more: for a
+// picture of the chat without an agent.
+func (ch *Chat) Seed(t proto.Transcript) {
+	ch.polling = true
+	ch.apply(t)
 }
 
 // olderRow stands for the turns not loaded yet; showing it loads them.
@@ -518,8 +610,8 @@ func (ch *Chat) olderRow(c *ui.Context) {
 		default:
 		}
 	}
-	ui.Row(c).FillWidth().Justify(ui.Center).Gap(8).Padding(4).Children(func() {
+	ui.Row(c).FillWidth().Justify(ui.Center).Gap(theme.S2).Padding(theme.S1).Children(func() {
 		widget.Spinner(c, 12)
-		ui.Text(c, "Loading earlier messages…").FontSize(12).TextColor(theme.Muted)
+		ui.Text(c, "Loading earlier messages…").FontSize(theme.TextLabel).TextColor(theme.TextSoft)
 	})
 }

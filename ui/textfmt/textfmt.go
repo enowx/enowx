@@ -49,6 +49,23 @@ func Age(t, now time.Time) string {
 	return fmt.Sprintf("%dd", int(d.Hours()/24))
 }
 
+// Ago writes how long since t in words, for a line to read: just now,
+// 2 minutes ago, 3 hours ago, Yesterday, 4 days ago.
+func Ago(t, now time.Time) string {
+	d := now.Sub(t)
+	switch {
+	case d < time.Minute:
+		return "just now"
+	case d < time.Hour:
+		return Plural(int(d.Minutes()), "1 minute ago", fmt.Sprintf("%d minutes ago", int(d.Minutes())))
+	case d < 24*time.Hour:
+		return Plural(int(d.Hours()), "1 hour ago", fmt.Sprintf("%d hours ago", int(d.Hours())))
+	case d < 48*time.Hour:
+		return "Yesterday"
+	}
+	return fmt.Sprintf("%d days ago", int(d.Hours()/24))
+}
+
 // Until writes how long until t, to the minute under a day: 18m, 2h 10m,
 // 5d. Past times read "now".
 func Until(t, now time.Time) string {

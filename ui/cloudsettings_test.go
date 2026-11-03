@@ -57,7 +57,7 @@ func TestCloudSettingsSignInAndInvite(t *testing.T) {
 	tt := ui.NewTester(func(c *ui.Context) {
 		c.SetTheme(theme.Window())
 		ui.Row(c).Width(980).Height(900).Background(theme.Background).Children(func() {
-			ui.Column(c).Width(220).FillHeight().Padding(8).Children(func() { app.railAccount(c, true) })
+			ui.Column(c).Width(220).FillHeight().Padding(8).Children(func() { app.accountAction(c) })
 			ui.Column(c).Grow(1).FillHeight().Padding(24, 32).Gap(16).Children(func() { app.cloudSection(c) })
 		})
 		app.cloudSignInDialog(c)
@@ -110,21 +110,19 @@ func TestCloudSettingsSignInAndInvite(t *testing.T) {
 	click("Done")
 	settle("signed in, on the Teams tab", func() bool { return !app.cloudSigningIn && tt.HasText("No teams yet") })
 	click("Devices (2)")
-	settle("the devices", func() bool { return tt.HasText("Ada's other laptop") && tt.HasText("this host") })
+	settle("the devices", func() bool { return tt.HasText("Ada's other laptop") && tt.HasText("This device") })
 	click("Make a recovery key")
 	settle("the recovery key, once", func() bool {
 		return strings.HasPrefix(app.cloudSet.recovery.shown, "enxr-") && tt.HasText("Your recovery key")
 	})
 	click("I kept it")
-	settle("set", func() bool { return tt.HasText("Make a new one") })
+	settle("set", func() bool { return tt.HasText("Make a new one…") })
 	if _, ok := tt.Find("Account: Ada"); !ok {
 		t.Fatalf("the rail's account isn't there: %q", tt.Texts())
 	}
-	if !tt.HasText("This Mac, signed in as the app") {
-		t.Fatalf("the device: %q", tt.Texts())
-	}
 
 	click("Teams (0)")
+	settle("the account's line, on the Teams tab", func() bool { return tt.HasText("This Mac · a computer · " + cloud.URL) })
 	click("New team")
 	settle("the new team's dialog", func() bool { return tt.HasText("Make team") })
 	app.cloudSet.teams.newName = "enowX Labs"
@@ -155,7 +153,7 @@ func TestCloudSettingsSignInAndInvite(t *testing.T) {
 	settle("the team's options", func() bool { return tt.HasText("Copying out") })
 	shot(t, tt, "cloud-team-settings.png")
 	click("Activity")
-	settle("the team's log", func() bool { return tt.HasText("@ada made the team") })
+	settle("the team's log", func() bool { return tt.HasText("Ada made the team") })
 
 	// A viewer made a member from their role's menu.
 	bob, _ := db.GitHubAccount(ctx, 2, "bob", "Bob", "", "")
@@ -167,8 +165,8 @@ func TestCloudSettingsSignInAndInvite(t *testing.T) {
 	app.openCloudTeam(app.cloudSet, teamID)
 	settle("bob, a viewer", func() bool { return tt.HasText("@bob") })
 	click("Role of Bob")
-	settle("the roles", func() bool { return tt.HasText("member") && tt.HasText("viewer (now)") })
-	click("member")
+	settle("the roles", func() bool { return tt.HasText("Member") && tt.HasText("Viewer (now)") })
+	click("Member")
 	settle("bob, a member", func() bool {
 		full, _ := db.Team(ctx, teamID, acc.ID)
 		for _, m := range full.Members {
@@ -183,7 +181,7 @@ func TestCloudSettingsSignInAndInvite(t *testing.T) {
 	settle("the team's card", func() bool { return app.cloudSet.teams.open == "" && tt.HasText("enowX Labs") })
 	shot(t, tt, "cloud-teams.png")
 	click("Sign out")
-	settle("asked first", func() bool { return app.confirming != nil && tt.HasText("Sign This Mac out of enowX Cloud?") })
+	settle("asked first", func() bool { return app.confirming != nil && tt.HasText("Sign This Mac out?") })
 	if !app.cloudSet.st.SignedIn {
 		t.Fatal("signed out before confirming")
 	}

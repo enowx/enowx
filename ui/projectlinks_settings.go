@@ -10,7 +10,6 @@ import (
 
 	"github.com/enowx/enowx/core/projectlinks"
 	"github.com/enowx/enowx/proto"
-	"github.com/enowx/enowx/ui/icon"
 	"github.com/enowx/enowx/ui/theme"
 	"github.com/enowx/enowx/ui/widget"
 )
@@ -39,7 +38,7 @@ func linkFieldsOf(l proto.ProjectLink) linkFields {
 // linkSettings edits the settings of the link f.editing.
 func (a *App) linkSettings(c *ui.Context, f *linksForm) {
 	d, src, dst := &f.draft, f.draft.Source.Host, f.draft.Target.Host
-	ui.Column(c).FillWidth().Gap(14).Padding(12, 0, 0, 0).BorderWidth(1, 0, 0, 0).BorderColor(theme.Border).Children(func() {
+	ui.Column(c).FillWidth().Shrink(0).Gap(theme.S3).Padding(theme.S3, 0, 0, 0).BorderWidth(theme.Rule, 0, 0, 0).BorderColor(theme.Border).Children(func() {
 		widget.Field(c, "Direction", func() {
 			dirs := []string{proto.SyncOneWay, proto.SyncTwoWay, proto.SyncReverse}
 			cur := 1
@@ -48,12 +47,12 @@ func (a *App) linkSettings(c *ui.Context, f *linksForm) {
 					cur = i
 				}
 			}
-			if i := widget.Segmented(c, []string{src + " → " + dst, "Both ways", dst + " → " + src}, cur, nil); i >= 0 {
+			if i := widget.SegmentedFit(c, []string{src + " → " + dst, "Both ways", dst + " → " + src}, cur); i >= 0 {
 				d.Direction = dirs[i]
 			}
 		})
 		widget.Field(c, "When", func() {
-			ui.Column(c).FillWidth().Gap(6).Children(func() {
+			ui.Column(c.Key("when")).FillWidth().Shrink(0).Gap(theme.S2).Children(func() {
 				cur := 0
 				if d.Realtime {
 					cur = 1
@@ -67,14 +66,14 @@ func (a *App) linkSettings(c *ui.Context, f *linksForm) {
 			})
 		})
 		widget.Field(c, "Files", func() {
-			ui.Column(c).FillWidth().Gap(6).AlignItems(ui.Start).Children(func() {
+			ui.Column(c.Key("files")).FillWidth().Shrink(0).Gap(theme.S2).AlignItems(ui.Start).Children(func() {
 				widget.Input(c, &f.fields.include, "Only these (empty: all), such as src, docs/*.md").FillWidth()
 				widget.Input(c, &f.fields.exclude, "Never these, such as *.log, build, data/**").FillWidth()
 				follow := !d.All
 				if widget.Checkbox(c, &follow, "Follow .gitignore") {
 					d.All = !follow
 				}
-				ui.Text(c, "node_modules, target, dist, .venv and other dependencies' folders never go.").FontSize(11).TextColor(theme.Muted)
+				widget.CardNote(c.Key("never"), "node_modules, target, dist, .venv and other dependencies' folders never go.", 0)
 				widget.Checkbox(c, &d.Env, "Include .env files")
 			})
 		})
@@ -88,10 +87,10 @@ func (a *App) linkSettings(c *ui.Context, f *linksForm) {
 			}
 		})
 		widget.Field(c, "Large and binary files", func() {
-			ui.Row(c).FillWidth().Gap(8).AlignItems(ui.Center).Children(func() {
-				ui.Text(c, "Large from").FontSize(12).TextColor(theme.Muted)
-				widget.Input(c, &f.fields.largeMB, fmt.Sprint(projectlinks.DefaultLargeMB)).Width(64)
-				ui.Text(c, "MB:").FontSize(12).TextColor(theme.Muted)
+			ui.Row(c.Key("large")).FillWidth().Shrink(0).Gap(theme.S2).Wrap().Children(func() {
+				ui.Text(c, "Large from").FontSize(theme.TextLabel).TextColor(theme.TextSoft).SingleLine()
+				ui.Column(c.Key("mb")).Width(80).Shrink(0).Children(func() { widget.Input(c, &f.fields.largeMB, fmt.Sprint(projectlinks.DefaultLargeMB)).FillWidth() })
+				ui.Text(c, "MB:").FontSize(theme.TextLabel).TextColor(theme.TextSoft).SingleLine()
 				cur := 0
 				if d.Large == proto.LargeSource {
 					cur = 1
@@ -102,21 +101,21 @@ func (a *App) linkSettings(c *ui.Context, f *linksForm) {
 			})
 		})
 		widget.Field(c, "Pace", func() {
-			ui.Column(c).FillWidth().Gap(6).AlignItems(ui.Start).Children(func() {
-				ui.Row(c).Gap(8).AlignItems(ui.Center).Children(func() {
-					widget.Input(c, &f.fields.bandwidth, "no cap").Width(90)
-					ui.Text(c, "KB/s at most").FontSize(12).TextColor(theme.Muted)
+			ui.Column(c.Key("pace")).FillWidth().Shrink(0).Gap(theme.S2).AlignItems(ui.Start).Children(func() {
+				ui.Row(c.Key("cap")).Gap(theme.S2).Children(func() {
+					ui.Column(c).Width(100).Shrink(0).Children(func() { widget.Input(c, &f.fields.bandwidth, "no cap").FillWidth() })
+					ui.Text(c, "KB/s at most").FontSize(theme.TextLabel).TextColor(theme.TextSoft).SingleLine()
 				})
 				widget.Checkbox(c, &d.PauseBusy, "Wait while a host is busy (CPU over 85%)")
 				widget.Checkbox(c, &d.PauseBattery, "Wait while this computer runs on battery")
 			})
 		})
-		ui.Row(c).FillWidth().Gap(8).Children(func() {
+		ui.Row(c.Key("foot")).FillWidth().Shrink(0).Gap(theme.S2).Children(func() {
 			ui.Spacer(c)
 			if widget.GhostButton(c, "Cancel").Clicked() {
 				f.editing = ""
 			}
-			if widget.PrimaryButton(c, icon.Check, "Save", "").Clicked() {
+			if widget.PrimaryButton(c, nil, "Save", "").Clicked() {
 				if err := f.fields.apply(d); err != nil {
 					f.err = err.Error()
 					return

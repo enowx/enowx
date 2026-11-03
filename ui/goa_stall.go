@@ -105,7 +105,7 @@ func (a *App) saveGOAStall(f *goaStallForm) {
 				return
 			}
 			f.open = false
-			a.status = "Saved: tasks are held to these from now on"
+			a.notify("Saved: tasks are held to these from now on")
 		})
 	}()
 }

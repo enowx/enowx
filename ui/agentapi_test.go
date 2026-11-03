@@ -78,7 +78,11 @@ func TestMakeAModelAPIConfig(t *testing.T) {
 	if err := tt.Click("New config"); err != nil {
 		t.Fatalf("%v: %q", err, tt.Texts())
 	}
-	frames(func() bool { return tt.HasText("Base URL") }, "the dialog")
+	frames(func() bool { return app.accts.edit != nil && tt.HasText("Kind") }, "the dialog")
+	if err := tt.Click("Model API"); err != nil {
+		t.Fatalf("%v: %q", err, tt.Texts())
+	}
+	frames(func() bool { return tt.HasText("Address") }, "a model API's fields")
 	f := app.accts.edit
 	if f.agent != "claude" || f.kindName() != kindAPI {
 		t.Fatalf("the dialog: %s, %s", f.agent, f.kindName())
@@ -114,11 +118,15 @@ func TestMakeAModelAPIConfig(t *testing.T) {
 		ui.Column(c).Width(600).Height(120).Background(theme.Background).TextColor(theme.Text).Children(func() { app.accountField(c) })
 	}, 600, 120)
 	ns.Frame()
-	if !ns.HasText("Official") || !ns.HasText("GLM") || app.newSession.account != "" {
+	if !ns.HasText("Default") || app.newSession.account != "" {
 		t.Fatalf("New session's configs: %q, picked %q", ns.Texts(), app.newSession.account)
 	}
+	if err := ns.Click("Config of the session"); err != nil { // a select: the configs are in its menu
+		t.Fatalf("%v: %q", err, ns.Texts())
+	}
+	ns.Frame()
 	if err := ns.Click("GLM"); err != nil {
-		t.Fatal(err)
+		t.Fatalf("%v: %q", err, ns.Texts())
 	}
 	ns.Frame()
 	if app.newSession.account != list[0].ID || !app.newSession.accountPicked {
@@ -130,7 +138,7 @@ func TestMakeAModelAPIConfig(t *testing.T) {
 		c.SetTheme(theme.Window())
 		ui.Column(c).Width(300).Height(60).Background(theme.Panel).TextColor(theme.Text).Children(func() {
 			app.sessionRow(c, 0, proto.SessionInfo{ID: "s1", Agent: "claude", Name: "Fix the parser", Account: list[0].ID,
-				Config: &proto.SessionConfig{ID: list[0].ID, Name: "GLM", Kind: proto.ConfigKindAPI, Color: list[0].Color}})
+				Config: &proto.SessionConfig{ID: list[0].ID, Name: "GLM", Kind: proto.ConfigKindAPI, Color: list[0].Color}}, "")
 		})
 	}, 300, 60)
 	row.Frame()
@@ -155,10 +163,13 @@ func TestModelAPIInAnAgentsOwnSettings(t *testing.T) {
 	frames(func() bool {
 		return app.accts.loaded && app.agentAPIs.loaded && tt.HasText("A model API in its own settings")
 	}, "Droid's page")
+	for range 3 { // its cards take the room measured on the frame before
+		tt.Frame()
+	}
 	if err := tt.Click("Use an API…"); err != nil {
 		t.Fatalf("%v: %q", err, tt.Texts())
 	}
-	frames(func() bool { return tt.HasText("Base URL") && app.agentAPIs.edit != nil }, "the dialog")
+	frames(func() bool { return tt.HasText("Address") && app.agentAPIs.edit != nil }, "the dialog")
 	f := app.agentAPIs.edit
 	f.url, f.key = "https://gw.example.com/v1", "fake-key-9876"
 	f.models[0].id = "gw-model"

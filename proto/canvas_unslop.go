@@ -180,6 +180,8 @@ type CanvasUnslop struct {
 	Ask      string          `json:"ask,omitempty"`
 	// Run is the redesign under way it is part of, if any.
 	Run *CanvasUnslopRun `json:"run,omitempty"`
+	// Walk is what a walk through the design's states reached, measured anew.
+	Walk *UnslopWalk `json:"walk,omitempty"`
 }
 
 // UnslopFinding is a tell found in a design: Rule its ID, Pass the pass
@@ -195,6 +197,28 @@ type UnslopFinding struct {
 	Fix      string   `json:"fix"`
 	// Targets are the design's elements it is about, as CSS selectors.
 	Targets []string `json:"targets,omitempty"`
+	// State is the state of an interactive design it was found in, "" for the
+	// first screen, and Steps the clicks from that screen that reach it.
+	State string   `json:"state,omitempty"`
+	Steps []string `json:"steps,omitempty"`
+}
+
+// UnslopWalk is what a walk through a design's states reached: Tried controls
+// clicked, Left seen and not tried, Limit what stopped it early ("states",
+// "time", "tries"), in Millis.
+type UnslopWalk struct {
+	States []UnslopWalkState `json:"states"`
+	Tried  int               `json:"tried"`
+	Left   int               `json:"left,omitempty"`
+	Limit  string            `json:"limit,omitempty"`
+	Millis int               `json:"millis,omitempty"`
+}
+
+// UnslopWalkState is a state reached, how, and what its lint found there.
+type UnslopWalkState struct {
+	Name     string   `json:"name"`
+	Steps    []string `json:"steps"`
+	Findings int      `json:"findings"`
 }
 
 // Severities of an UnslopFinding.

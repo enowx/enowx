@@ -51,6 +51,16 @@ type Options struct {
 	// Render renders a frame (or, for html without one, the canvas) as
 	// format: png, pdf, svg or html.
 	Render func(id, frame, format string, done func([]byte, error))
+	// VideoWhyNot says why this device can't make an MP4, "" when it can; ExportVideo
+	// has one made, in the background, done when it ends.
+	VideoWhyNot func() string
+	ExportVideo func(p proto.CanvasVideoParams, done func(error))
+	// OffMain runs work off the main thread, then then on it. Nil runs both at once.
+	OffMain func(work, then func())
+	// PictureCached gives done the picture kept on this device as key, nil for
+	// none; PictureKeep keeps one. Both leave the main thread; done comes back to it.
+	PictureCached func(key string, done func([]byte))
+	PictureKeep   func(key string, data []byte)
 	// SaveFile asks where to save data, named name, and saves it.
 	SaveFile func(name string, data []byte)
 	// Projects are the host's projects, to attach a canvas to; MakeCode
@@ -131,6 +141,10 @@ const (
 
 // View is the Canvas page's state. It belongs to the main thread.
 type View struct {
+	outlinePage string // the page outline was worked out for
+	outline     []canvas.HTMLElement
+	outlineDone bool
+
 	selected string
 	canvas   *proto.Canvas // the canvas open, as last read
 	loading  bool
@@ -144,19 +158,23 @@ type View struct {
 	comp    *componentSel // the mockup's component picked (component.go)
 	sel     string        // the element selected
 	// last is the latest change an agent made, highlighted a moment.
-	last     proto.CanvasChange
-	lastAt   time.Time
-	panel    string // the right panel: "layers", "comments", "versions"
-	comments []proto.CanvasComment
-	history  *proto.CanvasHistory
-	compare  *compareState
-	drag     *dragState
-	editing  *textEdit
-	connect  string // a shape to draw an arrow from, picked first
-	draft    string // a comment being written
-	creating *createForm
-	briefing *briefForm
-	building *buildForm
+	last   proto.CanvasChange
+	lastAt time.Time
+	panel  string // the right panel: "layers", "comments", "versions", "grid"
+	// panelBack is the panel the agent's made room for, or the one last hidden:
+	// what shows again; panelSet: the page has had its first panel.
+	panelBack string
+	panelSet  bool
+	comments  []proto.CanvasComment
+	history   *proto.CanvasHistory
+	compare   *compareState
+	drag      *dragState
+	editing   *textEdit
+	connect   string // a shape to draw an arrow from, picked first
+	draft     string // a comment being written
+	creating  *createForm
+	briefing  *briefForm
+	building  *buildForm
 	// buildClosed is the build the user closed when done.
 	buildClosed string
 	deleting    *proto.CanvasInfo
@@ -183,10 +201,13 @@ type View struct {
 	view   int
 	cmpSel map[string]bool
 	cmp    designCompare
-	// listInSidebar: the list draws in the app's sidebar (DrawList).
-	listInSidebar bool
-	thumbs        map[string]*thumb
-	descr         *describeForm
+	// listInSidebar: the list draws in the app's sidebar (DrawList);
+	// listOutside: it does, so the page has no list of its own.
+	listInSidebar, listOutside bool
+	thumbs                     map[string]*thumb
+	thumbsBusy                 int        // pictures asked for, not back yet
+	video                      *videoForm // Export's MP4 dialog (video.go)
+	descr                      *describeForm
 	// pendingFrame is a design to show once the canvas opening loaded.
 	pendingFrame string
 	pendingAt    time.Time
@@ -215,7 +236,13 @@ func (v *View) Web() *Web { return v.web }
 func (v *View) AssistantOpen() bool { return v.assistant && v.canvas != nil }
 
 // OpenAssistant shows the agent's panel, the side panel making room.
-func (v *View) OpenAssistant() { v.assistant, v.panel = true, "" }
+func (v *View) OpenAssistant() {
+	v.assistant = true
+	if v.panel != "" {
+		v.panelBack = v.panel
+	}
+	v.panel = ""
+}
 
 // TogglePanel shows or hides a panel beside the stage: "layers",
 // "comments", "versions" or "grid".
@@ -229,7 +256,12 @@ func (v *View) SetView(view int) { v.view = view }
 func (v *View) NewCanvas() { v.creating = &createForm{open: true} }
 
 // CloseAssistant hides the agent's panel.
-func (v *View) CloseAssistant() { v.assistant = false }
+func (v *View) CloseAssistant() {
+	v.assistant = false
+	if v.panel == "" {
+		v.panel = v.panelBack
+	}
+}
 
 // Selection is the design shown (its frame's ID) and the element
 // selected, "" for none: what the agent is told the user looks at.
@@ -278,6 +310,9 @@ func (v *View) Open(o Options, id string) {
 func (v *View) show(o Options, c proto.Canvas) {
 	old := v.canvas
 	v.canvas = &c
+	if old != nil && old.ID != c.ID {
+		v.thumbs = nil // another canvas's pictures: the disk keeps them
+	}
 	if !slices.ContainsFunc(c.Frames, func(f proto.CanvasFrame) bool { return f.ID == v.frame }) && len(c.Frames) > 0 {
 		v.frame = c.Frames[0].ID
 	}
@@ -393,6 +428,14 @@ func (v *View) Draw(c *ui.Context, o Options) {
 	if v.selected == "" && len(o.Canvases) > 0 && v.creating == nil {
 		v.Open(o, o.Canvases[0].ID)
 	}
+	v.listOutside = o.ListOutside
+	if !v.panelSet {
+		// Layers show until the user says otherwise, as the frame's right side.
+		v.panelSet = true
+		if v.panel == "" && !v.assistant {
+			v.panel = "layers"
+		}
+	}
 	row := ui.Row(c).Grow(1).FillWidth().FillHeight().MinHeight(0).TextColor(theme.Text)
 	if w := row.Bounds().W; w > 0 {
 		v.width = w
@@ -401,10 +444,10 @@ func (v *View) Draw(c *ui.Context, o Options) {
 		if v.listShown() && !o.ListOutside {
 			v.sidebar(c, o)
 		}
-		ui.Column(c).Grow(1).MinWidth(0).FillHeight().Background(theme.Background).Children(func() {
+		ui.Column(c).Grow(1).MinWidth(0).FillHeight().Children(func() {
 			switch {
 			case v.canvas == nil && v.loading:
-				ui.Text(c, "Opening…").FontSize(12).TextColor(theme.Muted).Padding(20)
+				ui.Text(c, "Opening…").FontSize(theme.TextLabel).TextColor(theme.Muted).Padding(theme.S5)
 			case v.canvas == nil:
 				v.empty(c, o)
 			default:
@@ -432,7 +475,7 @@ func (v *View) empty(c *ui.Context, o Options) {
 				}
 			})
 		if o.Err != "" {
-			ui.Text(c, o.Err).FontSize(12).TextColor(theme.Error)
+			ui.Text(c, o.Err).FontSize(theme.TextUI).TextColor(theme.Error)
 		}
 	})
 }
@@ -440,9 +483,15 @@ func (v *View) empty(c *ui.Context, o Options) {
 // Room the page needs for each thing beside the stage, so the stage keeps
 // a useful width at any window size.
 const (
-	listRoom  = 1000 // the canvases' list shows from this wide on
-	stripRoom = 760  // the designs' strip, from this much room for the stage on
-	labelRoom = 900  // buttons keep their words from this wide on
+	listRoom    = 1000 // the canvases' list shows from this wide on
+	stripRoom   = 480  // the designs' strip, from this much room for the stage on
+	labelRoom   = 1060 // the header's buttons keep their words from this wide on
+	viewRoom    = 700  // its view switch keeps its words from this wide on
+	actionsRoom = 780  // the header's actions stand in a row from this wide on, with the title beside them
+	toolsRoom   = 360  // the stage's tools stand in a row from this wide on
+	headingRoom = 64   // the least of the header left to the canvas's title
+	listWidth   = 248
+	panelWidth  = 272
 )
 
 // listShown says the canvases' list shows: in a page wide enough, or when
@@ -463,30 +512,28 @@ func (v *View) listColumn(c *ui.Context) ui.Element {
 	if v.listInSidebar {
 		return ui.Column(c.Key("canvas-list")).FillWidth().Grow(1).MinHeight(0)
 	}
-	return ui.Column(c.Key("canvas-list")).Width(248).Shrink(0).FillHeight().Background(theme.Panel).BorderWidth(0, 1, 0, 0).BorderColor(theme.Border)
+	return ui.Column(c.Key("canvas-list")).Width(listWidth).Shrink(0).FillHeight().BorderWidth(0, theme.Rule, 0, 0).BorderColor(theme.Border)
+}
+
+// pageRoom is about how wide the frame's page is, its own list left out.
+func (v *View) pageRoom() float32 {
+	if v.listShown() && !v.listOutside {
+		return v.width - listWidth
+	}
+	return v.width
 }
 
 // stageRoom is about how wide the stage's side of the page is.
 func (v *View) stageRoom() float32 {
-	room := v.width
-	if room == 0 {
+	if v.width == 0 {
 		return 1200
 	}
-	if v.listShown() {
-		room -= 248
-	}
+	room := v.pageRoom()
 	if v.panel != "" {
-		room -= 300
+		room -= panelWidth
 	}
 	return room
 }
 
 // compact says the header's buttons show as icons alone.
-func (v *View) compact() bool { return v.width > 0 && v.width-248*boolF(v.listShown()) < labelRoom }
-
-func boolF(b bool) float32 {
-	if b {
-		return 1
-	}
-	return 0
-}
+func (v *View) compact() bool { return v.width > 0 && v.pageRoom() < labelRoom }

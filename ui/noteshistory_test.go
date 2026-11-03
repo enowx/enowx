@@ -25,20 +25,20 @@ func TestNoteVersionComesBack(t *testing.T) {
 		t.Fatal(err)
 	}
 	h.settle("the page open", func() bool { return h.tt.HasText("a plan rewritten") })
-	if err := h.tt.Click("More for this page"); err != nil {
+	if err := h.tt.Click("More for this note"); err != nil {
 		t.Fatal(err)
 	}
 	h.settle("the menu", func() bool { return h.tt.HasText("Version history…") })
 	if err := h.tt.Click("Version history…"); err != nil {
 		t.Fatal(err)
 	}
-	h.settle("the version", func() bool { return h.tt.HasText("the first plan") && h.tt.HasText("Restore this version") })
+	h.settle("the version", func() bool { return h.tt.HasText("the first plan") && h.tt.HasText("Restore") })
 	shot(t, h.tt, "notes-history.png")
-	if err := h.tt.Click("Restore this version"); err != nil {
+	if err := h.tt.Click("Restore"); err != nil {
 		t.Fatal(err)
 	}
 	h.settle("restored", func() bool {
 		got, err := h.cl.Note(n.ID)
-		return err == nil && got.Body == "- [ ] the first plan\n" && !h.tt.HasText("Restore this version")
+		return err == nil && got.Body == "- [ ] the first plan\n" && !h.tt.HasText("Restore")
 	})
 }

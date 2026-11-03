@@ -3,6 +3,7 @@ package ui
 import (
 	"fmt"
 	"path/filepath"
+	"strconv"
 	"strings"
 
 	"github.com/egoist/mygo/ui"
@@ -62,23 +63,23 @@ func hookSummary(h proto.Hook) string {
 	what := ""
 	switch h.Action {
 	case proto.HookActionRun:
-		what = "runs " + firstLine(strings.TrimSpace(h.Command))
+		what = "Run: " + firstLine(strings.TrimSpace(h.Command))
 	case proto.HookActionEnowX:
-		what = "runs enowx " + firstLine(strings.TrimSpace(h.Command))
+		what = "Run: enowx " + firstLine(strings.TrimSpace(h.Command))
 	case proto.HookActionContext:
-		what = "adds context"
+		what = "Add context"
 	case proto.HookActionBlock:
-		what = "refuses"
+		what = "Refuse"
 	case proto.HookActionRewrite:
-		what = "changes /" + h.Find + "/ to " + h.Replace
+		what = "Change /" + h.Find + "/ to " + h.Replace
 	case proto.HookActionJudge:
-		what = "asks the judge"
+		what = "Ask the judge"
 	case proto.HookActionTrim:
-		what = "trims long output"
+		what = "Trim long output"
 	case proto.HookActionNotify:
-		what = "notifies"
+		what = "Notify"
 	case proto.HookActionWebhook:
-		what = "calls a webhook"
+		what = "Call a webhook"
 	}
 	if h.Background {
 		what += " in the background"
@@ -110,7 +111,7 @@ func hookSummary(h proto.Hook) string {
 	if h.Event == proto.HookSchedule {
 		event = h.Schedule
 	}
-	out := event + " → " + what
+	out := event + " · " + what
 	if len(when) > 0 {
 		join := " · "
 		if h.Any {
@@ -137,53 +138,101 @@ func hookSummary(h proto.Hook) string {
 	return out
 }
 
-func hookActionIcon(action string) *ui.SVG {
-	switch action {
-	case proto.HookActionBlock:
-		return icon.Lock
-	case proto.HookActionContext:
-		return icon.Chat
-	case proto.HookActionRewrite:
-		return icon.Pencil
-	case proto.HookActionNotify:
-		return icon.VolumeUp
-	case proto.HookActionWebhook:
-		return icon.Globe
-	case proto.HookActionEnowX:
-		return icon.Wand
+// hookTitle is what names hook h on its card, and whether that's a command.
+func hookTitle(h proto.Hook) (string, bool) {
+	switch {
+	case h.Name != "":
+		return h.Name, false
+	case (h.Action == proto.HookActionRun || h.Action == proto.HookActionEnowX) && strings.TrimSpace(h.Command) != "":
+		return firstLine(strings.TrimSpace(h.Command)), true
 	}
-	return icon.Terminal
+	return hookEventNames[h.Event], false
 }
 
-func (a *App) hookRow(c *ui.Context, st *hooksState, place hookPlace, h proto.Hook) {
-	widget.Card(c).FillWidth().Children(func() {
-		ui.Row(c).FillWidth().Gap(10).AlignItems(ui.Center).Children(func() {
-			ui.Icon(c, hookActionIcon(h.Action)).FontSize(15).TextColor(theme.TextSoft)
-			ui.Column(c).Grow(1).MinWidth(0).Gap(2).Children(func() {
-				name := h.Name
-				if name == "" {
-					name = hookEventNames[h.Event]
-				}
-				ui.Text(c, name).FontSize(12.5).SingleLine()
-				ui.Text(c, hookSummary(h)).FontSize(11).TextColor(theme.Muted).SingleLine()
+func (a *App) hookRow(c *ui.Context, st *hooksState, g hookGroup, h proto.Hook) {
+	place := g.place
+	widget.GridCard(c).Children(func() {
+		ui.Row(c.Key("title")).FillWidth().Shrink(0).MinHeight(24).Gap(theme.S2).Children(func() {
+			title, mono := hookTitle(h)
+			ui.Row(c).Grow(1).Basis(0).MinWidth(0).Children(func() {
+				widget.Running(c, title, widget.RunStyle{Weight: 600, Mono: mono})
 			})
 			on := h.On
 			if widget.Switch(c, &on, "On") {
 				h.On = on
 				a.saveHook(st, place, h, false)
 			}
+		})
+		ui.Row(c.Key("chips")).FillWidth().Shrink(0).Gap(theme.S1).Children(func() {
+			widget.RunningChip(c, hookEventNames[h.Event])
+			widget.RunningChip(c, g.chip)
+		})
+		widget.CardNote(c, hookSummary(h), 2)
+		widget.CardFoot(c, func() {
+			ui.Row(c.Key("runs")).Grow(1).Basis(0).MinWidth(0).Children(func() {
+				if r, ok := st.tested[h.ID]; ok {
+					col, what := hookTestWords(r)
+					widget.StatusLine(c, col, false, what)
+					return
+				}
+				widget.Running(c, hookRunsWords(st, h), widget.RunStyle{Size: theme.TextLabel, Color: theme.TextSoft})
+			})
+			if widget.GhostButton(c.Key("test"), "Test").Disabled(st.testing[h.ID]).Clicked() {
+				a.testHookCard(st, h)
+			}
 			widget.MoreMenu(c, &a.menu, "hook:"+h.ID, func(done func()) {
 				if widget.MenuItem(c, icon.Pencil, "Edit…", false) {
 					st.form.start(h, place, false)
 					done()
 				}
-				if widget.MenuItem(c, icon.Trash, "Remove", true) {
-					a.confirm("Remove the hook “"+hookSummary(h)+"”?", "It stops running on every agent of "+a.host.Name+".", "Remove", func() { a.saveHook(st, place, h, true) })
+				if widget.MenuItem(c, icon.Trash, "Remove…", true) {
+					a.confirm("Remove this hook?", hookSummary(h)+". It stops running on every agent of "+a.host.Name+".", "Remove", func() { a.saveHook(st, place, h, true) })
 					done()
 				}
 			})
 		})
 	})
+}
+
+// hookRunsWords says how often the log has hook h.
+func hookRunsWords(st *hooksState, h proto.Hook) string {
+	n := 0
+	for _, r := range st.log {
+		if r.Hook == h.ID {
+			n++
+		}
+	}
+	if n == 1 {
+		return "1 run in the log"
+	}
+	return strconv.Itoa(n) + " runs in the log"
+}
+
+// testHookCard runs hook h on the sample event the form's Test uses; its card
+// says how it went.
+func (a *App) testHookCard(st *hooksState, h proto.Hook) {
+	cl := a.client
+	if cl == nil {
+		return
+	}
+	h.On = true
+	if st.testing == nil {
+		st.testing, st.tested = map[string]bool{}, map[string]proto.HookRun{}
+	}
+	st.testing[h.ID] = true
+	delete(st.tested, h.ID)
+	ev := a.hookSampleEvent(h)
+	go func() {
+		r, err := cl.TestHook(proto.HookTest{Hook: h, Event: ev})
+		a.onMain(func() {
+			delete(st.testing, h.ID)
+			if err != nil {
+				a.status = client.Explain(err)
+				return
+			}
+			st.tested[h.ID] = r
+		})
+	}()
 }
 
 // hookProposal is a change an agent proposed, for the user to allow.
@@ -209,18 +258,19 @@ func (a *App) hookProposal(c *ui.Context, st *hooksState, p proto.HookProposal) 
 	if p.Why != "" {
 		body += " " + p.Why
 	}
-	widget.Notice(c, icon.Wand, theme.Accent, what, body, func() {
-		if detail := hookDetail(p.Hook); detail != "" {
-			ui.Text(c, detail).Font(theme.MonoFont).FontSize(11.5).TextColor(theme.TextSoft).MaxLines(6)
+	var more func()
+	if detail := hookDetail(p.Hook); detail != "" {
+		more = func() {
+			ui.Text(c, detail).Font(theme.MonoFont).FontSize(theme.TextLabel).TextColor(theme.TextSoft).FillWidth().MinWidth(0).MaxLines(6)
 		}
-		ui.Row(c).Gap(8).Children(func() {
-			if widget.Button(c, widget.Secondary, nil, "Reject", "").Disabled(st.busy).Clicked() {
-				a.decideHook(st, p.ID, false)
-			}
-			if widget.PrimaryButton(c, icon.Check, "Allow", "").Disabled(st.busy).Clicked() {
-				a.decideHook(st, p.ID, true)
-			}
-		})
+	}
+	widget.BannerCard(c, theme.Accent, what, body, more, func() {
+		if widget.GhostButton(c, "Reject").Disabled(st.busy).Clicked() {
+			a.decideHook(st, p.ID, false)
+		}
+		if widget.PrimaryButton(c, nil, "Allow", "").Disabled(st.busy).Clicked() {
+			a.decideHook(st, p.ID, true)
+		}
 	})
 }
 
@@ -262,9 +312,12 @@ func (a *App) decideHook(st *hooksState, id string, allow bool) {
 // pendingHooks is a project's hook file waiting for the user.
 func (a *App) pendingHooks(c *ui.Context, st *hooksState, ph proto.ProjectHooks) {
 	n := len(ph.Hooks)
-	what := fmt.Sprintf("%s has %d hook%s of its own", filepath.Base(ph.Dir), n, map[bool]string{true: "", false: "s"}[n == 1])
-	widget.Notice(c, icon.Alert, theme.Warning, what, "They don't run until you allow them, and ask again whenever the project's .enowx/hooks.json changes.", func() {
-		if widget.Button(c, widget.Secondary, nil, "Review…", "").Clicked() {
+	what := filepath.Base(ph.Dir) + " has a hook waiting to be allowed."
+	if n != 1 {
+		what = fmt.Sprintf("%s has %d hooks waiting to be allowed.", filepath.Base(ph.Dir), n)
+	}
+	widget.BannerCard(c, theme.Warning, what, "A project's .enowx/hooks.json runs once you allow it, and asks again whenever it changes.", nil, func() {
+		if widget.GhostButton(c, "Review").Clicked() {
 			st.review, st.seeing = ph, true
 		}
 	})
@@ -276,18 +329,26 @@ func (a *App) hookReviewSheet(c *ui.Context, st *hooksState) {
 		return
 	}
 	ph := st.review
-	widget.FormSheet(c, &st.seeing, 560, "Hooks of "+filepath.Base(ph.Dir),
-		"From "+filepath.Join(ph.Dir, ".enowx", "hooks.json")+". Allowed, they run like yours on "+a.host.Name+", commands included.", func() {
-			for _, h := range ph.Hooks {
-				ui.Column(c.Key(h.ID)).FillWidth().Gap(3).Padding(8, 10).Radius(theme.RadiusControl).Background(theme.Sunken).Children(func() {
-					ui.Text(c, hookSummary(h)).FontSize(12)
-					if d := hookDetail(h); d != "" {
-						ui.Text(c, d).Font(theme.MonoFont).FontSize(11.5).TextColor(theme.TextSoft).MaxLines(6)
-					}
-				})
-			}
+	widget.FormSheet(c, &st.seeing, 480, "Hooks of "+filepath.Base(ph.Dir),
+		"Waiting to be allowed. Allowed, they run like yours on "+a.host.Name+", commands included.", func() {
+			widget.Running(c.Key("path"), filepath.Join(ph.Dir, ".enowx", "hooks.json"), widget.RunStyle{Size: theme.TextLabel, Color: theme.TextSoft, Mono: true})
+			widget.CardLines(c, func() {
+				for _, h := range ph.Hooks {
+					ui.Column(c.Key(h.ID)).FillWidth().Shrink(0).Padding(theme.S2, 0).Gap(theme.S1).BorderWidth(theme.Rule, 0, 0, 0).BorderColor(theme.Border).Children(func() {
+						ui.Row(c).FillWidth().Gap(theme.S2).Children(func() {
+							title, mono := hookTitle(h)
+							ui.Row(c).Grow(1).Basis(0).MinWidth(0).Children(func() { widget.Running(c, title, widget.RunStyle{Mono: mono}) })
+							ui.Row(c).MaxWidth(200).Shrink(0).Children(func() { widget.RunningChip(c, hookEventNames[h.Event]) })
+						})
+						widget.CardNote(c, hookSummary(h), 0)
+						if d := hookDetail(h); d != "" {
+							ui.Text(c, d).Font(theme.MonoFont).FontSize(theme.TextLabel).TextColor(theme.TextSoft).FillWidth().MinWidth(0).MaxLines(6)
+						}
+					})
+				}
+			})
 		}, func() {
-			if widget.PrimaryButton(c, icon.Check, "Allow them", "").Disabled(st.busy).Clicked() {
+			if widget.PrimaryButton(c, nil, "Allow them", "").Disabled(st.busy).Clicked() {
 				a.approveHooks(st, ph)
 			}
 		})
@@ -313,41 +374,50 @@ func (a *App) approveHooks(st *hooksState, ph proto.ProjectHooks) {
 	}()
 }
 
+// hookRunStatus is how a run went: its dot's color and its words.
+func hookRunStatus(r proto.HookRun) (ui.Color, string) {
+	switch {
+	case r.Error != "":
+		return theme.Error, r.Error
+	case r.Blocked:
+		return theme.Warning, "Refused"
+	case r.Exit != 0:
+		return theme.Error, fmt.Sprintf("Exit %d", r.Exit)
+	}
+	return theme.Done, "Exit 0"
+}
+
+// hookRunName names the hook a run was of.
+func hookRunName(r proto.HookRun) string {
+	if r.Name != "" {
+		return r.Name
+	}
+	return hookEventNames[r.Event]
+}
+
 // hookLogList is the latest runs of the host's hooks.
 func (a *App) hookLogList(c *ui.Context, st *hooksState) {
 	if len(st.log) == 0 {
-		ui.Text(c, "No hook has run since "+a.host.Name+"'s daemon started.").FontSize(12).TextColor(theme.Muted)
+		widget.EmptyState(c, icon.History, "No hook has run since "+a.host.Name+"'s daemon started.", "", nil)
 		return
 	}
-	for i, r := range st.log {
-		ui.Column(c.Key(i)).FillWidth().Gap(3).Padding(8, 10).Radius(theme.RadiusControl).Background(theme.Sunken).Children(func() {
-			ui.Row(c).FillWidth().Gap(8).AlignItems(ui.Center).Children(func() {
-				col, label := theme.Done, "ok"
-				switch {
-				case r.Error != "":
-					col, label = theme.Error, r.Error
-				case r.Blocked:
-					col, label = theme.Warning, "refused"
-				case r.Exit != 0:
-					col, label = theme.Error, fmt.Sprintf("exit %d", r.Exit)
-				}
-				ui.Box(c).Size(7, 7).Radius(4).Background(col)
-				name := r.Name
-				if name == "" {
-					name = hookEventNames[r.Event]
-				}
-				ui.Text(c, name).FontSize(12).SingleLine().Shrink(1)
-				ui.Text(c, hookEventNames[r.Event]).FontSize(11).TextColor(theme.Muted).SingleLine()
-				ui.Spacer(c)
-				meta := label + " · " + fmt.Sprintf("%d ms", r.Ms)
-				if r.Agent != "" {
-					meta = a.agentName(r.Agent) + " · " + meta
-				}
-				ui.Text(c, meta+" · "+r.Start.Local().Format("15:04:05")).Font(theme.MonoFont).FontSize(10.5).TextColor(theme.Muted).SingleLine()
-			})
-			if out := strings.TrimSpace(r.Output); out != "" {
-				ui.Text(c, out).Font(theme.MonoFont).FontSize(11).TextColor(theme.TextSoft).MaxLines(4)
+	widget.LogGrid(c, len(st.log), func() {
+		for i, r := range st.log {
+			col, status := hookRunStatus(r)
+			meta := []string{r.Start.Local().Format("15:04:05")}
+			if r.Session != "" {
+				meta = append(meta, a.hookSessionName(r.Session))
 			}
-		})
-	}
+			if r.Agent != "" {
+				meta = append(meta, a.agentName(r.Agent))
+			}
+			meta = append(meta, hookEventNames[r.Event], msWords(r.Ms))
+			out := strings.TrimSpace(r.Output)
+			widget.LogCard(c.Key(i), hookRunName(r), false, col, status, strings.Join(meta, " · "), nil, func() {
+				if out != "" {
+					ui.Text(c, out).Font(theme.MonoFont).FontSize(theme.TextLabel).TextColor(theme.TextSoft).FillWidth().MinWidth(0).MaxLines(2)
+				}
+			})
+		}
+	})
 }

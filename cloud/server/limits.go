@@ -16,14 +16,17 @@ import (
 
 // limits are the requests an address may make to a door in a minute.
 var limits = map[string]int{
-	"POST /v1/auth/device":       10,
-	"POST /v1/auth/device/token": 40, // a device polls every few seconds
-	"POST /v1/invites/peek":      20,
-	"GET /device":                30,
-	"POST /device":               20,
-	"POST /invite":               20,
-	"POST /invite/accept":        20,
-	"GET /v1/auth/github":        20,
+	"POST /v1/auth/device":           10,
+	"POST /v1/auth/device/token":     40, // a device polls every few seconds
+	"POST /v1/invites/peek":          20,
+	"GET /device":                    30,
+	"POST /device":                   20,
+	"POST /invite":                   20,
+	"POST /invite/accept":            20,
+	"GET /v1/auth/github":            20,
+	"GET " + pathContributorPage:     30,
+	"GET " + pathContributorStart:    20,
+	"GET " + pathContributorCallback: 20,
 }
 
 // limiter counts requests per door and address, a minute at a time.

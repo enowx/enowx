@@ -8,8 +8,8 @@ Kimi (`KIMI_CODE_HOME`, its `credentials/` the account's), Mistral Vibe (`VIBE_H
 
 Other agents have a home variable but no other account, as their docs don't name the sign-in's files or keep it outside that folder (`core/accounts/ways.go` says why for each): every other file is linked to the user's own, so a sign-in file enowX doesn't know of would be the user's own. [configs.md](configs.md) lists them.
 
-- **Settings → Agents**: New config → Another account names one and opens a session signing it in. Remove forgets it, with its sign-in on that host. The configs sync to every host; a host where an account wasn't signed in yet signs it in from its menu.
-- **New session** picks the config: Official is the agent's own.
+- **Settings → Agents**: New config → Account names one and opens a session signing it in. Remove forgets it, with its sign-in on that host. The configs sync to every host; a host where an account wasn't signed in yet signs it in from its menu.
+- **New session** picks the config: Default is the agent's own.
 - **Command line**: `enowx-app spawn --config Work …` (or `--account`).
 
 Each account's home is `~/.enowx-app/accounts/<id>` on the host (`core/accounts`). It links to what is in the agent's own home (`~/.claude`, `~/.codex`, and so on): settings, skills, subagents, commands, plugins and conversations are the same whichever account a session uses, so the chat view, history and Settings see them all. Only the sign-in is the account's own (for Claude Code also `.claude.json`, which holds who is signed in, so MCP servers added with `claude mcp add --scope user` are per account). A session keeps its account when continued, after hibernation or a restart.

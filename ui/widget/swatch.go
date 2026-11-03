@@ -27,11 +27,11 @@ func ParseHex(s string) (ui.Color, bool) {
 
 // Swatches picks one of colors (#RRGGBB) into value, "" for none.
 func Swatches(c *ui.Context, colors []string, value *string) {
-	ui.Row(c).Gap(6).AlignItems(ui.Center).Children(func() {
+	ui.Row(c).Gap(theme.S2).AlignItems(ui.Center).Children(func() {
 		swatch := func(key, hex string) {
 			col, ok := ParseHex(hex)
 			on := strings.EqualFold(*value, hex)
-			b := ui.ButtonBase(c.Key("swatch:" + key)).Width(22).Height(22).Radius(11).Cursor(ui.CursorPointer).Label("Color " + key)
+			b := ui.ButtonBase(c.Key("swatch:" + key)).Width(22).Height(22).Radius(theme.RadiusSmall).Cursor(ui.CursorPointer).Label("Color " + key)
 			if on {
 				b.Border(2, theme.Text)
 			} else {
@@ -39,9 +39,9 @@ func Swatches(c *ui.Context, colors []string, value *string) {
 			}
 			b.Center().Children(func() {
 				if ok {
-					ui.Box(c).Width(14).Height(14).Radius(7).Background(col)
+					ui.Box(c).Width(14).Height(14).Radius(theme.RadiusSmall).Background(col)
 				} else {
-					ui.Text(c, "–").FontSize(11).TextColor(theme.Muted)
+					ui.Text(c, "–").FontSize(theme.TextLabel).TextColor(theme.Muted)
 				}
 			})
 			if Pressable(b).Clicked() {
@@ -62,8 +62,12 @@ func BadgeTag(c *ui.Context, label, hex string) {
 	if !ok {
 		col = theme.Accent
 	}
-	ui.Row(c).PaddingX(7).Height(18).Gap(5).Radius(9).Border(1, theme.Fade(col, 0.45)).AlignItems(ui.Center).Shrink(0).Children(func() {
-		ui.Box(c).Width(6).Height(6).Radius(3).Background(col)
-		ui.Text(c, label).FontSize(10.5).TextColor(theme.TextSoft).SingleLine()
+	chip := ui.Row(c).PaddingX(theme.S2).Height(18).Gap(theme.S1).Radius(theme.RadiusSmall).Border(1, theme.Fade(col, 0.45)).AlignItems(ui.Center).Shrink(0)
+	if theme.Flat {
+		chip.Background(theme.Sunken) // its own ground: it may lie on a solid selection
+	}
+	chip.Children(func() {
+		ui.Box(c).Width(6).Height(6).Radius(theme.RadiusTail).Background(col)
+		ui.Text(c, label).FontSize(theme.TextLabel).TextColor(theme.TextSoft).SingleLine()
 	})
 }

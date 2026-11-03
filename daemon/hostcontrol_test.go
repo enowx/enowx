@@ -382,6 +382,118 @@ func TestAgentInBypassIsNotAsked(t *testing.T) {
 	}
 }
 
+// Always allow, for one session: it hibernates and closes finished sessions
+// with no card, each logged; another session still asks; push and merge still
+// ask; a session at work still asks; revoking brings the card back; and a
+// visitor or a teammate's session never counts.
+func TestAlwaysAllowHibernateAndClose(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("uses sh")
+	}
+	fakeAgent(t)
+	srv, _ := hookServer(t)
+	c := connect(t, srv, nil)
+	newAsker := func(meta session.Meta) *session.Session {
+		t.Helper()
+		sess, err := srv.sessions.Create(session.Spec{Command: []string{"cat"}, Dir: t.TempDir(), Cols: 80, Rows: 24, Meta: meta})
+		if err != nil {
+			t.Fatal(err)
+		}
+		return sess
+	}
+	allowed, other := newAsker(session.Meta{Agent: "claude"}), newAsker(session.Meta{Agent: "claude"})
+	// An agent's session that can come back, its turn over.
+	finished := func() string {
+		t.Helper()
+		info, err := c.CreateSession(proto.SessionCreateParams{Agent: "claude", Dir: t.TempDir(), Cols: 80, Rows: 10})
+		if err != nil {
+			t.Fatal(err)
+		}
+		sess, err := srv.sessions.Get(info.ID)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if err := srv.sessions.SetState(sess, proto.StateDone); err != nil {
+			t.Fatal(err)
+		}
+		return info.ID
+	}
+	call := func(from, method string, params any) error {
+		raw, _ := json.Marshal(params)
+		return c.Call(proto.MethodHostCall, proto.HostCallParams{Method: method, Params: raw, From: from}, nil)
+	}
+	closes := func(from, id string) error { return call(from, proto.MethodSessionKill, proto.SessionRef{ID: id}) }
+	asks := func(what string, err error) {
+		t.Helper()
+		if err == nil || !strings.Contains(err.Error(), "needs the user's yes") {
+			t.Fatalf("%s wasn't asked: %v", what, err)
+		}
+	}
+	asks("before the choice", closes(allowed.ID(), finished()))
+	if err := c.ControlAllow(allowed.ID(), false); err != nil {
+		t.Fatal(err)
+	}
+	if list, err := c.ControlAllowed(); err != nil || len(list) != 1 || list[0].Session != allowed.ID() {
+		t.Fatalf("the choice: %+v %v", list, err)
+	}
+
+	gone := finished()
+	if err := closes(allowed.ID(), gone); err != nil {
+		t.Fatalf("closing, allowed: %v", err)
+	}
+	if _, err := srv.sessions.Get(gone); err == nil {
+		t.Fatal("still there")
+	}
+	log, _ := c.ControlLog()
+	if last := log[len(log)-1]; last.Bypass != proto.ControlAlways || last.From != allowed.ID() || last.Err != "" {
+		t.Fatalf("closing's log: %+v", last)
+	}
+	res, err := c.HibernateSessions(proto.SessionHibernateParams{IDs: []string{finished()}, From: allowed.ID()})
+	if err != nil || len(res.Hibernated) != 1 {
+		t.Fatalf("hibernating, allowed: %+v %v", res, err)
+	}
+	log, _ = c.ControlLog()
+	if last := log[len(log)-1]; last.Method != proto.MethodSessionHibernate || last.Bypass != proto.ControlAlways {
+		t.Fatalf("hibernating's log: %+v", last)
+	}
+
+	asks("another session", closes(other.ID(), finished()))
+	asks("a push", call(allowed.ID(), proto.MethodReviewPush, proto.SessionRef{ID: finished()}))
+	asks("a merge", call(allowed.ID(), proto.MethodReviewMerge, proto.SessionRef{ID: finished()}))
+	asks("its own session", closes(allowed.ID(), allowed.ID()))
+
+	atWork, err := srv.sessions.Get(finished())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := srv.sessions.SetState(atWork, proto.StateWorking); err != nil {
+		t.Fatal(err)
+	}
+	asks("a session at work", closes(allowed.ID(), atWork.ID()))
+	shell, err := srv.sessions.Create(sessionSpec(t, "cat"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	asks("a shell, what runs in it unknown", closes(allowed.ID(), shell.ID()))
+
+	teammate := newAsker(session.Meta{Agent: "claude", Member: &proto.SessionMember{Name: "Rina"}})
+	if err := c.ControlAllow(teammate.ID(), false); err == nil {
+		t.Fatal("a teammate's session allowed")
+	}
+	asks("a teammate's target", closes(allowed.ID(), teammate.ID()))
+	params, _ := json.Marshal(proto.SessionRef{ID: finished()})
+	_, err = (&conn{srv: srv, remote: true}).hostCall(proto.HostCallParams{Method: proto.MethodSessionKill, Params: params, From: allowed.ID()})
+	asks("a visitor", err)
+
+	if err := c.ControlAllow(allowed.ID(), true); err != nil {
+		t.Fatal(err)
+	}
+	asks("after revoking", closes(allowed.ID(), finished()))
+	if list, _ := c.ControlAllowed(); len(list) != 0 {
+		t.Fatalf("after revoking: %+v", list)
+	}
+}
+
 // On another of the user's hosts, the app is told the mode and does it
 // unasked; the asking host logs it, and that the app did so.
 func TestAgentInBypassOnAnotherHost(t *testing.T) {

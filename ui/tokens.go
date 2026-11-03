@@ -135,8 +135,13 @@ func (a *App) tokensTab(c *ui.Context) {
 		a.fetchTokens()
 	}
 	cl := a.client
+	var projects []string
+	for _, p := range a.projects {
+		projects = append(projects, p.Path)
+	}
 	t.view.Draw(c, t.data, tokenview.Options{
 		HostName: a.host.Name,
+		Projects: projects,
 		Refresh:  func() { t.fetched = time.Time{} },
 		Save: func(st proto.TokensSettings) {
 			t.data.Settings = st

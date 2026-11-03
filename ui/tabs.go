@@ -65,20 +65,28 @@ func (a *App) showTab(parent, id string) {
 	a.tabs[parent] = id
 }
 
-// tabStrip is the row of session s's tabs, its own first, with the button
-// that opens another.
+// tabStrip is the row of session s's tabs: its own first, the terminals and
+// agents opened beside it, then the viewers tools opened, with the buttons that
+// open another. Every tab is one width; those that don't fit scroll.
 func (a *App) tabStrip(c *ui.Context, s proto.SessionInfo) {
+	a.pruneGOATabs()
+	viewer := a.centerFront(s)
 	front := a.frontTab(s).ID
-	ui.Row(c).Height(34).Shrink(0).FillWidth().PaddingX(8).Gap(4).Background(theme.Panel).
-		BorderWidth(0, 0, 1, 0).BorderColor(theme.Border).Children(func() {
-		ui.Row(c).MinWidth(0).Gap(4).Clip().Children(func() {
-			a.tabButton(c.Key("tab:"+s.ID), s, s, front == s.ID, false)
-			for _, t := range a.tabsOf(s.ID) {
-				a.tabButton(c.Key("tab:"+t.ID), s, t, front == t.ID, true)
-			}
+	ui.Row(c.Key("tab-strip")).Height(36).Shrink(0).FillWidth().PaddingX(theme.S2).Gap(theme.S1).Background(theme.Sunken).
+		BorderWidth(0, 0, theme.Rule, 0).BorderColor(theme.Border).Children(func() {
+		ui.ScrollHorizontal(c.Key("tabs")).Grow(1).MinWidth(0).Height(36).Children(func() {
+			ui.Row(c).Gap(theme.S1).Height(36).Children(func() {
+				a.tabButton(c.Key("tab:"+s.ID), s, s, viewer == "" && front == s.ID, false)
+				for _, t := range a.tabsOf(s.ID) {
+					a.tabButton(c.Key("tab:"+t.ID), s, t, viewer == "" && front == t.ID, true)
+				}
+				for _, tab := range a.centerOf(s.ID).tabs {
+					a.centerTabButton(c, s, tab, viewer == tab)
+				}
+			})
 		})
 		add := widget.IconButton(c, icon.Plus, "New tab in this session's folder", false)
-		a.menu.OpenBelow(add, "tab:"+s.ID, 24)
+		a.menu.OpenBelow(add, "tab:"+s.ID, theme.ControlHeight)
 		a.menu.Show(c, add, "tab:"+s.ID, func(done func()) {
 			a.shellTabItems(c, s, done)
 			for _, ag := range a.agents {
@@ -92,7 +100,6 @@ func (a *App) tabStrip(c *ui.Context, s proto.SessionInfo) {
 			}
 		})
 		a.runButton(c, s)
-		ui.Spacer(c)
 	})
 }
 
@@ -103,38 +110,17 @@ func (a *App) tabButton(c *ui.Context, parent, t proto.SessionInfo, front, closa
 	if closable && t.Name != "" {
 		name = t.Name // a command run in it
 	}
-	b := ui.ButtonBase(c).Height(26).PaddingX(8).Gap(6).Radius(theme.RadiusControl).Shrink(1).MinWidth(64).
-		Label(name).Tooltip(a.sessionName(t)).Cursor(ui.CursorPointer)
-	bg, fg := theme.Fade(theme.Selected, 0), theme.Muted
-	switch {
-	case front:
-		bg, fg = theme.Selected, theme.Text
-	case b.Hovered():
-		bg, fg = theme.Hover, theme.Text
-	}
-	b.Background(widget.QuickTint(b, "bg", bg)).TextColor(widget.QuickTint(b, "fg", fg)).Transition(widget.QuickMotion)
 	st := statusOf(t)
-	closed := false
-	b.Children(func() {
-		widget.Dot(c, st.color, st.hollow, 6)
-		ui.Icon(c, icon.Agent(t.Agent)).FontSize(12)
-		ui.Text(c, name).FontSize(12).SingleLine().Shrink(1)
-		if !closable {
-			return
-		}
-		x := ui.ButtonBase(c).Size(16, 16).Shrink(0).Radius(4).Center().Cursor(ui.CursorPointer).Label("Close " + name)
-		if x.Hovered() {
-			x.Background(theme.Hover)
-		}
-		x.Children(func() { ui.Icon(c, icon.Close).FontSize(10).TextColor(theme.Muted) })
-		closed = x.Clicked()
-	})
-	switch {
-	case closed:
-		a.closeTab(parent, t)
-	case b.Clicked():
-		a.showTab(parent.ID, t.ID)
+	svg := icon.Agent(t.Agent)
+	if t.GOA {
+		name, svg = "GOD of Agents", icon.Sparkle
 	}
+	a.tabFace(c, name, a.sessionName(t), front, closable, st.color, st.hollow, svg,
+		func() {
+			a.centerOf(parent.ID).front = ""
+			a.showTab(parent.ID, t.ID)
+		},
+		func() { a.closeTab(parent, t) })
 }
 
 // openTab starts agent id (agent.Shell for a terminal, shell its shell or
@@ -167,6 +153,33 @@ func (a *App) openTab(s proto.SessionInfo, id, shell string) {
 			a.showTab(s.ID, info.ID)
 		})
 	}()
+}
+
+// closeFrontTab closes what is in front of the selected session, as Cmd+W: a
+// viewer, or a tab of its own, asking first if its program still runs. Nothing
+// else closes: the session's own tab has no ×, and with no session in front
+// (killed from elsewhere, or a page) there is no tab, which is fine.
+func (a *App) closeFrontTab() {
+	if a.page != "" || a.confirming != nil {
+		return
+	}
+	s, ok := a.selectedSession()
+	if !ok {
+		return
+	}
+	s = a.parentOf(s)
+	if front := a.centerFront(s); front != "" {
+		a.closeCenter(s.ID, front)
+		return
+	}
+	t := a.frontTab(s)
+	switch {
+	case t.ID == s.ID:
+	case t.Exited:
+		a.closeTab(s, t)
+	default:
+		a.confirm("Close this tab?", "“"+a.sessionName(t)+"” is still running, and stops with it.", "Close", func() { a.closeTab(s, t) })
+	}
 }
 
 // closeTab deletes tab t of parent, showing the tab before it.

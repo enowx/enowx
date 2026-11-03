@@ -14,21 +14,25 @@ func TestFileTabsBelongToTheirSession(t *testing.T) {
 	a.openFileTab(s1, "src/main.go")
 	a.openFileTab(s1, "README.md")
 	a.openFileTab(s1, "src/main.go") // already open: shown, not opened twice
-	if got := a.fileTabs["s1"]; len(got) != 2 {
+	if got := a.centerFiles("s1"); len(got) != 2 {
 		t.Fatalf("tabs = %q", got)
 	}
-	if !a.panelShows("file:src/main.go") {
-		t.Fatalf("shows %q", a.panelTab())
+	if a.centerFront(s1) != "file:src/main.go" {
+		t.Fatalf("in front: %q", a.centerFront(s1))
 	}
-	// Another session hasn't that file open: the panel shows Files.
-	a.selected = "s2"
-	if got := a.panelTab(); got != panelFiles {
-		t.Fatalf("for s2 the panel shows %q", got)
+	// Another session hasn't that file open.
+	if got := a.centerFront(s2); got != "" {
+		t.Fatalf("for s2 in front: %q", got)
 	}
-	a.selected = "s1"
-	a.closeFileTab("s1", "src/main.go")
-	if got := a.panelTab(); got != panelFiles || len(a.fileTabs["s1"]) != 1 {
-		t.Fatalf("after closing the tab in front: %q, tabs %q", got, a.fileTabs["s1"])
+	a.closeCenter("s1", "file:src/main.go")
+	if got := a.centerFront(s1); got != "" || len(a.centerFiles("s1")) != 1 {
+		t.Fatalf("after closing the tab in front: %q, tabs %q", got, a.centerFiles("s1"))
 	}
-	_ = s2
+	a.closeCenter("s1", "file:README.md")
+	a.openFileTab(s1, "a.go")
+	a.openFileTab(s1, "b.go")
+	a.closeCenter("s1", "file:b.go")
+	if got := a.centerFront(s1); got != "file:a.go" {
+		t.Fatalf("the tab before it should come to the front: %q", got)
+	}
 }

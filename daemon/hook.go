@@ -36,6 +36,8 @@ func Hook(args []string, stdin io.Reader, stdout, stderr io.Writer) int {
 	var event, state, agentID string
 	for i := 0; i < len(args); i++ {
 		switch {
+		case args[i] == "--wake":
+			return goaWakeHook(id, stderr)
 		case strings.HasPrefix(args[i], "--agent="):
 			agentID = strings.TrimPrefix(args[i], "--agent=")
 		case args[i] == "--event" && i+1 < len(args):
@@ -89,6 +91,12 @@ func answerHook(event, agentID string, data []byte, d proto.HookDecision, stdout
 	}
 	if d.Context != "" && (event == proto.HookPromptStart || event == proto.HookSessionStart) {
 		fmt.Fprintln(stdout, d.Context)
+	}
+	if d.Context != "" && event == proto.HookToolAfter {
+		fmt.Fprintln(stdout, contextOutput(data, d.Context))
+	}
+	if d.Continue != "" && event == proto.HookTurnDone {
+		fmt.Fprintln(stdout, continueOutput(data, d.Continue))
 	}
 	return 0
 }

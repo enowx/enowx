@@ -72,6 +72,7 @@ func (v *View) dialogs(c *ui.Context, o Options) {
 	v.formDialog(c, o)
 	v.importDialog(c, o)
 	v.changeDialog(c, o)
+	v.detailsDialog(c, o)
 }
 
 func (v *View) formDialog(c *ui.Context, o Options) {
@@ -94,19 +95,19 @@ func (v *View) formDialog(c *ui.Context, o Options) {
 	}
 	// A form of its own each time: its inputs start from its values, not
 	// from the last form's.
-	widget.FormSheet(c.Key(fmt.Sprintf("form-%p", f)), &f.open, 560, title, "Kept encrypted on this device; hosts get it when a session needs it, after you allow them.", func() {
+	widget.FormSheet(c.Key(fmt.Sprintf("form-%p", f)), &f.open, formWidth, title, "Kept encrypted on this device; hosts get it when a session needs it, after you allow them.", func() {
 		if f.edit == nil {
 			v.quickWays(c, o, f, p)
 			widget.Divider(c)
 		}
-		ui.Row(c).FillWidth().Gap(10).Children(func() {
-			ui.Column(c).Grow(1).Basis(0).Children(func() {
-				widget.Field(c, "Name (used in commands)", func() { widget.Input(c, &f.name, p.ID).FillWidth().Font(theme.MonoFont) })
-			})
-			ui.Column(c).Grow(1).Basis(0).Children(func() {
+		widget.FieldCols(c,
+			func() {
+				widget.Field(c, "Name (used in commands)", func() { widget.Input(c, &f.name, p.ID).FillWidth() })
+			},
+			func() {
 				widget.Field(c, "Account (optional)", func() { widget.Input(c, &f.account, "you@example.com").FillWidth() })
-			})
-		})
+			},
+		)
 		for _, fl := range p.Fields {
 			label := fl.Label
 			if fl.Optional {
@@ -121,10 +122,10 @@ func (v *View) formDialog(c *ui.Context, o Options) {
 					val = f.values["\x00"+fl.Key]
 				}
 				if fl.Multiline {
-					ui.TextArea(c, &val).FillWidth().Height(96).Padding(8, 11).Radius(theme.RadiusControl).Background(theme.Sunken).
-						Border(1, theme.BorderStrong).Font(theme.MonoFont).FontSize(11.5).Label("Paste the " + strings.ToLower(fl.Label))
+					ui.TextArea(c, &val).FillWidth().Height(96).Padding(theme.S2, theme.S3).Radius(theme.RadiusSmall).Background(theme.Sunken).
+						InsetShadow(0, 0, 0, 0.5, theme.Border).Font(theme.MonoFont).FontSize(theme.TextLabel).Label(pasteHint(fl.Label))
 				} else {
-					in := widget.Input(c, &val, "Paste the "+strings.ToLower(fl.Label)).FillWidth().Font(theme.MonoFont)
+					in := widget.Input(c, &val, pasteHint(fl.Label)).FillWidth()
 					if fl.Secret {
 						in.Password()
 					}
@@ -137,14 +138,14 @@ func (v *View) formDialog(c *ui.Context, o Options) {
 			})
 		}
 		if env := envOf(p); env != "" {
-			ui.Text(c, "Sets "+env+" in a session.").FontSize(11.5).TextColor(theme.Muted)
+			widget.CardNote(c, "Sets "+env+" in a session.", 0)
 		}
 		if p.Link != "" && (f.edit != nil || o.Actions.OpenURL == nil) {
-			ui.Text(c, "Make one at "+p.Link).FontSize(11.5).TextColor(theme.Muted)
+			widget.CardNote(c, "Make one at "+p.Link, 0)
 		}
-		widget.Field(c, "Expires (YYYY-MM-DD, optional)", func() { widget.Input(c, &f.expires, "2027-01-31").FillWidth().Font(theme.MonoFont) })
+		widget.Field(c, "Expires (YYYY-MM-DD, optional)", func() { widget.Input(c, &f.expires, "2027-01-31").FillWidth() })
 		widget.Field(c, "May be used without asking on", func() {
-			ui.Row(c).FillWidth().Wrap().Gap(12).Children(func() {
+			ui.Row(c).FillWidth().Wrap().Gap(theme.S3).Children(func() {
 				for _, h := range o.Hosts {
 					on := f.hosts[h.ID]
 					if widget.Checkbox(c.Key(h.ID), &on, h.Name) {
@@ -153,26 +154,20 @@ func (v *View) formDialog(c *ui.Context, o Options) {
 				}
 			})
 		})
-		ui.Row(c).FillWidth().Gap(10).AlignItems(ui.Center).Children(func() {
-			widget.Switch(c, &f.hostsOnly, "Only these hosts")
-			ui.Text(c, "Only these hosts: others are refused without asking.").FontSize(12).TextColor(theme.TextSoft)
-		})
-		ui.Row(c).FillWidth().Gap(10).AlignItems(ui.Center).Children(func() {
-			widget.Switch(c, &f.auto, "In every session")
-			ui.Text(c, "In every session: its variables are in each new session of those hosts.").FontSize(12).TextColor(theme.TextSoft)
-		})
+		widget.ToggleRow(c, "Only these hosts", "Others are refused without asking.", &f.hostsOnly)
+		widget.ToggleRow(c, "In every session", "Its variables are in each new session of those hosts.", &f.auto)
 		widget.Field(c, "Only for projects (folders or names, comma-separated; empty for any)", func() {
-			widget.Input(c, &f.projects, "work-api, /srv/billing").FillWidth().Font(theme.MonoFont)
+			widget.Input(c, &f.projects, "work-api, /srv/billing").FillWidth()
 		})
 		if f.err != "" {
-			ui.Text(c, f.err).FontSize(12).TextColor(theme.Error)
+			widget.CardNote(c, f.err, 0).TextColor(theme.Error)
 		}
 	}, func() {
 		label := "Add"
 		if f.edit != nil {
 			label = "Save"
 		}
-		if widget.PrimaryButton(c, icon.Check, label, "").Clicked() {
+		if widget.PrimaryButton(c, nil, label, "").Clicked() {
 			cr, err := f.credential()
 			if err == "" {
 				err = errText(o.Actions.Save(cr))
@@ -238,6 +233,18 @@ func (f *form) credential() (vault.Credential, string) {
 	return cr, ""
 }
 
+// pasteHint is what a field's empty input says, its label's initialisms kept:
+// "Paste the API token".
+func pasteHint(label string) string {
+	words := strings.Fields(label)
+	for i, w := range words {
+		if w != strings.ToUpper(w) {
+			words[i] = strings.ToLower(w)
+		}
+	}
+	return "Paste the " + strings.Join(words, " ")
+}
+
 // envOf lists the variables a platform's credentials set.
 func envOf(p vault.Platform) string {
 	names := slices.Collect(maps.Keys(p.Env))
@@ -245,10 +252,13 @@ func envOf(p vault.Platform) string {
 	return strings.Join(names, ", ")
 }
 
+// formWidth is how wide the Add and Edit dialogs are.
+const formWidth = 640
+
 // platformPicker is the form's first step: the platforms by group, and a
 // search.
 func (v *View) platformPicker(c *ui.Context, f *form) {
-	widget.FormSheet(c, &f.open, 640, "Add a credential", "Pick its platform; Generic covers any other.", func() {
+	widget.FormSheet(c, &f.open, formWidth, "Add a credential", "Pick its platform; Generic covers any other.", func() {
 		widget.SearchField(c, &f.query, "GitHub, AWS, Cloudflare, OpenAI…", icon.Search)
 		found := vault.Search(f.query)
 		for _, g := range vault.Groups {
@@ -261,18 +271,19 @@ func (v *View) platformPicker(c *ui.Context, f *form) {
 			if len(in) == 0 {
 				continue
 			}
-			ui.Column(c.Key(g)).FillWidth().Gap(8).Children(func() {
-				widget.SectionLabel(c, strings.ToUpper(g), theme.Muted)
-				ui.Row(c).FillWidth().Wrap().Gap(8).Children(func() {
+			ui.Column(c.Key(g)).FillWidth().Shrink(0).Gap(theme.S2).Children(func() {
+				ui.Text(c, g).FontSize(theme.TextLabel).FontWeight(500).TextColor(theme.TextSoft)
+				ui.Grid(c).FillWidth().Columns(3).Gap(theme.S3).Children(func() {
 					for _, p := range in {
-						b := ui.ButtonBase(c.Key(p.ID)).Width(184).Height(44).PaddingX(10).Gap(10).Radius(theme.RadiusControl).
-							Border(1, theme.Border).Background(theme.Raised).Cursor(ui.CursorPointer).Label(p.Name).Justify(ui.Start)
+						b := ui.ButtonBase(c.Key(p.ID)).MinWidth(0).Padding(theme.S3, theme.S4).Gap(theme.S3).Radius(theme.RadiusCard).
+							Cursor(ui.CursorPointer).Label(p.Name).Justify(ui.Start)
+						widget.Raise(b.Background(theme.Raised))
 						if b.Hovered() {
-							b.Border(1, theme.AccentLine).Background(theme.Hover)
+							b.Background(theme.Hover)
 						}
 						b.Children(func() {
-							Logo(c, p, 26)
-							ui.Text(c, p.Name).FontSize(12.5).TextColor(theme.Text).SingleLine().Shrink(1)
+							Logo(c, p, 24)
+							ui.Row(c).Grow(1).MinWidth(0).Children(func() { widget.Running(c, p.Name, widget.RunStyle{Weight: 500}) })
 						})
 						if b.Clicked() {
 							f.pick(p)

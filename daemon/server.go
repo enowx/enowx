@@ -108,8 +108,18 @@ type Server struct {
 	// controlAsks are the sessions waiting for the user's yes in the app, and
 	// the method it's for (sessionAwaitsUser).
 	controlAsks sync.Map
-	statsState  stats
-	credits     credits.Checker
+	helpers     helpersState // sessions enowX starts for one piece of work (helpers.go)
+	procs       procTracker  // what sessions started (procs.go)
+	canvasTells canvasTeller // canvases' changes on their way to the apps (canvas_tell.go)
+	videos      videoWaits   // videos the app is making (canvas_video.go)
+	todos       todoState    // to-dos ticked, and the reminder to (todo_ticks.go)
+	// promptAnswered are the sessions whose prompt the judge just answered, for
+	// its leaving the screen not to count as its expiring.
+	promptAnswered sync.Map
+	// controlAllowMu guards the file of sessions always allowed (control_allow.go).
+	controlAllowMu sync.Mutex
+	statsState     stats
+	credits        credits.Checker
 	// commandCache keeps the agents' slash commands (see commands).
 	commandCache commandCache
 	checkStore   *checks.Store
@@ -262,6 +272,7 @@ func newServer(dir, hookBin string) (*Server, error) {
 	go s.watchModels(s.done)
 	go s.watchPrompts(s.done)
 	go s.watchStalls(s.done)
+	go s.watchHelpers(s.done)
 	go s.runSchedules(s.done)
 	go s.goBackLoop(s.done)
 	go s.watchLimitsLoop(s.done)
@@ -338,17 +349,20 @@ func (s *Server) Close() {
 		// Sessions come back with the next daemon, and start what they
 		// run again: nothing of theirs should run twice.
 		reapAll(tags)
+		s.endAllProcs()
 		s.catalogs.Wait()
 	})
 }
 
 // deleteSession hangs up a session and forgets it for good.
 func (s *Server) deleteSession(id string) error {
+	s.procsLook() // what it started up to now, while its tree still shows it
 	if err := s.sessions.Kill(id); err != nil {
 		return err
 	}
 	// What it started outside its terminal goes too: no leftovers.
 	reap(tag{key: session.EnvSession, value: id})
+	s.endSessionProcs(id)
 	// Its tabs go with it.
 	for _, tab := range s.sessions.List() {
 		if tab.Meta().Parent == id && s.deleteSession(tab.ID()) == nil {

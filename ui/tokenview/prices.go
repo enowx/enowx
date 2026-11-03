@@ -25,62 +25,72 @@ type priceForm struct {
 
 // prices lists the price table: the user's prices first, over enowX's.
 func (v *View) prices(c *ui.Context, d Data, o Options) {
-	ui.Row(c).FillWidth().Gap(10).Children(func() {
-		ui.Text(c, "US dollars a million tokens. Your prices go over enowX's; a model API config's own (OpenRouter's, a local model's 0) by its config.").
-			FontSize(12).TextColor(theme.Muted).Grow(1).Shrink(1)
+	ui.Row(c).FillWidth().Shrink(0).Gap(theme.S2).Children(func() {
+		ui.Column(c).Grow(1).Basis(0).MinWidth(0).Children(func() {
+			widget.CardNote(c, "US dollars a million tokens. Your prices go over enowX's; a model API config's own by its config.", 0)
+		})
 		if widget.PrimaryButton(c, icon.Plus, "Add price", "").Clicked() {
 			v.price = priceForm{open: true, index: -1}
 		}
 	})
-	widget.Card(c).Children(func() {
-		ui.Row(c).FillWidth().Padding(4, 10).Gap(10).Children(func() {
-			ui.Text(c, "Model").FontSize(11).TextColor(theme.Muted).Grow(1)
-			for _, h := range []string{"Input", "Cache read", "Cache write", "Output", ""} {
-				ui.Text(c, h).FontSize(11).TextColor(theme.Muted).Width(74).TextAlign(ui.End)
-			}
-		})
+	v.cards(c, len(d.Prices), priceCardHeight, func() {
 		own := 0
 		for i, p := range d.Prices {
-			key := fmt.Sprintf("p%d", i)
-			ui.Row(c.Key(key)).FillWidth().Padding(6, 10).Gap(10).Children(func() {
-				ui.Row(c).Grow(1).MinWidth(0).Gap(8).Children(func() {
-					ui.Text(c, p.Model).Font(theme.MonoFont).FontSize(11.5).SingleLine().Shrink(1)
-					note := p.Provider
-					if p.Config != "" {
-						note = "config " + p.Config
-					}
-					if !p.Shipped {
-						note = strings.TrimSpace("yours " + note)
-					}
-					ui.Text(c, note).FontSize(11).TextColor(theme.Muted).SingleLine().Shrink(1)
-				})
-				for _, x := range []float64{p.Input, p.CacheRead, p.CacheWrite, p.Output} {
-					ui.Text(c, money(x)).FontSize(12).Width(74).TextAlign(ui.End).TextColor(theme.TextSoft).SingleLine()
-				}
-				ui.Row(c).Width(74).Justify(ui.End).Children(func() {
-					if p.Shipped {
-						if widget.IconButton(c, icon.Pencil, "Set your own price for "+p.Model, false).Clicked() {
-							v.price = formOfPrice(p, -1)
-						}
-						return
-					}
-					idx := own
-					if widget.IconButton(c, icon.Pencil, "Change", false).Clicked() {
-						v.price = formOfPrice(p, idx)
-					}
-					if widget.IconButton(c, icon.Trash, "Remove", false).Clicked() && o.Confirm != nil {
-						o.Confirm("Remove your price for "+p.Model+"?", "enowX's own price, if it has one, counts again.", "Remove", func() {
-							st := d.Settings
-							st.Prices = slices.Delete(slices.Clone(st.Prices), idx, idx+1)
-							o.Save(st)
-						})
-					}
-				})
-			})
+			index := -1
 			if !p.Shipped {
+				index = own
 				own++
 			}
+			v.priceCard(c.Key(fmt.Sprintf("p%d", i)), p, index, d, o)
 		}
+	})
+}
+
+// priceCardHeight is the least a price's card takes: all it holds.
+const priceCardHeight = 144
+
+// priceCard is a model's price: enowX's, which can be set over, or one of the
+// user's, at index of theirs, to change or remove.
+func (v *View) priceCard(c *ui.Context, p proto.TokenPrice, index int, d Data, o Options) {
+	widget.GridCard(c).Children(func() {
+		widget.CardTitle(c, nil, p.Model, nil)
+		widget.CardStats(c, []widget.Stat{
+			{Value: money(p.Input), Label: "input"},
+			{Value: money(p.CacheRead), Label: "cache read"},
+			{Value: money(p.CacheWrite), Label: "cache write"},
+			{Value: money(p.Output), Label: "output"},
+		})
+		ui.Spacer(c) // the foot stays at the card's bottom, however tall the row
+		widget.CardFoot(c, func() {
+			note := "enowX's"
+			if !p.Shipped {
+				note = "Yours"
+			}
+			if p.Config != "" {
+				note += ", of " + p.Config
+			} else if p.Provider != "" {
+				note += ", " + p.Provider
+			}
+			ui.Row(c).Grow(1).MinWidth(0).Children(func() {
+				widget.Running(c, note, widget.RunStyle{Size: theme.TextLabel, Color: theme.TextSoft})
+			})
+			if p.Shipped {
+				if widget.GhostButton(c, "Set your own").Label("Set your own price for " + p.Model).Clicked() {
+					v.price = formOfPrice(p, -1)
+				}
+				return
+			}
+			if widget.GhostButton(c, "Change").Clicked() {
+				v.price = formOfPrice(p, index)
+			}
+			if widget.IconButton(c, icon.Trash, "Remove", false).Clicked() && o.Confirm != nil {
+				o.Confirm("Remove your price for "+p.Model+"?", "enowX's own price, if it has one, counts again.", "Remove", func() {
+					st := d.Settings
+					st.Prices = slices.Delete(slices.Clone(st.Prices), index, index+1)
+					o.Save(st)
+				})
+			}
+		})
 	})
 }
 
@@ -98,28 +108,28 @@ func (v *View) priceSheet(c *ui.Context, d Data, o Options) {
 	if !f.open {
 		return
 	}
-	widget.FormSheet(c, &f.open, 540, "A price of yours", "A model's ID, or a prefix ending in * (claude-sonnet-*). A config's price counts only for that config.", func() {
-		widget.Field(c, "Model", func() { widget.Input(c.Key("model"), &f.model, "claude-sonnet-5-5").FillWidth() })
-		ui.Row(c).FillWidth().Gap(10).Children(func() {
-			ui.Column(c).Grow(1).Children(func() {
+	widget.FormSheet(c, &f.open, 480, "A price of yours", "A model's ID, or a prefix ending in * (claude-sonnet-*). A config's price counts only for that config.", func() {
+		widget.Field(c, "Model", func() { widget.Input(c.Key("model"), &f.model, "claude-sonnet-*").FillWidth().Font(theme.MonoFont) })
+		fieldRow(c, "whose",
+			func() {
 				widget.Field(c, "Provider (optional)", func() { widget.Input(c.Key("provider"), &f.provider, "anthropic").FillWidth() })
-			})
-			ui.Column(c).Grow(1).Children(func() {
+			},
+			func() {
 				widget.Field(c, "Config (optional)", func() { widget.Input(c.Key("config"), &f.config, "work-openrouter").FillWidth() })
+			},
+		)
+		var amounts []func()
+		for _, fld := range []struct {
+			label string
+			v     *string
+		}{{"Input", &f.input}, {"Cache read", &f.cacheRead}, {"Cache write", &f.cacheWrite}, {"Output", &f.output}} {
+			amounts = append(amounts, func() {
+				widget.Field(c, fld.label, func() { widget.Input(c, fld.v, "0.00").FillWidth() })
 			})
-		})
-		ui.Row(c).FillWidth().Gap(10).Children(func() {
-			for _, fld := range []struct {
-				label string
-				v     *string
-			}{{"Input", &f.input}, {"Cache read", &f.cacheRead}, {"Cache write", &f.cacheWrite}, {"Output", &f.output}} {
-				ui.Column(c.Key(fld.label)).Grow(1).Children(func() {
-					widget.Field(c, fld.label, func() { widget.Input(c, fld.v, "0").FillWidth() })
-				})
-			}
-		})
+		}
+		fieldRow(c, "amounts", amounts...)
 		if f.err != "" {
-			ui.Text(c, f.err).FontSize(12).TextColor(theme.Error)
+			widget.CardNote(c, f.err, 0).TextColor(theme.Error)
 		}
 	}, func() {
 		if widget.PrimaryButton(c, nil, "Save", "").Clicked() {

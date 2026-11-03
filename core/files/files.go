@@ -181,7 +181,7 @@ func Read(root, rel string, unless time.Time) (proto.FileContent, error) {
 	if err != nil {
 		return proto.FileContent{}, err
 	}
-	return read(abs, clean, unless)
+	return read(abs, clean, unless, maxRead)
 }
 
 // ReadWithin is Read refusing a file that leads out of root through a
@@ -196,7 +196,7 @@ func ReadWithin(root, rel string, unless time.Time) (proto.FileContent, error) {
 	if err != nil {
 		return proto.FileContent{}, err
 	}
-	return read(real, clean, unless)
+	return read(real, clean, unless, maxRead)
 }
 
 // Contained is path abs resolved, links and all, when it stays in root,
@@ -223,7 +223,7 @@ func ReadAbs(abs string, unless time.Time) (proto.FileContent, error) {
 		return proto.FileContent{}, fmt.Errorf("files: %s is not an absolute path", abs)
 	}
 	abs = filepath.Clean(abs)
-	return read(abs, abs, unless)
+	return read(abs, abs, unless, maxRead)
 }
 
 // ReadPart reads up to proto.BytesPart of the file rel of root from offset,
@@ -266,7 +266,7 @@ func ReadPart(root, rel string, abs bool, offset int64) (proto.FileBytes, error)
 }
 
 // read reads the file at abs, named clean in what it returns.
-func read(abs, clean string, unless time.Time) (proto.FileContent, error) {
+func read(abs, clean string, unless time.Time, most int64) (proto.FileContent, error) {
 	f, err := os.Open(abs)
 	if err != nil {
 		return proto.FileContent{}, fmt.Errorf("files: %w", err)
@@ -296,11 +296,12 @@ func read(abs, clean string, unless time.Time) (proto.FileContent, error) {
 		out.Image, out.Data = ext, data
 		return out, nil
 	}
-	data, err := io.ReadAll(io.LimitReader(f, maxRead))
+	data, err := io.ReadAll(io.LimitReader(f, most))
 	if err != nil {
 		return proto.FileContent{}, fmt.Errorf("files: %w", err)
 	}
-	out.Truncated = info.Size() > maxRead
+	out.Truncated = info.Size() > most
+	out.ReadOnly = info.Mode().Perm()&0o200 == 0
 	if out.Truncated {
 		// Cut at a whole character, not inside one: the part shown and
 		// copied stays valid text.

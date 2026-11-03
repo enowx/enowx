@@ -134,6 +134,11 @@ func (s *Server) hibernateSessions(p proto.SessionHibernateParams, bypass string
 	if p.DryRun {
 		return out, nil
 	}
+	if bypass == proto.ControlAlways && slices.ContainsFunc(out.Plans, func(pl proto.HibernatePlan) bool {
+		return pl.Blocked == "" && s.stoppingLoses(p.From, pl.ID, ports)
+	}) {
+		bypass = "" // always allowed is for what loses nothing
+	}
 	if p.From != "" && slices.ContainsFunc(out.Plans, func(pl proto.HibernatePlan) bool { return pl.Blocked == "" }) {
 		if bypass != "" {
 			s.control.add(proto.ControlLogEntry{Time: time.Now(), From: p.From, Method: proto.MethodSessionHibernate,
@@ -237,6 +242,9 @@ func (s *Server) hibernatePlan(sess *session.Session, ports map[string][]proto.P
 	for _, port := range ports[info.ID] {
 		plan.Ports = append(plan.Ports, port.Port)
 	}
+	// Before the sample: a process started between the two isn't yet under its program in
+	// what the sampler knows, and would read as having left it.
+	tagged := procstat.Tagged(session.EnvSession, info.ID)
 	own := s.sessionProgram(info.ID) // samples now
 	st := &s.statsState
 	for _, u := range s.stats().Sessions {
@@ -256,7 +264,7 @@ func (s *Server) hibernatePlan(sess *session.Session, ports map[string][]proto.P
 			}
 		}
 	}
-	for _, pid := range procstat.Tagged(session.EnvSession, info.ID) {
+	for _, pid := range tagged {
 		if !own[pid] && !seen[pid] {
 			seen[pid], left[pid] = true, true
 			pids = append(pids, pid)

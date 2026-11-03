@@ -27,6 +27,7 @@ func TestCanvasLayoutAudit(t *testing.T) {
 	t.Setenv("PATH", bin+string(os.PathListSeparator)+os.Getenv("PATH"))
 	h := newCanvasHarness(t)
 	h.app.agents = []proto.AgentInfo{{ID: "claude", Name: "Claude Code", Command: "claude", Installed: true}}
+	h.app.state.RailWide = true
 	cv, _ := h.cl.CreateCanvas(proto.CanvasCreateParams{Title: "Landing pages for the spring launch", Kind: proto.CanvasMockup})
 	for n := 2; n <= 4; n++ {
 		h.cl.EditCanvas(proto.CanvasEdit{ID: cv.ID, Op: proto.CanvasOpFrameAdd, FrameInfo: &proto.CanvasFrame{Name: fmt.Sprintf("Hero variant %d", n), Page: "Home", Variant: string(rune('A' + n)), Description: "Big type, one call to action, a product shot"}})
@@ -51,13 +52,21 @@ func TestCanvasLayoutAudit(t *testing.T) {
 			h.app.canvases.CompareDesigns(h.app.canvasOptions(), c.ID, []string{c.Frames[1].ID, c.Frames[2].ID})
 		}},
 		{"agent", func() { h.app.canvases.SetView(0); h.app.canvases.OpenAssistant() }},
-		{"new-canvas", func() { h.app.canvases.CloseAssistant(); h.app.canvases.NewCanvas() }},
+		{"agent-panel", func() {
+			h.app.state.Panel.Open, h.app.state.Panel.Tab, h.app.panelPage = true, panelFiles, pageCanvas
+		}},
+		{"panel", func() { h.app.canvases.CloseAssistant() }},
+		{"new-canvas", func() {
+			h.app.state.Panel.Open, h.app.panelPage = false, ""
+			h.app.canvases.CloseAssistant()
+			h.app.canvases.NewCanvas()
+		}},
 	}
 	shots := os.Getenv("SHOTS")
 	var problems []string
 	for _, st := range states {
 		st.set()
-		for _, size := range auditSizes {
+		for _, size := range drawSizes(auditSizes) {
 			w, hgt := size[0], size[1]
 			h.tt = ui.NewTester(func(c *ui.Context) { h.app.view(c) }, w, hgt)
 			for range 6 {

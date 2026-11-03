@@ -37,21 +37,14 @@ func (a *App) linksPush(c *ui.Context, f *linksForm) {
 	}
 	st := &f.push
 	elsewhere := st.On && st.Host != "" && st.Host != a.daemonInfo.ID
-	ui.Row(c).FillWidth().Gap(10).AlignItems(ui.Center).Children(func() {
-		ui.Column(c).Grow(1).MinWidth(0).Gap(3).Children(func() {
-			ui.Text(c, "Push the work on its own").FontSize(13).FontWeight(600).TextColor(theme.TextStrong)
-			ui.Text(c, "Commits what is in the folder to a branch of its own and pushes it, never touching your branch, staged files or working tree. .env files and keys never go, and a push carrying secrets stops.").
-				FontSize(11.5).TextColor(theme.Muted)
-		})
-		on := st.On
-		if widget.Switch(c, &on, "Auto push") {
-			st.On = on
-			if on && st.Host == "" {
-				st.Host = a.daemonInfo.ID
-			}
-			a.savePush(f)
+	on := st.On
+	if switchRowKey(c, "Auto push", &on, "Push the work on its own", "Commits what is in the folder to a branch of its own and pushes it, never touching your branch, staged files or working tree. .env files and keys never go, and a push carrying secrets stops.") {
+		st.On = on
+		if on && st.Host == "" {
+			st.Host = a.daemonInfo.ID
 		}
-	})
+		a.savePush(f)
+	}
 	if st.Visibility == "public" {
 		widget.Notice(c, icon.Alert, theme.Warning, "This repository is public",
 			"Anyone can see the branch's work in progress, half done as it may be.", nil)
@@ -65,26 +58,26 @@ func (a *App) linksPush(c *ui.Context, f *linksForm) {
 				}
 			})
 	}
-	widget.Field(c, "Every", func() { widget.Input(c, &f.pushText.interval, "30m").Width(120) })
-	widget.Field(c, "To the branch", func() {
-		ui.Column(c).FillWidth().Gap(5).Children(func() {
-			widget.Input(c, &f.pushText.branch, "enowx/autosync").FillWidth()
-			ui.Text(c, "Only this branch is ever pushed: never main, master or the branch checked out.").FontSize(11).TextColor(theme.Muted)
-		})
+	widget.FieldCols(c, func() {
+		widget.Field(c, "Every", func() { widget.Input(c, &f.pushText.interval, "30m").FillWidth() })
+	}, func() {
+		widget.Field(c, "Of the remote", func() { widget.Input(c, &f.pushText.remote, "origin").FillWidth() })
 	})
-	widget.Field(c, "Of the remote", func() { widget.Input(c, &f.pushText.remote, "origin").Width(160) })
-	ui.Column(c).FillWidth().Gap(6).AlignItems(ui.Start).Children(func() {
-		if widget.Checkbox(c, &st.PR, "Open a pull request of it") && st.PR {
-			ui.Text(c, "With gh, signed in.").FontSize(11).TextColor(theme.Muted)
-		}
+	widget.Field(c, "To the branch", func() {
+		widget.Input(c, &f.pushText.branch, "enowx/autosync").FillWidth()
+		widget.CardNote(c.Key("only"), "Only this branch is ever pushed: never main, master or the branch checked out.", 0)
+	})
+	ui.Column(c.Key("pr")).FillWidth().Shrink(0).Gap(theme.S2).AlignItems(ui.Start).Children(func() {
+		widget.Checkbox(c, &st.PR, "Open a pull request of it")
 		if st.PR {
-			widget.Input(c, &f.pushText.base, "into: the repository's default branch").FillWidth()
+			widget.CardNote(c.Key("gh"), "With gh, signed in.", 0)
+			widget.Input(c.Key("base"), &f.pushText.base, "into: the repository's default branch").FillWidth()
 		}
 	})
 	a.pushOutcome(c, f)
-	ui.Row(c).FillWidth().Gap(8).Children(func() {
+	ui.Row(c.Key("push-foot")).FillWidth().Shrink(0).Gap(theme.S2).Children(func() {
 		busy := f.busy["push"] != ""
-		b := widget.Button(c, widget.Secondary, icon.ArrowUp, "Push now", "").Disabled(busy || elsewhere)
+		b := widget.Button(c, widget.Secondary, nil, "Push now", "").Disabled(busy || elsewhere)
 		if b.Clicked() && !busy && !elsewhere {
 			a.pushNow(f)
 		}
@@ -92,7 +85,7 @@ func (a *App) linksPush(c *ui.Context, f *linksForm) {
 			widget.Spinner(c, 13)
 		}
 		ui.Spacer(c)
-		if widget.PrimaryButton(c, icon.Check, "Save", "").Clicked() {
+		if widget.PrimaryButton(c, nil, "Save", "").Clicked() {
 			a.savePush(f)
 		}
 	})
@@ -102,20 +95,19 @@ func (a *App) linksPush(c *ui.Context, f *linksForm) {
 func (a *App) pushOutcome(c *ui.Context, f *linksForm) {
 	st := f.push
 	now := time.Now()
-	ui.Column(c).FillWidth().Gap(4).Children(func() {
+	ui.Column(c.Key("outcome")).FillWidth().Shrink(0).Gap(theme.S1).Children(func() {
 		switch {
 		case st.Err != "":
 			widget.Notice(c, icon.Alert, theme.Error, "The last push failed", st.Err, nil)
 		case !st.LastPush.IsZero():
-			ui.Text(c, "Pushed "+textfmt.Age(st.LastPush, now)+" · "+shortCommit(st.Commit)+" · "+textfmt.Plural(st.Files, "1 file", strconv.Itoa(st.Files)+" files")).
-				FontSize(12).TextColor(theme.TextSoft)
+			widget.CardNote(c.Key("pushed"), "Pushed "+textfmt.Age(st.LastPush, now)+" · "+shortCommit(st.Commit)+" · "+textfmt.Plural(st.Files, "1 file", strconv.Itoa(st.Files)+" files"), 0)
 		case !st.LastRun.IsZero():
-			ui.Text(c, "Looked "+textfmt.Age(st.LastRun, now)+": nothing new to push").FontSize(12).TextColor(theme.TextSoft)
+			widget.CardNote(c.Key("looked"), "Looked "+textfmt.Age(st.LastRun, now)+": nothing new to push", 0)
 		}
 		if st.On && !st.Next.IsZero() && st.Here {
-			ui.Text(c, "Next "+textfmt.Until(st.Next, now)).FontSize(11.5).TextColor(theme.Muted)
+			widget.CardNote(c.Key("next"), "Next "+textfmt.Until(st.Next, now), 0)
 		}
-		ui.Row(c).Gap(8).Children(func() {
+		ui.Row(c.Key("links")).Gap(theme.S2).Children(func() {
 			if st.BranchURL != "" && widget.GhostButton(c, "Open the branch").Clicked() {
 				go func() { _ = mygo.Shell.OpenExternal(st.BranchURL) }()
 			}

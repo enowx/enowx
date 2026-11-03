@@ -40,12 +40,18 @@ type Call struct {
 	Conversation string `json:"conv,omitempty"`
 	// Plan: the agent ran on a subscription, its cost API-equivalent.
 	Plan bool `json:"plan,omitempty"`
+	// ModelInferred: its record doesn't name the model, which was taken from an earlier
+	// one, so a cost from the price table is an estimate.
+	ModelInferred bool `json:"modelInferred,omitempty"`
 
 	Input      int64 `json:"in,omitempty"`
 	CacheRead  int64 `json:"cr,omitempty"`
 	CacheWrite int64 `json:"cw,omitempty"`
-	Output     int64 `json:"out,omitempty"`
-	Reasoning  int64 `json:"rs,omitempty"`
+	// CacheWrite1h is the part of CacheWrite kept for an hour, which costs more, where
+	// the record says so.
+	CacheWrite1h int64 `json:"cw1h,omitempty"`
+	Output       int64 `json:"out,omitempty"`
+	Reasoning    int64 `json:"rs,omitempty"`
 	// Cost is what the agent itself said the call cost, 0 when it didn't.
 	Cost float64 `json:"cost,omitempty"`
 }
@@ -62,6 +68,8 @@ func (c Call) Counts(prices *Prices) proto.TokenCounts {
 	}
 	if !ok {
 		out.Unpriced = 1
+	} else if c.ModelInferred && c.Cost == 0 {
+		out.Estimated = 1
 	}
 	out.Cost = cost
 	if c.Plan {

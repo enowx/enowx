@@ -1,0 +1,126 @@
+package theme
+
+import "github.com/egoist/mygo/ui"
+
+// Style is how the app is built, apart from its colors: its corners, spacing,
+// control sizes, type, and whether it has any material. Regions, navigation and
+// behavior are the same in every style.
+type Style struct {
+	ID, Name string
+
+	RadiusFull, RadiusControl, RadiusTail, RadiusSmall, RadiusCard, RadiusPanel float32
+	BentoGap, WindowInset, ControlHeight, BarHeight, ScrollWidth                float32
+	BarRadius, RailWidth, ReadWidth, HeaderHeight                               float32
+	RowHeight, RowTwo, RowTall, TabHeight, Rule                                 float32
+	S1, S2, S3, S4, S5, S6                                                      float32
+	TextLabel, TextUI, TextRead, TextTitle                                      float32
+
+	// Flat takes every blur, shadow and light off the app's surfaces, and its
+	// wallpaper; Hairline is the width of the line a flat surface has for an edge,
+	// 0 for none. Scrim is what lies over the window under a dialog.
+	Flat     bool
+	Hairline float32
+	Scrim    ui.Color
+
+	// Butted has the regions touch, one line between them: the gap between them
+	// shows the line's color, and the top bar is one bar of cells. FullDock has the
+	// tools dock fill its region's height rather than float in it, and
+	// DockedComposer the composer run across the frame's foot rather than float.
+	Butted, FullDock, DockedComposer bool
+
+	// Tiled has a page's frame give way, its header and sections each a tile on the
+	// ground, unequal columns of them, and a quiet empty tile under the last.
+	Tiled bool
+
+	// Family is the font list of the app's words, "" the system's. A family the
+	// system lacks gives way to the next.
+	Family string
+
+	// surfaces is what the style makes of a palette's surfaces; nil keeps them.
+	surfaces func(Palette) Palette
+}
+
+// LiquidGlass is the style of who hasn't picked one: lit glass over a wallpaper.
+var LiquidGlass = Style{
+	ID: "liquid-glass", Name: "Liquid Glass",
+	RadiusFull: 999, RadiusControl: 16, RadiusTail: 4, RadiusSmall: 12, RadiusCard: 20, RadiusPanel: 28,
+	BentoGap: 8, WindowInset: 12, ControlHeight: 32, BarHeight: 40, ScrollWidth: 8,
+	BarRadius: 999, RailWidth: 44, ReadWidth: 740, HeaderHeight: 56,
+	RowHeight: 36, RowTwo: 40, RowTall: 44, TabHeight: 28, Rule: 0.5,
+	S1: 4, S2: 8, S3: 12, S4: 16, S5: 24, S6: 32,
+	TextLabel: 12, TextUI: 13, TextRead: 15, TextTitle: 17,
+	Scrim: ui.RGBA(0, 0, 0, 0.5),
+}
+
+// Styles is every style, in the order the app offers them.
+var Styles = []Style{LiquidGlass, Ledger, Tonal, Bento}
+
+// style is the style in use.
+var style Style
+
+// CurrentStyle is the style in use.
+func CurrentStyle() Style { return style }
+
+// StyleByID is the style with the given ID, else the default, so a setting from
+// another version still loads.
+func StyleByID(id string) Style {
+	for _, s := range Styles {
+		if s.ID == id {
+			return s
+		}
+	}
+	return LiquidGlass
+}
+
+// UseStyle sets the tokens of shape, spacing, type and effects from s. Apply a
+// palette after it, as a style can change what the surfaces take from one.
+func UseStyle(s Style) {
+	style = s
+	RadiusFull, RadiusControl, RadiusTail, RadiusSmall, RadiusCard = s.RadiusFull, s.RadiusControl, s.RadiusTail, s.RadiusSmall, s.RadiusCard
+	RadiusPanel, RadiusBento = s.RadiusPanel, s.RadiusPanel
+	BentoGap, WindowInset, ControlHeight, BarHeight, ScrollWidth = s.BentoGap, s.WindowInset, s.ControlHeight, s.BarHeight, s.ScrollWidth
+	BarRadius, RailWidth, ReadWidth, HeaderHeight = s.BarRadius, s.RailWidth, s.ReadWidth, s.HeaderHeight
+	RowHeight, RowTwo, RowTall, TabHeight, Rule = s.RowHeight, s.RowTwo, s.RowTall, s.TabHeight, s.Rule
+	Butted, FullDock, DockedComposer, Tiled, Family = s.Butted, s.FullDock, s.DockedComposer, s.Tiled, s.Family
+	S1, S2, S3, S4, S5, S6 = s.S1, s.S2, s.S3, s.S4, s.S5, s.S6
+	TextLabel, TextUI, TextRead, TextTitle = s.TextLabel, s.TextUI, s.TextRead, s.TextTitle
+	Flat, Hairline, Scrim = s.Flat, s.Hairline, s.Scrim
+}
+
+// holdWords keeps a flat style's words readable on what is selected and hovered: its
+// selection is a tint, paler until secondary words read on it on every surface, and its
+// secondary words step toward its main ones until they read under the pointer.
+func holdWords(p Palette) Palette {
+	worst := func(fg, top ui.Color) float64 {
+		least := 21.0
+		for _, s := range []ui.Color{p.Panel, p.Frame, p.Popover, p.Dialog} {
+			least = min(least, contrast(fg, over(top, over(s, p.Ground))))
+		}
+		return least
+	}
+	for i := 0; i < 60 && worst(p.TextSoft, p.Selected) < 4.5; i++ {
+		p.Selected = Mix(p.Selected, p.Ground, 0.06)
+	}
+	for i := 0; i < 30 && worst(p.TextSoft, p.Hover) < 4.5; i++ {
+		p.TextSoft = Mix(p.TextSoft, p.Text, 0.1)
+	}
+	p.Muted = p.TextSoft
+	return p
+}
+
+// styled is p as the style in use draws it.
+func styled(p Palette) Palette {
+	if style.surfaces == nil {
+		return p
+	}
+	return style.surfaces(p)
+}
+
+// StyleColors are what a style makes of palette p, for a sample of it: its ground,
+// its panes and its accent, whichever style is in use.
+func StyleColors(s Style, p Palette) (ground, pane, accent ui.Color) {
+	if s.surfaces != nil {
+		p = s.surfaces(p)
+	}
+	return p.Ground, p.Panel, p.Accent
+}

@@ -11,13 +11,15 @@ import (
 	"github.com/enowx/enowx/core/hosts"
 	"github.com/enowx/enowx/core/tailnet"
 	"github.com/enowx/enowx/transport"
-	"github.com/enowx/enowx/ui/icon"
 	"github.com/enowx/enowx/ui/theme"
 	"github.com/enowx/enowx/ui/widget"
 )
 
 // loadPeers lists the tailnet's devices; it runs off the main thread.
 func (a *App) loadPeers() {
+	if devSample() {
+		return
+	}
 	peers, err := tailnet.Peers(context.Background())
 	a.onMain(func() {
 		a.peers, a.peersErr, a.peersLoaded = peers, "", true
@@ -105,43 +107,37 @@ func (a *App) connectPeer(p tailnet.Peer) {
 // tailnetSection lists the tailnet's devices in the Add VPS dialog, each
 // one click away from being connected.
 func (a *App) tailnetSection(c *ui.Context) {
-	ui.Column(c).FillWidth().Gap(8).Children(func() {
-		ui.Row(c).FillWidth().Gap(8).Children(func() {
-			ui.Icon(c, icon.Tailscale).FontSize(14).TextColor(theme.TextSoft)
-			ui.Text(c, "On your tailnet").FontSize(12).TextColor(theme.TextSoft).Grow(1)
-			ui.Text(c, "Sign in as").FontSize(12).TextColor(theme.Muted)
-			widget.Input(c, &a.tailUser, localUser()).Font(theme.MonoFont).Width(120)
+	ui.Column(c.Key("tailnet")).FillWidth().Shrink(0).Gap(theme.S2).Children(func() {
+		ui.Row(c.Key("sign-in-as")).FillWidth().Shrink(0).Gap(theme.S2).Children(func() {
+			ui.Spacer(c)
+			ui.Text(c, "Sign in as").FontSize(theme.TextLabel).TextColor(theme.TextSoft).SingleLine()
+			ui.Column(c).Width(160).Shrink(0).Children(func() { widget.Input(c, &a.tailUser, localUser()).FillWidth() })
 		})
-		ui.Scroll(c).FillWidth().MaxHeight(260).Children(func() {
-			ui.Column(c).FillWidth().Gap(4).Children(func() {
-				for _, p := range a.peers {
-					a.peerRow(c.Key(p.Address()), p)
+		widget.Scroll(c.Key("peers")).FillWidth().MaxHeight(260).Children(func() {
+			widget.CardLines(c, func() {
+				for i, p := range a.peers {
+					a.peerRow(c.Key(p.Address()), p, i == 0)
 				}
 			})
 		})
 	})
 }
 
-func (a *App) peerRow(c *ui.Context, p tailnet.Peer) {
+func (a *App) peerRow(c *ui.Context, p tailnet.Peer, first bool) {
 	saved, isSaved := a.savedPeer(p)
-	ui.Row(c).FillWidth().Gap(10).Padding(8, 10).Radius(8).Background(theme.Raised).Children(func() {
-		ui.Box(c).Size(28, 28).Radius(7).Background(theme.Selected).Center().TextColor(theme.TextSoft).Children(func() {
-			ui.Icon(c, icon.Server).FontSize(14)
-		})
-		ui.Column(c).Gap(1).Grow(1).MinWidth(0).Children(func() {
-			ui.Row(c).Gap(6).Children(func() {
-				if p.Online {
-					widget.Dot(c, theme.Done, false, 7)
-				} else {
-					widget.Dot(c, theme.Idle, true, 7)
-				}
-				ui.Text(c, p.HostName).SingleLine()
-			})
-			detail := p.OS + " · " + p.Address()
-			if !p.Online {
-				detail = "offline · " + detail
-			}
-			ui.Text(c, detail).Font(theme.MonoFont).FontSize(11).TextColor(theme.Muted).SingleLine()
+	detail := p.OS + " · " + p.Address()
+	if !p.Online {
+		detail = "offline · " + detail
+	}
+	r := ui.Row(c).FillWidth().Shrink(0).MinHeight(44).Padding(theme.S1, 0).Gap(theme.S2)
+	if !first {
+		r.BorderWidth(theme.Rule, 0, 0, 0).BorderColor(theme.Border)
+	}
+	r.Children(func() {
+		widget.Dot(c, peerColor(p.Online), !p.Online, 8)
+		ui.Column(c).Grow(1).Basis(0).MinWidth(0).Children(func() {
+			widget.Running(c, p.HostName, widget.RunStyle{})
+			widget.Running(c.Key("detail"), detail, widget.RunStyle{Size: theme.TextLabel, Color: theme.TextSoft})
 		})
 		label := "Connect"
 		if isSaved {
@@ -149,7 +145,7 @@ func (a *App) peerRow(c *ui.Context, p tailnet.Peer) {
 		}
 		var b ui.Element
 		if p.Online {
-			b = widget.PrimaryButton(c, icon.Server, label, "")
+			b = widget.PrimaryButton(c, nil, label, "")
 		} else {
 			b = widget.GhostButton(c, label)
 		}

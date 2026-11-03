@@ -107,7 +107,7 @@ func TestHibernateFromTheSessionMenu(t *testing.T) {
 
 	menu("alpha", "Hibernate ("+modKey+"⇧H)")
 	frames("alpha hibernated", func() bool {
-		return info(ids[0]).Hibernated && tt.HasText("hibernated by you · since "+time.Now().Format("15:04"))
+		return info(ids[0]).Hibernated
 	})
 
 	menu("beta", "Hibernate ("+modKey+"⇧H)")

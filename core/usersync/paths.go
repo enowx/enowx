@@ -23,6 +23,14 @@ const ConflictsDir = "sync/conflicts/"
 // here), versions kept for undo, files being written.
 var excluded = []string{"notes/proposals.json", "notes/.history/"}
 
+// CanvasHistory says p, a slash path under a folder holding canvas/, is a canvas's
+// versions kept for undo: a host's own. They ran to gigabytes, a whole canvas per
+// change, all of it sent to every other host and the cloud.
+func CanvasHistory(p string) bool {
+	parts := strings.SplitN(p, "/", 4)
+	return len(parts) >= 3 && parts[0] == "canvas" && (parts[2] == "history" || parts[2] == "history.json")
+}
+
 // Synced reports whether p, a slash path under a daemon's folder, is
 // synced.
 func Synced(p string) bool {
@@ -30,6 +38,9 @@ func Synced(p string) bool {
 		return false
 	}
 	if strings.HasSuffix(p, ".tmp") || strings.HasPrefix(p, ".") || strings.Contains(p, "/.") {
+		return false
+	}
+	if CanvasHistory(p) {
 		return false
 	}
 	for _, x := range excluded {

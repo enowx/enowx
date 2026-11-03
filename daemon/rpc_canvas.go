@@ -121,6 +121,15 @@ var canvasHandlers = map[string]handler{
 	proto.MethodCanvasChatMark: with(func(c *conn, p proto.CanvasChatMark) (any, error) {
 		return c.srv.canvasChatChanged(c.srv.canvasFor(p.ID).ChatMark(p))
 	}),
+	proto.MethodCanvasVideo: with(func(c *conn, p proto.CanvasVideoParams) (any, error) { return c.srv.canvasVideo(p) }),
+	proto.MethodCanvasVideoProgress: with(func(c *conn, p proto.CanvasVideoProgress) (any, error) {
+		c.srv.videos.progress(p)
+		return ok, nil
+	}),
+	proto.MethodCanvasVideoReply: with(func(c *conn, p proto.CanvasVideoReply) (any, error) {
+		c.srv.videos.reply(p)
+		return ok, nil
+	}),
 	proto.MethodCanvasRenderReply: with(func(c *conn, p proto.CanvasRenderReply) (any, error) {
 		c.srv.canvasState.reply(p)
 		return ok, nil

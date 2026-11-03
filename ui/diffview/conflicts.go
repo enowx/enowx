@@ -8,6 +8,7 @@ import (
 	"github.com/enowx/enowx/ui/icon"
 	"github.com/enowx/enowx/ui/textfmt"
 	"github.com/enowx/enowx/ui/theme"
+	"github.com/enowx/enowx/ui/widget"
 )
 
 // conflictBanner says which files another running session changes too,
@@ -26,27 +27,45 @@ func (v *View) conflictBanner(c *ui.Context, o Options) {
 	if lines > 0 {
 		col = theme.Warning
 	}
-	ui.Column(c).Shrink(0).FillWidth().Padding(8, 12, 8, 14).Gap(4).Background(theme.Fade(col, 0.08)).
-		BorderWidth(0, 0, 1, 0).BorderColor(theme.Border).Children(func() {
-		ui.Row(c).FillWidth().Gap(8).Children(func() {
-			ui.Icon(c, icon.Alert).FontSize(12).TextColor(col)
+	// As many files as it holds: past a few, its frame stays and they scroll.
+	ui.Column(c.Key("conflicts")).Shrink(0).FillWidth().MaxHeight(136).Padding(theme.S2, theme.S1, theme.S2, theme.S3).Gap(theme.S1).Radius(theme.RadiusCard).Clip().
+		Background(theme.Fade(col, 0.14)).Children(func() {
+		ui.Row(c).FillWidth().Shrink(0).Gap(theme.S2).PaddingX(theme.S1).Children(func() {
+			ui.Icon(c, icon.Alert).FontSize(14).TextColor(col)
 			title := fmt.Sprintf("%d %s also changed in another session", len(o.Conflicts), textfmt.Plural(len(o.Conflicts), "file", "files"))
-			ui.Text(c, title).FontSize(12).TextColor(theme.Text).SingleLine().Shrink(1)
+			ui.Row(c).Grow(1).MinWidth(0).Children(func() { widget.Running(c, title, widget.RunStyle{Size: theme.TextLabel}) })
 		})
-		for i, n := range o.Conflicts {
-			b := ui.ButtonBase(c.Key(i)).FillWidth().Height(22).Gap(8).Padding(0, 0, 0, 20).Justify(ui.Start).
-				Cursor(ui.CursorPointer).Label(n.File + " in " + n.With)
-			b.Children(func() {
-				ui.Text(c, n.File).Font(theme.MonoFont).FontSize(11.5).TextColor(theme.TextSoft).SingleLine().Shrink(1)
-				ui.Text(c, "· "+n.With).FontSize(11.5).TextColor(theme.Muted).SingleLine().Shrink(1)
-				ui.Spacer(c)
-				if n.Lines {
-					ui.Text(c, "same lines").FontSize(11).TextColor(theme.Warning).SingleLine().Shrink(0)
+		widget.Scroll(c).FillWidth().Shrink(1).MinHeight(0).Children(func() {
+			ui.Column(c).FillWidth().Children(func() {
+				for i, n := range o.Conflicts {
+					v.conflictRow(c.Key(i), o, n)
 				}
 			})
-			if b.Clicked() && o.ShowSession != nil {
-				o.ShowSession(n.Session)
-			}
+		})
+	})
+}
+
+// conflictRow is a file another session changes; clicking it shows that session.
+func (v *View) conflictRow(c *ui.Context, o Options, n ConflictNote) {
+	b := ui.ButtonBase(c).FillWidth().Height(24).Gap(theme.S2).PaddingX(theme.S1).Radius(theme.RadiusSmall).Justify(ui.Start).
+		Cursor(ui.CursorPointer).Label(n.File + " in " + n.With)
+	if b.Hovered() {
+		b.Background(theme.Hover)
+	}
+	b.Children(func() {
+		ui.Row(c).Grow(1).MinWidth(0).Gap(theme.S1).Children(func() {
+			ui.Row(c).MinWidth(0).Shrink(1).Children(func() {
+				widget.Running(c.Key("file"), n.File, widget.RunStyle{Size: theme.TextLabel, Mono: true})
+			})
+			ui.Row(c).MinWidth(0).Shrink(100).Children(func() {
+				widget.Running(c.Key("with"), "· "+n.With, widget.RunStyle{Size: theme.TextLabel, Color: theme.TextSoft})
+			})
+		})
+		if n.Lines {
+			ui.Text(c, "same lines").FontSize(theme.TextLabel).TextColor(theme.Warning).SingleLine().Shrink(0)
 		}
 	})
+	if b.Clicked() && o.ShowSession != nil {
+		o.ShowSession(n.Session)
+	}
 }

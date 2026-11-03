@@ -29,6 +29,18 @@ const (
 
 var controlHandlers = map[string]handler{
 	proto.MethodHostControlLog: bare(func(c *conn) (any, error) { return c.srv.control.entries(), nil }),
+	proto.MethodHostControlAllowed: bare(func(c *conn) (any, error) {
+		if c.remote {
+			return nil, errors.New("control: this host's owner's to see")
+		}
+		return c.srv.listControlAllows(), nil
+	}),
+	proto.MethodHostControlAllow: with(func(c *conn, p proto.ControlAllowParams) (any, error) {
+		if c.remote {
+			return nil, errors.New("control: this host's owner's to change")
+		}
+		return ok, c.srv.setControlAllow(p)
+	}),
 	proto.MethodAppSettings: with(func(c *conn, p proto.AppSettingsParams) (any, error) {
 		raw, err := c.srv.askApp("app.settings", p, controlTimeout)
 		if err != nil {
@@ -101,12 +113,19 @@ func (c *conn) hostCall(p proto.HostCallParams) (result any, err error) {
 			return nil, err // urgent: the user's (goa_workers.go)
 		}
 	}
+	s.goaCallTold(p, c.self)
 	confirm := level == hostcontrol.Confirm && p.From != ""
 	// What this daemon knows, never what the session sent; a visitor's
 	// connection doesn't speak for a session of the owner's.
 	p.Bypass = ""
 	if !c.remote {
 		p.Bypass = s.sessionBypasses(p.From)
+		if p.Bypass == "" && s.alwaysAllowed(p.From, p.Method) {
+			p.Bypass = proto.ControlAlways
+		}
+	}
+	if local && p.Bypass == proto.ControlAlways && p.Method == proto.MethodSessionKill && s.closeLoses(p) {
+		p.Bypass = "" // another host's, the app checks: it alone reaches them
 	}
 	if local && !confirm {
 		return c.handle(proto.Request{Method: p.Method, Params: p.Params})

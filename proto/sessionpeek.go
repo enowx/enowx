@@ -27,6 +27,8 @@ type SessionPeekParams struct {
 	Host    string `json:"host,omitempty"`
 	Session string `json:"session"`
 	Last    int    `json:"last,omitempty"`
+	// From is the session reading it, as in SessionRef.
+	From string `json:"from,omitempty"`
 }
 
 // SessionPeek is a session's conversation as another agent reads it: its

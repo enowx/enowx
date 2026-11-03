@@ -36,22 +36,19 @@ func (a *App) linkConflicts(c *ui.Context, f *linksForm, l proto.ProjectLinkStat
 	_, dstOn := a.reach(l.Target.Daemon)
 	online := srcOn && dstOn && a.links.running[l.ID] == ""
 	now := time.Now()
-	ui.Column(c).FillWidth().Gap(8).Padding(10, 0, 0, 0).BorderWidth(1, 0, 0, 0).BorderColor(theme.Border).Children(func() {
-		ui.Text(c, "Changed on both since the last sync: keep whose?").FontSize(12.5).FontWeight(600).TextColor(theme.TextStrong)
+	ui.Column(c).FillWidth().Shrink(0).Gap(theme.S2).Padding(theme.S3, 0, 0, 0).BorderWidth(theme.Rule, 0, 0, 0).BorderColor(theme.Border).Children(func() {
+		ui.Text(c, "Changed on both since the last sync: keep whose?").FontSize(theme.TextUI).FontWeight(500)
 		for _, x := range l.Status.Conflicts {
-			ui.Column(c.Key(x.Path)).FillWidth().Gap(5).Children(func() {
-				ui.Row(c).FillWidth().Gap(8).AlignItems(ui.Center).Children(func() {
-					ui.Icon(c, icon.File).FontSize(12).TextColor(theme.Warning)
-					ui.Text(c, x.Path).FontSize(12).SingleLine().Shrink(1).Grow(1).TextColor(theme.Text)
-					ui.Text(c, "since "+textfmt.Age(x.Found, now)).FontSize(11).TextColor(theme.Muted)
+			ui.Column(c.Key(x.Path)).FillWidth().Shrink(0).Gap(theme.S1).Children(func() {
+				ui.Row(c.Key("file")).FillWidth().Gap(theme.S2).Children(func() {
+					ui.Row(c).Grow(1).Basis(0).MinWidth(0).Children(func() { widget.Running(c, x.Path, widget.RunStyle{Size: theme.TextLabel, Color: theme.Warning}) })
+					ui.Text(c, "since "+textfmt.Age(x.Found, now)).FontSize(theme.TextLabel).TextColor(theme.TextSoft).SingleLine()
 				})
-				ui.Text(c, sideNote(l.Source.Host, x.Sides[0], x.Gone[0])+" · "+sideNote(l.Target.Host, x.Sides[1], x.Gone[1])).
-					FontSize(11).TextColor(theme.Muted)
-				ui.Row(c).FillWidth().Gap(6).Children(func() {
+				widget.CardNote(c.Key("sides"), sideNote(l.Source.Host, x.Sides[0], x.Gone[0])+" · "+sideNote(l.Target.Host, x.Sides[1], x.Gone[1]), 0)
+				ui.Row(c.Key("picks")).FillWidth().Gap(theme.S1).Wrap().Children(func() {
 					if !x.Binary && !x.Gone[0] && !x.Gone[1] && widget.GhostButton(c, "Compare").Clicked() {
 						a.openConflictDiff(f, l.ProjectLink, x)
 					}
-					ui.Spacer(c)
 					for keep, label := range []string{"Keep " + l.Source.Host + "'s", "Keep " + l.Target.Host + "'s", "Keep both"} {
 						if keep == keepBoth && (x.Gone[0] || x.Gone[1]) {
 							continue
@@ -65,7 +62,7 @@ func (a *App) linkConflicts(c *ui.Context, f *linksForm, l proto.ProjectLinkStat
 			})
 		}
 		if !srcOn || !dstOn {
-			ui.Text(c, "Both hosts must be online to settle them.").FontSize(11).TextColor(theme.Muted)
+			widget.CardNote(c.Key("online"), "Both hosts must be online to settle them.", 0)
 		}
 	})
 }
@@ -163,40 +160,41 @@ func (a *App) openConflictDiff(f *linksForm, l proto.ProjectLink, x proto.Projec
 func (a *App) conflictDiffDialog(c *ui.Context, f *linksForm) {
 	d := f.diff
 	open := true
-	widget.Dialog(c, &open, 720, 12, func() {
-		widget.DialogHeader(c, d.file.Path, "Lines only on "+d.link.Source.Host+"'s are red, only on "+d.link.Target.Host+"'s green.", false)
+	widget.Sheet(c, &open, 720, func() {
+		widget.SheetHead(c, &open, d.file.Path, "Lines only on "+d.link.Source.Host+"'s are red, only on "+d.link.Target.Host+"'s green.")
+	}, func() {
 		switch {
 		case d.loading:
 			widget.Spinner(c, 14)
 		case d.err != "":
 			widget.Notice(c, icon.Alert, theme.Muted, d.err, "", nil)
 		default:
-			ui.Scroll(c).FillWidth().MaxHeight(440).Children(func() {
-				ui.Column(c).FillWidth().Children(func() {
+			widget.Scroll(c.Key("lines")).FillWidth().MaxHeight(440).Radius(theme.RadiusCard).Background(theme.CodeGround).Children(func() {
+				ui.Column(c).FillWidth().Padding(theme.S2, 0).Children(func() {
 					for i, l := range d.lines {
-						col, bg := theme.TextSoft, ui.Color{}
+						col, bg := widget.CodeText, ui.Color{}
 						switch l.op {
 						case '-':
-							col, bg = theme.Error, theme.Error.Alpha(0.08)
+							col, bg = theme.Del, theme.Del.Alpha(0.1)
 						case '+':
-							col, bg = theme.Done, theme.Done.Alpha(0.08)
+							col, bg = theme.Add, theme.Add.Alpha(0.1)
 						}
-						ui.Text(c.Key(i), string(l.op)+" "+strings.TrimRight(l.text, "\n")).FontSize(11.5).
-							Font(theme.MonoFont).TextColor(col).Background(bg).FillWidth().PaddingX(6)
+						ui.Text(c.Key(i), string(l.op)+" "+strings.TrimRight(l.text, "\n")).FontSize(theme.TextLabel).
+							Font(theme.MonoFont).TextColor(col).Background(bg).FillWidth().PaddingX(theme.S3)
 					}
 				})
 			})
 		}
-		widget.DialogFooter(c, "", func() {
-			if widget.GhostButton(c, "Back").Clicked() {
-				f.diff = nil
+	}, func() {
+		ui.Spacer(c)
+		if widget.GhostButton(c, "Back").Clicked() {
+			f.diff = nil
+		}
+		for keep, label := range []string{"Keep " + d.link.Source.Host + "'s", "Keep " + d.link.Target.Host + "'s", "Keep both"} {
+			if widget.Button(c.Key(keep), widget.Secondary, nil, label, "").Clicked() {
+				a.resolveConflict(f, d.link, d.file, keep)
 			}
-			for keep, label := range []string{"Keep " + d.link.Source.Host + "'s", "Keep " + d.link.Target.Host + "'s", "Keep both"} {
-				if widget.Button(c.Key(keep), widget.Secondary, nil, label, "").Clicked() {
-					a.resolveConflict(f, d.link, d.file, keep)
-				}
-			}
-		})
+		}
 	})
 	if !open {
 		f.diff = nil

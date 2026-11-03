@@ -1,6 +1,8 @@
 package ui
 
 import (
+	"cmp"
+	"fmt"
 	"github.com/enowx/enowx/core/hosts"
 	"path/filepath"
 	"slices"
@@ -28,11 +30,44 @@ const (
 	panelTasks    = "goa-tasks"
 )
 
-// goaScroll is a tool's body: a padded column that scrolls.
-func goaScroll(c *ui.Context, gap float32, body func()) {
+// goaScroll is a tool's body: a column that scrolls, in the panel's narrow
+// width.
+func goaScroll(c *ui.Context, body func()) {
 	ui.Scroll(c).Grow(1).FillWidth().MinHeight(0).Children(func() {
-		ui.Column(c).FillWidth().Padding(10).Gap(gap).Children(body)
+		ui.Column(c).FillWidth().Padding(0, widget.ScrollGutter, theme.S2, theme.S2).Gap(theme.S2).Children(body)
 	})
+}
+
+// goaRowFace is how a row of these tools looks: a raised, narrow card.
+func goaRowFace(e ui.Element) ui.Element {
+	return widget.Raise(e.FillWidth().Shrink(0).MinHeight(52).Padding(theme.S2, theme.S3).Gap(theme.S2).Radius(theme.RadiusCard).Background(theme.Raised))
+}
+
+// goaSideStrip is the panel's top with GOA's tools in it: the choice of them.
+func (a *App) goaSideStrip(c *ui.Context, front string) {
+	ui.Row(c).Height(52).Shrink(0).FillWidth().PaddingX(theme.S2).Gap(theme.S2).Children(func() {
+		current := 0
+		if front == panelTasks {
+			current = 1
+		}
+		switch widget.Segmented(c.Key("goa-side"), []string{"Sessions", "Tasks"}, current, nil) {
+		case 0:
+			a.state.Panel.Tab = panelSessions
+		case 1:
+			a.state.Panel.Tab = panelTasks
+		}
+	})
+}
+
+// foldTool closes the tool in the panel: GOD of Agents' own tools come back
+// in its mode, where they are what the panel holds when no tool is asked for;
+// otherwise the panel folds.
+func (a *App) foldTool() {
+	if !a.goaOn() || a.panelTab() == panelSessions || a.panelTab() == panelTasks {
+		a.state.Panel.Open = false
+		return
+	}
+	a.state.Panel.Tab = nonEmpty(a.state.Panel.Last["goa"], panelSessions)
 }
 
 // goaHostSessions are a host's sessions as the Sessions tool lists them.
@@ -63,24 +98,21 @@ func goaListed(s proto.SessionInfo) bool {
 	return s.Parent == "" && s.NotesFor == "" && s.CanvasFor == "" && !s.GOA
 }
 
-// sessionsTab is the Sessions tool.
+// sessionsTab is the Sessions tool: narrow rows, what is at work on top, then what just
+// finished.
+// A host's name heads its rows only where it says something the rows don't:
+// several hosts, or one with nothing to list.
 func (a *App) sessionsTab(c *ui.Context) {
-	goaScroll(c, 10, func() {
-		for _, h := range a.goaEveryHost() {
+	goaScroll(c, func() {
+		every := a.goaEveryHost()
+		for _, h := range every {
 			list := slices.DeleteFunc(slices.Clone(h.sessions), func(s proto.SessionInfo) bool { return !goaListed(s) })
-			ui.Row(c).FillWidth().Gap(8).PaddingX(4).Children(func() {
-				col := theme.Done
-				if h.state != hostOnline {
-					col = theme.Idle
-				}
-				widget.Dot(c, col, h.state != hostOnline, 6)
-				widget.SectionLabel(c, h.name, theme.Muted)
-				ui.Spacer(c)
-				ui.Text(c, plural(len(list), "session")).FontSize(11).TextColor(theme.Idle)
-			})
+			slices.SortStableFunc(list, goaCompare)
+			if len(every) > 1 || len(list) == 0 {
+				goaHostHead(c.Key("goa-host:"+h.name), h, len(list))
+			}
 			if len(list) == 0 {
-				ui.Text(c, "No sessions.").FontSize(11.5).TextColor(theme.Muted).PaddingX(4)
-				continue
+				ui.Text(c, "No sessions.").FontSize(theme.TextUI).TextColor(theme.TextSoft).PaddingX(theme.S3)
 			}
 			for _, s := range list {
 				a.goaSessionRow(c.Key("goa-s:"+s.ID), h.name, s)
@@ -89,40 +121,100 @@ func (a *App) sessionsTab(c *ui.Context) {
 	})
 }
 
-// goaSessionRow is a session: its state, name and agent, and its task.
-// Clicking it opens it in a tab; its details are a button beside it.
+// goaHostHead names a host above its sessions, its dot hollow while it can't
+// be reached.
+func goaHostHead(c *ui.Context, h goaHostSessions, n int) {
+	ui.Row(c).FillWidth().Shrink(0).Height(24).Gap(theme.S2).PaddingX(theme.S3).Children(func() {
+		col := theme.Done
+		if h.state != hostOnline {
+			col = theme.Idle
+		}
+		widget.Dot(c, col, h.state != hostOnline, 8)
+		ui.Row(c).Grow(1).MinWidth(0).Children(func() { widget.Running(c, h.name, widget.RunStyle{Weight: 500}) })
+		ui.Text(c, plural(n, "session")).FontSize(theme.TextLabel).TextColor(theme.TextSoft).SingleLine().Shrink(0)
+	})
+}
+
+// goaBusy orders what is at work in the Sessions tool: asking the user, working, queued;
+// 3 for all the rest.
+func goaBusy(s proto.SessionInfo) int {
+	switch {
+	case s.Exited:
+		return 3
+	case s.State == proto.StateWaiting:
+		return 0
+	case isWorking(s):
+		return 1
+	case s.Queued:
+		return 2
+	}
+	return 3
+}
+
+// goaCompare orders the Sessions tool: what is at work on top, then what finished, the
+// latest first. A daemon too old to say when has failures before the rest.
+func goaCompare(x, y proto.SessionInfo) int {
+	if c := cmp.Compare(goaBusy(x), goaBusy(y)); c != 0 {
+		return c
+	}
+	if goaBusy(x) < 3 {
+		return 0
+	}
+	if c := cmp.Compare(y.FinishedAt, x.FinishedAt); c != 0 {
+		return c
+	}
+	return cmp.Compare(goaEndRank(x), goaEndRank(y))
+}
+
+// goaEndRank orders what finished at no known time: failed, done, the rest.
+func goaEndRank(s proto.SessionInfo) int {
+	switch statusOf(s).color {
+	case theme.Error:
+		return 0
+	case theme.Done:
+		return 1
+	}
+	return 2
+}
+
+// goaSessionRow is a session: its state, name and what it's on. Clicking it
+// opens it in a tab; its details are the button beside it.
 func (a *App) goaSessionRow(c *ui.Context, host string, s proto.SessionInfo) {
-	ui.Row(c).FillWidth().Gap(2).AlignItems(ui.Center).Children(func() {
+	goaRowFace(ui.Row(c)).Padding(theme.S1, theme.S1, theme.S1, theme.S3).Children(func() {
 		a.goaSessionButton(c, host, s)
-		if widget.IconButton(c, icon.More, "Details of "+a.sessionName(s), false).Clicked() {
+		if widget.IconButton(c, icon.Info, "Details of "+a.sessionName(s), false).Clicked() {
 			a.goa.detail = &goaDetail{open: true, host: host, session: s}
 		}
 	})
 }
 
+// goaSessionLine is a row's second line and its color: what it needs of the
+// user, its task, else where it runs and how it is.
+func (a *App) goaSessionLine(host string, s proto.SessionInfo) (string, ui.Color) {
+	t := a.goaTaskOf(s.ID)
+	switch {
+	case t != nil && t.Urgent != "" && t.Status == proto.GOATaskWaiting:
+		return "Needs you: " + t.Asks, theme.Warning
+	case t != nil:
+		if t.NoReport {
+			return t.Title + " · " + t.Status + " · no report", theme.Warning
+		}
+		return t.Title + " · " + t.Status, theme.TextSoft
+	}
+	return host + " · " + goaSentence(statusOf(s).label), theme.TextSoft
+}
+
 func (a *App) goaSessionButton(c *ui.Context, host string, s proto.SessionInfo) {
 	st := statusOf(s)
-	t := a.goaTaskOf(s.ID)
-	row := ui.ButtonBase(c).Grow(1).MinWidth(0).Padding(7, 8).Gap(8).Radius(theme.RadiusControl).Cursor(ui.CursorPointer).Label(a.sessionName(s)).
+	row := ui.ButtonBase(c).Grow(1).MinWidth(0).Gap(theme.S2).Justify(ui.Start).Cursor(ui.CursorPointer).Label(a.sessionName(s)).
 		Tooltip("Click to open it in a tab here; drag it into a chat or terminal to point an agent at it").
 		Drag(widget.TextDrag{Text: a.sessionPointer(host, s)})
-	if row.Hovered() {
-		row.Background(theme.Hover)
-	}
+	line, col := a.goaSessionLine(host, s)
 	row.Children(func() {
-		widget.Dot(c, st.color, st.hollow, 7)
-		ui.Column(c).Grow(1).MinWidth(0).Gap(2).Children(func() {
-			ui.Row(c).FillWidth().Gap(6).Children(func() {
-				ui.Text(c, a.sessionName(s)).FontSize(12.5).SingleLine().Shrink(1)
-				ui.Text(c, a.agentName(s.Agent)+" · "+st.label).FontSize(11).TextColor(theme.Muted).SingleLine().Shrink(2)
-			})
-			switch {
-			case t != nil && t.Urgent != "" && t.Status == proto.GOATaskWaiting:
-				ui.Text(c, "Needs you: "+t.Asks).FontSize(11.5).TextColor(theme.Warning).SingleLine()
-			case t != nil:
-				ui.Text(c, t.Title+" · "+t.Status).FontSize(11.5).TextColor(theme.TextSoft).SingleLine()
-			}
-			a.sessionFacts(c, s)
+		widget.Dot(c, st.color, st.hollow, 8)
+		ui.Column(c).Grow(1).MinWidth(0).Children(func() {
+			widget.Running(c, a.sessionName(s), widget.RunStyle{})
+			widget.Running(c.Key("line"), line, widget.RunStyle{Size: theme.TextLabel, Color: col})
 		})
 	})
 	if row.Clicked() {
@@ -160,13 +252,19 @@ func (a *App) goaDetailDialog(c *ui.Context) {
 	s := d.session
 	t := a.goaTaskOf(s.ID)
 	cl := a.goaClientOf(d.host)
-	widget.DetailSheet(c, &d.open, 520, a.sessionName(s), a.agentName(s.Agent)+" on "+d.host+" · "+statusOf(s).label, func() {
+	about := "A session GOA handed a task"
+	if t == nil {
+		about = "GOD of Agents gave this session no task."
+	}
+	widget.DetailSheet(c, &d.open, 480, a.sessionName(s), about, func() {
 		if cl == nil {
 			widget.Notice(c, icon.Alert, theme.Warning, d.host+" isn't connected, so this session can't open here now: this list is what it last said. enowX keeps trying, and it opens once the host is back; or go to the host.", "", nil)
 		}
-		a.sessionFacts(c, s)
+		widget.KV(c, "Host", d.host, false)
+		widget.KV(c, "Agent", a.agentName(s.Agent), false)
 		if t == nil {
-			ui.Text(c, "GOD of Agents gave this session no task.").FontSize(12).TextColor(theme.Muted)
+			widget.KV(c, "State", statusOf(s).label, false)
+			a.sessionFacts(c, s)
 			return
 		}
 		a.goaTaskBody(c, *t)
@@ -191,19 +289,6 @@ func (a *App) goaDetailDialog(c *ui.Context) {
 	})
 }
 
-// goaOpenTask is a task's way to its session.
-func (a *App) goaOpenTask(c *ui.Context, t proto.GOATask) {
-	host := nonEmpty(a.goaHostName(t.Host), a.host.Name)
-	s, ok := a.sessionOn(host, t.Session)
-	if ok && widget.GhostButton(c.Key("open"), "Open session").Clicked() {
-		if cl := a.goaClientOf(host); cl != nil {
-			a.openGOATab(host, cl, s)
-		} else {
-			a.goa.detail = &goaDetail{open: true, host: host, session: s}
-		}
-	}
-}
-
 // watchedHost is the watched host named.
 func (a *App) watchedHost(name string) (hosts.Host, bool) {
 	for _, w := range a.watches {
@@ -214,41 +299,79 @@ func (a *App) watchedHost(name string) (hosts.Host, bool) {
 	return hosts.Host{}, false
 }
 
-// tasksTab is the Tasks tool: the board, newest first, then what a
-// watched GOA did itself.
+// tasksTab is the Tasks tool: the board, newest first, then what a watched
+// GOA did itself.
 func (a *App) tasksTab(c *ui.Context) {
-	goaScroll(c, 8, func() {
+	a.goaWaitingStrip(c)
+	goaScroll(c, func() {
 		b := a.goa.board
-		ui.Row(c).FillWidth().Gap(8).PaddingX(4).Children(func() {
-			widget.SectionLabel(c, "Tasks", theme.Muted)
-			if b.Level != "" {
+		if b.Level != "" {
+			ui.Row(c).FillWidth().Shrink(0).Height(24).Gap(theme.S2).PaddingX(theme.S3).Children(func() {
+				ui.Row(c).Grow(1).MinWidth(0).Children(func() {
+					widget.Running(c, plural(len(b.Tasks), "task"), widget.RunStyle{Color: theme.TextSoft})
+				})
 				widget.Tag(c, b.Level, goaLevelColor(b.Level))
-			}
-			ui.Spacer(c)
-			ui.Text(c, plural(len(b.Tasks), "task")).FontSize(11).TextColor(theme.Idle)
-		})
+			})
+		}
 		if len(b.Tasks) == 0 {
-			ui.Text(c, "Tasks GOD of Agents hands to sessions show here, with the model each runs on and why.").FontSize(12).TextColor(theme.Muted).PaddingX(4)
+			ui.Text(c, "Tasks GOD of Agents hands to sessions show here, with the model each runs on and why.").FontSize(theme.TextUI).TextColor(theme.TextSoft).PaddingX(theme.S3)
 		}
 		for i := len(b.Tasks) - 1; i >= 0; i-- {
-			t := b.Tasks[i]
-			widget.Card(c.Key("goa-t:" + t.ID)).FillWidth().Padding(10).Gap(6).Children(func() {
-				a.goaTaskBody(c, t)
-				if !goaSettled(t) {
-					ui.Row(c).FillWidth().Children(func() {
-						ui.Spacer(c)
-						if widget.GhostButton(c, "Change model").Clicked() {
-							a.openGOAOverride(t)
-						}
-						a.goaOpenTask(c, t)
-					})
-				}
-			})
+			a.goaTaskRow(c.Key("goa-t:"+b.Tasks[i].ID), b.Tasks[i])
 		}
 		if len(a.goa.flags) > 0 {
 			a.goaFlagsList(c)
 		}
 	})
+}
+
+// goaTaskRow is a task in the panel's width: what it is and what it runs on
+// (clicked, the whole of it), its state and the way to change its model.
+func (a *App) goaTaskRow(c *ui.Context, t proto.GOATask) {
+	host := nonEmpty(a.goaHostName(t.Host), a.host.Name)
+	s, shown := a.sessionOn(host, t.Session)
+	goaRowFace(ui.Row(c)).Children(func() {
+		name := nonEmpty(t.SessionName, shortID(t.Session))
+		m := ui.ButtonBase(c.Key("task")).Grow(1).MinWidth(0).Justify(ui.Start).AlignItems(ui.Start).Cursor(ui.CursorPointer).Label(t.Title).Tooltip("The whole of this task")
+		m.Children(func() {
+			ui.Column(c).Grow(1).MinWidth(0).Children(func() {
+				widget.Running(c, t.Title, widget.RunStyle{})
+				widget.Running(c.Key("on"), name+" · "+taskRanOn(t, s, shown), widget.RunStyle{Size: theme.TextLabel, Color: theme.TextSoft})
+			})
+		})
+		if m.Clicked() {
+			if !shown {
+				s = proto.SessionInfo{ID: t.Session, Name: t.SessionName, Agent: t.Agent}
+			}
+			a.goa.detail = &goaDetail{open: true, host: host, session: s}
+		}
+		ui.Column(c).Shrink(0).Gap(theme.S1).AlignItems(ui.End).Children(func() {
+			goaTaskState(c, t)
+			if !goaSettled(t) && widget.Button(c, widget.Secondary, nil, "Change model", "").Clicked() {
+				a.openGOAOverride(t)
+			}
+		})
+	})
+}
+
+// goaSentence starts a word of state as a line of its own starts.
+func goaSentence(s string) string {
+	if s == "" {
+		return ""
+	}
+	return strings.ToUpper(s[:1]) + s[1:]
+}
+
+// goaTaskState is a task's state: its dot and word.
+func goaTaskState(c *ui.Context, t proto.GOATask) {
+	label := goaSentence(t.Status)
+	if t.Urgent != "" && t.Status == proto.GOATaskWaiting {
+		label = "Waiting on you"
+	}
+	if t.NoReport {
+		label += ", no report"
+	}
+	widget.Legend(c, goaStatusColor(t), label)
 }
 
 // goaStatusColor is a task's status as a color.
@@ -268,47 +391,32 @@ func goaStatusColor(t proto.GOATask) ui.Color {
 	return theme.Idle
 }
 
-// goaTaskBody is a task: title and status, where it went, its model and
-// effort and why, what it asks, its result.
+// goaTaskBody is the whole of a task: what it is, its state, its model and
+// effort and why, where it runs, what it asks, its result.
 func (a *App) goaTaskBody(c *ui.Context, t proto.GOATask) {
-	ui.Row(c).FillWidth().Gap(8).Children(func() {
-		ui.Text(c, t.Title).FontSize(12.5).FontWeight(600).SingleLine().Shrink(1)
-		ui.Spacer(c)
-		widget.Tag(c, t.Status, goaStatusColor(t))
-	})
-	where := a.agentName(t.Agent) + " · "
-	if t.SessionName != "" {
-		where += t.SessionName + " "
-	}
-	where += shortID(t.Session)
-	if t.Host != "" {
-		where += " on " + a.goaHostName(t.Host)
-	}
-	ui.Text(c, where+" · "+textfmt.Age(t.Created, time.Now())).FontSize(11).TextColor(theme.Muted).SingleLine()
+	widget.KV(c, "Task", t.Title, false)
+	widget.KV(c, "State", t.Status+" · "+textfmt.Age(t.Created, time.Now()), false)
 	s, shown := a.sessionOn(a.goaHostName(t.Host), t.Session)
 	model := taskRanOn(t, s, shown)
 	if t.Config != "" {
 		model += " · " + t.Config
 	}
-	ui.Row(c).FillWidth().Gap(6).Children(func() {
-		ui.Icon(c, icon.Brain).FontSize(11).TextColor(theme.Accent)
-		ui.Text(c, model).FontSize(11.5).Font(theme.MonoFont).TextColor(theme.TextSoft).SingleLine().Shrink(1).Tooltip(strings.Join(t.Ran, " → "))
-	})
-	projectLine(c, taskProject(t), t.Dir, t.Branch, a.goaHostName(t.Host))
+	widget.KV(c, "Model", model, false)
 	if t.Why != "" {
-		ui.Text(c, t.Why).FontSize(11.5).TextColor(theme.Muted)
+		widget.KV(c, "Why", t.Why, false)
 	}
+	projectLine(c, taskProject(t), t.Dir, t.Branch, a.goaHostName(t.Host))
 	switch {
 	case t.Urgent != "" && t.Status == proto.GOATaskWaiting:
-		ui.Text(c, "Waits on you ("+t.Urgent+"): "+t.Asks+". Answer it in its session.").FontSize(11.5).TextColor(theme.Warning)
+		widget.Notice(c, icon.Alert, theme.Warning, "Waits on you ("+t.Urgent+"): "+t.Asks, "Answer it in its session.", nil)
 	case t.Asks != "" && t.Status == proto.GOATaskWaiting:
-		ui.Text(c, "Asks: "+t.Asks+" (GOD of Agents answers)").FontSize(11.5).TextColor(theme.TextSoft)
+		widget.KV(c, "Asks", t.Asks+" (GOD of Agents answers)", false)
 	}
 	switch {
 	case t.Result != "":
-		ui.Text(c, textfmt.FirstLine(t.Result, 240)).FontSize(11.5).TextColor(theme.Text)
+		widget.KV(c, "Result", textfmt.FirstLine(t.Result, 240), false)
 	case t.Said != "":
-		ui.Text(c, "Last said: "+textfmt.FirstLine(t.Said, 240)).FontSize(11.5).TextColor(theme.TextSoft)
+		widget.KV(c, "Last said", textfmt.FirstLine(t.Said, 240), false)
 	}
 }
 
@@ -355,19 +463,23 @@ func shortID(id string) string {
 
 // goaFlagsList is what a watched GOA did itself, files revertable.
 func (a *App) goaFlagsList(c *ui.Context) {
-	widget.SectionLabel(c, "Done by GOD of Agents itself", theme.Warning)
+	ui.Text(c, "Done by GOD of Agents itself").FontSize(theme.TextUI).TextColor(theme.TextSoft).Padding(theme.S2, theme.S3, 0, theme.S3)
 	for i := len(a.goa.flags) - 1; i >= 0; i-- {
 		f := a.goa.flags[i]
-		title, detail := "Ran "+f.Command, ""
+		title, detail := "Ran "+f.Command, textfmt.Age(f.Time, time.Now())
 		if f.File != "" {
-			title, detail = strings.ToUpper(f.Change[:1])+f.Change[1:]+" "+f.File, filepath.Base(f.Project)
+			title, detail = f.File, goaSentence(f.Change)+" in "+filepath.Base(f.Project)+" · "+detail
 		}
-		widget.Row(c.Key("goa-f:"+f.ID), title, detail, textfmt.Age(f.Time, time.Now()), func() {
+		goaRowFace(ui.Row(c.Key("goa-f:" + f.ID))).Children(func() {
+			ui.Column(c).Grow(1).MinWidth(0).Children(func() {
+				widget.Running(c, title, widget.RunStyle{Mono: f.File != ""})
+				widget.Running(c.Key("d"), detail, widget.RunStyle{Size: theme.TextLabel, Color: theme.TextSoft})
+			})
 			switch {
 			case f.Reverted:
 				widget.Tag(c, "reverted", theme.Done)
-			case f.Revertable && widget.GhostButton(c, "Revert").Clicked():
-				a.confirm("Put "+f.File+" back?", "It goes back to how it was when GOD of Agents started, in "+f.Project+". What changed in it since is lost.", "Revert", func() {
+			case f.Revertable && widget.Button(c, widget.Secondary, nil, "Revert", "").Clicked():
+				a.confirm("Revert this file?", f.File+" goes back to how it was when GOD of Agents started, in "+f.Project+". What changed in it since is lost.", "Revert", func() {
 					var out proto.GOAFlag
 					a.goaCall(proto.MethodGOARevert, proto.GOARevertParams{ID: f.ID}, &out, nil)
 				})
@@ -381,6 +493,7 @@ type goaOverrideForm struct {
 	open          bool
 	task          proto.GOATask
 	model, effort string
+	typed         bool // a model the agent doesn't list, typed
 }
 
 func (a *App) openGOAOverride(t proto.GOATask) {
@@ -398,38 +511,20 @@ func (a *App) goaOverrideDialog(c *ui.Context) {
 	}
 	set := agent.SettingsOf(f.task.Agent)
 	save := false
-	why := "The judge's pick: " + orOwn(f.task.Model) + " · " + orOwn(f.task.Effort) + ". " + f.task.Why
-	widget.FormSheet(c, &f.open, 480, "Model for “"+f.task.Title+"”", why, func() {
+	about := "The judge's pick: " + orOwn(f.task.Model) + " · " + orOwn(f.task.Effort) + ". " + f.task.Why
+	widget.FormSheet(c, &f.open, 480, "Model for this task", strings.TrimSpace(about), func() {
 		widget.Field(c, "Model", func() {
+			if len(set.Models) > 0 && !f.typed {
+				goaChoice(c.Key("model"), "Model", &f.model, set.Models, func() { f.typed = true })
+				return
+			}
 			widget.Input(c, &f.model, orOwn(f.task.Model)).FillWidth()
-			ui.Row(c).FillWidth().Gap(4).Wrap().Children(func() {
-				for _, m := range set.Models {
-					if m.ID == "default" {
-						continue
-					}
-					if widget.Button(c.Key("m:"+m.ID), widget.Secondary, nil, m.Label, "").Clicked() {
-						f.model = m.ID
-					}
-				}
-			})
 		})
 		if len(set.Efforts) > 0 {
-			widget.Field(c, "Effort", func() {
-				var labels []string
-				current := -1
-				for i, e := range set.Efforts {
-					labels = append(labels, e.ID)
-					if e.ID == f.effort {
-						current = i
-					}
-				}
-				if i := widget.Segmented(c.Key("effort"), labels, current, nil); i >= 0 {
-					f.effort = labels[i]
-				}
-			})
+			widget.Field(c, "Effort", func() { goaChoice(c.Key("effort"), "Effort", &f.effort, set.Efforts, nil) })
 		}
 	}, func() {
-		if widget.PrimaryButton(c, nil, "Switch", "").Tooltip("Switches its session now and keeps it on the board").Clicked() {
+		if widget.PrimaryButton(c, nil, "Change", "").Tooltip("Switches its session now and keeps it on the board").Clicked() {
 			save = true
 		}
 	})
@@ -441,10 +536,69 @@ func (a *App) goaOverrideDialog(c *ui.Context) {
 	a.goaCall(proto.MethodGOAOverride, proto.GOAOverrideParams{ID: f.task.ID, Model: strings.TrimSpace(f.model), Effort: f.effort}, &out, nil)
 }
 
+// goaChoice is a drop-down of an agent's models or efforts; other, when set,
+// is an item for typing one it doesn't list. Its "" is the agent's own.
+func goaChoice(c *ui.Context, label string, value *string, choices []agent.Choice, other func()) {
+	const typeOne = "\x00other"
+	sel := ui.SelectBase(c, value)
+	shown := orOwn(*value)
+	if m, ok := agent.FindChoice(choices, *value); ok {
+		shown = m.Label
+	}
+	widget.Trigger(sel.Trigger, sel.Open()).Label(label).Children(func() {
+		ui.Row(c).Grow(1).MinWidth(0).Children(func() { widget.Running(c, shown, widget.RunStyle{}) })
+		ui.Icon(c, icon.ChevronDown).FontSize(12).TextColor(theme.TextSoft)
+	})
+	sel.Popup(func(panel ui.Element) {
+		widget.Popup(panel.Margin(theme.S1, 0, 0, 0).MinWidth(220).MaxHeight(280))
+		widget.Scroll(c).FillWidth().Children(func() {
+			item := func(id, name string) {
+				it := sel.Item(id)
+				widget.PopupItem(it, it.Highlighted()).Children(func() {
+					ui.Text(c, name).FontSize(theme.TextUI).Grow(1).SingleLine()
+					if id == *value {
+						ui.Icon(c, icon.Check).FontSize(13).TextColor(theme.Now)
+					}
+				})
+			}
+			item("", "Its own")
+			for _, m := range choices {
+				if m.ID != "default" && m.ID != "" {
+					item(m.ID, nonEmpty(m.Label, m.ID))
+				}
+			}
+			if other != nil {
+				item(typeOne, "Another…")
+			}
+		})
+	})
+	if *value == typeOne {
+		*value = ""
+		other()
+	}
+}
+
 // orOwn says what is asked of a task: "" keeps the agent's own.
 func orOwn(s string) string {
 	if s == "" {
 		return "its own"
 	}
 	return s
+}
+
+// goaWaitingStrip shows the lines waiting for GOD of Agents to take them: they don't go
+// through its input box, so this is where they can be seen meanwhile.
+func (a *App) goaWaitingStrip(c *ui.Context) {
+	waiting := a.goa.board.Waiting
+	if len(waiting) == 0 {
+		return
+	}
+	ui.Column(c.Key("goa-waiting")).FillWidth().Shrink(0).Padding(theme.S2).Gap(theme.S1).Children(func() {
+		ui.Text(c, fmt.Sprintf("Waiting for GOA (%d)", len(waiting))).FontSize(theme.TextLabel).FontWeight(500).TextColor(theme.TextSoft).SingleLine()
+		for i, line := range waiting[:min(len(waiting), 3)] {
+			ui.Row(c.Key(i)).FillWidth().MinWidth(0).Children(func() {
+				widget.Running(c, line, widget.RunStyle{Size: theme.TextLabel, Color: theme.TextSoft})
+			})
+		}
+	})
 }

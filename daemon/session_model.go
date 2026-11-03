@@ -56,12 +56,22 @@ func (s *Server) watchModels(done <-chan struct{}) {
 				f = &modelFollow{}
 				follows[info.ID] = f
 			}
-			if model, effort, ok := s.readModel(home, info, f); ok {
+			if model, effort, mode, ok := s.readModel(home, info, f); ok {
+				screen := sess.Terminal().Text()
 				if effort == "" {
-					effort = agentEffortShown(info.Agent, sess.Terminal().Text())
+					effort = agentEffortShown(info.Agent, screen)
+				}
+				if effort == "" {
+					effort = info.Effort // nothing says otherwise: it still has what it was given
 				}
 				if model != info.Model || effort != info.Effort {
 					s.sessions.SetModel(sess, model, effort)
+				}
+				if m := agent.SettingsOf(info.Agent).ModeShown(screen); m != "" {
+					mode = m // the screen says at once, the transcript with the next message
+				}
+				if meta := sess.Meta(); mode != "" && mode != meta.Mode {
+					s.sessions.SetMode(sess, mode)
 				}
 			}
 		}
@@ -75,7 +85,7 @@ func (s *Server) watchModels(done <-chan struct{}) {
 
 // readModel is what session info's transcript says now; ok false when nothing
 // changed since the last look.
-func (s *Server) readModel(home string, info proto.SessionInfo, f *modelFollow) (model, effort string, ok bool) {
+func (s *Server) readModel(home string, info proto.SessionInfo, f *modelFollow) (model, effort, mode string, ok bool) {
 	if own := s.transcripts.owned(info.ID); own != "" && own != f.path {
 		f.path, f.stamp, f.length = own, time.Time{}, 0
 	}
@@ -97,15 +107,15 @@ func (s *Server) readModel(home string, info proto.SessionInfo, f *modelFollow) 
 		}
 	}
 	if f.path == "" {
-		return "", "", false
+		return "", "", "", false
 	}
 	st, err := os.Stat(f.path)
 	if err != nil || st.ModTime().Equal(f.stamp) && st.Size() == f.length {
-		return "", "", false
+		return "", "", "", false
 	}
 	f.stamp, f.length = st.ModTime(), st.Size()
-	model, effort = transcript.LastSettings(info.Agent, f.path)
-	return model, effort, model != ""
+	model, effort, mode = transcript.LastSettings(info.Agent, f.path)
+	return model, effort, mode, model != ""
 }
 
 var effortShown = regexp.MustCompile(`with (low|medium|high|xhigh|max) effort`)

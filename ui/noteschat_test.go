@@ -61,9 +61,9 @@ func TestNotesAgentProposesAndTheUserAccepts(t *testing.T) {
 		t.Fatal(err)
 	}
 	tt := ui.NewTester(func(c *ui.Context) {
+		// The page draws the agent's panel itself, in its frame.
 		ui.Row(c).Width(1200).Height(800).Gap(theme.BentoGap).Background(theme.Ground).Children(func() {
 			widget.Bento(ui.Column(c).Grow(1).FillHeight(), theme.Background).Children(func() { app.notesPage(c) })
-			app.notesAgentPanel(c)
 		})
 	}, 1200, 800)
 	settle := func(what string, done func() bool) {
@@ -86,8 +86,8 @@ func TestNotesAgentProposesAndTheUserAccepts(t *testing.T) {
 	}
 	settle("the notes listed", func() bool { return app.noteList.loaded })
 	app.notes.Select(app.notesOptions(), n.ID)
-	settle("the page open", func() bool { return tt.HasText("Ask an agent") })
-	if err := tt.Click("Ask an agent"); err != nil {
+	settle("the page open", func() bool { return tt.HasText("Note agent") })
+	if err := tt.Click("Note agent"); err != nil {
 		t.Fatal(err)
 	}
 	settle("the panel", func() bool { return tt.HasText(notesSuggestions[0].title) })
@@ -140,6 +140,7 @@ func TestNotesAgentProposesAndTheUserAccepts(t *testing.T) {
 		got, _ := cl.Note(n.ID)
 		return got.Body == "## Errands\n- [ ] buy milk\n- [ ] call mom\n" && tt.HasText("Change accepted.")
 	})
+	shot(t, tt, "notes-accepted.png")
 	if err := tt.Click("Undo"); err != nil {
 		t.Fatal(err)
 	}

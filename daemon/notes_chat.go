@@ -48,6 +48,9 @@ func (s *Server) noteChat(p proto.NoteChatParams) (proto.NoteChatLog, error) {
 			s.notesChanged()
 		}
 	}
+	if p.New {
+		s.forgetHelperConvo("", n.ID, agent)
+	}
 	session := ""
 	if info, ok := s.notesSessionOf(n.ID, agent); ok && !p.New {
 		session = info.ID

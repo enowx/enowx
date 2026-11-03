@@ -1,6 +1,7 @@
 package ui
 
 import (
+	"github.com/enowx/enowx/ui/theme"
 	"strings"
 
 	"github.com/egoist/mygo/ui"
@@ -57,7 +58,7 @@ func (a *App) runButton(c *ui.Context, s proto.SessionInfo) {
 	if b.Clicked() {
 		a.loadCommands(s)
 	}
-	a.menu.OpenBelow(b, "run:"+s.ID, 24)
+	a.menu.OpenBelow(b, "run:"+s.ID, theme.ControlHeight)
 	a.menu.Show(c, b, "run:"+s.ID, func(done func()) {
 		cmds := a.runCommands[s.ID]
 		switch {
@@ -166,9 +167,9 @@ func (a *App) commandDialog(c *ui.Context) {
 				if cmd.Source != proto.CommandSaved && cmd.Source != proto.CommandRecent {
 					continue
 				}
-				ui.Row(c.Key(cmd.Command)).FillWidth().Gap(8).Children(func() {
-					ui.Text(c, commandLabel(cmd)).FontSize(12).SingleLine().Grow(1).Shrink(1)
-					ui.Text(c, cmd.Source).FontSize(11).SingleLine()
+				ui.Row(c.Key(cmd.Command)).FillWidth().Gap(theme.S2).Children(func() {
+					ui.Text(c, commandLabel(cmd)).FontSize(theme.TextLabel).SingleLine().Grow(1).Shrink(1)
+					ui.Text(c, cmd.Source).FontSize(theme.TextLabel).SingleLine()
 					if widget.IconButton(c, icon.Close, "Forget it", false).Clicked() {
 						a.saveCommand(f.session, cmd, true)
 					}

@@ -43,6 +43,7 @@ func TestProjectsMoveByDragAndJoinAGroup(t *testing.T) {
 		paths[name] = p.Path
 	}
 	app := New(Options{})
+	app.state.SessionsByProject = true
 	app.onMain = func(fn func()) {}
 	app.client = cl
 	tt := ui.NewTester(func(c *ui.Context) {
@@ -80,8 +81,8 @@ func TestProjectsMoveByDragAndJoinAGroup(t *testing.T) {
 	}
 	until([]string{"alpha", "beta", "gamma"}, nil)
 
-	from, ok := tt.Find("GAMMA")
-	to, ok2 := tt.Find("ALPHA")
+	from, ok := tt.Find("gamma")
+	to, ok2 := tt.Find("alpha")
 	if !ok || !ok2 {
 		t.Fatalf("no headers in %q", tt.Texts())
 	}

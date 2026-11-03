@@ -76,7 +76,7 @@ func TestQuickOpenFindsAndOpensAFile(t *testing.T) {
 		t.Fatal(err)
 	}
 	tt.Frame()
-	if a.quick.open || a.panelTab() != fileTabPrefix+"ui/chatview/composer.go" {
-		t.Fatalf("open %v, tab %q", a.quick.open, a.panelTab())
+	if a.quick.open || a.centerOf(a.selected).front != fileTabPrefix+"ui/chatview/composer.go" {
+		t.Fatalf("open %v, tab %q", a.quick.open, a.centerOf(a.selected).front)
 	}
 }

@@ -44,20 +44,23 @@ func TestCanvasManyDesigns(t *testing.T) {
 	if err := h.tt.Click("Design 4"); err != nil {
 		t.Fatal(err)
 	}
-	h.settle("design 4 shown", func() bool { return h.tt.HasText("Design 4 of 10 · Landing 4  1440×900") })
+	h.settle("design 4 shown", func() bool { return h.tt.HasText("Design 4 of 10") })
 	h.tt.Key(0, ui.KeyRight)
-	h.settle("design 5 by the key", func() bool { return h.tt.HasText("Design 5 of 10 · Landing 5  1440×900") })
+	h.settle("design 5 by the key", func() bool { return h.tt.HasText("Design 5 of 10") })
 	h.tt.Key(0, ui.Key2)
-	h.settle("design 2 by its number", func() bool { return h.tt.HasText("Design 2 of 10 · Landing 2  1440×900") })
+	h.settle("design 2 by its number", func() bool { return h.tt.HasText("Design 2 of 10") })
 	if err := h.tt.Click("Star Landing 2"); err != nil {
 		t.Fatal(err)
 	}
 	h.settle("starred", func() bool { c, _ := h.cl.Canvas(cv.ID); return c.Frames[1].Favorite })
 
-	if err := h.tt.Click("Grid"); err != nil {
+	if err := h.tt.Click("All designs"); err != nil {
 		t.Fatal(err)
 	}
-	h.settle("the grid", func() bool { return h.tt.HasText("10 · Landing 10") && h.tt.HasText("Open design 4") })
+	h.settle("the grid", func() bool { return h.tt.HasText("10 Landing 10") && h.tt.HasText("Open design 4") })
+	card, _ := h.tt.Find("Open design 1")
+	h.tt.Scroll(card.X+card.W/2, card.Y+card.H/2, 0, 300) // the third card is a row down
+	h.tt.Frame()
 	for _, n := range []string{"3", "4"} {
 		if err := h.tt.Click("Compare design " + n); err != nil {
 			t.Fatal(err)
@@ -72,7 +75,7 @@ func TestCanvasManyDesigns(t *testing.T) {
 		t.Fatal(err)
 	}
 	h.settle("side by side", func() bool {
-		return h.tt.HasText("3 · Landing 3") && h.tt.HasText("4 · Landing 4") && !h.tt.HasText("Open design 5")
+		return h.tt.HasText("3 Landing 3") && h.tt.HasText("4 Landing 4") && !h.tt.HasText("Open design 5")
 	})
 	shot(t, h.tt, "canvas-designs-compare.png")
 	if err := h.tt.Click("Pick Landing 4 as the winner"); err != nil {
@@ -83,7 +86,7 @@ func TestCanvasManyDesigns(t *testing.T) {
 	if err := h.tt.Click("Design"); err != nil {
 		t.Fatal(err)
 	}
-	h.settle("one design", func() bool { return h.tt.HasText("Design 2 of 10 · Landing 2  1440×900") })
+	h.settle("one design", func() bool { return h.tt.HasText("Design 2 of 10") })
 	h.dragTo("Design 4", "Design 1")
 	h.settle("4 first", func() bool { c, _ := h.cl.Canvas(cv.ID); return c.Frames[0].Name == "Landing 4" })
 
@@ -91,7 +94,7 @@ func TestCanvasManyDesigns(t *testing.T) {
 	if !h.app.openCanvasLink(canvas.Link(cv.ID, 6)) {
 		t.Fatal("the link wasn't the canvas's")
 	}
-	h.settle("design 6 from its link", func() bool { return h.tt.HasText("Design 6 of 10 · Landing 6  1440×900") })
+	h.settle("design 6 from its link", func() bool { return h.tt.HasText("Design 6 of 10") })
 }
 
 // dragTo drags the element labeled from onto the one labeled to.

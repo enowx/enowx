@@ -30,6 +30,10 @@ Unslop reads a design for what makes it look AI-made, in 12 passes (`core/unslop
 - **The HTML and CSS, statically.**
 - **The page as rendered.** The lint script (`LintScript`) measures computed styles, and a layout read takes the page at a tablet's and a phone's width. A Browser page is measured in the app's Browser. A canvas design is measured in the app's renderer (`CanvasRenderRequest.Script`).
 
+- **Every state a canvas design can reach.** A design with something to click is walked in the app's renderer, out of sight: tabs, menus, dialogs and pages are opened (`WalkScript`), and each new state gets the same lint. A finding the first screen doesn't show names its state and the clicks that reach it. The score is that of the worst state: a design is as good as the worst thing it can show, which an average would hide behind tidy screens. The report says what was reached, what wasn't and which limit stopped it (24 states, 6 seconds, 200 clicks); the states reached are kept. It runs on the renderer's copy, so the canvas stays as it is and the user stays where they are. What a click shows only after a timer or a fetch isn't seen, and a click that leaves the page ends the walk with nothing from it.
+
+A Browser page is never walked: on a project's dev server a click can start real actions, so its lint measures what shows and clicks nothing. The static reading sees hidden parts' HTML and CSS either way.
+
 Rules see only the code, so the agent is also told to look at screenshots against the brief.
 
 The agent then says how much is off and changes that much. A screen with many signs gets every pass in full. A designed screen with a few signs left gets only those fixed: its palette, type, layout and pictures stay, and bigger ideas are told as suggestions. A screen with nothing off is left as it is, with at most three refinements suggested.

@@ -13,6 +13,9 @@ type Bar struct {
 	Parts      []float64
 }
 
+// barMaxWidth is the most a bar takes, however few there are.
+const barMaxWidth = 48
+
 // BarChart draws bars of stacked parts, each part its color of colors,
 // scaled to the tallest bar, height high.
 func BarChart(c *ui.Context, bars []Bar, colors []ui.Color, height float32) {
@@ -26,31 +29,46 @@ func BarChart(c *ui.Context, bars []Bar, colors []ui.Color, height float32) {
 	}
 	// Labels on at most about eight bars, so they don't crowd.
 	every := max(1, (len(bars)+7)/8)
-	ui.Column(c).FillWidth().Gap(4).Children(func() {
-		ui.Row(c).FillWidth().Height(height).Gap(3).AlignItems(ui.End).BorderWidth(0, 0, 1, 0).BorderColor(theme.Border).Children(func() {
+	// A few bars stand apart, as wide as is pleasant; a year's are slivers.
+	var gap, partGap float32
+	switch {
+	case len(bars) <= 31:
+		gap, partGap = theme.S2, 2
+	case len(bars) <= 90:
+		gap = 2
+	}
+	ui.Column(c).FillWidth().Gap(theme.S1).Children(func() {
+		ui.Row(c).FillWidth().Height(height).Gap(gap).AlignItems(ui.End).Children(func() {
 			for i, b := range bars {
-				col := ui.Column(c.Key(i)).Grow(1).MinWidth(0).Height(height).Justify(ui.End).Radius(2).Clip()
+				cell := ui.Column(c.Key(i)).Grow(1).Basis(0).MinWidth(0).Height(height).AlignItems(ui.Center)
 				if b.Tip != "" {
-					col.Tooltip(b.Tip).Label(b.Tip)
+					cell.Tooltip(b.Tip)
 				}
-				col.Children(func() {
-					for j := len(b.Parts) - 1; j >= 0; j-- {
-						if top <= 0 || b.Parts[j] <= 0 {
-							continue
+				cell.Children(func() {
+					ui.Column(c).FillWidth().MaxWidth(barMaxWidth).Height(height).Justify(ui.End).Gap(partGap).Radius(theme.S2).Clip().Children(func() {
+						room := float64(height) - float64(partGap)*float64(max(len(b.Parts)-1, 0))
+						for j := len(b.Parts) - 1; j >= 0; j-- {
+							if top <= 0 || b.Parts[j] <= 0 {
+								continue
+							}
+							h := float32(b.Parts[j] / top * room)
+							ui.Box(c.Key(j)).FillWidth().Shrink(0).Height(max(h, 1)).Background(colors[j%len(colors)])
 						}
-						h := float32(b.Parts[j] / top * float64(height))
-						ui.Box(c.Key(j)).FillWidth().Height(max(h, 1)).Background(colors[j%len(colors)])
-					}
+					})
 				})
 			}
 		})
-		ui.Row(c).FillWidth().Gap(3).Children(func() {
-			for i, b := range bars {
-				label := ""
-				if i%every == 0 {
-					label = b.Label
+		// Each label has its bar's width, or the width of the bars up to the
+		// next label, so it stays inside what it names.
+		ui.Row(c).FillWidth().Gap(gap).Children(func() {
+			for i := 0; i < len(bars); i += every {
+				span := min(every, len(bars)-i)
+				text := ui.Text(c.Key(i), bars[i].Label).FontSize(theme.TextLabel).TextColor(theme.TextSoft).SingleLine().Grow(float32(span)).Basis(0).MinWidth(0)
+				if every == 1 {
+					text.TextAlign(ui.Center)
+				} else {
+					text.TextAlign(ui.Start)
 				}
-				ui.Text(c.Key(i), label).FontSize(10).TextColor(theme.Muted).SingleLine().Grow(1).MinWidth(0).TextAlign(ui.Start)
 			}
 		})
 	})

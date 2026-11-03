@@ -9,11 +9,13 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"regexp"
 	"runtime"
 	"slices"
 	"strings"
 	"time"
 
+	"github.com/enowx/enowx/core/hooks"
 	"github.com/enowx/enowx/internal/quietcmd"
 	"github.com/enowx/enowx/proto"
 )
@@ -235,6 +237,8 @@ const (
 	trimChars = 12000
 )
 
+var trimCommandRe = regexp.MustCompile(hooks.TrimCommands)
+
 // trim runs `enowx decide trim -- COMMAND` (hook action trim): command in
 // a shell, its output passed on whole when short; when long, what the
 // judge keeps of it, the whole saved to a file named after it. It exits as
@@ -277,12 +281,20 @@ func trim(args []string, out io.Writer) error {
 	}
 	if strings.Count(output, "\n") <= trimLines && len(output) <= trimChars {
 		io.WriteString(out, output)
+		// Said, so that "never used" can be told from "nothing was long". Any
+		// command's would crowd the log out: only those long output is usual of.
+		if trimCommandRe.MatchString(command) {
+			if c, err := Dial(); err == nil {
+				_ = c.Call(proto.MethodDecideAsk, proto.DecideAsk{Use: proto.DecideTrim, Session: os.Getenv(EnvSession), Command: command, Exit: code, Passed: true}, nil)
+				c.Close()
+			}
+		}
 		return done()
 	}
 	var d proto.Decision
 	c, err := Dial()
 	if err == nil {
-		err = c.Call(proto.MethodDecideAsk, proto.DecideAsk{Use: proto.DecideTrim, Session: os.Getenv(EnvSession), Command: command, Output: output, Exit: code}, &d)
+		err = c.Call(proto.MethodDecideAsk, proto.DecideAsk{Use: proto.DecideTrim, Session: os.Getenv(EnvSession), Command: command, Output: output, Exit: code, Exact: hooks.ExactRead(command)}, &d)
 		c.Close()
 	}
 	if err != nil || d.Text == "" {

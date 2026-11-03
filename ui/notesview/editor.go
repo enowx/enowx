@@ -18,6 +18,7 @@ import (
 // the keys of the open block's input (OnTextKey) come there too, between
 // frames.
 type editor struct {
+	soft   bool // drawing a callout's lines: small and soft
 	blocks []block
 	open   int // the block open as text, -1 for none
 	// caret is where the caret goes in the block opening (runes; -1 its
@@ -100,15 +101,7 @@ func (e *editor) draw(c *ui.Context) {
 	numbers := e.numbers()
 	ui.Column(c).FillWidth().Gap(2).Children(func() {
 		for i := range e.blocks {
-			if _, ok := imageBlockParts(e.blocks[i]); ok {
-				e.imageBlock(c.Key(i), i)
-				continue
-			}
-			if i == e.open {
-				e.edit(c.Key(i), i, numbers[i])
-			} else {
-				e.show(c.Key(i), i, numbers[i])
-			}
+			e.blockLine(c.Key(i), i, numbers[i])
 		}
 		if e.env.read {
 			height := float32(80)
@@ -140,6 +133,36 @@ func (e *editor) draw(c *ui.Context) {
 	e.imageRenameDialog(c)
 }
 
+// blockLine is block i on its line: the room for a handle beside it, while
+// the pointer is on either in Edit, then the block.
+func (e *editor) blockLine(c *ui.Context, i, n int) {
+	line := ui.Row(c).FillWidth().AlignItems(ui.Start)
+	_, isImage := imageBlockParts(e.blocks[i])
+	handle := !isImage && i != e.open && !e.env.read
+	line.Children(func() {
+		if handle && line.Hovered() {
+			g := ui.ButtonBase(c).Size(docLeft, 24).Shrink(0).Radius(theme.RadiusSmall).Center().Cursor(ui.CursorGrab).
+				Label("Drag block " + strconv.Itoa(i+1)).Tooltip("Drag to move").Drag(blockDrag{i})
+			if g.Hovered() {
+				g.Background(theme.Hover)
+			}
+			g.Children(func() { ui.Icon(c, icon.Grip).FontSize(12).TextColor(theme.TextSoft) })
+		} else {
+			ui.Box(c).Size(docLeft, 24).Shrink(0)
+		}
+		ui.Column(c).Grow(1).MinWidth(0).Children(func() {
+			switch {
+			case isImage:
+				e.imageBlock(c, i)
+			case i == e.open:
+				e.edit(c, i, n)
+			default:
+				e.showBlock(c, i, n)
+			}
+		})
+	})
+}
+
 // numbers are the numbers numbered items show, as renderBlocks writes them.
 func (e *editor) numbers() []int {
 	out := make([]int, len(e.blocks))
@@ -165,13 +188,13 @@ func (e *editor) numbers() []int {
 func textStyle(k kind) (float32, int) {
 	switch k {
 	case kH1:
-		return 26, 700
+		return 20, 600
 	case kH2:
-		return 20.5, 650
+		return theme.TextTitle, 600
 	case kH3:
-		return 16.5, 620
+		return theme.TextRead, 600
 	}
-	return 14, 400
+	return theme.TextRead, 400
 }
 
 // blockRow lays out block i: its margin, the mark before it (a list's
@@ -188,35 +211,34 @@ func (e *editor) blockRow(c *ui.Context, row ui.Element, i, n int, text func()) 
 func markRow(c *ui.Context, row ui.Element, b block, n int, tick func(), text func()) {
 	top := float32(0)
 	switch b.kind {
-	case kH1:
-		top = 14
-	case kH2:
-		top = 10
+	case kH1, kH2:
+		top = theme.S4
 	case kH3:
-		top = 6
+		top = theme.S2
 	}
-	row.FillWidth().Gap(8).Padding(top+2, 6, 2, 6+float32(b.indent)*24).Radius(5).AlignItems(ui.Start).Children(func() {
+	row.FillWidth().Gap(theme.S2).Padding(top+2, 6, 2, 6+float32(b.indent)*theme.S5).Radius(theme.RadiusSmall).AlignItems(ui.Start).Children(func() {
 		switch b.kind {
 		case kBullet:
 			// A dot in the middle of the first line.
-			ui.Row(c).Width(14).Height(20).Shrink(0).Center().Children(func() {
-				ui.Box(c).Size(5, 5).Radius(3).Background(theme.TextSoft)
+			ui.Row(c).Width(16).Height(22).Shrink(0).Center().Children(func() {
+				ui.Box(c).Size(5, 5).Radius(theme.RadiusFull).Background(theme.TextSoft)
 			})
 		case kNumber:
-			ui.Text(c, strconv.Itoa(max(n, 1))+".").FontSize(14).TextColor(theme.TextSoft).MinWidth(14).Shrink(0)
+			ui.Text(c, strconv.Itoa(max(n, 1))+".").FontSize(theme.TextRead).TextColor(theme.TextSoft).MinWidth(16).Shrink(0)
 		case kTodo:
-			box := ui.ButtonBase(c).Size(16, 16).Margin(2, 0, 0, 0).Shrink(0).Radius(4).Center().Border(1.5, theme.BorderStrong).
-				Cursor(ui.CursorPointer).Label("Done")
+			box := ui.ButtonBase(c).Size(16, 16).Margin(theme.S1, 0, 0, 0).Shrink(0).Radius(theme.RadiusTail).Center().Cursor(ui.CursorPointer).Label("Done")
 			if b.done {
-				box.Background(theme.Accent).Border(1.5, theme.Accent).Children(func() {
-					ui.Icon(c, icon.Check).FontSize(11).TextColor(theme.OnAccent)
+				box.Background(theme.Accent).Children(func() {
+					ui.Icon(c, icon.Check).FontSize(12).TextColor(theme.OnAccent)
 				})
+			} else {
+				widget.Well(box, false)
 			}
 			if box.Clicked() {
 				tick()
 			}
 		case kQuote:
-			ui.Box(c).Width(3).FillHeight().MinHeight(20).Radius(2).Background(theme.BorderStrong).Shrink(0)
+			ui.Box(c).Width(3).FillHeight().MinHeight(22).Radius(theme.RadiusFull).Background(theme.BorderStrong).Shrink(0)
 		}
 		ui.Column(c).Grow(1).MinWidth(0).Children(text)
 	})
@@ -239,31 +261,6 @@ func (e *editor) move(from, to int) {
 	e.changed = true
 }
 
-// show builds block i as it reads, with its handle in the margin before
-// it while the pointer is on either: a drag of the handle or the block
-// moves it before the block it is dropped on.
-func (e *editor) show(c *ui.Context, i, n int) {
-	if e.env.read {
-		e.showBlock(c, i, n)
-		return
-	}
-	line := ui.Row(c).FillWidth().Margin(0, 0, 0, -22).AlignItems(ui.Start)
-	line.Children(func() {
-		if line.Hovered() {
-			g := ui.ButtonBase(c).Size(20, 22).Shrink(0).Radius(4).Center().Cursor(ui.CursorGrab).
-				Label("Drag block " + strconv.Itoa(i+1)).Tooltip("Drag to move").Drag(blockDrag{i})
-			if g.Hovered() {
-				g.Background(theme.Hover)
-			}
-			g.Children(func() { ui.Icon(c, icon.Grip).FontSize(13).TextColor(theme.Muted) })
-		} else {
-			ui.Box(c).Size(20, 22).Shrink(0)
-		}
-		ui.Box(c).Width(2).Shrink(0)
-		ui.Column(c).Grow(1).MinWidth(0).Children(func() { e.showBlock(c, i, n) })
-	})
-}
-
 // showBlock builds block i as it reads; a click opens it as text.
 func (e *editor) showBlock(c *ui.Context, i, n int) {
 	b := &e.blocks[i]
@@ -282,15 +279,15 @@ func (e *editor) showBlock(c *ui.Context, i, n int) {
 	}
 	switch b.kind {
 	case kDivider:
-		row.FillWidth().Padding(10, 6).Children(func() {
-			ui.Box(c).FillWidth().Height(1).Background(theme.Border)
+		row.FillWidth().Padding(theme.S3, 6).Children(func() {
+			ui.Box(c).FillWidth().Height(theme.Rule).Background(theme.Border)
 		})
 		if row.Clicked() && !e.env.read {
 			e.insert(i, block{})
 		}
 		return
 	case kCode:
-		row.FillWidth().Padding(4, 0).Children(func() {
+		row.FillWidth().Padding(theme.S1, 6).Children(func() {
 			if b.lang == "svg" {
 				drawingView(c, b.text)
 			} else {
@@ -298,14 +295,14 @@ func (e *editor) showBlock(c *ui.Context, i, n int) {
 			}
 		})
 	case kTable:
-		row.FillWidth().Padding(4, 0).Children(func() { e.tableView(c, i, b.text) })
+		row.FillWidth().Padding(theme.S1, 6).Children(func() { e.tableView(c, i, b.text) })
 	case kLayout:
-		row.FillWidth().Padding(4, 0).Children(func() { e.layoutView(c, i) })
+		row.FillWidth().Padding(theme.S1, 6).Children(func() { e.layoutView(c, i) })
 	case kLeaf:
-		row.FillWidth().Padding(2, 0).Children(func() { e.leafView(c, i, b.text, e.lineOf(i)) })
+		row.FillWidth().Padding(2, theme.S2).Children(func() { e.leafView(c, i, b.text, e.lineOf(i)) })
 	case kText:
 		if len(imageMatches(b.text)) > 0 {
-			row.FillWidth().Padding(4, 0).Children(func() { e.imageBlock(c, i) })
+			row.FillWidth().Padding(theme.S1, 0).Children(func() { e.imageBlock(c, i) })
 			if row.Clicked() && !e.env.read {
 				e.openAt(i, -1)
 			}
@@ -316,10 +313,13 @@ func (e *editor) showBlock(c *ui.Context, i, n int) {
 		e.blockRow(c, row, i, n, func() {
 			size, weight := textStyle(b.kind)
 			switch {
+			case b.text == "" && b.kind == kText && len(e.blocks) > 1:
+				// A blank line between blocks is their gap, not a line of text.
+				ui.Box(c).FillWidth().Height(theme.S1)
 			case b.text == "":
 				ui.Box(c).FillWidth().Height(size * 1.45)
 			case b.kind == kTodo && b.done:
-				ui.Text(c, b.text).FontSize(size).TextColor(theme.Muted).Strikethrough().FillWidth()
+				ui.Text(c, b.text).FontSize(size).TextColor(theme.TextSoft).Strikethrough().FillWidth()
 			case widget.HasInlineIcons(b.text):
 				ink := theme.Text
 				if b.kind == kQuote {
@@ -358,9 +358,9 @@ func (e *editor) edit(c *ui.Context, i, n int) {
 	var in ui.Element
 	switch b.kind {
 	case kCode, kTable, kLayout, kLeaf:
-		ui.Column(c).FillWidth().Gap(4).Padding(4, 0).Children(func() {
+		ui.Column(c).FillWidth().Gap(theme.S1).Padding(theme.S1, 6).Children(func() {
 			if b.kind == kCode {
-				widget.Input(c, &b.lang, "language").Width(160).Height(26).FontSize(11.5).Font(theme.MonoFont).OnTextKey(func(k ui.TextKey) bool {
+				widget.Input(c, &b.lang, "language").Width(160).FontSize(theme.TextLabel).Font(theme.MonoFont).OnTextKey(func(k ui.TextKey) bool {
 					if e.historyKey == nil {
 						return false
 					}
@@ -375,21 +375,21 @@ func (e *editor) edit(c *ui.Context, i, n int) {
 			switch b.kind {
 			case kLayout:
 				label = "Layout block"
-				ui.Text(c, "Layout block, as Markdown · Esc shows it").FontSize(11).TextColor(theme.Muted)
+				ui.Text(c, "Layout block, as Markdown · Esc shows it").FontSize(theme.TextLabel).TextColor(theme.TextSoft)
 			case kLeaf:
 				lines, label = 1, "Directive"
 			}
-			in = ui.TextAreaBase(c, &b.text).FillWidth().Lines(lines, 40).Font(theme.MonoFont).FontSize(12.5).Padding(10, 12).
-				Radius(8).Background(theme.Sunken).Border(1, theme.AccentLine).Label(label)
+			in = ui.TextAreaBase(c, &b.text).FillWidth().Lines(lines, 40).Font(theme.MonoFont).FontSize(theme.TextUI).Padding(theme.S3, theme.S4).
+				Radius(theme.RadiusCard).Background(theme.CodeGround).TextColor(widget.CodeText).Border(2, theme.Now).Label(label)
 		})
 	default:
-		row := ui.Row(c).Background(theme.Fade(theme.Hover, 0.6))
+		row := ui.Row(c).Background(theme.Hover)
 		e.blockRow(c, row, i, n, func() {
 			size, weight := textStyle(b.kind)
 			in = ui.TextAreaBase(c, &b.text).FillWidth().Lines(1, 60).FontSize(size).FontWeight(weight).
 				Placeholder(placeholder(*b)).Label("Block text")
 			if b.kind == kTodo && b.done {
-				in.TextColor(theme.Muted)
+				in.TextColor(theme.TextSoft)
 			}
 		})
 	}

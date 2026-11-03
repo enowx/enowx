@@ -27,7 +27,7 @@ func TestAsksAreAnsweredFromTheChat(t *testing.T) {
 		})
 	}, 760, 600)
 	tt.Frame()
-	if !tt.HasText("Run this command?") || !tt.HasText("go test ./proxy/...") {
+	if !tt.HasText("The agent asks to run a command") || !tt.HasText("go test ./proxy/...") {
 		t.Fatalf("no permission card: %q", tt.Texts())
 	}
 	timelineShot(t, tt, "chat-permission.png")

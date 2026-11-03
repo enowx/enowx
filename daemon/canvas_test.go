@@ -47,10 +47,16 @@ func TestCanvasChangesStreamToEveryApp(t *testing.T) {
 			t.Fatal(err)
 		}
 	}
-	for _, want := range []string{"signup", "email", "go"} {
-		if ch := next(); ch.Element != want || ch.Session != "agent-1" || ch.Canvas.Agent != "agent-1" {
-			t.Fatalf("change %q by %q, want %q", ch.Element, ch.Session, want)
-		}
+	// Told at once, then at most so often: the latest holds what came between it and the last.
+	if ch := next(); ch.Element != "signup" || ch.Session != "agent-1" || ch.Canvas.Agent != "agent-1" {
+		t.Fatalf("change %q by %q, want signup", ch.Element, ch.Session)
+	}
+	last := next()
+	if last.Element != "go" || last.Session != "agent-1" {
+		t.Fatalf("change %q by %q, want go", last.Element, last.Session)
+	}
+	if html := last.Canvas.Frames[0].HTML; !strings.Contains(html, `id="email"`) || !strings.Contains(html, `id="go"`) {
+		t.Fatalf("the latest change doesn't hold the earlier: %s", html)
 	}
 	if _, err := c.ControlCanvas(cv.ID, proto.CanvasPause); err != nil {
 		t.Fatal(err)

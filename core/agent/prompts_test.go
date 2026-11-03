@@ -36,6 +36,26 @@ func TestPromptShown(t *testing.T) {
 	}
 }
 
+// What an interrupt leaves on the screen isn't an ask, with the composer and
+// its status line under it or not; a real menu under it still is.
+func TestInterruptLeftoverIsNoPrompt(t *testing.T) {
+	for _, screen := range []string{
+		"  ⎿  Interrupted · What should Claude do instead?\n",
+		"● Fixing the parser\n  ⎿  Interrupted · What should Claude do instead?\n\n╭────╮\n❯ Try \"fix the tests\"\n╰────╯\n  ⏵⏵ bypass permissions on\n",
+	} {
+		if p, ok := StalledPrompt(screen); ok {
+			t.Errorf("read as an ask: %q from %q", p.Text, screen)
+		}
+		if p, ok := PromptShown(screen); ok {
+			t.Errorf("read as a known prompt: %q from %q", p.Text, screen)
+		}
+	}
+	menu := "  ⎿  Interrupted · What should Claude do instead?\nWhich database should the new table go in?\n ❯ 1. Main\n   2. Replica\n"
+	if p, ok := StalledPrompt(menu); !ok || !strings.Contains(p.Text, "database") {
+		t.Errorf("a real menu missed: %+v %v", p, ok)
+	}
+}
+
 // A prompt nobody listed is still seen, and work isn't taken for one.
 func TestStalledPrompt(t *testing.T) {
 	for _, screen := range []string{
@@ -56,6 +76,90 @@ func TestStalledPrompt(t *testing.T) {
 	} {
 		if p, ok := StalledPrompt(screen); ok {
 			t.Errorf("%q read as asking %q", screen, p.Text)
+		}
+	}
+}
+
+// Only prompts an answer settles are answered, and a shell tab's agent is known
+// by its menu.
+func TestPromptAsksPermission(t *testing.T) {
+	for _, text := range []string{"Do you want to proceed?", "Allow once  Allow always  Reject", "△ Permission required"} {
+		if !PromptAsksPermission(text) {
+			t.Errorf("%q", text)
+		}
+	}
+	for _, text := range []string{"You've reached your usage limit", "Please sign in", "Update available! Press Enter to update"} {
+		if PromptAsksPermission(text) {
+			t.Errorf("%q", text)
+		}
+	}
+	if k := PromptKeys("claude", ""); k.Allow != "1" {
+		t.Errorf("claude: %+v", k)
+	}
+	if k := PromptKeys(Shell, "Do you want to proceed?\n 1. Yes\n 2. No"); k.Allow != "1" {
+		t.Errorf("a shell tab's Claude Code: %+v", k)
+	}
+	if k := PromptKeys(Shell, "$ ls"); k.Allow != "" {
+		t.Errorf("a shell: %+v", k)
+	}
+}
+
+// Only a composer sure to hold nothing counts as empty: anything else may be a draft.
+func TestPromptEmpty(t *testing.T) {
+	for _, screen := range []string{
+		"Done.\n───\n❯ \n───\n  ⏵⏵ bypass permissions on\n",
+		"Done.\n› Ask Codex to do anything\n",
+		"$ \n",
+	} {
+		if !PromptEmpty(screen) {
+			t.Errorf("not empty: %q", screen)
+		}
+	}
+	for _, screen := range []string{
+		"───\n❯ oiya lalu tambahkan\n───\n",
+		"› halfway through a sentence\n",
+		"✶ Thinking… (esc to interrupt)\n❯ \n",
+		"Overwrite the file?\n> \n",
+		"compiling\n",
+		"",
+	} {
+		if PromptEmpty(screen) {
+			t.Errorf("taken for empty: %q", screen)
+		}
+	}
+}
+
+// A turn's end shows on the screen of an agent no hook speaks for, and what is
+// only quiet isn't taken for it.
+func TestTurnOverShown(t *testing.T) {
+	for _, screen := range []string{
+		"The report is in.\n✻ Baked for 27s · done 9:43 PM\n",
+		"Done.\n\n❯ \n  ⏵⏵ bypass permissions on\n",
+		"ok\n$ \n",
+		// A long footer, as a status line gives, and a report's own words above.
+		"The usage limit is what stopped it. Shall we go on?\n✻ Baked for 2m 3s\n───\n❯ \n───\n" + strings.Repeat("  ✓ Bash ×12 | status\n", 9) + "  Update available! Run: brew upgrade\n",
+		"The usage limit is what stopped it.\nMore.\nMore.\nMore.\n───\n❯ \n───\n  Update available! Run: brew upgrade\n",
+		"─ Worked for 1m 03s ─\n\n› \n",
+		"Done.\n│ > │\n",
+	} {
+		if !TurnOverShown(screen) {
+			t.Errorf("not seen: %q", screen)
+		}
+	}
+	for _, screen := range []string{
+		"compiling the thing\n",
+		"✶ Thinking… (esc to interrupt)\n",
+		"Do you want to proceed?\n ❯ 1. Yes\n   2. No\n",
+		" \n",
+		// A new turn under the last one's time, at work or asking.
+		"✻ Baked for 27s\nnext\n✶ Thinking… (esc to interrupt)\n",
+		"✻ Baked for 27s\nDo you want to make this edit?\n ❯ 1. Yes\n   2. No\n",
+		// A program reading its answer, and a shell's own prompt.
+		"Overwrite the file?\n> \n",
+		"ada@mac project %\n",
+	} {
+		if TurnOverShown(screen) {
+			t.Errorf("taken for it: %q", screen)
 		}
 	}
 }

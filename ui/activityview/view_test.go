@@ -47,10 +47,10 @@ func TestTurnsUnfoldAndFilesOpen(t *testing.T) {
 	v := New()
 	conversation(v)
 	var opened string
-	o := Options{Session: proto.SessionInfo{Dir: "/work/app"}, OpenFile: func(p string) { opened = p }}
+	o := Options{Session: proto.SessionInfo{Dir: "/work/app"}, OpenFile: func(p string) { opened = p }, OpenDiff: func(p string) { opened = "diff " + p }}
 	tt := ui.NewTester(func(c *ui.Context) { v.Draw(c, o) }, 520, 600)
 	tt.Frame()
-	for _, want := range []string{"2 turns", "FILES EDITED", "rank.go", "+13", "Now the docs", "Add search ranking"} {
+	for _, want := range []string{"Turns", "Tool calls", "Files edited", "core/search/rank.go", "+13", "Now the docs", "Add search ranking"} {
 		if !tt.HasText(want) {
 			t.Errorf("no %q in %q", want, tt.Texts())
 		}
@@ -69,6 +69,27 @@ func TestTurnsUnfoldAndFilesOpen(t *testing.T) {
 		t.Fatal(err)
 	}
 	if opened != "core/search/rank.go" {
+		t.Fatalf("opened %q", opened)
+	}
+	// What it read opens as a file, what it edited as its changes, what it ran
+	// nothing.
+	if err := tt.Click("Read core/search/find.go"); err != nil {
+		t.Fatal(err)
+	}
+	if opened != "core/search/find.go" {
+		t.Fatalf("opened %q", opened)
+	}
+	if err := tt.Click("Edit core/search/rank.go"); err != nil {
+		t.Fatal(err)
+	}
+	if opened != "diff core/search/rank.go" {
+		t.Fatalf("opened %q", opened)
+	}
+	opened = ""
+	if err := tt.Click("Bash go test ./..."); err != nil {
+		t.Fatal(err)
+	}
+	if opened != "" {
 		t.Fatalf("opened %q", opened)
 	}
 }

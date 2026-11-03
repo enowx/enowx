@@ -34,7 +34,7 @@ func (a *App) windowButtons(c *ui.Context) {
 	if win == nil {
 		return
 	}
-	group := ui.Row(c.Key("window-buttons")).Gap(8).Shrink(0)
+	group := ui.Row(c.Key("window-buttons")).Gap(theme.S2).Shrink(0)
 	over := group.Hovered()
 	group.Children(func() {
 		for i, label := range []string{"Close", "Minimize", "Zoom"} {
@@ -42,7 +42,7 @@ func (a *App) windowButtons(c *ui.Context) {
 			if a.blurred && !over {
 				col = theme.Idle
 			}
-			b := ui.ButtonBase(c.Key(label)).Size(12, 12).Radius(6).Shrink(0).Background(col).Label(label).Center()
+			b := ui.ButtonBase(c.Key(label)).Size(12, 12).Radius(theme.RadiusSmall).Shrink(0).Background(col).Label(label).Center()
 			b.Children(func() {
 				if !over {
 					return

@@ -2,6 +2,7 @@ package ui
 
 import (
 	"encoding/json"
+	"github.com/enowx/enowx/ui/widget"
 	"os"
 	"path/filepath"
 	"slices"
@@ -127,7 +128,7 @@ func (a *App) clearHostDialog(c *ui.Context) {
 	}
 	open := true
 	msg := "Its notes, canvases and settings go to its trash (kept 30 days there); this device and the other hosts keep theirs. Its sessions and project files are left alone."
-	switch ui.AlertDialog(c, &open, "Remove "+h.Name+" and clear its synced data?", msg, "Cancel", "Remove and clear") {
+	switch widget.AlertDialog(c, &open, "Remove "+h.Name+" and clear its synced data?", msg, "Cancel", "Remove and clear") {
 	case 1:
 		a.clearHost(*h)
 		a.clearingHost = nil

@@ -1,8 +1,10 @@
 package ui
 
 import (
+	"fmt"
 	"slices"
 	"strings"
+	"time"
 
 	"github.com/enowx/enowx/client"
 	"github.com/enowx/enowx/proto"
@@ -17,11 +19,11 @@ import (
 // one put aside, after an edit); false when there's nothing to send.
 func (a *App) sendChat(team, text string) bool {
 	hc, cl := a.chatsOf(), a.client
-	images, uploading := a.imagesReady()
+	images := a.imagesSendable()
 	if hc.editing != nil {
 		images = nil // an edit changes the text only
 	}
-	if uploading && hc.editing == nil || strings.TrimSpace(text) == "" && len(images) == 0 || cl == nil {
+	if strings.TrimSpace(text) == "" && len(images) == 0 || cl == nil {
 		return false
 	}
 	editing := hc.editing
@@ -38,33 +40,43 @@ func (a *App) sendChat(team, text string) bool {
 	if hc.replyTo != nil && editing == nil {
 		replyTo = hc.replyTo.ID
 	}
-	pending := hc.pending
 	hc.draft, hc.mentions, hc.editing, hc.replyTo = "", nil, nil, nil
-	if editing == nil {
-		hc.pending = nil
-	}
 	a.stoppedTyping(team)
-	if editing != nil {
-		hc.draft, hc.saved = hc.saved, ""
+	hc.err = ""
+	if editing == nil {
+		a.outboxAdd(team, text, mentions, replyTo)
+		return true
 	}
+	hc.draft, hc.saved = hc.saved, ""
 	go func() {
-		var err error
-		if editing != nil {
-			_, err = cl.EditChat(proto.ChatEditParams{Team: team, ID: editing.ID, Text: text, Mentions: mentions})
-		} else {
-			_, err = cl.SendChat(proto.ChatSendParams{Team: team, Text: text, Mentions: mentions, ReplyTo: replyTo, Attachments: images})
-		}
+		_, err := cl.EditChat(proto.ChatEditParams{Team: team, ID: editing.ID, Text: text, Mentions: mentions})
 		a.onMain(func() {
 			hc.err = ""
 			if err != nil {
 				hc.err = strings.TrimPrefix(client.Explain(err), "teams: ")
-				if editing == nil {
-					hc.draft, hc.mentions, hc.pending = text, mentions, pending // to send again
-				}
 			}
 		})
 	}()
 	return true
+}
+
+// outboxAdd puts a message in the list now, with the draft's images, and starts it
+// on its way.
+func (a *App) outboxAdd(team, text string, mentions []proto.ChatMention, replyTo string) {
+	hc := a.chatsOf()
+	hc.nextKey++
+	o := &outgoing{key: fmt.Sprintf("out:%d", hc.nextKey), team: team, text: text, mentions: mentions, replyTo: replyTo,
+		at: time.Now(), images: hc.pending, known: map[string]bool{}}
+	hc.pending = nil
+	for _, m := range hc.byTeam[team] {
+		o.known[m.ID] = true
+	}
+	for i, p := range o.images {
+		hc.images[localImageID(o, i)] = &chatImage{bmp: p.preview, asked: true}
+	}
+	hc.out = append(hc.out, o)
+	hc.list.ScrollToEnd()
+	a.outboxStep(team)
 }
 
 // startEditing puts the user's message m in the composer to change it,

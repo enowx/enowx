@@ -42,10 +42,15 @@ type pill struct{ group string }
 // same element to MyGo: selecting another row slides the pill there. An
 // absolute element draws above its siblings, so the pill is a see-through
 // tint the row's text shows through, and lets the pointer pass.
-func SelectionPill(c *ui.Context, group string, radius float32) {
+func SelectionPill(c *ui.Context, row ui.Element, group string, radius float32) {
+	if theme.Picked.A == 255 {
+		// What is absolute lies above its siblings: over the row's words, a pill that
+		// can't be seen through hides them. A solid one is the row's own ground.
+		row.Background(theme.Picked)
+		return
+	}
 	ui.Box(c.Key("pill")).Absolute().Left(0).Top(0).Right(0).Bottom(0).Radius(radius).PassThrough().
-		Background(theme.Fade(theme.Accent, 0.09)).Border(1, theme.Fade(theme.Accent, 0.24)).
-		InsetShadow(0, 1, 0, 0, theme.Highlight).
+		Background(theme.Picked).
 		Transition(ui.ElementTransition{Animation: &Spring, Match: pill{group}})
 }
 

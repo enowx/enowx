@@ -71,7 +71,7 @@ Limits: **once a session**, **at most N times a session**, **apart at least** so
 - **Change the command:** Find (a regular expression) in a tool's command is replaced by Replace (`$1` for a group).
   - Claude Code asks the user about the new command, unless the session skips permissions.
   - Codex takes a changed command only as approved, so a Codex session that asks gets it as a refusal naming the command to run instead.
-- **Ask the judge** (before a tool runs): enowX's judge allows the command without asking the user, leaves it to them, or refuses it ([decide.md](decide.md)).
+- **Ask the judge** (before a tool runs): enowX's judge allows the command without asking the user, leaves it to them, or refuses it ([decide.md](decide.md)). On Codex an allow doesn't spare the prompt: its own permission checks stay, and the decision log says `left to the agent's prompt`; the judge can still refuse a command.
 - **Trim its long output** (before a tool runs): the command runs through `enowx decide trim`, and a long output reaches the agent cut by the judge to what matters ([decide.md](decide.md)).
 
 Both run built in while their use is on in Settings → Decisions, without a hook; a hook of the user's with the same action replaces the built-in one.
@@ -93,8 +93,6 @@ Hooks run in this order: the host's, the project's, then the session's, each in 
 
 ## How agents hand over events
 
-For Codex, a plain approval by enowX leaves Codex's normal permission checks in place; the judge can still refuse a command.
-
 enowX adds its own hooks when it starts Claude Code (`--settings`) or Codex (`-c hooks.<Event>=…`). They run `"$ENOWX_BIN" hook --event E [--state S]` with the agent's JSON on stdin (`daemon.Hook`).
 
 That command calls `session.hook` on the daemon. The daemon sets the state and runs the matching hooks; a Git commit, push or merge in a tool's command also goes through the `git.before` hooks. The command then answers the agent as agents read their hooks:
@@ -114,7 +112,7 @@ Codex runs a hook only once the user trusted its exact definition, kept as a has
 - **The host's own:** `~/.enowx-app/settings/hooks.json`, synced to the user's other hosts with their settings ([user-data-sync.md](user-data-sync.md)). The daemon reads the file again when it changes.
 - **A project's own:** its `.enowx/hooks.json`, committed with it, as a list of the same hooks.
   - Saved from the app or `enowx hooks add --scope project`, the file is allowed as written.
-  - Otherwise, its hooks don't run until the user allows that file as it is, and Settings → Hooks shows the projects waiting, with Review… and Allow them.
+  - Otherwise, its hooks don't run until the user allows that file as it is, and Settings → Hooks shows the projects waiting, with Review and Allow them.
   - The approval is of the file's hash, kept per host in `~/.enowx-app/hooks-allowed.json`, so any change asks again.
 - **A session's own:** kept by the daemon until the session ends (a hibernated one keeps them), not on disk.
 - **Agents' proposals:** in `~/.enowx-app/hooks-proposed.json` until the user decides.

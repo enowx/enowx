@@ -37,7 +37,7 @@ func (a *App) renameDialog(c *ui.Context) {
 		return
 	}
 	save := false
-	widget.FormSheet(c, &f.open, 420, "Rename session", "Every device connected to this host shows the new name. Leave it empty to go back to "+quoteName(f.was)+".", func() {
+	widget.FormSheet(c, &f.open, 480, "Rename session", "", func() {
 		widget.Field(c, "Name", func() {
 			if widget.Input(c, &f.name, f.was).FillWidth().AutoFocus().Submitted() {
 				save = true
@@ -71,11 +71,4 @@ func (a *App) renameLocally(id, name string) {
 			a.sessions[i].Name = name
 		}
 	}
-}
-
-func quoteName(s string) string {
-	if s == "" {
-		return "its own"
-	}
-	return "“" + s + "”"
 }

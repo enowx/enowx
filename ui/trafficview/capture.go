@@ -88,7 +88,7 @@ func (v *View) setCapture(o Options, p proto.TrafficCaptureParams) {
 }
 
 // captureLabel is the state in a few words, and its color: recording
-// red, paused amber, stopped grey.
+// in the color of what is working, paused amber, stopped grey.
 func captureLabel(st proto.TrafficCapture) (string, ui.Color) {
 	switch st.State {
 	case proto.CapturePaused:
@@ -107,14 +107,14 @@ func captureLabel(st proto.TrafficCapture) (string, ui.Color) {
 		}
 		return label, theme.Muted
 	}
-	return "Recording", theme.Error
+	return "Recording", theme.Working
 }
 
-// captureBar is the toolbar's recording state, Pause or Resume (with a
-// menu of what to pause), and Stop or Start.
-func (v *View) captureBar(c *ui.Context, o Options) {
-	v.loadCapture(o)
+// captureStatus is the tool's recording state; it runs in its frame when long,
+// and doesn't show until known.
+func (v *View) captureStatus(c *ui.Context, o Options) {
 	cs := &v.capture
+	v.loadCapture(o)
 	if !cs.loaded {
 		return
 	}
@@ -133,30 +133,61 @@ func (v *View) captureBar(c *ui.Context, o Options) {
 	case proto.CaptureStopped:
 		tip = "Stopped since " + st.Since.Local().Format("15:04") + ": traffic goes through untouched"
 	}
-	ui.Row(c).Height(24).PaddingX(9).Gap(6).Radius(12).Border(1, theme.Border).AlignItems(ui.Center).Tooltip(tip).Label(label).Children(func() {
-		widget.Dot(c, col, st.State == proto.CaptureStopped, 7)
-		ui.Text(c, label).FontSize(11).TextColor(theme.TextSoft).SingleLine()
+	ui.Row(c).MinWidth(0).Shrink(1).Gap(theme.S1).PaddingX(theme.S1).Tooltip(tip).Label(label).Children(func() {
+		widget.Dot(c, col, st.State == proto.CaptureStopped, 8)
+		widget.Running(c, label, widget.RunStyle{Size: theme.TextLabel})
 	})
-	pauseShortcut := c.Shortcut(ui.Cmd|ui.Alt, ui.KeyP)
-	stopShortcut := c.Shortcut(ui.Cmd|ui.Alt, ui.KeyS)
-	switch st.State {
+}
+
+// captureKeys are ⌘⌥P and ⌘⌥S, on every page of the tool.
+func (v *View) captureKeys(c *ui.Context, o Options) {
+	pauseKey := c.Shortcut(ui.Cmd|ui.Alt, ui.KeyP)
+	stopKey := c.Shortcut(ui.Cmd|ui.Alt, ui.KeyS)
+	if !v.capture.loaded {
+		return
+	}
+	switch st := v.capture.st.State; {
+	case pauseKey && st == proto.CapturePaused:
+		v.setCapture(o, proto.TrafficCaptureParams{Action: proto.CaptureResume})
+	case pauseKey && st != proto.CaptureStopped:
+		v.setCapture(o, proto.TrafficCaptureParams{Action: proto.CapturePause})
+	case stopKey && st == proto.CaptureStopped:
+		v.setCapture(o, proto.TrafficCaptureParams{Action: proto.CaptureStart})
+	case stopKey:
+		v.setCapture(o, proto.TrafficCaptureParams{Action: proto.CaptureStop})
+	}
+}
+
+// pauseButton is Pause, with a menu of what to pause, or Resume; none while
+// stopped, or before the state is known.
+func (v *View) pauseButton(c *ui.Context, o Options) {
+	cs := &v.capture
+	if !cs.loaded {
+		return
+	}
+	switch cs.st.State {
 	case proto.CapturePaused:
-		if widget.IconButton(c, icon.Play, "Resume recording (⌘⌥P)", false).Clicked() || pauseShortcut {
+		if widget.IconButton(c, icon.Play, "Resume recording (⌘⌥P)", false).Clicked() {
 			v.setCapture(o, proto.TrafficCaptureParams{Action: proto.CaptureResume})
 		}
 	case proto.CaptureRecording, "":
 		b := widget.IconButton(c, icon.Pause, "Pause recording (⌘⌥P)", false)
-		cs.menu.OpenBelow(b, "capture", 28)
+		cs.menu.OpenBelow(b, "capture", theme.ControlHeight)
 		cs.menu.Show(c, b, "capture", func(done func()) { v.pauseItems(c, o, done) })
-		if pauseShortcut {
-			v.setCapture(o, proto.TrafficCaptureParams{Action: proto.CapturePause})
-		}
 	}
-	if st.State == proto.CaptureStopped {
-		if widget.IconButton(c, icon.Play, "Start catching again (⌘⌥S)", false).Clicked() || stopShortcut {
+}
+
+// stopButton is Stop or Start; none before the state is known.
+func (v *View) stopButton(c *ui.Context, o Options) {
+	cs := &v.capture
+	if !cs.loaded {
+		return
+	}
+	if cs.st.State == proto.CaptureStopped {
+		if widget.IconButton(c, icon.Play, "Start catching again (⌘⌥S)", false).Clicked() {
 			v.setCapture(o, proto.TrafficCaptureParams{Action: proto.CaptureStart})
 		}
-	} else if widget.IconButton(c, icon.Stop, "Stop catching: traffic goes through untouched (⌘⌥S)", false).Clicked() || stopShortcut {
+	} else if widget.IconButton(c, icon.Stop, "Stop catching: traffic goes through untouched (⌘⌥S)", false).Clicked() {
 		v.setCapture(o, proto.TrafficCaptureParams{Action: proto.CaptureStop})
 	}
 }
@@ -233,8 +264,8 @@ func gapRow(c *ui.Context, g proto.TrafficGap) {
 		text += fmt.Sprintf(" · %d not recorded", g.Skipped)
 	}
 	text += " —"
-	ui.Row(c).FillWidth().Height(26).Center().Children(func() {
-		ui.Text(c, text).FontSize(11).TextColor(theme.Muted).SingleLine()
+	ui.Row(c).FillWidth().Height(26).Center().PaddingX(theme.S3).Children(func() {
+		widget.Running(c, text, widget.RunStyle{Size: theme.TextLabel, Color: theme.TextSoft})
 	})
 }
 
@@ -244,23 +275,22 @@ func (v *View) capturePrefsFields(c *ui.Context) {
 	if !cs.prefsLoaded {
 		return
 	}
-	ui.Column(c).FillWidth().Gap(8).Children(func() {
-		ui.Text(c, "Pausing").FontSize(12.5).FontWeight(600)
+	ui.Column(c).FillWidth().Gap(theme.S2).Children(func() {
+		ui.Text(c, "Pausing").FontSize(theme.TextUI).FontWeight(500)
 		keep := cs.prefs.Rules != "pause"
-		check(c, &keep, "Rules (mocks, forwards, failures) keep running while recording is paused")
+		widget.ToggleRow(c, "Rules keep running while paused", "Mocks, forwards and failures", &keep)
 		cs.prefs.Rules = map[bool]string{true: "keep", false: "pause"}[keep]
 		release := cs.prefs.Breakpoints != "drop"
-		check(c, &release, "Let requests held at a breakpoint go on when pausing or stopping (else drop them)")
+		widget.ToggleRow(c, "Let held requests go on", "Those at a breakpoint, when pausing or stopping; else they are dropped", &release)
 		cs.prefs.Breakpoints = map[bool]string{true: "release", false: "drop"}[release]
-		ui.Row(c).FillWidth().Gap(10).Children(func() {
-			ui.Column(c).Grow(1).Children(func() {
+		widget.FieldCols(c,
+			func() {
 				widget.Field(c, "Pause on its own after (minutes)", func() { widget.Input(c, &cs.minutes, "never").FillWidth() })
-			})
-			ui.Column(c).Grow(1).Children(func() {
+			},
+			func() {
 				widget.Field(c, "or after (exchanges)", func() { widget.Input(c, &cs.count, "never").FillWidth() })
 			})
-		})
-		ui.Text(c, "These are yours on every host; whether a host records now is its own.").FontSize(11).TextColor(theme.Muted)
+		ui.Text(c, "These are yours on every host; whether a host records now is its own.").FontSize(theme.TextLabel).TextColor(theme.TextSoft)
 	})
 }
 

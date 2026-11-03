@@ -15,7 +15,12 @@ type Proc struct {
 	PID, PPID int
 	RSS       uint64        // resident memory, bytes
 	CPUTime   time.Duration // user and system time used so far
+	Name      string        // its program's name
+	Start     string        // when it started: with PID it names this process, as a PID is used again
 }
+
+// Snapshot lists the processes now, an error where the system can't say.
+func Snapshot() ([]Proc, error) { return processes() }
 
 // Usage is what a process tree uses.
 type Usage struct {

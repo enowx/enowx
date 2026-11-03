@@ -20,7 +20,7 @@ const pathChars = 34
 // sessionFacts are session s's lines: its model, its project.
 func (a *App) sessionFacts(c *ui.Context, s proto.SessionInfo) {
 	if model, full := modelLine(s); model != "" {
-		ui.Text(c, model).FontSize(10.5).Font(theme.MonoFont).TextColor(theme.Muted).SingleLine().Shrink(1).Tooltip(full)
+		ui.Text(c, model).FontSize(theme.TextLabel).Font(theme.MonoFont).TextColor(theme.Muted).SingleLine().Shrink(1).Tooltip(full)
 	}
 	branch := ""
 	if s.Worktree {
@@ -73,7 +73,7 @@ func projectLine(c *ui.Context, project, dir, branch, host string) {
 	if host != "" {
 		text += " on " + host
 	}
-	line := ui.Text(c, text).FontSize(10.5).TextColor(theme.Muted).SingleLine().Shrink(1)
+	line := ui.Text(c, text).FontSize(theme.TextLabel).TextColor(theme.Muted).SingleLine().Shrink(1)
 	if full != "" {
 		line.Tooltip(full).Selectable()
 	}

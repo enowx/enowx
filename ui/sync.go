@@ -4,9 +4,7 @@ import (
 	"github.com/egoist/mygo/ui"
 
 	"github.com/enowx/enowx/core/hosts"
-	"github.com/enowx/enowx/ui/icon"
 	"github.com/enowx/enowx/ui/syncview"
-	"github.com/enowx/enowx/ui/widget"
 )
 
 // openSync shows the Sync environment page for the connected server,
@@ -28,6 +26,7 @@ func (a *App) openSync() {
 		DaemonCommand: a.opts.DaemonCommand,
 		Update:        a.onMain,
 		AgentName:     a.agentName,
+		Back:          func() { a.page = pageHosts },
 	})
 }
 
@@ -41,20 +40,12 @@ func (a *App) closeSync() {
 	}
 }
 
-// syncPage is the Sync environment page; its Close button returns to the
-// sessions.
+// syncPage is the Sync environment page; its way back to the hosts leaves a
+// sync under way running, the page there to come back to.
 func (a *App) syncPage(c *ui.Context) {
-	a.viewHeader(c, func() {
-		ui.Row(c).Grow(1).MinWidth(0).Children(func() {
-			widget.Breadcrumb(c, "Sync environment", LocalHost().Name+" and "+a.host.Name)
-		})
-		if widget.IconButton(c, icon.Close, "Back to sessions", false).Clicked() {
-			a.page = ""
-		}
-	})
 	a.sync.View(c)
 	if a.sync.Closed() {
 		a.sync = nil
-		a.page = ""
+		a.page = pageHosts
 	}
 }

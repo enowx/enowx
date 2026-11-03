@@ -45,7 +45,43 @@ func isClaudeSettings(it proto.EnvItem) bool {
 	return it.Agent == "claude" && it.Kind == proto.EnvSettings
 }
 
-// claudeSettings shows the settings.json picked as lists to edit.
+// settingsKind shows an agent's settings file as a card of the frame's whole
+// width, as Claude Code's needs: there are few of them, so a drop-down picks
+// one rather than a list beside it.
+func (v *View) settingsKind(c *ui.Context, o Options) {
+	items := v.items(proto.EnvSettings, "")
+	ui.Row(c.Key("tools")).FillWidth().Shrink(0).MinHeight(theme.ControlHeight).Gap(theme.S3).Children(func() {
+		aboutLine(c, v.kindAbout())
+		if !slices.ContainsFunc(items, isClaudeSettings) {
+			if widget.Button(c, widget.Secondary, nil, "Make Claude Code's settings.json", "").Tooltip("To set its permissions and hooks").Clicked() {
+				v.createClaudeSettings(o)
+			}
+		}
+		if len(items) > 1 {
+			ids := make([]string, len(items))
+			names := map[string]string{}
+			for i, it := range items {
+				ids[i], names[it.ID] = it.ID, agentName(it.Agent)+" · "+it.Name
+			}
+			ui.Row(c).Width(280).Shrink(0).Children(func() {
+				pickOne(c, "Settings file", 280, ids, func(id string) string { return names[id] }, &v.selected)
+			})
+		}
+		if widget.Button(c, widget.Secondary, icon.Sync, "Refresh", "").Clicked() {
+			v.Reload(o)
+		}
+	})
+	v.noticeLine(c)
+	if len(items) == 0 {
+		noneHere(c, o)
+		return
+	}
+	v.autoPick(items)
+	v.detail(c, o)
+}
+
+// claudeSettings shows the settings.json picked as lists to edit, heading the
+// card with what it is and the tabs.
 func (v *View) claudeSettings(c *ui.Context, o Options, p proto.EnvPayload) {
 	e := &v.settings
 	if e.forID != p.Item.ID || len(p.Files) == 0 {
@@ -58,11 +94,39 @@ func (v *View) claudeSettings(c *ui.Context, o Options, p proto.EnvPayload) {
 			}
 		}
 	}
-	if i := widget.Segmented(c.Key("tab"), []string{"Permissions", "Hooks", "File"}, e.tab, nil); i >= 0 {
-		e.tab = i
-	}
+	ui.Row(c.Key("settings-head")).FillWidth().Shrink(0).MinHeight(theme.ControlHeight).Gap(theme.S2).Children(func() {
+		ui.Row(c).Grow(1).MinWidth(0).Gap(theme.S3).Children(func() {
+			ui.Row(c).MinWidth(0).Shrink(1).Children(func() {
+				widget.Running(c, p.Item.Name, widget.RunStyle{Size: theme.TextRead, Weight: 600, Always: true})
+			})
+			ui.Row(c).MinWidth(0).Shrink(100).Children(func() {
+				widget.Running(c.Key("where"), agentName(p.Item.Agent)+" · "+p.Item.Detail, widget.RunStyle{Color: theme.TextSoft})
+			})
+		})
+		if i := widget.Segmented(c.Key("tab"), []string{"Permissions", "Hooks", "File"}, e.tab, nil); i >= 0 {
+			e.tab = i
+		}
+		if e.dirty && widget.Button(c, widget.Secondary, nil, "Discard", "").Clicked() {
+			e.forID = "" // read again
+		}
+		if widget.PrimaryButton(c, nil, "Save", "").Disabled(!e.dirty).Clicked() && e.dirty {
+			data, err := envsync.WriteClaudeSettings(p.Files[0].Data, e.perm, e.hooks)
+			if err != nil {
+				e.err = err.Error()
+			} else {
+				out := p
+				f := p.Files[0]
+				f.Data = data
+				out.Files, out.Home = []proto.EnvFile{f}, v.scan.Home
+				e.forID = ""
+				v.save(o, out, "Saved "+p.Item.Name)
+			}
+		}
+		v.actions(c, o, p.Item, true)
+	})
+	v.itemNotes(c, p.Item)
 	if e.err != "" {
-		ui.Text(c, e.err).FontSize(12).TextColor(theme.Error)
+		ui.Text(c.Key("settings-error"), e.err).FontSize(theme.TextUI).TextColor(theme.Error).FillWidth().Shrink(0)
 	}
 	switch e.tab {
 	case tabPermissions:
@@ -71,35 +135,14 @@ func (v *View) claudeSettings(c *ui.Context, o Options, p proto.EnvPayload) {
 		v.hookList(c, e)
 	default:
 		v.content(c, o, p)
-		return
-	}
-	if e.dirty {
-		ui.Row(c).FillWidth().Gap(8).Justify(ui.End).Children(func() {
-			if widget.GhostButton(c, "Discard").Clicked() {
-				e.forID = "" // read again
-			}
-			if widget.PrimaryButton(c, icon.Check, "Save", "").Clicked() {
-				data, err := envsync.WriteClaudeSettings(p.Files[0].Data, e.perm, e.hooks)
-				if err != nil {
-					e.err = err.Error()
-					return
-				}
-				out := p
-				f := p.Files[0]
-				f.Data = data
-				out.Files, out.Home = []proto.EnvFile{f}, v.scan.Home
-				e.forID = ""
-				v.save(o, out, "Saved "+p.Item.Name)
-			}
-		})
 	}
 }
 
-// permissions edits the allow, ask and deny rules and the starting mode.
+// permissions edits the starting mode and the allow, ask and deny rules, each
+// list a card sharing the height, scrolling inside it.
 func (v *View) permissions(c *ui.Context, e *settingsEditor) {
-	ui.Text(c, "Rules are a tool and what it works on: Bash(npm run test:*), Read(./.env), Edit(src/**), WebFetch(domain:docs.rs), mcp__github.").
-		FontSize(11.5).TextColor(theme.Muted)
-	widget.Field(c, "Starts in", func() {
+	ui.Row(c.Key("mode")).FillWidth().Shrink(0).Gap(theme.S2).Children(func() {
+		ui.Text(c, "Starts in").FontSize(theme.TextUI).TextColor(theme.TextSoft)
 		cur := slices.IndexFunc(claudeModes, func(m struct{ id, name string }) bool { return m.id == e.perm.DefaultMode })
 		names := make([]string, len(claudeModes))
 		for i, m := range claudeModes {
@@ -112,28 +155,33 @@ func (v *View) permissions(c *ui.Context, e *settingsEditor) {
 	lists := []struct {
 		name, about string
 		rules       *[]string
-		col         ui.Color
 	}{
-		{"Allow", "run without asking", &e.perm.Allow, theme.Done},
-		{"Ask", "always ask first", &e.perm.Ask, theme.Warning},
-		{"Deny", "never", &e.perm.Deny, theme.Error},
+		{"Allow", "run without asking", &e.perm.Allow},
+		{"Ask", "always ask first", &e.perm.Ask},
+		{"Deny", "never", &e.perm.Deny},
 	}
-	for i, l := range lists {
-		widget.Field(c.Key(l.name), l.name+" · "+l.about, func() {
-			ui.Column(c).FillWidth().Gap(4).Children(func() {
-				for j, r := range *l.rules {
-					ui.Row(c.Key(strconv.Itoa(j))).FillWidth().Gap(8).Padding(4, 8).Radius(6).Background(theme.Sunken).Children(func() {
-						widget.Dot(c, l.col, false, 6)
-						ui.Text(c, r).Font(theme.MonoFont).FontSize(12).Grow(1).MinWidth(0)
-						if widget.IconButton(c, icon.Close, "Remove", false).Clicked() {
-							*l.rules = slices.Delete(slices.Clone(*l.rules), j, j+1)
-							e.dirty = true
+	ui.Row(c.Key("rule-cards")).Grow(1).Basis(0).FillWidth().MinHeight(0).Gap(theme.S3).AlignItems(ui.Stretch).Children(func() {
+		for i, l := range lists {
+			widget.Card(c.Key(l.name)).Grow(1).Basis(0).MinHeight(0).Clip().Children(func() {
+				ui.Row(c).FillWidth().Shrink(0).Children(func() {
+					widget.Running(c, l.name, widget.RunStyle{Size: theme.TextRead, Weight: 600})
+				})
+				ui.Text(c, l.about).FontSize(theme.TextLabel).TextColor(theme.TextSoft).Shrink(0)
+				widget.Scroll(c).Shrink(1).FillWidth().MinHeight(0).Children(func() {
+					ui.Column(c).FillWidth().Children(func() {
+						for j, r := range *l.rules {
+							ruleLine(c.Key(strconv.Itoa(j)), j == 0, r, func() {
+								*l.rules = slices.Delete(slices.Clone(*l.rules), j, j+1)
+								e.dirty = true
+							})
 						}
 					})
-				}
-				ui.Row(c).FillWidth().Gap(6).Children(func() {
-					add := widget.Input(c, &e.newRule[i], "Bash(git status)").FillWidth().Font(theme.MonoFont).Submitted()
-					if widget.IconButton(c, icon.Plus, "Add the rule", false).Clicked() || add {
+				})
+				ui.Row(c).FillWidth().Shrink(0).Gap(theme.S2).Children(func() {
+					in := widget.Input(c, &e.newRule[i], "Bash(git status)").Grow(1).Basis(0).MinWidth(0).Font(theme.MonoFont).
+						Tooltip("Rules are a tool and what it works on: Bash(npm run test:*), Read(./.env), Edit(src/**), WebFetch(domain:docs.rs), mcp__github.")
+					add := in.Submitted()
+					if widget.Button(c, widget.Secondary, nil, "Add the rule", "").Clicked() || add {
 						if r := strings.TrimSpace(e.newRule[i]); r != "" && !slices.Contains(*l.rules, r) {
 							*l.rules = append(slices.Clone(*l.rules), r)
 							e.newRule[i], e.dirty = "", true
@@ -141,73 +189,95 @@ func (v *View) permissions(c *ui.Context, e *settingsEditor) {
 					}
 				})
 			})
-		})
-	}
+		}
+	})
 }
 
-// hookList edits the hooks: what runs on which event.
+// ruleLine is a rule of a list, divided from the one above by a hairline.
+func ruleLine(c *ui.Context, first bool, rule string, remove func()) {
+	r := ui.Row(c).FillWidth().Shrink(0).MinHeight(theme.ControlHeight).Gap(theme.S2)
+	if !first {
+		r.BorderWidth(theme.Rule, 0, 0, 0).BorderColor(theme.Border)
+	}
+	r.Children(func() {
+		ui.Row(c).Grow(1).Basis(0).MinWidth(0).Children(func() {
+			widget.Running(c, rule, widget.RunStyle{Mono: true})
+		})
+		if widget.IconButton(c, icon.Close, "Remove", false).Clicked() {
+			remove()
+		}
+	})
+}
+
+// hookLabel says when a hook runs.
+func hookLabel(h envsync.ClaudeHook) string {
+	label := h.Event
+	if h.Matcher != "" {
+		label += " · " + h.Matcher
+	}
+	if h.Timeout > 0 {
+		label += " · " + strconv.Itoa(h.Timeout) + " s"
+	}
+	return label
+}
+
+// hookList edits the hooks: what runs on which event. The list takes the
+// height the way to add one leaves.
 func (v *View) hookList(c *ui.Context, e *settingsEditor) {
-	ui.Text(c, "Each runs a shell command on an event; on tool events, for the tools its matcher names (Bash, Edit|Write; empty for all).").
-		FontSize(11.5).TextColor(theme.Muted)
-	if len(e.hooks) == 0 {
-		ui.Text(c, "No hooks yet.").FontSize(12).TextColor(theme.Muted)
-	}
-	for i, h := range e.hooks {
-		ui.Row(c.Key(strconv.Itoa(i))).FillWidth().Gap(10).Padding(6, 10).Radius(6).Background(theme.Sunken).Children(func() {
-			ui.Column(c).Grow(1).MinWidth(0).Gap(2).Children(func() {
-				label := h.Event
-				if h.Matcher != "" {
-					label += " · " + h.Matcher
-				}
-				if h.Timeout > 0 {
-					label += " · " + strconv.Itoa(h.Timeout) + "s"
-				}
-				ui.Text(c, label).FontSize(11.5).TextColor(theme.Muted)
-				cmd := h.Command
-				if cmd == "" {
-					cmd, _ = h.Hook["type"].(string)
-				}
-				ui.Text(c, cmd).Font(theme.MonoFont).FontSize(12)
-			})
-			if widget.IconButton(c, icon.Close, "Remove the hook", false).Clicked() {
-				e.hooks = slices.Delete(slices.Clone(e.hooks), i, i+1)
-				e.dirty = true
-			}
-		})
-	}
-	widget.Card(c).Children(func() {
-		ui.Text(c, "Add a hook").FontSize(12.5)
-		widget.Field(c, "On", func() {
-			ui.Row(c).FillWidth().Gap(4).Wrap().Children(func() {
-				for _, ev := range envsync.ClaudeHookEvents {
-					on := e.hook.Event == ev
-					b := ui.ButtonBase(c.Key(ev)).Height(24).PaddingX(8).Radius(theme.RadiusControl).Border(1, theme.Border).
-						Cursor(ui.CursorPointer).Label(ev)
-					if on {
-						b.Border(1, theme.AccentLine).Background(theme.Selected)
+	widget.Card(c.Key("hooks")).Grow(1).Basis(0).FillWidth().MinHeight(72).Clip().Children(func() {
+		if len(e.hooks) == 0 {
+			ui.Text(c, "No hooks yet.").FontSize(theme.TextUI).TextColor(theme.TextSoft)
+			return
+		}
+		widget.Scroll(c).Grow(1).Basis(0).FillWidth().MinHeight(0).Children(func() {
+			ui.Column(c).FillWidth().Children(func() {
+				for i, h := range e.hooks {
+					r := ui.Row(c.Key(strconv.Itoa(i))).FillWidth().Shrink(0).MinHeight(theme.ControlHeight).Gap(theme.S3)
+					if i > 0 {
+						r.BorderWidth(theme.Rule, 0, 0, 0).BorderColor(theme.Border)
 					}
-					b.Children(func() { ui.Text(c, ev).FontSize(11.5) })
-					if b.Clicked() {
-						e.hook.Event = ev
-					}
+					r.Children(func() {
+						ui.Row(c).Grow(1).Basis(0).MinWidth(0).Children(func() { widget.Running(c, hookLabel(h), widget.RunStyle{}) })
+						cmd := h.Command
+						if cmd == "" {
+							cmd, _ = h.Hook["type"].(string)
+						}
+						ui.Row(c).Grow(1).Basis(0).MinWidth(0).Justify(ui.End).Children(func() {
+							widget.Running(c.Key("cmd"), cmd, widget.RunStyle{Mono: true})
+						})
+						if widget.IconButton(c, icon.Close, "Remove the hook", false).Clicked() {
+							e.hooks = slices.Delete(slices.Clone(e.hooks), i, i+1)
+							e.dirty = true
+						}
+					})
 				}
 			})
 		})
-		ui.Row(c).FillWidth().Gap(8).Children(func() {
-			ui.Column(c).Width(160).Children(func() {
-				widget.Field(c, "Matcher", func() { widget.Input(c, &e.hook.Matcher, "Bash").FillWidth().Font(theme.MonoFont) })
-			})
-			ui.Column(c).Grow(1).Children(func() {
-				widget.Field(c, "Command", func() {
-					widget.Input(c, &e.hook.Command, "npx prettier --write \"$FILE\"").FillWidth().Font(theme.MonoFont)
+	})
+	widget.Card(c.Key("add-hook")).FillWidth().Shrink(0).Children(func() {
+		ui.Row(c).FillWidth().Shrink(0).Children(func() {
+			widget.Running(c, "Add a hook", widget.RunStyle{Size: theme.TextRead, Weight: 600})
+		})
+		ui.Row(c).FillWidth().Gap(theme.S3).Children(func() {
+			ui.Column(c).Grow(1).Basis(0).MinWidth(0).Children(func() {
+				widget.Field(c, "Event", func() {
+					pickOne(c, "Event", 280, envsync.ClaudeHookEvents, func(ev string) string { return ev }, &e.hook.Event)
 				})
 			})
-			ui.Column(c).Width(90).Children(func() {
-				widget.Field(c, "Timeout (s)", func() { widget.Input(c, &e.timeout, "60").FillWidth() })
+			ui.Column(c).Grow(1).Basis(0).MinWidth(0).Children(func() {
+				widget.Field(c, "Matcher", func() {
+					widget.Input(c, &e.hook.Matcher, "Bash").FillWidth().Tooltip("On tool events, the tools it names: Bash, Edit|Write; empty for all.")
+				})
+			})
+			ui.Column(c).Grow(1).Basis(0).MinWidth(0).Children(func() {
+				widget.Field(c, "Timeout (s)", func() { widget.Input(c, &e.timeout, "30").FillWidth() })
 			})
 		})
+		widget.Field(c, "Command", func() {
+			widget.Input(c, &e.hook.Command, "prettier --write \"$FILE\"").FillWidth().Font(theme.MonoFont)
+		})
 		ui.Row(c).FillWidth().Justify(ui.End).Children(func() {
-			if widget.Button(c, widget.Secondary, icon.Plus, "Add", "").Clicked() && strings.TrimSpace(e.hook.Command) != "" {
+			if widget.Button(c, widget.Secondary, nil, "Add the hook", "").Clicked() && strings.TrimSpace(e.hook.Command) != "" {
 				h := e.hook
 				h.Command = strings.TrimSpace(h.Command)
 				h.Timeout, _ = strconv.Atoi(strings.TrimSpace(e.timeout))

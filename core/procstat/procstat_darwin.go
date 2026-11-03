@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/binary"
 	"os/exec"
+	"path/filepath"
 	"strconv"
 	"strings"
 	"time"
@@ -12,22 +13,29 @@ import (
 )
 
 func processes() ([]Proc, error) {
-	out, err := exec.Command("ps", "-A", "-o", "pid=,ppid=,rss=,time=").Output()
+	out, err := exec.Command("ps", "-A", "-o", "pid=,ppid=,rss=,time=,lstart=,comm=").Output()
 	if err != nil {
 		return nil, err
 	}
+	return parsePS(string(out)), nil
+}
+
+// parsePS reads ps's lines: pid, ppid, rss, time, a start of five words (Tue Nov  3
+// 04:08:00 2026), and a program's path, which may hold spaces.
+func parsePS(out string) []Proc {
 	var list []Proc
-	for _, line := range strings.Split(string(out), "\n") {
+	for _, line := range strings.Split(out, "\n") {
 		f := strings.Fields(line)
-		if len(f) != 4 {
+		if len(f) < 10 {
 			continue
 		}
 		pid, _ := strconv.Atoi(f[0])
 		ppid, _ := strconv.Atoi(f[1])
 		rss, _ := strconv.ParseUint(f[2], 10, 64)
-		list = append(list, Proc{PID: pid, PPID: ppid, RSS: rss << 10, CPUTime: parseCPUTime(f[3])})
+		list = append(list, Proc{PID: pid, PPID: ppid, RSS: rss << 10, CPUTime: parseCPUTime(f[3]),
+			Start: strings.Join(f[4:9], " "), Name: filepath.Base(strings.Join(f[9:], " "))})
 	}
-	return list, nil
+	return list
 }
 
 // parseCPUTime reads ps's time: [[dd-]hh:]mm:ss.cc.

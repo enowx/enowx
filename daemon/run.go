@@ -11,8 +11,10 @@ import (
 	"os"
 	"os/exec"
 	"os/signal"
+	"path/filepath"
 	"syscall"
 
+	"github.com/enowx/enowx/internal/watchdog"
 	"github.com/enowx/enowx/transport"
 )
 
@@ -41,12 +43,21 @@ func Run() error {
 	log := slog.New(slog.NewTextHandler(os.Stderr, nil))
 	useLoginPath(log)
 	exe, _ := os.Executable()
-	srv, err := newServer(dir, exe)
+	srv, err := newServer(dir, useLauncher(dir, exe, log.Warn))
 	if err != nil {
 		l.Close()
 		return err
 	}
 	srv.Log = log
+	go srv.watchProgram(exe)
+	dog := watchdog.Start(filepath.Join(dir, "watchdog"), "daemon", nil, nil) // its memory: it has no one thread to stall
+	defer dog.Stop()
+	go srv.convertCanvasHistories()
+	srv.procs.load(procsFile(dir))
+	go func() {
+		srv.endProcsLeftBefore()
+		srv.watchProcs(srv.done)
+	}()
 	if exe != "" {
 		srv.Hash = fileHash(exe)
 	}

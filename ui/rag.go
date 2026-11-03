@@ -17,8 +17,9 @@ import (
 )
 
 // Settings → RAG: the connected host's RAG (proto.RAGSettings),
-// the embedder its projects' text goes to and where their index is kept.
-// Each project is turned on, and agreed to, in the side panel's Index.
+// the embedder its projects' text goes to and where their index is kept, and
+// each project's index, turned on and agreed to here or in the side panel's
+// Index.
 
 const sectionRAG = "RAG"
 
@@ -40,6 +41,7 @@ type ragSettingsState struct {
 	key, pg           string
 	keyVault, pgVault bool
 	move              keysMove
+	projects          ragProjects // each project's index (rag_projects.go)
 }
 
 var ragEmbedders = []string{"", proto.RAGVoyage, proto.RAGOpenAI, proto.RAGTEI}
@@ -86,77 +88,52 @@ func (a *App) loadRAGSettings() {
 	}()
 }
 
+// ragSection is the page: the figures of the host's projects, the embedder and
+// the index's store, then each project's card.
 func (a *App) ragSection(c *ui.Context) {
 	st := a.ragSettingsOf()
-	sectionIntro(c, "RAG", "Agents find a project's code, docs, attached notes and memories by meaning rather than by reading it all. A project is indexed only once turned on in its Index tool, after you agree to send its text to the embedder below; secrets and ignored files never are.")
+	widget.PageHeader(c, "RAG", "Agents find a project by meaning", nil)
 	switch {
 	case st.err != "":
-		widget.Notice(c, icon.Alert, theme.Error, st.err, "", nil)
+		widget.PageBody(c, true, func() { widget.Notice(c, icon.Alert, theme.Error, st.err, "", nil) })
 		return
 	case !st.loaded:
-		widget.Spinner(c, 14)
+		widget.PageBody(c, true, func() { widget.Spinner(c, 14) })
 		return
 	}
+	a.loadRAGProjects(st)
+	widget.FigsBand(c, ragFigures(a.projects, st))
+	cols := 4
+	if w, _ := c.Size(); w >= 1400 {
+		cols = 5
+	}
+	widget.PageBodyGrid(c, cols, len(a.projects), 236, func() {
+		a.ragForm(c, st)
+		ui.Row(c.Key("rag-projects")).FillWidth().Shrink(0).Margin(theme.S1, 0, 0, 0).Children(func() { widget.Heading(c, "Projects") })
+	}, func() {
+		for _, p := range a.projects {
+			a.ragProjectCard(c.Key(p.Path), st, p)
+		}
+	}, nil)
+	a.ragProjectDialogs(c, st)
+}
+
+// ragForm is the host's settings: its cards, then testing and saving them.
+func (a *App) ragForm(c *ui.Context, st *ragSettingsState) {
 	s := &st.set
-	widget.Field(c, "Embedder", func() {
-		hookSelect(c, "Embedder", &s.Embedder, ragEmbedders, ragEmbedderNames)
-	})
-	switch s.Embedder {
-	case proto.RAGVoyage, proto.RAGOpenAI, proto.RAGTEI:
-		ui.Row(c).FillWidth().Gap(10).Children(func() {
-			ui.Column(c).Grow(1).Children(func() {
-				widget.Field(c, "Model", func() { widget.Input(c, &s.Model, ragModelHints[s.Embedder]).FillWidth().Font(theme.MonoFont) })
-			})
-			ui.Column(c).Width(120).Children(func() {
-				widget.Field(c, "Dimensions", func() { widget.Input(c, &st.dim, "auto").FillWidth() })
-			})
-		})
-		if s.Embedder != proto.RAGVoyage {
-			hint := "https://api.openai.com/v1"
-			if s.Embedder == proto.RAGTEI {
-				hint = "http://localhost:8080"
-			}
-			widget.Field(c, "Address", func() { widget.Input(c, &s.BaseURL, hint).FillWidth().Font(theme.MonoFont) })
-		}
-		hint := "pa-… / sk-…"
-		if s.HasKey {
-			hint = "set on " + a.host.Name + ": type to replace"
-		}
-		a.keyFields(c, "rag-key", &st.key, &s.KeyCred, &st.keyVault, hint)
+	keys := s.HasKey || s.HasPostgres || st.move.said != ""
+	cols := 2
+	if keys {
+		cols = 3
 	}
-	widget.Field(c, "Index kept", func() {
-		cur := 0
-		if s.Store == proto.RAGPostgres {
-			cur = 1
-		}
-		if i := widget.Segmented(c, []string{"SQLite on " + a.host.Name, "PostgreSQL (pgvector)"}, cur, nil); i >= 0 {
-			s.Store = proto.RAGBuiltin
-			if i == 1 {
-				s.Store = proto.RAGPostgres
-			}
+	widget.Cols(c, cols).Children(func() {
+		widget.Card(c.Key("embedder")).Children(func() { a.ragEmbedderCard(c, st) })
+		widget.Card(c.Key("store")).Children(func() { a.ragStoreCard(c, st) })
+		if keys {
+			widget.Card(c.Key("keys")).Children(func() { a.ragKeysCard(c, st) })
 		}
 	})
-	if s.Store == proto.RAGPostgres {
-		hint := "postgres://user:password@host:5432/db"
-		if s.HasPostgres {
-			hint = "set on " + a.host.Name + ": type to replace"
-		}
-		a.keyFields(c, "rag-pg", &st.pg, &s.PostgresCred, &st.pgVault, hint)
-		ui.Text(c, "A vault credential holding postgres://user:password@host:5432/db. pgvector must be installed there (enowX creates the extension when its user may); enowX keeps its table enowx_rag_points.").FontSize(11.5).TextColor(theme.Muted)
-	} else {
-		ui.Text(c, "One SQLite file in "+a.host.Name+"'s enowX folder: nothing else to run, fast up to around a hundred thousand parts a project.").FontSize(11.5).TextColor(theme.Muted)
-	}
-	if s.HasKey || s.HasPostgres || st.move.said != "" {
-		a.keysToVaultRow(c, &st.move, a.loadRAGSettings)
-	}
-	if st.test != "" {
-		col, svg := theme.Error, icon.Alert
-		if st.testOK {
-			col, svg = theme.Done, icon.Check
-		}
-		widget.Notice(c, svg, col, st.test, "", nil)
-	}
-	ui.Row(c).FillWidth().Gap(8).Children(func() {
+	ui.Row(c.Key("rag-actions")).FillWidth().Shrink(0).Gap(theme.S2).Children(func() {
 		ui.Spacer(c)
 		if widget.GhostButton(c, "Test").Disabled(st.testing || s.Embedder == "").Clicked() { // the store's connection too
 			a.testRAG(st)
@@ -167,6 +144,126 @@ func (a *App) ragSection(c *ui.Context) {
 		}
 		if widget.PrimaryButton(c, icon.Check, label, "").Clicked() {
 			a.saveRAGSettings(st)
+		}
+	})
+	switch {
+	case st.test == "":
+	case !st.testOK:
+		widget.Notice(c, icon.Alert, theme.Error, st.test, "", nil)
+	case st.testing:
+		widget.Banner(c, theme.Now, st.test, nil)
+	default:
+		widget.Banner(c, theme.Done, st.test, nil)
+	}
+}
+
+func (a *App) ragEmbedderCard(c *ui.Context, st *ragSettingsState) {
+	s := &st.set
+	widget.CardTitle(c, nil, "Embedder", nil)
+	options := make([]string, len(ragEmbedders))
+	for i, e := range ragEmbedders {
+		options[i] = ragEmbedderNames[e]
+	}
+	if i := widget.Choice(c, "Embedder", options, slices.Index(ragEmbedders, s.Embedder), 0); i >= 0 {
+		s.Embedder = ragEmbedders[i]
+	}
+	if s.Embedder == "" {
+		widget.CardNote(c, "Nothing is indexed, and agents read files as they would.", 0)
+		return
+	}
+	widget.FieldCols(c, func() {
+		widget.Field(c, "Model", func() { widget.Input(c, &s.Model, ragModelHints[s.Embedder]).FillWidth().Font(theme.MonoFont) })
+	}, func() {
+		widget.Field(c, "Dimensions", func() { widget.Input(c, &st.dim, "auto").FillWidth() })
+	})
+	if s.Embedder != proto.RAGVoyage {
+		hint := "https://api.openai.com/v1"
+		if s.Embedder == proto.RAGTEI {
+			hint = "http://localhost:8080"
+		}
+		widget.Field(c, "Address", func() { widget.Input(c, &s.BaseURL, hint).FillWidth().Font(theme.MonoFont) })
+	}
+	hint := "pa-… / sk-…"
+	if s.HasKey {
+		hint = "set on " + a.host.Name + ": type to replace"
+	}
+	a.ragKeySelect(c, "API key", &st.key, &s.KeyCred, &st.keyVault, hint)
+}
+
+func (a *App) ragStoreCard(c *ui.Context, st *ragSettingsState) {
+	s := &st.set
+	widget.CardTitle(c, nil, "Where the index is kept", nil)
+	cur := 0
+	if s.Store == proto.RAGPostgres {
+		cur = 1
+	}
+	if i := widget.SegmentedFit(c, []string{"SQLite on " + a.host.Name, "PostgreSQL (pgvector)"}, cur); i >= 0 {
+		s.Store = proto.RAGBuiltin
+		if i == 1 {
+			s.Store = proto.RAGPostgres
+		}
+	}
+	if s.Store != proto.RAGPostgres {
+		widget.CardNote(c, "One SQLite file in "+a.host.Name+"'s enowX folder: nothing else to run.", 0)
+		return
+	}
+	hint := "postgres://user:password@host:5432/db"
+	if s.HasPostgres {
+		hint = "set on " + a.host.Name + ": type to replace"
+	}
+	a.ragKeySelect(c, "Credential", &st.pg, &s.PostgresCred, &st.pgVault, hint)
+	widget.CardNote(c, "A vault credential holding postgres://user:password@host:5432/db. pgvector must be installed.", 0)
+}
+
+func (a *App) ragKeysCard(c *ui.Context, st *ragSettingsState) {
+	widget.CardTitle(c, nil, "Keys", nil)
+	widget.Banner(c, theme.Warning, "Some keys here are on this host alone", nil)
+	note := "The app asks you about each one, and moves it to the vault."
+	if st.move.said != "" {
+		note = st.move.said
+	}
+	widget.CardNote(c, note, 0)
+	widget.CardFoot(c, func() {
+		b := widget.GhostButton(c, "Keep them in the vault")
+		if st.move.busy {
+			b.Disabled(true)
+		} else if b.Clicked() {
+			a.moveKeysToVault(&st.move, a.loadRAGSettings)
+		}
+	})
+}
+
+// ragKeySelect picks where a key comes from, a credential of the vault or typed
+// for this host alone, with what that takes.
+func (a *App) ragKeySelect(c *ui.Context, label string, typed, cred *string, fromVault *bool, hint string) {
+	const typedHere = "Typed here, on this host alone"
+	var names, options []string
+	if v := a.vaultOf(); v.data != nil {
+		for _, cr := range v.data.Credentials {
+			if !cr.Revoked && !slices.Contains(names, cr.Name) {
+				names, options = append(names, cr.Name), append(options, "The vault's credential: "+cr.Name)
+			}
+		}
+	}
+	if *cred != "" && !slices.Contains(names, *cred) {
+		names, options = append(names, *cred), append(options, *cred+" (not in the vault)")
+	}
+	options = append(options, typedHere)
+	cur := len(options) - 1
+	if i := slices.Index(names, *cred); *fromVault && i >= 0 {
+		cur = i
+	}
+	widget.Field(c.Key(label), label, func() {
+		if i := widget.Choice(c, label, options, cur, 0); i >= 0 {
+			cur = i
+			*fromVault = i < len(names)
+			if *fromVault {
+				*cred = names[i]
+			}
+		}
+		if cur == len(options)-1 {
+			widget.Input(c.Key("typed"), typed, hint).FillWidth().Password()
+			widget.CardNote(c, "Kept on "+a.host.Name+" alone, readable by its user only; never synced or shown again.", 0)
 		}
 	})
 }
@@ -227,7 +324,7 @@ func (a *App) testRAG(st *ragSettingsState) {
 			case res.Error != "":
 				st.test, st.testOK = res.Error, false
 			default:
-				st.test, st.testOK = "Works: vectors of "+strconv.Itoa(res.Dim)+" dimensions.", true
+				st.test, st.testOK = "Works: vectors of "+strconv.Itoa(res.Dim)+" dimensions, the store answers.", true
 			}
 		})
 	}()
@@ -293,8 +390,9 @@ func (a *App) ragAsk(c *ui.Context) *widget.Ask {
 	return &widget.Ask{Key: fmt.Sprintf("rag:%p", p), Icon: icon.Check, Title: "Keep this as a memory of the project?",
 		About: a.sessionLabel(p.Session) + " ended. Agents searching the project will find it; trim it to the decision.",
 		Body: func() {
-			ui.TextAreaBase(c.Key("rag-offer"), &p.Text).FillWidth().MinHeight(90).MaxHeight(240).Padding(9, 11).FontSize(12.5).
-				Radius(theme.RadiusControl).Border(1, theme.Border).Label("Memory")
+			area := ui.TextAreaBase(c.Key("rag-offer"), &p.Text).FillWidth().MinHeight(90).MaxHeight(240).Padding(theme.S2, theme.S3).FontSize(theme.TextUI).
+				Radius(theme.RadiusCard).Label("Memory")
+			widget.Well(area, area.Focused())
 		},
 		Buttons: []widget.AskButton{
 			{Kind: widget.Secondary, Label: "Dismiss", Do: done},
@@ -347,15 +445,17 @@ func (st *ragSettingsState) keysToSave() []proto.RAGKey {
 // for the user's other hosts: done runs after, on the main thread.
 func (a *App) keysToVaultRow(c *ui.Context, st *keysMove, done func()) {
 	widget.Notice(c, icon.Key, theme.Warning, "Some keys here are on this host alone", "Your other hosts get these settings but not the keys. Keep them in the vault, without typing them again: the app asks you first, and each host the first time it uses one.", func() {
-		b := widget.GhostButton(c, "Keep them in the vault")
-		if st.busy {
-			b.Disabled(true)
-		} else if b.Clicked() {
-			a.moveKeysToVault(st, done)
-		}
+		ui.Row(c).Children(func() { // at its own width, not the notice's
+			b := widget.GhostButton(c, "Keep them in the vault")
+			if st.busy {
+				b.Disabled(true)
+			} else if b.Clicked() {
+				a.moveKeysToVault(st, done)
+			}
+		})
 	})
 	if st.said != "" {
-		ui.Text(c, st.said).FontSize(12).TextColor(theme.Muted)
+		ui.Text(c, st.said).FontSize(theme.TextLabel).TextColor(theme.Muted)
 	}
 }
 

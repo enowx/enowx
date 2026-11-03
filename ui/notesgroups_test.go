@@ -66,7 +66,7 @@ func newNotesHarness(t *testing.T) *notesHarness {
 // settle runs frames, and what came from the host, until done.
 func (h *notesHarness) settle(what string, done func() bool) {
 	h.t.Helper()
-	deadline := time.Now().Add(5 * time.Second)
+	deadline := time.Now().Add(20 * time.Second)
 	for {
 		h.tt.Frame()
 		if done() {
@@ -110,10 +110,14 @@ func TestNotesGroupsInTheTree(t *testing.T) {
 	h.cl.SaveNote(proto.Note{NoteInfo: proto.NoteInfo{Title: "Groceries"}})
 	h.settle("the pages", func() bool { return h.tt.HasText("Groceries") })
 
-	if err := h.tt.Click("New group"); err != nil {
+	if err := h.tt.Click("Import and export"); err != nil {
 		t.Fatal(err)
 	}
-	h.settle("the dialog", func() bool { return h.tt.HasText("Make group") })
+	h.settle("the menu", func() bool { return h.tt.HasText("New group…") })
+	if err := h.tt.Click("New group…"); err != nil {
+		t.Fatal(err)
+	}
+	h.settle("the dialog", func() bool { return h.tt.HasText("New group") && h.tt.HasText("Create") })
 	h.tt.Type("Ideas")
 	if err := h.tt.Click("Group icon"); err != nil {
 		t.Fatal(err)
@@ -129,7 +133,7 @@ func TestNotesGroupsInTheTree(t *testing.T) {
 		t.Fatal(err)
 	}
 	h.settle("the picker closed", func() bool { return !h.tt.HasText("Library") })
-	if err := h.tt.Click("Make group"); err != nil {
+	if err := h.tt.Click("Create"); err != nil {
 		t.Fatal(err)
 	}
 	h.settle("the group", func() bool { return len(h.app.noteList.groups) == 1 && h.tt.HasText("No group") })

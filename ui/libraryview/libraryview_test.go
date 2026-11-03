@@ -3,6 +3,10 @@ package libraryview
 import (
 	"slices"
 	"testing"
+
+	"github.com/egoist/mygo/ui"
+
+	"github.com/enowx/enowx/proto"
 )
 
 func TestSplitCommand(t *testing.T) {
@@ -13,19 +17,32 @@ func TestSplitCommand(t *testing.T) {
 	}
 }
 
-func TestFrontMatter(t *testing.T) {
-	fields, body := frontMatter("---\nname: review\ndescription: \"Reviews code\"\n---\n\n# Review\n")
-	if len(fields) != 2 || fields[1] != [2]string{"description", "Reviews code"} || body != "# Review\n" {
-		t.Fatalf("fields %q, body %q", fields, body)
-	}
-	if fields, body := frontMatter("# No front matter"); fields != nil || body != "# No front matter" {
-		t.Fatalf("plain: %q %q", fields, body)
-	}
-}
-
-func TestFrontMatterBlocks(t *testing.T) {
-	fields, _ := frontMatter("---\nname: x\ndescription: >\n  Folds these\n  lines.\nlicense: MIT\n---\nbody")
-	if len(fields) != 3 || fields[1][1] != "Folds these lines." || fields[2][1] != "MIT" {
-		t.Fatalf("fields %q", fields)
+// The test of an MCP server says each way it can go, in the panel's own words.
+func TestMCPTestPanelStates(t *testing.T) {
+	item := proto.EnvItem{ID: "m1", Name: "coolify"}
+	for _, tc := range []struct {
+		name string
+		test mcpTesting
+		want []string
+	}{
+		{"idle", mcpTesting{}, []string{"Test on this Mac", "Runs it where its agent would and lists its tools."}},
+		{"running", mcpTesting{forID: "m1", running: true}, []string{"Starting it on this Mac…"}},
+		{"error", mcpTesting{forID: "m1", err: "no connection"}, []string{"no connection"}},
+		{"answers", mcpTesting{forID: "m1", result: &proto.MCPTest{OK: true, Server: "coolify 1.0", Took: 1200, Tools: []proto.MCPTool{{Name: "deploy", Description: "Deploy an app"}}}},
+			[]string{"coolify 1.0 lists 1 tool in 1.2 s", "deploy"}},
+		{"fails", mcpTesting{forID: "m1", result: &proto.MCPTest{Error: "it exited", Stderr: "npx: not found"}}, []string{"it exited", "npx: not found"}},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			v := &View{test: tc.test}
+			tt := ui.NewTester(func(c *ui.Context) {
+				ui.Column(c).Width(600).Height(400).Children(func() { v.mcpTestPanel(c, Options{Host: "this Mac"}, item) })
+			}, 600, 400)
+			tt.Frame()
+			for _, want := range tc.want {
+				if !tt.HasText(want) {
+					t.Errorf("%q isn't shown: %q", want, tt.Texts())
+				}
+			}
+		})
 	}
 }

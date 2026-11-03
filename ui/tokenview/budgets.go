@@ -5,6 +5,7 @@ import (
 	"slices"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/egoist/mygo/ui"
 
@@ -33,43 +34,61 @@ type budgetForm struct {
 
 // budgets lists the budgets and how much of each is used.
 func (v *View) budgets(c *ui.Context, d Data, o Options) {
-	ui.Row(c).FillWidth().Gap(10).Children(func() {
-		ui.Text(c, "At 80% a notification; at 100% what each budget says. Budgets are synced: the same on every host, each host counting its own use.").
-			FontSize(12).TextColor(theme.Muted).Grow(1).Shrink(1)
-		if widget.PrimaryButton(c, icon.Plus, "Add budget", "").Clicked() {
-			v.budget = budgetForm{open: true}
-		}
-	})
+	widget.CardNote(c, "Token limits count input, output and cache write, not cache reads, so a limit set before this counted more than it does now. At 80% a notification; at 100% what each budget says. Budgets are synced: the same on every host, each host counting its own use.", 0)
 	if len(d.Budgets) == 0 {
 		widget.EmptyState(c, icon.Gauge, "No budgets", "Cap the tokens or the cost of a day, a week or a month: for everything, an agent, a config or a project.", nil)
 		return
 	}
-	for _, b := range d.Budgets {
-		widget.Card(c.Key(b.ID)).Children(func() {
-			ui.Row(c).FillWidth().Gap(10).Children(func() {
-				ui.Text(c, budgetTitle(b.TokenBudget, o)).FontSize(12.5).Grow(1).Shrink(1).SingleLine()
-				col := widget.Level(b.Fraction)
-				ui.Text(c, fmt.Sprintf("%d%%", int(b.Fraction*100))).FontSize(12.5).TextColor(col)
-				if widget.IconButton(c, icon.Pencil, "Change", false).Clicked() {
-					v.budget = formOf(b.TokenBudget)
-				}
-				if widget.IconButton(c, icon.Trash, "Remove", false).Clicked() && o.Confirm != nil {
-					id := b.ID
-					o.Confirm("Remove this budget?", budgetTitle(b.TokenBudget, o)+": its alerts and what it does at 100% stop.", "Remove", func() {
-						st := d.Settings
-						st.Budgets = slices.DeleteFunc(slices.Clone(st.Budgets), func(x proto.TokenBudget) bool { return x.ID == id })
-						o.Save(st)
-					})
-				}
-			})
-			widget.Meter(c, widget.Segment{Fraction: min(b.Fraction, 1), Color: widget.Level(b.Fraction)})
-			ui.Text(c, budgetUsed(b)).FontSize(11).TextColor(theme.Muted)
-		})
-	}
+	v.cards(c, len(d.Budgets), budgetCardHeight, func() {
+		for _, b := range d.Budgets {
+			v.budgetCard(c.Key(b.ID), b, d, o)
+		}
+	})
 }
 
+// budgetCardHeight is the least a budget's card takes: all it holds.
+const budgetCardHeight = 224
+
+// budgetCard is a budget: how far it is, and its way to change or remove it.
+func (v *View) budgetCard(c *ui.Context, b proto.TokenBudgetState, d Data, o Options) {
+	widget.GridCard(c).Children(func() {
+		widget.CardTitle(c, nil, budgetTitle(b.TokenBudget, o), nil)
+		ui.Row(c).FillWidth().Shrink(0).Gap(theme.S2).AlignItems(ui.End).Children(func() {
+			shown := ui.Text(c, fmt.Sprintf("%d%%", int(b.Fraction*100))).FontSize(24).FontWeight(600).SingleLine()
+			if b.Fraction > 0.75 { // the number stays plain until it matters
+				shown.TextColor(widget.Level(b.Fraction))
+			}
+			ui.Row(c).Grow(1).MinWidth(0).Padding(0, 0, theme.S1, 0).Children(func() {
+				widget.Running(c, budgetAgainst(b), widget.RunStyle{Size: theme.TextLabel, Color: theme.TextSoft})
+			})
+		})
+		widget.Meter(c, widget.Segment{Fraction: min(b.Fraction, 1), Color: widget.Level(b.Fraction)})
+		widget.CardNote(c, budgetUsed(b), 2)
+		ui.Row(c).FillWidth().Shrink(0).Children(func() {
+			at := atNames[max(0, slices.Index(atLimits, orText(b.AtLimit, proto.BudgetNotify)))]
+			widget.Chip(c, "At 100%: "+at, ui.Color{})
+		})
+		ui.Spacer(c) // the foot stays at the card's bottom, however tall the row
+		widget.CardFoot(c, func() {
+			ui.Spacer(c)
+			if widget.GhostButton(c, "Change").Clicked() {
+				v.budget = formOf(b.TokenBudget)
+			}
+			if widget.IconButton(c, icon.Trash, "Remove", false).Clicked() && o.Confirm != nil {
+				id := b.ID
+				o.Confirm("Remove this budget?", "Agents go on without its limit.", "Remove", func() {
+					st := d.Settings
+					st.Budgets = slices.DeleteFunc(slices.Clone(st.Budgets), func(x proto.TokenBudget) bool { return x.ID == id })
+					o.Save(st)
+				})
+			}
+		})
+	})
+}
+
+// budgetTitle is what a budget is for and over how long: "Everything, a week".
 func budgetTitle(b proto.TokenBudget, o Options) string {
-	what := "everything"
+	what := "Everything"
 	switch b.Scope {
 	case proto.BudgetAgent:
 		what = b.Target
@@ -77,24 +96,42 @@ func budgetTitle(b proto.TokenBudget, o Options) string {
 			what = o.Agent(b.Target)
 		}
 	case proto.BudgetConfig:
-		what = "config " + b.Target
+		what = "Config " + b.Target
 	case proto.BudgetProject:
-		what = "project " + b.Target
-	}
-	var limits []string
-	if b.Tokens > 0 {
-		limits = append(limits, Count(b.Tokens)+" tokens")
-	}
-	if b.Cost > 0 {
-		limits = append(limits, Dollars(b.Cost))
+		what = b.Target
 	}
 	period := map[string]string{proto.BudgetDay: "a day", proto.BudgetWeek: "a week", proto.BudgetMonth: "a month"}[b.Period]
-	return fmt.Sprintf("%s %s for %s", strings.Join(limits, " or "), period, what)
+	return what + ", " + period
+}
+
+// budgetAgainst is the use against the limit that is closer to being reached.
+func budgetAgainst(b proto.TokenBudgetState) string {
+	tokens := float64(0)
+	if b.Tokens > 0 {
+		tokens = float64(b.Used.Total()) / float64(b.Tokens)
+	}
+	if b.Cost > 0 && b.Used.Cost/b.Cost >= tokens {
+		return Dollars(b.Used.Cost) + " of " + money(b.Cost)
+	}
+	return Count(b.Used.Total()) + " of " + Count(b.Tokens) + " tokens"
 }
 
 func budgetUsed(b proto.TokenBudgetState) string {
-	at := atNames[max(0, slices.Index(atLimits, orText(b.AtLimit, proto.BudgetNotify)))]
-	return fmt.Sprintf("%s tokens and %s used since %s · at 100%%: %s", Count(b.Used.Total()), Dollars(b.Used.Cost), b.Since.Local().Format("Mon Jan 2"), strings.ToLower(at))
+	return fmt.Sprintf("%s tokens and %s used since %s", Count(b.Used.Total()), Dollars(b.Used.Cost), sinceDay(b.Since, time.Now()))
+}
+
+// sinceDay says when a budget's period started: today, a weekday of the last
+// week, else its date.
+func sinceDay(t, now time.Time) string {
+	t, now = t.Local(), now.Local()
+	day := func(x time.Time) time.Time { return time.Date(x.Year(), x.Month(), x.Day(), 0, 0, 0, 0, x.Location()) }
+	switch back := day(now).Sub(day(t)); {
+	case back <= 0:
+		return "today"
+	case back < 7*24*time.Hour:
+		return t.Format("Mon")
+	}
+	return t.Format("Jan 2")
 }
 
 func formOf(b proto.TokenBudget) budgetForm {
@@ -119,36 +156,42 @@ func (v *View) budgetSheet(c *ui.Context, d Data, o Options) {
 	if f.id != "" {
 		title = "Change the budget"
 	}
-	widget.FormSheet(c, &f.open, 520, title, "Tokens, a cost in dollars, or both: the first reached counts.", func() {
-		widget.Field(c, "Per", func() {
-			if i := widget.Segmented(c.Key("period"), periodNames, f.period, nil); i >= 0 {
-				f.period = i
-			}
-		})
-		widget.Field(c, "For", func() {
-			if i := widget.Segmented(c.Key("scope"), scopeNames, f.scope, nil); i >= 0 {
-				f.scope = i
-			}
-			if scopes[f.scope] != proto.BudgetAll {
-				hint := map[string]string{proto.BudgetAgent: "The agent's ID: claude, codex…", proto.BudgetConfig: "The config's name", proto.BudgetProject: "The project's folder"}[scopes[f.scope]]
-				widget.Input(c.Key("target"), &f.target, hint).FillWidth()
-			}
-		})
-		ui.Row(c).FillWidth().Gap(10).Children(func() {
-			ui.Column(c).Grow(1).Children(func() {
-				widget.Field(c, "Tokens", func() { widget.Input(c.Key("tokens"), &f.tokens, "5000000").FillWidth() })
-			})
-			ui.Column(c).Grow(1).Children(func() {
-				widget.Field(c, "Cost, US dollars", func() { widget.Input(c.Key("cost"), &f.cost, "20").FillWidth() })
-			})
-		})
+	widget.FormSheet(c, &f.open, 480, title, "Tokens, a cost in dollars, or both: the first reached counts.", func() {
+		fieldRow(c, "when",
+			func() {
+				widget.Field(c, "Per", func() {
+					if i := widget.Choice(c, "Per", periodNames, f.period, 0); i >= 0 {
+						f.period = i
+					}
+				})
+			},
+			func() {
+				widget.Field(c, "For", func() {
+					if i := widget.Choice(c, "For", scopeNames, f.scope, 0); i >= 0 {
+						f.scope = i
+					}
+				})
+			},
+		)
+		if scopes[f.scope] != proto.BudgetAll {
+			hint := map[string]string{proto.BudgetAgent: "The agent's ID: claude, codex…", proto.BudgetConfig: "The config's name", proto.BudgetProject: "The project's folder"}[scopes[f.scope]]
+			widget.Input(c.Key("target"), &f.target, hint).FillWidth()
+		}
+		fieldRow(c, "limits",
+			func() {
+				widget.Field(c, "Tokens", func() { widget.Input(c.Key("tokens"), &f.tokens, "20000000").FillWidth() })
+			},
+			func() {
+				widget.Field(c, "Cost, US dollars", func() { widget.Input(c.Key("cost"), &f.cost, "75").FillWidth() })
+			},
+		)
 		widget.Field(c, "At 100%", func() {
-			if i := widget.Segmented(c.Key("at"), atNames, f.at, nil); i >= 0 {
+			if i := widget.Choice(c, "At 100%", atNames, f.at, 0); i >= 0 {
 				f.at = i
 			}
 		})
 		if f.err != "" {
-			ui.Text(c, f.err).FontSize(12).TextColor(theme.Error)
+			widget.CardNote(c, f.err, 0).TextColor(theme.Error)
 		}
 	}, func() {
 		if widget.PrimaryButton(c, nil, "Save", "").Clicked() {
@@ -176,7 +219,7 @@ func (f *budgetForm) budget() (proto.TokenBudget, error) {
 	if b.Scope != proto.BudgetAll {
 		b.Target = strings.TrimSpace(f.target)
 		if b.Target == "" {
-			return b, fmt.Errorf("say which %s", strings.TrimPrefix(strings.ToLower(scopeNames[f.scope]), "a "))
+			return b, fmt.Errorf("say which %s", scopes[f.scope])
 		}
 	}
 	if s := strings.TrimSpace(strings.ReplaceAll(f.tokens, ",", "")); s != "" {

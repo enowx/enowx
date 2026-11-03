@@ -16,7 +16,6 @@ import (
 	"github.com/enowx/enowx/core/vault"
 	"github.com/enowx/enowx/proto"
 	"github.com/enowx/enowx/transport"
-	"github.com/enowx/enowx/ui/icon"
 	"github.com/enowx/enowx/ui/vaultview"
 	"github.com/enowx/enowx/ui/widget"
 )
@@ -345,13 +344,7 @@ func (a *App) vaultPage(c *ui.Context) {
 		v.used = time.Now()
 	}
 	o := a.vaultOptions()
-	a.viewHeader(c, func() {
-		ui.Row(c).Grow(1).MinWidth(0).Children(func() { widget.Breadcrumb(c, "This device", "Credentials") })
-		v.view.Toolbar(c, o)
-		if widget.IconButton(c, icon.Close, "Back to sessions", false).Clicked() {
-			a.page = ""
-		}
-	})
+	widget.PageHeader(c, "Credentials", "Sealed with a key that stays on this device", func() { v.view.Toolbar(c, o) })
 	v.view.Body(c, o)
 }
 

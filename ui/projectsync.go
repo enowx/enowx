@@ -115,16 +115,17 @@ func (a *App) projectSyncDialog(c *ui.Context) {
 		return
 	}
 	busy := (f.step == syncComparing || f.step == syncRunning) && f.err == ""
-	widget.Dialog(c, &f.open, 560, 14, func() { a.projectSyncView(c, f, busy) })
+	widget.Sheet(c, &f.open, 560, func() {
+		widget.SheetHead(c, &f.open, "Sync “"+f.project.Name+"” with another host",
+			"Brings this copy and the other host's to the same state, both ways: files (what git keeps), commits, sessions and Claude Code's conversations. What changed on both sides since the last sync is yours to pick.")
+	}, func() { a.projectSyncBody(c, f) }, func() { a.projectSyncFooter(c, f, busy) })
 	if busy && f.step == syncRunning {
 		f.open = true // the sync finishes before the dialog goes
 	}
 }
 
-// projectSyncView is the dialog's content.
-func (a *App) projectSyncView(c *ui.Context, f *projectSyncForm, busy bool) {
-	widget.DialogHeader(c, "Sync “"+f.project.Name+"” with another host",
-		"Brings this copy and the other host's to the same state, both ways: files (what git keeps), commits, sessions and Claude Code's conversations. What changed on both sides since the last sync is yours to pick.", false)
+// projectSyncBody is the step the dialog is at.
+func (a *App) projectSyncBody(c *ui.Context, f *projectSyncForm) {
 	if f.err != "" {
 		widget.Notice(c, icon.Alert, theme.Error, f.err, "", nil)
 	}
@@ -136,48 +137,55 @@ func (a *App) projectSyncView(c *ui.Context, f *projectSyncForm, busy bool) {
 	default:
 		a.syncOutcome(c, f)
 	}
-	widget.DialogFooter(c, "", func() {
-		switch {
-		case busy:
-			ui.Row(c).Gap(8).AlignItems(ui.Center).Children(func() {
-				widget.Spinner(c, 14)
-				ui.Text(c, f.doing).FontSize(12).TextColor(theme.Muted).Shrink(1).MinWidth(0)
+}
+
+// projectSyncFooter is what can be done at that step.
+func (a *App) projectSyncFooter(c *ui.Context, f *projectSyncForm, busy bool) {
+	switch {
+	case busy:
+		ui.Row(c.Key("busy")).Grow(1).Basis(0).MinWidth(0).Gap(theme.S2).Children(func() {
+			widget.Spinner(c, 14)
+			ui.Row(c).Grow(1).Basis(0).MinWidth(0).Children(func() {
+				widget.Running(c, f.doing, widget.RunStyle{Size: theme.TextLabel, Color: theme.TextSoft})
 			})
-			if link := f.signIn; link != "" && f.step == syncComparing {
-				if widget.PrimaryButton(c, icon.External, "Open link", "").Clicked() {
-					go func() { _ = mygo.Shell.OpenExternal(link) }()
-				}
-			}
-			if f.step == syncComparing && widget.GhostButton(c, "Cancel").Clicked() {
-				f.open = false // the connection still being made closes as it ends
-			}
-		case f.step == syncDone:
-			if widget.PrimaryButton(c, icon.Check, "Close", "").Clicked() {
-				f.open = false
-			}
-		case f.step == syncReview:
-			if widget.GhostButton(c, "Back").Clicked() {
-				f.step, f.err = "", ""
-			}
-			if f.plan.Empty() {
-				if widget.PrimaryButton(c, icon.Check, "Close", "").Clicked() {
-					f.open = false
-				}
-				return
-			}
-			if widget.PrimaryButton(c, icon.Sync, "Sync", "").Clicked() {
-				a.runSync(f)
-			}
-		default:
-			if widget.GhostButton(c, "Cancel").Clicked() {
-				f.open = false
-			}
-			ok := f.target.ID != "" && strings.TrimSpace(f.folder) != ""
-			if b := widget.PrimaryButton(c, icon.Search, "Compare", "").Disabled(!ok); b.Clicked() && ok {
-				a.compareSync(f)
+		})
+		if link := f.signIn; link != "" && f.step == syncComparing {
+			if widget.PrimaryButton(c, nil, "Open link", "").Clicked() {
+				go func() { _ = mygo.Shell.OpenExternal(link) }()
 			}
 		}
-	})
+		if f.step == syncComparing && widget.GhostButton(c, "Cancel").Clicked() {
+			f.open = false // the connection still being made closes as it ends
+		}
+	case f.step == syncDone:
+		ui.Spacer(c)
+		if widget.PrimaryButton(c, nil, "Close", "").Clicked() {
+			f.open = false
+		}
+	case f.step == syncReview:
+		ui.Spacer(c)
+		if widget.GhostButton(c, "Back").Clicked() {
+			f.step, f.err = "", ""
+		}
+		if f.plan.Empty() {
+			if widget.PrimaryButton(c, nil, "Close", "").Clicked() {
+				f.open = false
+			}
+			return
+		}
+		if widget.PrimaryButton(c, nil, "Sync", "").Clicked() {
+			a.runSync(f)
+		}
+	default:
+		ui.Spacer(c)
+		if widget.GhostButton(c, "Cancel").Clicked() {
+			f.open = false
+		}
+		ok := f.target.ID != "" && strings.TrimSpace(f.folder) != ""
+		if b := widget.PrimaryButton(c, nil, "Compare", "").Disabled(!ok); b.Clicked() && ok {
+			a.compareSync(f)
+		}
+	}
 }
 
 // syncPick asks which host and which folder there.
@@ -193,15 +201,13 @@ func (a *App) syncPick(c *ui.Context, f *projectSyncForm) {
 		}
 	})
 	widget.Field(c, "Its folder there", func() {
-		ui.Column(c).FillWidth().Gap(5).Children(func() {
-			widget.Input(c, &f.folder, "~/code/app").FillWidth()
-			ui.Text(c, "The project's copy on "+f.target.Name+", from Copy to another host or cloned there.").FontSize(11.5).TextColor(theme.Muted)
-		})
+		widget.Input(c, &f.folder, "~/code/app").FillWidth()
+		widget.CardNote(c.Key("about"), "The project's copy on "+f.target.Name+", from Copy to another host or cloned there.", 0)
 	})
-	ui.Column(c).FillWidth().Gap(4).AlignItems(ui.Start).Children(func() {
+	ui.Column(c.Key("env")).FillWidth().Shrink(0).Gap(theme.S1).AlignItems(ui.Start).Children(func() {
 		widget.Checkbox(c, &f.env, "Include .env files")
 		if f.env {
-			ui.Text(c, "They usually hold secrets (keys, passwords): they will go between both hosts.").FontSize(11.5).TextColor(theme.Warning)
+			widget.CardNote(c, "They usually hold secrets (keys, passwords): they will go between both hosts.", 0).TextColor(theme.Warning)
 		}
 	})
 }
@@ -266,12 +272,12 @@ func (a *App) compareSync(f *projectSyncForm) {
 // each conflict's side to pick.
 func (a *App) syncReview(c *ui.Context, f *projectSyncForm) {
 	if f.plan.Empty() {
-		ui.Text(c, "Both copies are the same.").FontSize(12.5)
+		ui.Text(c, "Both copies are the same.").FontSize(theme.TextUI)
 		return
 	}
 	names := [2]string{a.host.Name, f.target.Name}
-	ui.Scroll(c).FillWidth().MaxHeight(420).Children(func() {
-		ui.Column(c).FillWidth().Gap(14).Children(func() {
+	widget.Scroll(c).FillWidth().MaxHeight(420).Children(func() {
+		ui.Column(c).FillWidth().Gap(theme.S3).Children(func() {
 			for _, from := range []projectsync.Side{projectsync.There, projectsync.Here} {
 				a.syncDirection(c.Key(fmt.Sprint(from)), f, from, names)
 			}
@@ -330,17 +336,17 @@ func (a *App) syncDirection(c *ui.Context, f *projectSyncForm, from projectsync.
 			lines = append(lines, "“"+name+"”'s conversation")
 		}
 	}
-	ui.Column(c).FillWidth().Gap(5).Children(func() {
-		ui.Row(c).Gap(6).Children(func() {
-			ui.Text(c, names[from]).FontSize(12.5).FontWeight(600)
-			ui.Icon(c, icon.ArrowRight).FontSize(12).TextColor(theme.Muted)
-			ui.Text(c, names[from.Other()]).FontSize(12.5).FontWeight(600)
+	widget.Card(c).FillWidth().Shrink(0).Gap(theme.S1).Children(func() {
+		ui.Row(c.Key("way")).FillWidth().Gap(theme.S2).Children(func() {
+			ui.Text(c, names[from]).FontSize(theme.TextUI).FontWeight(500).SingleLine().Shrink(1)
+			ui.Icon(c, icon.ArrowRight).FontSize(12).TextColor(theme.TextSoft)
+			ui.Text(c, names[from.Other()]).FontSize(theme.TextUI).FontWeight(500).SingleLine().Shrink(1)
 		})
 		if len(lines) == 0 {
-			ui.Text(c, "Nothing").FontSize(12).TextColor(theme.Muted)
+			widget.CardNote(c.Key("nothing"), "Nothing", 0)
 		}
 		for i, l := range lines {
-			ui.Text(c.Key(fmt.Sprint(i)), l).FontSize(12).TextColor(theme.TextSoft)
+			widget.CardNote(c.Key(fmt.Sprint(i)), l, 0)
 		}
 	})
 }
@@ -349,10 +355,10 @@ func (a *App) syncDirection(c *ui.Context, f *projectSyncForm, from projectsync.
 // whose version wins.
 func (a *App) syncConflicts(c *ui.Context, f *projectSyncForm, names [2]string) {
 	options := []string{names[projectsync.Here], names[projectsync.There]}
-	ui.Column(c).FillWidth().Gap(6).Children(func() {
-		ui.Text(c, "Changed on both: keep whose?").FontSize(12.5).FontWeight(600)
-		ui.Row(c).Gap(8).Children(func() {
-			ui.Text(c, "All").FontSize(12).TextColor(theme.Muted)
+	widget.Card(c).FillWidth().Shrink(0).Gap(theme.S2).Children(func() {
+		ui.Text(c, "Changed on both: keep whose?").FontSize(theme.TextUI).FontWeight(500)
+		ui.Row(c.Key("all-row")).Gap(theme.S2).Children(func() {
+			ui.Text(c, "All").FontSize(theme.TextLabel).TextColor(theme.TextSoft)
 			if i := widget.Segmented(c.Key("all"), options, -1, nil); i >= 0 {
 				for k := range f.plan.Files {
 					if f.plan.Files[k].Conflict {
@@ -387,8 +393,8 @@ func (a *App) syncConflicts(c *ui.Context, f *projectSyncForm, names [2]string) 
 }
 
 func (a *App) syncConflictRow(c *ui.Context, label string, options []string, from *projectsync.Side) {
-	ui.Row(c).FillWidth().Gap(10).Children(func() {
-		ui.Text(c, label).FontSize(12).SingleLine().Shrink(1).Grow(1)
+	ui.Row(c).FillWidth().Shrink(0).Gap(theme.S2).Children(func() {
+		ui.Row(c.Key("label")).Grow(1).Basis(0).MinWidth(0).Children(func() { widget.Running(c, label, widget.RunStyle{Size: theme.TextLabel}) })
 		if i := widget.Segmented(c, options, int(*from), nil); i >= 0 {
 			*from = projectsync.Side(i)
 		}
@@ -466,11 +472,11 @@ func (a *App) syncOutcome(c *ui.Context, f *projectSyncForm) {
 	if f.step != syncDone {
 		return
 	}
-	ui.Text(c, "Both copies are the same now.").FontSize(12.5)
+	ui.Text(c, "Both copies are the same now.").FontSize(theme.TextUI)
 	names := [2]string{a.host.Name, f.target.Name}
 	for side, r := range f.result {
 		for i, n := range r.Notes {
-			ui.Text(c.Key(fmt.Sprint(side, i)), names[side]+": "+n).FontSize(11.5).TextColor(theme.Muted)
+			widget.CardNote(c.Key(fmt.Sprint(side, i)), names[side]+": "+n, 0)
 		}
 	}
 }

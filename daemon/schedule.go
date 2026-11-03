@@ -425,6 +425,7 @@ var hibernateUnit = time.Minute
 func (s *Server) hibernateSession(sess *session.Session, byHand bool) error {
 	info, meta := sess.Info(), sess.Meta()
 	meta.Hibernated, meta.HibernatedByHand, meta.HibernatedAt = true, byHand, time.Now().UTC()
+	s.procsLook()
 	_, err := s.sessions.Replace(session.Spec{
 		ID: info.ID, Dir: info.Dir, Created: info.Created, History: sess.History(),
 		Command: info.Command, Exited: true, Meta: meta,
@@ -432,7 +433,7 @@ func (s *Server) hibernateSession(sess *session.Session, byHand bool) error {
 	if err != nil {
 		return err
 	}
-	reap(tag{key: session.EnvSession, value: info.ID})
+	s.reapSession(info.ID)
 	s.logger().Info("hibernated an idle agent", "id", info.ID, "agent", meta.Agent)
 	return nil
 }

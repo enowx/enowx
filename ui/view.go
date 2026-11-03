@@ -1,14 +1,14 @@
 package ui
 
 import (
-	"fmt"
 	"runtime"
 	"slices"
+	"time"
 
 	"github.com/egoist/mygo/ui"
 
 	"github.com/enowx/enowx/proto"
-	"github.com/enowx/enowx/ui/textfmt"
+	"github.com/enowx/enowx/ui/icon"
 	"github.com/enowx/enowx/ui/theme"
 	"github.com/enowx/enowx/ui/widget"
 )
@@ -22,32 +22,53 @@ var modKey = func() string {
 }()
 
 func (a *App) view(c *ui.Context) {
+	if a.watchdog != nil {
+		a.watchdog.FrameStart()
+		defer a.watchdog.FrameEnd()
+	}
 	c.SetTheme(a.theme)
 	a.winW, _ = c.Size()
-	a.shortcuts(c)
+	if !a.onboardingShows() {
+		a.shortcuts(c)
+	}
 	a.watchUsageShown()
 	a.discordPresence()
 	a.keepHere(c)
 	if hc := a.teamChats; hc != nil {
 		hc.wasShown, hc.shown = hc.shown, false // chatTab tells it again
 	}
-	ui.Column(c).Fill().Background(theme.Ground).TextColor(theme.Text).Children(func() {
-		a.titleBar(c)
-		ui.Row(c).Grow(1).FillWidth().MinHeight(0).AlignItems(ui.Stretch).Padding(0, theme.BentoGap).Gap(theme.BentoGap).Children(func() {
-			switch {
-			case a.goaOn():
-				// GOD of Agents: no session list, its strip leads (goa_view.go).
-			case a.navShown():
-				a.navSidebar(c)
-			case !a.sessionsHidden():
-				a.navSidebarNarrow(c)
-			}
-			a.workspace(c)
-			a.sidePanelView(c)
-			a.notesAgentPanel(c)
-			a.canvasAgentPanel(c)
+	root := ui.Box(c).Fill().Background(theme.Ground).TextColor(theme.Text)
+	if theme.Family != "" {
+		root.Font(theme.Family)
+	}
+	root.Children(func() {
+		if a.onboardingCovers() {
+			// It covers the window, and redraws sixty times a second as it plays: the
+			// app under it, all its panes, doesn't need building too.
+			a.onboardingView(c)
+			return
+		}
+		a.wallpaper(c)
+		widget.RegionGround(ui.Column(c).Absolute().Left(0).Top(0).Right(0).Bottom(0).Padding(theme.WindowInset).Gap(theme.BentoGap)).Children(func() {
+			a.titleBar(c)
+			ui.Row(c).Grow(1).FillWidth().MinHeight(0).AlignItems(ui.Stretch).Gap(theme.BentoGap).Children(func() {
+				switch {
+				case !a.sessionListShows():
+					// Pages, and GOD of Agents: no session list.
+					a.pageSide(c)
+				case a.navShown():
+					a.navSidebar(c)
+				default:
+					a.navSidebarNarrow(c)
+				}
+				a.workspace(c)
+				a.canvasAgentPanel(c) // beside what it draws on, the dock staying at the edge
+				a.sidePanelView(c)
+				a.toolsDock(c)
+			})
 		})
-		a.statusBar(c)
+		a.statusToast(c)
+		a.onboardingView(c) // fading into the app, in its last moments
 	})
 	a.cornerCards(c)
 	a.chatToastsView(c)
@@ -191,57 +212,41 @@ func (a *App) toggleMaximized(id string) {
 	}
 }
 
-func (a *App) statusBar(c *ui.Context) {
-	working, waiting, idle, queued := 0, 0, 0, 0
-	for _, s := range a.sessions {
-		switch {
-		case s.Exited:
-		case s.Queued:
-			queued++
-		case s.State == proto.StateWaiting:
-			waiting++
-		case isWorking(s):
-			working++
-		default:
-			idle++
-		}
+// statusToast says what the status holds, over the window's foot: an error
+// until dismissed, news for a few seconds.
+func (a *App) statusToast(c *ui.Context) {
+	if a.status == "" {
+		a.statusSeen = ""
+		return
 	}
-	ui.Row(c).Height(28).Shrink(0).FillWidth().PaddingX(theme.BentoGap + 8).Gap(16).Children(func() {
-		ui.Row(c).Gap(6).Shrink(0).Children(func() {
-			col, state := a.connectionState()
-			widget.Dot(c, col, false, 6)
-			ui.Text(c, a.host.Name+" · "+state).FontSize(11).TextColor(theme.Muted).SingleLine()
+	news := a.status == a.notice
+	if a.status != a.statusSeen {
+		a.statusSeen, a.statusAt = a.status, c.Now()
+	}
+	if news {
+		const lasts = 6 * time.Second
+		left := lasts - c.Now().Sub(a.statusAt)
+		if left <= 0 {
+			a.status = ""
+			return
+		}
+		c.After(left)
+	}
+	ui.Row(c.Key("status-toast")).Absolute().Left(0).Right(0).Bottom(theme.S5).Justify(ui.Center).PassThrough().Children(func() {
+		col := theme.Del
+		if news {
+			col = theme.Text
+		}
+		// As wide as it says, up to its limit; longer, it runs inside that.
+		natural, _ := c.MeasureText(0, ui.Span{Text: a.status, Size: theme.TextUI})
+		toast := widget.Float(ui.Row(c).Width(min(natural+theme.S4+theme.S1+theme.S2+theme.ControlHeight+2, 640)).Shrink(1).MinWidth(0).Height(40).
+			Padding(0, theme.S1, 0, theme.S4).Gap(theme.S2).Radius(theme.RadiusFull).Background(theme.Popover)).Transition(widget.OverlayMotion)
+		toast.Children(func() {
+			ui.Row(c).Grow(1).MinWidth(0).Children(func() { widget.Running(c, a.status, widget.RunStyle{Color: col, Always: true}) })
+			if widget.IconButton(c, icon.Close, "Dismiss", false).Clicked() {
+				a.status = ""
+			}
 		})
-		counts := fmt.Sprintf("%d working · %d idle", working, idle)
-		if waiting > 0 {
-			counts = fmt.Sprintf("%d need input · ", waiting) + counts
-		}
-		if queued > 0 {
-			counts += fmt.Sprintf(" · %d queued", queued)
-		}
-		ui.Text(c, counts).FontSize(11).TextColor(theme.Muted).SingleLine()
-		if a.status != "" {
-			col := theme.Error
-			if a.status == a.notice {
-				col = theme.TextSoft
-			}
-			ui.Text(c, a.status).FontSize(11).TextColor(col).SingleLine().Grow(1).Shrink(1)
-		} else {
-			ui.Spacer(c)
-		}
-		if h, ok := a.usage.Host(); ok && h.MemTotal > 0 {
-			col := theme.Muted
-			if float64(h.MemUsed) > 0.85*float64(h.MemTotal) {
-				col = theme.Warning
-			}
-			ui.Text(c, "Host "+textfmt.Bytes(h.MemUsed)+" / "+textfmt.Bytes(h.MemTotal)).FontSize(11).TextColor(col).SingleLine()
-		}
-		if a.client != nil {
-			if s := a.credits.Summary(a.creditsHost()); s != "" {
-				ui.Text(c, s).FontSize(11).TextColor(theme.Muted).SingleLine().Shrink(1)
-			}
-		}
-		ui.Text(c, modKey+"K commands · "+modKey+"N new session").FontSize(11).TextColor(theme.Muted).SingleLine()
 	})
 }
 
@@ -260,7 +265,7 @@ func (a *App) deleteDialog(c *ui.Context) {
 	if !s.Exited {
 		msg = "The agent stops. " + msg
 	}
-	switch ui.AlertDialog(c, &open, "Delete “"+a.sessionName(s)+"”?", msg, "Cancel", "Delete") {
+	switch widget.AlertDialog(c, &open, "Delete “"+a.sessionName(s)+"”?", msg, "Cancel", "Delete") {
 	case 1:
 		a.killSession(s.ID)
 		a.deleting = nil

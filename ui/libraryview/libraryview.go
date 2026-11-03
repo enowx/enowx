@@ -6,6 +6,7 @@
 package libraryview
 
 import (
+	"fmt"
 	"slices"
 	"strconv"
 	"strings"
@@ -28,6 +29,8 @@ type Options struct {
 	// OpenInEditor opens a file of the host, by its absolute path, in the
 	// user's editor; nil hides the button.
 	OpenInEditor func(path string)
+	// Sync copies items to another host; nil hides the button.
+	Sync func()
 }
 
 // kinds are the kinds of item the page shows, in its order, with their
@@ -64,6 +67,7 @@ type View struct {
 	filter   string
 	selected string
 
+	asked    string            // the item whose content was asked for last
 	item     *proto.EnvPayload // the selected item's content
 	itemFor  string
 	itemErr  string
@@ -106,93 +110,75 @@ func (v *View) Reload(o Options) {
 	}()
 }
 
-// Draw shows the library: its kinds, the items of the one picked, and the
-// item picked.
+// Draw heads the frame with the library, then shows its kinds with their
+// counts, the items of the one picked and the item picked. The window's least
+// width leaves this frame over 820, so the list and the item always sit side
+// by side.
 func (v *View) Draw(c *ui.Context, o Options) {
 	if !v.loaded && !v.loading {
 		v.Reload(o)
 	}
-	row := ui.Row(c).Grow(1).FillWidth().MinHeight(0).AlignItems(ui.Stretch)
-	// Narrow, the list and the item picked take turns, rather than the
-	// item squeezed beside the list.
-	narrow := row.Bounds().W > 0 && row.Bounds().W < 820
-	row.Children(func() {
-		v.nav(c, o)
-		if v.kind == kindPlugins {
-			ui.Column(c).Grow(1).MinWidth(0).BorderWidth(0, 0, 0, 1).BorderColor(theme.Border).Children(func() { v.pluginsPanel(c, o) })
-			return
-		}
-		if narrow {
-			ui.Column(c).Grow(1).MinWidth(0).BorderWidth(0, 0, 0, 1).BorderColor(theme.Border).Children(func() {
-				if v.selected == "" {
-					v.list(c, o)
-					return
-				}
-				ui.Row(c).FillWidth().Padding(8, 12, 0, 12).Children(func() {
-					if widget.Button(c, widget.Secondary, icon.ArrowLeft, "All "+kindName(v.kind), "").Height(28).Clicked() {
-						v.selected, v.item, v.editing, v.deleting = "", nil, false, false
-					}
-				})
-				v.detail(c, o)
-			})
-			return
-		}
-		ui.Column(c).Width(300).Shrink(0).BorderWidth(0, 1, 0, 1).BorderColor(theme.Border).Children(func() {
-			v.list(c, o)
+	if !v.plugins.loaded { // its figure shows from the start
+		v.plugins.loaded = true // asked once; a reply sets it again
+		v.loadPlugins(o)
+	}
+	ui.Column(c.Key("library")).Grow(1).FillWidth().MinHeight(0).Children(func() {
+		widget.PageHeader(c, "Agents' library", "On "+o.Host, func() {
+			if o.Sync != nil && widget.Button(c, widget.Secondary, nil, "Sync…", "").Tooltip("Copy items to another host").Clicked() {
+				o.Sync()
+			}
+			if widget.Button(c, widget.Secondary, nil, "Add a skill", "").Clicked() {
+				v.skill = &skillForm{open: true, agent: "claude"}
+			}
+			if widget.PrimaryButton(c, icon.Plus, "Add an MCP server", "").Clicked() {
+				v.mcp = newMCPForm()
+			}
 		})
-		ui.Column(c).Grow(1).MinWidth(0).Children(func() { v.detail(c, o) })
+		v.nav(c)
+		widget.PageFill(c, func() { v.body(c, o) })
 	})
 	v.mcpDialog(c, o)
 	v.skillDialog(c, o)
 }
 
-// nav lists the kinds, with how many items each has.
-func (v *View) nav(c *ui.Context, o Options) {
-	ui.Column(c).Width(190).Shrink(0).Padding(12, 8).Gap(2).Children(func() {
-		for _, k := range kinds {
-			n := len(v.items(k.id, ""))
-			on := v.kind == k.id
-			b := ui.ButtonBase(c.Key(k.id)).FillWidth().Height(32).PaddingX(10).Gap(9).Radius(theme.RadiusControl).
-				Justify(ui.Start).Cursor(ui.CursorPointer).Label(k.name)
-			switch {
-			case on:
-				b.Background(theme.Selected).TextColor(theme.Accent)
-			case b.Hovered():
-				b.Background(theme.Hover)
-			}
-			b.Children(func() {
-				ui.Icon(c, k.svg).FontSize(13)
-				ui.Text(c, k.name).FontSize(12.5).SingleLine().Grow(1)
-				if n > 0 {
-					ui.Text(c, strconv.Itoa(n)).FontSize(11).TextColor(theme.Muted)
-				}
-			})
-			if b.Clicked() && !on {
-				v.kind, v.selected, v.item, v.editing, v.deleting = k.id, "", nil, false, false
-			}
+// nav shows the kinds, with how many items each has; while they aren't known
+// yet, no figure claims there are none.
+func (v *View) nav(c *ui.Context) {
+	figs := make([]widget.Fig, 0, len(kinds)+1)
+	cur := len(kinds)
+	for i, k := range kinds {
+		n := "–"
+		if v.loaded && v.err == "" {
+			n = strconv.Itoa(len(v.items(k.id, "")))
 		}
-		// Claude Code's plugins.
-		on := v.kind == kindPlugins
-		b := ui.ButtonBase(c.Key(kindPlugins)).FillWidth().Height(32).PaddingX(10).Gap(9).Radius(theme.RadiusControl).
-			Justify(ui.Start).Cursor(ui.CursorPointer).Label("Plugins")
+		figs = append(figs, widget.Fig{Label: k.name, Value: n})
+		if v.kind == k.id {
+			cur = i
+		}
+	}
+	plugins := "–"
+	if v.plugins.read {
+		plugins = strconv.Itoa(len(v.plugins.list.Plugins))
+	}
+	figs = append(figs, widget.Fig{Label: "Plugins", Value: plugins})
+	ui.Column(c.Key("library-kinds")).FillWidth().Shrink(0).Padding(theme.S4, theme.S5, 0, theme.S5).Children(func() {
+		i := widget.FigsNav(c, figs, cur)
 		switch {
-		case on:
-			b.Background(theme.Selected).TextColor(theme.Accent)
-		case b.Hovered():
-			b.Background(theme.Hover)
-		}
-		b.Children(func() {
-			ui.Icon(c, icon.Agent("claude")).FontSize(13)
-			ui.Text(c, "Plugins").FontSize(12.5).SingleLine().Grow(1)
-			if n := len(v.plugins.list.Plugins); n > 0 {
-				ui.Text(c, strconv.Itoa(n)).FontSize(11).TextColor(theme.Muted)
-			}
-		})
-		if b.Clicked() && !on {
-			v.kind, v.selected, v.item = kindPlugins, "", nil
-			v.plugins.loaded = false
+		case i < 0 || i == cur:
+		case i == len(kinds):
+			v.kind = kindPlugins
+			v.clearPick()
+			v.plugins.loaded = false // read again
+		default:
+			v.kind = kinds[i].id
+			v.clearPick()
 		}
 	})
+}
+
+// clearPick leaves no item picked.
+func (v *View) clearPick() {
+	v.selected, v.asked, v.item, v.itemErr, v.editing, v.deleting = "", "", nil, "", false, false
 }
 
 // items are the items of kind, matching filter.
@@ -210,118 +196,169 @@ func (v *View) items(kind, filter string) []proto.EnvItem {
 	return out
 }
 
-// list shows the items of the kind picked, by agent, and the way to add
-// one.
-func (v *View) list(c *ui.Context, o Options) {
-	about := ""
+// body is what shows under the kinds.
+func (v *View) body(c *ui.Context, o Options) {
+	switch {
+	case v.kind == kindPlugins:
+		v.pluginsPanel(c, o)
+	case v.err != "":
+		widget.Notice(c, icon.Alert, theme.Error, "Can't read "+o.Host, v.err, nil)
+	case !v.loaded:
+		ui.Column(c).Grow(1).FillWidth().Center().Gap(theme.S2).Children(func() {
+			widget.Spinner(c, 20)
+			ui.Text(c, "Reading "+o.Host+"…").FontSize(theme.TextUI).TextColor(theme.TextSoft)
+		})
+	case v.kind == proto.EnvSettings:
+		v.settingsKind(c, o)
+	default:
+		v.listed(c, o)
+	}
+}
+
+// kindAbout is what the kind picked holds.
+func (v *View) kindAbout() string {
 	for _, k := range kinds {
 		if k.id == v.kind {
-			about = k.about
+			return k.about
 		}
 	}
-	ui.Column(c).FillWidth().Padding(12, 12, 8, 12).Gap(8).BorderWidth(0, 0, 1, 0).BorderColor(theme.Border).Children(func() {
-		ui.Text(c, about).FontSize(11.5).TextColor(theme.Muted)
-		ui.Row(c).FillWidth().Gap(6).Children(func() {
-			widget.SearchField(c, &v.filter, "Filter", icon.Search)
-			switch v.kind {
-			case proto.EnvMCP:
-				if widget.IconButton(c, icon.Plus, "Add an MCP server", false).Clicked() {
-					v.mcp = newMCPForm()
-				}
-			case proto.EnvSkill:
-				if widget.IconButton(c, icon.Plus, "Add a skill from a folder of this device", false).Clicked() {
-					v.skill = &skillForm{open: true, agent: "claude"}
-				}
-			}
-			if widget.IconButton(c, icon.Sync, "Read again", false).Clicked() {
-				v.Reload(o)
-			}
+	return ""
+}
+
+// noticeLine says how the last change went.
+func (v *View) noticeLine(c *ui.Context) {
+	if v.notice != "" {
+		ui.Row(c.Key("notice")).FillWidth().Shrink(0).Children(func() {
+			widget.Running(c, v.notice, widget.RunStyle{Color: theme.Done})
 		})
-		if v.notice != "" {
-			ui.Text(c, v.notice).FontSize(11.5).TextColor(theme.Done)
-		}
-	})
-	ui.Scroll(c).Grow(1).FillWidth().Children(func() {
-		ui.Column(c).FillWidth().Padding(8).Gap(2).Children(func() {
-			switch {
-			case v.err != "":
-				ui.Text(c, v.err).FontSize(12).TextColor(theme.Error).Padding(6)
-				return
-			case !v.loaded:
-				ui.Row(c).Gap(8).Padding(6).Children(func() {
-					widget.Spinner(c, 14)
-					ui.Text(c, "Reading "+o.Host+"…").FontSize(12).TextColor(theme.Muted)
-				})
-				return
-			}
-			items := v.items(v.kind, v.filter)
-			if v.kind == proto.EnvSettings && !slices.ContainsFunc(items, isClaudeSettings) && v.filter == "" {
-				if widget.GhostButton(c, "Make Claude Code's settings.json").Tooltip("To set its permissions and hooks").Clicked() {
-					v.createClaudeSettings(o)
-				}
-			}
-			if len(items) == 0 {
-				ui.Text(c, "None on "+o.Host+".").FontSize(12).TextColor(theme.Muted).Padding(6)
-				return
-			}
-			// By agent, each group folding, so a long list reads.
-			var agents []string
-			byAgent := map[string][]proto.EnvItem{}
-			for _, it := range items {
-				if _, ok := byAgent[it.Agent]; !ok {
-					agents = append(agents, it.Agent)
-				}
-				byAgent[it.Agent] = append(byAgent[it.Agent], it)
-			}
-			for _, agent := range agents {
-				open := !v.folded[v.kind+"/"+agent] || v.filter != ""
-				ui.Column(c.Key("agent:" + agent)).FillWidth().Children(func() {
-					widget.Group(c, agentName(agent), len(byAgent[agent]), &open, func() {
-						for _, it := range byAgent[agent] {
-							v.row(c.Key(it.ID), o, it)
-						}
-					})
-				})
-				if v.filter == "" {
-					if v.folded == nil {
-						v.folded = map[string]bool{}
-					}
-					v.folded[v.kind+"/"+agent] = !open
-				}
-			}
-		})
+	}
+}
+
+// aboutLine is a quiet line that takes the room it's given.
+func aboutLine(c *ui.Context, text string) {
+	ui.Row(c.Key("about")).Grow(1).FillWidth().Basis(0).MinWidth(0).Children(func() {
+		widget.Running(c, text, widget.RunStyle{Color: theme.TextSoft})
 	})
 }
 
-func (v *View) row(c *ui.Context, o Options, it proto.EnvItem) {
-	on := v.selected == it.ID
-	b := ui.ButtonBase(c).FillWidth().Padding(6, 10).Radius(theme.RadiusControl).
-		Justify(ui.Start).Cursor(ui.CursorPointer).Label(it.Name)
-	switch {
-	case on:
-		b.Background(theme.Selected)
-	case b.Hovered():
-		b.Background(theme.Hover)
+// listed shows the items of the kind picked by agent, beside the one picked.
+func (v *View) listed(c *ui.Context, o Options) {
+	ui.Row(c.Key("tools")).FillWidth().Shrink(0).Gap(theme.S3).Children(func() {
+		aboutLine(c, "Under the home folder of "+o.Host)
+		widget.Input(c, &v.filter, "Filter").Width(240).Shrink(0)
+		if widget.Button(c, widget.Secondary, icon.Sync, "Refresh", "").Clicked() {
+			v.Reload(o)
+		}
+	})
+	ui.Text(c.Key("kind-about"), v.kindAbout()).FontSize(theme.TextUI).TextColor(theme.TextSoft).FillWidth().Shrink(0)
+	v.noticeLine(c)
+	if len(v.items(v.kind, "")) == 0 {
+		noneHere(c, o)
+		return
 	}
-	b.Children(func() {
-		ui.Column(c).Grow(1).MinWidth(0).Gap(2).Children(func() {
-			ui.Row(c).FillWidth().Gap(6).Children(func() {
-				ui.Text(c, it.Name).FontSize(12.5).SingleLine().Shrink(1)
-				if len(it.Secrets) > 0 {
-					ui.Icon(c, icon.Lock).FontSize(11).TextColor(theme.Warning)
+	items := v.items(v.kind, v.filter)
+	v.autoPick(items)
+	widget.MasterDetail(c, 320, func() { v.list(c, o, items) }, func() { v.detail(c, o) })
+}
+
+// noneHere fills the frame when the host has none of the kind.
+func noneHere(c *ui.Context, o Options) {
+	ui.Column(c.Key("none")).Grow(1).FillWidth().Center().Children(func() {
+		ui.Text(c, "None on "+o.Host+".").FontSize(theme.TextUI).TextColor(theme.TextSoft)
+	})
+}
+
+// autoPick picks the first of the kind when none is, so the frame shows an
+// item from the start. Not while reading: what was just deleted is still
+// listed.
+func (v *View) autoPick(items []proto.EnvItem) {
+	if v.selected == "" && !v.loading && len(items) > 0 {
+		v.selected = items[0].ID
+	}
+}
+
+// list shows items by agent, each group folding so a long list reads; a
+// filter being typed opens them all.
+func (v *View) list(c *ui.Context, o Options, items []proto.EnvItem) {
+	if len(items) == 0 {
+		ui.Text(c.Key("no-match"), "None on "+o.Host+".").FontSize(theme.TextUI).TextColor(theme.TextSoft).Padding(theme.S1, 0)
+		return
+	}
+	var agents []string
+	byAgent := map[string][]proto.EnvItem{}
+	for _, it := range items {
+		if _, ok := byAgent[it.Agent]; !ok {
+			agents = append(agents, it.Agent)
+		}
+		byAgent[it.Agent] = append(byAgent[it.Agent], it)
+	}
+	if v.folded == nil {
+		v.folded = map[string]bool{}
+	}
+	for _, agent := range agents {
+		group := v.kind + "/" + agent
+		open := !v.folded[group] || v.filter != ""
+		if groupHead(c.Key("agent:"+agent), agentName(agent), len(byAgent[agent]), open) && v.filter == "" {
+			v.folded[group] = open
+			open = !open
+		}
+		if open {
+			for _, it := range byAgent[agent] {
+				v.row(c.Key(it.ID), it)
+			}
+		}
+	}
+}
+
+// groupHead names an agent's group, over its items, and folds it when clicked.
+func groupHead(c *ui.Context, name string, n int, open bool) bool {
+	title := fmt.Sprintf("%s · %d", name, n)
+	h := ui.ButtonBase(c).FillWidth().Shrink(0).MinHeight(20).Gap(theme.S1).Justify(ui.Start).Cursor(ui.CursorPointer).Label(title)
+	hovered := h.Hovered()
+	h.Children(func() {
+		ui.Row(c).Grow(1).MinWidth(0).Children(func() {
+			widget.Running(c, title, widget.RunStyle{Weight: 500, Color: theme.TextSoft})
+		})
+		// The way to unfold shows always, the way to fold under the pointer.
+		if !open {
+			ui.Icon(c, icon.ChevronRight).FontSize(12).TextColor(theme.TextSoft)
+		} else if hovered {
+			ui.Icon(c, icon.ChevronDown).FontSize(12).TextColor(theme.TextSoft)
+		}
+	})
+	return h.Clicked()
+}
+
+func (v *View) row(c *ui.Context, it proto.EnvItem) {
+	var lock func()
+	if len(it.Secrets) > 0 {
+		lock = func() { ui.Icon(c, icon.Lock).FontSize(12).TextColor(theme.Warning) }
+	}
+	on := v.selected == it.ID
+	if widget.Pick(c, nil, shownName(it), it.Detail, on, lock).Clicked() && !on {
+		v.selected = it.ID
+	}
+}
+
+// pickOne is a drop-down of values, shown by their names, holding its choice
+// in current.
+func pickOne(c *ui.Context, label string, width float32, values []string, name func(string) string, current *string) {
+	sel := ui.SelectBase(c, current)
+	widget.Trigger(sel.Trigger, sel.Open()).Label(label).Children(func() {
+		ui.Row(c).Grow(1).MinWidth(0).Children(func() { widget.Running(c, name(*current), widget.RunStyle{}) })
+		ui.Icon(c, icon.ChevronDown).FontSize(12).TextColor(theme.TextSoft)
+	})
+	sel.Popup(func(panel ui.Element) {
+		widget.Popup(panel.Margin(theme.S2, 0, 0, 0).Width(width))
+		widget.Scroll(c).FillWidth().MaxHeight(300).Children(func() {
+			ui.Column(c).FillWidth().Children(func() {
+				for _, val := range values {
+					item := sel.Item(val)
+					widget.PopupItem(item, item.Highlighted()).Children(func() { ui.Text(c, name(val)).FontSize(theme.TextUI) })
 				}
 			})
-			// A path that only repeats the name (~/.claude/skills/<name>)
-			// says nothing the group doesn't: the detail has it.
-			if it.Detail != "" && !strings.HasSuffix(it.Detail, "/"+it.Name) {
-				ui.Text(c, it.Detail).FontSize(11).TextColor(theme.Muted).SingleLine().Shrink(1)
-			}
 		})
 	})
-	if b.Clicked() && !on {
-		v.selected, v.item, v.itemErr, v.editing, v.deleting = it.ID, nil, "", false, false
-		v.load(o, it.ID)
-	}
 }
 
 func agentName(id string) string {
@@ -329,14 +366,4 @@ func agentName(id string) string {
 		return n
 	}
 	return id
-}
-
-// kindName is kind id's name, in the plural.
-func kindName(id string) string {
-	for _, k := range kinds {
-		if k.id == id {
-			return strings.ToLower(k.name)
-		}
-	}
-	return "items"
 }

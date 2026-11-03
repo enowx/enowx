@@ -31,22 +31,24 @@ func (a *App) cloudSignInDialog(c *ui.Context) {
 	}
 	cs := a.cloudOf()
 	open := true
-	widget.Dialog(c, &open, 420, 16, func() {
+	widget.Dialog(c, &open, 480, theme.S3, func() {
 		st := cs.st
 		switch {
 		case st.SignedIn:
-			widget.DialogHeader(c, "You're signed in", "", false)
-			ui.Row(c).FillWidth().Gap(12).AlignItems(ui.Center).Padding(14).Radius(theme.RadiusControl).Background(theme.Sunken).Border(1, theme.Border).Children(func() {
-				ui.Box(c).Size(36, 36).Radius(18).Background(theme.Fade(theme.Done, 0.16)).Center().Shrink(0).Children(func() {
-					ui.Icon(c, icon.Check).FontSize(18).TextColor(theme.Done)
+			if widget.DialogHeader(c, "You're signed in", "", true) {
+				open = false
+			}
+			ui.Row(c).FillWidth().Gap(theme.S3).Padding(theme.S3, theme.S4).Radius(theme.RadiusCard).Background(theme.Sunken).Children(func() {
+				ui.Box(c).Size(32, 32).Radius(theme.RadiusFull).Background(theme.Fade(theme.Done, 0.16)).Center().Shrink(0).Children(func() {
+					ui.Icon(c, icon.Check).FontSize(16).TextColor(theme.Done)
 				})
-				ui.Column(c).Grow(1).Shrink(1).MinWidth(0).Gap(2).Children(func() {
+				ui.Column(c).Grow(1).MinWidth(0).Children(func() {
 					who := st.Account
 					if st.GitHub != "" {
 						who += " · @" + st.GitHub
 					}
-					ui.Text(c, who).FontSize(13.5).FontWeight(600).SingleLine()
-					ui.Text(c, a.host.Name+", signed in as "+deviceKind(st.DeviceKind)).FontSize(12).TextColor(theme.Muted).SingleLine()
+					widget.Running(c, who, widget.RunStyle{Weight: 600})
+					widget.Running(c.Key("device"), a.host.Name+", signed in as "+deviceKind(st.DeviceKind), widget.RunStyle{Size: theme.TextLabel, Color: theme.TextSoft})
 				})
 			})
 			widget.DialogFooter(c, "", func() {
@@ -61,13 +63,15 @@ func (a *App) cloudSignInDialog(c *ui.Context) {
 		case st.Pending != nil:
 			p := st.Pending
 			a.openCloudPage(false) // once per code
-			widget.DialogHeader(c, "Sign in to enowX Cloud", "Your browser opened on this code: approve it there, signed in with GitHub.", false)
-			ui.Column(c).FillWidth().Gap(10).Padding(20).Radius(theme.RadiusControl).Background(theme.Sunken).Border(1, theme.Border).AlignItems(ui.Center).Children(func() {
-				ui.Text(c, p.UserCode).Font(theme.MonoFont).FontSize(30).FontWeight(600).LetterSpacing(2)
-				ui.Row(c).Gap(8).AlignItems(ui.Center).Children(func() {
-					widget.Spinner(c, 12)
-					ui.Text(c, "Waiting for you, until "+p.Expires.Local().Format("15:04")).FontSize(12).TextColor(theme.Muted)
-				})
+			if widget.DialogHeader(c, "Sign in to enowX Cloud", "Your browser opened on this code: approve it there, signed in with GitHub.", true) {
+				open = false
+			}
+			ui.Column(c).FillWidth().Padding(theme.S2, 0).AlignItems(ui.Center).Children(func() {
+				ui.Text(c, p.UserCode).Font(theme.MonoFont).FontSize(24).FontWeight(500).LetterSpacing(2).SingleLine()
+			})
+			ui.Row(c).FillWidth().Gap(theme.S2).Children(func() {
+				widget.Spinner(c, 12)
+				ui.Text(c, "Waiting for you, until "+p.Expires.Local().Format("15:04")).FontSize(theme.TextUI).TextColor(theme.TextSoft)
 			})
 			c.After(time.Second)
 			widget.DialogFooter(c, "", func() {
@@ -80,14 +84,16 @@ func (a *App) cloudSignInDialog(c *ui.Context) {
 				}
 			})
 		default:
-			widget.DialogHeader(c, "Sign in to enowX Cloud", "Your teams in enowX: their members, the notes and canvases they share, their hosts.", false)
+			if widget.DialogHeader(c, "Sign in to enowX Cloud", "Your teams in enowX: their members, the notes and canvases they share, their hosts.", true) {
+				open = false
+			}
 			if cs.err != "" {
 				widget.Notice(c, icon.Alert, theme.Error, cs.err, "", nil)
 			}
 			if cs.busy != "" {
-				ui.Row(c).Gap(8).AlignItems(ui.Center).Children(func() {
+				ui.Row(c).Gap(theme.S2).Children(func() {
 					widget.Spinner(c, 14)
-					ui.Text(c, cs.busy).FontSize(12).TextColor(theme.Muted)
+					ui.Text(c, cs.busy).FontSize(theme.TextLabel).TextColor(theme.TextSoft)
 				})
 			}
 			widget.DialogFooter(c, "", func() {

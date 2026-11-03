@@ -7,7 +7,6 @@ import (
 
 	"github.com/enowx/enowx/core/vault"
 	"github.com/enowx/enowx/proto"
-	"github.com/enowx/enowx/ui/icon"
 	"github.com/enowx/enowx/ui/theme"
 	"github.com/enowx/enowx/ui/widget"
 )
@@ -34,46 +33,43 @@ func (v *View) importDialog(c *ui.Context, o Options) {
 			f.picks[i] = !has(o.Credentials, found)
 		}
 	}
-	widget.FormSheet(c, &f.open, 600, "Import from "+o.Current.Name,
+	widget.FormSheet(c, &f.open, 480, "Import from "+o.Current.Name,
 		"The logins "+o.Current.Name+"'s tools keep (gh, aws, wrangler, docker, npm, git, SSH keys…). Picked ones are copied into the vault; the tools keep theirs.", func() {
 			switch {
 			case o.Scanning:
-				ui.Row(c).Gap(8).AlignItems(ui.Center).Children(func() {
+				ui.Row(c).Gap(theme.S2).Children(func() {
 					widget.Spinner(c, 14)
-					ui.Text(c, "Looking…").FontSize(12.5).TextColor(theme.TextSoft)
+					ui.Text(c, "Looking…").FontSize(theme.TextUI).TextColor(theme.TextSoft)
 				})
 				return
 			case len(o.Found) == 0:
-				ui.Text(c, "Nothing found: log in with a tool there first (gh auth login, aws configure…), or add it by hand.").FontSize(12.5).TextColor(theme.TextSoft)
+				ui.Text(c, "Nothing found: log in with a tool there first (gh auth login, aws configure…), or add it by hand.").FontSize(theme.TextUI).TextColor(theme.TextSoft)
 				return
 			}
-			for i, found := range o.Found {
-				p := vault.Lookup(found.Platform)
-				on := f.picks[i]
-				ui.Row(c.Key(i)).FillWidth().Gap(10).AlignItems(ui.Center).Children(func() {
-					if widget.Checkbox(c, &on, "") {
-						f.picks[i] = on
+			widget.CardLines(c, func() {
+				for i, found := range o.Found {
+					p := vault.Lookup(found.Platform)
+					title := p.Name
+					if found.Account != "" {
+						title += " · " + found.Account
 					}
-					Logo(c, p, 28)
-					ui.Column(c).Grow(1).MinWidth(0).Gap(2).Children(func() {
-						title := p.Name
-						if found.Account != "" {
-							title += " · " + found.Account
+					about := "from " + found.Source
+					if found.Note != "" {
+						about += " · " + found.Note
+					}
+					if has(o.Credentials, found) {
+						about = "in the vault already · " + about
+					}
+					widget.CardLine(c.Key(i), i == 0, title, about, func() {
+						on := f.picks[i]
+						if widget.Switch(c, &on, "Import "+p.Name) {
+							f.picks[i] = on
 						}
-						ui.Text(c, title).FontSize(12.5).TextColor(theme.Text).SingleLine()
-						about := "from " + found.Source
-						if found.Note != "" {
-							about += " · " + found.Note
-						}
-						if has(o.Credentials, found) {
-							about = "in the vault already · " + about
-						}
-						ui.Text(c, about).FontSize(11).TextColor(theme.Muted).SingleLine()
 					})
-				})
-			}
+				}
+			})
 			if f.err != "" {
-				ui.Text(c, f.err).FontSize(12).TextColor(theme.Error)
+				widget.CardNote(c, f.err, 0).TextColor(theme.Error)
 			}
 		}, func() {
 			n := 0
@@ -82,7 +78,7 @@ func (v *View) importDialog(c *ui.Context, o Options) {
 					n++
 				}
 			}
-			b := widget.PrimaryButton(c, icon.ArrowDown, fmt.Sprintf("Import %d", n), "")
+			b := widget.PrimaryButton(c, nil, fmt.Sprintf("Import %d", n), "")
 			if n == 0 || o.Scanning {
 				b.Disabled(true).Opacity(0.45)
 			} else if b.Clicked() {

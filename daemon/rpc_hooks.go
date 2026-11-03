@@ -64,6 +64,7 @@ func (s *Server) sessionHook(p proto.SessionHookParams) (proto.HookDecision, err
 			tool = "*"
 		}
 		s.permissionAsked(info, tool)
+		s.goaWorkerAsks(info)
 	}
 	worker, stop := s.goaHook(info, ev) // GOD of Agents' (goa.go)
 	if stop {
@@ -86,11 +87,13 @@ func (s *Server) sessionHook(p proto.SessionHookParams) (proto.HookDecision, err
 	if dir == "" {
 		dir = info.Dir
 	}
+	continuing := s.goaHookLines(sess, info, ev, &d)
 	switch ev.Event {
 	case proto.HookToolAfter:
 		s.toolStep(info, ev)
 	case proto.HookPromptStart:
 		s.promptStep(info.ID)
+		s.todoHead(info)
 		if !d.Block {
 			go s.turnStarted(info)
 			if info.GOA {
@@ -103,7 +106,11 @@ func (s *Server) sessionHook(p proto.SessionHookParams) (proto.HookDecision, err
 			}
 		}
 	case proto.HookTurnDone:
+		if continuing {
+			break // it goes on, to take what it was given
+		}
 		go s.turnEnded(info)
+		go s.remindToDos(info)
 		s.ragSoon(dir)
 	case proto.HookSessionEnd:
 		go s.ragOffer(info)

@@ -68,52 +68,42 @@ func (a *App) quickOpenDialog(c *ui.Context) {
 	if !q.open {
 		return
 	}
+	if q.query != q.asked {
+		a.findFiles()
+	}
+	if n := len(q.paths); n > 0 {
+		q.pick = (q.pick + n) % n
+	}
 	var chosen string
-	widget.Dialog(c, &q.open, 600, 8, func() {
-		in := widget.Input(c, &q.query, "Go to a file by a few letters of its path").FillWidth().AutoFocus()
-		if q.query != q.asked {
-			a.findFiles()
+	submitted := widget.Palette(c, &q.open, &q.query, "Go to a file by a few letters of its path", func(k ui.TextKey) bool {
+		switch {
+		case k.Key == ui.KeyDown && k.Mods == 0, k.Key == ui.KeyN && k.Mods == ui.Ctrl:
+			q.pick++
+		case k.Key == ui.KeyUp && k.Mods == 0, k.Key == ui.KeyP && k.Mods == ui.Ctrl:
+			q.pick--
+		default:
+			return false
 		}
-		in.OnTextKey(func(k ui.TextKey) bool {
-			switch {
-			case k.Key == ui.KeyDown && k.Mods == 0, k.Key == ui.KeyN && k.Mods == ui.Ctrl:
-				q.pick++
-			case k.Key == ui.KeyUp && k.Mods == 0, k.Key == ui.KeyP && k.Mods == ui.Ctrl:
-				q.pick--
-			default:
-				return false
-			}
-			return true
-		})
-		if n := len(q.paths); n > 0 {
-			q.pick = (q.pick + n) % n
-		}
-		if in.Submitted() && len(q.paths) > 0 {
-			chosen = q.paths[q.pick]
-		}
+		return true
+	}, func() {
 		switch {
 		case q.err != "":
-			ui.Text(c, q.err).FontSize(12).TextColor(theme.Error).Padding(8)
+			ui.Text(c, q.err).FontSize(theme.TextUI).TextColor(theme.Error).Padding(theme.S2, theme.S3)
 		case len(q.paths) == 0 && q.asked == q.query:
-			ui.Text(c, "No file matches.").FontSize(12).TextColor(theme.Muted).Padding(8)
+			ui.Text(c, "No file matches.").FontSize(theme.TextUI).TextColor(theme.TextSoft).Padding(theme.S2, theme.S3)
 		}
-		ui.Scroll(c).FillWidth().MaxHeight(420).Children(func() {
-			ui.Column(c).FillWidth().Gap(1).Children(func() {
-				for i, p := range q.paths {
-					dir, name := path.Split(p)
-					row := ui.ButtonBase(c.Key(p)).Label(p)
-					widget.ListRow(c, row, i == q.pick, "quickopen", func() {
-						ui.Icon(c, icon.File).FontSize(13).TextColor(theme.TextSoft)
-						ui.Text(c, name).FontSize(12.5).SingleLine().Shrink(0)
-						ui.Text(c, strings.TrimSuffix(dir, "/")).Font(theme.MonoFont).FontSize(11).TextColor(theme.Muted).SingleLine().Shrink(1)
-					})
-					if row.Clicked() {
-						chosen = p
-					}
-				}
-			})
-		})
+		for i, p := range q.paths {
+			dir, name := path.Split(p)
+			row := ui.ButtonBase(c.Key(p)).Label(p)
+			widget.PaletteRow(c, row, i == q.pick, icon.File, name, strings.TrimSuffix(dir, "/"), true)
+			if row.Clicked() {
+				chosen = p
+			}
+		}
 	})
+	if submitted && len(q.paths) > 0 {
+		chosen = q.paths[q.pick]
+	}
 	if chosen != "" {
 		q.open = false
 		if s, ok := a.sessionByID(q.session); ok {

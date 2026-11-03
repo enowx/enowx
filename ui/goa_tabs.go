@@ -2,7 +2,7 @@ package ui
 
 import (
 	"slices"
-	"strconv"
+	"strings"
 
 	"github.com/egoist/mygo/plugins/terminal"
 	"github.com/egoist/mygo/ui"
@@ -15,17 +15,23 @@ import (
 )
 
 // A session looked at from GOD of Agents' mode, on any host the app reaches:
-// a tab with a live terminal of its own connection, GOA and its conversation
-// staying where they are. A tab is a view: closing it detaches, and the
-// session runs on. The main thread owns these.
+// a center tab of GOA's session (center.go, centerGOA) with a live terminal of
+// its own connection, GOA and its conversation staying where they are. A tab
+// is a view: closing it detaches, and the session runs on. The main thread
+// owns these.
 type goaTab struct {
 	key      string // host and session
 	host, id string
+	agent    string
 	cl       *client.Client
 	term     *terminal.Terminal
 	stream   *client.Stream
 	err      string
 	closed   bool
+	// seen is the session as the view was last attached or looked at, and attaching
+	// that a new attach is on its way.
+	seen      proto.SessionInfo
+	attaching bool
 }
 
 // goaClientOf is the connection to the host the Sessions tool names.
@@ -42,15 +48,19 @@ func (a *App) goaClientOf(host string) *client.Client {
 // bringing its agent back when it stopped, as showing a session does.
 func (a *App) openGOATab(host string, cl *client.Client, s proto.SessionInfo) {
 	key := host + "\x00" + s.ID
-	a.page, a.goa.shown = "", key
-	if i := slices.IndexFunc(a.goa.tabs, func(t *goaTab) bool { return t.key == key }); i >= 0 && a.goa.tabs[i].err == "" {
-		return
-	} else if i >= 0 {
-		a.closeGOATab(a.goa.tabs[i])
-		a.goa.shown = key
+	if i := slices.IndexFunc(a.goa.tabs, func(t *goaTab) bool { return t.key == key }); i >= 0 {
+		if a.goa.tabs[i].err == "" {
+			a.page = ""
+			a.centerOf(a.goa.board.Session).front = centerGOA + key
+			return
+		}
+		a.closeGOATab(a.goa.tabs[i]) // an errored tab is opened again
 	}
-	t := &goaTab{key: key, host: host, id: s.ID, cl: cl}
+	t := &goaTab{key: key, host: host, id: s.ID, agent: s.Agent, cl: cl, seen: s, attaching: true}
 	a.goa.tabs = append(a.goa.tabs, t)
+	tabs := a.centerOf(a.goa.board.Session)
+	tabs.tabs, tabs.front = append(tabs.tabs, centerGOA+key), centerGOA+key
+	a.page = ""
 	go func() {
 		if s.Exited {
 			if _, err := cl.ContinueSession(s.ID); err != nil {
@@ -58,24 +68,53 @@ func (a *App) openGOATab(host string, cl *client.Client, s proto.SessionInfo) {
 				return
 			}
 		}
-		st, err := cl.Attach(s.ID)
-		a.onMain(func() {
-			switch {
-			case t.closed:
-				if st != nil {
-					st.Close()
-				}
-			case err != nil:
-				t.err = client.Explain(err)
-			default:
-				a.attachGOATab(t, st)
-			}
-		})
+		a.goaTabAttach(t, s.ID)
 	}()
+}
+
+// goaTabAttach attaches tab t's view to its session, off the main thread.
+func (a *App) goaTabAttach(t *goaTab, id string) {
+	st, err := t.cl.Attach(id)
+	a.onMain(func() {
+		t.attaching = false
+		switch {
+		case t.closed:
+			if st != nil {
+				st.Close()
+			}
+		case err != nil:
+			t.err = client.Explain(err)
+		default:
+			a.attachGOATab(t, st)
+		}
+	})
+}
+
+// goaTabFollow attaches tab t again when its session's program started again, as a
+// hibernate and wake does: the view it has shows a terminal that no longer changes.
+func (a *App) goaTabFollow(t *goaTab) {
+	s, ok := a.goaTabSession(t)
+	if !ok {
+		return
+	}
+	outdated := viewOutdated(t.seen, s)
+	t.seen = s
+	if !outdated || t.attaching {
+		return
+	}
+	if t.term != nil {
+		t.term.Close()
+	}
+	if t.stream != nil {
+		t.stream.Close()
+	}
+	t.term, t.stream, t.err, t.attaching = nil, nil, "", true
+	go a.goaTabAttach(t, s.ID)
 }
 
 func (a *App) attachGOATab(t *goaTab, st *client.Stream) {
 	term, err := terminal.New(terminal.Options{
+		Transparent:  true, // the view's own ground shows, as the slider has it
 		Conn:         &settledResize{ReadWriteCloser: st, resize: st.ResizePixels},
 		ResizeByConn: true,
 		Theme:        theme.Terminal(),
@@ -94,7 +133,43 @@ func (a *App) attachGOATab(t *goaTab, st *client.Stream) {
 }
 
 // closeGOATab closes the view alone: the session runs on.
-func (a *App) closeGOATab(t *goaTab) {
+func (a *App) closeGOATab(t *goaTab) { a.closeCenter(a.goa.board.Session, centerGOA+t.key) }
+
+// closeGOATabOf closes the tab of a session gone from its host.
+func (a *App) closeGOATabOf(id string) {
+	for _, t := range slices.Clone(a.goa.tabs) {
+		if t.id == id {
+			a.closeGOATab(t)
+		}
+	}
+}
+
+// pruneGOATabs closes the tabs of sessions gone from another host, whose
+// removal reaches this app only as that host's list without them. A host that
+// lists nothing may just not have said yet.
+func (a *App) pruneGOATabs() {
+	if len(a.goa.tabs) == 0 {
+		return
+	}
+	for _, h := range a.goaEveryHost() {
+		if len(h.sessions) == 0 {
+			continue
+		}
+		for _, t := range slices.Clone(a.goa.tabs) {
+			if t.host == h.name && !slices.ContainsFunc(h.sessions, func(s proto.SessionInfo) bool { return s.ID == t.id }) {
+				a.closeGOATab(t)
+			}
+		}
+	}
+}
+
+// dropGOATab lets go of the tab of key, once it left the strip.
+func (a *App) dropGOATab(key string) {
+	i := slices.IndexFunc(a.goa.tabs, func(t *goaTab) bool { return t.key == key })
+	if i < 0 {
+		return
+	}
+	t := a.goa.tabs[i]
 	t.closed = true
 	if t.term != nil {
 		t.term.Close()
@@ -102,10 +177,7 @@ func (a *App) closeGOATab(t *goaTab) {
 	if t.stream != nil {
 		t.stream.Close()
 	}
-	a.goa.tabs = slices.DeleteFunc(a.goa.tabs, func(x *goaTab) bool { return x == t })
-	if a.goa.shown == t.key {
-		a.goa.shown = ""
-	}
+	a.goa.tabs = slices.Delete(slices.Clone(a.goa.tabs), i, i+1)
 }
 
 func (a *App) closeGOATabs() {
@@ -114,11 +186,25 @@ func (a *App) closeGOATabs() {
 	}
 }
 
+// goaShownTab is the session tab in front of GOA, nil for none.
 func (a *App) goaShownTab() *goaTab {
-	if a.goa.shown == "" || a.page != "" {
+	if a.page != "" || a.center == nil {
 		return nil
 	}
-	i := slices.IndexFunc(a.goa.tabs, func(t *goaTab) bool { return t.key == a.goa.shown })
+	tabs := a.center[a.goa.board.Session]
+	if tabs == nil {
+		return nil
+	}
+	key, ok := strings.CutPrefix(tabs.front, centerGOA)
+	if !ok {
+		return nil
+	}
+	return a.goaTabOf(key)
+}
+
+// goaTabOf is the open tab of key, nil for none.
+func (a *App) goaTabOf(key string) *goaTab {
+	i := slices.IndexFunc(a.goa.tabs, func(t *goaTab) bool { return t.key == key })
 	if i < 0 {
 		return nil
 	}
@@ -138,74 +224,51 @@ func (a *App) goaTabSession(t *goaTab) (proto.SessionInfo, bool) {
 	return proto.SessionInfo{}, false
 }
 
-// goaTabs is the row of open tabs, under GOA's strip.
-func (a *App) goaTabs(c *ui.Context) {
-	if len(a.goa.tabs) == 0 {
+// goaTabButton is a session's tab in GOA's strip: another host's says whose it
+// is, and its dot shows only while the session is listed.
+func (a *App) goaTabButton(c *ui.Context, g proto.SessionInfo, key string, front bool) {
+	t := a.goaTabOf(key)
+	if t == nil {
 		return
 	}
-	shown := a.goaShownTab()
-	ui.Row(c.Key("goa-tabs")).FillWidth().Shrink(0).Wrap().PaddingX(14).Padding(6, 14).Gap(4).AlignItems(ui.Center).
-		BorderWidth(0, 0, 1, 0).BorderColor(theme.Border).Background(theme.Panel).Children(func() {
-		for i, t := range a.goa.tabs {
-			s, known := a.goaTabSession(t)
-			name := t.id
-			if known {
-				name = a.sessionName(s)
-			}
-			ui.Row(c.Key("goa-tab:" + strconv.Itoa(i) + t.key)).Gap(2).AlignItems(ui.Center).Radius(theme.RadiusControl).
-				Background(goaTabColor(t == shown)).Children(func() {
-				b := ui.ButtonBase(c).Height(26).PaddingX(9).Gap(6).AlignItems(ui.Center).Radius(theme.RadiusControl).
-					Cursor(ui.CursorPointer).Label(name + " on " + t.host).MaxWidth(240)
-				b.Children(func() {
-					if known {
-						st := statusOf(s)
-						widget.Dot(c, st.color, st.hollow, 7)
-					}
-					ui.Text(c, name).FontSize(12).SingleLine().Shrink(1)
-					if t.host != a.host.Name {
-						ui.Text(c, t.host).FontSize(11).TextColor(theme.Muted).SingleLine().Shrink(2)
-					}
-				})
-				if b.Clicked() {
-					a.page, a.goa.shown = "", t.key
-				}
-				if widget.IconButton(c, icon.Close, "Close this tab: the session keeps running", false).Clicked() {
-					a.closeGOATab(t)
-				}
-			})
-		}
-	})
-}
-
-func goaTabColor(shown bool) ui.Color {
-	if shown {
-		return theme.Hover
+	name, dot, hollow := t.id, ui.Color{}, false
+	if s, ok := a.goaTabSession(t); ok {
+		st := statusOf(s)
+		name, dot, hollow = a.sessionName(s), st.color, st.hollow
 	}
-	return ui.RGBA(0, 0, 0, 0)
+	tip := name + " on " + t.host
+	if t.host != a.host.Name {
+		name += " · " + t.host
+	}
+	a.tabFace(c.Key("g:"+key), name, tip, front, true, dot, hollow, icon.Agent(t.agent),
+		func() { a.centerOf(g.ID).front = centerGOA + key },
+		func() { a.closeGOATab(t) })
 }
 
 // goaTabView is a tab's session, live.
-func (a *App) goaTabView(c *ui.Context, t *goaTab) {
-	name, state := t.id, ""
-	if s, ok := a.goaTabSession(t); ok {
-		name, state = a.sessionName(s), statusOf(s).label
+func (a *App) goaTabView(c *ui.Context, key string) {
+	t := a.goaTabOf(key)
+	if t == nil {
+		return
 	}
-	a.viewHeader(c, func() {
-		ui.Row(c).Grow(1).MinWidth(0).Gap(8).AlignItems(ui.Center).Children(func() {
-			widget.Breadcrumb(c, t.host, name)
-			if state != "" {
-				ui.Text(c, state).FontSize(11.5).TextColor(theme.Muted).SingleLine()
-			}
+	a.goaTabFollow(t)
+	note := "Live, on " + t.host + ". Closing this tab closes the view alone; the session runs on."
+	if t.seen.Exited {
+		note = "Not running, on " + t.host + ": this is its screen from when it stopped. It comes back live when the session does."
+	}
+	ui.Column(c).Grow(1).FillWidth().MinHeight(0).Padding(theme.S3, theme.S5, theme.S4, theme.S5).Gap(theme.S3).Children(func() {
+		ui.Row(c).FillWidth().Shrink(0).PaddingX(theme.S4).Children(func() {
+			widget.Running(c, note, widget.RunStyle{Color: theme.TextSoft})
 		})
+		switch {
+		case t.err != "":
+			widget.Notice(c, icon.Alert, theme.Error, t.err, "", nil)
+		case t.term == nil:
+			ui.Column(c).Grow(1).FillWidth().Center().Children(func() {
+				ui.Text(c, "Connecting…").TextColor(theme.TextSoft)
+			})
+		default:
+			terminal.View(c.Key("goa-term:"+key), t.term).Grow(1).FillWidth().Background(theme.TermGround)
+		}
 	})
-	switch {
-	case t.err != "":
-		widget.Notice(c, icon.Alert, theme.Error, t.err, "", nil)
-	case t.term == nil:
-		ui.Column(c).Grow(1).FillWidth().Center().Children(func() {
-			ui.Text(c, "Connecting…").TextColor(theme.Muted)
-		})
-	default:
-		terminal.View(c.Key("goa-term:"+t.key), t.term).Grow(1).FillWidth()
-	}
 }

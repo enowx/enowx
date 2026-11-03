@@ -87,8 +87,8 @@ func TestAddHostThroughOwnTailnet(t *testing.T) {
 	// The switch sits at the dialog's right edge, centered on the label
 	// and its description.
 	r, _ := tt.Find("Through enowX's own tailnet")
-	for y := r.Y; y < r.Y+50 && !a.addHost.tailnet; y += 4 {
-		tt.ClickAt(543, y)
+	for x := r.X + r.W; x < r.X+700 && !a.addHost.tailnet; x += 12 {
+		tt.ClickAt(x, r.Y+10)
 		frame()
 	}
 	if !a.addHost.tailnet {

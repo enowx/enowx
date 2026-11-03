@@ -60,8 +60,9 @@ type Meta struct {
 	SkipPermissions bool
 	// SkipUnheard: proto.SessionInfo.SkipUnheard.
 	SkipUnheard bool
-	// Model and Effort: what its agent last said it runs on.
-	Model, Effort string
+	// Model and Effort: what its agent last said it runs on. Mode: its permission mode, the
+	// same way. All three go on its command line whenever it starts again.
+	Model, Effort, Mode string
 	// Conversation is its agent's conversation, by the id the agent
 	// resumes it with: it goes on with its own, not the folder's latest.
 	Conversation string
@@ -84,6 +85,13 @@ type Meta struct {
 	// Note is what the session is at, as its agent or the user last said
 	// (SessionInfo.Note).
 	Note string
+	// Report, ReportOutcome and ReportAt are its agent's last report of a turn
+	// (SessionInfo). They don't outlast the daemon, their news having gone.
+	Report        string
+	ReportOutcome string
+	ReportAt      int64
+	// FinishedAt is when it last finished what it was at (SessionInfo.FinishedAt).
+	FinishedAt int64
 	// Group is the fan-out the session is part of (SessionInfo.Group).
 	Group string
 	// Account is the agent's account it runs as (SessionInfo.Account).
@@ -192,8 +200,13 @@ func (s *Session) Info() proto.SessionInfo {
 	defer s.mu.Unlock()
 	return proto.SessionInfo{
 		ID:              s.id,
+		Run:             s.started.UnixNano(),
+		FinishedAt:      s.meta.FinishedAt,
 		Name:            s.meta.Name,
 		Note:            s.meta.Note,
+		Report:          s.meta.Report,
+		ReportOutcome:   s.meta.ReportOutcome,
+		ReportAt:        s.meta.ReportAt,
 		Group:           s.meta.Group,
 		Account:         s.meta.Account,
 		Config:          cloneConfig(s.meta.Config),
@@ -312,6 +325,34 @@ func truncate(s string, n int) string {
 		return s
 	}
 	return string(r[:n])
+}
+
+// QuietFor is how long it has been since anything was typed in or shown, as of
+// now; a long time when nothing has been since it was brought back.
+// Done closes when the session is replaced or killed: its terminal has no more to show.
+func (s *Session) Done() <-chan struct{} { return s.done }
+
+// TypedFor is how long since anything was typed into the session.
+func (s *Session) TypedFor(now time.Time) time.Duration {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if s.lastInput.IsZero() {
+		return 365 * 24 * time.Hour
+	}
+	return now.Sub(s.lastInput)
+}
+
+func (s *Session) QuietFor(now time.Time) time.Duration {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	last := s.lastChange
+	if s.lastInput.After(last) {
+		last = s.lastInput
+	}
+	if last.IsZero() {
+		return 365 * 24 * time.Hour
+	}
+	return now.Sub(last)
 }
 
 // stateLocked is the agent's state as clients see it: what the hooks said,
@@ -444,6 +485,7 @@ func (m *Manager) create(spec Spec, old *Session) (*Session, error) {
 		OnExit: func(code int) {
 			s.mu.Lock()
 			s.exited, s.code, s.active = true, code, false
+			s.meta.FinishedAt = time.Now().UnixMilli()
 			s.exitWhy = ExitWhy(code, time.Since(s.started))
 			if time.Since(s.started) < quickExit {
 				s.quickExits++
@@ -545,6 +587,9 @@ func (m *Manager) watchActivity(s *Session) {
 		s.mu.Lock()
 		active := !s.exited && !s.lastChange.IsZero() && now.Sub(s.lastChange) < activeFor
 		changed := active != s.active
+		if s.active && !active && s.state != proto.StateDone && s.state != proto.StateWaiting {
+			s.meta.FinishedAt = now.UnixMilli() // no hook says when: its screen stopped
+		}
 		s.active = active
 		changed = s.countWork(now) || changed
 		changed = s.stateChanged(now) || changed
@@ -605,6 +650,9 @@ func (m *Manager) SetState(s *Session, state string) error {
 	}
 	now := time.Now()
 	s.mu.Lock()
+	if state == proto.StateDone && s.state != proto.StateDone {
+		s.meta.FinishedAt = now.UnixMilli()
+	}
 	s.state, s.stateAt = state, now
 	changed := s.stateChanged(now)
 	s.mu.Unlock()

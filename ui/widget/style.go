@@ -1,13 +1,11 @@
 package widget
 
 import (
+	"github.com/egoist/mygo/plugins/glass"
 	"github.com/egoist/mygo/ui"
 
 	"github.com/enowx/enowx/ui/theme"
 )
-
-// Backdrop dims what is under a dialog.
-var Backdrop = ui.RGBA(0, 0, 0, 0.62)
 
 // tint animates one of e's colors toward target.
 func tint(e ui.Element, key string, target ui.Color) ui.Color {
@@ -18,47 +16,195 @@ func tint(e ui.Element, key string, target ui.Color) ui.Color {
 // change theirs.
 func Tint(e ui.Element, key string, target ui.Color) ui.Color { return tint(e, key, target) }
 
-// Raise gives e the look of a surface above its ground: a faint light
-// along its top edge and a soft shadow under it.
+// Rim gives e glass's edge: a hairline around it, lit along its top, and
+// a soft shadow under it.
+func Rim(e ui.Element) ui.Element {
+	if theme.Flat {
+		return Edge(e)
+	}
+	return e.InsetShadow(0, 0.5, 0, 0, theme.Highlight).InsetShadow(0, 0, 0, 0.5, theme.Border).
+		Shadow(0, 10, 30, 0, ui.RGBA(0, 0, 0, 0.35))
+}
+
+// Edge is what tells e from what is around it in a style with no material: the
+// style's one line, if it has any, drawn inside e so that it takes no room.
+func Edge(e ui.Element) ui.Element {
+	if theme.Flat && theme.Hairline == 0 {
+		return e
+	}
+	if theme.Flat {
+		return e.InsetShadow(0, 0, 0, theme.Hairline, theme.Border)
+	}
+	return e.InsetShadow(0, 0, 0, 0.5, theme.Border)
+}
+
+// paneEdge is Edge for one of the window's regions: where they touch, the gap
+// between them is their line.
+func paneEdge(e ui.Element) ui.Element {
+	if theme.Butted {
+		return e
+	}
+	return Edge(e)
+}
+
+// DropShadow is a shadow under e, in a style that has shadows.
+func DropShadow(e ui.Element, y, blur float32, col ui.Color) ui.Element {
+	if theme.Flat {
+		return e
+	}
+	return e.Shadow(0, y, blur, 0, col)
+}
+
+// Frosted says glass frosts what is under it. Off, as in tests where the CPU
+// draws every frame, it is its tint alone.
+var Frosted = true
+
+// SurfaceEdge is Rim for a main surface: its shadow and light along the top
+// fade with the slider over the user's own image, its hairline stays, for
+// panels to be told apart when nothing else of them shows.
+func SurfaceEdge(e ui.Element) ui.Element {
+	if theme.Flat {
+		return paneEdge(e)
+	}
+	o := float64(theme.SurfaceOpacity)
+	return e.InsetShadow(0, 0.5, 0, 0, theme.Fade(theme.Highlight, float64(theme.Highlight.A)/255*o)).InsetShadow(0, 0, 0, 0.5, theme.Border).
+		Shadow(0, 10, 30, 0, ui.RGBA(0, 0, 0, float32(0.35*o)))
+}
+
+// glassLeastOpacity is the slider's value under which glass no longer frosts:
+// the user's image shows as it is.
+const glassLeastOpacity = 0.25
+
+// Glass makes e a piece of glass over the wallpaper: what is under it shows
+// through, frosted, tinted by theme.Panel. For the bars' capsules, the
+// session list and the tools. Over the user's own image it frosts lightly, and
+// not at all near the slider's lowest.
+func Glass(e ui.Element) ui.Element {
+	switch {
+	case theme.Flat:
+		return paneEdge(e.Background(theme.Panel))
+	case !Frosted, theme.SurfaceOpacity < glassLeastOpacity:
+		return SurfaceEdge(e.Background(theme.Panel))
+	case theme.SurfaceOpacity < 1:
+		return SurfaceEdge(e.Material(glass.Glass{Style: glass.Clear, Tint: theme.Panel}))
+	}
+	return SurfaceEdge(e.Material(glass.Glass{Tint: theme.Panel}))
+}
+
+// BrightFrame makes e the one frame that draws the eye, the strongest thing
+// on screen: nearly opaque, with the deepest shadow and the brightest rim.
+func BrightFrame(e ui.Element) ui.Element {
+	if theme.Flat {
+		return paneEdge(e.Radius(theme.RadiusPanel).Clip().Background(theme.Frame))
+	}
+	o := float32(theme.SurfaceOpacity)
+	return e.Radius(theme.RadiusPanel).Clip().Background(theme.Frame).
+		InsetShadow(0, 1, 0, 0, ui.RGBA(255, 255, 255, 0.6*o)).InsetShadow(0, 0, 0, 0.5, ui.RGBA(255, 255, 255, 0.3)).
+		Shadow(0, 30, 80, 0, ui.RGBA(0, 0, 0, 0.55*o))
+}
+
+// Raise gives e the look of a card on a frame: a faint light along its top.
 func Raise(e ui.Element) ui.Element {
-	return e.InsetShadow(0, 1, 0, 0, theme.Highlight).Shadow(0, 2, 8, 0, ui.RGBA(0, 0, 0, 0.32))
+	if theme.Flat {
+		return Edge(e)
+	}
+	return e.InsetShadow(0, 0.5, 0, 0, ui.RGBA(255, 255, 255, 0.3))
 }
 
-// Bento makes e one of the window's panels: rounded, outlined, apart from
-// the others on the ground.
+// Bento makes e one of the window's panels: a pane of the given color with
+// glass's edge.
 func Bento(e ui.Element, bg ui.Color) ui.Element {
-	return e.Radius(theme.RadiusBento).Clip().Background(bg).Border(1, theme.Border).
-		InsetShadow(0, 1, 0, 0, theme.Highlight)
+	if theme.Flat {
+		bg = theme.Panel // a region is opaque: what is under it may be its line
+	}
+	return SurfaceEdge(e.Radius(theme.RadiusBento).Clip().Background(bg))
 }
 
-// Float gives e the deep shadow of an overlay: menus, pop-ups, dialogs.
+// Float gives e the edge of an overlay: menus, pop-ups, dialogs.
 func Float(e ui.Element) ui.Element {
-	return e.InsetShadow(0, 1, 0, 0, theme.Highlight).Shadow(0, 24, 60, 0, ui.RGBA(0, 0, 0, 0.6))
+	if theme.Family != "" {
+		e.Font(theme.Family) // overlays lie outside the window's root
+	}
+	if theme.Flat && theme.Hairline > 0 {
+		return e.InsetShadow(0, 0, 0, theme.Hairline, theme.BorderFloat)
+	}
+	return Rim(e)
+}
+
+// BarPiece makes e one of the title bar's pieces: a capsule of glass, or where the
+// regions touch, a cell of the one bar, ruled off from the last.
+func BarPiece(e ui.Element) ui.Element {
+	if theme.Butted {
+		return e.Radius(0).InsetShadow(theme.Hairline, 0, 0, 0, theme.Border)
+	}
+	return Glass(e.Radius(theme.BarRadius))
+}
+
+// BarField is BarPiece for the title bar's search: where the regions touch, a well
+// in the bar.
+func BarField(e ui.Element) ui.Element {
+	if theme.Butted {
+		return e.Height(theme.BarHeight-2*theme.S1).Margin(theme.S1, 0, 0, 0).Radius(theme.RadiusControl).Background(theme.Sunken).
+			InsetShadow(0, 0, 0, theme.Hairline, theme.Border)
+	}
+	return BarPiece(e)
+}
+
+// RegionGround is what lies under the window's regions: where they touch, the
+// color of their line, which the one-pixel gaps between them show.
+func RegionGround(e ui.Element) ui.Element {
+	if theme.Butted {
+		return e.Background(theme.Border)
+	}
+	return e
+}
+
+// DockRoom is the tools dock's region: nothing itself, or with a dock that fills it,
+// a pane.
+func DockRoom(room ui.Element) ui.Element {
+	if theme.FullDock {
+		return Glass(room.Radius(theme.RadiusPanel))
+	}
+	return room
+}
+
+// DockBar is the tools dock in its region: a capsule, or with a dock that fills it,
+// only its buttons.
+func DockBar(bar ui.Element) ui.Element {
+	switch {
+	case theme.FullDock:
+		return bar
+	case theme.Flat:
+		return bar.Radius(theme.RadiusFull).Background(theme.DockGround)
+	}
+	return Glass(bar.Radius(theme.RadiusFull))
 }
 
 // Popup styles the panel of a drop-down or pop-over, which grows in.
 func Popup(panel ui.Element) ui.Element {
-	return Float(panel.Padding(6).Gap(1).Radius(theme.RadiusCard).Background(theme.Dialog).Border(1, theme.BorderStrong)).
+	return Float(panel.Padding(theme.S1).Gap(0).Radius(theme.RadiusCard).Background(theme.Popover)).
 		TransformOrigin(0.5, 0).Transition(OverlayMotion)
 }
 
 // PopupItem styles one entry of a pop-up: highlighted while hovered or
 // picked with the keyboard.
 func PopupItem(item ui.Element, highlighted bool) ui.Element {
-	item.FillWidth().Gap(10).Padding(7, 9).Radius(theme.RadiusControl - 1)
+	item.FillWidth().Gap(theme.S2).MinHeight(theme.ControlHeight).Padding(theme.S1, theme.S3).Radius(theme.RadiusCard)
 	bg := theme.Fade(theme.Selected, 0)
 	if highlighted {
 		bg = theme.Selected
 	}
-	return item.Background(tint(item, "bg", bg))
+	return item.Background(QuickTint(item, "bg", bg))
 }
 
 // PopupLabel is the title of a group of pop-up entries.
 func PopupLabel(c *ui.Context, label string) {
-	SectionLabel(c, label, theme.Muted).Padding(8, 9, 4, 9)
+	SectionLabel(c, label, theme.TextSoft).Padding(theme.S2, theme.S3, theme.S1, theme.S3)
 }
 
 // Divider is a hairline between groups.
 func Divider(c *ui.Context) {
-	ui.Box(c).Height(1).FillWidth().Margin(4, 2).Background(theme.Border)
+	ui.Row(c).FillWidth().Shrink(0).Padding(theme.S1, theme.S2).Children(func() {
+		ui.Box(c).Height(theme.Rule).FillWidth().Background(theme.Border)
+	})
 }

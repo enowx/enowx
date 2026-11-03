@@ -197,7 +197,7 @@ func TestPageModes(t *testing.T) {
 	tt := np.tester(1000, 600)
 	np.v.Select(np.options(), "p1")
 	frames(tt, 2)
-	if err := tt.Click("Read mode"); err != nil {
+	if err := tt.Click("Read"); err != nil {
 		t.Fatal(err)
 	}
 	frames(tt, 2)
@@ -208,7 +208,7 @@ func TestPageModes(t *testing.T) {
 	if np.v.page.ed.open >= 0 {
 		t.Fatal("a block opened in read mode")
 	}
-	if err := tt.Click("Markdown mode"); err != nil {
+	if err := tt.Click("Markdown"); err != nil {
 		t.Fatal(err)
 	}
 	frames(tt, 2)
@@ -217,7 +217,7 @@ func TestPageModes(t *testing.T) {
 	}
 	np.v.page.src += "- [ ] more\n"
 	np.v.page.ed.blocks = parseBlocks(np.v.page.src)
-	if err := tt.Click("Edit mode"); err != nil {
+	if err := tt.Click("Edit"); err != nil {
 		t.Fatal(err)
 	}
 	frames(tt, 2)
@@ -254,5 +254,17 @@ func TestPagesInsideShowIcons(t *testing.T) {
 	}
 	if !tt.HasText("With an icon") || !tt.HasText("With none") {
 		t.Fatalf("the pages: %q", tt.Texts())
+	}
+}
+
+// A version in the history shows its layout blocks as a page does, not their
+// source.
+func TestHistoryPreviewShowsBlocks(t *testing.T) {
+	h := &historyDialog{preview: newEditor(":::callout info A title\nInside the box\n:::\n")}
+	tt := ui.NewTester(func(c *ui.Context) { versionView(c, Options{}, h) }, 500, 300)
+	tt.Frame()
+	tt.Frame()
+	if tt.HasText(":::") || !tt.HasText("Inside the box") {
+		t.Fatalf("shows %q", tt.Texts())
 	}
 }

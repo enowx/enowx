@@ -108,7 +108,7 @@ func (a *App) chatToastsView(c *ui.Context) {
 	if len(a.chatToasts) == 0 && len(a.sessionToasts) == 0 {
 		return
 	}
-	ui.Column(c.Key("chat-toasts")).Absolute().Top(52).Right(16).Width(360).Gap(8).TextColor(theme.Text).Children(func() {
+	ui.Column(c.Key("chat-toasts")).Absolute().Top(52).Right(16).Width(360).Gap(theme.S2).TextColor(theme.Text).Children(func() {
 		a.sessionToastsView(c, now)
 		for _, t := range slices.Clone(a.chatToasts) {
 			a.chatToastCard(c.Key("toast:"+t.msg.ID), t, now)
@@ -125,7 +125,7 @@ func (a *App) chatToastCard(c *ui.Context, t *chatToast, now time.Time) {
 	if t.urgent != "" {
 		border = theme.Error
 	}
-	card := widget.Float(ui.Column(c).FillWidth().Padding(12, 12, 12, 12).Gap(8).Radius(theme.RadiusCard).
+	card := widget.Float(ui.Column(c).FillWidth().Padding(theme.S3).Gap(theme.S2).Radius(theme.RadiusCard).
 		Background(theme.Dialog).Border(1, border)).Transition(widget.OverlayMotion)
 	if card.Hovered() {
 		t.shown = now // read: it waits
@@ -133,13 +133,13 @@ func (a *App) chatToastCard(c *ui.Context, t *chatToast, now time.Time) {
 		c.After(chatToastLife - now.Sub(t.shown) + 50*time.Millisecond)
 	}
 	card.Children(func() {
-		ui.Row(c).FillWidth().Gap(10).AlignItems(ui.Start).Children(func() {
+		ui.Row(c).FillWidth().Gap(theme.S2).AlignItems(ui.Start).Children(func() {
 			memberAvatar(c, m.Account, m.Name, 30)
 			body := ui.ButtonBase(c.Key("open")).Grow(1).MinWidth(0).Cursor(ui.CursorPointer).Label("Open the chat").Tooltip("Open the chat")
 			body.Children(func() {
 				ui.Column(c).FillWidth().Gap(2).Children(func() {
-					ui.Row(c).FillWidth().Gap(6).AlignItems(ui.Center).Children(func() {
-						ui.Text(c, m.Name).FontSize(12.5).FontWeight(600).TextColor(widget.TeamColor(m.Account)).SingleLine().Shrink(1)
+					ui.Row(c).FillWidth().Gap(theme.S1).AlignItems(ui.Center).Children(func() {
+						ui.Row(c.Key("who")).Shrink(0).MaxWidth(140).Children(func() { widget.Running(c, m.Name, widget.RunStyle{Weight: 600, Color: theme.TextStrong}) })
 						where := a.spaceName(m.Team)
 						if t.mention {
 							where = "mentioned you · " + where
@@ -147,15 +147,17 @@ func (a *App) chatToastCard(c *ui.Context, t *chatToast, now time.Time) {
 						if t.urgent != "" {
 							where = "urgent · " + where
 						}
-						ui.Text(c, where).FontSize(11).TextColor(theme.Muted).SingleLine().Shrink(1)
+						ui.Row(c.Key("where")).Grow(1).Basis(0).MinWidth(0).Children(func() {
+							widget.Running(c, where, widget.RunStyle{Size: theme.TextLabel, Color: theme.TextSoft})
+						})
 					})
 					text := snippet(m.Text)
 					if text == "" && len(m.Attachments) > 0 {
 						text = "Sent a picture"
 					}
-					ui.Text(c, text).FontSize(12.5).TextColor(theme.TextSoft).MaxLines(3)
+					ui.Text(c, text).FontSize(theme.TextUI).TextColor(theme.TextSoft).MaxLines(3)
 					if t.urgent != "" {
-						ui.Text(c, "Urgent, the judge says: "+t.urgent).FontSize(11).TextColor(theme.Muted).MaxLines(2)
+						ui.Text(c, "Urgent, the judge says: "+t.urgent).FontSize(theme.TextLabel).TextColor(theme.Muted).MaxLines(2)
 					}
 				})
 			})
@@ -167,10 +169,10 @@ func (a *App) chatToastCard(c *ui.Context, t *chatToast, now time.Time) {
 			}
 		})
 		if t.err != "" {
-			ui.Text(c, t.err).FontSize(11.5).TextColor(theme.Error)
+			ui.Text(c, t.err).FontSize(theme.TextLabel).TextColor(theme.Error)
 		}
 		if !t.replying {
-			ui.Row(c).FillWidth().Gap(6).Padding(0, 0, 0, 40).Children(func() {
+			ui.Row(c).FillWidth().Gap(theme.S2).Padding(0, 0, 0, 40).Children(func() {
 				if a.chatWriter(m.Team) && widget.Button(c.Key("reply"), widget.Secondary, icon.Reply, "Reply", "").Height(26).Clicked() {
 					t.replying, t.focus = true, true
 				}
@@ -180,7 +182,7 @@ func (a *App) chatToastCard(c *ui.Context, t *chatToast, now time.Time) {
 			})
 			return
 		}
-		ui.Row(c).FillWidth().Gap(6).Padding(0, 0, 0, 40).AlignItems(ui.Center).Children(func() {
+		ui.Row(c).FillWidth().Gap(theme.S2).Padding(0, 0, 0, 40).AlignItems(ui.Center).Children(func() {
 			in := widget.Input(c.Key("reply-in"), &t.draft, "Reply to "+m.Name).Grow(1).Height(30)
 			if t.focus {
 				in.Focus()

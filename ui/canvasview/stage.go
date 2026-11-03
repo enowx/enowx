@@ -12,6 +12,7 @@ import (
 	"github.com/enowx/enowx/proto"
 	"github.com/enowx/enowx/ui/icon"
 	"github.com/enowx/enowx/ui/theme"
+	"github.com/enowx/enowx/ui/widget"
 )
 
 // The stage shows the frame open, scaled to fit: its mockup in a web view,
@@ -66,7 +67,9 @@ func (v *View) stage(c *ui.Context, o Options) {
 	// handling never takes their clicks.
 	wrap := ui.Box(c.Key("stage-wrap")).Grow(1).FillWidth().MinHeight(0)
 	var area ui.Element
-	wrap.Children(func() { area = ui.Box(c.Key("stage")).FillWidth().FillHeight().Background(theme.Sunken).Clip() })
+	wrap.Children(func() {
+		area = ui.Box(c.Key("stage")).FillWidth().FillHeight().Background(theme.Sunken).Radius(theme.RadiusCard).Clip()
+	})
 	b := area.Bounds()
 	if key := fmt.Sprintf("%s/%v", f.ID, width); v.cam.key != key {
 		if b.W <= 0 {
@@ -111,7 +114,8 @@ func (v *View) stage(c *ui.Context, o Options) {
 		// itself, free form, with nothing drawn under them.
 		board := ui.Box(c.Key("board:"+f.ID)).Absolute().Left(design.X).Top(design.Y).Size(design.W, design.H).Label("Frame " + f.Name)
 		if hasHTML {
-			board.Background(color(f.Background, ui.RGB(255, 255, 255))).Clip().Shadow(0, 2, 12, 0, theme.Fade(theme.TextStrong, 0.12))
+			board.Background(color(f.Background, ui.RGB(255, 255, 255))).Clip()
+			widget.DropShadow(board, 2, 12, theme.Fade(theme.TextStrong, 0.12))
 		}
 		if v.mode == modeDesign && board.Clicked() {
 			v.deselect(o)
@@ -138,17 +142,20 @@ func (v *View) stage(c *ui.Context, o Options) {
 		})
 	})
 	wrap.Children(func() {
+		v.palette(c, o)
 		v.zoomBar(c, b.W, b.H, float32(width), float32(height))
 		v.unslopHUD(c, o, f)
 		if hasHTML && o.Web != nil {
 			o.Web.measureWidth(c)
 			if n := o.Web.Wider(); n > 0 {
-				ui.Row(c.Key("wider")).Absolute().Left(12).Top(12).Height(28).PaddingX(10).Gap(6).AlignItems(ui.Center).
-					Radius(8).Background(theme.Fade(theme.Warning, 0.15)).Border(1, theme.Fade(theme.Warning, 0.4)).
-					Tooltip("Something sticks out past the design's width, so its page scrolls sideways: fix it, or ask the agent to").
+				// Past the palette, which keeps the stage's corner in Edit mode.
+				raised(ui.Row(c.Key("wider")).Absolute().Left(theme.S6+theme.S5).Top(theme.S2).Right(theme.S2).MaxWidth(420).Height(theme.ControlHeight).Padding(0, theme.S3).Gap(theme.S2).AlignItems(ui.Center).
+					Radius(theme.RadiusFull)).Tooltip("Something sticks out past the design's width, so its page scrolls sideways: fix it, or ask the agent to").
 					Children(func() {
-						ui.Icon(c, icon.Alert).FontSize(13).TextColor(theme.Warning)
-						ui.Text(c, fmt.Sprintf("Wider than its frame by %d px: it scrolls sideways", n)).FontSize(12).TextColor(theme.Warning).SingleLine()
+						ui.Icon(c, icon.Alert).FontSize(14).TextColor(theme.Warning)
+						ui.Row(c).Grow(1).MinWidth(0).Children(func() {
+							widget.Running(c, fmt.Sprintf("Wider than its frame by %d px: it scrolls sideways", n), widget.RunStyle{Size: theme.TextLabel, Color: theme.Warning})
+						})
 					})
 			}
 		}
@@ -169,7 +176,7 @@ func (v *View) deselect(o Options) {
 // interactStage shows the mockup as a page to use: as wide as the stage
 // lets it (its own width at most), scrolled as a browser scrolls.
 func (v *View) interactStage(c *ui.Context, o Options, width, height float32) {
-	area := ui.Box(c.Key("stage")).Grow(1).FillWidth().MinHeight(0).Background(theme.Sunken).Clip()
+	area := ui.Box(c.Key("stage")).Grow(1).FillWidth().MinHeight(0).Background(theme.Sunken).Radius(theme.RadiusCard).Clip()
 	b := area.Bounds()
 	// A moving design keeps room for its controls from the start, so it doesn't
 	// shift once its page says it has motion.
@@ -247,16 +254,16 @@ func (v *View) mockup(c *ui.Context, o Options, f proto.CanvasFrame, design ui.R
 		v.componentBar(c, o, s, w, h)
 		return
 	}
-	ui.Column(c.Key("outline")).Absolute().Left(0).Top(0).Size(w, h).Padding(16).Gap(4).Children(func() {
-		ui.Text(c, "This device shows mockups in a web view: here, their elements.").FontSize(11).TextColor(ui.RGB(100, 116, 139))
+	ui.Column(c.Key("outline")).Absolute().Left(0).Top(0).Size(w, h).Padding(theme.S4).Gap(theme.S1).Children(func() {
+		ui.Text(c, "This device shows mockups in a web view: here, their elements.").FontSize(theme.TextLabel).TextColor(ui.RGB(100, 116, 139))
 		for _, el := range canvas.Outline(f.HTML) {
-			row := ui.Row(c.Key(el.ID)).Padding(2, 6, 2, 6+float32(el.Depth)*12).Radius(4).Gap(6)
+			row := ui.Row(c.Key(el.ID)).Padding(2, 6, 2, 6+float32(el.Depth)*12).Radius(theme.RadiusTail).Gap(theme.S2)
 			if v.recent(el.ID) {
 				row.Background(ui.RGBA(99, 102, 241, 0.18))
 			}
 			row.Children(func() {
-				ui.Text(c, "#"+el.ID).FontSize(11).TextColor(ui.RGB(79, 70, 229))
-				ui.Text(c, el.Text).FontSize(11).TextColor(ui.RGB(15, 23, 42)).SingleLine().Shrink(1)
+				ui.Text(c, "#"+el.ID).FontSize(theme.TextLabel).TextColor(ui.RGB(79, 70, 229))
+				ui.Text(c, el.Text).FontSize(theme.TextLabel).TextColor(ui.RGB(15, 23, 42)).SingleLine().Shrink(1)
 			})
 		}
 	})
@@ -330,14 +337,14 @@ func (v *View) shape(c *ui.Context, o Options, el proto.CanvasElement, s float64
 		switch {
 		case v.editing != nil && v.editing.id == el.ID:
 			in := ui.TextInput(c.Key("edit"), &v.editing.text).FillWidth().FillHeight().FontSize(float32(st.FontSize * s)).
-				TextColor(color(st.Color, ui.RGB(15, 23, 42))).Padding(4).AutoFocus().Label("Text of " + el.ID)
+				TextColor(color(st.Color, ui.RGB(15, 23, 42))).Padding(theme.S1).AutoFocus().Label("Text of " + el.ID)
 			if in.Submitted() || in.Shortcut(0, ui.KeyEscape) || !in.Focused() && v.editing.text != el.Text {
 				el.Text = v.editing.text
 				v.editing = nil
 				v.edit(o, proto.CanvasEdit{Op: proto.CanvasOpElementSet, Element: &el})
 			}
 		case el.Type == proto.ShapeImage:
-			ui.Column(c).FillWidth().FillHeight().Center().Gap(4).Children(func() {
+			ui.Column(c).FillWidth().FillHeight().Center().Gap(theme.S1).Children(func() {
 				ui.Icon(c, icon.File).FontSize(float32(math.Max(14*s, 10))).TextColor(ui.RGB(100, 116, 139))
 				ui.Text(c, el.Src).FontSize(float32(math.Max(11*s, 9))).TextColor(ui.RGB(100, 116, 139)).SingleLine()
 			})
@@ -352,8 +359,8 @@ func (v *View) shape(c *ui.Context, o Options, el proto.CanvasElement, s float64
 			if o.AgentName != nil {
 				who = o.AgentName(v.last.Session)
 			}
-			ui.Row(c.Key("who")).Absolute().Left(0).Top(-22).Height(18).PaddingX(6).Radius(4).Background(theme.Accent).Children(func() {
-				ui.Text(c, who).FontSize(10.5).TextColor(ui.RGB(255, 255, 255)).SingleLine()
+			ui.Row(c.Key("who")).Absolute().Left(0).Top(-22).Height(18).PaddingX(theme.S2).Radius(theme.RadiusTail).Background(theme.Accent).Children(func() {
+				ui.Text(c, who).FontSize(theme.TextLabel).TextColor(ui.RGB(255, 255, 255)).SingleLine()
 			})
 		}
 	})
@@ -416,13 +423,14 @@ func (v *View) handlePointer(c *ui.Context, o Options, box ui.Element, el proto.
 			v.edit(o, proto.CanvasEdit{Op: proto.CanvasOpElementSet, Element: &arrow})
 			return
 		}
-		v.sel, v.panel = el.ID, "layers"
+		v.sel = el.ID
+		v.showLayers()
 	}
 }
 
 // resizeHandle is the selected shape's corner, which drags its size.
 func (v *View) resizeHandle(c *ui.Context, o Options, el proto.CanvasElement, s float64) {
-	h := ui.Box(c.Key("resize")).Absolute().Right(-5).Bottom(-5).Size(10, 10).Radius(2).
+	h := ui.Box(c.Key("resize")).Absolute().Right(-5).Bottom(-5).Size(10, 10).Radius(theme.RadiusTail).
 		Background(ui.RGB(255, 255, 255)).Border(1.5, ui.RGB(99, 102, 241)).Cursor(ui.CursorResizeNWSE).Label("Resize " + el.ID)
 	if dx, dy, ok := h.Dragged(); ok {
 		if v.drag == nil || v.drag.id != el.ID || !v.drag.resize {
@@ -486,7 +494,8 @@ func (v *View) arrowHandle(c *ui.Context, o Options, f proto.CanvasFrame, el pro
 	if v.mode == modeDesign {
 		label.Cursor(ui.CursorPointer)
 		if label.Clicked() {
-			v.sel, v.panel = el.ID, "layers"
+			v.sel = el.ID
+			v.showLayers()
 		}
 	}
 	label.Children(func() {
@@ -494,7 +503,7 @@ func (v *View) arrowHandle(c *ui.Context, o Options, f proto.CanvasFrame, el pro
 			return
 		}
 		ui.Text(c, el.Text).FontSize(float32(st.FontSize * s * 0.85)).TextColor(color(st.Color, ui.RGB(15, 23, 42))).
-			Background(ui.RGBA(255, 255, 255, 0.9)).PaddingX(4).Radius(3).SingleLine()
+			Background(ui.RGBA(255, 255, 255, 0.9)).PaddingX(theme.S1).Radius(theme.RadiusTail).SingleLine()
 	})
 	_ = o
 }

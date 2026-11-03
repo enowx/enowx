@@ -134,10 +134,21 @@ type GOATask struct {
 	// Asks is what its session waits on; Urgent, why the user answers it
 	// rather than GOA (it can't be undone, money, publishing, secrets,
 	// the judge unsure).
-	Asks    string    `json:"asks,omitempty"`
-	Urgent  string    `json:"urgent,omitempty"`
-	Created time.Time `json:"created"`
-	Updated time.Time `json:"updated"`
+	Asks   string `json:"asks,omitempty"`
+	Urgent string `json:"urgent,omitempty"`
+	// Note and Items are as delegated; Open, once settled done, the items
+	// its note doesn't have ticked.
+	Note  string   `json:"note,omitempty"`
+	Items []string `json:"items,omitempty"`
+	Open  []string `json:"open,omitempty"`
+	// Outcome is what its session last reported, one of GOAOutcomes; ReportAt
+	// that report's time (SessionInfo.ReportAt).
+	Outcome  string `json:"outcome,omitempty"`
+	ReportAt int64  `json:"reportAt,omitempty"`
+	// NoReport is that its session ended without one.
+	NoReport bool      `json:"noReport,omitempty"`
+	Created  time.Time `json:"created"`
+	Updated  time.Time `json:"updated"`
 }
 
 // GOABoard is GOA's board on a host.
@@ -147,6 +158,25 @@ type GOABoard struct {
 	Agent   string    `json:"agent,omitempty"`
 	Level   string    `json:"level,omitempty"`
 	Tasks   []GOATask `json:"tasks"`
+	// Told are the sessions GOA sent something to with no task (session send),
+	// which report to it all the same: the app relays the other hosts'.
+	Told []string `json:"told,omitempty"`
+	// Waiting are the lines waiting for GOA to take them.
+	Waiting []string `json:"waiting,omitempty"`
+}
+
+// MethodGOAWake waits for lines for GOD of Agents, for its idle agent's background hook:
+// GOAWakeParams → GOAWakeReply, Text "" when a later hook took over or the session ended.
+const MethodGOAWake = "goa.wake"
+
+// GOAWakeParams names GOA's session.
+type GOAWakeParams struct {
+	ID string `json:"id"`
+}
+
+// GOAWakeReply is what to wake it with.
+type GOAWakeReply struct {
+	Text string `json:"text,omitempty"`
 }
 
 // GOADelegateParams is a task GOA (From, its session) hands over: to
@@ -169,6 +199,9 @@ type GOADelegateParams struct {
 	// NoRoute keeps the agent's own model and effort, the judge not asked.
 	NoRoute         bool `json:"noRoute,omitempty"`
 	SkipPermissions bool `json:"skipPermissions,omitempty"`
+	// Note and Items are the note the task belongs to and its to-dos it finishes.
+	Note  string   `json:"note,omitempty"`
+	Items []string `json:"items,omitempty"`
 }
 
 // GOATaskParams set task ID's status and result ("" leaves either).
@@ -183,6 +216,20 @@ type GOAOverrideParams struct {
 	ID     string `json:"id"`
 	Model  string `json:"model,omitempty"`
 	Effort string `json:"effort,omitempty"`
+}
+
+// MethodGOAReport is a session saying how a turn ended, on its own host:
+// GOAReportParams.
+const MethodGOAReport = "goa.report"
+
+// GOAOutcomes are what a session can report of a turn.
+var GOAOutcomes = []string{"done", "partly", "nothing", "blocked", "refused", "failed"}
+
+// GOAReportParams is session Session's report of its turn, whatever came of it.
+type GOAReportParams struct {
+	Session string `json:"session"`
+	Outcome string `json:"outcome"`
+	Text    string `json:"text,omitempty"`
 }
 
 // GOAWorkerParams are a session of another host, as the app saw it

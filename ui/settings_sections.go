@@ -2,6 +2,7 @@ package ui
 
 import (
 	"os"
+	"path/filepath"
 	"runtime"
 	"slices"
 	"strconv"
@@ -35,8 +36,10 @@ const (
 	sectionHooks       = "Hooks"
 	sectionAgents      = "Agents" // their configs: accounts and model APIs (agents.go)
 	sectionApp         = "App"
+	sectionAppearance  = "Appearance"
 	sectionFloating    = "Floating control"
 	sectionDiagnostics = "Diagnostics"
+	sectionCache       = "Clean cache"
 	sectionSync        = "Sync"
 	sectionFeatures    = "Features"
 	sectionNotify      = "Notifications"
@@ -50,12 +53,14 @@ type hostSettings struct {
 	vars     []proto.SessionEnvVar
 	loaded   bool
 	maxAgent int
-	sleep    int  // HibernateAfter, in minutes
-	neverHib bool // new sessions don't hibernate on their own (every host)
-	log      proto.DaemonLog
-	err      string
-	newName  string
-	newValue string
+	sleep    int // HibernateAfter, in minutes
+	// agentStart is what new sessions of each agent start on.
+	agentStart map[string]proto.AgentStart
+	neverHib   bool // new sessions don't hibernate on their own (every host)
+	log        proto.DaemonLog
+	err        string
+	newName    string
+	newValue   string
 }
 
 // hostSettingsOf is the sections' state for the connected host, read anew
@@ -84,145 +89,216 @@ func (a *App) loadHostSettings() {
 			if err != nil {
 				hs.err = client.Explain(err)
 			}
-			hs.vars, hs.maxAgent, hs.sleep, hs.log = vars, st.MaxAgents, st.HibernateAfter, log
+			hs.vars, hs.maxAgent, hs.sleep, hs.log, hs.agentStart = vars, st.MaxAgents, st.HibernateAfter, log, st.AgentStart
 		})
 	}()
 }
 
-// settingsBody is the section shown.
+// settingsBody is the section shown. Each heads the frame itself; the ones
+// made of a column of cards share settingsSection's frame.
 func (a *App) settingsBody(c *ui.Context) {
-	if a.settingsSection == "" || a.settingsSection == sectionLibrary {
+	switch a.settingsSection {
+	case "", sectionLibrary:
 		a.library.Draw(c, a.libraryOptions())
-		return
+	case sectionSessions:
+		a.sessionDefaults(c)
+	case sectionEnvironment:
+		a.environmentSection(c)
+	case sectionTerminal:
+		a.terminalSection(c)
+	case sectionAutomations:
+		a.automationsSection(c)
+	case sectionHooks:
+		a.hooksSection(c)
+	case sectionRAG:
+		a.ragSection(c)
+	case sectionDecide:
+		a.decideSection(c)
+	case sectionAgents:
+		a.agentsSection(c)
+	case sectionApp:
+		a.appSection(c)
+	case sectionAppearance:
+		a.appearancePage(c) // the same page as the one reached from the menus
+	case sectionFloating:
+		a.floatingSection(c)
+	case sectionDiagnostics:
+		a.diagnosticsSection(c)
+	case sectionCache:
+		a.cacheSection(c)
+	case sectionNotify:
+		a.notifySection(c)
+	case sectionDiscord:
+		a.discordSection(c)
+	case sectionSync:
+		a.syncSection(c)
+	case sectionFeatures:
+		a.featuresSection(c)
+	case sectionCloud:
+		a.cloudSection(c)
 	}
-	ui.Scroll(c).Grow(1).FillWidth().Children(func() {
-		ui.Column(c).FillWidth().Padding(24, 32).Gap(16).Children(func() {
-			switch a.settingsSection {
-			case sectionSessions:
-				a.sessionDefaults(c)
-			case sectionEnvironment:
-				a.environmentSection(c)
-			case sectionTerminal:
-				a.terminalSection(c)
-			case sectionAutomations:
-				a.automationsSection(c)
-			case sectionHooks:
-				a.hooksSection(c)
-			case sectionRAG:
-				a.ragSection(c)
-			case sectionDecide:
-				a.decideSection(c)
-			case sectionAgents:
-				a.agentsSection(c)
-			case sectionApp:
-				a.appSection(c)
-			case sectionFloating:
-				a.floatingSection(c)
-			case sectionDiagnostics:
-				a.diagnosticsSection(c)
-			case sectionNotify:
-				a.notifySection(c)
-			case sectionDiscord:
-				a.discordSection(c)
-			case sectionSync:
-				a.syncSection(c)
-			case sectionFeatures:
-				a.featuresSection(c)
-			case sectionCloud:
-				a.cloudSection(c)
-			}
-		})
-	})
 }
 
 // sessionDefaults are what New session starts with.
 func (a *App) sessionDefaults(c *ui.Context) {
-	sectionIntro(c, "New sessions", "What New session starts with; each session can still differ.")
-	widget.Field(c, "Agent", func() {
-		ui.Row(c).FillWidth().Gap(6).Wrap().Children(func() {
-			for _, ag := range a.agents {
-				if ag.ID == "custom" || ag.Command != "" && !ag.Installed {
-					continue
+	hs := a.hostSettingsOf()
+	widget.PageHeader(c, "New sessions", "What New session starts with", nil)
+	widget.PageBodyRest(c, 260, func() {
+		ui.Row(c.Key("session-defaults")).FillWidth().Gap(theme.S3).AlignItems(ui.Stretch).Children(func() {
+			// As tall as the cards beside it, as last laid out: many agents scroll
+			// in it rather than stretch the cards.
+			cardsH := ui.Local[float32](c.Root(), "cards-height", func() float32 { return 0 })
+			ui.Column(c.Key("agents")).Grow(1).Basis(0).MinWidth(0).Gap(theme.S2).Children(func() {
+				widget.Heading(c, "Agent")
+				list := widget.Scroll(c.Key("agent-list")).FillWidth()
+				if *cardsH > 0 {
+					list.MaxHeight(max(*cardsH-32, 60))
 				}
-				on := a.defaultAgent() == ag.ID
-				b := ui.ButtonBase(c.Key(ag.ID)).Height(30).PaddingX(10).Gap(7).Radius(theme.RadiusControl).Border(1, theme.Border).
-					Cursor(ui.CursorPointer).Label(ag.Name)
-				if on {
-					b.Border(1, theme.AccentLine).Background(theme.Selected)
-				}
-				b.Children(func() {
-					ui.Icon(c, icon.Agent(ag.ID)).FontSize(13)
-					ui.Text(c, ag.Name).FontSize(12.5)
+				list.Children(func() {
+					ui.Column(c).FillWidth().Gap(theme.S2).Children(func() {
+						for _, ag := range a.agents {
+							if ag.ID == "custom" || ag.Command != "" && !ag.Installed {
+								continue
+							}
+							if widget.Pick(c, icon.Agent(ag.ID), ag.Name, "", a.defaultAgent() == ag.ID, nil).Clicked() {
+								a.state.DefaultAgent = ag.ID
+							}
+						}
+					})
 				})
-				if b.Clicked() {
-					a.state.DefaultAgent = ag.ID
+			})
+			// Two thirds of the frame beside the agents' third, the gap between counted in.
+			cards := ui.Grid(c.Key("cards")).Grow(2).Basis(theme.S3).MinWidth(0).Columns(2).Gap(theme.S3).AlignSelf(ui.Start)
+			*cardsH = cards.Bounds().H
+			cards.Children(func() {
+				widget.Card(c).Children(func() {
+					widget.CardTitle(c, nil, "In a git project", nil)
+					if widget.OptionCard(c, !a.state.ProjectFolder, "A new branch and worktree", "Its own branch and folder, so sessions don't touch each other's files.") {
+						a.state.ProjectFolder = false
+					}
+					if widget.OptionCard(c, a.state.ProjectFolder, "The project folder", "It works in the folder as it is, on the branch checked out.") {
+						a.state.ProjectFolder = true
+					}
+				})
+				widget.Card(c).Children(func() {
+					widget.CardTitle(c, nil, "Agents skip permission prompts", func() {
+						if widget.Switch(c, &a.skipPermissions, "Agents skip permission prompts") {
+							a.saveState()
+						}
+					})
+					widget.CardNote(c, "They run tools without asking. It also covers GOD of Agents, its workers and the chats of notes and canvases for agents that can't tell enowX they ask, like OpenCode. Claude Code and Codex can switch it in the chat; others keep theirs until they restart.", 0)
+				})
+				a.agentStartCard(c)
+				widget.Card(c).Children(func() {
+					widget.CardTitle(c, nil, "Time budget for agents", nil)
+					labels := []string{"None"}
+					for _, m := range budgetChoices[1:] {
+						labels = append(labels, workTime(int64(m)*60))
+					}
+					cur := slices.Index(budgetChoices, a.state.DefaultBudget)
+					if i := segmentedInCard(c, labels, max(cur, 0), 250); i >= 0 {
+						a.state.DefaultBudget = budgetChoices[i]
+					}
+				})
+				widget.Card(c).Children(func() {
+					widget.CardTitle(c, nil, "Agents at once on "+a.host.Name, nil)
+					ui.Row(c).FillWidth().Gap(theme.S2).Children(func() {
+						n := "No limit"
+						if hs.maxAgent > 0 {
+							n = strconv.Itoa(hs.maxAgent)
+						}
+						ui.Row(c).Grow(1).MinWidth(0).Children(func() { widget.Running(c, n, widget.RunStyle{Size: 24, Weight: 600}) })
+						if widget.GhostButton(c, "Change…").Clicked() {
+							a.askAgentLimit()
+						}
+					})
+					note := "All start at once."
+					if hs.maxAgent > 0 {
+						note = "The rest wait in a queue."
+					}
+					widget.CardNote(c, note, 0)
+				})
+			})
+		})
+	}, func(rest float32) {
+		widget.Cols(c, 2).RowTracks(ui.Fixed(rest)).Children(func() {
+			widget.GridCard(c).Children(func() {
+				widget.CardTitle(c, nil, "Hibernate idle agents on "+a.host.Name, nil)
+				widget.CardNote(c, "An agent done with its turn and left idle this long is stopped to free its memory; its session stays, and it comes back on its conversation when shown. Claude Code, Codex and other agents enowX can continue.", 0)
+				labels := make([]string, len(sleepChoices))
+				for i, m := range sleepChoices {
+					labels[i] = "Never"
+					if m > 0 {
+						labels[i] = workTime(int64(m) * 60)
+					}
 				}
-			}
+				cur := max(slices.Index(sleepChoices, hs.sleep), 0)
+				if i := segmentedInCard(c, labels, cur, 250); i >= 0 && sleepChoices[i] != hs.sleep {
+					a.setHibernation(sleepChoices[i])
+				}
+				if switchRow(c, &hs.neverHib, "New sessions don't hibernate on their own",
+					"For sessions to keep running however long they're idle; the same on every host. A session's menu sets it for that session, and Hibernate stops one by hand.") {
+					never, cl := hs.neverHib, a.client
+					if cl != nil {
+						go func() {
+							if err := cl.SetAutoHibernate(proto.SessionAutoHibernateParams{Default: true, Never: never}); err != nil {
+								a.onMain(func() { a.status = client.Explain(err) })
+							}
+						}()
+					}
+				}
+			})
+			ui.Column(c.Key("after")).MinWidth(0).MinHeight(0).Gap(theme.S3).Children(func() {
+				widget.GridCard(c).Grow(1).Children(func() {
+					widget.CardTitle(c, nil, "What New session starts with", nil)
+					ui.Text(c, a.sessionDefaultsLine()).FontSize(theme.TextRead).FillWidth().MinWidth(0)
+					widget.CardNote(c, "Each session is still free to differ in the New session dialog.", 0)
+				})
+				widget.Card(c).Children(func() {
+					widget.CardTitle(c, nil, "Stalled tasks on "+a.host.Name, func() {
+						// Labeled apart: the card of agents at once says Change… too.
+						if widget.GhostButton(c.Key("goa-stall-limits"), "Change…").Label("Change the stall limits").Clicked() {
+							a.openGOAStall()
+						}
+					})
+					widget.CardNote(c, "How long a task of GOD of Agents may not move before it is told", 0)
+				})
+			})
 		})
 	})
-	widget.Field(c, "In a git project", func() {
-		cur := 0
-		if a.state.ProjectFolder {
-			cur = 1
-		}
-		if i := widget.Segmented(c, []string{"A new branch and worktree", "The project folder"}, cur, nil); i >= 0 {
-			a.state.ProjectFolder = i == 1
-		}
+}
+
+// segmentedInCard is a Segmented whose choices share a narrow card's width, and
+// keep to their own in a wide one.
+func segmentedInCard(c *ui.Context, labels []string, current int, width float32) int {
+	picked := -1
+	ui.Row(c.Key("segmented")).FillWidth().MaxWidth(width).Shrink(0).Children(func() {
+		picked = widget.SegmentedFit(c, labels, current)
 	})
-	if switchRow(c, &a.skipPermissions, "Agents skip permission prompts", "They run tools without asking. It also covers GOD of Agents, its workers and the chats of notes and canvases for agents that can't tell enowX they ask, like OpenCode. Claude Code and Codex can switch it in the chat; others keep theirs until they restart.") {
-		a.saveState()
-	}
-	widget.Field(c, "Time budget for agents", func() {
-		labels := []string{"None"}
-		for _, m := range budgetChoices[1:] {
-			labels = append(labels, workTime(int64(m)*60))
-		}
-		cur := slices.Index(budgetChoices, a.state.DefaultBudget)
-		if i := widget.Segmented(c, labels, max(cur, 0), nil); i >= 0 {
-			a.state.DefaultBudget = budgetChoices[i]
-		}
-	})
-	hs := a.hostSettingsOf()
-	n := "No limit"
-	if hs.maxAgent > 0 {
-		n = strconv.Itoa(hs.maxAgent) + " at most; the others wait their turn"
-	}
-	widget.Row(c, "Agents at once on "+a.host.Name, "", n, func() {
-		if widget.GhostButton(c, "Change…").Clicked() {
-			a.askAgentLimit()
-		}
-	})
-	widget.Row(c, "Stalled tasks on "+a.host.Name, "", "How long a task of GOD of Agents may not move before it is told", func() {
-		if widget.GhostButton(c.Key("goa-stall-limits"), "Change…").Clicked() {
-			a.openGOAStall()
-		}
-	})
-	widget.Field(c, "Hibernate idle agents on "+a.host.Name, func() {
-		ui.Text(c, "An agent done with its turn and left idle this long is stopped to free its memory; its session stays, and it comes back on its conversation when shown. Claude Code, Codex and other agents enowX can continue.").
-			FontSize(11.5).TextColor(theme.Muted)
-		labels := make([]string, len(sleepChoices))
-		for i, m := range sleepChoices {
-			labels[i] = "Never"
-			if m > 0 {
-				labels[i] = workTime(int64(m) * 60)
-			}
-		}
-		cur := max(slices.Index(sleepChoices, hs.sleep), 0)
-		if i := widget.Segmented(c, labels, cur, nil); i >= 0 && sleepChoices[i] != hs.sleep {
-			a.setHibernation(sleepChoices[i])
-		}
-	})
-	if switchRow(c, &hs.neverHib, "New sessions don't hibernate on their own",
-		"For sessions to keep running however long they're idle; the same on every host. A session's menu sets it for that session, and Hibernate stops one by hand.") {
-		never, cl := hs.neverHib, a.client
-		if cl != nil {
-			go func() {
-				if err := cl.SetAutoHibernate(proto.SessionAutoHibernateParams{Default: true, Never: never}); err != nil {
-					a.onMain(func() { a.status = client.Explain(err) })
-				}
-			}()
+	return picked
+}
+
+// sessionDefaultsLine says in words what New session starts with.
+func (a *App) sessionDefaultsLine() string {
+	name := a.defaultAgent()
+	for _, ag := range a.agents {
+		if ag.ID == name {
+			name = ag.Name
 		}
 	}
+	where := "on a new branch, in a worktree"
+	if a.state.ProjectFolder {
+		where = "in the project folder"
+	}
+	tools := "asking before it runs tools"
+	if a.skipPermissions {
+		tools = "running tools without asking"
+	}
+	budget := "no time budget"
+	if a.state.DefaultBudget > 0 {
+		budget = "a budget of " + workTime(int64(a.state.DefaultBudget)*60)
+	}
+	return name + ", " + where + ", " + tools + ", with " + budget + "."
 }
 
 // quitSection says what quitting the app does to this device's agents.
@@ -259,33 +335,70 @@ func (a *App) setHibernation(minutes int) {
 // environmentSection keeps the variables every session on the host gets.
 func (a *App) environmentSection(c *ui.Context) {
 	hs := a.hostSettingsOf()
-	sectionIntro(c, "Environment", "Variables every session on "+a.host.Name+" gets, agents included: API keys, tokens. Kept on "+a.host.Name+" in ~/"+transport.HomeName+"/session-env.json, readable by its user alone; they apply to sessions started or continued after.")
-	if hs.err != "" {
-		ui.Text(c, hs.err).FontSize(12).TextColor(theme.Error)
-	}
-	for _, v := range hs.vars {
-		ui.Row(c.Key(v.Name)).FillWidth().Gap(10).Padding(8, 10).Radius(6).Background(theme.Sunken).Children(func() {
-			ui.Text(c, v.Name).Font(theme.MonoFont).FontSize(12.5).Grow(1)
-			ui.Text(c, v.Value).Font(theme.MonoFont).FontSize(12).TextColor(theme.Muted)
-			if widget.IconButton(c, icon.Close, "Remove it", false).Clicked() {
-				a.setVar(v.Name, "")
+	widget.PageHeader(c, "Environment", "Variables every session on "+a.host.Name+" gets", nil)
+	widget.FigsBand(c, []widget.Fig{
+		{Label: "Variables", Value: strconv.Itoa(len(hs.vars))},
+		{Label: "Sessions on " + a.host.Name, Value: strconv.Itoa(len(a.sessions))},
+	})
+	widget.PageBody(c, true, func() {
+		if hs.err != "" {
+			widget.Notice(c, icon.Alert, theme.Error, hs.err, "", nil)
+		}
+		widget.Cols(c, 3).Children(func() {
+			for _, v := range hs.vars {
+				widget.Card(c.Key(v.Name)).Children(func() {
+					ui.Row(c).FillWidth().MinWidth(0).Children(func() {
+						widget.Running(c, v.Name, widget.RunStyle{Mono: true, Weight: 500})
+					})
+					ui.Row(c).FillWidth().MinWidth(0).Children(func() { widget.Running(c.Key("value"), v.Value, widget.RunStyle{Mono: true}) })
+					widget.CardFoot(c, func() {
+						ui.Row(c).Grow(1).MinWidth(0).Children(func() {
+							widget.Running(c, "Every session on "+a.host.Name, widget.RunStyle{Size: theme.TextLabel, Color: theme.TextSoft})
+						})
+						if widget.IconButton(c, icon.Trash, "Remove it", false).Clicked() {
+							a.setVar(v.Name, "")
+						}
+					})
+				})
+			}
+			widget.Card(c.Key("kept")).Children(func() {
+				widget.CardTitle(c, nil, "Where they are kept", nil)
+				widget.KV(c, "File", "~/"+transport.HomeName+"/session-env.json", true)
+				widget.KV(c, "Readable by", "Its user alone", false)
+				widget.KV(c, "Applies to", "Sessions started or continued after", false)
+			})
+		})
+		widget.Card(c.Key("add-var")).Children(func() {
+			widget.CardTitle(c, nil, "Add a variable", nil)
+			ui.Row(c).FillWidth().Gap(theme.S2).AlignItems(ui.End).Children(func() {
+				ui.Column(c).Grow(1).Basis(0).MinWidth(0).Children(func() {
+					widget.Field(c, "Name", func() { widget.Input(c, &hs.newName, "ANTHROPIC_API_KEY").FillWidth().Font(theme.MonoFont) })
+				})
+				ui.Column(c).Grow(1).Basis(0).MinWidth(0).Children(func() {
+					widget.Field(c, "Value", func() {
+						f := ui.TextInputBase(c, &hs.newValue).Password().FillWidth().Height(theme.ControlHeight).PaddingX(theme.S3).Radius(theme.RadiusFull).
+							Placeholder("Its value").Label("Value")
+						widget.Well(f, f.Focused())
+					})
+				})
+				if widget.PrimaryButton(c, icon.Plus, "Add", "").Clicked() && strings.TrimSpace(hs.newName) != "" && hs.newValue != "" {
+					a.setVar(strings.TrimSpace(hs.newName), hs.newValue)
+					hs.newName, hs.newValue = "", ""
+				}
+			})
+			if a.host.ID != hosts.LocalID {
+				widget.CardNote(c, "Setting one sends its value to "+a.host.Name+".", 0).TextColor(theme.Warning)
 			}
 		})
-	}
-	ui.Row(c).FillWidth().Gap(6).Children(func() {
-		ui.Column(c).Width(220).Children(func() { widget.Input(c, &hs.newName, "ANTHROPIC_API_KEY").FillWidth().Font(theme.MonoFont) })
-		ui.Column(c).Grow(1).Children(func() {
-			ui.TextInputBase(c, &hs.newValue).Password().FillWidth().Height(theme.ControlHeight).PaddingX(11).Radius(theme.RadiusControl).
-				Background(theme.Sunken).Border(1, theme.BorderStrong).Placeholder("value").Label("Value")
-		})
-		if widget.Button(c, widget.Secondary, icon.Plus, "Set", "").Clicked() && strings.TrimSpace(hs.newName) != "" && hs.newValue != "" {
-			a.setVar(strings.TrimSpace(hs.newName), hs.newValue)
-			hs.newName, hs.newValue = "", ""
+		if len(a.sessions) > 0 {
+			widget.Heading(c, "Sessions on "+a.host.Name+": they get a change when next started or continued")
+			widget.Cols(c, 3).Gap(theme.S2).Children(func() {
+				for _, s := range a.sessions {
+					widget.FactCard(c, a.sessionName(s), filepath.Base(s.Project), s.Branch)
+				}
+			})
 		}
 	})
-	if a.host.ID != hosts.LocalID {
-		ui.Text(c, "Setting one sends its value to "+a.host.Name+".").FontSize(11.5).TextColor(theme.Warning)
-	}
 }
 
 func (a *App) setVar(name, value string) {
@@ -310,32 +423,53 @@ func (a *App) setVar(name, value string) {
 // own, and works the same for a session on this machine and one on a
 // server.
 func (a *App) floatingSection(c *ui.Context) {
-	sectionIntro(c, "Floating control", "A radial panel of the main actions, over any app: "+floatingKey+". While it is on, "+floatingKey+" no longer reaches other apps.")
-	floating := a.state.FloatingControl
-	if switchRowKey(c, "Floating control switch", &floating, "Floating control", "The panel and its shortcut. Off, "+floatingKey+" goes back to other apps.") {
-		a.setFloatingControl(floating) // binds the key, and shows the panel
-	}
-	ui.Row(c).FillWidth().Gap(10).Children(func() {
-		ui.Text(c, "Shortcut").FontSize(12.5).Grow(1)
-		ui.Text(c, floatingKey).FontSize(12.5).TextColor(theme.Muted)
+	widget.PageHeader(c, "Floating control", "A round panel over any app", nil)
+	widget.PageBodyRest(c, 470, func() {}, func(rest float32) {
+		widget.Cols(c, 3).RowTracks(ui.Fixed(rest)).Children(func() {
+			widget.GridCard(c.Key("floating-behaviour")).Children(func() {
+				widget.CardTitle(c, nil, "Behaviour", nil)
+				floating := a.state.FloatingControl
+				if switchRowKey(c, "Floating control switch", &floating, "Floating control", "The panel and its shortcut. Off, "+floatingKey+" goes back to other apps.") {
+					a.setFloatingControl(floating) // binds the key, and shows the panel
+				}
+				ui.Row(c).FillWidth().Gap(theme.S2).Children(func() {
+					ui.Text(c, "Shortcut").FontSize(theme.TextUI).Grow(1)
+					ui.Text(c, floatingKey).FontSize(theme.TextLabel).TextColor(theme.TextSoft).SingleLine().Shrink(0)
+				})
+				widget.CardNote(c, "Listed with the keyboard shortcuts in App.", 0)
+				fold := a.floatingFoldOnBlur()
+				if switchRowKey(c, "Fold when you go elsewhere switch", &fold, "Fold when you go elsewhere", "Clicking another app, or the desktop, folds the panel away. Off, it stays until you pick an action, press Escape, or press "+floatingKey+" again.") {
+					a.state.FloatingFoldOnBlur = &fold
+				}
+				atPointer := a.floatingAtPointer()
+				if switchRowKey(c, "Show at the pointer switch", &atPointer, "Show at the pointer", "The panel blooms where the cursor is, on the display it is on. Off, it opens in the middle of that display.") {
+					a.state.FloatingAtPointer = &atPointer
+				}
+				// What the panel lists, and how the sessions show: this is where the
+				// sidebar's switch lives, beside the palette command that also toggles
+				// it. It is not an App preference, so App does not carry it.
+				hideSessions := a.state.HideSessions
+				if switchRowKey(c, "Hide the sidebar switch", &hideSessions, "Hide the sidebar", "The sidebar folds away, giving the session the room; the command palette brings it back.") {
+					a.state.HideSessions = hideSessions
+				}
+			})
+			widget.GridCard(c.Key("floating-look")).Children(func() {
+				widget.CardTitle(c, nil, "Appearance", nil)
+				a.floatingAppearance(c)
+			})
+			widget.GridCard(c.Key("floating-preview")).Children(func() {
+				widget.CardTitle(c, nil, "Preview", func() {
+					if widget.GhostButton(c, "Preview").Label("Show the panel").Disabled(!a.state.FloatingControl).Clicked() {
+						a.summonFloating()
+					}
+				})
+				ui.Spacer(c)
+				a.floatingPreview(c)
+				ui.Spacer(c)
+				widget.CardNote(c, "A radial panel of the main actions, over any app: "+floatingKey+". While it is on, "+floatingKey+" no longer reaches other apps.", 0)
+			})
+		})
 	})
-	ui.Text(c, "Listed with the keyboard shortcuts in App.").FontSize(11.5).TextColor(theme.Muted)
-	fold := a.floatingFoldOnBlur()
-	if switchRowKey(c, "Fold when you go elsewhere switch", &fold, "Fold when you go elsewhere", "Clicking another app, or the desktop, folds the panel away. Off, it stays until you pick an action, press Escape, or press "+floatingKey+" again.") {
-		a.state.FloatingFoldOnBlur = &fold
-	}
-	atPointer := a.floatingAtPointer()
-	if switchRowKey(c, "Show at the pointer switch", &atPointer, "Show at the pointer", "The panel blooms where the cursor is, on the display it is on. Off, it opens in the middle of that display.") {
-		a.state.FloatingAtPointer = &atPointer
-	}
-	// What the panel lists, and how the sessions show: this is where the
-	// sidebar's switch lives, beside the palette command that also toggles
-	// it. It is not an App preference, so App does not carry it.
-	hideSessions := a.state.HideSessions
-	if switchRowKey(c, "Hide the sidebar switch", &hideSessions, "Hide the sidebar", "The sidebar folds away, giving the session the room; the command palette brings it back.") {
-		a.state.HideSessions = hideSessions
-	}
-	a.floatingAppearance(c)
 }
 
 // floatingFoldOnBlur and floatingAtPointer are the panel's two behaviours,
@@ -351,82 +485,116 @@ func (a *App) floatingAtPointer() bool {
 
 // appSection is the app's own preferences.
 func (a *App) appSection(c *ui.Context) {
-	sectionIntro(c, "App", "enowX on this device.")
-	widget.Field(c, "Editor", func() {
-		names := make([]string, len(editors))
-		for i, e := range editors {
-			names[i] = e.name
-		}
-		cur := slices.IndexFunc(editors, func(e editor) bool { return e.id == a.preferredEditor().id })
-		if i := widget.Segmented(c, names, cur, nil); i >= 0 {
-			a.state.Editor = editors[i].id
+	widget.PageHeader(c, "App", "enowX on this device", func() {
+		if widget.Button(c.Key("setup-again"), widget.Secondary, nil, "Run setup again", "").Clicked() {
+			a.page = ""
+			a.onboardingAgain()
 		}
 	})
-	notify := !a.state.NotifyOff
-	if switchRow(c, &notify, "Notifications", "When an agent needs input or finishes in a session not shown.") {
-		a.state.NotifyOff = !notify
-	}
-	if a.tray != nil {
-		keep := !a.state.CloseQuits
-		where := "the notification area"
-		if runtime.GOOS == "darwin" {
-			where = "the menu bar"
-		}
-		if switchRow(c, &keep, "Keep in "+where+" when closed", "Closing the window leaves enowX's icon there, its sessions followed: click it for the sessions that need you. Quit from its menu.") {
-			a.state.CloseQuits = !keep
-		}
-	}
-	auto := !a.state.Updates.Manual
-	if switchRow(c, &auto, "Look for updates by itself", "At start and every few hours; Check for updates looks now.") {
-		a.state.Updates.Manual = !auto
-	}
-	a.quitSection(c)
-	ui.Row(c).FillWidth().Gap(10).Children(func() {
-		ui.Text(c, "enowX "+version.String).FontSize(12.5).TextColor(theme.TextSoft)
-		if widget.GhostButton(c, "Check for updates").Clicked() {
-			a.checkForUpdates(true)
-		}
-	})
-	a.commandLineRow(c)
-	widget.Group(c, "Keyboard shortcuts", len(shortcutList()), &a.shortcutsOpen, func() {
-		for _, s := range shortcutList() {
-			ui.Row(c.Key(s[0])).FillWidth().Gap(10).Padding(4, 8).Children(func() {
-				ui.Text(c, s[1]).FontSize(12.5).Grow(1)
-				ui.Text(c, s[0]).Font(theme.MonoFont).FontSize(12).TextColor(theme.Muted)
+	widget.PageBodyRest(c, 470, func() {
+		widget.Cols(c, 3).Children(func() {
+			widget.Card(c.Key("editor")).Children(func() {
+				widget.CardTitle(c, nil, "Editor", nil)
+				names := make([]string, len(editors))
+				for i, e := range editors {
+					names[i] = e.name
+				}
+				cur := slices.IndexFunc(editors, func(e editor) bool { return e.id == a.preferredEditor().id })
+				if i := segmentedInCard(c, names, cur, 200); i >= 0 {
+					a.state.Editor = editors[i].id
+				}
+				widget.CardNote(c, "Files of a session open in it.", 0)
 			})
-		}
+			widget.Card(c.Key("device")).Children(func() {
+				widget.CardTitle(c, nil, "On this device", nil)
+				notify := !a.state.NotifyOff
+				if switchRow(c, &notify, "Notifications", "When an agent needs input or finishes in a session not shown.") {
+					a.state.NotifyOff = !notify
+				}
+				if a.tray != nil {
+					keep := !a.state.CloseQuits
+					where := "the notification area"
+					if runtime.GOOS == "darwin" {
+						where = "the menu bar"
+					}
+					if switchRow(c, &keep, "Keep in "+where+" when closed", "Closing the window leaves enowX's icon there, its sessions followed: click it for the sessions that need you. Quit from its menu.") {
+						a.state.CloseQuits = !keep
+					}
+				}
+			})
+			widget.Card(c.Key("updates")).Children(func() {
+				widget.CardTitle(c, nil, "Updates", nil)
+				ui.Row(c).FillWidth().Gap(theme.S2).Children(func() {
+					ui.Row(c).Grow(1).MinWidth(0).Children(func() { widget.Running(c, version.String, widget.RunStyle{Size: 24, Weight: 600}) })
+					if widget.GhostButton(c, "Check for updates").Clicked() {
+						a.checkForUpdates(true)
+					}
+				})
+				auto := !a.state.Updates.Manual
+				if switchRow(c, &auto, "Look for updates by itself", "At start and every few hours; Check for updates looks now.") {
+					a.state.Updates.Manual = !auto
+				}
+			})
+		})
+	}, func(float32) {
+		ui.Row(c.Key("app-lower")).Grow(1).FillWidth().MinHeight(0).Gap(theme.S3).AlignItems(ui.Stretch).Children(func() {
+			ui.Column(c).Grow(5).Basis(0).MinWidth(0).MinHeight(0).Gap(theme.S3).Children(func() {
+				widget.Card(c.Key("quit")).Children(func() {
+					widget.CardTitle(c, nil, "When enowX quits", nil)
+					a.quitSection(c)
+				})
+				a.commandLineCard(c)
+			})
+			widget.GridCard(c.Key("keys")).Grow(7).Basis(0).Children(func() {
+				list := shortcutList()
+				widget.CardTitle(c, nil, "Keyboard shortcuts", func() {
+					ui.Text(c, strconv.Itoa(len(list))).FontSize(theme.TextLabel).TextColor(theme.TextSoft)
+				})
+				ui.Column(c).FillWidth().MinWidth(0).Children(func() {
+					for _, s := range list {
+						ui.Box(c).Height(theme.Rule).FillWidth().Shrink(0).Background(theme.Border)
+						ui.Row(c.Key(s[0])).FillWidth().Height(28).Shrink(0).Gap(theme.S3).Children(func() {
+							ui.Row(c).Grow(1).MinWidth(0).Children(func() { widget.Running(c, s[1], widget.RunStyle{}) })
+							ui.Text(c, s[0]).FontSize(theme.TextLabel).TextColor(theme.TextSoft).SingleLine().Shrink(0)
+						})
+					}
+				})
+			})
+		})
 	})
 }
 
-// commandLineRow offers to install the enowx command (docs/cli.md) as a
+// commandLineCard offers to install the enowx command (docs/cli.md) as a
 // link to this app, for shells and scripts.
-func (a *App) commandLineRow(c *ui.Context) {
+func (a *App) commandLineCard(c *ui.Context) {
 	exe, err := os.Executable()
 	if err != nil || runtime.GOOS == "windows" {
 		return
 	}
 	link, _ := cli.LinkPath()
-	ui.Row(c).FillWidth().Gap(12).Children(func() {
-		ui.Column(c).Grow(1).MinWidth(0).Gap(2).Children(func() {
-			ui.Text(c, "Command line").FontSize(12.5)
-			note := "enowx-app ls, spawn, send, wait… in any terminal: a link to this app at " + link + "."
+	widget.GridCard(c.Key("command-line")).Grow(1).Children(func() {
+		widget.CardTitle(c, nil, "Command line", nil)
+		note := "enowx-app ls, spawn, send, wait… in any terminal: a link to this app at " + link + "."
+		if cli.Linked(exe) {
+			note = "Installed at " + link + "."
+			if !cli.OnPath() {
+				note += " Add ~/.local/bin to your PATH to run it by name."
+			}
+		}
+		widget.CardNote(c, note, 0)
+		logFill(c, "enowx-app ls\nenowx-app spawn --agent codex \"…\"\nenowx-app wait ID")
+		widget.CardFoot(c, func() {
+			ui.Spacer(c)
+			label := "Install"
 			if cli.Linked(exe) {
-				note = "Installed at " + link + "."
-				if !cli.OnPath() {
-					note += " Add ~/.local/bin to your PATH to run it by name."
+				label = "Reinstall"
+			}
+			if widget.GhostButton(c, label).Clicked() {
+				if _, err := cli.InstallLink(exe); err != nil {
+					a.status = err.Error()
 				}
 			}
-			ui.Text(c, note).FontSize(11.5).TextColor(theme.Muted)
 		})
-		label := "Install"
-		if cli.Linked(exe) {
-			label = "Reinstall"
-		}
-		if widget.GhostButton(c, label).Clicked() {
-			if _, err := cli.InstallLink(exe); err != nil {
-				a.status = err.Error()
-			}
-		}
 	})
 }
 
@@ -455,51 +623,63 @@ func shortcutList() [][2]string {
 func (a *App) diagnosticsSection(c *ui.Context) {
 	hs := a.hostSettingsOf()
 	info := a.daemonInfo
-	sectionIntro(c, "Diagnostics", "What enowX's daemon on "+a.host.Name+" says about itself.")
-	rows := [][2]string{
-		{"Host", a.host.Name + " · " + info.Hostname},
-		{"Daemon", "enowxd " + info.Version + " · pid " + strconv.Itoa(info.PID)},
-		{"Since", info.Started.Format("2 Jan 15:04") + " · " + textfmt.Age(info.Started, time.Now())},
-		{"Sessions", strconv.Itoa(len(a.sessions))},
-		{"Home", info.Home},
-	}
-	if info.Hash != "" {
-		rows = append(rows, [2]string{"Build", info.Hash[:min(len(info.Hash), 12)]})
-	}
-	if !info.Display && info.DisplayNote != "" {
-		rows = append(rows, [2]string{"Displays", info.DisplayNote})
-	}
-	widget.Card(c).Children(func() {
-		widget.FitGrid(c, 260, 2).Gap(10).Children(func() {
-			for _, r := range rows {
-				ui.Column(c.Key(r[0])).MinWidth(0).Gap(2).Children(func() {
-					ui.Text(c, r[0]).FontSize(11).TextColor(theme.Muted)
-					ui.Text(c, r[1]).FontSize(12.5).SingleLine().Tooltip(r[1])
+	widget.PageHeader(c, "Diagnostics", "What "+a.host.Name+"'s daemon says about itself", nil)
+	widget.FigsBand(c, []widget.Fig{
+		{Label: "Daemon", Value: info.Version},
+		{Label: "Running for", Value: textfmt.Age(info.Started, time.Now())},
+		{Label: "Sessions", Value: strconv.Itoa(len(a.sessions))},
+	})
+	widget.PageFill(c, func() {
+		widget.MasterDetail(c, 380, func() {
+			widget.Card(c.Key("daemon")).Shrink(0).Children(func() {
+				widget.CardTitle(c, nil, "This daemon", nil)
+				widget.KV(c, "Host", a.host.Name+" · "+info.Hostname, false)
+				widget.KV(c, "Daemon", "enowxd "+info.Version+" · pid "+strconv.Itoa(info.PID), false)
+				widget.KV(c, "Since", info.Started.Format("2 Jan 15:04")+" · "+textfmt.Age(info.Started, time.Now()), false)
+				widget.KV(c, "Sessions", strconv.Itoa(len(a.sessions)), false)
+				widget.KV(c, "Home", info.Home, true)
+				if info.Hash != "" {
+					widget.KV(c, "Build", info.Hash[:min(len(info.Hash), 12)], true)
+				}
+			})
+			if !info.Display && info.DisplayNote != "" {
+				widget.Card(c.Key("displays")).Shrink(0).Children(func() {
+					widget.CardTitle(c, nil, "Displays", nil)
+					widget.CardNote(c, info.DisplayNote, 0)
 				})
 			}
+			widget.Card(c.Key("restart")).Grow(1).Children(func() {
+				widget.CardTitle(c, nil, "Restart", nil)
+				widget.CardNote(c, "Its sessions continue, as after an update.", 0)
+				ui.Spacer(c)
+				ui.Row(c).FillWidth().Children(func() {
+					if widget.GhostButton(c, "Restart the daemon").Clicked() {
+						a.restartDaemon()
+					}
+				})
+			})
+		}, func() {
+			widget.Card(c.Key("log")).Grow(1).FillWidth().MinHeight(0).Children(func() {
+				widget.CardTitle(c, nil, "End of its log", func() {
+					ui.Row(c).MinWidth(0).Shrink(1).Children(func() {
+						widget.Running(c.Key("path"), hs.log.Path, widget.RunStyle{Size: theme.TextLabel, Mono: true, Color: theme.TextSoft})
+					})
+					if widget.Button(c, widget.Secondary, icon.Sync, "Refresh", "").Tooltip("Read the log again").Clicked() {
+						a.loadHostSettings()
+					}
+				})
+				logFill(c, hs.log.Text)
+			})
 		})
 	})
-	widget.Row(c, "Restart the daemon", "", "Its sessions continue, as after an update.", func() {
-		if widget.Button(c, widget.Secondary, icon.Sync, "Restart", "").Clicked() {
-			a.restartDaemon()
-		}
-	})
-	ui.Row(c).FillWidth().Gap(8).Children(func() {
-		ui.Text(c, "LOG").FontSize(10.5).TextColor(theme.Muted)
-		ui.Text(c, hs.log.Path).Font(theme.MonoFont).FontSize(10.5).TextColor(theme.Idle).SingleLine().Shrink(1)
-		ui.Spacer(c)
-		if widget.IconButton(c, icon.Sync, "Read the log again", false).Clicked() {
-			a.loadHostSettings()
-		}
-	})
-	widget.LogView(c, hs.log.Text, 300)
 }
 
-// sectionIntro heads a Settings section: what it is about.
-func sectionIntro(c *ui.Context, title, about string) {
-	ui.Column(c).FillWidth().Gap(4).Children(func() {
-		ui.Text(c, title).FontSize(16)
-		ui.Text(c, about).FontSize(12.5).TextColor(theme.Muted)
+// logFill is a log on the code ground, filling the height it has.
+func logFill(c *ui.Context, text string) {
+	ui.Scroll(c.Key("log-text")).Grow(1).FillWidth().MinHeight(0).Radius(theme.RadiusCard).Background(theme.CodeGround).Children(func() {
+		ui.Column(c).FillWidth().Padding(theme.S3, theme.S4).Children(func() {
+			ui.Text(c, text).Font(theme.MonoFont).FontSize(theme.TextUI).TextColor(widget.CodeText).FillWidth().MinWidth(0)
+		})
 	})
 }
 
@@ -534,11 +714,11 @@ func switchRow(c *ui.Context, on *bool, label, about string) bool {
 // switch, not the paragraph.
 func switchRowKey(c *ui.Context, key string, on *bool, label, about string) bool {
 	changed := false
-	ui.Row(c.Key(key)).FillWidth().Gap(12).Children(func() {
-		ui.Column(c).Grow(1).MinWidth(0).Gap(2).Children(func() {
-			ui.Text(c, label).FontSize(12.5)
+	ui.Row(c.Key(key)).FillWidth().Gap(theme.S3).AlignItems(ui.Start).Children(func() {
+		ui.Column(c).Grow(1).MinWidth(0).Children(func() {
+			ui.Text(c, label).FontSize(theme.TextUI).FontWeight(500)
 			if about != "" {
-				ui.Text(c, about).FontSize(11.5).TextColor(theme.Muted)
+				ui.Text(c, about).FontSize(theme.TextLabel).TextColor(theme.TextSoft)
 			}
 		})
 		changed = widget.Switch(c, on, key)

@@ -211,6 +211,7 @@ func (s *Server) designReview(p proto.DesignReviewParams) (proto.DesignReview, e
 				s.logger().Warn("design review: tell the agent", "session", how.lead, "err", err)
 			}
 		}
+		s.helperFinished(p.Session) // its verdict is its work: it stays on the run
 		return rv, nil
 	}
 	// The daemon restarted since (an update): the review's folder says
@@ -225,6 +226,7 @@ func (s *Server) designReview(p proto.DesignReviewParams) (proto.DesignReview, e
 						s.logger().Warn("design review: tell the agent", "session", m.Lead, "err", err)
 					}
 				}
+				s.helperFinished(p.Session)
 				return r, nil
 			}
 		}

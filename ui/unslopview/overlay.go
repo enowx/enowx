@@ -56,7 +56,7 @@ var line=document.createElement('div');
 line.style.cssText='position:absolute;left:0;right:0;top:0;height:80px;background:linear-gradient(180deg,rgba(129,140,248,0),rgba(129,140,248,.22));border-bottom:2px solid #a5b4fc;box-shadow:0 8px 24px rgba(129,140,248,.55);animation:enxSweep '+SW+'s cubic-bezier(.45,0,.2,1) both,enxFade .25s '+SW+'s both';
 root.appendChild(line);
 var count=document.createElement('div');count.id='__enx_count';count.textContent='Scanning\u2026';if(!marks.length)count.style.display='none';
-count.style.cssText='position:fixed;left:16px;bottom:16px;z-index:2147483647;pointer-events:none;font:600 12px/28px system-ui,sans-serif;padding:0 12px;border-radius:14px;color:#e0e7ff;background:rgba(30,27,75,.92);border:1px solid rgba(165,180,252,.5);box-shadow:0 6px 20px rgba(0,0,0,.35);animation:enxShow .3s both,enxFade .5s '+(end+1.4).toFixed(2)+'s both';
+count.style.cssText='position:fixed;left:16px;bottom:16px;z-index:2147483647;pointer-events:none;font:500 12px/28px system-ui,sans-serif;padding:0 12px;border-radius:14px;color:#e0e7ff;background:rgba(30,27,75,.92);border:1px solid rgba(165,180,252,.5);box-shadow:0 6px 20px rgba(0,0,0,.35);animation:enxShow .3s both,enxFade .5s '+(end+1.4).toFixed(2)+'s both';
 document.body.appendChild(count);
 setTimeout(function(){count.remove()},(end+2)*1000);
 if(hops&&root.animate){var ret=document.createElement('div');
@@ -69,7 +69,7 @@ marks.forEach(function(m,k){var at=k<hops?SW+(k+1)*HOP:SW+hops*HOP+.2;
 var d=document.createElement('div');
 d.style.cssText='position:absolute;left:'+m.x+'px;top:'+m.y+'px;width:'+m.w+'px;height:'+m.h+'px;border:1.5px solid '+m.c+';background:'+m.c+'1f;border-radius:4px;animation:enxIn .35s '+at.toFixed(2)+'s both';
 var t=document.createElement('span');t.textContent=m.label;t.style.setProperty('--enx-w',(m.label.length*7+16)+'px');
-t.style.cssText+='position:absolute;left:-1.5px;bottom:100%;margin-bottom:2px;font:600 10px/16px system-ui,sans-serif;padding:0 6px;border-radius:4px;color:#fff;white-space:nowrap;overflow:hidden;background:'+m.c+';animation:enxType .45s steps('+Math.min(m.label.length,24)+') '+(at+.15).toFixed(2)+'s both';
+t.style.cssText+='position:absolute;left:-1.5px;bottom:100%;margin-bottom:2px;font:500 12px/16px system-ui,sans-serif;padding:0 6px;border-radius:4px;color:#fff;white-space:nowrap;overflow:hidden;background:'+m.c+';animation:enxType .45s steps('+Math.min(m.label.length,24)+') '+(at+.15).toFixed(2)+'s both';
 d.appendChild(t);root.appendChild(d);
 setTimeout(function(){count.textContent='Scanning\u2026 '+(k+1)+(k?' issues':' issue')},at*1000)});
 setTimeout(function(){count.textContent=marks.length?marks.length+(marks.length>1?' issues marked':' issue marked'):'Nothing to mark on this view'},end*1000);
@@ -89,13 +89,13 @@ rs.forEach(function(r){var e=document.getElementById(r.id);if(!e)return;var b=e.
 var d=document.createElement('div');
 d.style.cssText='position:absolute;left:'+(b.left+scrollX-3)+'px;top:'+(b.top+scrollY-3)+'px;width:'+(b.width+6)+'px;height:'+(b.height+6)+'px;border:2px '+(r.done?'solid':'dashed')+' '+r.color+';border-radius:6px;opacity:'+(r.done?.45:1)+';transition:opacity .4s';
 var t=document.createElement('span');t.textContent=r.label;
-t.style.cssText='position:absolute;right:-2px;top:-2px;transform:translateY(-100%);font:600 10px/18px system-ui,sans-serif;padding:0 7px;border-radius:9px 9px 0 9px;color:#111;white-space:nowrap;background:'+r.color;
+t.style.cssText='position:absolute;right:-2px;top:-2px;transform:translateY(-100%);font:500 12px/18px system-ui,sans-serif;padding:0 7px;border-radius:9px 9px 0 9px;color:#111;white-space:nowrap;background:'+r.color;
 d.appendChild(t);root.appendChild(d)})})`
 
 // PassTagScript tags element id, just changed, with label in color.
 const PassTagScript = `(function(id,label,color){` + enxStyle + `var e=document.getElementById(id);if(!e||!label)return;
 var r=e.getBoundingClientRect(),t=document.createElement('div');t.textContent=label;
-t.style.cssText='position:absolute;left:'+(r.left+scrollX)+'px;top:'+Math.max(0,r.top+scrollY-20)+'px;font:600 10px/18px system-ui,sans-serif;padding:0 7px;border-radius:9px;color:'+(color?'#111':'#fff')+';background:'+(color||'#6366f1')+';box-shadow:0 2px 8px rgba(0,0,0,.25);pointer-events:none;z-index:2147483647;animation:enxTag 2.1s both';
+t.style.cssText='position:absolute;left:'+(r.left+scrollX)+'px;top:'+Math.max(0,r.top+scrollY-20)+'px;font:500 12px/18px system-ui,sans-serif;padding:0 7px;border-radius:9px;color:'+(color?'#111':'#fff')+';background:'+(color||'#6366f1')+';box-shadow:0 2px 8px rgba(0,0,0,.25);pointer-events:none;z-index:2147483647;animation:enxTag 2.1s both';
 document.body.appendChild(t);setTimeout(function(){t.remove()},2200)})`
 
 // ScanItems are run's findings' elements, as ScanScript takes them.

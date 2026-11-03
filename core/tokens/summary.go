@@ -41,7 +41,7 @@ func (s *Store) Summarize(q proto.TokensQuery, prices *Prices, now time.Time) pr
 	for _, r := range s.RolledUp(since, until) {
 		rows = append(rows, row{day: r.Day, agent: r.Agent, model: r.Model, project: r.Project, config: r.Config, own: r.Own, counts: r.TokenCounts})
 	}
-	out := proto.TokensSummary{Since: since, Until: until}
+	out := proto.TokensSummary{Since: since, Until: until, Approximate: s.Approximate(since, until)}
 	sum(&out, rows, q)
 	return out
 }

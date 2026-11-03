@@ -85,6 +85,12 @@ func (a *App) canvasEvent(ev proto.Event) func() {
 			}
 			a.canvases.Apply(a.canvasOptions(), ch)
 		}
+	case proto.EventCanvasVideo:
+		var req proto.CanvasVideoRequest
+		if json.Unmarshal(ev.Data, &req) != nil {
+			return nil
+		}
+		return func() { a.startCanvasVideo(req) }
 	case proto.EventCanvasRender:
 		var req proto.CanvasRenderRequest
 		if json.Unmarshal(ev.Data, &req) != nil {
@@ -249,13 +255,35 @@ func (a *App) canvasOptions() canvasview.Options {
 				return err
 			}, func(err error) { done(data, err) })
 		},
+		OffMain: func(work, then func()) {
+			go func() {
+				work()
+				a.onMain(then)
+			}()
+		},
+		VideoWhyNot: videoWhyNot,
+		ExportVideo: func(p proto.CanvasVideoParams, done func(error)) {
+			call(func() error {
+				_, err := cl.CanvasVideo(p)
+				return err
+			}, done)
+		},
+		PictureCached: func(key string, done func([]byte)) {
+			go func() {
+				data := readCanvasThumb(canvasThumbDir(), key)
+				a.onMain(func() { done(data) })
+			}()
+		},
+		PictureKeep: func(key string, data []byte) {
+			go keepCanvasThumb(canvasThumbDir(), key, data)
+		},
 		SaveFile: func(name string, data []byte) {
 			path, err := saveDownload(strings.NewReplacer("/", "-", "\\", "-", ":", "-").Replace(name), data)
 			if err != nil {
 				a.status = err.Error()
 				return
 			}
-			a.status = "Saved to " + path
+			a.notify("Saved to " + path)
 		},
 		Projects: a.canvasProjects(),
 		MakeCode: a.makeCode,

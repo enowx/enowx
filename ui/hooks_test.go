@@ -46,8 +46,8 @@ func TestHooksSection(t *testing.T) {
 	app.host.Name = "this Mac"
 	tt := ui.NewTester(func(c *ui.Context) {
 		c.SetTheme(theme.Window())
-		ui.Column(c).Width(900).Height(820).Background(theme.Background).TextColor(theme.Text).Children(func() { app.hooksSection(c) })
-	}, 900, 820)
+		ui.Column(c).Width(900).Height(1200).Background(theme.Background).TextColor(theme.Text).Children(func() { app.hooksSection(c) })
+	}, 900, 1200) // tall enough for the whole form, which scrolls in a smaller window
 	frames := func(until func() bool, what string) {
 		deadline := time.Now().Add(10 * time.Second)
 		for !until() {
@@ -64,7 +64,7 @@ func TestHooksSection(t *testing.T) {
 	}
 	tt.Frame()
 	frames(func() bool { return app.hooks.loaded }, "the hooks")
-	if !hasText(tt, "has 1 hook of its own") {
+	if !hasText(tt, "has a hook waiting to be allowed") {
 		t.Fatalf("no pending project hooks: %q", tt.Texts())
 	}
 	if err := tt.Click("Add a hook"); err != nil {

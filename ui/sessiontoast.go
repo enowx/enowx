@@ -154,7 +154,7 @@ func (a *App) sessionToastsView(c *ui.Context, now time.Time) {
 
 func (a *App) sessionToastCard(c *ui.Context, t *sessionToast, now time.Time) {
 	svg, col, label := toastKind(t.kind)
-	card := widget.Float(ui.Row(c).FillWidth().Padding(10, 10, 10, 12).Gap(10).AlignItems(ui.Start).Radius(theme.RadiusCard).
+	card := widget.Float(ui.Row(c).FillWidth().Padding(theme.S2, theme.S2, theme.S2, theme.S3).Gap(theme.S2).AlignItems(ui.Start).Radius(theme.RadiusCard).
 		Background(theme.Dialog).Border(1, theme.BorderStrong)).Transition(widget.OverlayMotion)
 	if card.Hovered() {
 		t.shown = now // read: it waits
@@ -166,14 +166,14 @@ func (a *App) sessionToastCard(c *ui.Context, t *sessionToast, now time.Time) {
 		body := ui.ButtonBase(c.Key("open")).Grow(1).MinWidth(0).Cursor(ui.CursorPointer).Label("Open " + t.name + " on " + t.host)
 		body.Children(func() {
 			ui.Column(c).FillWidth().Gap(2).Children(func() {
-				ui.Row(c).FillWidth().Gap(6).AlignItems(ui.Center).Children(func() {
-					ui.Text(c, label).FontSize(12.5).FontWeight(600).TextColor(col).SingleLine()
-					ui.Text(c, t.name).FontSize(12.5).SingleLine().Shrink(1)
+				ui.Row(c).FillWidth().Gap(theme.S1).AlignItems(ui.Center).Children(func() {
+					ui.Text(c, label).FontSize(theme.TextUI).FontWeight(600).TextColor(col).SingleLine().Shrink(0)
+					ui.Row(c).Grow(1).MinWidth(0).Children(func() { widget.Running(c, t.name, widget.RunStyle{}) })
 				})
 				if t.host != "" {
-					ui.Text(c, t.host).FontSize(11).TextColor(theme.Muted).SingleLine()
+					widget.Running(c.Key("host"), t.host, widget.RunStyle{Size: theme.TextLabel, Color: theme.TextSoft})
 				}
-				ui.Text(c, t.text).FontSize(12.5).TextColor(theme.TextSoft).MaxLines(3)
+				ui.Text(c, t.text).FontSize(theme.TextUI).TextColor(theme.TextSoft).MaxLines(3)
 			})
 		})
 		if body.Clicked() && t.id != "" {

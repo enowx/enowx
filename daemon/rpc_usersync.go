@@ -2,6 +2,7 @@ package daemon
 
 import (
 	"encoding/json"
+	"errors"
 	"os"
 	"path/filepath"
 	"slices"
@@ -17,7 +18,20 @@ import (
 // reads and writes this host's files and reports how its syncs went.
 
 var syncHandlers = map[string]handler{
-	proto.MethodSyncManifest: bare(func(c *conn) (any, error) { return c.srv.userdata.Manifest() }),
+	proto.MethodSyncManifest: func(c *conn, raw json.RawMessage) (any, error) {
+		var p proto.SyncManifestParams
+		if len(raw) > 0 {
+			if err := decode(raw, &p); err != nil {
+				return nil, err
+			}
+		}
+		if !p.KeepsOwnHistory {
+			// Syncing from an older app: it'd take this host not listing a canvas's versions
+			// for their deletion, and delete them on the host it syncs this one with.
+			return nil, errSyncNeedsNewerApp
+		}
+		return c.srv.userdata.Manifest()
+	},
 	proto.MethodSyncRead: with(func(c *conn, p proto.SyncReadParams) (any, error) {
 		files, err := c.srv.userdata.Read(p.Paths)
 		return proto.SyncReadResult{Files: files}, err
@@ -144,3 +158,6 @@ func (sp *syncPeers) report(file string, p proto.SyncPeerStatus) error {
 	}
 	return os.WriteFile(file, data, 0o600)
 }
+
+// errSyncNeedsNewerApp is what an older app syncing with this host is told.
+var errSyncNeedsNewerApp = errors.New("this host runs a newer enowX than the app syncing it: update the app, and sync goes on")

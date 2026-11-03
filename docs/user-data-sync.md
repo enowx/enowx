@@ -4,7 +4,7 @@ Notes, their groups, canvases, settings and the vault's encrypted data are the s
 
 ## How
 
-Each host keeps the data as files in its enowX folder (`~/.enowx-app`): `notes/`, `canvas/`, `vault/`, `settings/`, `catalog/` (each host's projects) and `sync/conflicts/`. Hosts don't reach each other, so the app does the syncing: this device's own daemon is the hub, and every other host the app reaches (the one shown, or one watched in the background) syncs with it when it connects, every 30 seconds, and right after a change on either side. A host offline keeps its changes and sends them when it is back; a new host gets everything at its first sync.
+Each host keeps the data as files in its enowX folder (`~/.enowx-app`): `notes/`, `canvas/` (not a canvas's versions kept for undo, `canvas/<id>/history*`: those are each host's own), `vault/`, `settings/`, `catalog/` (each host's projects) and `sync/conflicts/`. Hosts don't reach each other, so the app does the syncing: this device's own daemon is the hub, and every other host the app reaches (the one shown, or one watched in the background) syncs with it when it connects, every 30 seconds, and right after a change on either side. A host offline keeps its changes and sends them when it is back; a new host gets everything at its first sync.
 
 A sync is three-way, file by file (`core/usersync`), against what the two hosts had at their last sync, kept in this device's `usersync/` folder:
 
@@ -34,3 +34,7 @@ enowx-app sync forget --yes       # take the synced data off this host
 ```
 
 The same are MCP tools: `sync_status`, `sync_now`, `sync_conflicts`, `sync_resolve`, `sync_trash`, `sync_restore`.
+
+## Older apps
+
+A canvas's versions stopped being synced in 0.6.0. An older app would take a host's not listing them for their deletion, and delete them on the other host, so a host on 0.6.0 or later gives it no manifest: its sync fails, saying to update the app, and nothing is changed. Update every device and host together.

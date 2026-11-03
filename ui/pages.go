@@ -182,7 +182,7 @@ func (a *App) filePage(c *ui.Context, s proto.SessionInfo, p string, modified ti
 		}()
 	}
 	if v.wv == nil {
-		pageNote(c, "Opening the page…", theme.Muted)
+		pageNote(c, "Opening the page…", theme.TextSoft)
 		return
 	}
 	if !modified.IsZero() && !modified.Equal(v.modified) {
@@ -193,8 +193,8 @@ func (a *App) filePage(c *ui.Context, s proto.SessionInfo, p string, modified ti
 }
 
 func pageNote(c *ui.Context, text string, color ui.Color) {
-	ui.Column(c).Grow(1).FillWidth().Center().Padding(16).Children(func() {
-		ui.Text(c, text).FontSize(12).TextColor(color)
+	ui.Column(c).Grow(1).FillWidth().Center().Padding(theme.S5).Children(func() {
+		ui.Text(c, text).FontSize(theme.TextUI).TextColor(color).TextAlign(ui.Center)
 	})
 }
 

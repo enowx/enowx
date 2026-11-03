@@ -157,7 +157,7 @@ func (v *View) askDialog(c *ui.Context, o Options) {
 	case "stat":
 		v.properties(c, a, &open)
 	case proto.FileDelete:
-		widget.Dialog(c, &open, 440, 12, func() {
+		widget.Dialog(c, &open, 420, theme.S3, func() {
 			what := "file"
 			if a.dir {
 				what = "folder, with all it holds"
@@ -165,7 +165,7 @@ func (v *View) askDialog(c *ui.Context, o Options) {
 			widget.DialogHeader(c, "Delete "+path.Base(a.path)+"?", "The "+what+" goes for good: it isn't moved to a trash. Git can bring back what it tracks.", false)
 			v.askError(c, a)
 			widget.DialogFooter(c, "", func() {
-				if widget.GhostButton(c, "Cancel").Clicked() {
+				if widget.Button(c, widget.Secondary, nil, "Cancel", "").Clicked() {
 					open = false
 				}
 				if widget.DangerButton(c, "Delete").Disabled(a.busy).Clicked() && !a.busy {
@@ -190,13 +190,22 @@ func (v *View) askDialog(c *ui.Context, o Options) {
 		} else if dir != "" {
 			where = dir
 		}
-		widget.Dialog(c, &open, 440, 12, func() {
-			widget.DialogHeader(c, title, "In "+where+".", false)
-			in := widget.Input(c, &a.name, "name").FillWidth().AutoFocus().Font(theme.MonoFont)
+		widget.Dialog(c, &open, 480, theme.S3, func() {
+			if widget.DialogHeader(c, title, "In "+where+".", true) {
+				open = false
+			}
+			submit := false
+			placeholder := "notes.md"
+			if a.dir {
+				placeholder = "assets"
+			}
+			widget.Field(c, "Name", func() {
+				in := widget.Input(c, &a.name, placeholder).FillWidth().AutoFocus()
+				submit = in.Submitted()
+			})
 			v.askError(c, a)
-			submit := in.Submitted()
 			widget.DialogFooter(c, "", func() {
-				if widget.GhostButton(c, "Cancel").Clicked() {
+				if widget.Button(c, widget.Secondary, nil, "Cancel", "").Clicked() {
 					open = false
 				}
 				if widget.PrimaryButton(c, nil, button, "").Disabled(a.busy).Clicked() {
@@ -215,14 +224,16 @@ func (v *View) askDialog(c *ui.Context, o Options) {
 
 func (v *View) askError(c *ui.Context, a *asking) {
 	if a.err != "" {
-		ui.Text(c, a.err).FontSize(12).TextColor(theme.Error)
+		ui.Text(c, a.err).FontSize(theme.TextUI).TextColor(theme.Error)
 	}
 }
 
 // properties shows what a file or folder is.
 func (v *View) properties(c *ui.Context, a *asking, open *bool) {
-	widget.Dialog(c, open, 480, 12, func() {
-		widget.DialogHeader(c, path.Base(a.path), a.path, false)
+	widget.Dialog(c, open, 480, theme.S3, func() {
+		if widget.DialogHeader(c, "Properties", a.path, true) {
+			*open = false
+		}
 		v.askError(c, a)
 		st := a.stat
 		if st == nil {
@@ -254,16 +265,16 @@ func (v *View) properties(c *ui.Context, a *asking, open *bool) {
 		case st.Status != "":
 			rows = append(rows, [2]string{"Git", gitWords(st.Status)})
 		}
-		ui.Column(c).FillWidth().Gap(6).Children(func() {
+		ui.Column(c).FillWidth().Gap(theme.S1).Children(func() {
 			for _, r := range rows {
-				ui.Row(c.Key(r[0])).FillWidth().Gap(12).Children(func() {
-					ui.Text(c, r[0]).FontSize(12).TextColor(theme.Muted).Width(90).Shrink(0)
-					ui.Text(c, r[1]).FontSize(12.5).Selectable().Grow(1).Shrink(1)
+				ui.Row(c.Key(r[0])).FillWidth().Gap(theme.S3).AlignItems(ui.Start).Children(func() {
+					ui.Text(c, r[0]).FontSize(theme.TextUI).TextColor(theme.TextSoft).Width(120).Shrink(0)
+					ui.Text(c, r[1]).FontSize(theme.TextUI).Selectable().Grow(1).Basis(0).MinWidth(0)
 				})
 			}
 		})
 		widget.DialogFooter(c, "", func() {
-			if widget.GhostButton(c, "Close").Clicked() {
+			if widget.Button(c.Key("close"), widget.Secondary, nil, "Close", "").Clicked() {
 				*open = false
 			}
 		})

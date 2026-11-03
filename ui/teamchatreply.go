@@ -51,11 +51,13 @@ func (a *App) replyBar(c *ui.Context) {
 		return
 	}
 	m := *hc.replyTo
-	ui.Row(c).FillWidth().Gap(6).PaddingX(4).AlignItems(ui.Center).Children(func() {
-		ui.Icon(c, icon.Reply).FontSize(12).TextColor(theme.Accent)
-		ui.Text(c, "Replying to").FontSize(11.5).TextColor(theme.Muted).SingleLine().Shrink(0)
-		ui.Text(c, m.Name).FontSize(11.5).FontWeight(600).TextColor(widget.TeamColor(m.Account)).SingleLine().Shrink(0)
-		ui.Text(c, snippet(m.Text)).FontSize(11.5).TextColor(theme.TextSoft).SingleLine().Grow(1).Shrink(1).MinWidth(0)
+	ui.Row(c).FillWidth().Gap(theme.S2).PaddingX(theme.S1).AlignItems(ui.Center).Children(func() {
+		ui.Icon(c, icon.Reply).FontSize(12).TextColor(theme.Now)
+		ui.Text(c, "Replying to").FontSize(theme.TextLabel).TextColor(theme.Muted).SingleLine().Shrink(0)
+		ui.Text(c, m.Name).FontSize(theme.TextLabel).FontWeight(600).TextColor(widget.TeamColor(m.Account)).SingleLine().Shrink(0)
+		ui.Row(c).Grow(1).Basis(0).MinWidth(0).Children(func() {
+			widget.Running(c, snippet(m.Text), widget.RunStyle{Size: theme.TextLabel, Color: theme.TextSoft})
+		})
 		if widget.IconButton(c, icon.Close, "Don't reply (Esc)", false).Clicked() {
 			hc.replyTo = nil
 		}
@@ -82,15 +84,20 @@ func (a *App) replyQuote(c *ui.Context, team string, m proto.ChatMessage) {
 			name = "You"
 		}
 	}
-	b := ui.ButtonBase(c).FillWidth().MinWidth(160).Radius(8).Background(theme.Fade(col, 0.12)).Label("The message it answers")
+	// In the user's own bubble it lies on the accent, in the accent's text color.
+	soft := theme.TextSoft
+	if m.Account == a.cloudOf().st.AccountID && m.Account != "" {
+		col, soft = theme.OnAccent, theme.OnAccent
+	}
+	b := ui.ButtonBase(c).FillWidth().MinWidth(160).Radius(theme.RadiusSmall).Background(theme.Fade(col, 0.12)).Label("The message it answers")
 	b.Children(func() {
 		ui.Row(c).FillWidth().AlignItems(ui.Stretch).Children(func() {
-			ui.Box(c).Width(3).Shrink(0).Radius(2).Background(col)
-			ui.Column(c).Grow(1).Shrink(1).MinWidth(0).Gap(1).Padding(4, 9, 5, 8).Children(func() {
+			ui.Box(c).Width(3).Shrink(0).Radius(theme.RadiusTail).Background(col)
+			ui.Column(c).Grow(1).Shrink(1).MinWidth(0).Gap(1).Padding(theme.S1, theme.S2, theme.S1, theme.S2).Children(func() {
 				if name != "" {
-					ui.Text(c, name).FontSize(11).FontWeight(650).TextColor(col).SingleLine()
+					ui.Text(c, name).FontSize(theme.TextLabel).FontWeight(650).TextColor(col).SingleLine()
 				}
-				t := ui.Text(c, text).FontSize(11.5).TextColor(theme.TextSoft).MaxLines(2)
+				t := ui.Text(c, text).FontSize(theme.TextLabel).TextColor(soft).MaxLines(2)
 				if i < 0 {
 					t.Italic().TextColor(theme.Idle)
 				}
@@ -130,10 +137,10 @@ func (a *App) reactions(c *ui.Context, team string, m proto.ChatMessage) {
 		return
 	}
 	me, writer := a.cloudOf().st.AccountID, a.chatWriter(team)
-	ui.Row(c).Gap(4).Wrap().Children(func() {
+	ui.Row(c).Gap(theme.S1).Wrap().Children(func() {
 		for _, r := range m.Reactions {
 			mine := slices.Contains(r.Accounts, me)
-			b := ui.ButtonBase(c.Key("r:"+r.Emoji)).Height(22).Padding(0, 7).Gap(4).Radius(11).AlignItems(ui.Center).
+			b := ui.ButtonBase(c.Key("r:"+r.Emoji)).Height(22).Padding(0, theme.S2).Gap(theme.S1).Radius(theme.RadiusSmall).AlignItems(ui.Center).
 				Label(r.Emoji + " by " + a.reactors(team, r.Accounts)).Tooltip(a.reactors(team, r.Accounts))
 			bg, border := theme.Sunken, theme.Border
 			if mine {
@@ -146,8 +153,8 @@ func (a *App) reactions(c *ui.Context, team string, m proto.ChatMessage) {
 				}
 			}
 			b.Background(bg).Border(1, border).Children(func() {
-				ui.Text(c, r.Emoji).FontSize(12)
-				ui.Text(c, strconv.Itoa(len(r.Accounts))).FontSize(11).FontWeight(600).TextColor(theme.TextSoft)
+				ui.Text(c, r.Emoji).FontSize(theme.TextLabel)
+				ui.Text(c, strconv.Itoa(len(r.Accounts))).FontSize(theme.TextLabel).FontWeight(600).TextColor(theme.TextSoft)
 			})
 			if writer && b.Clicked() {
 				a.react(team, m.ID, r.Emoji, mine)
@@ -205,7 +212,7 @@ func (a *App) reactButton(c *ui.Context, team string, m proto.ChatMessage) {
 	}
 	open := true
 	ui.PopoverBase(c, b, &open, func(panel ui.Element) {
-		widget.Popup(panel.AttachTo(b, ui.AnchorBottomRight, ui.AnchorTopRight).Margin(0, 0, 6, 0))
+		widget.Popup(panel.AttachTo(b, ui.AnchorBottomRight, ui.AnchorTopRight).Margin(0, 0, theme.S2, 0))
 		me := a.cloudOf().st.AccountID
 		ui.Row(c).Gap(2).Children(func() {
 			for _, e := range quickEmojis {
@@ -216,7 +223,7 @@ func (a *App) reactButton(c *ui.Context, team string, m proto.ChatMessage) {
 				} else if eb.Hovered() {
 					eb.Background(theme.Hover)
 				}
-				eb.Children(func() { ui.Text(c, e).FontSize(16) })
+				eb.Children(func() { ui.Text(c, e).FontSize(theme.TextRead) })
 				if eb.Clicked() {
 					a.react(team, m.ID, e, mine)
 					hc.reacting = ""

@@ -2,7 +2,7 @@ package diffview
 
 import (
 	"fmt"
-	"slices"
+	"strconv"
 	"strings"
 
 	"github.com/egoist/mygo/ui"
@@ -15,21 +15,19 @@ import (
 	"github.com/enowx/enowx/ui/widget"
 )
 
-// Draw shows the view: a bar of where the branch stands and what to do
-// with it, then the diff.
+// Draw shows the panel's part: where the branch stands, what to do with it,
+// and the changed files, each opening in the center.
 func (v *View) Draw(c *ui.Context, o Options) {
 	v.follow(o)
 	if v.asked != "" && v.loaded && v.busy == "" {
 		v.start(o, v.asked)
 		v.asked = ""
 	}
-	ui.Column(c).Grow(1).FillWidth().MinHeight(0).Children(func() {
+	ui.Column(c).Grow(1).FillWidth().MinHeight(0).Padding(0, theme.S3, theme.S3, theme.S3).Gap(theme.S2).Children(func() {
 		v.toolbar(c, o)
 		v.conflictBanner(c, o)
 		if v.err != "" {
-			ui.Row(c).FillWidth().PaddingX(14).Padding(8, 14).Background(theme.Fade(theme.Error, 0.1)).Children(func() {
-				ui.Text(c, v.err).FontSize(12).TextColor(theme.Error).Shrink(1)
-			})
+			widget.Notice(c, nil, theme.Del, v.err, "", nil)
 		}
 		switch {
 		case !v.loaded:
@@ -41,12 +39,8 @@ func (v *View) Draw(c *ui.Context, o Options) {
 			}
 			centered(c, msg)
 		default:
-			if v.file != "" {
-				v.fileBar(c)
-			}
-			v.lines(c)
+			v.fileRows(c, o)
 		}
-		v.commentBar(c, o)
 	})
 	v.commitDialog(c, o)
 	v.prDialog(c, o)
@@ -56,7 +50,7 @@ func (v *View) Draw(c *ui.Context, o Options) {
 
 func centered(c *ui.Context, text string) {
 	ui.Column(c).Grow(1).FillWidth().Center().Children(func() {
-		ui.Text(c, text).TextColor(theme.Muted)
+		ui.Text(c, text).FontSize(theme.TextUI).TextColor(theme.TextSoft).TextAlign(ui.Center)
 	})
 }
 
@@ -67,71 +61,100 @@ type button struct {
 	svg           *ui.SVG
 }
 
-// toolbar is the branch, what it is compared with and how many files are
-// uncommitted, then how it stands and the actions that fit it, wrapping
-// onto more lines in a narrow panel.
+// toolbar is how many files changed and what they are compared with, then
+// the actions that fit how the branch stands: the first two as buttons, the
+// others in a menu. A long summary runs in its frame.
 func (v *View) toolbar(c *ui.Context, o Options) {
 	st := v.status
-	ui.Column(c).Shrink(0).FillWidth().Padding(6, 10, 8, 14).Gap(6).
-		BorderWidth(0, 0, 1, 0).BorderColor(theme.Border).Children(func() {
-		ui.Row(c).FillWidth().Height(30).Gap(8).Children(func() {
-			ui.Icon(c, icon.Git).FontSize(13).TextColor(theme.Accent)
-			branch := st.Branch
-			if branch == "" {
-				branch = "detached"
-			}
-			ui.Text(c, branch).FontSize(12.5).TextColor(theme.Text).SingleLine().Shrink(1)
+	ui.Column(c).Shrink(0).FillWidth().Gap(theme.S2).Children(func() {
+		ui.Row(c).FillWidth().MinHeight(theme.ControlHeight).Gap(theme.S2).Children(func() {
+			ui.Row(c).Grow(1).MinWidth(0).Gap(theme.S1).Clip().Children(func() {
+				if !v.loaded {
+					return
+				}
+				added, removed := 0, 0
+				for _, f := range v.diff.Files {
+					added += f.Added
+					removed += f.Removed
+				}
+				widget.Running(c, fmt.Sprintf("%d %s changed", len(v.diff.Files), textfmt.Plural(len(v.diff.Files), "file", "files")), widget.RunStyle{Weight: 500})
+				if added > 0 {
+					ui.Text(c, "+"+strconv.Itoa(added)).FontSize(theme.TextUI).TextColor(theme.Add).SingleLine().Shrink(0)
+				}
+				if removed > 0 {
+					ui.Text(c, "−"+strconv.Itoa(removed)).FontSize(theme.TextUI).TextColor(theme.Del).SingleLine().Shrink(0)
+				}
+			})
 			v.baseMenu(c, st)
-			ui.Spacer(c)
-			if v.busy != "" {
-				widget.Spinner(c, 14)
-				ui.Text(c, v.busy+"…").FontSize(11.5).TextColor(theme.TextSoft).SingleLine()
-				return
-			}
-			if st.Uncommitted > 0 {
-				widget.Tag(c, fmt.Sprintf("%d uncommitted", st.Uncommitted), theme.Warning)
-			}
-			if st.Worktree && v.loaded {
-				more := widget.IconButton(c, icon.More, "More", false)
-				v.moreMenu.OpenBelow(more, "more", 28)
-				v.moreMenu.Show(c, more, "more", func(done func()) {
-					if v.lastPRURL != "" && widget.MenuItem(c, icon.Globe, "Open the pull request", false) {
-						o.OpenURL(v.lastPRURL)
-						done()
-					}
-					if widget.MenuItem(c, icon.Trash, "Discard worktree…", true) {
-						v.start(o, ActDiscard)
-						done()
-					}
-				})
-			}
-			if widget.IconButton(c, icon.Sync, "Refresh", false).Clicked() {
-				v.reload()
-			}
 		})
-		if !v.loaded || v.busy != "" {
+		if v.busy != "" {
+			ui.Row(c).FillWidth().Height(theme.ControlHeight).Gap(theme.S2).Children(func() {
+				widget.Spinner(c, 14)
+				widget.Running(c, v.busy+"…", widget.RunStyle{Color: theme.TextSoft})
+			})
+			return
+		}
+		if !v.loaded {
 			return
 		}
 		actions := []button{
 			{ActCommit, "Commit…", widget.Primary, icon.Check},
 			{ActPush, "Push", widget.Secondary, icon.ArrowUp},
 			{ActPR, "Pull request…", widget.Secondary, icon.Globe},
-			{ActMerge, "Merge into " + st.Base, widget.Secondary, icon.Git},
+			{ActMerge, "Merge into " + st.Base + "…", widget.Secondary, icon.Git},
 		}
-		sum := v.summary()
-		offered := slices.ContainsFunc(actions, func(b button) bool { return v.can(b.action) })
-		if sum == "" && !offered {
-			return
+		var shown, rest []button
+		for _, a := range actions {
+			if !v.can(a.action) {
+				continue
+			}
+			if len(shown) < 2 {
+				shown = append(shown, a)
+			} else {
+				rest = append(rest, a)
+			}
 		}
-		ui.Row(c).FillWidth().Gap(8).Wrap().AlignItems(ui.Center).Children(func() {
-			for _, a := range actions {
-				if v.can(a.action) && widget.Button(c.Key(a.action), a.kind, a.svg, a.label, "").Clicked() {
+		ui.Row(c).FillWidth().Height(theme.ControlHeight).Gap(theme.S2).Children(func() {
+			for _, a := range shown {
+				if widget.Button(c.Key(a.action), a.kind, a.svg, a.label, "").Clicked() {
 					v.start(o, a.action)
 				}
 			}
-			if sum != "" {
-				ui.Text(c, sum).FontSize(11.5).TextColor(theme.Muted).SingleLine().Shrink(1)
-			}
+			ui.Spacer(c)
+			more := widget.IconButton(c, icon.More, "More", false)
+			v.moreMenu.OpenBelow(more, "more", theme.ControlHeight)
+			v.moreMenu.Show(c, more, "more", func(done func()) {
+				if sum := v.summary(); sum != "" {
+					ui.Text(c, sum).FontSize(theme.TextLabel).TextColor(theme.TextSoft).Padding(theme.S1, theme.S3).MaxWidth(280)
+				}
+				if st.Uncommitted > 0 {
+					ui.Text(c, fmt.Sprintf("%d uncommitted", st.Uncommitted)).FontSize(theme.TextLabel).TextColor(theme.Warning).Padding(theme.S1, theme.S3)
+				}
+				if v.summary() != "" || st.Uncommitted > 0 {
+					widget.MenuSeparator(c)
+				}
+				for _, a := range rest {
+					if widget.MenuItem(c.Key(a.action), a.svg, a.label, false) {
+						v.start(o, a.action)
+						done()
+					}
+				}
+				if widget.MenuItem(c, icon.Sync, "Refresh", false) {
+					v.reload()
+					done()
+				}
+				if v.lastPRURL != "" && widget.MenuItem(c, icon.Globe, "Open the pull request", false) {
+					o.OpenURL(v.lastPRURL)
+					done()
+				}
+				if st.Worktree {
+					widget.MenuSeparator(c)
+					if widget.MenuItem(c, icon.Trash, "Discard the worktree…", true) {
+						v.start(o, ActDiscard)
+						done()
+					}
+				}
+			})
 		})
 	})
 }
@@ -251,27 +274,29 @@ func (v *View) summary() string {
 
 // baseMenu picks what the changes are compared with.
 func (v *View) baseMenu(c *ui.Context, st proto.ReviewStatus) {
-	label := "since last commit"
+	label := "last commit"
 	if st.Base != "" {
-		label = "vs " + st.Base
+		label = st.Base
 	}
-	b := ui.ButtonBase(c).Height(24).PaddingX(7).Gap(4).Radius(theme.RadiusControl - 2).Cursor(ui.CursorPointer).
-		Label("Compare " + label).Shrink(0)
-	if b.Hovered() {
-		b.Background(theme.Hover)
-	}
+	b := widget.Trigger(ui.ButtonBase(c), false).Width(96).Shrink(0).Label("Compare with " + label).Justify(ui.Start)
 	b.Children(func() {
-		ui.Text(c, label).FontSize(11.5).TextColor(theme.Muted).SingleLine()
-		ui.Icon(c, icon.ChevronDown).FontSize(10).TextColor(theme.Muted)
+		ui.Row(c).Grow(1).MinWidth(0).Children(func() { widget.Running(c, label, widget.RunStyle{}) })
+		ui.Icon(c, icon.ChevronDown).FontSize(12).TextColor(theme.TextSoft)
 	})
-	v.baseMenuState.OpenBelow(b, "base", 24)
+	v.baseMenuState.OpenBelow(b, "base", theme.ControlHeight)
 	v.baseMenuState.Show(c, b, "base", func(done func()) {
-		if widget.MenuItem(c, icon.Check, "Since the last commit", false) {
+		mark := func(on bool) *ui.SVG {
+			if on {
+				return icon.Check
+			}
+			return nil
+		}
+		if widget.MenuItem(c, mark(st.Base == ""), "Since the last commit", false) {
 			v.setBase(noBase)
 			done()
 		}
 		for _, base := range st.Bases {
-			if widget.MenuItem(c, icon.Git, "Against "+base, false) {
+			if widget.MenuItem(c.Key(base), mark(st.Base == base), "Against "+base, false) {
 				v.setBase(base)
 				done()
 			}
@@ -289,16 +314,20 @@ func (v *View) commitDialog(c *ui.Context, o Options) {
 		return
 	}
 	submit := false
-	widget.Dialog(c, &f.open, 480, 14, func() {
-		widget.DialogHeader(c, "Commit changes", fmt.Sprintf("Commits all %d changed %s in %s, new files included.",
-			v.status.Uncommitted, textfmt.Plural(v.status.Uncommitted, "file", "files"), v.status.Branch), false)
-		in := widget.Input(c, &f.message, "Commit message").FillWidth().AutoFocus()
-		submit = in.Submitted()
+	widget.Dialog(c, &f.open, 480, theme.S3, func() {
+		if widget.DialogHeader(c, "Commit changes", fmt.Sprintf("Commits all %d changed %s in %s, new files included.",
+			v.status.Uncommitted, textfmt.Plural(v.status.Uncommitted, "file", "files"), v.status.Branch), true) {
+			f.open = false
+		}
+		widget.Field(c, "Commit message", func() {
+			in := widget.Input(c, &f.message, "Commit message").FillWidth().AutoFocus()
+			submit = in.Submitted()
+		})
 		widget.DialogFooter(c, "", func() {
-			if widget.GhostButton(c, "Cancel").Clicked() {
+			if widget.Button(c, widget.Secondary, nil, "Cancel", "").Clicked() {
 				f.open = false
 			}
-			if widget.PrimaryButton(c, icon.Check, "Commit", "").Clicked() {
+			if widget.PrimaryButton(c, nil, "Commit", "").Clicked() {
 				submit = true
 			}
 		})
@@ -323,9 +352,11 @@ func (v *View) prDialog(c *ui.Context, o Options) {
 	}
 	submit := false
 	st := v.status
-	widget.Dialog(c, &f.open, 520, 14, func() {
-		widget.DialogHeader(c, "Open a pull request",
-			fmt.Sprintf("Pushes %s and asks GitHub to merge it into %s, with gh on this host.", st.Branch, st.Base), false)
+	widget.Dialog(c, &f.open, 520, theme.S3, func() {
+		if widget.DialogHeader(c, "Open a pull request",
+			fmt.Sprintf("Pushes %s and asks GitHub to merge it into %s, with gh on this host.", st.Branch, st.Base), true) {
+			f.open = false
+		}
 		widget.Field(c, "Title", func() {
 			widget.Input(c, &f.title, "From the commits when empty").FillWidth().AutoFocus()
 		})
@@ -333,10 +364,10 @@ func (v *View) prDialog(c *ui.Context, o Options) {
 			widget.Input(c, &f.body, "Optional").FillWidth()
 		})
 		widget.DialogFooter(c, "", func() {
-			if widget.GhostButton(c, "Cancel").Clicked() {
+			if widget.Button(c, widget.Secondary, nil, "Cancel", "").Clicked() {
 				f.open = false
 			}
-			if widget.PrimaryButton(c, icon.Globe, "Open pull request", "").Clicked() {
+			if widget.PrimaryButton(c, nil, "Open pull request", "").Clicked() {
 				submit = true
 			}
 		})
@@ -367,7 +398,7 @@ func (v *View) mergeDialog(c *ui.Context, o Options) {
 	st := v.status
 	msg := fmt.Sprintf("Merges the %d %s of %s into %s in the project folder. A merge that conflicts is undone.",
 		st.Ahead, textfmt.Plural(st.Ahead, "commit", "commits"), st.Branch, st.Base)
-	switch ui.AlertDialog(c, &v.merging, "Merge "+st.Branch+" into "+st.Base+"?", msg, "Cancel", "Merge") {
+	switch widget.AlertDialog(c, &v.merging, "Merge "+st.Branch+" into "+st.Base+"?", msg, "Cancel", "Merge") {
 	case 1:
 		v.merging = false
 		v.run(o, "Merging", func(cl *client.Client) error {
@@ -386,15 +417,17 @@ func (v *View) discardDialog(c *ui.Context, o Options) {
 	}
 	submit := false
 	st := v.status
-	widget.Dialog(c, &f.open, 480, 14, func() {
+	widget.Dialog(c, &f.open, 420, theme.S3, func() {
 		body := "Ends the sessions in this worktree and deletes its folder."
 		if st.Uncommitted > 0 {
 			body += fmt.Sprintf(" Its %d uncommitted %s are lost.", st.Uncommitted, textfmt.Plural(st.Uncommitted, "change", "changes"))
 		}
 		widget.DialogHeader(c, "Discard the worktree of "+st.Branch+"?", body, false)
-		widget.Checkbox(c, &f.deleteBranch, "Also delete the branch "+st.Branch)
+		ui.Row(c).FillWidth().Children(func() {
+			widget.Checkbox(c, &f.deleteBranch, "Also delete the branch "+st.Branch)
+		})
 		widget.DialogFooter(c, "", func() {
-			if widget.GhostButton(c, "Cancel").Clicked() {
+			if widget.Button(c, widget.Secondary, nil, "Cancel", "").Clicked() {
 				f.open = false
 			}
 			if widget.DangerButton(c, "Discard").Clicked() {

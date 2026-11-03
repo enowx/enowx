@@ -1,6 +1,7 @@
 package tokens
 
 import (
+	"cmp"
 	_ "embed"
 	"encoding/json"
 	"regexp"
@@ -50,9 +51,15 @@ func (p *Prices) Cost(c Call) (float64, bool) {
 	if !ok {
 		return 0, false
 	}
+	in, read, write, write1h, output := pr.Input, pr.CacheRead, pr.CacheWrite, cmp.Or(pr.CacheWrite1h, pr.CacheWrite), pr.Output
+	// A long request costs more for the whole of it, by what was sent in all.
+	if pr.LongAbove > 0 && c.Input+c.CacheRead+c.CacheWrite > pr.LongAbove {
+		in, read, output = cmp.Or(pr.LongInput, in), cmp.Or(pr.LongCacheRead, read), cmp.Or(pr.LongOutput, output)
+	}
+	hour := min(c.CacheWrite1h, c.CacheWrite)
 	m := 1e-6
-	return (float64(c.Input)*pr.Input + float64(c.CacheRead)*pr.CacheRead +
-		float64(c.CacheWrite)*pr.CacheWrite + float64(c.Output)*pr.Output) * m, true
+	return (float64(c.Input)*in + float64(c.CacheRead)*read +
+		float64(c.CacheWrite-hour)*write + float64(hour)*write1h + float64(c.Output)*output) * m, true
 }
 
 // Find is the price of model of provider in config: the user's that

@@ -61,47 +61,50 @@ type Options struct {
 	// the main thread, for a screen shown in the tool; nil without web
 	// views, when screens open in scrcpy's window.
 	NewScreenView func(url string, done func(ScreenView, error))
+	// OpenCenter shows the device's screen or its log (ViewScreen, ViewLogcat)
+	// in the center; Current is the one in front there, "" for neither.
+	OpenCenter func(view string)
+	Current    func() string
 }
+
+// What the tool opens in the center.
+const (
+	ViewScreen = "screen"
+	ViewLogcat = "logcat"
+)
 
 // View is the tool. It belongs to the main thread; what it asks hosts
 // reports through Options.Update.
 type View struct {
-	status   map[string]proto.AndroidStatus // by host ID
-	errs     map[string]string
-	polling  bool
-	wanted   func() bool
-	picked   string // host ID + "/" + serial, or + "/avd:" + name
-	project  proto.AndroidProject
-	projDir  string
-	command  string
-	notice   string
-	busy     string
-	log      []proto.AndroidLogLine
-	logAfter int64
-	logFor   string
-	logging  bool
-	appOnly  bool
-	level    int
-	search   string
-	logList  ui.ListState
-	connect  connectForm
-	setup    *localSetup
-	bridges  map[string]*client.ADBBridge // by picked device, for runs across hosts
-	screens  map[string]*exec.Cmd
-	caught   map[string]*caught // devices whose traffic the session's host catches
-	screen   *screen            // the device's screen shown in the tool
-	pane     int                // paneScreen or paneLog
+	status       map[string]proto.AndroidStatus // by host ID
+	errs         map[string]string
+	polling      bool
+	wanted       func() bool
+	picked       string // host ID + "/" + serial, or + "/avd:" + name
+	project      proto.AndroidProject
+	projDir      string
+	command      string
+	notice       string
+	busy         string
+	log          []proto.AndroidLogLine
+	logAfter     int64
+	logFor       string
+	logging      bool
+	appOnly      bool
+	level        int
+	search       string
+	logList      ui.ListState
+	connect      connectForm
+	setup        *localSetup
+	bridges      map[string]*client.ADBBridge // by picked device, for runs across hosts
+	screens      map[string]*exec.Cmd
+	caught       map[string]*caught // devices whose traffic the session's host catches
+	screen       *screen            // the device's screen shown in the center
+	pickedName   string             // as last worked out, for what has no Options
+	pickedOnline bool
 	// devicesAsked is when another tool last listed the devices.
 	devicesAsked time.Time
 }
-
-// The tool's panes, under the device and its app.
-const (
-	paneScreen = iota
-	paneLog
-)
-
-var panes = []string{"Screen", "Logcat"}
 
 // caught is a device sending its HTTP through the session's host's
 // interceptor: the source it is, the port of its host it sends to, and
@@ -123,7 +126,7 @@ type connectForm struct {
 
 // New returns a tool with nothing read.
 func New() *View {
-	v := &View{status: map[string]proto.AndroidStatus{}, errs: map[string]string{}, appOnly: true, pane: paneLog,
+	v := &View{status: map[string]proto.AndroidStatus{}, errs: map[string]string{}, appOnly: true,
 		bridges: map[string]*client.ADBBridge{}, screens: map[string]*exec.Cmd{}, caught: map[string]*caught{}}
 	v.logList.FollowEnd = true
 	return v
@@ -245,6 +248,15 @@ func (v *View) devices(o Options) []device {
 }
 
 func (v *View) pickedDevice(o Options) (device, bool) {
+	d, ok := v.findPicked(o)
+	v.pickedName, v.pickedOnline = "", false
+	if ok {
+		v.pickedName, v.pickedOnline = d.dev.Name, d.dev.State == "device"
+	}
+	return d, ok
+}
+
+func (v *View) findPicked(o Options) (device, bool) {
 	devs := v.devices(o)
 	if v.picked == "" {
 		// The first online device, else the first one.
@@ -268,51 +280,50 @@ func (v *View) pickedDevice(o Options) (device, bool) {
 	return device{}, false
 }
 
-// Draw shows the tool.
+// Draw shows the tool: the devices, the app to run on one, and the screen and
+// the log, which open in the center (DrawScreen, DrawLogcat).
 func (v *View) Draw(c *ui.Context, o Options, wanted func() bool) {
 	v.follow(o, wanted)
 	v.readProject(o)
-	ui.Column(c).Grow(1).FillWidth().MinHeight(0).Children(func() {
-		if v.notice != "" {
-			ui.Row(c).FillWidth().Padding(6, 12).Gap(8).Background(theme.Sunken).Children(func() {
-				ui.Text(c, v.notice).FontSize(11.5).TextColor(theme.TextSoft).Grow(1).Shrink(1)
-				if widget.IconButton(c, icon.Close, "Dismiss", false).Clicked() {
-					v.notice = ""
-				}
-			})
-		}
+	ui.Column(c).Grow(1).FillWidth().MinHeight(0).Padding(0, theme.S3, theme.S3, theme.S3).Gap(theme.S2).Children(func() {
+		v.noticeBanner(c)
 		if v.setup != nil {
 			v.setupView(c, o)
 			return
 		}
-		ui.Column(c).FillWidth().Shrink(0).Padding(10, 12).Gap(10).BorderWidth(0, 0, 1, 0).BorderColor(theme.Border).Children(func() {
-			v.hostNotes(c, o)
-			v.deviceRow(c, o)
-			v.runRow(c, o)
+		widget.Scroll(c.Key("tool")).Grow(1).FillWidth().MinHeight(0).Children(func() {
+			ui.Column(c).FillWidth().Gap(theme.S2).Children(func() {
+				v.hostNotes(c, o)
+				v.deviceRows(c, o)
+				v.runRow(c, o)
+				v.viewRows(c, o)
+				v.actionRow(c, o)
+			})
 		})
-		ui.Row(c).FillWidth().Shrink(0).Padding(8, 12, 0, 12).Gap(2).AlignItems(ui.Center).Children(func() {
-			if i := widget.Segmented(c, panes, v.pane, nil); i >= 0 {
-				v.pane = i
-			}
-			ui.Spacer(c)
-			if v.pane == paneScreen {
-				v.screenKeys(c, o)
-			}
-		})
-		if v.pane == paneScreen {
-			v.screenPane(c, o)
-		} else {
-			v.logView(c, o)
+	})
+	v.connectSheet(c, o)
+}
+
+// noticeBanner says what an action is doing, or how it went, until dismissed.
+func (v *View) noticeBanner(c *ui.Context) {
+	if v.notice == "" {
+		return
+	}
+	widget.Banner(c, theme.TextSoft, v.notice, func() {
+		if widget.IconButton(c, icon.Close, "Dismiss", false).Clicked() {
+			v.notice = ""
 		}
-		v.connectSheet(c, o)
 	})
 }
 
 // hostNotes says what a host lacks: the SDK, acceleration.
 func (v *View) hostNotes(c *ui.Context, o Options) {
+	note := func(key, text string, col ui.Color) {
+		ui.Text(c.Key(key), text).FontSize(theme.TextUI).TextColor(col).Padding(0, theme.S3)
+	}
 	for _, h := range o.Hosts {
 		if err := v.errs[h.ID]; err != "" {
-			ui.Text(c.Key("e"+h.ID), h.Name+": "+err).FontSize(11.5).TextColor(theme.Error)
+			note("e"+h.ID, h.Name+": "+err, theme.Error)
 			continue
 		}
 		st, ok := v.status[h.ID]
@@ -321,95 +332,121 @@ func (v *View) hostNotes(c *ui.Context, o Options) {
 		}
 		switch {
 		case st.SDK == "" || !st.ADB || !st.Emulator:
-			ui.Row(c.Key("s" + h.ID)).FillWidth().Gap(8).Children(func() {
-				ui.Text(c, h.Name+" has no Android SDK yet.").FontSize(11.5).TextColor(theme.Muted).Grow(1).Shrink(1)
-				if widget.Button(c, widget.Secondary, icon.Android, "Set up Android", "").Disabled(v.busy != "").Clicked() {
+			ui.Row(c.Key("s" + h.ID)).FillWidth().Gap(theme.S2).PaddingX(theme.S3).Children(func() {
+				ui.Text(c, h.Name+" has no Android SDK yet.").FontSize(theme.TextUI).TextColor(theme.TextSoft).Grow(1).Basis(0).MinWidth(0)
+				if widget.Button(c, widget.Secondary, nil, "Set up Android", "").Disabled(v.busy != "").Clicked() {
 					v.startSetup(o, h)
 				}
 			})
 		case !st.Accel && len(st.AVDs) > 0:
-			ui.Text(c.Key("a"+h.ID), h.Name+"'s emulator is slow: "+st.AccelWhy).FontSize(11).TextColor(theme.Warning)
+			note("a"+h.ID, h.Name+"'s emulator is slow: "+st.AccelWhy, theme.Warning)
 		}
 	}
 }
 
-func (v *View) deviceRow(c *ui.Context, o Options) {
-	devs := v.devices(o)
-	d, ok := v.pickedDevice(o)
-	ui.Row(c).FillWidth().Gap(8).Children(func() {
-		labels := make([]string, len(devs))
-		cur := -1
-		for i, x := range devs {
-			labels[i] = x.label()
-			if x.key() == v.picked {
-				cur = i
-			}
+// deviceState is how a device stands, in a few words, and its dot: online done,
+// starting working, waiting on the user or gone amber, else idle.
+func deviceState(d device) (string, ui.Color) {
+	where := " · " + d.host.Name
+	api := ""
+	if d.dev.API != "" {
+		api = " · API " + d.dev.API
+	}
+	switch d.dev.State {
+	case "device":
+		what := "Running"
+		if d.dev.TV {
+			what = "Android TV"
 		}
-		if len(devs) == 0 {
-			ui.Text(c, "No devices: start an emulator after Set up Android, or connect a phone.").FontSize(12).TextColor(theme.Muted).Grow(1).Shrink(1)
-		} else {
-			ui.Column(c).Grow(1).MinWidth(0).Gap(4).Children(func() {
-				for i, label := range labels {
-					x := devs[i]
-					row := ui.ButtonBase(c.Key(x.key())).FillWidth().Height(30).PaddingX(10).Gap(8).Radius(theme.RadiusControl).Justify(ui.Start).Label(label).Cursor(ui.CursorPointer)
-					if i == cur {
-						row.Background(theme.Selected)
+		return what + api + where, theme.Done
+	case "starting":
+		return "Starting…" + where, theme.Working
+	case "unauthorized":
+		return "Allow USB debugging on the phone" + where, theme.Warning
+	case "offline":
+		return "Offline" + where, theme.Warning
+	}
+	return "Stopped" + where, theme.Idle
+}
+
+// deviceRows lists the devices, each with what it can do first: a virtual one
+// stopped starts, one online runs the app.
+func (v *View) deviceRows(c *ui.Context, o Options) {
+	devs := v.devices(o)
+	v.pickedDevice(o)
+	if len(devs) == 0 {
+		ui.Text(c, "No devices: start an emulator after Set up Android, or connect a phone.").FontSize(theme.TextUI).TextColor(theme.TextSoft).Padding(theme.S1, theme.S3)
+		return
+	}
+	ui.Column(c).FillWidth().Children(func() {
+		for _, x := range devs {
+			sub, col := deviceState(x)
+			name := x.dev.Name
+			if x.avd != "" {
+				name = x.avd
+			}
+			it := widget.Item{Dot: col, Hollow: x.dev.State != "device", Title: name, Sub: sub, On: x.key() == v.picked, Label: x.label()}
+			row := widget.ItemRow(c.Key(x.key()), it, func() {
+				switch {
+				case x.avd != "" && x.dev.State == "stopped":
+					if widget.Button(c, widget.Secondary, nil, "Start", "").Disabled(v.busy != "").Clicked() {
+						v.act(o, "Starting "+x.avd+"…", func() error { return x.host.Client.AndroidStart(x.avd, x.host.Local) })
 					}
-					row.Children(func() {
-						col := theme.Idle
-						switch x.dev.State {
-						case "device":
-							col = theme.Done
-						case "starting":
-							col = theme.Working
-						case "unauthorized", "offline":
-							col = theme.Warning
-						}
-						widget.Dot(c, col, x.dev.State != "device", 7)
-						ui.Text(c, label).FontSize(12).SingleLine().Grow(1).Shrink(1)
-						state := x.dev.State
-						if state == "unauthorized" {
-							state = "allow USB debugging on the phone"
-						}
-						if x.dev.API != "" {
-							state = "Android API " + x.dev.API
-							if x.dev.TV {
-								state = "Android TV · API " + x.dev.API
-							}
-						}
-						ui.Text(c, state).FontSize(10.5).TextColor(theme.Muted).Shrink(0)
-					})
-					if row.Clicked() {
-						v.picked = x.key()
-						v.log, v.logAfter, v.logFor = nil, 0, ""
+				case x.dev.State == "device":
+					can := strings.TrimSpace(v.command) != "" && v.busy == ""
+					if widget.Button(c, widget.Secondary, nil, "Run app", "").Disabled(!can).Clicked() {
+						v.run(o, x)
 					}
 				}
 			})
-		}
-	})
-	ui.Row(c).FillWidth().Gap(6).Children(func() {
-		if ok {
-			switch {
-			case d.avd != "" && d.dev.State == "stopped":
-				if widget.Button(c, widget.Secondary, icon.Play, "Start", "").Disabled(v.busy != "").Clicked() {
-					v.act(o, "Starting "+d.avd+"…", func() error { return d.host.Client.AndroidStart(d.avd, d.host.Local) })
-				}
-			case d.dev.State == "device":
-				if c0 := v.caught[d.key()]; c0 != nil {
-					if widget.Button(c, widget.Secondary, icon.Traffic, "Stop catching", "").Disabled(v.busy != "").Clicked() {
-						v.release(o, d, c0)
-					}
-				} else if widget.Button(c, widget.Secondary, icon.Traffic, "Catch its traffic", "").Disabled(v.busy != "").Clicked() {
-					v.catch(o, d)
-				}
-				if d.dev.Kind == "emulator" && widget.Button(c, widget.Secondary, icon.Stop, "Stop", "").Tooltip("Shut the emulator down").Disabled(v.busy != "").Clicked() {
-					serial := d.dev.Serial
-					v.act(o, "", func() error { return d.host.Client.AndroidStop(proto.AndroidDeviceParams{Serial: serial}) })
-				}
+			if row.Clicked() {
+				v.picked = x.key()
+				v.log, v.logAfter, v.logFor = nil, 0, ""
 			}
 		}
-		ui.Spacer(c)
-		if widget.Button(c, widget.Secondary, icon.Plus, "Device", "").Tooltip("Connect a phone or a TV over Wi-Fi, or make a virtual TV").Clicked() {
+	})
+}
+
+// viewRows open the picked device's screen and log in the center.
+func (v *View) viewRows(c *ui.Context, o Options) {
+	d, ok := v.pickedDevice(o)
+	online := ok && d.dev.State == "device"
+	sub, col := "No device online", theme.Idle
+	if online {
+		sub, col = d.label(), theme.Done
+	}
+	current := ""
+	if o.Current != nil {
+		current = o.Current()
+	}
+	ui.Column(c).FillWidth().Children(func() {
+		for _, r := range []struct{ view, title string }{{ViewScreen, "Screen"}, {ViewLogcat, "Logcat"}} {
+			if widget.ItemRow(c.Key(r.view), widget.Item{Dot: col, Hollow: !online, Title: r.title, Sub: sub, On: current == r.view}, nil).Clicked() && o.OpenCenter != nil {
+				o.OpenCenter(r.view)
+			}
+		}
+	})
+}
+
+// actionRow is what else can be done: with the picked device, and connecting
+// another.
+func (v *View) actionRow(c *ui.Context, o Options) {
+	d, ok := v.pickedDevice(o)
+	ui.Row(c).FillWidth().Wrap().Gap(theme.S2).Children(func() {
+		if ok && d.dev.State == "device" {
+			if c0 := v.caught[d.key()]; c0 != nil {
+				if widget.Button(c, widget.Secondary, nil, "Stop catching", "").Disabled(v.busy != "").Clicked() {
+					v.release(o, d, c0)
+				}
+			} else if widget.Button(c, widget.Secondary, nil, "Catch its traffic", "").Disabled(v.busy != "").Clicked() {
+				v.catch(o, d)
+			}
+			if d.dev.Kind == "emulator" && widget.Button(c, widget.Secondary, nil, "Stop", "").Tooltip("Shut the emulator down").Disabled(v.busy != "").Clicked() {
+				serial := d.dev.Serial
+				v.act(o, "", func() error { return d.host.Client.AndroidStop(proto.AndroidDeviceParams{Serial: serial}) })
+			}
+		}
+		if widget.Button(c, widget.Secondary, nil, "Connect a phone", "").Tooltip("Connect a phone or a TV over Wi-Fi, or make a virtual TV").Clicked() {
 			v.connect.open = true
 		}
 	})
@@ -460,9 +497,9 @@ func (v *View) readProject(o Options) {
 	}()
 }
 
+// runRow is the app the devices' Run app runs, and the command that does.
 func (v *View) runRow(c *ui.Context, o Options) {
-	d, ok := v.pickedDevice(o)
-	ui.Column(c).FillWidth().Gap(6).Children(func() {
+	ui.Column(c).FillWidth().Gap(theme.S1).PaddingX(theme.S3).Children(func() {
 		what := "The session's app"
 		if v.project.Kind != "" {
 			what = map[string]string{"flutter": "Flutter", "expo": "Expo", "react-native": "React Native", "capacitor": "Capacitor", "nativephp": "NativePHP", "gradle": "Android (Gradle)"}[v.project.Kind] + " app"
@@ -470,14 +507,8 @@ func (v *View) runRow(c *ui.Context, o Options) {
 		if v.project.Package != "" {
 			what += " · " + v.project.Package
 		}
-		ui.Text(c, what).FontSize(11).TextColor(theme.Muted)
-		ui.Row(c).FillWidth().Gap(8).Children(func() {
-			widget.Input(c, &v.command, "The command that runs it, $ANDROID_SERIAL its device").Grow(1).Font(theme.MonoFont).FontSize(11.5)
-			can := ok && d.dev.State == "device" && strings.TrimSpace(v.command) != "" && v.busy == ""
-			if widget.PrimaryButton(c, icon.Play, "Run app", "").Disabled(!can).Clicked() {
-				v.run(o, d)
-			}
-		})
+		widget.Running(c, what, widget.RunStyle{Size: theme.TextLabel, Color: theme.TextSoft})
+		widget.Input(c, &v.command, "The command that runs it").FillWidth().Font(theme.MonoFont).Tooltip("$ANDROID_SERIAL is the device it runs on")
 	})
 }
 
@@ -551,7 +582,7 @@ func (v *View) connectSheet(c *ui.Context, o Options) {
 			on = h
 		}
 	}
-	widget.FormSheet(c, &f.open, 520, "Connect a phone or a TV", "Over Wi-Fi, through a host's adb: the device must be on a network that host reaches. On a phone: Settings → Developer options → Wireless debugging. On an Android TV: Developer options → Network debugging, then its address with :5555, no pairing.", func() {
+	widget.FormSheet(c, &f.open, 520, "Connect a phone or a TV", "Over Wi-Fi, through a host's adb: the device must be on a network that host reaches. On a phone: Settings → Developer options → Wireless debugging, whose address goes here. On an Android TV: Developer options → Network debugging, then its address with :5555, no pairing.", func() {
 		if len(o.Hosts) > 1 {
 			widget.Field(c, "Through", func() {
 				names := make([]string, len(o.Hosts))
@@ -569,22 +600,21 @@ func (v *View) connectSheet(c *ui.Context, o Options) {
 				})
 			})
 		}
-		widget.Field(c, "Its address, as Wireless debugging shows", func() {
+		widget.Field(c, "Address", func() {
 			widget.Input(c, &f.address, "192.168.1.5:41823").FillWidth().Font(theme.MonoFont)
 		})
-		ui.Column(c).FillWidth().Gap(6).Children(func() {
-			ui.Text(c, "The first time, pair it: Pair device with pairing code shows these.").FontSize(11.5).TextColor(theme.Muted)
-			ui.Row(c).FillWidth().Gap(8).Children(func() {
-				ui.Column(c).Grow(1).Children(func() {
+		ui.Column(c).FillWidth().Gap(theme.S2).Children(func() {
+			ui.Text(c, "The first time, pair it: Pair device with pairing code shows these.").FontSize(theme.TextUI).TextColor(theme.TextSoft)
+			widget.FieldCols(c,
+				func() {
 					widget.Field(c, "Pairing address", func() { widget.Input(c, &f.pair, "192.168.1.5:37099").FillWidth().Font(theme.MonoFont) })
+				},
+				func() {
+					widget.Field(c, "Pairing code", func() { widget.Input(c, &f.code, "6 digits").FillWidth().Font(theme.MonoFont) })
 				})
-				ui.Column(c).Width(140).Children(func() {
-					widget.Field(c, "Pairing code", func() { widget.Input(c, &f.code, "123456").FillWidth().Font(theme.MonoFont) })
-				})
-			})
 		})
 		if f.err != "" {
-			ui.Text(c, f.err).FontSize(12).TextColor(theme.Error)
+			ui.Text(c, f.err).FontSize(theme.TextUI).TextColor(theme.Error)
 		}
 		var session Host
 		for _, h := range o.Hosts {
@@ -593,8 +623,8 @@ func (v *View) connectSheet(c *ui.Context, o Options) {
 			}
 		}
 		if session.Client != nil {
-			ui.Row(c).FillWidth().Gap(8).AlignItems(ui.Center).Children(func() {
-				ui.Text(c, "No TV at hand? An emulator of one, on "+session.Name+".").FontSize(11.5).TextColor(theme.Muted).Grow(1).Shrink(1)
+			ui.Row(c).FillWidth().Gap(theme.S2).AlignItems(ui.Center).Children(func() {
+				ui.Text(c, "No TV at hand? An emulator of one, on "+session.Name+".").FontSize(theme.TextUI).TextColor(theme.TextSoft).Grow(1).Basis(0).MinWidth(0)
 				if widget.Button(c, widget.Secondary, nil, "Make a virtual TV", "").Disabled(v.busy != "").Clicked() {
 					f.open = false
 					v.act(o, "Setting up a virtual Android TV in a tab…", func() error {
@@ -689,52 +719,81 @@ func (v *View) showScreen(o Options, d device) {
 	})
 }
 
-// logView is the picked device's log, the app's lines by default.
-func (v *View) logView(c *ui.Context, o Options) {
+// DrawLogcat is the picked device's log, in the center, the app's lines by
+// default, on the ground code stays dark on.
+func (v *View) DrawLogcat(c *ui.Context, o Options, wanted func() bool) {
+	v.follow(o, wanted)
+	v.readProject(o)
 	d, ok := v.pickedDevice(o)
-	if !ok || d.dev.State != "device" {
-		ui.Column(c).Grow(1).FillWidth().Center().Padding(24).Children(func() {
-			ui.Text(c, "The device's log shows here once it runs.").FontSize(12).TextColor(theme.Muted)
-		})
-		return
-	}
-	v.readLog(o, d)
-	levels := []string{"All", "Info", "Warn", "Error"}
+	online := ok && d.dev.State == "device"
 	ui.Column(c).Grow(1).FillWidth().MinHeight(0).Children(func() {
-		ui.Row(c).FillWidth().Shrink(0).Padding(6, 10, 6, 12).Gap(6).Children(func() {
-			if v.project.Package != "" {
-				widget.Checkbox(c, &v.appOnly, "Only "+v.project.Package)
-			}
-			ui.Spacer(c)
-			if i := widget.Segmented(c, levels, v.level, nil); i >= 0 {
-				v.level = i
-			}
-			if widget.IconButton(c, icon.Trash, "Clear", false).Clicked() {
+		title := "Logcat"
+		if ok {
+			title = d.label() + " · logcat"
+		}
+		widget.ViewerBar(c, icon.Android, title, func() {
+			if online && widget.IconButton(c, icon.Trash, "Clear", false).Clicked() {
 				v.log = nil
 			}
 		})
-		ui.Row(c).FillWidth().Shrink(0).Padding(0, 10, 6, 12).Children(func() {
+		if online {
+			v.logFilters(c)
+		}
+		ui.Column(c).Grow(1).FillWidth().MinHeight(0).Background(theme.CodeGround).Children(func() {
+			if !online {
+				groundNote(c, "The device's log shows here once it runs.")
+				return
+			}
+			v.readLog(o, d)
+			lines := v.shownLines()
+			widget.List(c.Key("log"), &v.logList, len(lines), func(i int) { logLine(c, lines[i]) }).Grow(1).FillWidth()
+		})
+	})
+}
+
+// logFilters narrow the log: the app's, a level, words.
+func (v *View) logFilters(c *ui.Context) {
+	ui.Row(c.Key("filters")).FillWidth().Shrink(0).Padding(theme.S2, theme.S4).Gap(theme.S2).BorderWidth(0, 0, theme.Rule, 0).BorderColor(theme.Border).Children(func() {
+		if v.project.Package != "" {
+			ui.Row(c).MinWidth(0).Shrink(1).Clip().Children(func() {
+				widget.Checkbox(c, &v.appOnly, "Only "+v.project.Package)
+			})
+		}
+		ui.Spacer(c)
+		if i := widget.Segmented(c, []string{"All", "Info", "Warn", "Error"}, v.level, nil); i >= 0 {
+			v.level = i
+		}
+		ui.Row(c).Width(180).MinWidth(100).Shrink(1).Children(func() {
 			widget.SearchField(c, &v.search, "Search the log", icon.Search)
 		})
-		lines := v.shownLines()
-		ui.List(c.Key("log"), &v.logList, len(lines), func(i int) {
-			l := lines[i]
-			col := theme.TextSoft
-			switch l.Level {
-			case "W":
-				col = theme.Warning
-			case "E", "F", "A":
-				col = theme.Error
-			case "V", "D":
-				col = theme.Muted
-			}
-			ui.Row(c).FillWidth().Padding(1, 12).Gap(6).AlignItems(ui.Start).Children(func() {
-				ui.Text(c, l.Time).Font(theme.MonoFont).FontSize(10.5).TextColor(theme.Muted).Shrink(0)
-				ui.Text(c, l.Level).Font(theme.MonoFont).FontSize(10.5).TextColor(col).Shrink(0)
-				ui.Text(c, l.Tag).Font(theme.MonoFont).FontSize(10.5).TextColor(theme.Accent).MaxWidth(110).SingleLine().Shrink(0)
-				ui.Text(c, l.Message).Font(theme.MonoFont).FontSize(10.5).TextColor(col).Grow(1).Shrink(1).MinWidth(0).Selectable()
-			})
-		}).Grow(1).FillWidth()
+	})
+}
+
+// logLine is a line of the log: warnings and errors stand out by their tag,
+// verbose and debug lines are quiet.
+func logLine(c *ui.Context, l proto.AndroidLogLine) {
+	head, body := widget.CodeDim, widget.CodeText
+	switch l.Level {
+	case "W":
+		head = widget.CodeWarn
+	case "E", "F", "A":
+		head, body = widget.CodeError, widget.CodeError
+	case "V", "D":
+		body = widget.CodeDim
+	}
+	ui.Row(c).FillWidth().Padding(1, theme.S4).Children(func() {
+		ui.RichText(c,
+			ui.Span{Text: l.Time + " ", Color: widget.CodeDim},
+			ui.Span{Text: l.Level + " " + l.Tag + ": ", Color: head},
+			ui.Span{Text: widget.LongWords(l.Message), Color: body},
+		).Font(theme.MonoFont).FontSize(theme.TextUI).Grow(1).Basis(0).MinWidth(0).Selectable()
+	})
+}
+
+// groundNote says something on the code's ground.
+func groundNote(c *ui.Context, text string) {
+	ui.Column(c).Grow(1).FillWidth().Center().Padding(theme.S5).Children(func() {
+		ui.Text(c, text).FontSize(theme.TextUI).TextColor(widget.CodeDim).TextAlign(ui.Center)
 	})
 }
 
@@ -857,20 +916,20 @@ func (v *View) startSetup(o Options, h Host) {
 
 func (v *View) setupView(c *ui.Context, o Options) {
 	s := v.setup
-	ui.Column(c).Grow(1).FillWidth().MinHeight(0).Padding(10, 12).Gap(8).Children(func() {
-		ui.Text(c, "Setting Android up on this machine").FontSize(12.5).FontWeight(600)
+	ui.Column(c).Grow(1).FillWidth().MinHeight(0).Gap(theme.S2).Children(func() {
+		ui.Text(c, "Setting Android up on this machine").FontSize(theme.TextUI).FontWeight(500)
 		widget.LogView(c, s.text(), 360)
 		s.mu.Lock()
 		done, failed := s.done, s.err
 		s.mu.Unlock()
 		if failed != "" {
-			ui.Text(c, failed).FontSize(12).TextColor(theme.Error)
+			ui.Text(c, failed).FontSize(theme.TextUI).TextColor(theme.Error)
 		}
-		ui.Row(c).FillWidth().Gap(8).Justify(ui.End).Children(func() {
-			if !done && widget.Button(c, widget.Secondary, icon.Check, "Accept the licenses shown", "").Clicked() {
+		ui.Row(c).FillWidth().Gap(theme.S2).Justify(ui.End).Children(func() {
+			if !done && widget.Button(c, widget.Secondary, nil, "Accept the licenses shown", "").Clicked() {
 				go io.WriteString(s.answers, strings.Repeat("y\n", 12))
 			}
-			if done && widget.PrimaryButton(c, icon.Check, "Close", "").Clicked() {
+			if done && widget.PrimaryButton(c, nil, "Close", "").Clicked() {
 				v.setup = nil
 			}
 		})
@@ -990,6 +1049,21 @@ func (v *View) Catch(o Options, key string, on bool) {
 		return
 	}
 }
+
+// PickedName is the name of the device picked, "" before there is one; for what
+// the center's tab of its screen says.
+func (v *View) PickedName() string { return v.pickedName }
+
+// CloseScreen stops showing the device's screen: its tab closed.
+func (v *View) CloseScreen() {
+	if v.screen != nil {
+		v.screen.close()
+		v.screen = nil
+	}
+}
+
+// Online says whether the device picked is, for the dot of the tabs that show it.
+func (v *View) Online() bool { return v.pickedOnline }
 
 // Notice is what the tool last said, as how a device's traffic is caught
 // and what is left to do.

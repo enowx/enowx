@@ -73,12 +73,12 @@ func (r Runner) Run(h proto.Hook, ev proto.HookEvent) (proto.HookRun, proto.Hook
 		d, run.Output = r.Judge(ev)
 		run.Blocked = d.Block
 	case proto.HookActionTrim:
-		if ev.Command != "" && !strings.Contains(ev.Command, trimPrefix) {
-			bin := r.Bin
-			if bin == "" {
-				bin = "enowx"
-			}
-			d.Command = shellQuote(bin) + trimPrefix + shellQuote(ev.Command)
+		bin := r.Bin
+		if bin == "" {
+			bin = "enowx"
+		}
+		if wrapped, ok := WrapTrim(bin, ev.Command); ok {
+			d.Command = wrapped
 			run.Output = d.Command
 		}
 	case proto.HookActionNotify:

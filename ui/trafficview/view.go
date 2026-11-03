@@ -80,6 +80,12 @@ type Options struct {
 	PickHostFile func(title, about string, pick func(path string))
 	// PickFile asks for a file of this device, for importing HAR.
 	PickFile func(title string, pick func(path string))
+	// OpenExchange shows an exchange in a viewer of its own, named name;
+	// Current is the one the viewer in front shows, 0 for none. ToolShown says
+	// the tool itself shows too, which then draws the dialogs both can open.
+	OpenExchange func(id int64, name string)
+	Current      func() int64
+	ToolShown    bool
 	// BrowserCaptured says the session's Browser tool previews go through
 	// the interceptor; SetBrowserCapture turns it on or off.
 	BrowserCaptured   bool
@@ -130,10 +136,10 @@ type View struct {
 
 	listState ui.ListState
 	domains   widget.ContextMenu
-	selected  int
 	shown     []int // indexes into list the list shows
 	rows      []int // what the list draws: shown's indexes, gaps below zero (gapRows)
-	detail    *detail
+	details   map[int64]*detail
+	lastRead  *detail // the viewer last opened: the next opens as it was
 	menu      widget.ContextMenu
 
 	rules    rulesState
@@ -147,7 +153,7 @@ type View struct {
 
 // New returns a tool with nothing loaded.
 func New() *View {
-	v := &View{index: map[int64]int{}, page: pageRequests, selected: -1}
+	v := &View{index: map[int64]int{}, details: map[int64]*detail{}, page: pageRequests}
 	v.listState.FollowEnd = true
 	v.listState.Key = func(row int) any {
 		if row < len(v.rows) {
@@ -164,7 +170,7 @@ func New() *View {
 // Apply records an exchange told by an event.
 func (v *View) Apply(s proto.TrafficSummary) {
 	if s.State == "cleared" {
-		v.list, v.index, v.detail, v.selected = nil, map[int64]int{}, nil, -1
+		v.list, v.index, v.details = nil, map[int64]int{}, map[int64]*detail{}
 		v.reload()
 		return
 	}
@@ -174,8 +180,8 @@ func (v *View) Apply(s proto.TrafficSummary) {
 		v.index[s.ID] = len(v.list)
 		v.list = append(v.list, s)
 	}
-	if v.detail != nil && v.detail.id == s.ID && (s.State == proto.TrafficDone || s.State == proto.TrafficFailed) && v.detail.state != s.State {
-		v.detail.stale = true
+	if d := v.details[s.ID]; d != nil && (s.State == proto.TrafficDone || s.State == proto.TrafficFailed) && d.state != s.State {
+		d.stale = true
 	}
 	if v.applied != "" && v.queryAt.IsZero() {
 		v.queryAt = time.Now() // asked again soon: the new exchange may match
@@ -252,20 +258,23 @@ func (v *View) load(o Options) {
 	}()
 }
 
-// Draw shows the tool for o's session.
+// ShowPage shows a page of the tool: Requests, Rules or Intercept.
+func (v *View) ShowPage(page string) {
+	if slices.Contains(pages, page) {
+		v.page = page
+	}
+}
+
+// Draw shows the tool for o's session: what can be opened, as lists; what a
+// list opens shows in the center (DrawExchange).
 func (v *View) Draw(c *ui.Context, o Options) {
 	v.load(o)
-	ui.Column(c).Grow(1).FillWidth().MinHeight(0).Children(func() {
-		ui.Row(c).Height(42).Shrink(0).FillWidth().Padding(0, 10, 0, 12).Gap(8).
-			BorderWidth(0, 0, 1, 0).BorderColor(theme.Border).Children(func() {
-			cur := slices.Index(pages, v.page)
-			if i := widget.Segmented(c, pages, cur, nil); i >= 0 {
-				v.page = pages[i]
-			}
-			ui.Spacer(c)
-			v.captureBar(c, o)
+	v.captureKeys(c, o)
+	ui.Column(c).Grow(1).FillWidth().MinHeight(0).Padding(0, theme.S3, theme.S3, theme.S3).Gap(theme.S2).Children(func() {
+		widget.ToolHeader(c, func() {
+			ui.Row(c).Grow(1).Basis(0).MinWidth(0).Children(func() { v.captureStatus(c, o) })
 			if n := len(v.paused); n > 0 {
-				b := widget.Button(c, widget.Secondary, icon.Stop, plural(n, "paused"), "Exchanges waiting at a breakpoint")
+				b := widget.Button(c, widget.Secondary, nil, plural(n, "paused"), "").Tooltip("Exchanges waiting at a breakpoint")
 				b.TextColor(theme.Warning)
 				if b.Clicked() {
 					v.page = pageRequests
@@ -278,19 +287,17 @@ func (v *View) Draw(c *ui.Context, o Options) {
 				v.settings.open = true
 			}
 		})
-		if v.notice != "" {
-			ui.Row(c).FillWidth().Padding(6, 12).Gap(8).Background(theme.Sunken).Children(func() {
-				ui.Text(c, v.notice).FontSize(11.5).TextColor(theme.TextSoft).Grow(1).Shrink(1)
-				if widget.IconButton(c, icon.Close, "Dismiss", false).Clicked() {
-					v.notice = ""
-				}
-			})
-		}
+		ui.Row(c).FillWidth().Shrink(0).Children(func() {
+			if i := widget.Segmented(c, pages, slices.Index(pages, v.page), nil); i >= 0 {
+				v.page = pages[i]
+			}
+		})
+		v.noticeBanner(c)
 		switch {
 		case v.err != "":
 			note(c, v.err, theme.Error)
 		case !v.loaded:
-			note(c, "Starting the interceptor…", theme.Muted)
+			note(c, "Starting the interceptor…", theme.TextSoft)
 		case v.page == pageRules:
 			v.rulesPage(c, o)
 		case v.page == pageIntercept:
@@ -298,17 +305,34 @@ func (v *View) Draw(c *ui.Context, o Options) {
 		default:
 			v.requestsPage(c, o)
 		}
-		v.ruleSheet(c, o)
-		v.composeSheet(c, o)
-		v.settingsSheet(c, o)
-		v.pausedSheet(c, o)
-		v.interceptSheets(c, o)
+	})
+	v.sheets(c, o)
+}
+
+// sheets are the tool's dialogs.
+func (v *View) sheets(c *ui.Context, o Options) {
+	v.ruleSheet(c, o)
+	v.composeSheet(c, o)
+	v.settingsSheet(c, o)
+	v.pausedSheet(c, o)
+	v.interceptSheets(c, o)
+}
+
+// noticeBanner says how the last action went, until dismissed.
+func (v *View) noticeBanner(c *ui.Context) {
+	if v.notice == "" {
+		return
+	}
+	widget.Banner(c, theme.TextSoft, v.notice, func() {
+		if widget.IconButton(c, icon.Close, "Dismiss", false).Clicked() {
+			v.notice = ""
+		}
 	})
 }
 
 func note(c *ui.Context, text string, col ui.Color) {
-	ui.Column(c).Grow(1).FillWidth().Center().Padding(24).Children(func() {
-		ui.Text(c, text).FontSize(12.5).TextColor(col).TextAlign(ui.Center)
+	ui.Column(c).Grow(1).FillWidth().MinHeight(0).Center().Padding(theme.S5).Children(func() {
+		ui.Text(c, text).FontSize(theme.TextUI).TextColor(col).TextAlign(ui.Center)
 	})
 }
 

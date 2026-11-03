@@ -7,6 +7,7 @@ import (
 	"github.com/egoist/mygo/ui"
 
 	"github.com/enowx/enowx/core/hosts"
+	"github.com/enowx/enowx/core/vps"
 	"github.com/enowx/enowx/transport"
 	"github.com/enowx/enowx/ui/icon"
 	"github.com/enowx/enowx/ui/theme"
@@ -38,57 +39,58 @@ func (a *App) addHostDialog(c *ui.Context) {
 	if !f.open {
 		return
 	}
-	hasTailnet := len(a.peers) > 0 && f.editing.ID == ""
-	// With a tailnet, its devices come first; adding by address opens a
-	// dialog of its own in their place, which Back returns from.
-	byAddress := hasTailnet && f.manual
-	key := "tailnet"
-	if !hasTailnet || f.manual {
-		key = "address"
+	editing := f.editing.ID != ""
+	hasTailnet := len(a.peers) > 0 && !editing
+	byTailnet := hasTailnet && !f.manual
+	title, about := "Add VPS", "Any Linux server you can reach over SSH, by IP, domain or Tailscale name."
+	if editing {
+		title = "Edit " + f.editing.Name
 	}
-	widget.Dialog(c.Key(key), &f.open, 520, 16, func() {
-		title := "Add VPS"
-		crumbs := []string{"Hosts", title}
-		desc := "Any Linux server you can reach over SSH, by IP, domain or Tailscale name."
-		switch {
-		case f.editing.ID != "":
-			title = "Edit " + f.editing.Name
-			crumbs = []string{"Hosts", title}
-		case byAddress:
-			title = "Add by address"
-			crumbs = []string{"Hosts", "Add VPS", "By address"}
-			desc = "A server outside your tailnet, by IP or domain."
-		}
-		if widget.DialogHeader(c, title, desc, true, crumbs...) {
-			f.open = false
-		}
-		if hasTailnet && !byAddress {
-			a.tailnetSection(c)
-			b := ui.ButtonBase(c).Gap(8).Cursor(ui.CursorPointer).TextColor(theme.TextSoft).Label("Add by address")
-			if b.Hovered() {
-				b.TextColor(theme.Accent)
+	submit := false
+	widget.FormSheet(c, &f.open, 640, title, about, func() {
+		if hasTailnet {
+			cur := 0
+			if f.manual {
+				cur = 1
 			}
-			b.Children(func() {
-				ui.Icon(c, icon.Plus).FontSize(13)
-				ui.Text(c, "Add a server by address instead").FontSize(12.5)
+			ui.Row(c.Key("how")).FillWidth().Shrink(0).Children(func() {
+				if i := widget.Segmented(c, []string{"On your tailnet", "By address"}, cur, nil); i >= 0 {
+					f.manual, f.err = i == 1, ""
+				}
 			})
-			if b.Clicked() {
-				f.manual = true
-			}
-			return
-		} else if !hasTailnet && a.peersErr != "" && f.editing.ID == "" {
-			ui.Text(c, a.peersErr).FontSize(12).TextColor(theme.Muted)
+		} else if a.peersErr != "" && !editing {
+			widget.CardNote(c.Key("peers-err"), a.peersErr, 0)
 		}
-		submit := false
-		if f.editing.ID == "" {
+		if byTailnet {
+			a.tailnetSection(c)
+			ui.Row(c.Key("by-address")).FillWidth().Shrink(0).Children(func() {
+				ui.Spacer(c)
+				if widget.GhostButton(c, "Add a server by address instead").Clicked() {
+					f.manual = true
+				}
+			})
+			return
+		}
+		if !editing {
 			a.sshConfigSection(c)
 		}
 		widget.Field(c, "SSH address", func() {
 			in := widget.Input(c, &f.address, "203.0.113.10 (signs in as root) or user@my-vps:2222").FillWidth().Font(theme.MonoFont).AutoFocus()
 			submit = in.Submitted()
 		})
-		widget.Field(c, "Name (optional)", func() {
-			submit = widget.Input(c, &f.name, "vps-sg-1").FillWidth().Submitted() || submit
+		widget.FieldCols(c, func() {
+			widget.Field(c, "Name (optional)", func() {
+				submit = widget.Input(c, &f.name, "vps-sg-1").FillWidth().Submitted() || submit
+			})
+		}, func() {
+			widget.Field(c, "Listed under", func() {
+				kind := ""
+				if f.device {
+					kind = hosts.KindDevice
+				}
+				optionSelect(c, &kind, []vps.Option{{ID: "", Name: "Servers"}, {ID: hosts.KindDevice, Name: "Devices"}}, "Listed under")
+				f.device = kind == hosts.KindDevice
+			})
 		})
 		widget.Field(c, "Private key (optional)", func() {
 			submit = widget.Input(c, &f.identity, "~/.ssh/id_ed25519 · also tries ~/.ssh/config and the SSH agent").FillWidth().Font(theme.MonoFont).Submitted() || submit
@@ -96,49 +98,37 @@ func (a *App) addHostDialog(c *ui.Context) {
 		widget.Field(c, "Jump host (optional)", func() {
 			submit = widget.Input(c, &f.jump, "user@bastion · a server in front of it; ~/.ssh/config's ProxyJump otherwise").FillWidth().Font(theme.MonoFont).Submitted() || submit
 		})
-		widget.Field(c, "Listed under", func() {
-			cur := 0
-			if f.device {
-				cur = 1
-			}
-			if i := widget.Segmented(c, []string{"VPS", "Devices"}, cur, nil); i >= 0 {
-				f.device = i == 1
-			}
-		})
 		a.runAsField(c, f)
 		switchRow(c, &f.tailnet, "Through enowX's own tailnet", "enowX joins your tailnet as a device of its own, so the server is reached by its tailnet name without Tailscale on this machine. It asks you to sign in once.")
 		if f.editing.PasswordAuth && !f.forgetPassword {
-			ui.Row(c).FillWidth().Gap(8).Children(func() {
-				ui.Text(c, "A password is saved in the keychain for this host.").FontSize(12).TextColor(theme.TextSoft).Grow(1)
+			ui.Row(c.Key("password")).FillWidth().Shrink(0).Gap(theme.S2).Children(func() {
+				ui.Column(c).Grow(1).Basis(0).MinWidth(0).Children(func() {
+					widget.CardNote(c, "A password is saved in the keychain for this host.", 0)
+				})
 				if widget.GhostButton(c, "Forget password").Clicked() {
 					f.forgetPassword = true
 				}
 			})
 		}
-		ui.Text(c, "enowX signs in with your SSH keys and asks for a password if the server wants one. It installs its daemon in ~/"+transport.HomeName+" on the server; sessions keep running there when you disconnect.").
-			FontSize(12).TextColor(theme.Muted)
+		widget.CardNote(c.Key("about"), "enowX signs in with your SSH keys and asks for a password if the server wants one. It installs its daemon in ~/"+transport.HomeName+" on the server; sessions keep running there when you disconnect.", 0)
 		if f.err != "" {
-			ui.Text(c, f.err).FontSize(12).TextColor(theme.Error)
+			widget.Notice(c, icon.Alert, theme.Error, f.err, "", nil)
 		}
-		widget.DialogFooter(c, "", func() {
-			if byAddress && widget.GhostButton(c, "Back to tailnet").Clicked() {
-				f.manual, f.err = false, ""
-			}
-			if widget.GhostButton(c, "Cancel").Clicked() {
-				f.open = false
-			}
-			label := "Add and connect"
-			if f.editing.ID != "" {
-				label = "Save and connect"
-			}
-			if widget.PrimaryButton(c, nil, label, "").Clicked() {
-				submit = true
-			}
-		})
-		if submit {
-			a.saveHost()
+	}, func() {
+		if byTailnet {
+			return
+		}
+		label := "Add and connect"
+		if editing {
+			label = "Save and connect"
+		}
+		if widget.PrimaryButton(c, nil, label, "").Clicked() {
+			submit = true
 		}
 	})
+	if submit {
+		a.saveHost()
+	}
 }
 
 func (a *App) saveHost() {
@@ -216,17 +206,17 @@ func (a *App) sshConfigSection(c *ui.Context) {
 		return
 	}
 	widget.Field(c, "From ~/.ssh/config", func() {
-		ui.Row(c).FillWidth().Gap(6).Wrap().Children(func() {
+		ui.Row(c).FillWidth().Gap(theme.S1).Wrap().Children(func() {
 			for _, h := range offered {
 				on := f.address == h.Alias
-				b := ui.ButtonBase(c.Key(h.Alias)).Height(26).PaddingX(9).Gap(6).Radius(theme.RadiusControl).
-					Border(1, theme.Border).Cursor(ui.CursorPointer).Label(h.Alias).Tooltip(h.Real.String())
+				b := ui.ButtonBase(c.Key(h.Alias)).Height(theme.ControlHeight).PaddingX(theme.S3).Gap(theme.S1).Radius(theme.RadiusFull).
+					Cursor(ui.CursorPointer).Label(h.Alias).Tooltip(h.Real.String())
+				widget.Well(b, false)
 				if on {
-					b.Border(1, theme.AccentLine).Background(theme.Selected)
+					b.Background(theme.Selected)
 				}
 				b.Children(func() {
-					ui.Icon(c, icon.Server).FontSize(12).TextColor(theme.Muted)
-					ui.Text(c, h.Alias).FontSize(12).SingleLine()
+					ui.Text(c, h.Alias).FontSize(theme.TextUI).SingleLine()
 				})
 				if b.Clicked() {
 					f.address, f.name, f.err = h.Alias, h.Alias, ""
@@ -240,22 +230,22 @@ func (a *App) sshConfigSection(c *ui.Context) {
 // regular user, as agents want, or root.
 func (a *App) runAsField(c *ui.Context, f *addHostForm) {
 	widget.Field(c, "Run sessions as (when signed in as root)", func() {
-		ui.Column(c).FillWidth().Gap(6).Children(func() {
+		ui.Column(c).FillWidth().Gap(theme.S2).Children(func() {
 			cur := 0
 			if f.asRoot {
 				cur = 1
 			}
-			if i := widget.Segmented(c, []string{"A regular user", "root"}, cur, nil); i >= 0 {
-				f.asRoot = i == 1
-			}
+			ui.Row(c.Key("seg")).FillWidth().Shrink(0).Children(func() {
+				if i := widget.Segmented(c, []string{"A regular user", "root"}, cur, nil); i >= 0 {
+					f.asRoot = i == 1
+				}
+			})
 			if f.asRoot {
-				ui.Text(c, "The daemon and every session run as root. Claude Code won't skip permission prompts as root, and agents can change anything on the server.").
-					FontSize(11.5).TextColor(theme.Warning)
+				widget.CardNote(c.Key("root"), "The daemon and every session run as root. Claude Code won't skip permission prompts as root, and agents can change anything on the server.", 0).TextColor(theme.Warning)
 				return
 			}
-			widget.Input(c, &f.runAs, defaultRunAs+" (made if missing)").FillWidth().Font(theme.MonoFont)
-			ui.Text(c, "SSH still signs in as root; enowX runs its daemon and sessions as this user. Sessions started as another user stay with it.").
-				FontSize(11.5).TextColor(theme.Muted)
+			widget.Input(c, &f.runAs, defaultRunAs+" (made if missing)").FillWidth()
+			widget.CardNote(c.Key("user"), "SSH still signs in as root; enowX runs its daemon and sessions as this user. Sessions started as another user stay with it.", 0)
 		})
 	})
 }

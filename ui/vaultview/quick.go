@@ -37,22 +37,22 @@ func (v *View) quickWays(c *ui.Context, o Options, f *form, p vault.Platform) {
 	widget.Field(c, "Already on "+o.Current.Name, func() {
 		switch {
 		case o.Scanning && len(found) == 0:
-			ui.Text(c, "Looking at what "+o.Current.Name+"'s tools keep…").FontSize(11.5).TextColor(theme.Muted)
+			ui.Text(c, "Looking at what "+o.Current.Name+"'s tools keep…").FontSize(theme.TextLabel).TextColor(theme.TextSoft)
 		case len(found) == 0:
-			ui.Text(c, "Nothing of "+p.Name+" kept by "+o.Current.Name+"'s tools.").FontSize(11.5).TextColor(theme.Muted)
+			ui.Text(c, "Nothing of "+p.Name+" kept by "+o.Current.Name+"'s tools.").FontSize(theme.TextLabel).TextColor(theme.TextSoft)
 		}
 		for i, fd := range found {
-			ui.Row(c.Key(i)).FillWidth().Gap(8).AlignItems(ui.Center).Padding(6, 8).Radius(8).Background(theme.Sunken).Children(func() {
+			ui.Row(c.Key(i)).FillWidth().Gap(theme.S2).Padding(theme.S1, theme.S2, theme.S1, theme.S3).Radius(theme.RadiusCard).Background(theme.Sunken).Children(func() {
 				Logo(c, p, 22)
 				ui.Column(c).Grow(1).Shrink(1).MinWidth(0).Children(func() {
 					who := fd.Name
 					if fd.Account != "" {
 						who += " · " + fd.Account
 					}
-					ui.Text(c, who).FontSize(12.5).TextColor(theme.Text).SingleLine()
-					ui.Text(c, "from "+fd.Source).FontSize(11).TextColor(theme.Muted).SingleLine().Tooltip(fd.Source)
+					ui.Text(c, who).FontSize(theme.TextUI).TextColor(theme.Text).SingleLine()
+					ui.Text(c, "from "+fd.Source).FontSize(theme.TextLabel).TextColor(theme.TextSoft).SingleLine().Tooltip(fd.Source)
 				})
-				if widget.Button(c, widget.Secondary, icon.Check, "Use", "").Height(28).PaddingX(10).Label("Use " + fd.Name).Clicked() {
+				if widget.Button(c, widget.Secondary, icon.Check, "Use", "").Label("Use " + fd.Name).Clicked() {
 					f.useFound(fd)
 				}
 			})
@@ -67,7 +67,7 @@ func (v *View) quickWays(c *ui.Context, o Options, f *form, p vault.Platform) {
 	if p.Login != "" && o.Actions.Login != nil {
 		cmd := strings.Fields(p.Login)[0]
 		ui.Row(c).FillWidth().Children(func() {
-			b := widget.Button(c, widget.Secondary, icon.Terminal, "Log in with "+cmd+" instead", "").Height(28).PaddingX(10).
+			b := widget.Button(c, widget.Secondary, icon.Terminal, "Log in with "+cmd+" instead", "").
 				Tooltip("Runs " + p.Login + " in a session on " + o.Current.Name + "; import it afterwards")
 			if b.Clicked() {
 				o.Actions.Login(p.ID)
@@ -82,8 +82,8 @@ func (v *View) quickWays(c *ui.Context, o Options, f *form, p vault.Platform) {
 func (v *View) tokenPageRow(c *ui.Context, o Options, f *form, p vault.Platform) {
 	field := vault.TokenField(p)
 	widget.Field(c, "Make one on "+p.Name, func() {
-		ui.Row(c).FillWidth().Gap(8).AlignItems(ui.Center).Children(func() {
-			if widget.Button(c, widget.Secondary, icon.Globe, "Open the token page", "").Height(28).PaddingX(10).
+		ui.Row(c).FillWidth().Gap(theme.S2).AlignItems(ui.Center).Children(func() {
+			if widget.Button(c, widget.Secondary, icon.Globe, "Open the token page", "").
 				Tooltip(p.Link).Clicked() {
 				f.page = &tokenPage{before: c.ReadClipboard()}
 				o.Actions.OpenURL(p.Link)
@@ -92,7 +92,7 @@ func (v *View) tokenPageRow(c *ui.Context, o Options, f *form, p vault.Platform)
 			if f.page != nil && f.page.offer == "" {
 				hint = "Waiting for a token you copy on " + p.Name + "…"
 			}
-			ui.Text(c, hint).FontSize(11.5).TextColor(theme.Muted).Grow(1).Shrink(1).MinWidth(0)
+			ui.Text(c, hint).FontSize(theme.TextLabel).TextColor(theme.TextSoft).Grow(1).Shrink(1).MinWidth(0)
 		})
 		tp := f.page
 		if tp == nil || field == "" {
@@ -108,11 +108,13 @@ func (v *View) tokenPageRow(c *ui.Context, o Options, f *form, p vault.Platform)
 			c.After(700 * time.Millisecond)
 			return
 		}
-		ui.Row(c.Key("offer")).FillWidth().Gap(8).AlignItems(ui.Center).Padding(6, 8).Radius(8).
-			Background(theme.Fade(theme.Accent, 0.1)).Border(1, theme.AccentLine).Children(func() {
-			ui.Icon(c, icon.Key).FontSize(13).TextColor(theme.Accent)
-			ui.Text(c, "You copied a "+p.Name+" token ("+vault.Mask(tp.offer)+")").FontSize(12).TextColor(theme.Text).Grow(1).Shrink(1).MinWidth(0).SingleLine()
-			if widget.Button(c, widget.Primary, nil, "Use it", "").Height(26).PaddingX(10).Clicked() {
+		ui.Row(c.Key("offer")).FillWidth().Gap(theme.S2).Padding(theme.S1, theme.S2, theme.S1, theme.S3).Radius(theme.RadiusCard).
+			Background(theme.Fade(theme.Accent, 0.14)).Children(func() {
+			ui.Icon(c, icon.Key).FontSize(13).TextColor(theme.Now)
+			ui.Row(c).Grow(1).MinWidth(0).Children(func() {
+				widget.Running(c, "You copied a "+p.Name+" token ("+vault.Mask(tp.offer)+")", widget.RunStyle{Size: theme.TextLabel})
+			})
+			if widget.Button(c, widget.Primary, nil, "Use it", "").Clicked() {
 				f.values[field] = tp.offer
 				f.page = nil
 			}

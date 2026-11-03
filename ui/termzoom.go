@@ -3,12 +3,11 @@ package ui
 import (
 	"fmt"
 	"runtime"
+	"slices"
 
 	"github.com/egoist/mygo/plugins/terminal"
 	"github.com/egoist/mygo/ui"
 
-	"github.com/enowx/enowx/ui/icon"
-	"github.com/enowx/enowx/ui/theme"
 	"github.com/enowx/enowx/ui/widget"
 )
 
@@ -65,22 +64,21 @@ func zoomKey() string {
 	return "Ctrl+"
 }
 
-// termSizeSection changes the terminals' text size, in Settings ›
-// Terminal.
-func (a *App) termSizeSection(c *ui.Context) {
-	widget.SectionLabel(c, "TEXT SIZE", theme.Muted).Margin(14, 0, 0, 0)
-	ui.Row(c).FillWidth().Gap(8).AlignItems(ui.Center).Children(func() {
-		if widget.IconButton(c, icon.Minus, "Smaller ("+zoomKey()+"−)", false).Clicked() {
-			a.setTermSize(a.termSize() - 1)
-		}
-		ui.Text(c, fmt.Sprintf("%g", a.termSize())).FontSize(13).FontWeight(600).Width(28).TextAlign(ui.Center)
-		if widget.IconButton(c, icon.Plus, "Larger ("+zoomKey()+"+)", false).Clicked() {
-			a.setTermSize(a.termSize() + 1)
-		}
-		if a.state.TermFontSize != 0 && widget.GhostButton(c, "Default").Clicked() {
-			a.setTermSize(0)
-		}
-	})
-	ui.Text(c, "Every terminal's, on this device. "+zoomKey()+"+ and "+zoomKey()+"− in a terminal (or its scroll wheel with "+zoomKey()+" held) change it too, "+zoomKey()+"0 back to the default.").
-		FontSize(12).TextColor(theme.Muted)
+// termSizeControl changes the terminals' text size, in Settings › Terminal:
+// the sizes most use, as the whole range doesn't fit a row of choices. A size
+// outside them (zoomed in a terminal, or saved earlier) joins them as long as
+// it's the one in use, so that it shows and picking nothing keeps it.
+func (a *App) termSizeControl(c *ui.Context) {
+	sizes := []float32{11, 12, 13, 14, 15, 16}
+	if cur := a.termSize(); !slices.Contains(sizes, cur) {
+		sizes = append(sizes, cur)
+		slices.Sort(sizes)
+	}
+	labels := make([]string, len(sizes))
+	for i, s := range sizes {
+		labels[i] = fmt.Sprintf("%g", s)
+	}
+	if i := widget.Segmented(c, labels, slices.Index(sizes, a.termSize()), nil); i >= 0 {
+		a.setTermSize(sizes[i])
+	}
 }

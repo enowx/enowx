@@ -23,7 +23,7 @@ func TestCanvasBoardMovesAndZooms(t *testing.T) {
 	if _, err := h.cl.EditCanvas(proto.CanvasEdit{ID: cv.ID, Op: proto.CanvasOpElementSet, Element: &box}); err != nil {
 		t.Fatal(err)
 	}
-	h.settle("the design", func() bool { return h.tt.HasText("Hero") })
+	h.settle("the design", func() bool { _, ok := h.tt.Find("Frame Home"); return ok })
 	frame := func() (x, y, w float32) {
 		t.Helper()
 		f, ok := h.tt.Find("Frame Home")

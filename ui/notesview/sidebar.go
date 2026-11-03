@@ -26,9 +26,9 @@ func (v *View) sidebar(c *ui.Context, o Options) {
 	shown := v.matching(o)
 	var tree ui.Element
 	if v.treeInSidebar {
-		tree = ui.Column(c.Key("notes-tree")).FillWidth().Grow(1).MinHeight(0)
+		tree = ui.Column(c.Key("notes-tree")).FillWidth().Grow(1).MinHeight(0).Padding(theme.S2).Gap(theme.S1)
 	} else {
-		tree = ui.Column(c.Key("notes-tree")).Width(248).Shrink(0).FillHeight().Background(theme.Panel).BorderWidth(0, 1, 0, 0).BorderColor(theme.Border)
+		tree = ui.Column(c.Key("notes-tree")).Width(248).Shrink(0).FillHeight().Padding(theme.S2).Gap(theme.S1).BorderWidth(0, theme.Rule, 0, 0).BorderColor(theme.Border)
 	}
 	if o.Drop != nil {
 		// Files from other apps dropped on the tree are imported.
@@ -36,73 +36,38 @@ func (v *View) sidebar(c *ui.Context, o Options) {
 			o.Drop(files)
 		}
 		if tree.FileDragOver() {
-			tree.Background(theme.AccentSoft).BorderColor(theme.AccentLine)
+			tree.Background(theme.AccentSoft)
 		}
 	}
 	tree.Children(func() {
-		ui.Row(c).FillWidth().Height(44).Shrink(0).PaddingX(10).Gap(6).AlignItems(ui.Center).BorderWidth(0, 0, 1, 0).BorderColor(theme.Border).Children(func() {
-			ui.Column(c).Grow(1).MinWidth(0).Children(func() {
-				ui.Text(c, "Notes").FontSize(12.5).SingleLine()
-				if len(o.Spaces) > 1 && o.PickSpace != nil {
-					name := o.Space
-					if o.Team == "" {
-						name = "Personal"
-					}
-					widget.SpacePicker(c, widget.Space{Team: o.Team, Name: name}, "on "+o.Host, 10.5, o.Spaces, o.PickSpace)
-					return
-				}
-				if o.Team == "" {
-					ui.Text(c, "On "+o.Host).FontSize(10.5).TextColor(theme.Muted).SingleLine().Shrink(1)
-					return
-				}
-				ui.Row(c).Gap(5).AlignItems(ui.Center).MinWidth(0).Children(func() {
-					widget.TeamMark(c, o.Team, o.Space, 11)
-					ui.Text(c, o.Space+" · on "+o.Host).FontSize(10.5).TextColor(theme.Muted).SingleLine().Shrink(1)
+		v.treeHead(c, o)
+		if len(o.Spaces) > 1 && o.PickSpace != nil {
+			name := o.Space
+			if o.Team == "" {
+				name = "Personal"
+			}
+			ui.Row(c).FillWidth().PaddingX(theme.S2).MinWidth(0).Children(func() {
+				widget.SpacePicker(c, widget.Space{Team: o.Team, Name: name}, "on "+o.Host, theme.TextLabel, o.Spaces, o.PickSpace)
+			})
+		} else if o.Team != "" {
+			ui.Row(c).FillWidth().PaddingX(theme.S3).Gap(theme.S2).MinWidth(0).Children(func() {
+				widget.TeamMark(c, o.Team, o.Space, 12)
+				ui.Row(c).Grow(1).MinWidth(0).Children(func() {
+					widget.Running(c, o.Space+" · on "+o.Host, widget.RunStyle{Size: theme.TextLabel, Color: theme.TextSoft})
 				})
 			})
-			if o.SyncState != nil {
-				state, alarm := o.SyncState()
-				b := widget.IconButton(c, icon.Sync, state, false)
-				if alarm {
-					b.TextColor(theme.Warning)
-				}
-				if b.Clicked() && o.OpenSync != nil {
-					o.OpenSync()
-				}
-			}
-			if (o.Import != nil || o.Export != nil) && o.Loaded {
-				more := widget.IconButton(c, icon.More, "Import and export", false)
-				v.menu.OpenBelow(more, "notes-io", 28)
-				v.menu.Show(c, more, "notes-io", func(done func()) {
-					if o.Import != nil && widget.MenuItem(c, icon.ArrowDown, "Import…", false) {
-						o.Import()
-						done()
-					}
-					if o.Export != nil && len(o.Notes) > 0 && widget.MenuItem(c, icon.ArrowUp, "Export all…", false) {
-						o.Export(ExportPick{All: true, Title: "All notes"})
-						done()
-					}
-				})
-			}
-			if o.SaveGroup != nil && o.Loaded && widget.IconButton(c, icon.FolderPlus, "New group", false).Clicked() {
-				v.groupForm = &groupForm{open: true}
-			}
-			b := widget.Button(c, widget.Primary, icon.Plus, "New", "").Height(28).PaddingX(10).Tooltip("New page")
-			if !o.Loaded {
-				b.Disabled(true).Opacity(0.45)
-			} else if b.Clicked() {
-				v.newPage(o, "", v.groupFilter)
-			}
-		})
-		ui.Row(c).FillWidth().Gap(6).Padding(8, 10, 4, 10).Children(func() {
-			ui.Column(c).Grow(1).MinWidth(0).Children(func() { widget.SearchField(c, &v.filter, "Filter pages", icon.Search) })
+		}
+		ui.Row(c).FillWidth().Gap(theme.S1).Children(func() {
+			ui.Column(c).Grow(1).MinWidth(0).Children(func() {
+				widget.Input(c, &v.filter, "Filter notes").FillWidth()
+			})
 			v.groupFilterButton(c, o)
 			v.projectFilterButton(c, o)
 		})
-		ui.Scroll(c).Grow(1).FillWidth().Children(func() {
-			ui.Column(c).FillWidth().Padding(6).Gap(1).Children(func() {
+		widget.Scroll(c).Grow(1).FillWidth().MinHeight(0).Children(func() {
+			ui.Column(c).FillWidth().Gap(2).Children(func() {
 				if o.Loaded && len(o.Notes) == 0 {
-					ui.Text(c, "No pages yet").FontSize(12).TextColor(theme.Muted).Padding(6)
+					ui.Text(c, "No notes yet").FontSize(theme.TextUI).TextColor(theme.TextSoft).Padding(theme.S2, theme.S3)
 				}
 				if v.projectFilter == byProject {
 					v.byProjectTree(c, o, shown)
@@ -134,7 +99,7 @@ func (v *View) sidebar(c *ui.Context, o Options) {
 					}
 					v.groupHeader(c.Key("group:"+g.Name), o, g, n)
 					if !g.Folded || shown != nil {
-						ui.Column(c).FillWidth().Gap(1).Padding(0, 0, 0, 8).Children(func() { walk("", 0, g.Name) })
+						ui.Column(c).FillWidth().Gap(2).Children(func() { walk("", 0, g.Name) })
 					}
 				}
 				if v.groupFilter == "" {
@@ -170,49 +135,103 @@ func (v *View) matching(o Options) map[string]bool {
 	return shown
 }
 
+// treeHead is the tree's title and what makes or brings notes.
+func (v *View) treeHead(c *ui.Context, o Options) {
+	ui.Row(c).FillWidth().MinHeight(theme.ControlHeight).Shrink(0).Padding(0, 0, 0, theme.S3).Gap(0).Children(func() {
+		ui.Row(c).Grow(1).MinWidth(0).Children(func() {
+			widget.Running(c, "Notes", widget.RunStyle{Weight: 600})
+		})
+		if o.SyncState != nil {
+			state, alarm := o.SyncState()
+			b := widget.IconButton(c, icon.Sync, state, false)
+			if alarm {
+				b.TextColor(theme.Warning)
+			}
+			if b.Clicked() && o.OpenSync != nil {
+				o.OpenSync()
+			}
+		}
+		add := widget.IconButton(c, icon.Plus, "New note", false)
+		if !o.Loaded {
+			add.Disabled(true).Opacity(0.45)
+		} else if add.Clicked() {
+			v.newPage(o, "", v.groupFilter)
+		}
+		if (o.Import != nil || o.Export != nil || o.SaveGroup != nil) && o.Loaded {
+			more := widget.IconButton(c, icon.More, "Import and export", false)
+			v.menu.OpenBelow(more, "notes-io", theme.ControlHeight)
+			v.menu.Show(c, more, "notes-io", func(done func()) {
+				if o.Import != nil && widget.MenuItem(c, icon.ArrowDown, "Import…", false) {
+					o.Import()
+					done()
+				}
+				if o.Export != nil && len(o.Notes) > 0 && widget.MenuItem(c, icon.ArrowUp, "Export…", false) {
+					o.Export(ExportPick{All: true, Title: "All notes"})
+					done()
+				}
+				if o.SaveGroup != nil {
+					widget.MenuSeparator(c)
+					if widget.MenuItem(c, icon.FolderPlus, "New group…", false) {
+						v.groupForm = &groupForm{open: true}
+						done()
+					}
+				}
+			})
+		}
+	})
+}
+
 // treeRow is a page in the tree: dragging it onto another's upper or
 // lower edge puts it before or after that one, onto its middle under it.
 func (v *View) treeRow(c *ui.Context, o Options, n proto.NoteInfo, depth int, hasChildren bool, siblings []proto.NoteInfo) {
-	row := ui.ButtonBase(c).FillWidth().Height(30).Padding(0, 4, 0, 4+float32(depth)*14).Gap(4).Radius(6).
-		Cursor(ui.CursorPointer).Label(titleOf(n)).AlignItems(ui.Center)
+	on := n.ID == v.selected
+	row := ui.ButtonBase(c).FillWidth().Height(36).Shrink(0).Padding(0, theme.S1, 0, theme.S3+float32(depth)*theme.S3).Gap(theme.S2).Radius(theme.RadiusCard).
+		Justify(ui.Start).Cursor(ui.CursorPointer).Label(titleOf(n)).AlignItems(ui.Center)
 	row.Drag(noteDrag{id: n.ID})
+	bg := theme.Fade(theme.Selected, 0)
 	switch {
-	case n.ID == v.selected:
-		row.Background(theme.Selected)
+	case on:
+		bg = theme.Selected
 	case row.Hovered():
-		row.Background(theme.Hover)
+		bg = theme.Hover
 	}
+	row.Background(widget.QuickTint(row, "bg", bg))
 	v.dropOn(row, o, n, siblings)
 	row.Children(func() {
-		chev := ui.ButtonBase(c).Size(18, 18).Radius(4).Center().Shrink(0).Label("Fold " + titleOf(n))
-		chev.Children(func() {
-			if hasChildren {
-				svg := icon.ChevronDown
-				if v.folded[n.ID] {
-					svg = icon.ChevronRight
-				}
-				ui.Icon(c, svg).FontSize(10.5).TextColor(theme.Muted)
-			}
-		})
-		if hasChildren && chev.Clicked() {
-			if v.folded == nil {
-				v.folded = map[string]bool{}
-			}
-			v.folded[n.ID] = !v.folded[n.ID]
+		if n.Icon != "" {
+			widget.NoteIcon(c, n.Icon, 14, theme.SoftOn(on), nil)
 		}
-		widget.NoteIcon(c, n.Icon, 14, theme.TextSoft, nil)
-		name := ui.Text(c, titleOf(n)).FontSize(12.5).TextColor(theme.Text).SingleLine().Shrink(1).Grow(1)
-		if n.ID == v.selected {
-			name.TextColor(theme.TextStrong)
-		} else if strings.TrimSpace(n.Title) == "" {
-			name.TextColor(theme.Muted)
+		style := widget.RunStyle{Always: on}
+		switch {
+		case on:
+			style.Weight, style.Color = 500, theme.TextStrong
+		case strings.TrimSpace(n.Title) == "":
+			style.Color = theme.Muted
 		}
+		ui.Row(c).Grow(1).MinWidth(0).Children(func() { widget.Running(c, titleOf(n), style) })
 		if n.IconReview && !row.Hovered() {
-			ui.Box(c).Size(6, 6).Radius(3).Background(theme.Warning).Shrink(0).Tooltip("Its icon stands in for an emoji: pick one")
+			ui.Box(c).Size(6, 6).Radius(theme.RadiusFull).Background(theme.Warning).Shrink(0).Tooltip("Its icon stands in for an emoji: pick one")
 		}
 		if row.Hovered() {
 			if widget.IconButton(c, icon.Plus, "Add a page inside", false).Clicked() {
 				v.newPage(o, n.ID, "")
+			}
+		}
+		if hasChildren {
+			chev := ui.ButtonBase(c).Size(theme.ControlHeight-theme.S2, theme.ControlHeight-theme.S2).Radius(theme.RadiusFull).Center().Shrink(0).
+				Cursor(ui.CursorPointer).Label("Fold " + titleOf(n))
+			chev.Children(func() {
+				svg := icon.ChevronDown
+				if v.folded[n.ID] {
+					svg = icon.ChevronRight
+				}
+				ui.Icon(c, svg).FontSize(12).TextColor(theme.TextSoft)
+			})
+			if chev.Clicked() {
+				if v.folded == nil {
+					v.folded = map[string]bool{}
+				}
+				v.folded[n.ID] = !v.folded[n.ID]
 			}
 		}
 	})
@@ -229,9 +248,9 @@ func (v *View) dropOn(row ui.Element, o Options, n proto.NoteInfo, siblings []pr
 	_, y, _ := row.PointerPosition()
 	zone := 1 // 0 before, 1 inside, 2 after
 	switch {
-	case y < 8:
+	case y < 10:
 		zone = 0
-	case y > 22:
+	case y > 26:
 		zone = 2
 	}
 	if d, ok := ui.Drop[noteDrag](row); ok && d.id != "" && d.id != n.ID {

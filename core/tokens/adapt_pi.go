@@ -94,7 +94,7 @@ func piCall(line []byte, st *FileState, file string) (Call, bool) {
 	}
 	u := m.Usage
 	return Call{ID: "pi:" + cmp.Or(st.Conv, file) + ":" + l.ID, Time: at,
-		Provider: providerName(cmp.Or(m.Provider, st.Provider)), Model: cmp.Or(m.Model, st.Model),
+		Provider: providerName(cmp.Or(m.Provider, st.Provider)), Model: cmp.Or(m.Model, st.Model), ModelInferred: m.Model == "",
 		Dir: st.Dir, Conversation: st.Conv, Cost: u.Cost.Total,
 		Input: u.Input, CacheRead: u.CacheRead, CacheWrite: u.CacheWrite, Output: u.Output, Reasoning: u.Reasoning}, true
 }

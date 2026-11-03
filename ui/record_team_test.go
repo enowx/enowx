@@ -172,7 +172,7 @@ func TestRecordTeam(t *testing.T) {
 		}
 	}
 	typed("Checked the notes against @rel", 0.06)
-	settle("the mention menu", func() bool { return tt.HasText("MENTION") && tt.HasText("Release plan") })
+	settle("the mention menu", func() bool { return tt.HasText("Mention") && tt.HasText("Release plan") })
 	hold(1.4)
 	tt.Key(0, ui.KeyEnter)
 	settle("the note mentioned", func() bool { return app.chatsOf().draft == "Checked the notes against @Release plan " })

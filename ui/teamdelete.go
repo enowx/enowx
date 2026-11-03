@@ -1,6 +1,7 @@
 package ui
 
 import (
+	"slices"
 	"strings"
 
 	"github.com/egoist/mygo/ui"
@@ -30,13 +31,10 @@ func (a *App) cloudTeamDeleteSection(c *ui.Context, cs *cloudSettings) {
 	if ts.team.Role != api.RoleOwner {
 		return
 	}
-	widget.Field(c, "Deleting the team", func() {
-		ui.Row(c).FillWidth().Gap(10).AlignItems(ui.Center).Children(func() {
-			ui.Text(c, "Its space goes for every member, from the cloud and from their hosts. It can't be undone.").FontSize(11.5).TextColor(theme.Muted).Grow(1).Shrink(1)
-			if widget.DangerButton(c, "Delete "+ts.team.Name+"…").Clicked() {
-				ts.deleting, ts.deleteName = true, ""
-			}
-		})
+	widget.Banner(c, theme.Error, "Deleting the team takes its space from every member.", func() {
+		if widget.DangerButton(c, "Delete the team…").Clicked() {
+			ts.deleting, ts.deleteName = true, ""
+		}
 	})
 }
 
@@ -51,15 +49,15 @@ func (a *App) cloudTeamDeleteDialog(c *ui.Context, cs *cloudSettings) {
 		if cs.err != "" {
 			widget.Notice(c, icon.Alert, theme.Error, cs.err, "", nil)
 		}
-		ui.Column(c).FillWidth().Gap(6).Children(func() {
-			ui.Text(c, "What goes:").FontSize(12.5)
+		ui.Column(c).FillWidth().Gap(theme.S2).Children(func() {
+			ui.Text(c, "What goes:").FontSize(theme.TextUI)
 			for _, s := range teamDeleteGoes {
-				ui.Row(c.Key(s)).FillWidth().Gap(8).AlignItems(ui.Start).Children(func() {
-					ui.Text(c, "•").FontSize(12).TextColor(theme.Muted)
-					ui.Text(c, s).FontSize(12).TextColor(theme.TextSoft).Grow(1).Shrink(1)
+				ui.Row(c.Key(s)).FillWidth().Gap(theme.S2).AlignItems(ui.Start).Children(func() {
+					ui.Text(c, "•").FontSize(theme.TextLabel).TextColor(theme.Muted)
+					ui.Text(c, s).FontSize(theme.TextLabel).TextColor(theme.TextSoft).Grow(1).Shrink(1)
 				})
 			}
-			ui.Text(c, "Members' own notes and canvases stay theirs.").FontSize(11.5).TextColor(theme.Muted)
+			ui.Text(c, "Members' own notes and canvases stay theirs.").FontSize(theme.TextLabel).TextColor(theme.Muted)
 		})
 		widget.Field(c, "Type "+t.Name+" to confirm", func() {
 			widget.Input(c, &ts.deleteName, t.Name).FillWidth()
@@ -88,6 +86,8 @@ func (a *App) deleteCloudTeam(cs *cloudSettings, team string) {
 		if ts.open == team {
 			ts.open, ts.team, ts.invite = "", api.Team{}, api.Invite{}
 		}
+		ts.pageTeam = ""
+		ts.list = slices.DeleteFunc(slices.Clone(ts.list), func(t api.Team) bool { return t.ID == team })
 		delete(a.chatsOf().membersAt, team)
 		a.loadCloud()
 	})

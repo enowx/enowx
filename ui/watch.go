@@ -328,34 +328,19 @@ func hostSummary(st hostStatus) string {
 	return "offline"
 }
 
-// hostUsageRow is a host's CPU, memory and disk, each a small meter, and
-// its sessions running.
-func hostUsageRow(c *ui.Context, st hostStatus) {
-	u := st.usage
-	ui.Row(c).FillWidth().Gap(14).Children(func() {
-		meter := func(label string, fraction float64, value string) {
-			ui.Column(c).Grow(1).MinWidth(0).Gap(4).Children(func() {
-				ui.Row(c).FillWidth().Children(func() {
-					ui.Text(c, label).FontSize(11).TextColor(theme.Muted)
-					ui.Spacer(c)
-					ui.Text(c, value).FontSize(11).TextColor(theme.TextSoft).SingleLine()
-				})
-				widget.Meter(c, widget.Segment{Fraction: fraction, Color: widget.Level(fraction)})
-			})
-		}
-		if u.CPUs > 0 {
-			meter("CPU", u.CPU/100, fmt.Sprintf("%.0f%% of %d", u.CPU, u.CPUs))
-		}
-		if u.MemTotal > 0 {
-			meter("Memory", float64(u.MemUsed)/float64(u.MemTotal), textfmt.Bytes(u.MemUsed)+" / "+textfmt.Bytes(u.MemTotal))
-		}
-		if u.DiskTotal > 0 {
-			meter("Disk", float64(u.DiskUsed)/float64(u.DiskTotal), textfmt.Bytes(u.DiskUsed)+" / "+textfmt.Bytes(u.DiskTotal))
-		}
-	})
-	working, waiting := st.running()
-	ui.Text(c, fmt.Sprintf("%s · %d working · %d need input", textfmt.Plural(len(st.sessions), "a session", fmt.Sprintf("%d sessions", len(st.sessions))), working, waiting)).
-		FontSize(11).TextColor(theme.Muted)
+// hostUsageTip is a host's CPU, memory and disk in words.
+func hostUsageTip(u proto.HostUsage) string {
+	var lines []string
+	if u.CPUs > 0 {
+		lines = append(lines, fmt.Sprintf("CPU %.0f%% of %d", u.CPU, u.CPUs))
+	}
+	if u.MemTotal > 0 {
+		lines = append(lines, "Memory "+textfmt.Bytes(u.MemUsed)+" / "+textfmt.Bytes(u.MemTotal))
+	}
+	if u.DiskTotal > 0 {
+		lines = append(lines, "Disk "+textfmt.Bytes(u.DiskUsed)+" / "+textfmt.Bytes(u.DiskTotal))
+	}
+	return strings.Join(lines, "\n")
 }
 
 // otherHostsSessions lists, under the shown host's projects, the sessions
@@ -371,13 +356,13 @@ func (a *App) otherHostsSessions(c *ui.Context) {
 	if len(shown) == 0 {
 		return
 	}
-	ui.Text(c, "ON OTHER HOSTS").FontSize(10.5).TextColor(theme.Idle).Padding(14, 6, 4, 6)
+	widget.SectionLabel(c, "On other hosts", theme.TextSoft).Padding(theme.S3, theme.S3, theme.S1, theme.S3)
 	for _, h := range shown {
 		st, _ := a.statusOfHost(h)
 		ui.Column(c.Key("other:" + h.ID)).FillWidth().Gap(1).Children(func() {
-			ui.Row(c).FillWidth().Gap(6).Padding(4, 6).Children(func() {
-				ui.Icon(c, hostIcon(h)).FontSize(12).TextColor(theme.Muted)
-				ui.Text(c, h.Name).FontSize(11.5).TextColor(theme.TextSoft).SingleLine().Shrink(1)
+			ui.Row(c).FillWidth().Gap(theme.S2).Padding(theme.S1, theme.S3).TextColor(theme.TextSoft).Children(func() {
+				ui.Icon(c, hostIcon(h)).FontSize(12)
+				widget.Running(c, h.Name, widget.RunStyle{Size: theme.TextLabel})
 			})
 			for _, s := range liveSessions(st, a.filter, a) {
 				a.otherSessionRow(c.Key(s.ID), h, s)
@@ -406,16 +391,15 @@ func liveSessions(st hostStatus, filter string, a *App) []proto.SessionInfo {
 // to h and shows it.
 func (a *App) otherSessionRow(c *ui.Context, h hosts.Host, s proto.SessionInfo) {
 	st := statusOf(s)
-	row := ui.ButtonBase(c).FillWidth().Height(30).PaddingX(10).Gap(8).Radius(theme.RadiusControl).
+	row := ui.ButtonBase(c).FillWidth().Height(theme.ControlHeight).PaddingX(theme.S3).Gap(theme.S2).Radius(theme.RadiusFull).
 		Justify(ui.Start).Cursor(ui.CursorPointer).Label(a.sessionName(s) + " on " + h.Name)
 	if row.Hovered() {
 		row.Background(theme.Hover)
 	}
 	row.Children(func() {
-		widget.Dot(c, st.color, st.hollow, 7)
-		ui.Text(c, a.sessionName(s)).FontSize(12).SingleLine().Shrink(1)
-		ui.Spacer(c)
-		ui.Text(c, st.label).FontSize(10.5).TextColor(st.color).SingleLine()
+		ui.Row(c).Grow(1).MinWidth(0).Children(func() { widget.Running(c, a.sessionName(s), widget.RunStyle{}) })
+		ui.Text(c, st.label).FontSize(theme.TextLabel).TextColor(st.color).SingleLine().Shrink(0)
+		widget.Dot(c, st.color, st.hollow, 8)
 	})
 	if row.Clicked() {
 		a.openSession = s.ID

@@ -5,6 +5,7 @@ import (
 	"math"
 	"slices"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/egoist/mygo/plugins/terminal"
@@ -21,11 +22,19 @@ import (
 
 // headerHeight is the height of every view's top bar, so the breadcrumbs
 // of the rail's views line up.
-const headerHeight = 44
+const headerHeight = 56
 
 // minWorkspaceWidth keeps the session readable: the side panel narrows,
 // down to its own minimum, before the workspace does.
 const minWorkspaceWidth = 400
+
+// With the panel beside them, the Notes and Canvas pages narrow first, down to
+// these: what is left of the smallest window beside the list and the panels,
+// and on Notes room for its agent, which keeps its width inside the frame.
+const (
+	minNotesWidth  = 480
+	minCanvasWidth = 270
+)
 
 // The window's smallest size: the wide rail, the session list, the
 // workspace and the side panel at their narrowest, with the gaps between.
@@ -49,6 +58,9 @@ func (a *App) workspace(c *ui.Context) {
 	if a.page != pageHosts {
 		a.hostsPageShown = false
 	}
+	if a.page != pageTeam {
+		a.leftTeamPage()
+	}
 	if a.page != pageTeamHost && a.visit != nil {
 		a.closeVisit() // left the shared host
 	}
@@ -57,21 +69,31 @@ func (a *App) workspace(c *ui.Context) {
 	view := "page:" + a.page
 	if a.page == "" {
 		view = "session:" + a.selected
-		if a.goaOn() && a.goa.shown != "" {
-			view = "goa-tab:" + a.goa.shown
-		}
 		if a.splitOn() {
 			view = "split:" + a.project
 		}
 	}
-	widget.Bento(ui.Column(c.Key("workspace")).Grow(1).FillHeight().MinWidth(minWorkspaceWidth), theme.Background).
-		Transition(widget.LayoutMotion).Children(func() {
-		if a.goaOn() {
-			a.goaNav(c) // GOD of Agents' way to the pages (goa_view.go)
-			a.goaTabs(c)
+	frame := ui.Column(c.Key("workspace")).Grow(1).FillHeight().MinWidth(minWorkspaceWidth)
+	if a.pageHasDock() && a.panelShown() {
+		frame.Basis(0).MinWidth(minCanvasWidth)
+		if a.page == pageNotes {
+			frame.MinWidth(minNotesWidth)
 		}
-		ui.Column(c.Key(view)).Grow(1).FillWidth().MinHeight(0).Transition(widget.PageMotion).Children(func() { a.workspaceView(c) })
+	}
+	widget.SheetPage = a.pageIsSheet()
+	widget.SheetFrame(frame).Transition(widget.LayoutMotion).Children(func() {
+		widget.PageGap(ui.Column(c.Key(view)).Grow(1).FillWidth().MinHeight(0).Transition(widget.PageMotion)).Children(func() { a.workspaceView(c) })
 	})
+}
+
+// pageIsSheet says the page shown is a header over sections, which in a style of
+// tiles are tiles themselves. Notes, Canvas and sessions keep their one frame.
+func (a *App) pageIsSheet() bool {
+	switch a.page {
+	case pageSettings, pageAppearance, pageUsage, pageHosts, pageSync, pageCredits:
+		return true
+	}
+	return false
 }
 
 // workspaceView fills the workspace with what it shows now.
@@ -97,6 +119,9 @@ func (a *App) workspaceView(c *ui.Context) {
 		return
 	case a.page == pageCanvas && a.client != nil:
 		a.canvasPage(c)
+		return
+	case a.page == pageTeam && a.client != nil:
+		a.teamPage(c)
 		return
 	case a.page == pageTeamHost && a.visit != nil:
 		a.teamHostPage(c)
@@ -124,7 +149,7 @@ func (a *App) workspaceView(c *ui.Context) {
 	}
 	p, ok := a.currentProject()
 	if !ok {
-		a.viewHeader(c, func() { widget.Breadcrumb(c, a.host.Name, "Start") })
+		widget.PageHeader(c, "Start", a.host.Name, nil)
 		a.emptyState(c, "Open a folder to start", "Each folder is a project. Sessions run in it or in their own git worktrees.", "Open folder", a.openFolder)
 		return
 	}
@@ -134,13 +159,13 @@ func (a *App) workspaceView(c *ui.Context) {
 	}
 	if len(sessions) > 0 && a.selected == "" && a.emptyProject == p.Path {
 		// A session an agent started here doesn't take the user there.
-		a.viewHeader(c, func() { widget.Breadcrumb(c, a.host.Name, p.Name) })
+		widget.PageHeader(c, p.Name, a.host.Name, nil)
 		a.emptyState(c, "Pick a session of "+p.Name, "It has sessions now: they're in the list.", "New session", func() { a.openNewSession(p) })
 		return
 	}
 	if len(sessions) == 0 {
 		a.emptyProject = p.Path
-		a.viewHeader(c, func() { widget.Breadcrumb(c, a.host.Name, p.Name) })
+		widget.PageHeader(c, p.Name, a.host.Name, nil)
 		a.emptyState(c, "No sessions in "+p.Name, "Start an agent or a shell. On a git project it can get its own branch and worktree.", "New session", func() { a.openNewSession(p) })
 		return
 	}
@@ -166,8 +191,8 @@ func (a *App) focused(sessions []proto.SessionInfo) proto.SessionInfo {
 
 // viewHeader is the top bar of a view; fn fills it, breadcrumb first.
 func (a *App) viewHeader(c *ui.Context, fn func()) {
-	ui.Row(c).Height(headerHeight).Shrink(0).FillWidth().PaddingX(14).Gap(8).
-		BorderWidth(0, 0, 1, 0).BorderColor(theme.Border).Children(fn)
+	ui.Row(c).Height(headerHeight).Shrink(0).FillWidth().Padding(0, theme.S4, 0, theme.S5).Gap(theme.S3).
+		BorderWidth(0, 0, theme.Rule, 0).BorderColor(theme.Border).Children(fn)
 }
 
 // sessionsHidden reports whether the sidebar gives way: to a maximized
@@ -187,44 +212,104 @@ func (a *App) emptyState(c *ui.Context, title, body, action string, do func()) {
 	})
 }
 
-// focusView shows one session: its header, a strip of facts, then its
-// terminal or chat.
+// focusView shows one session: its title and what it is, its terminal's tabs
+// while the terminal shows, what stands out about it, then its terminal or
+// chat.
 func (a *App) focusView(c *ui.Context, p proto.ProjectInfo, s proto.SessionInfo) {
 	if a.selected == "" {
 		a.selected = s.ID
 	}
+	front := a.frontTab(s)
 	a.viewHeader(c, func() {
-		crumbs := ui.Row(c.Key("crumbs")).Grow(1).MinWidth(0)
-		crumbs.Children(func() {
-			// Narrow, the session's name alone, whole rather than three cut.
-			if w := crumbs.LayoutBounds().W; w > 0 && w < narrowCrumbs {
-				widget.Breadcrumb(c, a.sessionName(s))
-				return
-			}
-			widget.Breadcrumb(c, a.host.Name, p.Name, a.sessionName(s))
+		ui.Row(c.Key("title")).Grow(1).MinWidth(0).Gap(theme.S3).Children(func() {
+			// The frame keeps its width: the title runs when it can't fit, and
+			// the facts give way first.
+			ui.Row(c).MinWidth(0).Shrink(1).Children(func() {
+				widget.Running(c, a.sessionName(s), widget.RunStyle{Size: theme.TextTitle, Weight: 600, Always: true})
+			})
+			ui.Row(c).MinWidth(0).Shrink(100).Children(func() {
+				t := widget.Running(c.Key("facts"), a.sessionFactsLine(front), widget.RunStyle{Color: theme.TextSoft})
+				t.Tooltip(a.sessionFactsTip(front))
+			})
 		})
 		a.sessionPresence(c, s)
-		a.viewToggle(c, a.frontTab(s))
-		if len(a.projectSessions(p.Path)) > 1 && a.maximized == "" &&
-			widget.IconButton(c, icon.Split, "Show "+p.Name+"'s sessions side by side", false).Clicked() {
-			a.setSplit(true)
-		}
-		svg, label := icon.Maximize, "Maximize ("+modKey+"⇧↩)"
-		if a.maximized != "" {
-			svg, label = icon.Restore, "Restore ("+modKey+"⇧↩)"
-		}
-		if widget.IconButton(c, svg, label, a.maximized != "").Clicked() {
-			a.toggleMaximized(s.ID)
-		}
+		a.viewToggle(c, front)
 		more := widget.IconButton(c, icon.More, "More", false)
-		a.menu.OpenBelow(more, "more:"+s.ID, 24)
+		a.menu.OpenBelow(more, "more:"+s.ID, theme.ControlHeight)
 		a.menu.Show(c, more, "more:"+s.ID, func(done func()) { a.sessionMenuItems(c, s, done) })
-		a.panelButton(c)
 	})
 	a.tabStrip(c, s)
-	front := a.frontTab(s)
-	a.factStrip(c, front)
+	if tab := a.centerFront(s); tab != "" {
+		a.centerBody(c, s, tab)
+		return
+	}
+	a.sessionBanner(c, front)
 	a.sessionBody(c.Key("front:"+front.ID), front)
+}
+
+// sessionFactsLine is what a session's header says after its title: its agent,
+// branch and tokens.
+func (a *App) sessionFactsLine(s proto.SessionInfo) string {
+	parts := []string{a.agentName(s.Agent)}
+	if s.Branch != "" {
+		parts = append(parts, s.Branch)
+	}
+	if t, ok := a.sessionTokens(s.ID); ok {
+		parts = append(parts, tokenview.Spent(t))
+	}
+	return strings.Join(parts, " · ")
+}
+
+// sessionFactsTip is the rest, on hover: state, where it runs, its age, and
+// what it uses.
+func (a *App) sessionFactsTip(s proto.SessionInfo) string {
+	parts := []string{statusOf(s).label}
+	switch {
+	case s.Worktree && s.Branch != "":
+		parts = append(parts, s.Branch+" · worktree")
+	case s.Branch != "":
+		parts = append(parts, s.Branch+" · project folder")
+	}
+	if !s.Created.IsZero() {
+		parts = append(parts, textfmt.Age(s.Created, time.Now()))
+	}
+	if t, ok := a.sessionTokens(s.ID); ok {
+		parts = append(parts, tokenview.SpentTip(t))
+	}
+	if u, ok := a.usage.Session(s.ID); ok {
+		parts = append(parts, fmt.Sprintf("%s · %s · %d %s", textfmt.Bytes(u.RSS), textfmt.CPU(u.CPU), u.Procs, textfmt.Plural(u.Procs, "process", "processes")))
+	}
+	return strings.Join(parts, "\n")
+}
+
+// sessionBanner says what stands out about a session: it skips permission
+// prompts, its time budget, or why it ended, with the way to go on.
+func (a *App) sessionBanner(c *ui.Context, s proto.SessionInfo) {
+	text, col := "", theme.Warning
+	if s.SkipPermissions {
+		text = "Skips permission prompts"
+	}
+	if t, tc := budgetFact(s); t != "" {
+		text, col = t, tc
+	}
+	can := canContinue(s)
+	if s.ExitWhy != "" {
+		text, col = s.ExitWhy, theme.Error
+	} else if can && text == "" {
+		text, col = statusOf(s).label, statusOf(s).color
+	}
+	if text == "" {
+		return
+	}
+	ui.Row(c.Key("banner")).Shrink(0).FillWidth().Padding(theme.S3, theme.S5, 0, theme.S5).Children(func() {
+		ui.Row(c).Grow(1).MinWidth(0).Height(40).Padding(0, theme.S1, 0, theme.S4).Gap(theme.S2).Radius(theme.RadiusFull).
+			Background(theme.Fade(col, 0.14)).Children(func() {
+			ui.Row(c).Grow(1).MinWidth(0).Children(func() { widget.Running(c, text, widget.RunStyle{}) })
+			if can && widget.GhostButton(c, "Continue").Clicked() {
+				a.continueSession(s)
+			}
+		})
+	})
 }
 
 // viewToggle switches a session between its terminal and its chat, for
@@ -234,79 +319,18 @@ func (a *App) viewToggle(c *ui.Context, s proto.SessionInfo) {
 	if len(views) < 2 {
 		return
 	}
-	if i := widget.Segmented(c.Key("view"), views, slices.Index(views, a.currentView(s)), nil); i >= 0 {
+	// With a viewer in front, neither is lit: picking one comes back to it.
+	current := slices.Index(views, a.currentView(s))
+	if a.centerFront(s) != "" {
+		current = -1
+	}
+	if i := widget.Segmented(c.Key("view"), views, current, nil); i >= 0 {
+		a.centerOf(a.parentOf(s).ID).front = ""
 		a.showView(s, views[i])
 	}
 }
 
 func canChat(s proto.SessionInfo) bool { return chatview.Supported(s) }
-
-// narrowCrumbs is the breadcrumb's room under which it shows the
-// session's name alone.
-const narrowCrumbs = 260
-
-// narrowFacts is the fact strip's width under which it leaves out what
-// the tab and the header say.
-const narrowFacts = 560
-
-// factStrip is the line under a focused session's header: its state,
-// agent, branch, age and what it uses.
-func (a *App) factStrip(c *ui.Context, s proto.SessionInfo) {
-	st := statusOf(s)
-	strip := ui.Row(c.Key("facts")).Height(30).Shrink(0).FillWidth().PaddingX(14).Gap(14).Background(theme.Panel).
-		BorderWidth(0, 0, 1, 0).BorderColor(theme.Border)
-	// Narrow, as beside the side panel: the facts the tab or the header
-	// already tell give way, so the others read whole.
-	narrow := strip.LayoutBounds().W > 0 && strip.LayoutBounds().W < narrowFacts
-	strip.Children(func() {
-		ui.Row(c).Gap(6).Children(func() {
-			widget.Dot(c, st.color, st.hollow, 7)
-			ui.Text(c, st.label).FontSize(11.5).TextColor(st.color).SingleLine()
-		})
-		fact := func(text string, col ui.Color) {
-			ui.Text(c, text).FontSize(11.5).TextColor(col).SingleLine().Shrink(1)
-		}
-		if !narrow {
-			fact(a.agentName(s.Agent), theme.TextSoft)
-		}
-		switch {
-		case s.Worktree && s.Branch != "":
-			ui.Text(c, s.Branch+" · worktree").Font(theme.MonoFont).FontSize(11).TextColor(theme.Muted).SingleLine().Shrink(1)
-		case s.Branch != "":
-			ui.Text(c, s.Branch+" · project folder").Font(theme.MonoFont).FontSize(11).TextColor(theme.Muted).SingleLine().Shrink(1)
-		}
-		if !s.Created.IsZero() && !narrow {
-			fact(textfmt.Age(s.Created, time.Now()), theme.Muted)
-		}
-		if s.SkipPermissions {
-			if narrow {
-				fact("skips prompts", theme.Warning)
-			} else {
-				fact("skips permission prompts", theme.Warning)
-			}
-		}
-		if text, col := budgetFact(s); text != "" {
-			fact(text, col)
-		}
-		if s.ExitWhy != "" {
-			ui.Text(c.Key("exit-why"), s.ExitWhy).FontSize(11).TextColor(theme.Error).SingleLine().Shrink(1).Tooltip(s.ExitWhy)
-		}
-		ui.Spacer(c)
-		if t, ok := a.sessionTokens(s.ID); ok {
-			ui.Text(c.Key("tokens"), tokenview.Spent(t)).FontSize(11.5).TextColor(theme.Muted).SingleLine().Shrink(1).Tooltip(tokenview.SpentTip(t))
-		}
-		if canContinue(s) && widget.GhostButton(c, "Continue").Height(22).Clicked() {
-			a.continueSession(s)
-		}
-		if u, ok := a.usage.Session(s.ID); ok {
-			if narrow {
-				fact(textfmt.Bytes(u.RSS), theme.Muted)
-			} else {
-				fact(fmt.Sprintf("%s · %s · %d %s", textfmt.Bytes(u.RSS), textfmt.CPU(u.CPU), u.Procs, textfmt.Plural(u.Procs, "process", "processes")), theme.Muted)
-			}
-		}
-	})
-}
 
 // sessionBody is a session's chat or terminal, filling what is left.
 func (a *App) sessionBody(c *ui.Context, s proto.SessionInfo) {
@@ -318,7 +342,7 @@ func (a *App) sessionBody(c *ui.Context, s proto.SessionInfo) {
 	case a.showsChat(s.ID):
 		a.chatView(c.Key("chat"), s)
 	case p != nil:
-		v := terminal.View(c.Key("term"), p.term).Grow(1).FillWidth()
+		v := terminal.View(c.Key("term"), p.term).Grow(1).FillWidth().Background(theme.TermGround).Padding(theme.S2, theme.S4)
 		if text, ok := widget.TakeTextDrag(v); ok {
 			p.term.Paste(text + " ")
 			v.Focus()
@@ -328,7 +352,7 @@ func (a *App) sessionBody(c *ui.Context, s proto.SessionInfo) {
 		}
 	default:
 		ui.Column(c).Grow(1).FillWidth().Center().Children(func() {
-			ui.Text(c, "Connecting…").TextColor(theme.Muted)
+			ui.Text(c, "Connecting…").TextColor(theme.TextSoft)
 		})
 	}
 }
@@ -341,7 +365,9 @@ func (a *App) splitView(c *ui.Context, p proto.ProjectInfo, all []proto.SessionI
 	l := a.layout()
 	a.viewHeader(c, func() {
 		ui.Row(c).Grow(1).MinWidth(0).Children(func() {
-			widget.Breadcrumb(c, a.host.Name, p.Name, fmt.Sprintf("Split · %d sessions", len(sessions)))
+			widget.Running(c, p.Name, widget.RunStyle{Size: theme.TextTitle, Weight: 600, Always: true})
+			ui.Box(c).Width(theme.S3).Shrink(0)
+			widget.Running(c.Key("facts"), fmt.Sprintf("Side by side · %d sessions", len(sessions)), widget.RunStyle{Color: theme.TextSoft})
 		})
 		if left := len(all) - len(sessions); left > 0 &&
 			widget.Button(c, widget.Secondary, nil, fmt.Sprintf("Show %d more", left), "").Clicked() {
@@ -358,7 +384,6 @@ func (a *App) splitView(c *ui.Context, p proto.ProjectInfo, all []proto.SessionI
 		if widget.IconButton(c, icon.Split, "Show one session", true).Clicked() {
 			a.setSplit(false)
 		}
-		a.panelButton(c)
 	})
 	cols := l.Columns
 	if cols <= 0 {
@@ -370,8 +395,7 @@ func (a *App) splitView(c *ui.Context, p proto.ProjectInfo, all []proto.SessionI
 	for i := range tracks {
 		tracks[i] = ui.Fr(1)
 	}
-	ui.Grid(c).Grow(1).FillWidth().Columns(cols).RowTracks(tracks...).Gap(1).
-		Background(theme.Border).Children(func() {
+	ui.Grid(c).Grow(1).FillWidth().Columns(cols).RowTracks(tracks...).Gap(theme.S2).Padding(theme.S2).Children(func() {
 		for _, s := range sessions {
 			a.splitPane(c.Key(s.ID), s)
 		}
@@ -383,18 +407,18 @@ func (a *App) splitView(c *ui.Context, p proto.ProjectInfo, all []proto.SessionI
 func (a *App) splitPane(c *ui.Context, s proto.SessionInfo) {
 	st := statusOf(s)
 	active := s.ID == a.selected
-	ui.Column(c).MinHeight(0).MinWidth(0).Clip().Background(theme.Background).Children(func() {
-		head := ui.Row(c).Height(34).Shrink(0).FillWidth().PaddingX(10).Gap(8).
-			Background(theme.Panel).BorderWidth(0, 0, 1, 0).BorderColor(theme.Border)
-		if active {
-			head.BorderWidth(2, 0, 1, 0).BorderColor(theme.Accent)
-		}
+	pane := ui.Column(c).MinHeight(0).MinWidth(0).Radius(theme.RadiusCard).Clip().Background(theme.Sunken)
+	if active {
+		pane.Border(2, theme.Now)
+	}
+	pane.Children(func() {
+		head := ui.Row(c).Height(44).Shrink(0).FillWidth().Padding(0, theme.S2, 0, theme.S4).Gap(theme.S2)
 		head.Children(func() {
-			title := ui.ButtonBase(c).Grow(1).Gap(8).MinWidth(0).Justify(ui.Start).Cursor(ui.CursorPointer).Label(a.sessionName(s))
+			title := ui.ButtonBase(c).Grow(1).Gap(theme.S2).MinWidth(0).Justify(ui.Start).Cursor(ui.CursorPointer).Label(a.sessionName(s))
 			title.Children(func() {
-				widget.Dot(c, st.color, st.hollow, 7)
-				ui.Text(c, a.sessionName(s)).FontSize(12).SingleLine().Shrink(1)
-				ui.Text(c, a.agentName(s.Agent)).FontSize(11).TextColor(theme.Muted).SingleLine().Shrink(1)
+				widget.Dot(c, st.color, st.hollow, 8)
+				widget.Running(c, a.sessionName(s), widget.RunStyle{Weight: 500})
+				widget.Running(c.Key("agent"), a.agentName(s.Agent), widget.RunStyle{Color: theme.TextSoft})
 			})
 			if title.Clicked() {
 				a.selectSession(s)
@@ -405,7 +429,7 @@ func (a *App) splitPane(c *ui.Context, s proto.SessionInfo) {
 				a.setSplit(false)
 			}
 			more := widget.IconButton(c, icon.More, "More", false)
-			a.menu.OpenBelow(more, "more:"+s.ID, 24)
+			a.menu.OpenBelow(more, "more:"+s.ID, theme.ControlHeight)
 			a.menu.Show(c, more, "more:"+s.ID, func(done func()) { a.sessionMenuItems(c, s, done) })
 		})
 		a.sessionBody(c, s)

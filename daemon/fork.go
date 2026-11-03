@@ -58,6 +58,7 @@ func (s *Server) forkSession(p proto.SessionForkParams) (proto.SessionInfo, erro
 	}
 	c := proto.SessionCreateParams{Agent: info.Agent, Project: info.Project, Dir: info.Dir, Name: nonEmpty(info.Name, agentName(info.Agent)) + " (fork)",
 		BranchMode: proto.BranchNone, Resume: convo, Fork: true, SkipPermissions: info.SkipPermissions,
+		Model: info.Model, Effort: info.Effort, Mode: meta.Mode,
 		Account: meta.Account, Creds: meta.Creds, Cols: 120, Rows: 40}
 	if info.Worktree {
 		c.BranchMode, c.Branch = proto.BranchExisting, info.Branch

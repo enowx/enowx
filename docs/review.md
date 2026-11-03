@@ -16,7 +16,7 @@ A session in its own worktree is compared with the branch the project folder has
 | Push | there is a remote, and the branch isn't pushed or is ahead of it | `git push --set-upstream <remote> <branch>` |
 | Pull request… | `gh` is installed, there is a remote, and the branch has commits its base doesn't | a push, then `gh pr create --head <branch> --base <base>`, with `--fill` when the title is empty; the pull request opens in the browser |
 | Merge into *base* | the session is in a worktree, its changes are committed, and the project folder has *base* checked out with nothing uncommitted | `git merge --no-ff` in the project folder; a merge that conflicts is undone (`git merge --abort`) |
-| Discard worktree… | the session is in a worktree enowX made | ends the sessions in it, `git worktree remove --force`, and `git branch -D` unless unticked |
+| Discard the worktree… | the session is in a worktree enowX made | ends the sessions in it, `git worktree remove --force`, and `git branch -D` unless unticked |
 
 Every action is also in the command palette (`⌘K`). Commands that talk to a remote never ask for credentials, which nobody would see: `GIT_TERMINAL_PROMPT=0`, `GH_PROMPT_DISABLED=1` and SSH in batch mode. Set up the remote's credentials (an SSH key, `gh auth login`) on the host once. They give up after 2 minutes, and run beside the daemon's other requests, so typing and the chat don't wait for them.
 

@@ -3,6 +3,7 @@ package ui
 import (
 	"fmt"
 	"slices"
+	"strconv"
 	"strings"
 
 	"github.com/egoist/mygo/ui"
@@ -16,65 +17,103 @@ import (
 	"github.com/enowx/enowx/ui/widget"
 )
 
-// sessionsBody is the Sessions list: its head (the host's count, adding a
-// project, New, the filter) and the projects with their sessions.
+// sessionsBody is the Sessions list: how it is arranged, folding it, and the
+// sessions by state or by project.
 func (a *App) sessionsBody(c *ui.Context) {
-	ui.Column(c).FillWidth().Padding(8, 10, 10, 10).Gap(8).BorderWidth(0, 0, 1, 0).BorderColor(theme.Border).Children(func() {
-		ui.Row(c).FillWidth().Height(32).Gap(6).Children(func() {
-			ui.Column(c).Gap(0).Grow(1).MinWidth(0).Children(func() {
-				ui.Text(c, "Sessions").FontSize(12.5).SingleLine()
-				_, state := a.connectionState()
-				if a.client != nil {
-					state = fmt.Sprintf("%s · %d %s", a.host.Name, len(a.sessions), textfmt.Plural(len(a.sessions), "session", "sessions"))
-				}
-				ui.Text(c, state).FontSize(10.5).TextColor(theme.Muted).SingleLine().Shrink(1)
-			})
-			add := widget.IconButton(c, icon.FolderPlus, "Add a project: open a folder or clone from Git", false)
-			a.menu.OpenBelow(add, "add-project", 28)
-			a.menu.Show(c, add, "add-project", func(done func()) {
-				if widget.MenuItem(c, icon.FolderPlus, "Open folder… ("+modKey+"O)", false) {
-					a.openFolder()
-					done()
-				}
-				if widget.MenuItem(c, icon.Git, "Clone from Git…", false) {
-					a.openClone()
-					done()
-				}
-			})
-			p, ok := a.currentProject()
-			b := widget.Button(c, widget.Primary, icon.Plus, "New", "").Height(28).PaddingX(10).Tooltip("New session (" + modKey + "N)")
-			if !ok {
-				b.Disabled(true).Opacity(0.45)
-			} else if b.Clicked() {
-				a.openNewSession(p)
+	ui.Row(c).FillWidth().Shrink(0).Padding(theme.S2, theme.S2, 0, theme.S2).Gap(theme.S1).Children(func() {
+		ui.Row(c).Grow(1).MinWidth(0).Children(func() {
+			current := 0
+			if a.state.SessionsByProject {
+				current = 1
+			}
+			if i := widget.SegmentedFill(c.Key("list-mode"), []string{"Sessions only", "By project"}, current); i >= 0 {
+				a.state.SessionsByProject = i == 1
 			}
 		})
-		widget.SearchField(c, &a.filter, "Filter sessions", icon.Search)
+		if widget.IconButton(c, icon.Sidebar, "Collapse the sidebar ("+modKey+"B)", false).Clicked() {
+			a.state.RailWide = false
+		}
 	})
-
 	ui.Scroll(c).Grow(1).FillWidth().Children(func() {
-		ui.Column(c).FillWidth().Padding(8).Gap(2).Children(func() {
+		ui.Column(c).FillWidth().Padding(theme.S1, widget.ScrollGutter, theme.S2, theme.S2).Children(func() {
 			if len(a.projects) == 0 {
 				msg := "No projects yet. Open a folder to start."
 				if a.client == nil {
 					msg = "Not connected."
 				}
-				ui.Text(c, msg).FontSize(12).TextColor(theme.Muted).Padding(6)
+				ui.Text(c, msg).FontSize(theme.TextUI).TextColor(theme.TextSoft).Padding(theme.S2, theme.S3)
 			}
-			shown := 0
-			for _, e := range a.projectEntries() {
-				if e.group != "" {
-					shown += a.groupSection(c.Key("group:"+e.group), e)
-				} else if a.projectGroup(c.Key(e.projects[0].Path), e.projects[0]) {
-					shown++
-				}
-			}
-			if a.filter != "" && shown == 0 && len(a.projects) > 0 {
-				ui.Text(c, "Nothing matches.").FontSize(12).TextColor(theme.Muted).Padding(6)
+			if a.state.SessionsByProject {
+				a.sessionsByProject(c)
+			} else {
+				a.sessionsByState(c)
 			}
 			a.otherHostsSessions(c)
 		})
 	})
+}
+
+// sessionsByProject is the list by project: a parent row each, its sessions
+// nested under it.
+func (a *App) sessionsByProject(c *ui.Context) {
+	shown := 0
+	for _, e := range a.projectEntries() {
+		if e.group != "" {
+			shown += a.groupSection(c.Key("group:"+e.group), e)
+		} else if a.projectGroup(c.Key(e.projects[0].Path), e.projects[0]) {
+			shown++
+		}
+	}
+	if a.filter != "" && shown == 0 && len(a.projects) > 0 {
+		ui.Text(c, "Nothing matches.").FontSize(theme.TextUI).TextColor(theme.TextSoft).Padding(theme.S2, theme.S3)
+	}
+}
+
+// stateGroups are the groups of the list by state, in the order they matter.
+var stateGroups = []struct {
+	label string
+	has   func(proto.SessionInfo) bool
+}{
+	{"Waiting on you", func(s proto.SessionInfo) bool { return !s.Exited && s.State == proto.StateWaiting }},
+	{"Working", isWorking},
+	{"Failed", sessionFailed},
+	{"Done", sessionDone},
+	{"Idle", func(proto.SessionInfo) bool { return true }},
+}
+
+// sessionFailed says s ended with an error.
+func sessionFailed(s proto.SessionInfo) bool { return statusOf(s).color == theme.Error }
+
+// sessionDone says s has ended well, or its agent finished its turn.
+func sessionDone(s proto.SessionInfo) bool {
+	return statusOf(s).label == "done"
+}
+
+// sessionsByState is the list by state: every project's sessions together,
+// each row naming its project quietly.
+func (a *App) sessionsByState(c *ui.Context) {
+	placed := map[string]bool{}
+	for _, g := range stateGroups {
+		var list []proto.SessionInfo
+		var names []string
+		for _, e := range a.projectEntries() {
+			for _, p := range e.projects {
+				for _, s := range a.projectSessions(p.Path) {
+					if !placed[s.ID] && g.has(s) {
+						placed[s.ID] = true
+						list, names = append(list, s), append(names, p.Name)
+					}
+				}
+			}
+		}
+		if len(list) == 0 {
+			continue
+		}
+		widget.SectionLabel(c.Key("state:"+g.label), g.label, theme.TextSoft).Padding(theme.S3, theme.S3, theme.S1, theme.S3)
+		for i, s := range list {
+			a.sessionRow(c.Key(s.ID), i, s, names[i])
+		}
+	}
 }
 
 // projectGroup draws a project and its sessions, and reports whether it
@@ -91,8 +130,8 @@ func (a *App) projectGroup(c *ui.Context, p proto.ProjectInfo) bool {
 	open := filtering || !a.collapsed[p.Path]
 	selected := p.Path == a.project
 
-	ui.Row(c).Height(28).FillWidth().Gap(4).Margin(6, 0, 0, 0).Children(func() {
-		row := ui.ButtonBase(c).Grow(1).Height(28).PaddingX(4).Gap(6).Radius(6).Cursor(ui.CursorPointer).Label(p.Name)
+	ui.Row(c).Height(theme.ControlHeight).FillWidth().Margin(theme.S1, 0, 0, 0).Children(func() {
+		row := ui.ButtonBase(c).Grow(1).MinWidth(0).Height(theme.ControlHeight).PaddingX(theme.S2).Gap(theme.S1).Radius(theme.RadiusFull).Justify(ui.Start).Cursor(ui.CursorPointer).Label(p.Name)
 		row.Drag(listDrag{path: p.Path})
 		a.dropOnProject(row, p)
 		if row.Hovered() {
@@ -103,14 +142,20 @@ func (a *App) projectGroup(c *ui.Context, p proto.ProjectInfo) bool {
 			if open {
 				chev = icon.ChevronDown
 			}
-			ui.Icon(c, chev).FontSize(11).TextColor(theme.Muted)
-			name := widget.SectionLabel(c, strings.ToUpper(p.Name), theme.Muted).Shrink(1)
+			ui.Icon(c, chev).FontSize(12).TextColor(theme.TextSoft)
+			col := theme.TextSoft
 			if selected {
-				name.TextColor(theme.TextSoft)
+				col = theme.TextStrong
 			}
+			ui.Row(c).MinWidth(0).Shrink(1).Children(func() {
+				widget.Running(c, p.Name, widget.RunStyle{Weight: 500, Color: col})
+			})
 			a.teamProjectMark(c, p.Path)
 			ui.Spacer(c)
-			ui.Text(c, summary(sessions)).FontSize(10.5).TextColor(theme.Muted).SingleLine()
+			if !open {
+				a.projectSignal(c, sessions)
+			}
+			ui.Text(c, strconv.Itoa(len(sessions))).FontSize(theme.TextLabel).TextColor(theme.TextSoft).SingleLine().Shrink(0)
 		})
 		if row.Clicked() {
 			if selected || filtering {
@@ -125,35 +170,69 @@ func (a *App) projectGroup(c *ui.Context, p proto.ProjectInfo) bool {
 		a.menu.Open(row, "project:"+p.Path)
 		a.menu.Show(c, row, "project:"+p.Path, func(done func()) { a.projectMenuItems(c, p, done) })
 		if n := a.linkConflictCount(p.Path); n > 0 {
-			warn := widget.IconButton(c, icon.Alert, fmt.Sprintf("%d file(s) in conflict with its other copies: pick versions", n), false)
+			warn := smallIcon(c, icon.Alert, fmt.Sprintf("%d file(s) in conflict with its other copies: pick versions", n))
 			warn.TextColor(theme.Warning)
 			if warn.Clicked() {
 				a.openLinks(p)
 			}
 		}
-		more := widget.IconButton(c, icon.More, "More for "+p.Name, false)
-		a.menu.OpenBelow(more, "project-more:"+p.Path, 28)
-		a.menu.Show(c, more, "project-more:"+p.Path, func(done func()) { a.projectMenuItems(c, p, done) })
-		if widget.IconButton(c, icon.Plus, "New session in "+p.Name, false).Clicked() {
+		if smallIcon(c, icon.Plus, "New session in "+p.Name).Clicked() {
 			a.openNewSession(p)
 		}
 	})
 	if !open {
 		return true
 	}
-	if !filtering {
-		a.pipelineCards(c, p)
-	}
-	if len(sessions) == 0 {
-		ui.Text(c, "No sessions yet").FontSize(11).TextColor(theme.Muted).Padding(4, 8, 4, 22)
-	}
-	for i, s := range sessions {
-		a.sessionRow(c.Key(s.ID), i, s)
-	}
-	if !filtering {
-		a.projectNotesRow(c, p)
-	}
+	ui.Column(c.Key("kids:"+p.Path)).FillWidth().Padding(0, 0, 0, theme.S4).Children(func() {
+		if !filtering {
+			a.pipelineCards(c, p)
+		}
+		if len(sessions) == 0 {
+			ui.Text(c, "No sessions yet").FontSize(theme.TextLabel).TextColor(theme.TextSoft).Padding(theme.S1, theme.S3)
+		}
+		for i, s := range sessions {
+			a.sessionRow(c.Key(s.ID), i, s, "")
+		}
+		if !filtering {
+			a.projectNotesRow(c, p)
+		}
+	})
 	return true
+}
+
+// smallIcon is the 24-DIP round button of a list's row.
+func smallIcon(c *ui.Context, svg *ui.SVG, label string) ui.Element {
+	b := ui.ButtonBase(c).Size(24, 24).Radius(theme.RadiusFull).Center().Shrink(0).Label(label).Tooltip(label).Cursor(ui.CursorPointer).TextColor(theme.TextSoft)
+	if b.Hovered() {
+		b.Background(theme.Hover).TextColor(theme.Text)
+	}
+	b.Children(func() { ui.Icon(c, svg).FontSize(12) })
+	return b
+}
+
+// projectSignal says what a folded project's sessions need: those waiting or
+// failed, what the row keeps in sight while they are out of it.
+func (a *App) projectSignal(c *ui.Context, sessions []proto.SessionInfo) {
+	waiting, failed := 0, 0
+	for _, s := range sessions {
+		switch {
+		case !s.Exited && s.State == proto.StateWaiting:
+			waiting++
+		case sessionFailed(s):
+			failed++
+		}
+	}
+	signal := func(n int, col ui.Color, word string) {
+		if n == 0 {
+			return
+		}
+		ui.Row(c).Gap(theme.S1).Shrink(0).Children(func() {
+			widget.Dot(c, col, false, 8)
+			ui.Text(c, strconv.Itoa(n)+" "+word).FontSize(theme.TextLabel).FontWeight(400).SingleLine()
+		})
+	}
+	signal(waiting, theme.Warning, "waiting")
+	signal(failed, theme.Error, "failed")
 }
 
 // projectMenuItems are a project's menu: its right-click menu and its
@@ -236,13 +315,13 @@ func (a *App) removeProjectDialog(c *ui.Context) {
 	if running > 0 {
 		msg := fmt.Sprintf("%d %s still running in it. Delete %s first.", running,
 			textfmt.Plural(running, "session is", "sessions are"), textfmt.Plural(running, "it", "them"))
-		if ui.AlertDialog(c, &open, "Can't remove “"+p.Name+"” yet", msg, "OK") != -1 || !open {
+		if widget.AlertDialog(c, &open, "Can't remove “"+p.Name+"” yet", msg, "OK") != -1 || !open {
 			a.removing = nil
 		}
 		return
 	}
 	msg := "The folder and its worktrees stay on disk. Open it again to bring it back."
-	switch ui.AlertDialog(c, &open, "Remove “"+p.Name+"” from enowX?", msg, "Cancel", "Remove") {
+	switch widget.AlertDialog(c, &open, "Remove “"+p.Name+"” from enowX?", msg, "Cancel", "Remove") {
 	case 1:
 		a.removeProject(p)
 		a.removing = nil
@@ -284,57 +363,65 @@ func (a *App) matching(p proto.ProjectInfo, sessions []proto.SessionInfo) []prot
 	return out
 }
 
-func (a *App) sessionRow(c *ui.Context, i int, s proto.SessionInfo) {
+// sessionRow is a session in the list: its name, and under it project when
+// not "" (the list by state says which). The name runs under the pointer when
+// the row is too narrow for it; the row keeps its height.
+func (a *App) sessionRow(c *ui.Context, i int, s proto.SessionInfo, project string) {
 	st := statusOf(s)
 	active := s.ID == a.selected
-	row := ui.ButtonBase(c).Label(a.sessionName(s)).Transition(widget.RowMotion(i))
-	if a.picked[s.ID] && !active {
-		row.Border(1, theme.AccentLine)
+	row := ui.ButtonBase(c).Label(a.sessionName(s)).Transition(widget.RowMotion(i)).Radius(theme.RadiusCard).Cursor(ui.CursorPointer).
+		FillWidth().PaddingX(theme.S3).Gap(theme.S2).Justify(ui.Start)
+	row.Height(theme.ControlHeight)
+	if project != "" {
+		row.Height(theme.RowTwo)
 	}
-	widget.ListRow(c, row, active, "sessions", func() {
-		agentTile(c, s.Agent, 26)
-		ui.Column(c).Grow(1).MinWidth(0).Gap(2).Children(func() {
-			name := ui.Text(c, a.sessionName(s)).FontSize(12.5).SingleLine()
-			if active || a.unread[s.ID] {
-				name.TextColor(theme.TextStrong)
+	if a.picked[s.ID] && !active {
+		row.Border(1, theme.Now)
+	}
+	bg := theme.Fade(theme.Hover, 0)
+	if !active && row.Hovered() {
+		bg = theme.Hover
+	}
+	row.Background(widget.QuickTint(row, "bg", bg)).Children(func() {
+		if active {
+			widget.SelectionPill(c, row, "sessions", theme.RadiusCard)
+		}
+		ui.Column(c).Grow(1).MinWidth(0).Children(func() {
+			style := widget.RunStyle{}
+			if a.unread[s.ID] {
+				style.Color = theme.TextStrong
+			}
+			if active {
+				style.Color = theme.OnPicked
 			}
 			if a.unread[s.ID] {
-				name.FontWeight(650)
+				style.Weight = 600
 			}
+			name := widget.Running(c, a.sessionName(s), style)
 			// The agent's note stays out of the row, which keeps every row
-			// two lines high; hovering the name shows it.
+			// the same height; hovering the name shows it.
 			if s.Note != "" {
 				name.Tooltip(s.Note)
 			}
-			ui.Row(c).Gap(5).MinWidth(0).Children(func() {
-				widget.Dot(c, st.color, st.hollow, 6)
-				detail := st.label
-				switch {
-				case s.Branch != "" && s.Branch != a.sessionName(s):
-					detail += " · " + s.Branch
-				case !s.Worktree && s.Project != "":
-					detail += " · project folder"
-				}
-				if m := s.Member; m != nil {
-					detail = "@" + nonEmpty(m.GitHub, m.Name) + "'s · " + detail // a team's member's
-				}
-				line := ui.Text(c, detail).FontSize(11).TextColor(theme.Muted).SingleLine().Shrink(1)
+			detail := project
+			if m := s.Member; m != nil {
+				detail = "@" + nonEmpty(m.GitHub, m.Name) + "'s" // a team's member's
+			}
+			if detail != "" {
+				line := widget.Running(c.Key("detail"), detail, widget.RunStyle{Size: theme.TextLabel, Color: rowDetail(active)})
 				if t, ok := a.sessionTokens(s.ID); ok {
 					line.Tooltip(tokenview.SpentTip(t)) // its tokens on hover
 				}
-				if cfg := s.Config; cfg != nil {
-					widget.BadgeTag(c, cfg.Name, cfg.Color) // the config it runs with
-				}
-			})
-			a.sessionFacts(c, s)
+			}
 		})
+		if cfg := s.Config; cfg != nil {
+			widget.BadgeTag(c, cfg.Name, cfg.Color) // the config it runs with
+		}
 		a.conflictMark(c, s)
 		if a.unread[s.ID] {
-			ui.Box(c).Size(7, 7).Radius(4).Background(theme.Accent).Shrink(0).Tooltip("Unread: its agent finished or asks something")
+			ui.Box(c).Size(8, 8).Radius(theme.RadiusFull).Background(theme.Now).Shrink(0).Tooltip("Unread: its agent finished or asks something")
 		}
-		if u, ok := a.usage.Session(s.ID); ok && u.RSS > 0 {
-			ui.Text(c, textfmt.Bytes(u.RSS)).FontSize(10.5).TextColor(theme.Muted).SingleLine().Shrink(0)
-		}
+		widget.DotOn(c, st.color, st.hollow, 8, active)
 	})
 	a.sessionMenu(c, row, s)
 	if row.DoubleClicked() {
@@ -470,4 +557,15 @@ func summary(sessions []proto.SessionInfo) string {
 		return fmt.Sprintf("%d", len(sessions))
 	}
 	return ""
+}
+
+// rowDetail is the color of the quiet line of a row, selected or not.
+func rowDetail(active bool) ui.Color {
+	if active && theme.OnPicked != theme.TextStrong {
+		return theme.OnPicked
+	}
+	if active {
+		return theme.Text
+	}
+	return theme.TextSoft
 }

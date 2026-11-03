@@ -2,11 +2,13 @@ package ui
 
 import (
 	"fmt"
+	"slices"
 	"strings"
 
 	"github.com/egoist/mygo/ui"
 
 	"github.com/enowx/enowx/client"
+	"github.com/enowx/enowx/cloud/api"
 	"github.com/enowx/enowx/ui/icon"
 	"github.com/enowx/enowx/ui/textfmt"
 	"github.com/enowx/enowx/ui/theme"
@@ -27,33 +29,33 @@ type recoveryState struct {
 	working bool
 }
 
-func (a *App) recoverySection(c *ui.Context, cs *cloudSettings) {
+// recoveryCard is the Devices tab's card of the recovery key.
+func (a *App) recoveryCard(c *ui.Context, cs *cloudSettings) {
 	rs := &cs.recovery
-	set := false
-	for _, d := range cs.devices {
-		set = set || d.Recovery
-	}
-	widget.Field(c, "Recovery key", func() {
+	set := cloudRecoverySet(cs.devices)
+	widget.Card(c.Key("recovery")).Children(func() {
+		widget.CardTitle(c, nil, "Recovery key", nil)
 		msg := "No recovery key yet. With one, a new device gets your teams' keys back when all of yours are lost; without, a teammate's device shares them."
 		if set {
 			msg = "Set. Keep it away from your devices (a password manager, paper). Making a new one replaces it."
 		}
-		ui.Text(c, msg).FontSize(11.5).TextColor(theme.Muted)
+		widget.CardNote(c, msg, 0)
 		if rs.err != "" {
 			widget.Notice(c, icon.Alert, theme.Error, rs.err, "", nil)
 		}
 		if rs.done != "" {
-			ui.Text(c, rs.done).FontSize(12).TextColor(theme.Done)
+			ui.Text(c, rs.done).FontSize(theme.TextLabel).TextColor(theme.Done).FillWidth().MinWidth(0)
 		}
-		ui.Row(c).Gap(8).Children(func() {
+		// Wraps: a third of a narrow frame holds one of these buttons, not both.
+		ui.Row(c.Key("recovery-foot")).FillWidth().Shrink(0).Gap(theme.S2).Wrap().Children(func() {
 			label := "Make a recovery key"
 			if set {
-				label = "Make a new one"
+				label = "Make a new one…"
 			}
 			if widget.Button(c, widget.Secondary, icon.Key, label, "").Clicked() && !rs.working {
 				make := func() { a.makeRecovery(rs) }
 				if set {
-					a.confirm("Replace your recovery key?", "The one you kept stops working: only the new one gets your teams' keys back.", "Replace it", make)
+					a.confirm("Make a new recovery key?", "The one you kept stops working: only the new one gets your teams' keys back.", "Replace it", make)
 				} else {
 					make()
 				}
@@ -63,14 +65,26 @@ func (a *App) recoverySection(c *ui.Context, cs *cloudSettings) {
 			}
 		})
 	})
+}
+
+// cloudRecoverySet says the account has a recovery key, kept among its devices.
+func cloudRecoverySet(devices []api.Device) bool {
+	return slices.ContainsFunc(devices, func(d api.Device) bool { return d.Recovery })
+}
+
+// recoverySheets show a new key, once, and take one to use.
+func (a *App) recoverySheets(c *ui.Context, cs *cloudSettings) {
+	rs := &cs.recovery
 	if rs.shown != "" {
 		open := true
-		widget.FormSheet(c, &open, 520, "Your recovery key", "Shown this once. Keep it away from your devices: whoever has it, and signs in as you, gets your teams' keys.", func() {
-			ui.Row(c).FillWidth().Gap(8).AlignItems(ui.Center).Padding(10, 12).Radius(theme.RadiusControl).Background(theme.Sunken).Border(1, theme.Border).Children(func() {
-				ui.Text(c, rs.shown).Font(theme.MonoFont).FontSize(12.5).Grow(1).Shrink(1).MinWidth(0).Selectable()
-				widget.CopyIcon(c.Key("rk-copy"), &rs.copied, icon.Copy, "Copy the key", "Copy the recovery key", rs.shown)
+		widget.Sheet(c, &open, 480, func() {
+			widget.SheetHead(c, &open, "Your recovery key", "Shown this once. Keep it away from your devices: whoever has it, and signs in as you, gets your teams' keys.")
+		}, func() {
+			ui.Column(c).FillWidth().MinWidth(0).Padding(theme.S3, theme.S4).Radius(theme.RadiusCard).Background(theme.CodeGround).Children(func() {
+				ui.Text(c, rs.shown).Font(theme.MonoFont).FontSize(theme.TextUI).TextColor(widget.CodeText).FillWidth().MinWidth(0).Selectable()
 			})
 		}, func() {
+			widget.CopyButton(c.Key("rk-copy"), &rs.copied, "Copy the key", rs.shown)
 			if widget.PrimaryButton(c, nil, "I kept it", "").Clicked() {
 				rs.shown = ""
 			}
@@ -80,10 +94,10 @@ func (a *App) recoverySection(c *ui.Context, cs *cloudSettings) {
 		}
 	}
 	if rs.using {
-		widget.FormSheet(c, &rs.using, 520, "Use a recovery key", "Gets your teams' keys back on "+a.host.Name+", for when your other devices are lost.", func() {
+		widget.FormSheet(c, &rs.using, 480, "Use a recovery key", "Gets your teams' keys back on "+a.host.Name+", for when your other devices are lost.", func() {
 			widget.Input(c, &rs.typed, "enxr-XXXX-XXXX-…").FillWidth().Font(theme.MonoFont)
 		}, func() {
-			b := widget.PrimaryButton(c, icon.Key, "Recover", "")
+			b := widget.PrimaryButton(c, nil, "Recover", "")
 			if strings.TrimSpace(rs.typed) == "" || rs.working {
 				b.Disabled(true)
 			} else if b.Clicked() {

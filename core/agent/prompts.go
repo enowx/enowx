@@ -2,6 +2,7 @@ package agent
 
 import (
 	"regexp"
+	"slices"
 	"strings"
 )
 
@@ -28,6 +29,30 @@ var knownPrompts = regexp.MustCompile(`do you want to (proceed|continue|make thi
 	`update available|restart to update|press enter to (continue|update|restart)|` +
 	`api error.*(press|retry\?)|failed.*press enter`)
 
+// permissionPrompts are the known prompts that ask to allow something, which an
+// answer settles: not a sign-in, a limit or an update.
+var permissionPrompts = regexp.MustCompile(`(?i)do you want to (proceed|continue|make this edit|allow|create|run|use)|permission required|allow (once|always)|requires? (your )?approval`)
+
+// PromptAsksPermission says the prompt text asks to allow something.
+func PromptAsksPermission(text string) bool { return permissionPrompts.MatchString(text) }
+
+// ScreenEnd is a screen's last n lines with something on them.
+func ScreenEnd(screen string, n int) string { return strings.Join(tailLines(screen, n), "\n") }
+
+// PromptKeys are the keys answering a prompt in agent id. A shell tab's agent is
+// known by its screen: Claude Code's numbered menu is the one enowX knows.
+func PromptKeys(id, screen string) ApproveKeys {
+	if p, ok := Find(id); ok && p.Approve.Allow != "" {
+		return p.Approve
+	}
+	if strings.Contains(screen, "1. Yes") {
+		if p, ok := Find("claude"); ok {
+			return p.Approve
+		}
+	}
+	return ApproveKeys{}
+}
+
 // deadlineShown is a time a prompt counts down, as "automatically in 1:51".
 var deadlineShown = regexp.MustCompile(`(?i)\b(?:in|within)\s+(\d{1,2}:\d{2}|\d+\s?s(?:ec(?:onds?)?)?)\b`)
 
@@ -36,6 +61,11 @@ var (
 	choiceLine = regexp.MustCompile(`^\s*(?:[│|]\s*)?(?:[❯›>▶●]\s*)?(?:\d+[.)]\s+\S|\[\s?[yn]\s?\])|\(y/n\)|\[y/n\]`)
 	selectLine = regexp.MustCompile(`^\s*(?:[│|]\s*)?[❯›▶]\s+\S`)
 )
+
+// interruptedShown is what Claude Code leaves on the screen after an interrupt.
+// It reads as a question, but what it waits for is the next prompt, and it
+// stays there through what follows.
+var interruptedShown = regexp.MustCompile(`(?i)interrupted\s*·\s*what should .+ do instead\?`)
 
 // workingShown are what agents show while they work: no fallback then.
 var workingShown = regexp.MustCompile(`(?i)esc (to )?interrupt|ctrl\+c to (interrupt|stop)|[⠋⠙⠹⠸⠼⠴⠦⠧⠇⠏]`)
@@ -75,19 +105,127 @@ func askedAbove(lines []string, i int) string {
 	return line
 }
 
+// What shows at a turn's end when no hook says so: the time it took ("Baked for 27s",
+// "─ Worked for 1m 03s ─"), or the composer's prompt mark with nothing typed.
+var (
+	timeTaken   = regexp.MustCompile(`^[─━\-\s]*[✻✽✶✢*·•]?\s*[A-Z][a-z]+(ed|ing)? for \d+\s*[smh]`)
+	promptAlone = regexp.MustCompile(`^[│|┃]?\s*[❯›>$%#]\s*[│|┃]?$`)
+)
+
+// shellPrompt is a shell's prompt as the last line: its mark at the end, alone or after
+// a user, host or path (a number before % is progress), or one of the prompts that open
+// with theirs.
+var shellPrompt = regexp.MustCompile(`(^|[\s\]\)>:~/])[%$#>❯➜λ]$|[A-Za-z_][%$#]$|^[❯➜λ]\s`)
+
+// ShellPromptShown says a screen ends at a shell's prompt with nothing typed after it.
+func ShellPromptShown(screen string) bool {
+	lines := tailLines(screen, 1)
+	if len(lines) == 0 || !shellPrompt.MatchString(lines[0]) {
+		return false
+	}
+	_, asks := PromptShown(screen)
+	return !asks
+}
+
+// turnOverLines is how far up a turn's end is looked for: an agent's footer alone
+// (a status line, its running agents) can take ten lines.
+const turnOverLines = 20
+
+// InterruptShown says a screen's end shows a turn was interrupted.
+func InterruptShown(screen string) bool {
+	return strings.Contains(strings.Join(tailLines(screen, 12), "\n"), "Interrupted")
+}
+
+// TurnOverShown says a screen, not at work and not asking, shows an agent whose
+// turn has ended. Only what follows its end can say otherwise: above it is what the
+// turn said, in any words ("the usage limit is...", "shall we?"), and under it a
+// footer's words are only that ("Update available").
+func TurnOverShown(screen string) bool {
+	lines := tailLines(screen, turnOverLines)
+	if i := lastMatch(lines, timeTaken); i >= 0 {
+		return !asksOrWorks(lines[i+1:])
+	}
+	return bareMark(lines) >= 0
+}
+
+// bareMark is which of lines is a composer's prompt mark with nothing typed, under
+// nothing asked and with nothing at work below it; -1 for none.
+func bareMark(lines []string) int {
+	i := lastMatch(lines, promptAlone)
+	if i < 0 || i > 0 && strings.HasSuffix(strings.Trim(lines[i-1], promptEdges), "?") {
+		return -1 // a question right above a bare mark is a program reading its answer
+	}
+	if !PromptFree(strings.Join(lines[max(0, i-3):i+1], "\n")) || asksOrWorks(lines[i+1:]) {
+		return -1
+	}
+	return i
+}
+
+// emptyPlaceholder is what composers show, dim, when nothing is typed in them. A
+// terminal's text can't tell dim from typed, so only these exact words count.
+var emptyPlaceholder = regexp.MustCompile(`^[│|┃]?\s*[❯›>]\s*(Ask Codex to do anything|Type your message or @path/to/file|Try "[^"]*")\s*[│|┃]?$`)
+
+// PromptEmpty says the screen shows a composer with no draft in it, sure of it: what
+// it can't read counts as a draft, for nothing to be sent with one.
+func PromptEmpty(screen string) bool {
+	lines := tailLines(screen, turnOverLines)
+	if lastMatch(lines, emptyPlaceholder) >= 0 {
+		return !workingShown.MatchString(strings.Join(lines, "\n"))
+	}
+	return bareMark(lines) >= 0
+}
+
+// lastMatch is the last of lines re matches, -1 for none.
+func lastMatch(lines []string, re *regexp.Regexp) int {
+	for i := len(lines) - 1; i >= 0; i-- {
+		if re.MatchString(lines[i]) {
+			return i
+		}
+	}
+	return -1
+}
+
+// asksOrWorks says lines under a turn's end show it has moved on: an agent at work,
+// or asking to allow something, or picking from a menu.
+func asksOrWorks(lines []string) bool {
+	text := strings.Join(lines, "\n")
+	if workingShown.MatchString(text) || permissionPrompts.MatchString(text) {
+		return true
+	}
+	_, asks := StalledPrompt(text)
+	return asks
+}
+
+// PromptFree says a screen shows an agent neither at work nor asking anything:
+// what it is given next, it takes. The caller says it has been still for long
+// enough, and that nothing runs.
+func PromptFree(screen string) bool {
+	if strings.TrimSpace(screen) == "" || workingShown.MatchString(strings.Join(tailLines(screen, 12), "\n")) {
+		return false
+	}
+	if _, ok := PromptShown(screen); ok {
+		return false
+	}
+	_, ok := StalledPrompt(screen)
+	return !ok
+}
+
 // StalledPrompt is the fallback for prompts nobody listed: a screen that hasn't
 // changed, not saying it works, whose end is a question or a menu to pick from.
 // The caller says how long it has been still: a long command prints nothing
 // either, but ends on no question.
 func StalledPrompt(screen string) (ScreenPrompt, bool) {
-	lines := tailLines(screen, 12)
+	lines := slices.DeleteFunc(tailLines(screen, 12), interruptedShown.MatchString)
 	if len(lines) == 0 || workingShown.MatchString(strings.Join(lines, "\n")) {
 		return ScreenPrompt{}, false
 	}
 	choices, question := 0, ""
 	for i, line := range lines {
 		// A selection is a menu's with more lines under it, as a composer's
-		// prompt mark on its own isn't.
+		// prompt mark on its own isn't, nor one showing its placeholder.
+		if emptyPlaceholder.MatchString(line) {
+			continue
+		}
 		if choiceLine.MatchString(line) || selectLine.MatchString(line) && i < len(lines)-1 {
 			choices++
 		}
@@ -111,7 +249,7 @@ func StalledPrompt(screen string) (ScreenPrompt, bool) {
 // menuBelow says a selection has at least two other short lines under it.
 func menuBelow(lines []string) bool {
 	for i, l := range lines {
-		if selectLine.MatchString(l) && len(lines)-1-i >= 2 {
+		if selectLine.MatchString(l) && !emptyPlaceholder.MatchString(l) && len(lines)-1-i >= 2 {
 			return len(lines[i+1]) < 40 && len(lines[i+2]) < 40 && !strings.Contains(lines[i+1], "shortcuts")
 		}
 	}

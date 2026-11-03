@@ -138,8 +138,8 @@ func TestIndexTool(t *testing.T) {
 	if err := tt.Click(fmt.Sprintf("invoice.go:%d  %s", hit.Start, hit.Symbol)); err != nil {
 		t.Fatal(err)
 	}
-	if d := app.docs[s.ID+"\x00invoice.go"]; d == nil || app.state.Panel.Tab != fileTabPrefix+"invoice.go" {
-		t.Fatalf("the result didn't open its file: %q", app.state.Panel.Tab)
+	if d := app.docs[s.ID+"\x00invoice.go"]; d == nil || app.centerOf(s.ID).front != fileTabPrefix+"invoice.go" {
+		t.Fatalf("the result didn't open its file: %q", app.centerOf(s.ID).front)
 	}
 
 	app.ragPanel.newMem = "Invoices round half up"

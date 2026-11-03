@@ -39,13 +39,19 @@ func TestBudgetDialogOffersChoices(t *testing.T) {
 	a.askBudget(proto.SessionInfo{ID: "s", Name: "search", Worked: 300, Budget: 3600})
 	tt := ui.NewTester(func(c *ui.Context) { a.budgetDialog(c) }, 700, 500)
 	tt.Frame()
-	for _, want := range []string{"Time budget of “search”", "It has worked 5m so far.", "None", "15m", "2h", "Set budget"} {
+	for _, want := range []string{"Time budget of this session", "“search”", "It has worked 5m so far.", "Stop after", "1h", "Save"} {
 		if !tt.HasText(want) {
 			t.Errorf("no %q in %q", want, tt.Texts())
 		}
 	}
 	if a.budget.minutes != "60" {
 		t.Fatalf("the current budget isn't filled in: %q", a.budget.minutes)
+	}
+	if err := tt.Click("1h"); err != nil {
+		t.Fatal(err)
+	}
+	for range 3 {
+		tt.Frame()
 	}
 	if err := tt.Click("30m"); err != nil {
 		t.Fatal(err)

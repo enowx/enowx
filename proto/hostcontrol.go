@@ -17,6 +17,12 @@ const (
 	// MethodHostControlLog lists the requests made through host.call on
 	// this host lately, the newest last: → []ControlLogEntry.
 	MethodHostControlLog = "host.controlLog"
+	// MethodHostControlAllowed lists the sessions the user always allows to
+	// hibernate and close sessions: → []ControlAllow.
+	MethodHostControlAllowed = "host.controlAllowed"
+	// MethodHostControlAllow keeps or revokes that choice for a session:
+	// ControlAllowParams. The app's alone: host.call doesn't take it.
+	MethodHostControlAllow = "host.controlAllow"
 	// MethodSessionInterrupt stops what a session's agent is doing, as its
 	// user would with the agent's interrupt key (Escape, Ctrl+C):
 	// SessionRef.
@@ -51,6 +57,25 @@ type HostCallParams struct {
 	// overwritten: the permission mode From's agent runs without asking
 	// in, for the app to skip the user's yes on the user's own hosts.
 	Bypass string `json:"bypass,omitempty"`
+}
+
+// ControlAlways is what HostCallParams.Bypass and ControlLogEntry.Bypass say
+// of a request not asked because the user always allows its session to do it,
+// in place of a permission mode.
+const ControlAlways = "always allowed"
+
+// ControlAllow is a session the user always allows to hibernate and close
+// sessions, since when.
+type ControlAllow struct {
+	Session string    `json:"session"`
+	Name    string    `json:"name,omitempty"`
+	Since   time.Time `json:"since"`
+}
+
+// ControlAllowParams keeps the choice for Session, or with Off revokes it.
+type ControlAllowParams struct {
+	Session string `json:"session"`
+	Off     bool   `json:"off,omitempty"`
 }
 
 // ControlLogEntry is a request made through host.call: when, from which

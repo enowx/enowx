@@ -42,6 +42,8 @@ A team's **projects** are Git links its admins add (Settings → Cloud, a team's
 
 A team's **kit** is the skills, commands and subagents it shares (the team's Kit tab, `enowx-app team kit`). A member shares one of their agents' items from the host (one that looks like it holds a secret is refused); it lives in the team's space (`kit/`) and syncs with it. A session in one of the team's projects, found by its folder's Git remote, is told in its guide whose project it is and what the kit holds, each item with its file to read, so any agent uses them. Which features agents get stays each host's own setting (Settings → Features). The kit also keeps definitions: **pipelines** (their stages, shared from a team's project's pipeline dialog, which offers the team's to start from), **automations** of the team's projects (shared from Settings › Automations; **Use on** a host shows the whole prompt, the agent and when it runs, and once confirmed sets it up in that host's copy of the project: off, its agent asking before it acts, as the kit never keeps an automation on or skipping permissions), and **project templates** (a Git link a new project is cloned from; `enowx-app team kit template TEAM NAME LINK`). None holding what looks like a secret is kept.
 
+The **Team page** (More › Team, or the account's menu) lists the account's teams beside its frame, with making and joining one; a team shows as tabs: its chat, projects, members, hosts, kit, and for admins its log, then its options. It reads and changes what Settings › Cloud's team dialog does.
+
 A team's **chat** is the side panel's Team group (`enowx-app team chat TEAM`, `--send TEXT`; MCP `team_chat_read`, `team_chat_send`, for agents only when the user asks). Each message is a file of the team's space (`chat/`), sealed and synced with the rest of it, so the cloud holds ciphertext only (`chat` items); sending syncs at once, and an open chat takes what came every few seconds. Typing `@` offers what to mention, narrowed as more is typed: the team's members (who are notified), notes, canvases, projects, and the files of the selected session when it works in one of the team's projects; what a message mentions is lit in it and opens from it. Enter sends, Shift+Enter breaks the line. A message's author edits it (hover it, or Up in an empty composer) and deletes it, an admin deletes any: the file goes, and the cloud keeps no content of it, only its deletion's sealed mark, so the other devices drop it too. The members' hosts take a message, its edit or its deletion only from a device of its author (a deletion, of an admin too). One that looks like it holds a secret isn't sent. Viewers read the chat; the Team group counts what is unread, and a message from someone else notifies while the chat isn't in front: the team chat sound, a card in the window's top right corner (its sender, team and text, lit when it mentions the user; Reply answers it from the card, Enter sends; a click opens the chat; it goes after 8 s unless hovered or being answered, three at most), and a desktop banner while the window is in the background. Settings → Notifications → Team chat sets every message, mentions only, or off, and each team apart; mentions of the user and replies to their messages notify whatever it says; quiet hours silence its sound. Unread messages count on the chat's button, the Team group, and a chip in the title bar that opens the chat with the latest. Messages older than two minutes, which a sync brought, notify nothing. A member removed loses the space, the chat with it, and the team's key moves to a new epoch.
 
 A project's **rules** are Markdown every session in it reads first, in its guide, whatever its agent (the project's menu, **Rules…**; `enowx-app project rules`; the MCP tools `project_rules` and `project_rules_set`). The user's own project keeps them in their synced settings, by the project's Git remote, so a clone on another of their hosts has them; a team's project in the team's space (`rules/`), the same for every member. A team's admins say who edits a project's rules, its members (the default) or only its admins; viewers only read them. Rules that look like they hold a secret are refused, and each change of a team's project's rules goes in the team's audit log. A team's project's rules file is found by the project's ID, which must be one the daemon makes (12 hex digits), and stays in the team's `rules/` folder.
@@ -158,6 +160,41 @@ docker run -p 8080:8080 -e ENOWX_CLOUD_URL=https://cloud.example.com -e ENOWX_CL
 | `ENOWX_CLOUD_SMTP_URL` | `smtp://user:pass@host:587`, to send invites by email; optional |
 
 It speaks plain HTTP: put it behind a proxy that terminates TLS (Coolify's, Caddy, nginx).
+
+## The Contributor role on Discord
+
+Optional. With it, a member of the enowX Discord server gets **Contributor** for a merged pull request in the repository. It stays off unless all of it is configured: its routes aren't there, the server starts and behaves as without it, and a part missing is logged once. It has its own table and client, and sign-in and sync don't touch them.
+
+- `/connect` answers privately with a link to a page here, naming the Discord account it's for. Signing in with GitHub links the two accounts. With a merged pull request the role comes at once; without one the member is told so, and gets it when one merges.
+- `/disconnect` removes the role and the link. The role otherwise stays.
+- One GitHub account links to one Discord account. Only the two IDs are kept (`discord_links`): no name, email or token.
+
+It uses the GitHub OAuth app of the cloud's sign-in, as that sign-in itself would make an account, join the default team, keep a name and email, and ask for `read:user user:email`. This asks for no scope, so `ENOWX_CLOUD_GITHUB_CLIENT_ID` and its secret must be set too. Its callback is a subfolder of that app's, which GitHub allows, so the app needs no change.
+
+A link can't be made for someone else: it names the member Discord's signed request says ran `/connect`, is signed here, lasts 10 minutes and works once. Its page says whose Discord account it's for, and warns anyone sent it, so that nobody is tricked into crediting another member with their work. The sign-in has to finish in the browser that began it.
+
+**To set it up:**
+
+1. **A Discord application** (Developer Portal). Add a bot, and invite it with the scopes `bot` and `applications.commands` and the single permission Manage Roles. On the server, move its role above Contributor. It needs no privileged intents, and no connection stays open.
+2. **Interactions:** set **Interactions Endpoint URL** to `<ENOWX_CLOUD_URL>/v1/discord/interactions`. Discord tests it as it's saved, so the server must be running with this configured first.
+3. **Commands,** once, for the server. Each is `{"name": "connect", "description": "Link your GitHub account, to get Contributor for a merged pull request", "type": 1}` and `{"name": "disconnect", "description": "Remove your GitHub link and the Contributor role", "type": 1}`:
+   ```sh
+   curl -X PUT "https://discord.com/api/v10/applications/$APP_ID/guilds/$GUILD_ID/commands" \
+     -H "Authorization: Bot $ENOWX_CLOUD_DISCORD_BOT_TOKEN" -H "Content-Type: application/json" -d '[...]'
+   ```
+4. **A webhook** on the repository (Settings, Webhooks): payload URL `<ENOWX_CLOUD_URL>/v1/github/webhook`, content type `application/json`, a secret you generate, and the single event **Pull requests**.
+
+| Variable | What |
+|---|---|
+| `ENOWX_CLOUD_DISCORD_PUBLIC_KEY` | the application's public key, in hex |
+| `ENOWX_CLOUD_DISCORD_BOT_TOKEN` | the bot's token (a secret) |
+| `ENOWX_CLOUD_DISCORD_GUILD_ID` | the server: `1458149049902436578` |
+| `ENOWX_CLOUD_DISCORD_ROLE_ID` | Contributor: `1566927925771636906` |
+| `ENOWX_CLOUD_GITHUB_WEBHOOK_SECRET` | the webhook's secret |
+| `ENOWX_CLOUD_CONTRIBUTOR_LINK_SECRET` | random, signs `/connect` links: `openssl rand -hex 32` |
+| `ENOWX_CLOUD_CONTRIBUTOR_REPO` | only a merged pull request here counts: `enowdev/enowx` |
+
+A delivery that fails to give the role answers an error, so it can be delivered again from the webhook's page; Discord's rate limits aren't retried. A pull request merged while the server was down counts at the member's next `/connect`. Used links are remembered in the server's memory, so run one instance; a restart forgets them, within the 10 minutes a link lives.
 
 ## Phases
 

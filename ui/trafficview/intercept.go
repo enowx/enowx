@@ -8,7 +8,6 @@ import (
 
 	"github.com/enowx/enowx/client"
 	"github.com/enowx/enowx/proto"
-	"github.com/enowx/enowx/ui/icon"
 	"github.com/enowx/enowx/ui/theme"
 	"github.com/enowx/enowx/ui/widget"
 )
@@ -73,21 +72,16 @@ func (v *View) interceptPage(c *ui.Context, o Options) {
 	if o.Session.Parent != "" {
 		session = o.Session.Parent
 	}
-	ui.Scroll(c).Grow(1).FillWidth().MinHeight(0).Children(func() {
-		ui.Column(c).FillWidth().Padding(12).Gap(12).Children(func() {
-			ui.Text(c, "What runs on "+o.HostName+" can send its HTTP through enowX. Nothing is caught until you attach it.").FontSize(11.5).TextColor(theme.Muted)
+	widget.Scroll(c).Grow(1).FillWidth().MinHeight(0).Children(func() {
+		ui.Column(c).FillWidth().Gap(theme.S1).Children(func() {
+			ui.Text(c, "What runs on "+o.HostName+" can send its HTTP through enowX. Nothing is caught until you attach it.").FontSize(theme.TextUI).TextColor(theme.TextSoft).Padding(0, theme.S3)
 			if s.err != "" {
-				ui.Text(c, s.err).FontSize(12).TextColor(theme.Error)
+				ui.Text(c, s.err).FontSize(theme.TextUI).TextColor(theme.Error).Padding(0, theme.S3)
 			}
 			if len(v.targets) > 0 {
 				section(c, "Attached", func() {
 					for _, t := range v.targets {
-						ui.Row(c.Key(t.Source)).FillWidth().Gap(8).Children(func() {
-							widget.Dot(c, theme.Done, false, 7)
-							ui.Column(c).Grow(1).MinWidth(0).Children(func() {
-								ui.Text(c, t.Label+" · "+t.Kind).FontSize(12).SingleLine()
-								ui.Text(c, t.Proxy).Font(theme.MonoFont).FontSize(10.5).TextColor(theme.Muted).SingleLine()
-							})
+						widget.ItemRow(c.Key(t.Source), widget.Item{Dot: theme.Done, Title: t.Label + " · " + t.Kind, Sub: t.Proxy}, func() {
 							if widget.GhostButton(c, "Detach").Clicked() {
 								v.detach(o, t.Source)
 							}
@@ -96,24 +90,24 @@ func (v *View) interceptPage(c *ui.Context, o Options) {
 				})
 			}
 			if session == "" {
-				ui.Text(c, "Select a session to attach to it.").FontSize(12).TextColor(theme.Muted)
+				ui.Text(c, "Select a session to attach to it.").FontSize(theme.TextUI).TextColor(theme.TextSoft).Padding(theme.S2, theme.S3)
 				return
 			}
 			section(c, "Terminals", func() {
-				targetRow(c, icon.Terminal, "New terminal", "A tab of this session: what you run there is caught.", "Open", s.busy != "", func() {
+				targetRow(c, "New terminal", "A tab of this session: what you run there is caught.", "Open", s.busy != "", func() {
 					v.attach(o, proto.TrafficAttachParams{Kind: proto.TargetTerminal, Session: session})
 				})
 				attached := v.attachedTo(session, proto.TargetSession)
 				title, body := "This session's new tabs", "Tabs opened from now on, and what the Run menu starts."
 				if attached != "" {
-					if widget.Button(c, widget.Secondary, icon.Stop, "Stop catching the session's new tabs", "").Clicked() {
-						v.detach(o, attached)
-					}
+					targetRow(c, title, "Caught.", "Stop catching", false, func() { v.detach(o, attached) })
 				} else {
-					targetRow(c, icon.Split, title, body, "Attach", s.busy != "", func() {
+					targetRow(c, title, body, "Attach", s.busy != "", func() {
 						v.attach(o, proto.TrafficAttachParams{Kind: proto.TargetSession, Session: session, Agent: s.agent})
 					})
-					widget.Checkbox(c, &s.agent, "The agent's own traffic too, once it starts again (its API keys show, masked)")
+					ui.Column(c).FillWidth().PaddingX(theme.S3).Children(func() {
+						widget.ToggleRow(c, "The agent's own traffic too", "Once it starts again; its API keys show, masked", &s.agent)
+					})
 				}
 				for _, tab := range o.Tabs {
 					if tab.Exited || (tab.Agent != "shell" && tab.Agent != "") {
@@ -126,7 +120,7 @@ func (v *View) interceptPage(c *ui.Context, o Options) {
 					if v.attachedTo(tab.ID, proto.TargetShell) != "" || v.attachedTab(tab.ID) {
 						continue
 					}
-					targetRow(c.Key("tab:"+tab.ID), icon.Terminal, "“"+name+"”", "This open tab: what it runs next is caught.", "Attach", s.busy != "", func() {
+					targetRow(c.Key("tab:"+tab.ID), "“"+name+"”", "This open tab: what it runs next is caught.", "Attach", s.busy != "", func() {
 						v.attach(o, proto.TrafficAttachParams{Kind: proto.TargetShell, Tab: tab.ID})
 					})
 				}
@@ -134,55 +128,55 @@ func (v *View) interceptPage(c *ui.Context, o Options) {
 			section(c, "Browsers", func() {
 				if o.SetBrowserCapture != nil {
 					if o.BrowserCaptured {
-						targetRow(c, icon.Browser, "The Browser tool: caught", "What this session's previews load from its dev servers, HMR included. Other sites a page calls aren't, yet.", "Stop", false, func() {
+						targetRow(c, "The Browser tool: caught", "What this session's previews load from its dev servers, HMR included. Other sites a page calls aren't, yet.", "Stop", false, func() {
 							o.SetBrowserCapture(false)
 						})
 					} else {
-						targetRow(c, icon.Browser, "The Browser tool", "What this session's previews load from its dev servers, HMR included. Previews open from now on.", "Attach", false, func() {
+						targetRow(c, "The Browser tool", "What this session's previews load from its dev servers, HMR included. Previews open from now on.", "Attach", false, func() {
 							o.SetBrowserCapture(true)
 						})
 					}
 				}
 				if len(v.status.Browsers) == 0 {
-					ui.Text(c, "No Chrome, Chromium, Edge, Brave or Firefox found on "+o.HostName+".").FontSize(11.5).TextColor(theme.Muted)
+					ui.Text(c, "No Chrome, Chromium, Edge, Brave or Firefox found on "+o.HostName+".").FontSize(theme.TextUI).TextColor(theme.TextSoft).Padding(theme.S1, theme.S3)
 				}
 				where := "a window of its own"
 				if v.status.Display {
 					where = "the session's display, shown here"
 				}
 				for _, b := range v.status.Browsers {
-					targetRow(c.Key("b:"+b.ID), icon.Browser, b.Name, "A fresh profile, in "+where+". Your own profile isn't touched.", "Start", s.busy != "", func() {
+					targetRow(c.Key("b:"+b.ID), b.Name, "A fresh profile, in "+where+". Your own profile isn't touched.", "Start", s.busy != "", func() {
 						v.attach(o, proto.TrafficAttachParams{Kind: proto.TargetBrowser, Session: session, Program: b.ID})
 					})
 				}
-				targetRow(c, icon.AppWindow, "An Electron app", "Its executable started with the proxy and the CA trusted.", "Start…", s.busy != "", func() {
+				targetRow(c, "An Electron app", "Its executable started with the proxy and the CA trusted.", "Start…", s.busy != "", func() {
 					s.electronOpen = true
 				})
 			})
 			section(c, "Devices and containers", func() {
 				if len(o.Android) == 0 || o.CatchAndroid == nil {
-					targetRow(c, icon.Android, "Android", "No device online: start an emulator or connect a phone in the Android tool.", "", true, nil)
+					targetRow(c, "Android", "No device online: start an emulator or connect a phone in the Android tool.", "", true, nil)
 				}
 				for _, d := range o.Android {
 					if d.Caught {
-						targetRow(c.Key("a:"+d.Key), icon.Android, d.Label+": caught", "Its HTTP goes through enowX, and it trusts enowX's CA.", "Stop", false, func() {
+						targetRow(c.Key("a:"+d.Key), d.Label+": caught", "Its HTTP goes through enowX, and it trusts enowX's CA.", "Stop", false, func() {
 							o.CatchAndroid(d.Key, false)
 						})
 						continue
 					}
-					targetRow(c.Key("a:"+d.Key), icon.Android, d.Label, "Its proxy set to enowX, and enowX's CA trusted: among the system's with root, else installed from Settings.", "Catch", false, func() {
+					targetRow(c.Key("a:"+d.Key), d.Label, "Its proxy set to enowX, and enowX's CA trusted: among the system's with root, else installed from Settings.", "Catch", false, func() {
 						o.CatchAndroid(d.Key, true)
 					})
 				}
 				if o.AndroidNote != "" {
-					ui.Text(c, o.AndroidNote).FontSize(11).TextColor(theme.TextSoft).Margin(0, 0, 0, 25)
+					ui.Text(c, o.AndroidNote).FontSize(theme.TextLabel).TextColor(theme.TextSoft).Padding(theme.S1, theme.S3)
 				}
-				targetRow(c, icon.Server, "Docker containers", "Containers this session starts afterwards get the proxy and the CA.", "Attach", s.busy != "", func() {
+				targetRow(c, "Docker containers", "Containers this session starts afterwards get the proxy and the CA.", "Attach", s.busy != "", func() {
 					v.attach(o, proto.TrafficAttachParams{Kind: proto.TargetDocker, Session: session})
 				})
 			})
 			section(c, "Agents", func() {
-				targetRow(c, icon.Brain, "enowX's tools for the agents", "Adds enowX's MCP server to the agents on "+o.HostName+" (Claude Code, Codex, OpenCode, Gemini CLI): they read and mock this traffic, and drive the Browser, as tools of their own. Agents started afterwards have them.", "Add", s.busy != "", func() {
+				targetRow(c, "enowX's tools for the agents", "Adds enowX's MCP server to the agents on "+o.HostName+" (Claude Code, Codex, OpenCode, Gemini CLI): they read and mock this traffic, and drive the Browser, as tools of their own. Agents started afterwards have them.", "Add", s.busy != "", func() {
 					h := o.Host
 					s.busy = "mcp"
 					go func() {
@@ -202,10 +196,10 @@ func (v *View) interceptPage(c *ui.Context, o Options) {
 				})
 			})
 			section(c, "Anything else", func() {
-				targetRow(c, icon.Globe, "An address of its own", "For a program set up by hand: an HTTP or SOCKS5 proxy on "+o.HostName+", and the CA to trust.", "Make one", s.busy != "", func() {
+				targetRow(c, "An address of its own", "For a program set up by hand: an HTTP or SOCKS5 proxy on "+o.HostName+", and the CA to trust.", "Make one", s.busy != "", func() {
 					v.attach(o, proto.TrafficAttachParams{Kind: proto.TargetManual, Session: session, Label: "Manual"})
 				})
-				targetRow(c, icon.Lock, "The CA", "What a program must trust for enowX to read its HTTPS.", "Show", false, func() {
+				targetRow(c, "The CA", "What a program must trust for enowX to read its HTTPS.", "Show", false, func() {
 					s.caOpen = true
 					v.loadCA(o)
 				})
@@ -243,9 +237,9 @@ func (v *View) interceptSheets(c *ui.Context, o Options) {
 	if s.electronOpen {
 		sheet(c, &s.electronOpen, 520, "Start an Electron app", "Its traffic is caught: it starts with the proxy, and Chromium told to trust enowX's CA.", func() {
 			widget.Field(c, "The app on "+o.HostName, func() {
-				ui.Row(c).FillWidth().Gap(8).Children(func() {
-					widget.Input(c, &s.electron, "/Applications/Slack.app").Grow(1).Font(theme.MonoFont)
-					if o.PickHostFile != nil && widget.Button(c, widget.Secondary, icon.Folder, "Choose…", "").Clicked() {
+				ui.Row(c).FillWidth().Gap(theme.S2).Children(func() {
+					widget.Input(c, &s.electron, "/Applications/Slack.app").Grow(1).Basis(0).MinWidth(0).Font(theme.MonoFont)
+					if o.PickHostFile != nil && widget.Button(c, widget.Secondary, nil, "Choose…", "").Clicked() {
 						s.electronOpen = false // one dialog at a time: this one comes back with the pick
 						o.PickHostFile("Choose an Electron app", "Its executable, or on macOS its .app.", func(path string) { s.electron, s.electronOpen = path, true })
 					}
@@ -253,7 +247,7 @@ func (v *View) interceptSheets(c *ui.Context, o Options) {
 			})
 			errorText(c, s.err)
 		}, func() {
-			if widget.PrimaryButton(c, icon.Play, "Start", "").Disabled(strings.TrimSpace(s.electron) == "" || s.busy != "").Clicked() {
+			if widget.PrimaryButton(c, nil, "Start", "").Disabled(strings.TrimSpace(s.electron) == "" || s.busy != "").Clicked() {
 				v.attach(o, proto.TrafficAttachParams{Kind: proto.TargetElectron, Session: session, Program: strings.TrimSpace(s.electron)})
 				s.electronOpen = false
 			}
@@ -262,20 +256,20 @@ func (v *View) interceptSheets(c *ui.Context, o Options) {
 	if s.caOpen {
 		sheet(c, &s.caOpen, 560, "enowX's certificate authority", "Programs that trust it let enowX read their HTTPS. Its key never leaves "+o.HostName+".", func() {
 			if s.ca == nil {
-				ui.Text(c, "Reading…").FontSize(12).TextColor(theme.Muted)
+				ui.Text(c, "Reading…").FontSize(theme.TextUI).TextColor(theme.TextSoft)
 				return
 			}
 			widget.Field(c, "SHA-256", func() {
-				ui.Text(c, s.ca.Fingerprint).Font(theme.MonoFont).FontSize(11).Selectable()
+				ui.Text(c, s.ca.Fingerprint).Font(theme.MonoFont).FontSize(theme.TextLabel).Selectable()
 			})
 			widget.Field(c, "On "+o.HostName, func() {
 				ui.Column(c).Gap(2).Children(func() {
-					ui.Text(c, s.ca.File).Font(theme.MonoFont).FontSize(11).Selectable()
-					ui.Text(c, s.ca.Bundle+" (with the system's roots)").Font(theme.MonoFont).FontSize(11).TextColor(theme.Muted).Selectable()
+					ui.Text(c, s.ca.File).Font(theme.MonoFont).FontSize(theme.TextLabel).Selectable()
+					ui.Text(c, s.ca.Bundle+" (with the system's roots)").Font(theme.MonoFont).FontSize(theme.TextLabel).TextColor(theme.TextSoft).Selectable()
 				})
 			})
 		}, func() {
-			if s.ca != nil && o.CopyText != nil && widget.PrimaryButton(c, icon.Copy, "Copy the CA (PEM)", "").Clicked() {
+			if s.ca != nil && o.CopyText != nil && widget.PrimaryButton(c, nil, "Copy the CA (PEM)", "").Clicked() {
 				o.CopyText(s.ca.PEM)
 				v.notice = "The CA's certificate is on the clipboard."
 				s.caOpen = false
@@ -303,21 +297,16 @@ func (v *View) attachedTab(tab string) bool {
 }
 
 func section(c *ui.Context, title string, body func()) {
-	ui.Column(c.Key(title)).FillWidth().Gap(8).Children(func() {
-		ui.Text(c, title).FontSize(11).TextColor(theme.Muted).FontWeight(600)
+	ui.Column(c.Key(title)).FillWidth().Children(func() {
+		widget.SectionLabel(c, title, theme.TextSoft).Padding(theme.S3, theme.S3, theme.S1, theme.S3)
 		body()
 	})
 }
 
-// targetRow is a target to attach: what it is, and its button (none when
-// action is nil).
-func targetRow(c *ui.Context, svg *ui.SVG, title, body, button string, busy bool, action func()) {
-	ui.Row(c.Key(title)).FillWidth().Gap(10).Children(func() {
-		ui.Icon(c, svg).FontSize(15).TextColor(theme.TextSoft).Shrink(0)
-		ui.Column(c).Grow(1).MinWidth(0).Gap(1).Children(func() {
-			ui.Text(c, title).FontSize(12.5)
-			ui.Text(c, body).FontSize(11).TextColor(theme.Muted)
-		})
+// targetRow is a target to attach: what it is, in a line that runs, and its
+// button (none when action is nil).
+func targetRow(c *ui.Context, title, body, button string, busy bool, action func()) {
+	widget.ItemRow(c.Key(title), widget.Item{Title: title, Sub: body}, func() {
 		if action != nil && widget.Button(c, widget.Secondary, nil, button, "").Disabled(busy).Clicked() {
 			action()
 		}
@@ -335,35 +324,38 @@ type pausedEdit struct {
 // pausedList shows the exchanges waiting at breakpoints, each to resume
 // as it is, changed, or to drop.
 func (v *View) pausedList(c *ui.Context, o Options) {
-	ui.Column(c).FillWidth().Shrink(0).MaxHeight(320).Padding(8, 12).Gap(8).Background(theme.Sunken).
-		BorderWidth(0, 0, 1, 0).BorderColor(theme.Border).Children(func() {
-		ui.Scroll(c).FillWidth().MaxHeight(300).Children(func() {
-			ui.Column(c).FillWidth().Gap(10).Children(func() {
-				for _, p := range v.paused {
-					v.pausedRow(c.Key(fmt.Sprint(p.ID)), o, p)
-				}
-			})
+	ui.Scroll(c.Key("paused")).FillWidth().Shrink(0).MaxHeight(320).Radius(theme.RadiusCard).Background(theme.Sunken).Children(func() {
+		ui.Column(c).FillWidth().Padding(theme.S2, theme.S3).Gap(theme.S3).Children(func() {
+			for _, p := range v.paused {
+				v.pausedRow(c.Key(fmt.Sprint(p.ID)), o, p)
+			}
 		})
 	})
 }
 
 func (v *View) pausedRow(c *ui.Context, o Options, p proto.TrafficPaused) {
-	ui.Row(c).FillWidth().Gap(8).AlignItems(ui.Center).Children(func() {
-		widget.Tag(c, "paused "+p.Stage, theme.Warning)
-		ui.Text(c, p.Method+" "+p.URL).FontSize(12).SingleLine().Grow(1).Shrink(1).MinWidth(0).Tooltip(p.URL)
-		if widget.GhostButton(c, "Drop").Clicked() {
-			v.resume(o, proto.TrafficResumeParams{ID: p.ID, Drop: true})
-		}
-		if widget.Button(c, widget.Secondary, icon.Pencil, "Change", "").Tooltip("Change it before it goes on").Clicked() {
-			e := &pausedEdit{paused: p, headers: headerLines(p.Headers), body: string(p.Body)}
-			if p.Status != 0 {
-				e.status = fmt.Sprint(p.Status)
+	ui.Column(c).FillWidth().Gap(theme.S2).Children(func() {
+		ui.Row(c).FillWidth().Gap(theme.S2).Children(func() {
+			widget.Tag(c, "paused "+p.Stage, theme.Warning)
+			ui.Row(c).Grow(1).Basis(0).MinWidth(0).Children(func() {
+				widget.Running(c, p.Method+" "+p.URL, widget.RunStyle{Size: theme.TextLabel, Mono: true})
+			})
+		})
+		ui.Row(c).FillWidth().Gap(theme.S2).Children(func() {
+			if widget.GhostButton(c, "Drop").Clicked() {
+				v.resume(o, proto.TrafficResumeParams{ID: p.ID, Drop: true})
 			}
-			v.pausedEdit = e
-		}
-		if widget.PrimaryButton(c, icon.Play, "Resume", "").Clicked() {
-			v.resume(o, proto.TrafficResumeParams{ID: p.ID})
-		}
+			if widget.Button(c, widget.Secondary, nil, "Change", "").Tooltip("Change it before it goes on").Clicked() {
+				e := &pausedEdit{paused: p, headers: headerLines(p.Headers), body: string(p.Body)}
+				if p.Status != 0 {
+					e.status = fmt.Sprint(p.Status)
+				}
+				v.pausedEdit = e
+			}
+			if widget.PrimaryButton(c, nil, "Resume", "").Clicked() {
+				v.resume(o, proto.TrafficResumeParams{ID: p.ID})
+			}
+		})
 	})
 }
 
@@ -376,7 +368,7 @@ func (v *View) pausedSheet(c *ui.Context, o Options) {
 	p := e.paused
 	open := true
 	sheet(c, &open, 600, "Change, then resume", p.Method+" "+p.URL+" · paused at its "+p.Stage, func() {
-		ui.Column(c).FillWidth().Gap(10).Children(func() {
+		ui.Column(c).FillWidth().Gap(theme.S3).Children(func() {
 			if p.Stage == "response" {
 				ui.Column(c).Width(120).Children(func() {
 					widget.Field(c, "Status", func() { widget.Input(c, &e.status, "200").FillWidth() })
@@ -386,7 +378,7 @@ func (v *View) pausedSheet(c *ui.Context, o Options) {
 			codeArea(c, "Body", &e.body, 140)
 		})
 	}, func() {
-		if widget.PrimaryButton(c, icon.Play, "Resume changed", "").Clicked() {
+		if widget.PrimaryButton(c, nil, "Resume changed", "").Clicked() {
 			edit := &proto.TrafficEdit{Headers: parseHeaderLines(e.headers)}
 			if n, err := parseNum(e.status, "Status"); err == nil {
 				edit.Status = n

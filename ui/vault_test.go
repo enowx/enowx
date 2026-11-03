@@ -134,7 +134,7 @@ func TestVaultIsMadeFilledLockedAndUnlocked(t *testing.T) {
 	h.click("you@example.com")
 	h.tt.Type("ada")
 	h.click("Add")
-	h.settle("the credential listed", func() bool { return h.tt.HasText("github") && h.tt.HasText("GitHub · ada · …3456") })
+	h.settle("the credential listed", func() bool { return h.tt.HasText("GitHub") && h.tt.HasText("Token · ada · …3456") })
 	shot(t, h.tt, "vault-list.png")
 
 	h.settle("the host's copy", func() bool {
@@ -146,6 +146,7 @@ func TestVaultIsMadeFilledLockedAndUnlocked(t *testing.T) {
 		t.Fatal("the host's copy holds the token in the clear")
 	}
 
+	h.click("More for the vault")
 	h.click("Lock the vault")
 	h.settle("locked", func() bool { return h.tt.HasText("The vault is locked") })
 	h.click("Your master password")
@@ -155,7 +156,7 @@ func TestVaultIsMadeFilledLockedAndUnlocked(t *testing.T) {
 	h.click("Your master password")
 	h.tt.Type("correct horse")
 	h.click("Unlock")
-	h.settle("unlocked", func() bool { return h.tt.HasText("GitHub · ada · …3456") })
+	h.settle("unlocked", func() bool { return h.tt.HasText("Token · ada · …3456") })
 }
 
 // An agent on the host asks for a credential: the user is asked once,

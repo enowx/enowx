@@ -24,6 +24,7 @@ const notesUsage = `usage: enowx-app notes COMMAND
   write NOTE --section S [--body TEXT|- | --append TEXT]
                                    change one section only: its content under its heading
   check NOTE --item TEXT [--undo]  tick a to-do (by its text, or a part only it has)
+  ticks NOTE                       the to-dos agents ticked: when, by which session, at which commit
   move NOTE [--parent NOTE|--top] [--before NOTE] | move NOTE --group G ("" for none)
   rm NOTE                          delete a note and the notes under it
   space NOTE --to TEAM|personal [--copy]
@@ -137,6 +138,19 @@ func (r runner) notes(args []string) error {
 		return r.noteOutline(arg)
 	case "check":
 		return r.noteCheck(arg, *item, !*undo, propose)
+	case "ticks":
+		n, err := r.findNote(arg)
+		if err != nil {
+			return err
+		}
+		var ticks []proto.NoteTick
+		if err := r.c.Call(proto.MethodNoteTicks, proto.NoteRef{ID: n.ID}, &ticks); err != nil {
+			return err
+		}
+		for _, t := range ticks {
+			fmt.Fprintf(r.out, "%s  %s  %s  %s\n", t.Time.Format("01-02 15:04"), orDash(t.Session), orDash(t.Commit), t.Item)
+		}
+		return nil
 	case "show":
 		n, err := r.findNote(arg)
 		if err != nil {

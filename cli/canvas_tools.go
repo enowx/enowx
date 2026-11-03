@@ -85,10 +85,13 @@ var canvasCoreTools = []mcpTool{
 		args: func(a map[string]any) []string {
 			return withFlag([]string{"screenshot", str(a, "canvas"), str(a, "path")}, a, "frame", "frame")
 		}},
-	{name: "canvas_export", description: "Write a canvas to a file: png, pdf or svg of a frame, or html (without frame: the whole canvas as one read-only page to share).",
-		props:    map[string]mcpProp{"canvas": canvasProp, "format": {"string", "png, pdf, svg or html"}, "frame": frameProp, "out": {"string", "The file (default: its title, in the current folder)"}},
+	{name: "canvas_export", description: "Write a canvas to a file: png, pdf or svg of a frame, html (without frame: the whole canvas as one read-only page to share), or mp4 of a design that moves, rendered frame by frame by the app, which can take minutes.",
+		props: map[string]mcpProp{"canvas": canvasProp, "format": {"string", "png, pdf, svg, html or mp4"}, "frame": frameProp, "out": {"string", "The file (default: its title, in the current folder; an mp4 stays where the app runs without it)"},
+			"fps": {"number", "mp4: 30 or 60 (default 30)"}, "width": {"number", "mp4: its width (default the frame's)"}, "from-ms": {"number", "mp4: where it starts, in ms"}, "to-ms": {"number", "mp4: where it ends, in ms (default its end; one cycle of a loop)"}},
 		required: []string{"canvas", "format"},
-		args:     func(a map[string]any) []string { return canvasArgs(a, "export", "format", "frame", "out") }},
+		args: func(a map[string]any) []string {
+			return canvasArgs(a, "export", "format", "frame", "out", "fps", "width", "from-ms", "to-ms")
+		}},
 	{name: "canvas_comments", description: "The user's comments on a canvas's elements, to work on; all: true also those resolved.",
 		props: map[string]mcpProp{"canvas": canvasProp, "all": {"boolean", "The resolved ones too"}}, required: []string{"canvas"},
 		args: func(a map[string]any) []string { return canvasArgs(a, "comments", "all") }},

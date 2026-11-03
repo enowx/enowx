@@ -24,32 +24,32 @@ type compareState struct {
 func (v *View) versions(c *ui.Context, o Options) {
 	h := v.history
 	if h == nil {
-		ui.Text(c, "Loading…").FontSize(12).TextColor(theme.Muted)
+		ui.Text(c, "Loading…").FontSize(theme.TextUI).TextColor(theme.TextSoft)
 		return
 	}
 	if cmp := v.compare; cmp != nil {
-		ui.Column(c).FillWidth().Padding(10).Gap(4).Radius(8).Background(theme.Raised).Border(1, theme.Border).Children(func() {
-			ui.Row(c).FillWidth().AlignItems(ui.Center).Children(func() {
-				ui.Text(c, fmt.Sprintf("Version %d → %d", cmp.n, h.Head)).FontSize(12).FontWeight(600).Grow(1)
+		widget.Raise(ui.Column(c.Key("compare")).FillWidth().Shrink(0).Padding(theme.S2, theme.S3).Gap(theme.S1).Radius(theme.RadiusCard).Background(theme.Raised)).Children(func() {
+			ui.Row(c.Key("head")).FillWidth().Gap(theme.S2).AlignItems(ui.Center).Children(func() {
+				ui.Text(c, fmt.Sprintf("Version %d → %d", cmp.n, h.Head)).FontSize(theme.TextUI).FontWeight(500).Grow(1).Shrink(1).MinWidth(0).SingleLine()
 				if widget.IconButton(c, icon.Close, "Close comparison", false).Clicked() {
 					v.compare = nil
 				}
 			})
 			if len(cmp.changes) == 0 {
-				ui.Text(c, "The same").FontSize(11.5).TextColor(theme.Muted)
+				ui.Text(c.Key("same"), "The same").FontSize(theme.TextLabel).TextColor(theme.TextSoft)
 			}
 			for i, ch := range cmp.changes {
 				col := map[string]ui.Color{"added": theme.Done, "removed": theme.Error}[ch.Kind]
 				if col == (ui.Color{}) {
 					col = theme.Warning
 				}
-				ui.Row(c.Key(i)).FillWidth().Gap(6).Children(func() {
-					ui.Text(c, ch.Kind).FontSize(11).TextColor(col).Width(58)
+				ui.Row(c.Key(i)).FillWidth().Gap(theme.S2).Children(func() {
+					ui.Text(c, ch.Kind).FontSize(theme.TextLabel).TextColor(col).Width(58).Shrink(0).SingleLine()
 					what := ch.Element
 					if what == "" {
 						what = "frame " + ch.Frame
 					}
-					ui.Text(c, what).FontSize(11).TextColor(theme.Text).SingleLine().Shrink(1)
+					ui.Row(c).Grow(1).MinWidth(0).Children(func() { widget.Running(c, what, widget.RunStyle{Size: theme.TextLabel}) })
 				})
 			}
 		})
@@ -57,35 +57,35 @@ func (v *View) versions(c *ui.Context, o Options) {
 	list := slices.Clone(h.Versions)
 	slices.Reverse(list)
 	for _, ver := range list {
-		ui.Row(c.Key(ver.N)).FillWidth().Padding(6).Gap(8).Radius(6).AlignItems(ui.Center).Children(func() {
+		who := "You"
+		if ver.Session != "" {
+			who = "Agent"
+			if o.AgentName != nil {
+				who = o.AgentName(ver.Session)
+			}
+		}
+		what := ver.Op
+		if ver.Element != "" {
+			what += " " + ver.Element
+		}
+		widget.Raise(ui.Row(c.Key(ver.N)).FillWidth().MinHeight(44).Shrink(0).Padding(theme.S1, theme.S2, theme.S1, theme.S3).Gap(theme.S2).Radius(theme.RadiusCard).AlignItems(ui.Center).Background(theme.Raised)).Children(func() {
 			dot := theme.Muted
 			if ver.N == h.Head {
 				dot = theme.Accent
 			}
-			widget.Dot(c, dot, ver.N > h.Head, 7)
+			widget.Dot(c, dot, ver.N > h.Head, 8)
 			ui.Column(c).Grow(1).MinWidth(0).Children(func() {
-				who := "You"
-				if ver.Session != "" {
-					who = "Agent"
-					if o.AgentName != nil {
-						who = o.AgentName(ver.Session)
-					}
-				}
-				what := ver.Op
-				if ver.Element != "" {
-					what += " " + ver.Element
-				}
-				ui.Text(c, fmt.Sprintf("v%d · %s", ver.N, what)).FontSize(11.5).SingleLine()
-				ui.Text(c, who+" · "+ago(ver.Time)).FontSize(10.5).TextColor(theme.Muted).SingleLine()
+				widget.Running(c, fmt.Sprintf("Version %d", ver.N), widget.RunStyle{})
+				widget.Running(c.Key("sub"), who+" · "+ago(ver.Time)+" · "+what, widget.RunStyle{Size: theme.TextLabel, Color: theme.TextSoft})
 			})
 			if ver.N == h.Head {
-				ui.Text(c, "shown").FontSize(10.5).TextColor(theme.Accent)
+				ui.Text(c, "shown").FontSize(theme.TextLabel).TextColor(theme.Now).SingleLine().Shrink(0)
 				return
 			}
 			if widget.IconButton(c.Key("cmp"), icon.Layers, fmt.Sprintf("Compare v%d with the one shown", ver.N), v.compare != nil && v.compare.n == ver.N).Clicked() {
 				v.compareWith(o, ver.N)
 			}
-			if widget.IconButton(c.Key("restore"), icon.History, fmt.Sprintf("Restore v%d", ver.N), false).Clicked() {
+			if widget.GhostButton(c.Key("restore"), "Restore").Label(fmt.Sprintf("Restore v%d", ver.N)).Clicked() {
 				o.Restore(v.canvas.ID, ver.N, func(cv proto.Canvas, err error) {
 					if err != nil {
 						v.err = err.Error()

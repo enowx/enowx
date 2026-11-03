@@ -74,13 +74,26 @@ esac
 	queue := make(chan func(), 256)
 	v := New()
 	defer v.Close()
-	var opened string
+	var opened, front string
+	wanted := func() bool { return true }
 	o := Options{Hosts: []Host{{ID: "local", Name: "This PC", Client: cl, Session: true, Local: true}}, Session: sess,
-		Update: func(fn func()) { queue <- fn }, OpenTab: func(id string) { opened = id }}
+		Update: func(fn func()) { queue <- fn }, OpenTab: func(id string) { opened = id },
+		OpenCenter: func(view string) { front = view }, Current: func() string { return front }}
+	// What the list opens shows beside it, as the center does.
 	tt := ui.NewTester(func(c *ui.Context) {
 		c.SetTheme(theme.Window())
-		ui.Column(c).Width(480).Height(900).Background(theme.Background).TextColor(theme.Text).Children(func() { v.Draw(c, o, func() bool { return true }) })
-	}, 480, 900)
+		ui.Row(c).Width(1000).Height(760).Background(theme.Background).TextColor(theme.Text).AlignItems(ui.Stretch).Children(func() {
+			ui.Column(c).Width(320).Shrink(0).Children(func() { v.Draw(c, o, wanted) })
+			ui.Column(c).Grow(1).Basis(0).MinWidth(0).Children(func() {
+				switch front {
+				case ViewScreen:
+					v.DrawScreen(c, o, wanted)
+				case ViewLogcat:
+					v.DrawLogcat(c, o, wanted)
+				}
+			})
+		})
+	}, 1000, 760)
 	drain := func(until func() bool, what string) {
 		t.Helper()
 		deadline := time.Now().Add(10 * time.Second)
@@ -96,10 +109,15 @@ esac
 			}
 		}
 	}
-	drain(func() bool { return tt.HasText("enowX_Phone · This PC") && tt.HasText("Tablet · This PC") }, "the devices")
+	drain(func() bool {
+		return tt.HasText("enowX_Phone") && tt.HasText("Running · API 35 · This PC") && tt.HasText("Tablet") && tt.HasText("Stopped · This PC")
+	}, "the devices")
 	drain(func() bool {
 		return strings.Contains(v.command, "flutter run") && v.project.Package == "com.example.app"
 	}, "the project")
+	if err := tt.Click("Logcat"); err != nil {
+		t.Fatal(err)
+	}
 	drain(func() bool { return tt.HasText("Hello from the app") }, "the app's log")
 	v.command = `echo "running on $ANDROID_SERIAL"`
 	tt.Frame()
@@ -113,8 +131,15 @@ esac
 	}, "the app running")
 	shotTo(t, tt, "android-tool.png")
 
-	// A screen shown: in the tool, with the device's buttons.
-	v.screen, v.pane = &screen{key: v.picked, width: 540, height: 1200, view: stubView{}}, paneScreen
+	// Its screen: first what shows it, then shown, with the device's buttons.
+	if err := tt.Click("Screen"); err != nil {
+		t.Fatal(err)
+	}
+	tt.Frame()
+	if !tt.HasText("Show its screen") {
+		t.Fatalf("nothing to show the screen with: %q", tt.Texts())
+	}
+	v.screen = &screen{key: v.picked, width: 540, height: 1200, view: stubView{}}
 	tt.Frame()
 	if !tt.HasText("stub screen") {
 		t.Fatalf("no screen: %q", tt.Texts())
@@ -128,10 +153,19 @@ esac
 		t.Fatalf("no remote: %q", tt.Texts())
 	}
 	shotTo(t, tt, "android-tv.png")
+	v.screen = &screen{key: v.picked}
+	tt.Frame()
+	if !tt.HasText("Connecting to the device…") {
+		t.Fatalf("not connecting: %q", tt.Texts())
+	}
+	v.CloseScreen()
 	v.connect.open = true
 	tt.Frame()
 	tt.Frame()
 	shotTo(t, tt, "android-connect.png")
+	if !tt.HasText("Make a virtual TV") {
+		t.Fatalf("no virtual TV to make: %q", tt.Texts())
+	}
 }
 
 // stubView stands in for the web view a screen shows in.

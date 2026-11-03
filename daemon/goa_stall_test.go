@@ -43,6 +43,34 @@ func TestStallCases(t *testing.T) {
 	}
 }
 
+// A queued task goes in when its session's prompt is really free, its turn's
+// end unheard; not while it works, asks, runs something, or may be a shell.
+func TestQueuedCanGo(t *testing.T) {
+	stale := proto.SessionInfo{StateStale: true}
+	const free = "  ⎿  Interrupted · What should Claude do instead?\n\n❯ \n  ⏵⏵ bypass permissions on\n"
+	for _, c := range []struct {
+		name   string
+		look   stallLook
+		screen string
+		want   bool
+	}{
+		{"after an interrupt and /model", stallLook{Info: stale, Still: time.Minute}, free, true},
+		{"still too shortly", stallLook{Info: stale, Still: time.Second}, free, false},
+		{"something runs", stallLook{Info: stale, Still: time.Minute, CPU: 50}, free, false},
+		{"it says it works", stallLook{Info: stale, Still: time.Minute}, "✶ Thinking… (esc to interrupt)\n", false},
+		{"it asks", stallLook{Info: stale, Still: time.Minute}, "Do you want to proceed?\n ❯ 1. Yes\n   2. No\n", false},
+		{"a blank screen", stallLook{Info: stale, Still: time.Minute}, " \n", false},
+		{"no state: maybe a shell", stallLook{Still: time.Minute}, free, false},
+		{"really working", stallLook{Info: proto.SessionInfo{State: proto.StateWorking}, Still: time.Minute}, free, false},
+		{"its own input queued", stallLook{Info: proto.SessionInfo{StateStale: true, Queued: true}, Still: time.Minute}, free, false},
+		{"ended", stallLook{Info: proto.SessionInfo{StateStale: true, Exited: true}, Still: time.Minute}, free, false},
+	} {
+		if got := queuedCanGo(c.look, c.screen); got != c.want {
+			t.Errorf("%s: %v", c.name, got)
+		}
+	}
+}
+
 // The limits are the host's, kept over a restart, each back to its default at
 // 0; what can't be a limit is refused and changes nothing.
 func TestGOAStallLimits(t *testing.T) {
@@ -78,5 +106,50 @@ func TestGOAStallLimits(t *testing.T) {
 	}
 	if err := c.Call(proto.MethodGOAStallSave, proto.GOAStall{Idle: 300}, &got); err != nil || got.Blank != goa.StallBlank {
 		t.Fatalf("back to its default: %+v %v", got, err)
+	}
+}
+
+// A task carrying its note's to-dos shows them to the worker, and settled done
+// says which aren't ticked.
+func TestGOATaskCarriesItsToDos(t *testing.T) {
+	p := proto.GOADelegateParams{Note: "n1", Items: []string{"Build it", "Write docs"}}
+	lines := goaToDoLines(p)
+	if !strings.Contains(lines, "notes check n1") || !strings.Contains(lines, "- Write docs") {
+		t.Fatalf("%q", lines)
+	}
+	if goaToDoLines(proto.GOADelegateParams{}) != "" {
+		t.Fatal("lines with no note")
+	}
+	srv := startServer(t)
+	n, err := srv.notesFor("").Save(proto.Note{NoteInfo: proto.NoteInfo{Title: "Plan"}, Body: "- [x] Build it\n- [ ] Write docs\n"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	open := srv.goaOpenItems(proto.GOATask{Note: n.ID, Items: p.Items})
+	if len(open) != 1 || open[0] != "Write docs" {
+		t.Fatalf("open: %q", open)
+	}
+	if got := srv.goaOpenItems(proto.GOATask{Note: "gone", Items: p.Items}); len(got) != 2 {
+		t.Fatalf("a note gone: %q", got)
+	}
+}
+
+// Who ticked what is kept per note; a turn with a commit reminds once.
+func TestTicksAreRecorded(t *testing.T) {
+	srv := startServer(t)
+	for _, tick := range []proto.NoteTick{{Note: "n1", Item: "one", Session: "gone"}, {Note: "n2", Item: "other"}} {
+		if err := srv.recordTick(tick); err != nil {
+			t.Fatal(err)
+		}
+	}
+	got := srv.ticksOf("n1")
+	if len(got) != 1 || got[0].Item != "one" || got[0].Session != "gone" || got[0].Time.IsZero() {
+		t.Fatalf("%+v", got)
+	}
+	if none := srv.ticksOf("n3"); len(none) != 0 {
+		t.Fatalf("%+v", none)
+	}
+	if notes := srv.notesWithOpenToDos(""); notes != nil {
+		t.Fatalf("no project: %q", notes)
 	}
 }

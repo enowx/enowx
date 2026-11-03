@@ -29,7 +29,7 @@ const EnvSession = "ENOWX_SESSION"
 
 // Commands are the command line's commands, for the programs that also
 // do other things with their arguments to tell them apart.
-var Commands = []string{"ls", "list", "sessions", "peek", "status", "spawn", "send", "read", "wait", "kill", "hibernate", "wake", "agents", "projects", "project", "shells", "notes", "features", "creds", "canvas", "review", "sync", "icons", "attach", "pipeline", "pipelines", "note", "automation", "automations", "hooks", "accounts", "configs", "rag", "decide", "usage", "browser", "traffic", "android", "mcp", "guide", "ports", "run", "api", "notify", "cloud", "team", "help",
+var Commands = []string{"ls", "list", "sessions", "peek", "status", "spawn", "send", "read", "wait", "kill", "hibernate", "wake", "agents", "projects", "project", "shells", "notes", "features", "creds", "canvas", "review", "sync", "cache", "icons", "attach", "pipeline", "pipelines", "note", "automation", "automations", "hooks", "accounts", "configs", "rag", "decide", "usage", "browser", "traffic", "android", "mcp", "guide", "ports", "run", "api", "notify", "cloud", "team", "help",
 	"interrupt", "stop", "continue", "fork", "rename", "close", "chat", "answer", "switch", "changes", "settings", "control", "goa"}
 
 // Is reports whether args start with one of Commands.
@@ -83,6 +83,7 @@ const usage = `usage: enowx-app <command> [arguments]
                                    move a group's projects before project P, or last
   projects rename-group FROM TO    rename a group ("" ungroups its projects)
   notify [sound|set|status]        sounds the user's enowX app plays ("notify help")
+  cache [clean]                    what this host's enowX folder takes, and cleaning what can go ("cache --help")
   cloud [login|logout|devices|approve|url]
                                    this host's sign-in to a team cloud ("cloud help")
   team [list|create|members|invite|join|role|remove|leave]
@@ -261,6 +262,8 @@ func (r runner) command(args []string) error {
 		return r.team(rest)
 	case "sync":
 		return r.sync(rest)
+	case "cache":
+		return r.cache(rest)
 	case "features":
 		return r.features(rest)
 	case "creds":
@@ -556,7 +559,7 @@ func (r runner) send(args []string) error {
 	if err != nil {
 		return err
 	}
-	return r.c.Input(s.ID, strings.Join(fs.Args()[1:], " "), true, !*noEnter)
+	return r.c.Call(proto.MethodSessionInput, proto.SessionInputParams{ID: s.ID, Text: strings.Join(fs.Args()[1:], " "), Paste: true, Enter: !*noEnter, From: os.Getenv(EnvSession)}, nil)
 }
 
 func (r runner) read(args []string) error {
@@ -567,11 +570,11 @@ func (r runner) read(args []string) error {
 	if err != nil {
 		return err
 	}
-	text, err := r.c.Screen(s.ID)
-	if err != nil {
+	var screen proto.SessionScreen
+	if err := r.c.Call(proto.MethodSessionScreen, proto.SessionRef{ID: s.ID, From: os.Getenv(EnvSession)}, &screen); err != nil {
 		return err
 	}
-	fmt.Fprintln(r.out, strings.TrimRight(text, "\n "))
+	fmt.Fprintln(r.out, strings.TrimRight(screen.Text, "\n "))
 	return nil
 }
 

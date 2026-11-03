@@ -96,6 +96,7 @@ func main() {
 		OpenProject:   *project,
 		StateFile:     filepath.Join(dir, "app.json"),
 		ResumeHost:    *remote == "",
+		Onboarding:    true,
 	})
 	mygo.App.WhenReady(func() { app.Open() })
 	if err := mygo.App.Run(); err != nil {

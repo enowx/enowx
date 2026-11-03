@@ -140,14 +140,14 @@ func (v *View) sendComments(o Options) {
 	v.layoutRows()
 }
 
-// commentRow shows comment i under its line.
+// commentRow shows comment i under its line, on the code's ground.
 func (v *View) commentRow(c *ui.Context, i int) {
 	cm := v.comments[i]
-	ui.Row(c).FillWidth().Padding(6, 10, 6, 70).Gap(8).Background(theme.Fade(theme.Accent, 0.08)).
-		BorderWidth(0, 0, 0, 2).BorderColor(theme.Accent).AlignItems(ui.Start).Children(func() {
-		ui.Icon(c, icon.Chat).FontSize(12).TextColor(theme.Accent).Margin(2, 0, 0, 0)
-		ui.Text(c, cm.Text).FontSize(12.5).TextColor(theme.Text).Grow(1).Shrink(1)
-		if widget.IconButton(c, icon.Close, "Remove the comment", false).Clicked() {
+	ui.Row(c).FillWidth().Padding(theme.S1, theme.S2, theme.S1, 88).Gap(theme.S2).Background(theme.Fade(theme.Accent, 0.16)).
+		AlignItems(ui.Start).Children(func() {
+		ui.Icon(c, icon.Chat).FontSize(14).TextColor(diffHunk).Margin(theme.S1, 0, 0, 0)
+		ui.Text(c, cm.Text).FontSize(theme.TextUI).TextColor(diffText).Grow(1).Basis(0).MinWidth(0).Margin(theme.S1, 0, 0, 0)
+		if widget.IconButton(c.Key("remove"), icon.Close, "Remove the comment", false).Clicked() {
 			v.removeComment(i)
 		}
 	})
@@ -156,21 +156,21 @@ func (v *View) commentRow(c *ui.Context, i int) {
 // draftRow is the comment being written, under its line.
 func (v *View) draftRow(c *ui.Context) {
 	d := v.draft
-	ui.Column(c).FillWidth().Padding(8, 10, 8, 70).Gap(8).Background(theme.Panel).
-		BorderWidth(0, 0, 0, 2).BorderColor(theme.Accent).Children(func() {
+	ui.Column(c).FillWidth().Padding(theme.S2, theme.S2, theme.S2, 88).Gap(theme.S2).Background(theme.Fade(theme.Accent, 0.16)).Children(func() {
 		in := widget.Input(c, &d.text, "What should change here?").FillWidth().AutoFocus()
 		if in.Submitted() {
 			v.addDraft()
 			return
 		}
-		ui.Row(c).FillWidth().Gap(8).Children(func() {
-			ui.Text(c, "The comments go to the agent together.").FontSize(11).TextColor(theme.Muted).SingleLine().Shrink(1)
-			ui.Spacer(c)
-			if widget.GhostButton(c, "Cancel").Clicked() {
+		ui.Row(c).FillWidth().Gap(theme.S2).Children(func() {
+			ui.Row(c).Grow(1).MinWidth(0).Children(func() {
+				widget.Running(c, "The comments go to the agent together.", widget.RunStyle{Size: theme.TextLabel, Color: diffNumber})
+			})
+			if widget.Button(c, widget.Secondary, nil, "Cancel", "").Clicked() {
 				v.draft = nil
 				v.layoutRows()
 			}
-			if widget.Button(c, widget.Primary, icon.Check, "Add comment", "").Clicked() {
+			if widget.PrimaryButton(c, nil, "Add comment", "").Clicked() {
 				v.addDraft()
 			}
 		})
@@ -183,16 +183,17 @@ func (v *View) commentBar(c *ui.Context, o Options) {
 	if n == 0 {
 		return
 	}
-	ui.Row(c).Shrink(0).FillWidth().Padding(8, 10, 8, 14).Gap(8).Background(theme.Panel).
-		BorderWidth(1, 0, 0, 0).BorderColor(theme.Border).Children(func() {
-		ui.Icon(c, icon.Chat).FontSize(13).TextColor(theme.Accent)
-		ui.Text(c, fmt.Sprintf("%d review %s", n, textfmt.Plural(n, "comment", "comments"))).FontSize(12.5).SingleLine().Shrink(1)
-		ui.Spacer(c)
-		if widget.GhostButton(c, "Discard").Clicked() {
+	ui.Row(c.Key("comment-bar")).Height(52).Shrink(0).FillWidth().Padding(0, theme.S3, 0, theme.S4).Gap(theme.S2).
+		BorderWidth(theme.Rule, 0, 0, 0).BorderColor(theme.Border).Children(func() {
+		ui.Icon(c, icon.Chat).FontSize(14).TextColor(theme.Now)
+		ui.Row(c).Grow(1).MinWidth(0).Children(func() {
+			widget.Running(c, fmt.Sprintf("%d review %s", n, textfmt.Plural(n, "comment", "comments")), widget.RunStyle{Weight: 500})
+		})
+		if widget.Button(c, widget.Secondary, nil, "Discard", "").Clicked() {
 			v.comments, v.draft = nil, nil
 			v.layoutRows()
 		}
-		if widget.Button(c, widget.Primary, icon.ArrowUp, "Send to agent", "").Clicked() {
+		if widget.PrimaryButton(c, icon.ArrowUp, "Send to agent", "").Clicked() {
 			v.sendComments(o)
 		}
 	})

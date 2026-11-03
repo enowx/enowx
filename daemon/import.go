@@ -197,6 +197,7 @@ func (s *Server) importSession(in *importing, ms transfer.Session, ids map[strin
 		if convo != "" {
 			l := agentLaunch(preset, meta.SkipPermissions, "", true, chatFor{guide: s.guideFor(meta)})
 			l.Resume = convo
+			l.Hooks = append(l.Hooks, keptArgs(meta)...)
 			command = thenShell(preset.Argv(l))
 		}
 		meta.Restart, meta.Relaunch = thenShell(preset.Argv(agentLaunch(preset, meta.SkipPermissions, "", true, chatFor{guide: s.guideFor(meta)}))), len(preset.Continue) > 0

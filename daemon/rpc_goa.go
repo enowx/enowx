@@ -17,9 +17,18 @@ var goaHandlers = map[string]handler{
 	}),
 	proto.MethodGOAWorker: with(func(c *conn, p proto.GOAWorkerParams) (any, error) {
 		if c.srv.goa.board.Has(p.Session.ID) {
-			go c.srv.goaWorkerChanged(p.Session)
+			go func() {
+				c.srv.goaReportSeen(p.Session)
+				c.srv.goaWorkerChanged(p.Session)
+			}()
+		} else {
+			go c.srv.goaToldChanged(p.Session)
 		}
 		return ok, nil
+	}),
+	proto.MethodGOAReport: with(func(c *conn, p proto.GOAReportParams) (any, error) { return ok, c.srv.goaReport(p) }),
+	proto.MethodGOAWake: with(func(c *conn, p proto.GOAWakeParams) (any, error) {
+		return c.srv.goaWake(p.ID, c.gone), nil
 	}),
 	proto.MethodGOAFlags:  bare(func(c *conn) (any, error) { return c.srv.goaFlags(), nil }),
 	proto.MethodGOARevert: with(func(c *conn, p proto.GOARevertParams) (any, error) { return c.srv.goaRevert(p.ID) }),

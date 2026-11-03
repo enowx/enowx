@@ -9,7 +9,6 @@ import (
 
 	"github.com/enowx/enowx/core/hosts"
 	"github.com/enowx/enowx/core/vps"
-	"github.com/enowx/enowx/ui/theme"
 	"github.com/enowx/enowx/ui/widget"
 )
 
@@ -44,7 +43,7 @@ func (a *App) loadServers(f *vpsForm, l vps.Lister) {
 func (a *App) existingServers(c *ui.Context, f *vpsForm) {
 	widget.Field(c, "Yours", func() {
 		if len(f.servers) == 0 {
-			ui.Text(c, "You have none yet: make a new one.").FontSize(12).TextColor(theme.Muted)
+			widget.CardNote(c, "You have none yet: make a new one.", 0)
 			return
 		}
 		opts := make([]vps.Option, len(f.servers))
@@ -59,20 +58,13 @@ func (a *App) existingServers(c *ui.Context, f *vpsForm) {
 			opts[i] = vps.Option{ID: s.ID, Name: s.Name, Detail: detail}
 		}
 		optionSelect(c, &f.pick, opts, "Machine")
-		ui.Text(c, "A paused or stopped one is woken as enowX connects.").FontSize(11.5).TextColor(theme.Muted)
+		widget.CardNote(c.Key("wakes"), "A paused or stopped one is woken as enowX connects.", 0)
 	})
-	widget.Field(c, "SSH key", func() {
-		if f.key == "" {
-			ui.Row(c).FillWidth().Gap(8).Children(func() {
-				ui.Text(c, "You have no SSH key yet.").FontSize(12).TextColor(theme.Muted).Grow(1)
-				if widget.GhostButton(c, "Make one").Clicked() {
-					a.makeKey(f)
-				}
-			})
-			return
-		}
-		ui.Text(c, f.key).Font(theme.MonoFont).FontSize(11.5).TextColor(theme.TextSoft)
-	})
+	if f.key == "" {
+		a.vpsKeyField(c, f, "")
+		return
+	}
+	widget.Field(c, "SSH key", func() { widget.CardNote(c.Key("key"), f.key, 0) })
 }
 
 // hostOfServer is the host of server id at provider, when it is one.

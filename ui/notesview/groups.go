@@ -56,8 +56,7 @@ func (v *View) inGroup(o Options, group string, shown map[string]bool) int {
 
 // groupHeader is group g's line: a click folds it, a drag moves it.
 func (v *View) groupHeader(c *ui.Context, o Options, g proto.NoteGroup, count int) {
-	row := ui.ButtonBase(c).FillWidth().Height(30).Padding(0, 4, 0, 4).Gap(6).Radius(6).Margin(6, 0, 0, 0).
-		Cursor(ui.CursorPointer).Label("Group " + g.Name).AlignItems(ui.Center)
+	row := groupRow(c, "Group "+g.Name)
 	row.Drag(noteDrag{group: g.Name})
 	if d, ok := ui.Drop[noteDrag](row); ok {
 		switch {
@@ -77,22 +76,22 @@ func (v *View) groupHeader(c *ui.Context, o Options, g proto.NoteGroup, count in
 		row.Background(theme.Hover)
 	}
 	row.Children(func() {
-		chev := icon.ChevronDown
-		if g.Folded {
-			chev = icon.ChevronRight
+		if g.Icon != "" || g.Color != "" {
+			groupMark(c, g)
 		}
-		ui.Icon(c, chev).FontSize(10.5).TextColor(theme.Muted).Width(18).Shrink(0)
-		groupMark(c, g)
-		ui.Text(c, g.Name).FontSize(12).FontWeight(650).TextColor(theme.TextSoft).SingleLine().Shrink(1).Grow(1)
+		ui.Row(c).Grow(1).MinWidth(0).Children(func() {
+			widget.Running(c, g.Name, widget.RunStyle{Size: theme.TextLabel, Weight: 500, Color: theme.TextSoft})
+		})
 		if row.Hovered() {
 			if widget.IconButton(c, icon.Plus, "New page in "+g.Name, false).Clicked() {
 				v.newPage(o, "", g.Name)
 			}
 			more := widget.IconButton(c, icon.More, "More for "+g.Name, false)
-			v.menu.OpenBelow(more, "group:"+g.Name, 24)
+			v.menu.OpenBelow(more, "group:"+g.Name, theme.ControlHeight)
 		} else {
-			ui.Text(c, strconv.Itoa(count)).FontSize(10.5).TextColor(theme.Muted)
+			ui.Text(c, strconv.Itoa(count)).FontSize(theme.TextLabel).TextColor(theme.TextSoft).Shrink(0)
 		}
+		foldMark(c, g.Folded)
 	})
 	key := "group:" + g.Name
 	v.menu.Open(row, key)
@@ -122,6 +121,22 @@ func (v *View) groupHeader(c *ui.Context, o Options, g proto.NoteGroup, count in
 	}
 }
 
+// groupRow is a line heading pages in the tree: what the design's lists head
+// their groups with, that folds.
+func groupRow(c *ui.Context, label string) ui.Element {
+	return ui.ButtonBase(c).FillWidth().Height(theme.ControlHeight).Shrink(0).Padding(0, theme.S2, 0, theme.S3).Gap(theme.S2).Radius(theme.RadiusCard).
+		Justify(ui.Start).Margin(theme.S1, 0, 0, 0).Cursor(ui.CursorPointer).Label(label).AlignItems(ui.Center)
+}
+
+// foldMark says whether what a line heads is folded.
+func foldMark(c *ui.Context, folded bool) {
+	svg := icon.ChevronDown
+	if folded {
+		svg = icon.ChevronRight
+	}
+	ui.Icon(c, svg).FontSize(12).TextColor(theme.TextSoft).Shrink(0)
+}
+
 // groupMark is a group's icon, or a folder, in its color.
 func groupMark(c *ui.Context, g proto.NoteGroup) {
 	ink := theme.Muted
@@ -133,8 +148,7 @@ func groupMark(c *ui.Context, g proto.NoteGroup) {
 
 // ungroupedHeader heads the pages in no group, which take pages dropped.
 func (v *View) ungroupedHeader(c *ui.Context, o Options, count int) {
-	row := ui.ButtonBase(c).FillWidth().Height(30).Padding(0, 4, 0, 4).Gap(6).Radius(6).Margin(6, 0, 0, 0).
-		Cursor(ui.CursorPointer).Label("No group").AlignItems(ui.Center)
+	row := groupRow(c, "No group")
 	if d, ok := ui.Drop[noteDrag](row); ok && d.id != "" {
 		o.SetGroup(d.id, "", v.failed)
 	}
@@ -144,13 +158,11 @@ func (v *View) ungroupedHeader(c *ui.Context, o Options, count int) {
 		row.Background(theme.Hover)
 	}
 	row.Children(func() {
-		chev := icon.ChevronDown
-		if v.ungroupedFolded {
-			chev = icon.ChevronRight
-		}
-		ui.Icon(c, chev).FontSize(10.5).TextColor(theme.Muted).Width(18).Shrink(0)
-		ui.Text(c, "No group").FontSize(12).FontWeight(650).TextColor(theme.Muted).Grow(1)
-		ui.Text(c, strconv.Itoa(count)).FontSize(10.5).TextColor(theme.Muted)
+		ui.Row(c).Grow(1).MinWidth(0).Children(func() {
+			widget.Running(c, "No group", widget.RunStyle{Size: theme.TextLabel, Weight: 500, Color: theme.TextSoft})
+		})
+		ui.Text(c, strconv.Itoa(count)).FontSize(theme.TextLabel).TextColor(theme.TextSoft).Shrink(0)
+		foldMark(c, v.ungroupedFolded)
 	})
 	if row.Clicked() {
 		v.ungroupedFolded = !v.ungroupedFolded
@@ -168,7 +180,7 @@ func (v *View) groupFilterButton(c *ui.Context, o Options) {
 		label = v.groupFilter
 	}
 	b := widget.IconButton(c, icon.Folder, "Show: "+label, v.groupFilter != "")
-	v.menu.OpenBelow(b, "group-filter", 28)
+	v.menu.OpenBelow(b, "group-filter", theme.ControlHeight)
 	v.menu.Show(c, b, "group-filter", func(done func()) {
 		if widget.MenuItem(c, icon.List, "All groups", false) {
 			v.groupFilter = ""
@@ -198,13 +210,13 @@ func (v *View) groupDialog(c *ui.Context, o Options) {
 		title = "Edit group"
 	}
 	save := false
-	widget.FormSheet(c, &f.open, 440, title, "Groups keep pages together, like folders. Deleting one keeps its pages.", func() {
+	widget.FormSheet(c, &f.open, 440, title, "", func() {
 		widget.Field(c, "Name", func() {
-			save = widget.Input(c, &f.name, "TODO, Ideas, Project X…").FillWidth().AutoFocus().Submitted()
+			save = widget.Input(c, &f.name, "Plans").FillWidth().AutoFocus().Submitted()
 		})
 		widget.Field(c, "Icon", func() {
-			b := ui.ButtonBase(c).AlignSelf(ui.Start).Height(34).PaddingX(10).Gap(8).Radius(theme.RadiusControl).Border(1, theme.BorderStrong).
-				Background(theme.Sunken).Cursor(ui.CursorPointer).Label("Group icon")
+			b := widget.Well(ui.ButtonBase(c).AlignSelf(ui.Start).Height(theme.ControlHeight).PaddingX(theme.S3).Gap(theme.S2).Radius(theme.RadiusFull).
+				Cursor(ui.CursorPointer).Label("Group icon"), f.picking)
 			b.Children(func() {
 				ink := theme.Muted
 				if f.color != "" {
@@ -215,7 +227,7 @@ func (v *View) groupDialog(c *ui.Context, o Options) {
 				if f.icon != "" {
 					label = "Change…"
 				}
-				ui.Text(c, label).FontSize(12).TextColor(theme.TextSoft)
+				ui.Text(c, label).FontSize(theme.TextUI).TextColor(theme.Text)
 			})
 			if b.Clicked() {
 				if f.picking = !f.picking; f.picking {
@@ -224,15 +236,15 @@ func (v *View) groupDialog(c *ui.Context, o Options) {
 			}
 			// In the sheet itself: a pop-over would go under it.
 			if f.picking {
-				ui.Column(c).FillWidth().Margin(6, 0, 0, 0).Radius(theme.RadiusCard).Border(1, theme.BorderStrong).Background(theme.Raised).Children(func() {
+				widget.Raise(ui.Column(c).FillWidth().Margin(theme.S2, 0, 0, 0).Radius(theme.RadiusCard).Background(theme.Raised)).Children(func() {
 					v.iconPickerBody(c, o, f.icon, func(ref string) { f.icon, f.picking = ref, false })
 				})
 			}
 		})
 		widget.Field(c, "Color", func() {
-			ui.Row(c).Gap(6).Children(func() {
+			ui.Row(c).Gap(theme.S2).Wrap().Children(func() {
 				for _, col := range append([]string{""}, groupColors...) {
-					b := ui.ButtonBase(c.Key("c"+col)).Size(22, 22).Radius(11).Cursor(ui.CursorPointer).Label("Color " + col)
+					b := ui.ButtonBase(c.Key("c"+col)).Size(24, 24).Radius(theme.RadiusFull).Cursor(ui.CursorPointer).Label("Color " + col)
 					if col == "" {
 						b.Border(1, theme.BorderStrong)
 					} else {
@@ -248,14 +260,14 @@ func (v *View) groupDialog(c *ui.Context, o Options) {
 			})
 		})
 		if f.err != "" {
-			ui.Text(c, f.err).FontSize(12).TextColor(theme.Error)
+			ui.Text(c, f.err).FontSize(theme.TextLabel).TextColor(theme.Error)
 		}
 	}, func() {
-		label := "Make group"
+		label := "Create"
 		if f.from != "" {
 			label = "Save"
 		}
-		if widget.PrimaryButton(c, icon.Check, label, "").Clicked() {
+		if widget.PrimaryButton(c, nil, label, "").Clicked() {
 			save = true
 		}
 	})
@@ -298,7 +310,7 @@ func (v *View) deleteGroupDialog(c *ui.Context, o Options) {
 		msg = "Its " + strconv.Itoa(n) + " pages stay, in no group."
 	}
 	open := true
-	switch ui.AlertDialog(c, &open, "Delete the group “"+g.Name+"”?", msg, "Cancel", "Delete group") {
+	switch widget.AlertDialog(c, &open, "Delete the group “"+g.Name+"”?", msg, "Cancel", "Delete group") {
 	case 1:
 		if v.groupFilter == g.Name {
 			v.groupFilter = ""

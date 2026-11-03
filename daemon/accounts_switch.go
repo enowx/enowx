@@ -25,7 +25,10 @@ func stoppedSpec(sess *session.Session, meta session.Meta) session.Spec {
 }
 
 // reapSession ends what session id's program started.
-func reapSession(id string) { reap(tag{key: session.EnvSession, value: id}) }
+func (s *Server) reapSession(id string) {
+	reap(tag{key: session.EnvSession, value: id})
+	s.endSessionProcs(id)
+}
 
 // switchAgent has session p.Session go on as agent p.Agent, which can't
 // take the other's conversation: started on a summary of it, the task as
@@ -58,15 +61,20 @@ func (s *Server) switchAgent(p proto.AccountSwitchParams) (proto.SessionInfo, er
 		return proto.SessionInfo{}, err
 	}
 	chat.config = run
-	l, err := launchFor(proto.SessionCreateParams{Agent: preset.ID, Prompt: prompt, SkipPermissions: meta.SkipPermissions}, chat)
+	keep := proto.SessionCreateParams{Agent: preset.ID, Prompt: prompt, SkipPermissions: meta.SkipPermissions}
+	if agent.Base(preset.ID) == agent.Base(meta.Agent) {
+		keep.Model, keep.Effort, keep.Mode = meta.Model, meta.Effort, meta.Mode // the same agent: only its account changes
+	}
+	l, err := launchFor(keep, chat)
 	if err != nil {
 		return proto.SessionInfo{}, err
 	}
 	if !info.Exited {
+		s.procsLook()
 		if _, err := s.sessions.Replace(stoppedSpec(sess, meta)); err != nil {
 			return proto.SessionInfo{}, err
 		}
-		reapSession(info.ID)
+		s.reapSession(info.ID)
 	}
 	meta.Agent, meta.Account, meta.AccountFirst, meta.Conversation, meta.Config = preset.ID, acc, "", "", run.sessionInfo()
 	meta.Restart, meta.Relaunch, meta.SkipPermissions = l.restart, l.relaunch, l.skip

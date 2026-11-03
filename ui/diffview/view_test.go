@@ -30,9 +30,12 @@ func loaded() *View {
 
 func TestViewListsFilesAndOpensOne(t *testing.T) {
 	v := loaded()
-	tt := ui.NewTester(func(c *ui.Context) { v.Draw(c, Options{Notify: func(string) {}}) }, 700, 500)
+	opened := ""
+	tt := ui.NewTester(func(c *ui.Context) {
+		v.Draw(c, Options{Notify: func(string) {}, OpenDiff: func(p string) { opened = p }})
+	}, 320, 500)
 	tt.Frame()
-	for _, want := range []string{"feat/x", "vs main", "2 uncommitted", "CHANGES", "a.go", "logo.png", "Commit…", "Push", "Pull request…"} {
+	for _, want := range []string{"2 files changed", "main", "a.go", "logo.png", "Commit…"} {
 		if !tt.HasText(want) {
 			t.Errorf("no %q in %q", want, tt.Texts())
 		}
@@ -44,29 +47,36 @@ func TestViewListsFilesAndOpensOne(t *testing.T) {
 	if tt.HasText("var x = 2") {
 		t.Error("the list shows a file's lines")
 	}
-
-	// A file opens on its lines, and goes back to the list.
 	if err := tt.Click("a.go"); err != nil {
 		t.Fatal(err)
 	}
-	tt.Frame()
-	if !tt.HasText("var x = 2") || !tt.HasText("var x = 1") {
-		t.Fatalf("the open file shows %q", tt.Texts())
+	if opened != "a.go" {
+		t.Fatalf("opened %q", opened)
 	}
-	if err := tt.Click("All changes"); err != nil {
-		t.Fatal(err)
-	}
-	tt.Frame()
-	if tt.HasText("var x = 2") || !tt.HasText("logo.png") {
-		t.Fatalf("back at the list: %q", tt.Texts())
-	}
-
 	if err := tt.Click("Commit…"); err != nil {
 		t.Fatal(err)
 	}
 	tt.Frame()
 	if !tt.HasText("Commit changes") {
 		t.Errorf("no commit dialog: %q", tt.Texts())
+	}
+}
+
+// A file's changes read unified, or side by side, in the center.
+func TestDrawFileShowsItsLinesBothWays(t *testing.T) {
+	v := loaded()
+	tt := ui.NewTester(func(c *ui.Context) { v.DrawFile(c, Options{Notify: func(string) {}}, "a.go") }, 900, 500)
+	tt.Frame()
+	if !tt.HasText("var x = 2") || !tt.HasText("var x = 1") {
+		t.Fatalf("unified: %q", tt.Texts())
+	}
+	if err := tt.Click("Side by side"); err != nil {
+		t.Fatal(err)
+	}
+	tt.Frame()
+	tt.Frame()
+	if !v.split || !tt.HasText("var x = 2") || !tt.HasText("var x = 1") {
+		t.Fatalf("side by side: %v %q", v.split, tt.Texts())
 	}
 }
 

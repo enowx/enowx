@@ -36,6 +36,11 @@ type Options struct {
 	// ShowSession selects a session.
 	Conflicts   []ConflictNote
 	ShowSession func(id string)
+	// OpenDiff shows a changed file in a center tab, OpenFile the file itself;
+	// Current is the changed file in front, to mark it in the list.
+	OpenDiff func(path string)
+	OpenFile func(path string)
+	Current  func() string
 }
 
 // ConflictNote is a file the session and another one both change.
@@ -60,13 +65,13 @@ type View struct {
 	busy    string        // the action under way, as a verb: "Committing"
 	asked   string        // an action asked for before the view loaded (Ask)
 
-	rows     []row        // the list of files, or the lines of the file open
-	list     ui.ListState // the list of files
-	fileList ui.ListState // the lines of the file open
-	file     string       // the path of the file open, "" for the list
-	want     string       // a file to open once the changes load (OpenFile)
-	comments []Comment    // review comments not sent yet
-	draft    *draft       // the comment being written
+	rows        []row        // the lines of the file open
+	fileList    ui.ListState // the lines of the file open
+	file        string       // the path of the file open
+	split       bool         // rows lay it out side by side
+	splitWanted bool         // the user reads changes side by side
+	comments    []Comment    // review comments not sent yet
+	draft       *draft       // the comment being written
 
 	baseMenuState widget.ContextMenu
 	moreMenu      widget.ContextMenu

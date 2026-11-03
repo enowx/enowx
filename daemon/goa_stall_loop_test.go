@@ -15,8 +15,9 @@ import (
 
 // The stand-in agent: what it does depends on words in its first prompt. It
 // doesn't echo what's typed, so a screen stays blank until it means otherwise,
-// and writes down what it's sent, a line of GOA's wrapping on no screen. Its
-// loops of work end on their own, should anything outlive a test.
+// and writes down what it's sent, a line of GOA's wrapping on no screen. Started on
+// none of those prompts, it's GOD of Agents, showing a composer with nothing in it: lines
+// are typed only into one. Its loops of work end on their own, should anything outlive a test.
 const stallAgent = `#!/bin/sh
 stty -echo 2>/dev/null
 work() { i=0; while [ $i -lt 300000000 ]; do i=$((i+1)); done; }
@@ -26,10 +27,12 @@ case "$*" in
 *STANDIN-FROZEN*) echo "compiling the thing" ;;
 *STANDIN-BUSYBLANK*) work ;;
 *STANDIN-BUILD*) echo "building"; work ;;
+*) composer=yes; echo ">" ;;
 esac
 while read -r line; do
 	echo "heard: $line"
 	echo "$line" >>"$STALL_HEARD"
+	[ -z "$composer" ] || echo ">"
 done
 `
 
@@ -284,8 +287,11 @@ func TestGOAStalledTaskOnAnotherHost(t *testing.T) {
 	if st := stallStatus(t, ca, busy.ID); st != proto.GOATaskWorking {
 		t.Fatalf("a process at work there was taken for stalled: %s", st)
 	}
-	if st := stallStatus(t, ca, unreached.ID); st != proto.GOATaskWorking {
-		t.Fatalf("a host out of reach counted as stalled: %s", st)
+	// A host out of reach says nothing of its session: what GOA is told says that, once the
+	// limit has passed, and nothing calls it not moving.
+	waitFor(t, "told of the host out of reach", func() bool { return len(stallLinesOf(heard, unreached.ID)) == 1 })
+	if line := stallLinesOf(heard, unreached.ID)[0]; !strings.Contains(line, "can't be reached") || strings.Contains(line, "never started") {
+		t.Errorf("a host out of reach read as a stalled task: %s", line)
 	}
 	log, err := ca.ControlLog()
 	if err != nil {
@@ -366,6 +372,40 @@ func TestGOASettlingAStalledTask(t *testing.T) {
 	}
 	if lines := stallLinesOf(heard, task.ID); len(lines) != 1 {
 		t.Fatalf("still told of it: %q", lines)
+	}
+}
+
+// A settled task raises no stall line: not one looked at from before it was
+// settled, nor one waiting for GOA to be idle when it was.
+func TestGOASettledTaskRaisesNoStallLine(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("uses sh")
+	}
+	heard := stallStandIn(t)
+	srv := startServer(t)
+	c := connect(t, srv, nil)
+	if _, err := c.CreateSession(proto.SessionCreateParams{Agent: "claude", GOA: true, Cols: 200, Rows: 40}); err != nil {
+		t.Fatal(err)
+	}
+	snapshot, err := srv.goa.board.Add(proto.GOATask{Title: "settled", Session: "gone-session", Status: proto.GOATaskStalled})
+	if err != nil {
+		t.Fatal(err)
+	}
+	snapshot.Created = time.Now().Add(-time.Hour) // long enough ago to count as not moving
+	if err := c.Call(proto.MethodGOATask, proto.GOATaskParams{ID: snapshot.ID, Status: proto.GOATaskDone}, nil); err != nil {
+		t.Fatal(err)
+	}
+	w := &stallWatch{follows: map[string]*stallFollow{}, sampled: map[string]bool{}}
+	srv.stallCheck(w, snapshot, stallHost{infos: map[string]proto.SessionInfo{}}, proto.GOAStall{Blank: 1, Idle: 1, Stuck: 1})
+	srv.goa.mu.Lock()
+	srv.goa.tell = append(srv.goa.tell, goaLine{Text: "moot", Task: snapshot.ID}, goaLine{Text: "still true"})
+	srv.goa.mu.Unlock()
+	if got := srv.goaLinesToSay(); len(got) != 1 || got[0].Text != "still true" {
+		t.Fatalf("to say: %+v", got)
+	}
+	time.Sleep(2 * time.Second)
+	if lines := stallLinesOf(heard, snapshot.ID); len(lines) != 0 {
+		t.Fatalf("told of a settled task: %q", lines)
 	}
 }
 

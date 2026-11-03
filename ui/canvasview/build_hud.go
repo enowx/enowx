@@ -25,22 +25,39 @@ var buildStages = []struct{ id, label string }{
 	{proto.BuildCompare, "Compare"}, {proto.BuildRefining, "Refining"}, {proto.BuildReviewing, "Review"}, {proto.BuildDone, "Done"},
 }
 
+// hudBottom is how far over the views' foot the build's panel floats: above
+// Compare's pick buttons and the designs' line and strip, which it would cover.
+func (v *View) hudBottom(cv proto.Canvas) float32 {
+	switch v.view {
+	case viewCompare:
+		return theme.ControlHeight + theme.S2 + theme.S3
+	case viewDesign:
+		bottom := float32(theme.S3)
+		if len(cv.Frames) > 1 || v.frameOf().Description != "" {
+			bottom += theme.ControlHeight + theme.S1 // the line
+		}
+		if len(cv.Frames) > 1 && v.stageRoom() >= stripRoom {
+			bottom += thumbH + theme.S6 // the strip
+		}
+		return bottom
+	}
+	return theme.S3
+}
+
 // buildHUD draws the build's panel at the bottom left of the canvas's
 // views.
 func (v *View) buildHUD(c *ui.Context, o Options, cv proto.Canvas) {
 	switch {
 	case o.Building:
-		ui.Row(c.Key("build-hud")).Absolute().Left(12).Bottom(12).Padding(10, 12).Gap(8).Radius(12).AlignItems(ui.Center).
-			Background(theme.Dialog).Border(1, theme.BorderStrong).Children(func() {
-			widget.Spinner(c, 12)
-			ui.Text(c, "Starting the build…").FontSize(12).TextColor(theme.TextSoft)
+		raised(ui.Row(c.Key("build-hud")).Absolute().Left(theme.S3).Bottom(v.hudBottom(cv)).Width(hudWidth).MinHeight(40).Padding(theme.S2, theme.S4).Gap(theme.S2).Radius(theme.RadiusCard).AlignItems(ui.Center)).Children(func() {
+			widget.Spinner(c, 14)
+			ui.Row(c).Grow(1).MinWidth(0).Children(func() { widget.Running(c, "Starting the build…", widget.RunStyle{Color: theme.TextSoft}) })
 		})
 		return
 	case o.BuildErr != "":
-		ui.Row(c.Key("build-hud")).Absolute().Left(12).Bottom(12).Padding(10, 12).Gap(8).Radius(12).AlignItems(ui.Center).
-			Background(theme.Dialog).Border(1, theme.Fade(theme.Error, 0.5)).Children(func() {
-			ui.Icon(c, icon.Alert).FontSize(12).TextColor(theme.Error)
-			ui.Text(c, "The build didn't start: "+o.BuildErr).FontSize(12).TextColor(theme.TextSoft)
+		raised(ui.Row(c.Key("build-hud")).Absolute().Left(theme.S3).Bottom(v.hudBottom(cv)).Width(hudWidth).Padding(theme.S2, theme.S2, theme.S2, theme.S4).Gap(theme.S2).Radius(theme.RadiusCard).AlignItems(ui.Center)).Children(func() {
+			ui.Icon(c, icon.Alert).FontSize(14).TextColor(theme.Error)
+			ui.Text(c, "The build didn't start: "+o.BuildErr).FontSize(theme.TextUI).TextColor(theme.TextSoft).Grow(1).Basis(0).MinWidth(0)
 			if o.BuildDismiss != nil && widget.IconButton(c, icon.Close, "Dismiss", false).Clicked() {
 				o.BuildDismiss()
 			}
@@ -51,12 +68,12 @@ func (v *View) buildHUD(c *ui.Context, o Options, cv proto.Canvas) {
 	if run == nil || run.ID != cv.ID || v.buildClosed == run.What+run.Stage {
 		return
 	}
-	ui.Column(c.Key("build-hud")).Absolute().Left(12).Bottom(12).Width(280).Padding(12).Gap(10).Radius(12).
-		Background(theme.Dialog).Border(1, theme.BorderStrong).Children(func() {
-		ui.Row(c).FillWidth().Gap(8).AlignItems(ui.Center).Children(func() {
-			ui.Icon(c, icon.Palette).FontSize(14).TextColor(theme.Accent)
-			ui.Text(c, "Build").FontSize(12.5).FontWeight(600)
-			ui.Text(c, run.What).FontSize(11.5).TextColor(theme.Muted).SingleLine().Grow(1).Shrink(1).MinWidth(0)
+	raised(ui.Column(c.Key("build-hud")).Absolute().Left(theme.S3).Bottom(v.hudBottom(cv)).Width(hudWidth).Padding(theme.S3, theme.S4).Gap(theme.S2).Radius(theme.RadiusCard)).Children(func() {
+		ui.Row(c.Key("head")).FillWidth().Gap(theme.S2).MinHeight(theme.ControlHeight).AlignItems(ui.Center).Children(func() {
+			ui.Text(c, "Build").FontSize(theme.TextUI).FontWeight(600).TextColor(theme.TextStrong).SingleLine().Shrink(0)
+			ui.Row(c).Grow(1).MinWidth(0).Children(func() {
+				widget.Running(c, run.What, widget.RunStyle{Size: theme.TextLabel, Color: theme.TextSoft})
+			})
 			if run.Done && widget.IconButton(c, icon.Close, "Close", false).Clicked() {
 				v.buildClosed = run.What + run.Stage
 			}
@@ -71,23 +88,26 @@ func (v *View) buildHUD(c *ui.Context, o Options, cv proto.Canvas) {
 	})
 }
 
+// hudWidth is the build panel's: it floats over the page's views.
+const hudWidth = 288
+
 // buildStepper is the stages, those past checked, the current lit.
 func buildStepper(c *ui.Context, stage string) {
 	at := slices.IndexFunc(buildStages, func(s struct{ id, label string }) bool { return s.id == stage })
-	ui.Row(c).FillWidth().Gap(4).Wrap().Children(func() {
+	ui.Row(c.Key("stages")).FillWidth().Gap(theme.S1).Wrap().Children(func() {
 		for i, s := range buildStages {
-			col, bg := theme.Muted, theme.Sunken
+			col, bg := theme.TextSoft, theme.Sunken
 			switch {
 			case i < at || stage == proto.BuildDone:
 				col = theme.Done
 			case i == at:
 				col, bg = theme.Accent, theme.Fade(theme.Accent, 0.14)
 			}
-			ui.Row(c.Key(s.id)).Height(20).Padding(0, 7).Gap(4).Radius(10).AlignItems(ui.Center).Background(bg).Children(func() {
+			ui.Row(c.Key(s.id)).Height(24).PaddingX(theme.S2).Gap(theme.S1).Radius(theme.RadiusFull).AlignItems(ui.Center).Background(bg).Children(func() {
 				if i < at || stage == proto.BuildDone {
-					ui.Icon(c, icon.Check).FontSize(9).TextColor(col)
+					ui.Icon(c, icon.Check).FontSize(12).TextColor(col)
 				}
-				ui.Text(c, s.label).FontSize(10.5).TextColor(col)
+				ui.Text(c, s.label).FontSize(theme.TextLabel).TextColor(col)
 			})
 		}
 	})
@@ -102,29 +122,29 @@ func (v *View) buildDirections(c *ui.Context, o Options, cv proto.Canvas, run pr
 		}
 		return "a design"
 	}
-	ui.Column(c).FillWidth().Gap(2).Padding(8, 0, 0, 0).BorderWidth(1, 0, 0, 0).BorderColor(theme.Border).Children(func() {
+	ui.Column(c.Key("directions")).FillWidth().Gap(theme.S1).Padding(theme.S2, 0, 0, 0).BorderWidth(theme.Rule, 0, 0, 0).BorderColor(theme.Border).Children(func() {
 		for i, d := range run.Directions {
 			f := cv.Frames[max(0, slices.IndexFunc(cv.Frames, func(f proto.CanvasFrame) bool { return f.ID == d.Frame }))]
-			row := ui.ButtonBase(c.Key(d.Frame)).FillWidth().Gap(8).Padding(4, 6).Radius(6).AlignItems(ui.Center).
+			row := ui.ButtonBase(c.Key(d.Frame)).FillWidth().Gap(theme.S2).Padding(theme.S1, theme.S2).Radius(theme.RadiusSmall).AlignItems(ui.Center).Justify(ui.Start).
 				Label("Show " + f.Name).Cursor(ui.CursorPointer)
 			if row.Hovered() {
 				row.Background(theme.Hover)
 			}
 			row.Children(func() {
-				ui.Box(c).Size(7, 7).Radius(4).Background(ui.Hex(unslopview.RegionColors[i%len(unslopview.RegionColors)]))
-				ui.Column(c).Grow(1).Shrink(1).MinWidth(0).Gap(1).Children(func() {
-					ui.Text(c, f.Name).FontSize(11.5).FontWeight(600).SingleLine()
+				ui.Box(c).Size(8, 8).Shrink(0).Radius(theme.RadiusFull).Background(ui.Hex(unslopview.RegionColors[i%len(unslopview.RegionColors)]))
+				ui.Column(c).Grow(1).Shrink(1).MinWidth(0).Children(func() {
+					widget.Running(c, f.Name, widget.RunStyle{Size: theme.TextLabel, Weight: 500})
 					if f.Direction != nil {
-						ui.Text(c, f.Direction.Source).FontSize(10.5).TextColor(theme.Muted).SingleLine()
+						widget.Running(c.Key("src"), f.Direction.Source, widget.RunStyle{Size: theme.TextLabel, Color: theme.TextSoft})
 					}
 				})
 				switch {
 				case d.Done:
-					ui.Icon(c, icon.Check).FontSize(11).TextColor(theme.Done)
+					ui.Icon(c, icon.Check).FontSize(12).TextColor(theme.Done)
 				case d.Session != "" && o.AgentState != nil && o.AgentState(d.Session) == unslopview.AgentWaiting:
 					widget.Tag(c, "needs you", theme.Warning)
 				default:
-					widget.Spinner(c, 10)
+					widget.Spinner(c, 12)
 				}
 			})
 			if row.Clicked() {
@@ -144,7 +164,7 @@ func (v *View) buildDirections(c *ui.Context, o Options, cv proto.Canvas, run pr
 					text += " · first screens alike"
 				}
 			}
-			ui.Text(c.Key(p.A+p.B), text).FontSize(10.5).TextColor(col).Padding(0, 6)
+			ui.Text(c.Key(p.A+p.B), text).FontSize(theme.TextLabel).TextColor(col).PaddingX(theme.S2)
 		}
 	})
 	c.After(time.Second) // agents' states change outside the run

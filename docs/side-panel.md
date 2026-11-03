@@ -28,6 +28,11 @@ An HTML file's **Page** shows it in a web view of the app, reloaded when the fil
 
 A path a session's program prints opens here too, with `⌘`+click on it in the terminal (Ctrl+click elsewhere): relative to the session's folder, from `~/`, or absolute anywhere on the host (`file.read` with `abs`), such as a screenshot an agent saved in `/tmp`; a `:line:col` after it is dropped. A `http://localhost:<port>` link opens in the Browser tool as one of the session's ports; other URLs open in the system browser.
 
+
+A text or code file opened in a tab can be edited, on any host, in normal and GOD of Agents modes: line numbers, colors up to 256 KB of text, undo and redo, copy and paste, Tab and Shift+Tab, indents kept on a new line, find and replace (⌘F), go to line (Ctrl+G), and comment out (⌘/). ⌘S saves through the daemon (`file.write`): a whole new file moved over the old, with its mode and line endings. A change not saved shows as a yellow dot on the tab, and closing the tab or quitting asks first.
+
+When the file changes on disk (an agent's work, say) it reloads, unless there are changes here: then a bar offers Compare, Keep mine and Take theirs, and a save never writes over what it hasn't seen. Binary files, read-only ones, files over 16 MB and files with a line over 8 KB open in the read-only long view, the bar saying why. Markdown and HTML still open as Preview and Page; Raw and Code are where they're edited.
+
 ## Dropping files on a server's session
 
 Files dropped on a terminal paste their paths, which an agent takes as files to read (an image to look at, say). On this machine that is all. On a server those paths would name nothing, so the app uploads the files first (`file.upload`, in 4 MB parts, through the daemon's connection) and pastes their paths on the server instead. They go to `~/.enowx-app/uploads/<session>/` there, out of the session's folder so its git status stays clean, a name taken being numbered (`shot-2.png`), and they are deleted with the session. The app does so for any paste that is only paths of files on this machine, as copying files in Finder and pasting them gives, up to 200 MB at once; any other paste goes as it is.
@@ -50,8 +55,8 @@ The daemon finds a session's processes by name: each session's program runs unde
 
 ## Traffic
 
-The HTTP the session's programs send, caught by its host's interceptor: the list with its filter, an exchange's headers, bodies and messages, mocks and breakpoints, rules, what is attached, Compose, and its settings. See [traffic.md](traffic.md).
+The HTTP the session's programs send, caught by its host's interceptor: the list with its filter, an exchange's headers, bodies and messages in a tab of the session, mocks and breakpoints, rules, what is attached, Compose, and its settings. See [traffic.md](traffic.md).
 
 ## Android
 
-The devices of the session's host and of this machine: start an emulator, connect a phone, set Android up, run the session's app on a device (across hosts through the ADB bridge), catch its traffic, and in its **Screen** and **Logcat** tabs use its screen right in the panel, or read its log. See [android.md](android.md).
+The devices of the session's host and of this machine: start an emulator, connect a phone, set Android up, run the session's app on a device (across hosts through the ADB bridge), catch its traffic, and open its **Screen** and **Logcat** in tabs of the session, to use its screen or read its log. See [android.md](android.md).

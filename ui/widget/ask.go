@@ -50,16 +50,16 @@ func AskCard(c *ui.Context, ask *Ask, more int, armed bool) {
 			Role(ui.RoleAlertDialog).Label(ask.Title).Transition(OverlayMotion)
 		Float(card).Children(func() {
 			ui.Scroll(c).FillWidth().Shrink(1).MinHeight(0).Children(func() {
-				ui.Column(c).FillWidth().Padding(14, 16, 12, 16).Gap(10).Children(func() {
+				ui.Column(c).FillWidth().Padding(theme.S3, theme.S4, theme.S3, theme.S4).Gap(theme.S2).Children(func() {
 					askHead(c, ask)
 					if ask.Body != nil {
 						ask.Body()
 					}
 				})
 			})
-			ui.Row(c).FillWidth().Shrink(0).Padding(0, 16, 14, 16).Gap(8).Wrap().AlignItems(ui.Center).Children(func() {
+			ui.Row(c).FillWidth().Shrink(0).Padding(0, theme.S4, theme.S3, theme.S4).Gap(theme.S2).Wrap().AlignItems(ui.Center).Children(func() {
 				if more > 0 {
-					ui.Text(c, strconv.Itoa(more)+" more waiting").FontSize(11.5).TextColor(theme.Muted).SingleLine()
+					ui.Text(c, strconv.Itoa(more)+" more waiting").FontSize(theme.TextLabel).TextColor(theme.Muted).SingleLine()
 				}
 				ui.Spacer(c)
 				for _, b := range ask.Buttons {
@@ -78,12 +78,12 @@ func askHead(c *ui.Context, ask *Ask) {
 	if svg == nil {
 		svg = icon.Alert
 	}
-	ui.Row(c).FillWidth().Gap(10).AlignItems(ui.Start).Children(func() {
-		ui.Icon(c, svg).FontSize(15).TextColor(theme.Accent).Margin(2, 0, 0, 0)
-		ui.Column(c).Grow(1).MinWidth(0).Gap(4).Children(func() {
-			ui.Text(c, ask.Title).FontSize(13.5).FontWeight(600).TextColor(theme.TextStrong)
+	ui.Row(c).FillWidth().Gap(theme.S2).AlignItems(ui.Start).Children(func() {
+		ui.Icon(c, svg).FontSize(15).TextColor(theme.Now).Margin(2, 0, 0, 0)
+		ui.Column(c).Grow(1).MinWidth(0).Gap(theme.S1).Children(func() {
+			ui.Text(c, ask.Title).FontSize(theme.TextUI).FontWeight(600).TextColor(theme.TextStrong)
 			if ask.About != "" {
-				ui.Text(c, ask.About).FontSize(12).TextColor(theme.TextSoft)
+				ui.Text(c, ask.About).FontSize(theme.TextLabel).TextColor(theme.TextSoft)
 			}
 		})
 	})

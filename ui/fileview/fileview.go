@@ -40,6 +40,24 @@ type Options struct {
 	// a folder of the session's folder ("" is the folder itself), wherever
 	// the session runs, and calls done after; nil hides it.
 	AddFiles func(folder string, done func())
+	// GoToFile finds a file by name; Current is the file in front, to mark it
+	// in the tree.
+	GoToFile func()
+	Current  func() string
+	// Status is git's mark on the file at a path, "" for none or not known;
+	// ShowChanges shows what changed in it.
+	Status      func(path string) string
+	ShowChanges func(path string)
+}
+
+// StatusOf is git's mark on the file at p, as the tree last read it.
+func (v *View) StatusOf(p string) string {
+	for _, r := range v.rows {
+		if r.path == p {
+			return r.entry.Status
+		}
+	}
+	return ""
 }
 
 // Added reads the folder again and unfolds it: files were added to it.

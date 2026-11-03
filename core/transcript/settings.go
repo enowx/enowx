@@ -9,25 +9,25 @@ var settingsWindows = []int64{256 << 10, 4 << 20, 32 << 20}
 
 // LastSettings is the model and effort agent last said in its transcript at
 // path, read from its end; "" for what it doesn't say.
-func LastSettings(agent, path string) (model, effort string) {
+func LastSettings(agent, path string) (model, effort, mode string) {
 	info, err := os.Stat(path)
 	if err != nil {
-		return "", ""
+		return "", "", ""
 	}
 	for _, window := range settingsWindows {
 		r := Open(agent, path)
 		if r == nil {
-			return "", ""
+			return "", "", ""
 		}
 		// A line cut by the window's start doesn't parse, and is skipped.
 		r.offset = max(info.Size()-window, 0)
 		if err := r.Update(); err != nil {
-			return "", ""
+			return "", "", ""
 		}
-		model, effort = r.Model, r.Effort
+		model, effort, mode = r.Model, r.Effort, r.Mode
 		if model != "" || r.offset-window <= 0 && window >= info.Size() {
-			return model, effort
+			return model, effort, mode
 		}
 	}
-	return model, effort
+	return model, effort, mode
 }

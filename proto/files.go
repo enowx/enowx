@@ -89,6 +89,30 @@ type FileRef struct {
 	// file a program printed (a screenshot in /tmp, say). file.read only.
 	// Older daemons read it in the session's folder.
 	Abs bool `json:"abs,omitempty"`
+	// Whole reads a text file up to MaxEdit, to edit it, rather than its first part. Older
+	// daemons read that: Truncated says so, and it can't be edited.
+	Whole bool `json:"whole,omitempty"`
+}
+
+// MaxEdit is the longest file that can be read whole and edited.
+const MaxEdit = 16 << 20
+
+// FileWrite saves a file edited: atomically, keeping its mode, and only if it is as it was
+// at Unless (when set) unless Force says to write over what's there.
+type FileWrite struct {
+	Session string    `json:"session"`
+	Path    string    `json:"path"`
+	Abs     bool      `json:"abs,omitempty"`
+	Text    string    `json:"text"`
+	Unless  time.Time `json:"unless,omitzero"`
+	Force   bool      `json:"force,omitempty"`
+}
+
+// FileWritten is how a save went. Changed: the file changed since Unless, and nothing was
+// written; Modified is when it last changed either way.
+type FileWritten struct {
+	Modified time.Time `json:"modified,omitzero"`
+	Changed  bool      `json:"changed,omitempty"`
 }
 
 // FileListing is a folder's entries: folders first, then files, by name.
@@ -119,6 +143,7 @@ type FileContent struct {
 	Text      string    `json:"text,omitempty"`
 	Binary    bool      `json:"binary,omitempty"`
 	Truncated bool      `json:"truncated,omitempty"` // longer than shown
+	ReadOnly  bool      `json:"readOnly,omitempty"`  // it can't be written
 	// Image is an image's format ("png", "svg", …) and Data its bytes,
 	// for images up to MaxImage.
 	Image string `json:"image,omitempty"`
@@ -132,6 +157,7 @@ const MaxImage = 8 << 20
 // what a file is.
 const (
 	MethodFileChange = "file.change" // FileChange → FileChanged
+	MethodFileWrite  = "file.write"  // FileWrite → FileWritten
 	MethodFileStat   = "file.stat"   // FileRef → FileStat
 )
 

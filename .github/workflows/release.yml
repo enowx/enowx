@@ -4,18 +4,21 @@ name: Release
 # signed with the MYGO_UPDATER_PRIVATE_KEY secret (docs/updates.md). A
 # pushed tag v<version> uploads them to a draft release, to check and
 # publish by hand: apps update once it is published. A run started by hand
-# keeps them as the run's artifacts, publishing nothing.
+# keeps them as the run's artifacts, publishing nothing. Publishing the release
+# posts its changelog to the Discord server, once (the announce job).
 on:
   push:
     tags: ['v*']
   workflow_dispatch:
+  release:
+    types: [published]
 
 permissions:
   contents: write # the draft release, and the uploads to it
 
 jobs:
   draft-release:
-    if: startsWith(github.ref, 'refs/tags/v')
+    if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -35,7 +38,7 @@ jobs:
   build:
     needs: draft-release
     # Runs by hand too, when there is no draft to wait for.
-    if: ${{ !cancelled() && (needs.draft-release.result == 'success' || needs.draft-release.result == 'skipped') }}
+    if: ${{ github.event_name != 'release' && !cancelled() && (needs.draft-release.result == 'success' || needs.draft-release.result == 'skipped') }}
     name: ${{ matrix.name }}
     runs-on: ${{ matrix.os }}
     strategy:
@@ -88,7 +91,7 @@ jobs:
   # reads it from the release's downloads, which GitHub's API limit spares.
   site-manifest:
     needs: build
-    if: startsWith(github.ref, 'refs/tags/v') && needs.build.result == 'success'
+    if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v') && needs.build.result == 'success'
     runs-on: ubuntu-latest
     steps:
       - name: Upload release.json
@@ -104,3 +107,20 @@ jobs:
               browser_download_url: "https://github.com/\($repo)/releases/download/\($tag)/\(.name | @uri)"}]
           }' draft.json > release.json
           gh release upload "$GITHUB_REF_NAME" release.json --clobber --repo "$GITHUB_REPOSITORY"
+
+  # Says so on Discord once the release is out. It can't fail the release, and
+  # scripts/release-discord.py looks for its own post first, so a rerun is safe.
+  announce:
+    if: github.event_name == 'release' && !github.event.release.draft && !github.event.release.prerelease
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - name: Post the changelog to Discord
+        env:
+          DISCORD_RELEASE_BOT_TOKEN: ${{ secrets.DISCORD_RELEASE_BOT_TOKEN }}
+          RELEASE_TAG: ${{ github.event.release.tag_name }}
+          RELEASE_URL: ${{ github.event.release.html_url }}
+        run: python3 scripts/release-discord.py

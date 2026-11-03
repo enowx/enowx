@@ -101,6 +101,9 @@ type SessionInputParams struct {
 	Text  string `json:"text"`
 	Paste bool   `json:"paste,omitempty"`
 	Enter bool   `json:"enter,omitempty"`
+	// From is the session sending it, when one does (enowx send): GOD of Agents'
+	// makes its target one it follows.
+	From string `json:"from,omitempty"`
 }
 
 // SessionInfo describes a session.
@@ -121,7 +124,13 @@ type SessionInfo struct {
 	Title    string    `json:"title"`            // set by the program (OSC 0/2)
 	Prompt   string    `json:"prompt,omitempty"` // first prompt, given or typed
 	Created  time.Time `json:"created"`
-	Active   bool      `json:"active"` // the program is producing output
+	// Run tells one run of its program from the next, in a terminal of its own: a view
+	// attached to another run shows a screen that no longer changes.
+	Run int64 `json:"run,omitempty"`
+	// FinishedAt is when it last finished what it was at, in Unix milliseconds: its
+	// turn's end, its program's, or its screen stopping where no hook says; 0 for never.
+	FinishedAt int64 `json:"finishedAt,omitempty"`
+	Active     bool  `json:"active"` // the program is producing output
 	// State is what the agent's hooks last said (StateWorking, …), "" when
 	// it has none or they went stale.
 	State string `json:"state,omitempty"`
@@ -164,6 +173,12 @@ type SessionInfo struct {
 	// Note is what the session is at, a line or two its agent (enowx note)
 	// or the user last set; "" for none.
 	Note string `json:"note,omitempty"`
+	// Report is what its agent last reported of a turn (goa report), Outcome one of
+	// GOAOutcomes; ReportAt, in Unix milliseconds, tells one from the next. On the
+	// session, it reaches GOA by the road its changes take, on any host.
+	Report        string `json:"report,omitempty"`
+	ReportOutcome string `json:"reportOutcome,omitempty"`
+	ReportAt      int64  `json:"reportAt,omitempty"`
 	// Group is the fan-out the session is part of: sessions given one
 	// prompt, each in its own worktree, to compare and keep the best of.
 	Group string `json:"group,omitempty"`
@@ -299,8 +314,10 @@ type SessionCreateParams struct {
 	// Model and Effort start the agent on a model and a reasoning effort
 	// (agent.Settings' choices), where its command line takes them.
 	// Older daemons ignore them.
-	Model   string   `json:"model,omitempty"`
-	Effort  string   `json:"effort,omitempty"`
+	Model  string `json:"model,omitempty"`
+	Effort string `json:"effort,omitempty"`
+	// Mode starts the agent in a permission mode, where its command line takes one.
+	Mode    string   `json:"mode,omitempty"`
 	Command []string `json:"command,omitempty"`
 	Dir     string   `json:"dir,omitempty"`
 	Env     []string `json:"env,omitempty"`
@@ -323,6 +340,9 @@ type SessionCreateParams struct {
 // SessionRef names a session.
 type SessionRef struct {
 	ID string `json:"id"`
+	// From is the session reading it, when a session asks: GOA having read one clears
+	// what waits for it about that one.
+	From string `json:"from,omitempty"`
 }
 
 // AttachResult names the stream that carries a session's frames.

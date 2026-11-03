@@ -17,12 +17,8 @@ func (a *App) newSessionDialog(c *ui.Context) {
 	if !f.open {
 		return
 	}
-	widget.Sheet(c, &f.open, 560, func() {
-		ui.Column(c).Gap(5).Grow(1).MinWidth(0).Children(func() {
-			widget.Breadcrumb(c, a.host.Name, f.project.Name, "New session")
-			ui.Text(c, f.project.Path).Font(theme.MonoFont).FontSize(11).TextColor(theme.Muted).SingleLine()
-		})
-		if widget.IconButton(c, icon.Close, "Close", false).Clicked() {
+	widget.Sheet(c, &f.open, 640, func() {
+		if widget.DialogHeader(c, "New session", "In "+f.project.Name+" on "+a.host.Name, true) {
 			f.open = false
 		}
 	}, func() {
@@ -31,15 +27,24 @@ func (a *App) newSessionDialog(c *ui.Context) {
 			a.continuingCard(c, *ch)
 			if ch.agent != "" {
 				widget.Field(c, "Message (optional)", func() {
-					ui.TextArea(c, &f.prompt).Height(76).Padding(9, 11).Radius(theme.RadiusControl).
-						Background(theme.Sunken).Border(1, theme.BorderStrong).Placeholder("What should it do next?")
+					widget.TextBox(c, &f.prompt, "What should it do next?", 96).FillWidth()
 				})
 			}
 			a.formError(c)
 			return
 		}
-		a.agentPicker(c)
-		if ag := a.agentInfo(f.agent); needsInstall(ag) {
+		ag := a.agentInfo(f.agent)
+		install := needsInstall(ag)
+		if f.agent != agent.Shell && !install {
+			widget.Field(c, "Prompt", func() {
+				widget.TextBox(c, &f.prompt, "What should the agent do?", 96).FillWidth().AutoFocus()
+				a.issueButton(c)
+			})
+		}
+		ui.Column(c.Key("agent-project")).FillWidth().Shrink(0).Children(func() {
+			widget.FieldCols(c, func() { a.agentPicker(c) }, func() { a.projectPicker(c) })
+		})
+		if install {
 			a.installCard(c, ag)
 			a.formError(c)
 			return
@@ -49,54 +54,52 @@ func (a *App) newSessionDialog(c *ui.Context) {
 				widget.Input(c, &f.command, "npx some-agent --flag").FillWidth().Font(theme.MonoFont)
 			})
 		}
-		a.accountField(c)
-		if ag := a.agentInfo(f.agent); ag.SignIn != "" {
-			a.signInCard(c, ag)
-		}
 		if f.project.IsGit {
 			a.branchFields(c)
-			a.alsoField(c)
-			a.worktreeSetupField(c)
 		} else if f.loaded {
 			widget.Notice(c, icon.Folder, ui.Color{}, "This folder isn't a git repository",
 				"The session runs directly in the folder. Sessions here share the same files, so two agents can overwrite each other's changes. Run git init in it to get branches and isolated worktrees.", nil)
 		}
-		if a.agentInfo(f.agent).CanSkipPermissions {
+		if f.agent != agent.Shell {
+			a.routeField(c)
+		}
+		a.accountField(c)
+		if ag.SignIn != "" {
+			a.signInCard(c, ag)
+		}
+		if ag.CanSkipPermissions {
 			a.skipPermissionsField(c)
+		}
+		if f.project.IsGit {
+			a.alsoField(c)
+			a.worktreeSetupField(c)
 		}
 		a.displayField(c)
 		a.credsField(c)
-		if f.agent != agent.Shell {
-			widget.Field(c, "First prompt (optional)", func() {
-				ui.TextArea(c, &f.prompt).Height(76).Padding(9, 11).Radius(theme.RadiusControl).
-					Background(theme.Sunken).Border(1, theme.BorderStrong).Placeholder("What should the agent do?")
-				a.issueButton(c)
-				a.routeField(c)
-			})
-		}
 		a.formError(c)
 	}, func() {
-		ui.Text(c, modKey+"↩ to start · Esc to cancel").FontSize(11.5).TextColor(theme.Muted)
-		ui.Spacer(c)
-		if widget.GhostButton(c, "Cancel").Clicked() {
+		ui.Row(c).Grow(1).MinWidth(0).Children(func() {
+			widget.Running(c, modKey+"↩ to start · Esc to cancel", widget.RunStyle{Size: theme.TextLabel, Color: theme.TextSoft})
+		})
+		if widget.Button(c, widget.Secondary, nil, "Cancel", "").Clicked() {
 			f.open = false
 		}
 		ag := a.agentInfo(f.agent)
 		install := needsInstall(ag)
-		label := "Start session"
+		label, name, svg := "Start", "Start session", icon.Play
 		switch {
 		case f.busy:
-			label = "Starting…"
+			label, name, svg = "Starting…", "Starting…", nil
 		case f.cont != nil && f.cont.conv != nil:
-			label = "Resume"
+			label, name, svg = "Resume", "Resume", nil
 		case f.cont != nil && f.cont.session != nil && f.cont.session.Hibernated:
-			label = "Wake up"
+			label, name, svg = "Wake up", "Wake up", nil
 		case f.cont != nil:
-			label = "Open session"
+			label, name, svg = "Open session", "Open session", nil
 		case install:
-			label = "Install " + ag.Name
+			label, name, svg = "Install "+ag.Name, "Install "+ag.Name, nil
 		}
-		b := widget.PrimaryButton(c, nil, label, "").Disabled(f.busy)
+		b := widget.PrimaryButton(c, svg, label, "").Label(name).Disabled(f.busy)
 		if install && ag.Install == "" && f.cont == nil {
 			b.Disabled(true).Opacity(0.45)
 		} else if b.Clicked() || c.Shortcut(ui.Cmd, ui.KeyEnter) {
@@ -115,42 +118,41 @@ func (a *App) newSessionDialog(c *ui.Context) {
 
 func (a *App) formError(c *ui.Context) {
 	if f := &a.newSession; f.err != "" {
-		ui.Text(c, f.err).FontSize(12).TextColor(theme.Error)
+		ui.Text(c, f.err).FontSize(theme.TextUI).TextColor(theme.Error)
 	}
+}
+
+// formRow is a row of the form that holds a line about itself and what can
+// be done: as a switch's, for what isn't one.
+func formRow(c *ui.Context, title, about string, right func()) {
+	ui.Row(c.Key("row:" + title)).FillWidth().MinHeight(44).Gap(theme.S3).Children(func() {
+		ui.Column(c).Grow(1).MinWidth(0).Children(func() {
+			ui.Text(c, title).FontSize(theme.TextUI)
+			if about != "" {
+				ui.Text(c, about).FontSize(theme.TextLabel).TextColor(theme.TextSoft)
+			}
+		})
+		ui.Row(c).Shrink(0).Children(right)
+	})
 }
 
 // signInCard offers to sign the agent in, with a link and a code to open
 // on any device, which is what works on a server without a browser.
 func (a *App) signInCard(c *ui.Context, ag proto.AgentInfo) {
 	f := &a.newSession
-	widget.Card(c).FillWidth().Children(func() {
-		ui.Row(c).FillWidth().Gap(12).Children(func() {
-			ui.Column(c).Gap(3).Grow(1).MinWidth(0).Children(func() {
-				ui.Text(c, "Not signed in yet?").FontSize(12.5)
-				ui.Text(c, ag.SignIn).Font(theme.MonoFont).FontSize(11).TextColor(theme.Muted).SingleLine()
-			})
-			if widget.GhostButton(c, "Sign in").Disabled(f.busy).Clicked() && !f.busy {
-				a.startSignIn(ag)
-			}
-		})
+	formRow(c, "Not signed in yet?", ag.SignIn, func() {
+		if widget.Button(c, widget.Secondary, nil, "Sign in", "").Disabled(f.busy).Clicked() && !f.busy {
+			a.startSignIn(ag)
+		}
 	})
 }
 
 // skipPermissionsField is the switch for running the agent without
 // permission prompts, remembered across sessions.
 func (a *App) skipPermissionsField(c *ui.Context) {
-	widget.Card(c).FillWidth().Children(func() {
-		ui.Row(c).FillWidth().Gap(12).Children(func() {
-			ui.Column(c).Gap(3).Grow(1).MinWidth(0).Children(func() {
-				ui.Text(c, "Skip permission prompts").FontSize(12.5)
-				ui.Text(c, "The agent runs commands and edits files without asking, and keeps doing so when enowX continues the session after a restart.").
-					FontSize(11.5).TextColor(theme.Muted)
-			})
-			if widget.Switch(c, &a.skipPermissions, "Skip permission prompts") {
-				a.saveState()
-			}
-		})
-	})
+	if widget.ToggleRow(c, "Skip permission prompts", "The agent runs without asking", &a.skipPermissions) {
+		a.saveState()
+	}
 }
 
 // displayField offers a virtual display for desktop apps, where the host
@@ -162,26 +164,18 @@ func (a *App) displayField(c *ui.Context) {
 	if !info.Display && (a.host.ID == hosts.LocalID || info.DisplayNote == "") {
 		return
 	}
-	widget.Card(c).FillWidth().Children(func() {
-		ui.Row(c).FillWidth().Gap(12).Children(func() {
-			ui.Column(c).Gap(3).Grow(1).MinWidth(0).Children(func() {
-				ui.Text(c, "Run with a display").FontSize(12.5)
-				note := "For desktop apps: their windows open on a display of the session's own, shown in the Browser tool."
-				if !info.Display {
-					note = "For desktop apps; this host " + info.DisplayNote + "."
-				}
-				ui.Text(c, note).FontSize(11.5).TextColor(theme.Muted)
-			})
-			if info.Display {
-				widget.Switch(c, &f.display, "Run with a display")
-			} else if info.DisplayInstall != "" && widget.GhostButton(c, "Install Xpra").Disabled(f.busy).Clicked() && !f.busy {
-				a.installDisplay()
-			}
-		})
-		if !info.Display && info.DisplayInstall != "" {
-			ui.Text(c, info.DisplayInstall).Font(theme.MonoFont).FontSize(11).Padding(8, 10).Radius(7).Background(theme.Sunken).FillWidth().Margin(10, 0, 0, 0)
+	if info.Display {
+		widget.ToggleRow(c, "Run with a display", "For desktop apps: their windows open on a display of the session's own, shown in the Browser tool.", &f.display)
+		return
+	}
+	formRow(c, "Run with a display", "For desktop apps; this host "+info.DisplayNote+".", func() {
+		if info.DisplayInstall != "" && widget.Button(c, widget.Secondary, nil, "Install Xpra", "").Disabled(f.busy).Clicked() && !f.busy {
+			a.installDisplay()
 		}
 	})
+	if info.DisplayInstall != "" {
+		widget.CodeBlockText(c, info.DisplayInstall)
+	}
 }
 
 // worktreeSetupField says what the project's .enowx.toml gives a new
@@ -191,16 +185,37 @@ func (a *App) worktreeSetupField(c *ui.Context) {
 	if f.branchMode == proto.BranchNone || f.project.Setup == "" && len(f.project.Copy) == 0 {
 		return
 	}
-	widget.Card(c).FillWidth().Children(func() {
-		ui.Column(c).FillWidth().Gap(6).Children(func() {
-			if len(f.project.Copy) > 0 {
-				ui.Text(c, "A new worktree gets "+strings.Join(f.project.Copy, ", ")+" from the project folder (.enowx.toml).").
-					FontSize(11.5).TextColor(theme.Muted)
+	if len(f.project.Copy) > 0 {
+		ui.Text(c, "A new worktree gets "+strings.Join(f.project.Copy, ", ")+" from the project folder (.enowx.toml).").
+			FontSize(theme.TextUI).TextColor(theme.TextSoft)
+	}
+	if f.project.Setup != "" {
+		widget.ToggleRow(c, "Run the project's setup", "In a tab of the session, when its worktree is new: "+f.project.Setup, &f.runSetup)
+	}
+}
+
+// projectPicker is the project the session starts in; another keeps what was
+// typed and reads that project.
+func (a *App) projectPicker(c *ui.Context) {
+	f := &a.newSession
+	widget.Field(c, "Project", func() {
+		options, names := []string{}, map[string]string{f.project.Path: f.project.Name}
+		for _, p := range a.projects {
+			options = append(options, p.Path)
+			names[p.Path] = p.Name
+		}
+		v := f.project.Path
+		hookSelect(c, "Project", &v, options, names)
+		if v == f.project.Path {
+			return
+		}
+		for _, p := range a.projects {
+			if p.Path == v {
+				prompt := f.prompt
+				a.openNewSession(p)
+				f.prompt = prompt
 			}
-			if f.project.Setup != "" {
-				switchRow(c, &f.runSetup, "Run the project's setup", "In a tab of the session, when its worktree is new: "+f.project.Setup)
-			}
-		})
+		}
 	})
 }
 
@@ -210,18 +225,12 @@ func (a *App) agentPicker(c *ui.Context) {
 	widget.Field(c, "Agent", func() {
 		sel := ui.SelectBase(c, &f.agent)
 		cur := a.agentInfo(f.agent)
-		trig := widget.Trigger(sel.Trigger, sel.Open()).Height(42).Label("Agent")
-		trig.Children(func() {
-			agentTile(c, cur.ID, 26)
-			ui.Text(c, cur.Name).SingleLine()
-			if cur.Command != "" {
-				ui.Text(c, cur.Command).Font(theme.MonoFont).FontSize(11).TextColor(theme.Muted)
-			}
-			ui.Spacer(c)
-			ui.Icon(c, icon.ChevronDown).FontSize(13).TextColor(theme.Muted)
+		widget.Trigger(sel.Trigger, sel.Open()).Label("Agent").Children(func() {
+			ui.Row(c).Grow(1).MinWidth(0).Children(func() { widget.Running(c, cur.Name, widget.RunStyle{}) })
+			ui.Icon(c, icon.ChevronDown).FontSize(12).TextColor(theme.TextSoft)
 		})
 		sel.Popup(func(panel ui.Element) {
-			widget.Popup(panel.Margin(6, 0, 0, 0).Width(518))
+			widget.Popup(panel.Margin(theme.S1, 0, 0, 0).Width(320))
 			// Those on this host first; the many others after, to install.
 			var here, missing []proto.AgentInfo
 			for _, ag := range a.agents {
@@ -231,7 +240,7 @@ func (a *App) agentPicker(c *ui.Context) {
 					missing = append(missing, ag)
 				}
 			}
-			ui.Scroll(c).FillWidth().MaxHeight(420).Children(func() {
+			widget.Scroll(c).FillWidth().MaxHeight(420).Children(func() {
 				ui.Column(c).FillWidth().Children(func() {
 					for i, ag := range here {
 						if ag.ID == agent.Shell && i > 0 {
@@ -241,7 +250,7 @@ func (a *App) agentPicker(c *ui.Context) {
 					}
 					if len(missing) > 0 {
 						widget.Divider(c)
-						widget.PopupLabel(c, "NOT INSTALLED ON "+strings.ToUpper(a.host.Name))
+						widget.PopupLabel(c, "Not installed on "+a.host.Name)
 						for _, ag := range missing {
 							a.agentItem(c, sel, ag)
 						}
@@ -256,9 +265,9 @@ func (a *App) agentPicker(c *ui.Context) {
 func (a *App) agentItem(c *ui.Context, sel ui.SelectParts[string], ag proto.AgentInfo) {
 	item := sel.Item(ag.ID)
 	widget.PopupItem(item, item.Highlighted()).Children(func() {
-		agentTile(c, ag.ID, 26)
-		ui.Column(c).Gap(1).Grow(1).Children(func() {
-			ui.Text(c, ag.Name)
+		agentTile(c, ag.ID, 24)
+		ui.Column(c).Grow(1).MinWidth(0).Children(func() {
+			ui.Text(c, ag.Name).FontSize(theme.TextUI).SingleLine()
 			sub := ag.Command
 			switch ag.ID {
 			case agent.Shell:
@@ -266,10 +275,10 @@ func (a *App) agentItem(c *ui.Context, sel ui.SelectParts[string], ag proto.Agen
 			case agent.Custom:
 				sub = "any program"
 			}
-			ui.Text(c, sub).Font(theme.MonoFont).FontSize(11).TextColor(theme.Muted)
+			ui.Text(c, sub).FontSize(theme.TextLabel).TextColor(theme.TextSoft).SingleLine()
 		})
 		if ag.ID == a.newSession.agent {
-			ui.Icon(c, icon.Check).FontSize(14).TextColor(theme.Accent)
+			ui.Icon(c, icon.Check).FontSize(14).TextColor(theme.Now)
 		}
 	})
 }
@@ -278,64 +287,66 @@ func agentTile(c *ui.Context, id string, size float32) {
 	widget.Avatar(c, icon.Agent(id), size, theme.Text)
 }
 
+// whereNames are the places a git project's session can run.
+var whereNames = map[string]string{
+	proto.BranchNew:      "New branch and worktree",
+	proto.BranchExisting: "Existing branch",
+	proto.BranchNone:     "The project folder",
+}
+
+// branchFields says where the session runs, and on which branch.
 func (a *App) branchFields(c *ui.Context) {
 	f := &a.newSession
-	widget.Field(c, "Branch", func() {
-		widget.FitGrid(c, 220, 2).Gap(8).Children(func() {
-			for _, m := range []struct{ mode, title, body string }{
-				{proto.BranchNew, "New branch", "In its own worktree, so it never touches your other sessions"},
-				{proto.BranchExisting, "Existing branch", "Continue work on a branch that already exists"},
-			} {
-				if widget.OptionCard(c.Key(m.mode), f.branchMode == m.mode, m.title, m.body) {
-					f.branchMode = m.mode
+	ui.Column(c.Key("where")).FillWidth().Shrink(0).Children(func() {
+		widget.FieldCols(c, func() {
+			widget.Field(c, "Where", func() {
+				hookSelect(c, "Where", &f.branchMode, []string{proto.BranchNew, proto.BranchExisting, proto.BranchNone}, whereNames)
+			})
+		}, func() {
+			widget.Field(c, "Branch", func() {
+				switch f.branchMode {
+				case proto.BranchNew:
+					widget.Input(c, &f.branch, "feature/name").FillWidth()
+				case proto.BranchExisting:
+					branchSelect(c, &f.existing, f.project.Branches)
+				default:
+					ui.Row(c).Height(theme.ControlHeight).MinWidth(0).Children(func() {
+						widget.Running(c, nonEmpty(f.project.Branch, "As it is checked out"), widget.RunStyle{Color: theme.TextSoft})
+					})
 				}
-			}
+			})
 		})
-		switch f.branchMode {
-		case proto.BranchNew:
-			ui.Grid(c).FillWidth().ColumnTracks(ui.Fr(1), ui.Fixed(180)).Gap(8).Margin(4, 0, 0, 0).Children(func() {
-				ui.Column(c).Gap(6).Children(func() {
-					ui.Text(c, "Branch name").FontSize(11.5).TextColor(theme.Muted)
-					widget.Input(c, &f.branch, "feat/user-search").FillWidth().Font(theme.MonoFont).AutoFocus()
-				})
-				ui.Column(c).Gap(6).Children(func() {
-					ui.Text(c, "From").FontSize(11.5).TextColor(theme.Muted)
-					branchSelect(c, &f.base, f.project.Branches)
-				})
-			})
-		case proto.BranchExisting:
-			ui.Column(c).FillWidth().Gap(6).Margin(4, 0, 0, 0).Children(func() {
-				ui.Text(c, "Branch").FontSize(11.5).TextColor(theme.Muted)
-				branchSelect(c, &f.existing, f.project.Branches)
-				if f.existing == f.project.Branch && f.existing != "" {
-					ui.Text(c, "Checked out in the project folder, so the session runs there.").FontSize(11.5).TextColor(theme.Muted)
-				}
-			})
-		}
 	})
+	if f.branchMode == proto.BranchNew {
+		widget.Field(c, "From", func() { branchSelect(c, &f.base, f.project.Branches) })
+	}
+	if f.branchMode == proto.BranchExisting && f.existing == f.project.Branch && f.existing != "" {
+		ui.Text(c, "Checked out in the project folder, so the session runs there.").FontSize(theme.TextUI).TextColor(theme.TextSoft)
+	}
 }
 
 // branchSelect is a drop-down of branches.
 func branchSelect(c *ui.Context, value *string, branches []string) {
 	if len(branches) == 0 {
-		ui.Text(c, "No branches yet").FontSize(12).TextColor(theme.Muted)
+		ui.Row(c).Height(theme.ControlHeight).Children(func() {
+			ui.Text(c, "No branches yet").FontSize(theme.TextUI).TextColor(theme.TextSoft)
+		})
 		return
 	}
 	sel := ui.SelectBase(c, value)
 	widget.Trigger(sel.Trigger, sel.Open()).Label("Branch").Children(func() {
-		ui.Text(c, *value).Font(theme.MonoFont).FontSize(12).SingleLine().Shrink(1)
-		ui.Spacer(c)
-		ui.Icon(c, icon.ChevronDown).FontSize(13).TextColor(theme.Muted)
+		ui.Row(c).Grow(1).MinWidth(0).Children(func() { widget.Running(c, *value, widget.RunStyle{}) })
+		ui.Icon(c, icon.ChevronDown).FontSize(12).TextColor(theme.TextSoft)
 	})
 	sel.Popup(func(panel ui.Element) {
-		widget.Popup(panel.Margin(6, 0, 0, 0).MinWidth(180).MaxHeight(280))
-		ui.Scroll(c).FillWidth().Children(func() {
+		widget.Popup(panel.Margin(theme.S1, 0, 0, 0).MinWidth(180).MaxWidth(360).MaxHeight(280))
+		widget.Scroll(c).FillWidth().Children(func() {
 			for _, b := range branches {
 				item := sel.Item(b)
 				widget.PopupItem(item, item.Highlighted()).Children(func() {
-					ui.Text(c, b).Font(theme.MonoFont).FontSize(12).Grow(1).SingleLine()
+					ui.Row(c).Grow(1).MinWidth(0).Children(func() { widget.Running(c, b, widget.RunStyle{}) })
 					if b == *value {
-						ui.Icon(c, icon.Check).FontSize(13).TextColor(theme.Accent)
+						ui.Icon(c, icon.Check).FontSize(13).TextColor(theme.Now)
 					}
 				})
 			}

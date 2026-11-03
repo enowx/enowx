@@ -56,18 +56,14 @@ func (a *App) passphraseDialog(c *ui.Context) {
 		return
 	}
 	open := true
-	widget.Dialog(c, &open, 480, 14, func() {
-		widget.DialogHeader(c, "Unlock your SSH key", "", false, "Hosts", a.host.Name, "Unlock SSH key")
+	submit := false
+	widget.FormSheet(c, &open, 480, "Unlock your SSH key", "", func() {
 		passphraseFacts(c, p)
-		submit := widget.Input(c, &p.value, "Passphrase").FillWidth().Password().AutoFocus().Submitted()
-		widget.DialogFooter(c, "", func() {
-			if widget.GhostButton(c, "Cancel").Clicked() {
-				a.answerPassphrase(false)
-			}
-			if widget.PrimaryButton(c, nil, "Unlock and connect", "").Clicked() || submit {
-				a.answerPassphrase(true)
-			}
-		})
+		submit = widget.Input(c, &p.value, "Passphrase").FillWidth().Password().AutoFocus().Submitted()
+	}, func() {
+		if widget.PrimaryButton(c, nil, "Unlock and connect", "").Clicked() || submit {
+			a.answerPassphrase(true)
+		}
 	})
 	if !open {
 		a.answerPassphrase(false)
@@ -95,8 +91,10 @@ func (a *App) passphraseAsk(c *ui.Context) *widget.Ask {
 }
 
 func passphraseFacts(c *ui.Context, p *passphrasePrompt) {
-	ui.Text(c, "The server accepts this key. Type its passphrase to sign in; enowX doesn't save it.").
-		FontSize(12.5).TextColor(theme.TextSoft)
-	ui.Text(c, textfmt.ShortHome(p.path)).Font(theme.MonoFont).FontSize(12).Padding(10).Radius(theme.RadiusControl).
-		Background(theme.Sunken).Border(1, theme.Border).FillWidth()
+	widget.CardNote(c.Key("about"), "The server accepts this key. Type its passphrase to sign in; enowX doesn't save it.", 0).FontSize(theme.TextUI)
+	// A long path stays one line, running to show the rest.
+	ui.Row(c.Key("path")).FillWidth().MinWidth(0).Padding(theme.S3, theme.S4).Radius(theme.RadiusCard).Background(theme.CodeGround).
+		InsetShadow(0, 0, 0, 0.5, theme.Border).Children(func() {
+		widget.Running(c, textfmt.ShortHome(p.path), widget.RunStyle{Mono: true, Color: widget.CodeText, Always: true})
+	})
 }

@@ -28,7 +28,7 @@ var tabs = []string{TabOverview, TabBudgets, TabPrices, TabCoverage}
 var ranges = []struct {
 	label string
 	days  int
-}{{"Today", 0}, {"7 days", 7}, {"30 days", 30}, {"90 days", 90}, {"Year", 365}}
+}{{"Today", 0}, {"Week", 7}, {"Month", 30}, {"90 days", 90}, {"Year", 365}}
 
 var splits = []struct{ label, by string }{
 	{"Agent", proto.TokensByAgent}, {"Model", proto.TokensByModel}, {"Project", proto.TokensByProject},
@@ -43,6 +43,10 @@ type View struct {
 	Project string // only this project's, "" all
 	budget  budgetForm
 	price   priceForm
+	// The tab's column and how much of it shows, this frame, for cards to
+	// share what is left of the frame.
+	column ui.Element
+	shown  float32
 }
 
 // Query is what the view asks for now.
@@ -88,6 +92,8 @@ type Options struct {
 	Confirm func(title, body, action string, fn func())
 	// Agent names an agent's preset ID.
 	Agent func(id string) string
+	// Projects are the folders of the host's projects, for the filter.
+	Projects []string
 }
 
 // Draw draws the Tokens tab.
@@ -95,45 +101,67 @@ func (v *View) Draw(c *ui.Context, d Data, o Options) {
 	if v.Tab == "" {
 		v.Tab = TabOverview
 	}
-	ui.Column(c).FillWidth().Gap(16).Children(func() {
-		ui.Row(c).FillWidth().Gap(12).Children(func() {
-			cur := 0
-			for i, t := range tabs {
-				if t == v.Tab {
-					cur = i
+	body := ui.Scroll(c.Key("tokens-body")).Grow(1).FillWidth().MinHeight(0)
+	v.shown = body.Bounds().H
+	body.Children(func() {
+		v.column = ui.Column(c).FillWidth().Padding(theme.S4, theme.S5, theme.S5, theme.S5).Gap(theme.S4)
+		v.column.Children(func() {
+			ui.Row(c).FillWidth().Shrink(0).Gap(theme.S2).Children(func() {
+				cur := 0
+				for i, t := range tabs {
+					if t == v.Tab {
+						cur = i
+					}
 				}
+				if i := widget.Segmented(c.Key("tabs"), tabs, cur, nil); i >= 0 {
+					v.Tab = tabs[i]
+				}
+				ui.Spacer(c)
+				if widget.GhostButton(c, "Add a budget").Clicked() {
+					v.budget = budgetForm{open: true}
+				}
+			})
+			if d.Err != "" {
+				widget.CardNote(c, d.Err, 0).TextColor(theme.Error)
 			}
-			if i := widget.Segmented(c.Key("tabs"), tabs, cur, nil); i >= 0 {
-				v.Tab = tabs[i]
+			switch v.Tab {
+			case TabBudgets:
+				v.budgets(c, d, o)
+			case TabPrices:
+				v.prices(c, d, o)
+			case TabCoverage:
+				v.coverage(c, d)
+			default:
+				v.overview(c, d, o)
 			}
-			ui.Spacer(c)
-			v.tracking(c, d, o)
 		})
-		if d.Err != "" {
-			ui.Text(c, d.Err).FontSize(12).TextColor(theme.Error)
-		}
-		switch v.Tab {
-		case TabBudgets:
-			v.budgets(c, d, o)
-		case TabPrices:
-			v.prices(c, d, o)
-		case TabCoverage:
-			coverage(c, d)
-		default:
-			v.overview(c, d, o)
-		}
 	})
 	v.budgetSheet(c, d, o)
 	v.priceSheet(c, d, o)
 }
 
-// tracking is tracking's switch and its layers'.
+// cards is a grid of n cards, three a row, whose rows share what the frame has
+// left, at least minRow each.
+func (v *View) cards(c *ui.Context, n int, minRow float32, fn func()) {
+	grid := ui.Grid(c.Key("cards")).FillWidth().Columns(3).Gap(theme.S3)
+	grid.RowTracks(widget.RowsLeft(grid, v.column, v.shown, (n+2)/3, minRow)...).Children(fn)
+}
+
+// fieldRow is a row of fields side by side, keyed apart from a sheet's other
+// rows of them.
+func fieldRow(c *ui.Context, key string, fields ...func()) {
+	ui.Column(c.Key(key)).FillWidth().Shrink(0).Children(func() { widget.FieldCols(c, fields...) })
+}
+
+// tracking is tracking's switch.
 func (v *View) tracking(c *ui.Context, d Data, o Options) {
 	st := d.Settings
 	on := st.On
-	if widget.Switch(c.Key("on"), &on, "Track tokens on "+o.HostName) && o.Save != nil {
-		st.On = on
-		o.Save(st)
-	}
-	ui.Text(c, "Track on "+o.HostName).FontSize(12).TextColor(theme.TextSoft).SingleLine()
+	ui.Row(c).Shrink(0).Gap(theme.S3).Children(func() {
+		ui.Text(c, "Track tokens on "+o.HostName).FontSize(theme.TextUI).FontWeight(500).SingleLine()
+		if widget.Switch(c.Key("on"), &on, "Track tokens on "+o.HostName) && o.Save != nil {
+			st.On = on
+			o.Save(st)
+		}
+	})
 }

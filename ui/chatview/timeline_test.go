@@ -14,9 +14,9 @@ import (
 	"github.com/enowx/enowx/ui/theme"
 )
 
-// A turn is a timeline: the user's message, the work folded once done
-// into a line that opens to each step, the answer; the turn under way
-// shows its steps, the latest lit.
+// A turn reads as a conversation: the user's message, the work folded once
+// done into a line that opens to each step, the answer; the turn under way
+// shows its steps and what it does now.
 func TestTurnTimeline(t *testing.T) {
 	at := time.Date(2026, 10, 30, 14, 2, 0, 0, time.Local)
 	entries := []proto.TranscriptEntry{
@@ -38,7 +38,7 @@ func TestTurnTimeline(t *testing.T) {
 		})
 	}, 760, 700)
 	tt.Frame()
-	for _, want := range []string{"You · 14:02", "Worked for 14s", "· 2 tools · 1 file edited", "Saya pasang context 30 detik dan retry 3×.", "Run", "go test ./proxy/..."} {
+	for _, want := range []string{"Worked for 14s", "· 2 tools · 1 file edited", "Saya pasang context 30 detik dan retry 3×.", "Running", "go test ./proxy/..."} {
 		if !tt.HasText(want) {
 			t.Fatalf("no %q: %q", want, tt.Texts())
 		}
@@ -46,6 +46,15 @@ func TestTurnTimeline(t *testing.T) {
 	if tt.HasText("Thought for 8s") {
 		t.Fatal("the done turn's work shows unfolded")
 	}
+	// The message's time shows under the pointer, not to move what is read.
+	msg, _ := tt.Find("Your message")
+	tt.Move(msg.X+msg.W-10, msg.Y+10)
+	tt.Frame()
+	if !tt.HasText("14:02") {
+		t.Fatalf("no time under the pointer: %q", tt.Texts())
+	}
+	tt.Move(0, 0)
+	tt.Frame()
 	if err := tt.Click("Show the work"); err != nil {
 		t.Fatal(err)
 	}
@@ -106,8 +115,38 @@ func TestOutline(t *testing.T) {
 	}, 700, 700)
 	narrow.Frame()
 	narrow.Frame()
-	if narrow.HasText("Your messages") {
-		t.Fatal("an outline in a narrow conversation")
+	// Folded to its button: none of the list shows.
+	if !narrow.HasText("Your messages") || narrow.HasText("Go to: Ganti logger ke slog") {
+		t.Fatalf("an outline in a narrow conversation: %q", narrow.Texts())
+	}
+}
+
+// The outline never lies over the column, in any style's reading width and in a
+// column running the frame's width.
+func TestOutlineClearsTheColumn(t *testing.T) {
+	side := outlineSide()
+	for _, read := range []float32{740, 800} {
+		for width := float32(320); width <= 3000; width += 7 {
+			for _, column := range []float32{read, 2000} {
+				shown := min(column, width-2*theme.S5)
+				switch outlineFit(width, column, read) {
+				case outlineBeside:
+					if right := width/2 + shown/2; right > width-side {
+						t.Errorf("width %v, column %v: the column ends at %v, into the outline", width, column, right)
+					}
+				case outlineOwn:
+					if room := width - side - theme.S5; room < read {
+						t.Errorf("width %v, column %v: %v left to read in", width, column, room)
+					}
+				}
+			}
+		}
+	}
+	if got := outlineFit(1212, 800, 800); got != outlineFolded {
+		t.Errorf("at the width it used to overlap: %v", got)
+	}
+	if got := outlineFit(1400, 2000, 800); got != outlineOwn {
+		t.Errorf("GOD of Agents' column: %v", got)
 	}
 }
 

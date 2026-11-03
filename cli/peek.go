@@ -5,6 +5,7 @@ import (
 	"flag"
 	"fmt"
 	"io"
+	"os"
 	"path/filepath"
 	"strings"
 	"text/tabwriter"
@@ -82,7 +83,7 @@ func (r runner) peek(args []string) error {
 	if err != nil || arg == "" {
 		return errors.New(peekUsage)
 	}
-	p, err := r.c.PeekSession(proto.SessionPeekParams{Host: *host, Session: arg, Last: *last})
+	p, err := r.c.PeekSession(proto.SessionPeekParams{Host: *host, Session: arg, Last: *last, From: os.Getenv(EnvSession)})
 	if err != nil {
 		return err
 	}

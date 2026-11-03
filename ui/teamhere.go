@@ -47,8 +47,12 @@ func (a *App) keepHere(c *ui.Context) {
 	}
 	th := a.hereOf()
 	chat := ""
-	if a.state.Panel.Open && a.state.Panel.Tab == panelChat {
+	onPage := a.teamPageChat()
+	if a.state.Panel.Open && a.state.Panel.Tab == panelChat || onPage != "" {
 		chat = a.chatTeam()
+		if onPage != "" {
+			chat = onPage
+		}
 		hc := a.chatsOf()
 		if hc.draft != th.draft {
 			th.draft = hc.draft
@@ -141,9 +145,9 @@ func (a *App) typingLine(c *ui.Context, team string) {
 	default:
 		text = fmt.Sprintf("%s and %d others are typing…", names[0], len(names)-1)
 	}
-	ui.Row(c).FillWidth().Height(18).Shrink(0).PaddingX(14).AlignItems(ui.Center).Children(func() {
+	ui.Row(c).FillWidth().Height(18).Shrink(0).PaddingX(a.chatPad()).AlignItems(ui.Center).Children(func() {
 		if text != "" {
-			ui.Text(c, text).FontSize(11).Italic().TextColor(theme.Muted).SingleLine()
+			ui.Text(c, text).FontSize(theme.TextLabel).Italic().TextColor(theme.Muted).SingleLine()
 		}
 	})
 }

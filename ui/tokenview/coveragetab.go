@@ -4,6 +4,7 @@ import (
 	"github.com/egoist/mygo/ui"
 
 	"github.com/enowx/enowx/proto"
+	"github.com/enowx/enowx/ui/icon"
 	"github.com/enowx/enowx/ui/theme"
 	"github.com/enowx/enowx/ui/widget"
 )
@@ -16,31 +17,44 @@ var layerNames = map[string]string{
 	proto.TokenLayerNone:    "Not tracked",
 }
 
-// coverage is how each agent is tracked: its layer, what is counted,
-// where, and whether that was checked against a real install.
-func coverage(c *ui.Context, d Data) {
-	ui.Text(c, "Each agent is tracked by the best layer it allows: its own records; else its model API's answers through the interceptor (Overview → How agents are tracked); else the lines it prints. Never guessed.").
-		FontSize(12).TextColor(theme.Muted)
-	widget.Card(c).Children(func() {
+// layerColor says a layer at a glance.
+func layerColor(layer string) ui.Color {
+	switch layer {
+	case proto.TokenLayerRecords:
+		return theme.Done
+	case proto.TokenLayerTraffic:
+		return theme.Working
+	case proto.TokenLayerScreen:
+		return theme.Warning
+	}
+	return theme.Idle
+}
+
+// coverageCardHeight is the least an agent's card takes: its note on two lines
+// and where its records are.
+const coverageCardHeight = 168
+
+// coverage is how each agent is tracked: its layer, what is counted, where, and
+// whether that was checked against a real install.
+func (v *View) coverage(c *ui.Context, d Data) {
+	widget.CardNote(c, "Each agent is tracked by the best layer it allows: its own records; else its model API's answers through the interceptor; else what it prints.", 0)
+	v.cards(c, len(d.Coverage), coverageCardHeight, func() {
 		for _, cv := range d.Coverage {
-			ui.Row(c.Key(cv.Agent)).FillWidth().Padding(7, 10).Gap(12).Children(func() {
-				ui.Text(c, orText(cv.Name, cv.Agent)).FontSize(12).Width(150).SingleLine().Shrink(0)
-				col := theme.TextSoft
-				switch cv.Layer {
-				case proto.TokenLayerRecords:
-					col = theme.Done
-				case proto.TokenLayerNone:
-					col = theme.Muted
-				}
-				ui.Text(c, layerNames[cv.Layer]).FontSize(12).TextColor(col).Width(90).SingleLine().Shrink(0)
-				ui.Column(c).Grow(1).MinWidth(0).Gap(2).Children(func() {
-					ui.Text(c, cv.Records).FontSize(11.5).TextColor(theme.TextSoft)
-					if cv.Where != "" {
-						ui.Text(c, cv.Where).Font(theme.MonoFont).FontSize(10.5).TextColor(theme.Muted)
+			widget.GridCard(c.Key(cv.Agent)).Children(func() {
+				widget.CardTitle(c, nil, orText(cv.Name, cv.Agent), func() {
+					if cv.Checked {
+						widget.Tag(c, "checked", theme.Done)
 					}
 				})
-				if cv.Checked {
-					widget.Tag(c, "checked", theme.Done)
+				ui.Row(c).FillWidth().Shrink(0).Gap(theme.S2).Children(func() {
+					widget.Avatar(c, icon.Agent(cv.Agent), 32, theme.Text)
+					widget.StatusLine(c, layerColor(cv.Layer), false, layerNames[cv.Layer])
+				})
+				widget.CardNote(c, cv.Records, 0)
+				if cv.Where != "" {
+					ui.Row(c).FillWidth().Shrink(0).MinWidth(0).Children(func() {
+						widget.Running(c, cv.Where, widget.RunStyle{Size: theme.TextLabel, Color: theme.TextSoft, Mono: true})
+					})
 				}
 			})
 		}

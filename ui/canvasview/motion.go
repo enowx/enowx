@@ -114,8 +114,8 @@ func (w *Web) motionBar(c *ui.Context, aw, ah float32) {
 		return
 	}
 	width := min(aw-32, 520)
-	ui.Row(c.Key("motion-bar")).Absolute().Left((aw-width)/2).Top(ah-motionBarRoom+4).Width(width).Height(32).
-		PaddingX(6).Gap(6).AlignItems(ui.Center).Background(theme.Panel).Radius(theme.RadiusControl).BorderWidth(1, 1, 1, 1).BorderColor(theme.Border).Children(func() {
+	raised(ui.Row(c.Key("motion-bar")).Absolute().Left((aw - width) / 2).Top(ah - motionBarRoom + 4).Width(width).Height(36).
+		PaddingX(theme.S1).Gap(theme.S1).AlignItems(ui.Center).Radius(theme.RadiusFull)).Children(func() {
 		if m.P {
 			if widget.IconButton(c.Key("motion-pause"), icon.Pause, "Pause", false).Clicked() {
 				w.pauseMotion()
@@ -135,7 +135,7 @@ func (w *Web) motionBar(c *ui.Context, aw, ah float32) {
 		if w.scrub != was {
 			w.seekMotion(w.scrub)
 		}
-		ui.Text(c.Key("motion-time"), fmt.Sprintf("%.1f / %.1f s", w.scrub/1000, m.D/1000)).FontSize(11).TextColor(theme.Muted).Shrink(0)
+		ui.Text(c.Key("motion-time"), fmt.Sprintf("%.1f / %.1f s", w.scrub/1000, m.D/1000)).FontSize(theme.TextLabel).TextColor(theme.Muted).Shrink(0)
 	})
 	if m.P {
 		c.After(50 * time.Millisecond) // the scrubber moves on

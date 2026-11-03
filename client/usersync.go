@@ -69,7 +69,7 @@ func (s SyncSide) Write(changes []proto.SyncChange) (applied, stale []string, er
 // SyncManifest lists the host's synced files and who it is.
 func (c *Client) SyncManifest() (proto.SyncManifest, error) {
 	var m proto.SyncManifest
-	err := c.Call(proto.MethodSyncManifest, nil, &m)
+	err := c.Call(proto.MethodSyncManifest, proto.SyncManifestParams{KeepsOwnHistory: true}, &m)
 	return m, err
 }
 

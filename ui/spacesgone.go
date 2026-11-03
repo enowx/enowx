@@ -6,7 +6,6 @@ import (
 	"github.com/egoist/mygo/ui"
 
 	"github.com/enowx/enowx/proto"
-	"github.com/enowx/enowx/ui/icon"
 	"github.com/enowx/enowx/ui/theme"
 	"github.com/enowx/enowx/ui/widget"
 )
@@ -63,14 +62,11 @@ func (a *App) spacesGoneCards(c *ui.Context) {
 	}
 	hs := a.spacesGoneOf()
 	for _, g := range hs.list {
-		widget.Float(ui.Column(c.Key("gone:"+g.Team)).FillWidth().Padding(12, 12, 12, 14).Gap(10).Radius(theme.RadiusCard).
-			Background(theme.Dialog).Border(1, theme.BorderStrong)).Transition(widget.OverlayMotion).Children(func() {
-			ui.Row(c).FillWidth().Gap(10).AlignItems(ui.Start).Children(func() {
-				ui.Icon(c, icon.Trash).FontSize(14).TextColor(theme.Warning).Margin(2, 0, 0, 0)
-				ui.Column(c).Grow(1).MinWidth(0).Gap(3).Children(func() {
-					ui.Text(c, g.Name+" was deleted").FontSize(12.5).SingleLine().Shrink(1)
-					ui.Text(c, spaceGoneDetail(g, a.host.Name)).FontSize(11.5).TextColor(theme.Muted)
-				})
+		widget.Float(ui.Column(c.Key("gone:"+g.Team)).FillWidth().Padding(theme.S3, theme.S3, theme.S3, theme.S4).Gap(theme.S2).Radius(theme.RadiusCard).
+			Background(theme.Dialog)).Transition(widget.OverlayMotion).Children(func() {
+			ui.Column(c.Key("what")).FillWidth().Shrink(0).Gap(theme.S1).Children(func() {
+				widget.Running(c, g.Name+" was deleted", widget.RunStyle{Weight: 500})
+				widget.CardNote(c.Key("detail"), spaceGoneDetail(g, a.host.Name), 0)
 			})
 			ui.Row(c).FillWidth().Justify(ui.End).Children(func() {
 				if widget.PrimaryButton(c, nil, "OK", "").Clicked() {

@@ -20,49 +20,28 @@ func (a *App) pollCredits(cl *client.Client, gen int) {
 
 // creditsHost describes the connected host to the credit views.
 func (a *App) creditsHost() creditview.Host {
-	h := creditview.Host{
-		Name:      a.host.Name,
-		AgentName: a.agentName,
-		OpenPage:  func() { a.page = pageCredits },
-	}
-	for _, s := range a.sessions {
-		if s.ID == a.selected {
-			h.Focus = s.Agent
-		}
-	}
+	h := creditview.Host{Name: a.host.Name, AgentName: a.agentName}
 	if p, ok := a.currentProject(); ok {
 		h.SignIn = func(agent string) { a.signInFromCredits(p, agent) }
 	}
 	return h
 }
 
-// creditChip is the title bar's credits button, once connected.
-func (a *App) creditChip(c *ui.Context) {
-	if a.client == nil {
-		return
-	}
-	a.credits.Chip(c, a.creditsHost())
-}
-
 // creditsPage is the Credits page of the connected host.
 func (a *App) creditsPage(c *ui.Context) {
-	a.viewHeader(c, func() {
-		ui.Row(c).Grow(1).MinWidth(0).Children(func() {
-			widget.Breadcrumb(c, a.host.Name, "Credits")
-		})
-		ui.Text(c, a.credits.CheckedLabel()).FontSize(11).TextColor(theme.Muted).SingleLine()
-		if widget.GhostButton(c, "Read again").Clicked() {
+	widget.PageHeader(c, "Credits", "Accounts on "+a.host.Name, func() {
+		if s := a.credits.CheckedLabel(); s != "" {
+			ui.Text(c, s).FontSize(theme.TextLabel).TextColor(theme.TextSoft).SingleLine()
+		}
+		if widget.GhostButton(c, "Agents' configs").Clicked() {
+			a.page, a.settingsSection = pageSettings, sectionAgents
+		}
+		tip := "enowX reads these with each agent's own sign-in on " + a.host.Name + ", from the agent's vendor only, every few minutes while connected."
+		if widget.Button(c, widget.Secondary, icon.Sync, "Read again", "").Tooltip(tip).Clicked() {
 			a.credits.Refresh()
 		}
-		if widget.IconButton(c, icon.Close, "Back to sessions", false).Clicked() {
-			a.page = ""
-		}
 	})
-	ui.Scroll(c).Grow(1).FillWidth().Children(func() {
-		ui.Column(c).FillWidth().Padding(16).Children(func() {
-			a.credits.Page(c, a.creditsHost())
-		})
-	})
+	a.credits.Page(c, a.creditsHost())
 }
 
 // signInFromCredits starts a session that signs agent in again, in

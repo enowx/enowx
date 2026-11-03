@@ -47,12 +47,12 @@ func TestAgentsPageListsEveryAgent(t *testing.T) {
 	}
 	st.agent = "freebuff"
 	frames()
-	if tt.HasText("New config") || !tt.HasText("It can't have a config.") {
+	if !tt.HasText("It can't have a config.") || newConfigOpens(tt, st) {
 		t.Fatalf("freebuff: %q", tt.Texts())
 	}
 	st.agent = "jcode"
 	frames()
-	if tt.HasText("New config") || !tt.HasText("It isn't installed on this host: install it to give it a config.") {
+	if !tt.HasText("It isn't installed on this host: install it to give it a config.") || newConfigOpens(tt, st) {
 		t.Fatalf("jcode: %q", tt.Texts())
 	}
 	st.find = "jco"
@@ -60,4 +60,14 @@ func TestAgentsPageListsEveryAgent(t *testing.T) {
 	if tt.HasText("Codex") {
 		t.Fatalf("search left others: %q", tt.Texts())
 	}
+}
+
+// newConfigOpens clicks the header's New config, which stays in its place, and
+// says whether that opened a form.
+func newConfigOpens(tt *ui.Tester, st *accountsState) bool {
+	tt.Click("New config") //nolint:errcheck // a disabled button may refuse the click: that's the point
+	tt.Frame()
+	opened := st.edit != nil
+	st.edit = nil
+	return opened
 }

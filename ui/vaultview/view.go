@@ -7,6 +7,7 @@ package vaultview
 
 import (
 	"slices"
+	"strconv"
 	"strings"
 	"time"
 
@@ -77,6 +78,7 @@ type View struct {
 	form     *form
 	importer *importer
 	change   *change
+	details  *detailsSheet
 	menu     widget.ContextMenu
 	folded   map[string]bool
 }
@@ -93,110 +95,206 @@ func (v *View) OpenAdd(platform string) {
 // OpenImport opens the import dialog; Options.Found fills it.
 func (v *View) OpenImport() { v.importer = &importer{open: true, picks: map[int]bool{}} }
 
+// OpenChange opens the Change master password dialog.
+func (v *View) OpenChange() { v.change = &change{open: true} }
+
+// OpenDetails opens the dialog of credential id.
+func (v *View) OpenDetails(id string) { v.details = &detailsSheet{open: true, id: id} }
+
 // Body is the page under its header.
 func (v *View) Body(c *ui.Context, o Options) {
-	ui.Scroll(c).Grow(1).FillWidth().Children(func() {
-		ui.Column(c).FillWidth().MaxWidth(960).AlignSelf(ui.Center).Padding(20, 24).Gap(18).Children(func() {
-			switch o.State {
-			case StateNone:
-				v.create(c, o)
-			case StateLocked:
-				v.unlock(c, o)
-			default:
-				v.open(c, o)
-			}
-		})
-	})
+	switch o.State {
+	case StateNone:
+		v.centered(c, func() { v.create(c, o) })
+	case StateLocked:
+		v.centered(c, func() { v.unlock(c, o) })
+	default:
+		v.open(c, o)
+	}
 	v.dialogs(c, o)
 }
 
-// Toolbar is the header's buttons: lock, import, add.
+// centered holds a card in the middle of the frame, scrolling when the frame
+// is shorter than it.
+func (v *View) centered(c *ui.Context, card func()) {
+	body := ui.Scroll(c.Key("vault-body")).Grow(1).FillWidth().MinHeight(0)
+	room := body.Bounds().H
+	body.Children(func() {
+		ui.Column(c).FillWidth().MinHeight(room).Padding(theme.S4, theme.S5).AlignItems(ui.Center).Justify(ui.Center).Children(card)
+	})
+}
+
+// Toolbar is the header's actions: the vault's own in a menu, and adding.
 func (v *View) Toolbar(c *ui.Context, o Options) {
 	if o.State != StateOpen {
 		return
 	}
-	if widget.Button(c, widget.Secondary, icon.ArrowDown, "Import from "+o.Current.Name, "").Tooltip("Find the logins "+o.Current.Name+"'s tools keep (gh, aws, wrangler, docker, npm, SSH keys…)").Clicked() && o.Actions.Scan != nil {
-		v.OpenImport()
-		o.Actions.Scan()
-	}
+	b := widget.IconButton(c.Key("vault-more"), icon.More, "More for the vault", false)
+	v.menu.OpenBelow(b, "vault", theme.ControlHeight)
+	v.menu.Show(c, b, "vault", func(done func()) {
+		if o.Actions.Scan != nil && widget.MenuItemTip(c, icon.ArrowDown, "Import from "+o.Current.Name+"…", "Find the logins "+o.Current.Name+"'s tools keep (gh, aws, wrangler, docker, npm, SSH keys…)", false) {
+			v.OpenImport()
+			o.Actions.Scan()
+			done()
+		}
+		if o.Actions.ChangePassword != nil && widget.MenuItem(c, icon.Key, "Change master password…", false) {
+			v.OpenChange()
+			done()
+		}
+		if o.Actions.Lock != nil && widget.MenuItem(c, icon.Lock, "Lock the vault", false) {
+			o.Actions.Lock()
+			done()
+		}
+	})
 	if widget.PrimaryButton(c, icon.Plus, "Add credential", "").Clicked() {
 		v.OpenAdd("")
 	}
-	if widget.IconButton(c, icon.Lock, "Lock the vault", false).Clicked() && o.Actions.Lock != nil {
-		o.Actions.Lock()
-	}
 }
+
+// figures are the vault's numbers over its list.
+func figures(c *ui.Context, o Options, now time.Time) {
+	var working, soon, refused, today int
+	for _, cr := range o.Credentials {
+		switch st := cr.State(now); {
+		case st == proto.CredInvalid:
+			refused++
+		case st == proto.CredValid:
+			working++
+		}
+		if cr.ExpiresSoon(now, expiringWithin) {
+			soon++
+		}
+	}
+	for _, e := range o.Audit {
+		if e.Allowed && sameDay(e.Time, now) {
+			today++
+		}
+	}
+	tones := map[int]ui.Color{}
+	if soon > 0 {
+		tones[2] = theme.Warning
+	}
+	if refused > 0 {
+		tones[3] = theme.Error
+	}
+	widget.FigsBandToned(c, []widget.Fig{
+		{Label: "Credentials", Value: strconv.Itoa(len(o.Credentials))},
+		{Label: "Work now", Value: strconv.Itoa(working)},
+		{Label: "Rotate soon", Value: strconv.Itoa(soon)},
+		{Label: "Refused", Value: strconv.Itoa(refused)},
+		{Label: "Used today", Value: strconv.Itoa(today)},
+	}, tones)
+}
+
+func sameDay(a, b time.Time) bool {
+	a, b = a.Local(), b.Local()
+	return a.YearDay() == b.YearDay() && a.Year() == b.Year()
+}
+
+// expiringWithin is when a credential's expiry starts to be told.
+const expiringWithin = 7 * 24 * time.Hour
+
+// flatUpTo is how many credentials show as one grid; more go in folding groups
+// by platform kind, to keep them findable.
+const flatUpTo = 9
 
 func (v *View) open(c *ui.Context, o Options) {
 	now := time.Now()
-	var soon []vault.Credential
-	for _, cr := range o.Credentials {
-		if cr.ExpiresSoon(now, 7*24*time.Hour) || cr.State(now) == proto.CredExpired {
-			soon = append(soon, cr)
-		}
-	}
-	if len(soon) > 0 {
-		names := make([]string, len(soon))
-		for i, cr := range soon {
-			names[i] = cr.Name
-		}
-		widget.Notice(c, icon.Alert, theme.Warning, "Rotate soon", strings.Join(names, ", ")+" expire within a week or have: make new tokens and edit them here.", nil)
-	}
 	if len(o.Credentials) == 0 {
-		widget.EmptyState(c, icon.Shield, "No credentials yet",
-			"Add a token, a key or a login once; sessions on any host get it when they need it, after you allow that host.", func() {
-				ui.Row(c).Gap(8).Children(func() {
-					if widget.PrimaryButton(c, icon.Plus, "Add credential", "").Clicked() {
-						v.OpenAdd("")
-					}
-					if widget.Button(c, widget.Secondary, icon.ArrowDown, "Import from "+o.Current.Name, "").Clicked() && o.Actions.Scan != nil {
-						v.OpenImport()
-						o.Actions.Scan()
-					}
+		v.centered(c, func() {
+			widget.EmptyState(c, icon.Shield, "No credentials yet",
+				"Add a token, a key or a login once; sessions on any host get it when they need it, after you allow that host.", func() {
+					ui.Row(c).Gap(theme.S2).Children(func() {
+						if widget.PrimaryButton(c, icon.Plus, "Add credential", "").Clicked() {
+							v.OpenAdd("")
+						}
+						if o.Actions.Scan != nil && widget.Button(c, widget.Secondary, icon.ArrowDown, "Import from "+o.Current.Name, "").Clicked() {
+							v.OpenImport()
+							o.Actions.Scan()
+						}
+					})
 				})
-			})
+		})
 		return
 	}
-	widget.SearchField(c, &v.search, "Search credentials", icon.Search)
+	figures(c, o, now)
+	ui.Scroll(c.Key("vault-body")).Grow(1).FillWidth().MinHeight(0).Children(func() {
+		ui.Column(c).FillWidth().Padding(theme.S4, theme.S5, theme.S5, theme.S5).Gap(theme.S4).Children(func() {
+			v.rotateBanner(c, o, now)
+			ui.Row(c).Width(320).Shrink(1).MinWidth(0).Children(func() {
+				widget.SearchField(c, &v.search, "Search credentials", icon.Search)
+			})
+			v.list(c, o)
+			v.audit(c, o)
+		})
+	})
+}
+
+// rotateBanner names the credentials expired or about to.
+func (v *View) rotateBanner(c *ui.Context, o Options, now time.Time) {
+	var names []string
+	for _, cr := range o.Credentials {
+		if cr.ExpiresSoon(now, expiringWithin) || cr.State(now) == proto.CredExpired {
+			names = append(names, title(cr, vault.Lookup(cr.Platform)))
+		}
+	}
+	if len(names) > 0 {
+		widget.Banner(c, theme.Warning, "Rotate soon: "+strings.Join(names, ", ")+". Expired, or expiring within a week: make a new token and edit it here.", nil)
+	}
+}
+
+// list is the credentials the search leaves, as one grid or, past flatUpTo, in
+// groups that fold.
+func (v *View) list(c *ui.Context, o Options) {
 	q := strings.ToLower(strings.TrimSpace(v.search))
+	var shown []vault.Credential
+	for _, cr := range o.Credentials {
+		p := vault.Lookup(cr.Platform)
+		if q == "" || strings.Contains(strings.ToLower(cr.Name+" "+p.Name+" "+cr.Account), q) {
+			shown = append(shown, cr)
+		}
+	}
+	slices.SortFunc(shown, func(a, b vault.Credential) int { return strings.Compare(a.Name, b.Name) })
+	if len(o.Credentials) <= flatUpTo {
+		v.grid(c, o, shown, q == "")
+		return
+	}
 	if v.folded == nil {
 		v.folded = map[string]bool{}
 	}
 	for _, g := range vault.Groups {
 		var in []vault.Credential
-		for _, cr := range o.Credentials {
-			p := vault.Lookup(cr.Platform)
-			if p.Group != g {
-				continue
+		for _, cr := range shown {
+			if vault.Lookup(cr.Platform).Group == g {
+				in = append(in, cr)
 			}
-			if q != "" && !strings.Contains(strings.ToLower(cr.Name+" "+p.Name+" "+cr.Account), q) {
-				continue
-			}
-			in = append(in, cr)
 		}
 		if len(in) == 0 {
 			continue
 		}
-		slices.SortFunc(in, func(a, b vault.Credential) int { return strings.Compare(a.Name, b.Name) })
 		open := !v.folded[g]
-		ui.Column(c.Key(g)).FillWidth().Gap(8).Children(func() {
-			widget.Group(c, g, len(in), &open, func() {
-				ui.Column(c).FillWidth().Gap(8).Children(func() {
-					for _, cr := range in {
-						v.row(c.Key(cr.ID), o, cr)
+		widget.Group(c.Key(g), g, len(in), &open, func() { v.grid(c, o, in, false) })
+		v.folded[g] = !open
+	}
+}
+
+// grid is cards of credentials in three columns, and the way to add another.
+func (v *View) grid(c *ui.Context, o Options, list []vault.Credential, addOne bool) {
+	ui.Grid(c).FillWidth().Columns(3).Gap(theme.S3).Children(func() {
+		for _, cr := range list {
+			v.row(c.Key(cr.ID), o, cr)
+		}
+		if addOne {
+			widget.Card(c.Key("add-one")).Children(func() {
+				widget.CardTitle(c, nil, "Add one", nil)
+				widget.CardNote(c, "Add a token, a key or a login once; sessions on any host get it when they need it, after you allow that host.", 0)
+				ui.Spacer(c)
+				widget.CardFoot(c, func() {
+					if widget.Button(c, widget.Secondary, icon.Plus, "Add credential", "").Clicked() {
+						v.OpenAdd("")
 					}
 				})
 			})
-		})
-		v.folded[g] = !open
-	}
-	v.audit(c, o)
-	if o.Actions.ChangePassword != nil {
-		ui.Row(c).FillWidth().Children(func() {
-			ui.Spacer(c)
-			if widget.GhostButton(c, "Change master password").Clicked() {
-				v.change = &change{open: true}
-			}
-		})
-	}
+		}
+	})
 }

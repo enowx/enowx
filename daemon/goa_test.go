@@ -91,7 +91,9 @@ func TestGOAControlsAnotherHostEndToEnd(t *testing.T) {
 		t.Fatal("not renamed")
 	}
 
-	// The worker's turn ends on B; the app tells A.
+	// The worker's turn ends on B; the app tells A. Just after a task is given, a turn's end
+	// from another host is taken for the turn before's.
+	time.Sleep(goaTurnLeast)
 	if err := b.sessions.SetState(worker, proto.StateDone); err != nil {
 		t.Fatal(err)
 	}
@@ -102,7 +104,15 @@ func TestGOAControlsAnotherHostEndToEnd(t *testing.T) {
 		tasks := goaBoardOf(t, ca).Tasks
 		return len(tasks) == 1 && tasks[0].Status == proto.GOATaskTurnEnded && tasks[0].Result == "" && strings.Contains(tasks[0].Said, "heard: and add a test")
 	})
-	waitScreen(t, ca, g.ID, "[enowX GOA] Task "+task.ID)
+	// This GOA's screen shows no composer to type into, so the line waits for its hooks.
+	waitFor(t, "GOA told", func() bool {
+		for _, line := range a.goaWaitingLines() {
+			if strings.Contains(line, "[enowX GOA] Task "+task.ID) {
+				return true
+			}
+		}
+		return false
+	})
 
 	// Settled by GOA; the log on A has what it did on B.
 	var settled proto.GOATask
@@ -318,6 +328,7 @@ func TestGOAWorkersPermissions(t *testing.T) {
 	if code != 0 || strings.Contains(out, "allow") {
 		t.Fatalf("a push: left to its prompt, not allowed: %d %q", code, out)
 	}
+	hookOf(`{"tool_name":"Bash"}`, "--event", proto.HookPermission) // it really asks
 	waitFor(t, "a banner for the user", func() bool {
 		mu.Lock()
 		defer mu.Unlock()
@@ -334,6 +345,83 @@ func TestGOAWorkersPermissions(t *testing.T) {
 	}
 	if err := c.HostCall("", "goa-session", proto.MethodSessionAnswer, proto.SessionAnswerParams{ID: w.ID(), Answer: "allow"}, nil); err == nil || !strings.Contains(err.Error(), "user's to answer") {
 		t.Fatalf("GOA answering the user's: %v", err)
+	}
+}
+
+// A worker's banner says it really asks: not for a tool call its agent runs
+// unasked, in bypass, whether the judge was unsure or the command urgent; and
+// for one left to the user only once its prompt shows, not before.
+func TestGOAWorkerBannerOnlyWhenItReallyAsks(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("uses sh")
+	}
+	srv, _ := hookServer(t)
+	if err := srv.judge.Settings().Set(proto.DecideSettings{Policy: proto.DecideLocalOnly,
+		Own:  []proto.Judge{{Kind: proto.JudgeLocal, URL: judgeServer(t), Model: "judge"}},
+		Uses: map[string]proto.DecideUse{proto.DecideApprove: {On: true, MinConfidence: 0.99}}}); err != nil { // the test judge says 0.95: never sure
+		t.Fatal(err)
+	}
+	var mu sync.Mutex
+	var banners []proto.NotifySoundParams
+	c := connect(t, srv, func(ev proto.Event) {
+		if ev.Name == proto.EventNotifySound {
+			var p proto.NotifySoundParams
+			json.Unmarshal(ev.Data, &p)
+			mu.Lock()
+			banners = append(banners, p)
+			mu.Unlock()
+		}
+	})
+	w, err := srv.sessions.Create(session.Spec{Command: []string{"sh", "-c", "cat"}, Dir: t.TempDir(), Cols: 80, Rows: 24,
+		Meta: session.Meta{Agent: "claude", Name: "totals", GOAWorker: "goa-session"}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv(session.EnvSession, w.ID())
+	urgent := func() int {
+		mu.Lock()
+		defer mu.Unlock()
+		n := 0
+		for _, p := range banners {
+			if p.Session == w.ID() && strings.Contains(p.Text, "Urgent") {
+				n++
+			}
+		}
+		return n
+	}
+
+	for _, command := range []string{"go test ./...", "git push origin main"} {
+		hookOf(`{"tool_name":"Bash","tool_input":{"command":"`+command+`"},"permission_mode":"bypassPermissions"}`, "--event", proto.HookToolBefore)
+		if why := srv.goaUrgentOf(w.ID()); why != "" {
+			t.Fatalf("%s in bypass is marked the user's: %q", command, why)
+		}
+	}
+	// A call answered after them: what was broadcast before it has arrived.
+	if _, err := c.SessionAsk(w.ID()); err != nil {
+		t.Fatal(err)
+	}
+	if n := urgent(); n != 0 {
+		t.Fatalf("%d banners for a worker in bypass", n)
+	}
+
+	hookOf(`{"tool_name":"Bash","tool_input":{"command":"go test ./..."},"permission_mode":"default"}`, "--event", proto.HookToolBefore)
+	if srv.goaUrgentOf(w.ID()) == "" {
+		t.Fatal("unsure, out of bypass: GOA may answer it")
+	}
+	if _, err := c.SessionAsk(w.ID()); err != nil {
+		t.Fatal(err)
+	}
+	if n := urgent(); n != 0 {
+		t.Fatalf("%d banners before it asks", n)
+	}
+	hookOf(`{"tool_name":"Bash","permission_mode":"default"}`, "--event", proto.HookPermission)
+	waitFor(t, "the banner once it asks", func() bool { return urgent() == 1 })
+	hookOf(`{"tool_name":"Bash","permission_mode":"default"}`, "--event", proto.HookPermission)
+	if _, err := c.SessionAsk(w.ID()); err != nil {
+		t.Fatal(err)
+	}
+	if n := urgent(); n != 1 {
+		t.Fatalf("%d banners for one call", n)
 	}
 }
 

@@ -1,8 +1,11 @@
 package ui
 
 import (
+	"fmt"
 	"path/filepath"
 	"slices"
+	"strconv"
+	"time"
 
 	"github.com/egoist/mygo/ui"
 
@@ -32,6 +35,9 @@ type hooksState struct {
 	form   hookForm
 	review proto.ProjectHooks // the project file being reviewed
 	seeing bool
+	// Each card's Test: running, and what it did.
+	testing map[string]bool
+	tested  map[string]proto.HookRun
 }
 
 // hookPlace is where a hook is kept: the host, a project (Dir) or a
@@ -89,76 +95,200 @@ func (a *App) hooksEvent(ev proto.Event) {
 
 func (a *App) hooksSection(c *ui.Context) {
 	st := a.hooksOf()
-	sectionIntro(c, "Hooks", "Run a command, give the agent context, refuse or change what it is about to do, notify or call a webhook when something happens in a session, on every agent: in the agent where it has hooks of its own (Claude Code, Codex), else as "+a.host.Name+" sees it happen.")
-	ui.Row(c).FillWidth().Gap(8).AlignItems(ui.Center).Children(func() {
+	widget.PageHeader(c, "Hooks", "Run on what agents do", func() {
 		if i := widget.Segmented(c, []string{"Hooks", "Log"}, st.tab, nil); i >= 0 && i != st.tab {
 			st.tab = i
 			if i == 1 {
 				a.loadHooks()
 			}
 		}
-		ui.Spacer(c)
-		if st.tab == 1 {
-			if widget.GhostButton(c, "Refresh").Clicked() {
-				a.loadHooks()
-			}
-			return
+		if widget.Button(c, widget.Secondary, icon.Sync, "Refresh", "").Clicked() {
+			a.loadHooks()
 		}
-		a.hookTemplateMenu(c, st)
-		if widget.PrimaryButton(c, icon.Plus, "Add a hook", "").Disabled(!st.loaded).Clicked() {
-			st.form.start(proto.Hook{On: true, Event: proto.HookToolBefore, Action: proto.HookActionRun}, hostPlace, true)
+		if st.tab == 0 && widget.PrimaryButton(c, icon.Plus, "Add a hook", "").Disabled(!st.loaded).Clicked() {
+			startNewHook(st)
 		}
 	})
 	switch {
 	case st.err != "":
-		widget.Notice(c, icon.Alert, theme.Error, st.err, "", nil)
+		widget.PageBody(c, true, func() { widget.Notice(c, icon.Alert, theme.Error, st.err, "", nil) })
 		return
 	case !st.loaded:
-		widget.Spinner(c, 14)
+		widget.PageBody(c, true, func() { widget.Spinner(c, 14) })
 		return
 	}
-	if st.tab == 1 {
-		a.hookLogList(c, st)
-		return
+	widget.FigsBand(c, a.hookFigs(st))
+	widget.PageBody(c, true, func() {
+		if st.tab == 1 {
+			a.hookLogList(c, st)
+			return
+		}
+		a.hooksTab(c, st)
+	})
+	a.hookFormSheet(c, st)
+	a.hookReviewSheet(c, st)
+}
+
+func startNewHook(st *hooksState) {
+	st.form.start(proto.Hook{On: true, Event: proto.HookToolBefore, Action: proto.HookActionRun}, hostPlace, true)
+}
+
+// hookFigs are the section's figures, all from what the daemon sent.
+func (a *App) hookFigs(st *hooksState) []widget.Fig {
+	hooks := 0
+	for _, g := range a.hookGroups(st) {
+		hooks += len(g.list)
 	}
+	waiting := len(st.info.Proposals)
+	for _, ph := range st.info.Pending {
+		waiting += len(ph.Hooks)
+	}
+	failed := 0
+	took := make([]int64, 0, len(st.log))
+	for _, r := range st.log {
+		took = append(took, r.Ms)
+		if !r.Blocked && (r.Error != "" || r.Exit != 0) {
+			failed++
+		}
+	}
+	wait := widget.Fig{Label: "Waiting to be allowed", Value: strconv.Itoa(waiting)}
+	if waiting > 0 {
+		wait.Tone = theme.Warning
+	}
+	return []widget.Fig{
+		{Label: "Hooks", Value: strconv.Itoa(hooks)},
+		wait,
+		{Label: "Runs in the log", Value: strconv.Itoa(len(st.log))},
+		{Label: "Failed", Value: strconv.Itoa(failed)},
+		{Label: "Typical run", Value: typicalMs(took)},
+	}
+}
+
+// hooksTab is what agents proposed and projects want allowed, the hooks, and
+// how they ran of late.
+func (a *App) hooksTab(c *ui.Context, st *hooksState) {
+	ui.Row(c.Key("tools")).FillWidth().Shrink(0).Gap(theme.S3).Children(func() {
+		ui.Row(c).Width(270).Shrink(0).Children(func() { a.hookTemplateMenu(c, st) })
+	})
 	for _, p := range st.info.Proposals {
 		a.hookProposal(c.Key("proposal:"+p.ID), st, p)
 	}
 	for _, ph := range st.info.Pending {
 		a.pendingHooks(c.Key("pending:"+ph.Dir), st, ph)
 	}
-	host := a.hooksIn(st, hostPlace)
-	if len(host) == 0 && len(st.info.Projects) == 0 && len(st.info.Sessions) == 0 {
+	groups := a.hookGroups(st)
+	none := true
+	for _, g := range groups {
+		none = none && len(g.list) == 0
+	}
+	if none {
 		ui.Text(c, "None yet. Refuse rm -rf and pushes to main, format the files an agent edits, add your project's rules to every prompt, or ping a channel when a turn is done: start from a template.").
-			FontSize(12).TextColor(theme.Muted)
+			FontSize(theme.TextUI).TextColor(theme.TextSoft).FillWidth()
 	}
-	a.hookGroup(c.Key("host"), st, "On "+a.host.Name, "Synced to your other hosts with your settings.", hostPlace, host)
-	for _, ph := range st.info.Projects {
-		place := hookPlace{scope: proto.HookScopeProject, dir: ph.Dir}
-		a.hookGroup(c.Key("project:"+ph.Dir), st, "Project "+filepath.Base(ph.Dir), "In its .enowx/hooks.json, committed with it.", place, ph.Hooks)
+	// One grid for every place: each card's chip says where it's kept, and a
+	// place with no hooks shows nothing.
+	widget.Cols(c.Key("hook-cards"), 3).Children(func() {
+		for _, g := range groups {
+			for _, h := range g.list {
+				a.hookRow(c.Key(g.place.scope+g.place.dir+g.place.session+h.ID), st, g, h)
+			}
+		}
+		a.hookAddCard(c, st)
+	})
+	if len(st.log) > 0 {
+		a.hookRecent(c, st)
 	}
-	for _, sh := range st.info.Sessions {
-		place := hookPlace{scope: proto.HookScopeSession, session: sh.Session}
-		a.hookGroup(c.Key("session:"+sh.Session), st, "Session "+a.hookSessionName(sh.Session), "Until it ends.", place, sh.Hooks)
-	}
-	a.hookFormSheet(c, st)
-	a.hookReviewSheet(c, st)
 }
 
-// hookGroup lists the hooks kept in place, under its title.
-func (a *App) hookGroup(c *ui.Context, st *hooksState, title, about string, place hookPlace, list []proto.Hook) {
-	if len(list) == 0 {
-		return
+// hookGroup is the hooks kept in one place: the host's, synced to the user's
+// other hosts; a project's, in its .enowx/hooks.json; a session's, until it ends.
+type hookGroup struct {
+	chip  string
+	place hookPlace
+	list  []proto.Hook
+}
+
+func (a *App) hookGroups(st *hooksState) []hookGroup {
+	groups := []hookGroup{{"On " + a.host.Name, hostPlace, a.hooksIn(st, hostPlace)}}
+	for _, ph := range st.info.Projects {
+		groups = append(groups, hookGroup{"In project " + filepath.Base(ph.Dir), hookPlace{scope: proto.HookScopeProject, dir: ph.Dir}, ph.Hooks})
 	}
-	ui.Column(c).FillWidth().Gap(6).Children(func() {
-		ui.Row(c).FillWidth().Gap(8).AlignItems(ui.Center).Children(func() {
-			ui.Text(c, title).FontSize(12.5).TextColor(theme.TextSoft)
-			ui.Text(c, about).FontSize(11).TextColor(theme.Muted).SingleLine().Shrink(1)
+	for _, sh := range st.info.Sessions {
+		groups = append(groups, hookGroup{"In session " + a.hookSessionName(sh.Session), hookPlace{scope: proto.HookScopeSession, session: sh.Session}, sh.Hooks})
+	}
+	return groups
+}
+
+// hookAddCard closes the grid: agents can propose hooks too.
+func (a *App) hookAddCard(c *ui.Context, st *hooksState) {
+	widget.GridCard(c.Key("add-card")).Children(func() {
+		widget.CardTitle(c, nil, "Propose or add", nil)
+		widget.CardNote(c, "An agent can propose a hook too; it runs once you allow it.", 0)
+		widget.CardFoot(c, func() {
+			ui.Spacer(c)
+			if widget.Button(c, widget.Secondary, icon.Plus, "Add a hook", "").Clicked() {
+				startNewHook(st)
+			}
 		})
-		for _, h := range list {
-			a.hookRow(c.Key(h.ID), st, place, h)
+	})
+}
+
+// hookRecent is the log in short: how many ran of each event, the latest.
+func (a *App) hookRecent(c *ui.Context, st *hooksState) {
+	counts := map[string]int{}
+	var events []string
+	largest := 0
+	for _, r := range st.log {
+		if counts[r.Event] == 0 {
+			events = append(events, r.Event)
+		}
+		counts[r.Event]++
+		largest = max(largest, counts[r.Event])
+	}
+	slices.SortStableFunc(events, func(x, y string) int { return counts[y] - counts[x] })
+	widget.TwoParts(c, func() {
+		widget.Heading(c, "Runs by event")
+		for _, e := range events {
+			widget.TallyRow(c, hookEventNames[e], counts[e], largest)
+		}
+	}, func() {
+		widget.Heading(c, "Latest runs")
+		for i, r := range st.log[:min(6, len(st.log))] {
+			col, status := hookRunStatus(r)
+			what := hookRunName(r)
+			if r.Session != "" {
+				what += " · " + a.hookSessionName(r.Session)
+			}
+			widget.RecordRow(c.Key(i), clockOrDay(r.Start), what, col, status)
 		}
 	})
+}
+
+// clockOrDay says when, in the room of a record's first column: the time
+// today, the day before.
+func clockOrDay(t time.Time) string {
+	t = t.Local()
+	if now := time.Now(); t.YearDay() == now.YearDay() && t.Year() == now.Year() {
+		return t.Format("15:04")
+	}
+	return t.Format("Jan 2")
+}
+
+// typicalMs says how long the middle of these took, "–" with none.
+func typicalMs(took []int64) string {
+	if len(took) == 0 {
+		return "–"
+	}
+	sorted := slices.Sorted(slices.Values(took))
+	return msWords(sorted[len(sorted)/2])
+}
+
+// msWords says how long, in milliseconds up to a second.
+func msWords(ms int64) string {
+	if ms < 1000 {
+		return fmt.Sprintf("%d ms", ms)
+	}
+	return fmt.Sprintf("%.1f s", float64(ms)/1000)
 }
 
 // hookSessionName names session id as the session list does.

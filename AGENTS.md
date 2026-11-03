@@ -73,6 +73,7 @@ Go 1.27+ is required (MyGo needs it). With an older `go`, set `GOTOOLCHAIN=go1.2
 | `core/intercept` | A host's HTTP interceptor: proxy, TLS with the host's CA, capture, rules, filters, HAR (see `docs/traffic.md`) | **No** |
 | `core/android` | A host's Android SDK, emulators and devices, their logs, setup, a project's run command, scrcpy (see `docs/android.md`) | **No** |
 | `core/discordrpc` | Discord Rich Presence over the Discord app's local IPC socket (named pipe on Windows) | **No** |
+| `core/cacheclean` | Clean cache: what a host's enowX folder takes, what can go of it, and removing that, never anything outside the few folders it names (see `docs/daemon.md`) | **No** |
 | `core/procstat` | Memory and CPU of process trees and of the machine, for the resource usage view | **No** |
 | `cloud/` | The team cloud's server (`cloud/server`), its database (`cloud/store`), API types (`cloud/api`) and the sealing of a team's keys and items (`cloud/seal`) (see `docs/cloud.md`) | **No** |
 | `cmd/enowx-cloud` | The cloud server's entry point and its image (`Dockerfile`) | **No** |
@@ -80,6 +81,7 @@ Go 1.27+ is required (MyGo needs it). With an older `go`, set `GOTOOLCHAIN=go1.2
 | `docs/` | The docs, and package `docs` shipping them in the program for `goa doc` (all top-level `*.md` but `PLAN.md`) | **No** |
 | `version/` | The release version shared by app, daemon and client | **No** |
 | `internal/quietcmd` | Starts programs in the background without a console window on Windows | **No** |
+| `internal/watchdog` | Leaves a report when a thread stops answering (every goroutine's stack, what was on screen), and a line of what memory holds, in the data folder's `watchdog` folder | **No** |
 | `internal/testlisten` | A test binary standing in for a dev server a session starts, for tests of ports | **No** |
 | `core/*` (others) | Runner, scheduler, store (later) | **No** |
 | `transport/` | Local socket, SSH, daemon spawning | **No** |
@@ -90,6 +92,7 @@ Go 1.27+ is required (MyGo needs it). With an older `go`, set `GOTOOLCHAIN=go1.2
 | `ui/textfmt` | How values read in the UI: sizes, plurals, paths | **No** |
 | `ui/localpicker` | Picks files and folders of this device, for adding them to a session's folder | Yes |
 | `ui/chatview`, `ui/activityview`, `ui/appwindow`, `ui/libraryview`, `ui/browserview`, `ui/checkview`, `ui/diffview`, `ui/fileview`, `ui/portview`, `ui/trafficview`, `ui/androidview`, `ui/notesview`, `ui/canvasview`, `ui/vaultview`, `ui/usageview`, `ui/folderpicker`, `ui/syncview` | Self-contained views; they get what they need from `ui` through options and callbacks, never import it | Yes |
+| `ui/onboardview` | The first run: the app assembling itself, a clock driving the opening, frames, wires and the change of style, the seven steps in a panel; its links in `links.go` (see `docs/onboarding.md`); self-contained like the views above | Yes |
 | `ui/tokenview` | The Tokens tab of Resource usage: every host's token use, budgets, prices, coverage; self-contained like the views above | Yes |
 
 Keep MyGo out of packages marked **No**. If MyGo ever has to be replaced, only `ui/`, `cmd/enowx` and the terminal emulation in `core/session` should change.

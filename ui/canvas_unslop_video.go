@@ -22,7 +22,6 @@ import (
 	"github.com/enowx/enowx/core/unslop"
 	"github.com/enowx/enowx/internal/quietcmd"
 	"github.com/enowx/enowx/proto"
-	"github.com/enowx/enowx/ui/icon"
 	"github.com/enowx/enowx/ui/theme"
 	"github.com/enowx/enowx/ui/widget"
 )
@@ -46,20 +45,28 @@ type videoExport struct {
 
 // ffmpegPath is ffmpeg's program, "" when there is none.
 func ffmpegPath() string {
-	p, _ := exec.LookPath("ffmpeg")
-	return p
+	if p, err := exec.LookPath("ffmpeg"); err == nil {
+		return p
+	}
+	// An app opened from the desktop doesn't get a login shell's PATH.
+	for _, p := range []string{"/opt/homebrew/bin/ffmpeg", "/usr/local/bin/ffmpeg", "/usr/bin/ffmpeg"} {
+		if info, err := os.Stat(p); err == nil && !info.IsDir() {
+			return p
+		}
+	}
+	return ""
 }
 
 func (a *App) videoButtons(c *ui.Context, r *unslopReplay) {
 	if len(r.story.Steps) == 0 || !webViewAvailable() {
 		return
 	}
-	ui.Column(c).FillWidth().Gap(6).Children(func() {
-		ui.Text(c, "Export the play").FontSize(11).FontWeight(600).TextColor(theme.Muted)
+	ui.Column(c.Key("video")).FillWidth().Gap(theme.S2).Children(func() {
+		ui.Text(c, "Export the play").FontSize(theme.TextUI).FontWeight(500).TextColor(theme.Text)
 		if r.video.running {
-			ui.Row(c).Gap(8).AlignItems(ui.Center).Children(func() {
-				widget.Spinner(c, 12)
-				ui.Text(c, r.video.progress).FontSize(11.5).TextColor(theme.TextSoft)
+			ui.Row(c.Key("running")).FillWidth().Gap(theme.S2).AlignItems(ui.Center).Children(func() {
+				widget.Spinner(c, 14)
+				ui.Row(c).Grow(1).MinWidth(0).Children(func() { widget.Running(c, r.video.progress, widget.RunStyle{Color: theme.TextSoft}) })
 			})
 			return
 		}
@@ -67,7 +74,7 @@ func (a *App) videoButtons(c *ui.Context, r *unslopReplay) {
 		if ffmpegPath() != "" {
 			formats = []string{"mp4", "gif"}
 		}
-		ui.Row(c).Gap(6).Wrap().Children(func() {
+		ui.Row(c.Key("formats")).FillWidth().Gap(theme.S1).Wrap().Children(func() {
 			for _, f := range formats {
 				for _, square := range []bool{true, false} {
 					shape := "wide"
@@ -75,14 +82,14 @@ func (a *App) videoButtons(c *ui.Context, r *unslopReplay) {
 						shape = "square"
 					}
 					label := strings.ToUpper(f) + " · " + shape
-					if widget.Button(c.Key(label), widget.Secondary, icon.Download, label, "").Height(26).PaddingX(8).Clicked() {
+					if widget.Button(c.Key(label), widget.Secondary, nil, label, "").Clicked() {
 						a.exportReplay(r, f, square)
 					}
 				}
 			}
 		})
 		if ffmpegPath() == "" {
-			ui.Text(c, "Install ffmpeg for an MP4.").FontSize(11).TextColor(theme.Muted)
+			ui.Text(c.Key("no-ffmpeg"), "Install ffmpeg for an MP4.").FontSize(theme.TextLabel).TextColor(theme.TextSoft)
 		}
 	})
 }

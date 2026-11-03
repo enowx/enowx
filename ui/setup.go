@@ -4,9 +4,13 @@ import (
 	"fmt"
 	"os"
 	"path"
+	"slices"
+	"strconv"
+	"strings"
 	"time"
 
 	"github.com/egoist/mygo"
+	"github.com/egoist/mygo/plugins/terminal"
 	"github.com/egoist/mygo/ui"
 
 	"github.com/enowx/enowx/client"
@@ -44,7 +48,7 @@ type setupPage struct {
 	err      string
 	steps    []setup.Step
 	picked   map[string]bool
-	commands bool // the dry run: each step's commands shown
+	commands map[string]bool // the dry run: each card's commands shown, by its title
 
 	session string            // the session running the setup
 	status  map[string]string // each step's state, from its status file
@@ -128,41 +132,47 @@ func (a *App) checkDrift(cl *client.Client, h hosts.Host) {
 
 func (a *App) setupPage(c *ui.Context) {
 	p := a.setup
-	a.viewHeader(c, func() {
-		ui.Row(c).Grow(1).MinWidth(0).Children(func() { widget.Breadcrumb(c, "Hosts", p.host.Name, "Set up") })
+	picked := a.pickedSteps()
+	widget.PageHeader(c, "Set up "+p.host.Name, "Brings it to what "+p.fromName()+" has", func() {
+		if widget.GhostButton(c, "Back to hosts").Clicked() {
+			a.page = pageHosts
+		}
 		if widget.GhostButton(c, "Load enowx.toml…").Clicked() {
 			go a.loadManifest()
 		}
 		if p.scanned && widget.GhostButton(c, "Save enowx.toml…").Clicked() {
 			go a.saveManifest()
 		}
-		if widget.IconButton(c, icon.Sync, "Scan again", false).Clicked() && !p.scanning {
-			a.scanSetup()
-		}
-		if widget.IconButton(c, icon.Close, "Back to sessions", false).Clicked() {
-			a.page = ""
+		if a.host.ID != hosts.LocalID && p.scanned {
+			a.setupRun(c, p, picked)
 		}
 	})
-	ui.Scroll(c).Grow(1).FillWidth().Children(func() {
-		ui.Column(c).FillWidth().MaxWidth(760).AlignSelf(ui.Center).Padding(20).Gap(14).Children(func() {
-			if a.host.ID == hosts.LocalID {
-				ui.Text(c, "Setup brings a server to what this device has: connect to the server, then open Set up there.").FontSize(12.5).TextColor(theme.Muted)
-				return
-			}
-			ui.Text(c, "Brings "+p.host.Name+" to what "+p.from+" has: toolchains at the same versions (through mise), git's user, GitHub's CLI signed in, the agents. Each step checks first, so running it again changes nothing. Skills, MCP servers and settings go with Sync environment.").
-				FontSize(12.5).TextColor(theme.TextSoft)
-			switch {
-			case p.err != "":
-				widget.Notice(c, icon.Alert, theme.Error, p.err, "", nil)
-			case !p.scanned:
-				ui.Row(c).Gap(8).Children(func() {
-					widget.Spinner(c, 14)
-					ui.Text(c, "Scanning this device and "+p.host.Name+"…").FontSize(12.5).TextColor(theme.Muted)
-				})
-				return
-			}
-			a.setupSteps(c, p)
-			a.setupActions(c, p)
+	if a.host.ID == hosts.LocalID {
+		widget.PageBody(c, false, func() {
+			ui.Text(c, "Setup brings a server to what this device has: connect to the server, then open Set up there.").FontSize(theme.TextUI).TextColor(theme.TextSoft)
+		})
+		return
+	}
+	toBring, here := 0, 0
+	for _, s := range p.steps {
+		if s.Done {
+			here++
+		} else {
+			toBring++
+		}
+	}
+	widget.FigsBand(c, []widget.Fig{
+		{Label: "To bring", Value: strconv.Itoa(toBring)},
+		{Label: "Already here", Value: strconv.Itoa(here)},
+		{Label: "Comes from", Value: p.fromName()},
+	})
+	ui.Column(c.Key("setup-body")).Grow(1).FillWidth().MinHeight(0).Padding(theme.S4, theme.S5, theme.S5, theme.S5).Gap(theme.S3).Children(func() {
+		if p.err != "" {
+			widget.Notice(c, icon.Alert, theme.Error, p.err, "", nil)
+		}
+		ui.Row(c.Key("setup-parts")).Grow(1).FillWidth().MinHeight(0).Gap(theme.S4).AlignItems(ui.Stretch).Children(func() {
+			ui.Column(c.Key("setup-steps")).Grow(7).Basis(0).MinWidth(0).Children(func() { a.setupSteps(c, p) })
+			ui.Column(c.Key("setup-side")).Grow(5).Basis(0).MinWidth(0).Gap(theme.S3).Children(func() { a.setupSide(c, p) })
 		})
 	})
 	if p.session != "" {
@@ -170,43 +180,174 @@ func (a *App) setupPage(c *ui.Context) {
 	}
 }
 
-// setupSteps lists the steps: picked or not, what each brings, what the
-// host has, and how it went.
+// fromName is where the manifest comes from, this device by its name.
+func (p *setupPage) fromName() string {
+	if p.from == "" || p.from == setupFromDevice {
+		return LocalHost().Name
+	}
+	return p.from
+}
+
+// setupGroup is a card of the page: steps of a kind.
+type setupGroup struct {
+	title string
+	steps []setup.Step
+}
+
+// setupGroups sorts the plan's steps into the page's cards, in the plan's
+// order, leaving out those with no step.
+func setupGroups(steps []setup.Step) []setupGroup {
+	groups := []setupGroup{{title: "Toolchains"}, {title: "git and gh"}, {title: "Agents"}, {title: "Desktop and Android"}}
+	for _, s := range steps {
+		i := 3
+		switch {
+		case s.ID == "packages" || s.ID == "mise" || strings.HasPrefix(s.ID, "tool:"):
+			i = 0
+		case s.ID == "git" || s.ID == "gh" || s.ID == "gh-auth":
+			i = 1
+		case strings.HasPrefix(s.ID, "agent:") || strings.HasPrefix(s.ID, "signin:"):
+			i = 2
+		}
+		groups[i].steps = append(groups[i].steps, s)
+	}
+	return slices.DeleteFunc(groups, func(g setupGroup) bool { return len(g.steps) == 0 })
+}
+
+// setupSteps are the steps in their cards: picked or not, what each brings,
+// what the host has, and how it went.
 func (a *App) setupSteps(c *ui.Context, p *setupPage) {
-	if len(p.steps) == 0 {
-		ui.Text(c, "Nothing to bring: the manifest asks for nothing "+p.host.Name+" could get.").FontSize(12.5).TextColor(theme.Muted)
+	if !p.scanned {
+		if p.err != "" {
+			return
+		}
+		ui.Column(c).Grow(1).FillWidth().Center().Gap(theme.S2).Children(func() {
+			widget.Spinner(c, 18)
+			ui.Text(c, "Scanning this device and "+p.host.Name+"…").FontSize(theme.TextUI).TextColor(theme.TextSoft)
+		})
 		return
 	}
-	widget.Card(c).Children(func() {
-		for _, s := range p.steps {
-			ui.Column(c.Key(s.ID)).FillWidth().Gap(4).Padding(6, 0).Children(func() {
-				ui.Row(c).FillWidth().Gap(10).Children(func() {
-					on := p.picked[s.ID]
-					if p.session == "" {
-						if widget.Checkbox(c, &on, s.Title) {
-							p.picked[s.ID] = on
-						}
-					} else {
-						setupStateMark(c, p.status[s.ID], p.picked[s.ID])
-						ui.Text(c, s.Title).FontSize(12.5)
-					}
-					ui.Spacer(c)
-					col := theme.Muted
-					if s.Done {
-						col = theme.Done
-					}
-					detail := s.Detail
-					if s.Asks {
-						detail += " · asks you"
-					}
-					ui.Text(c, detail).FontSize(11.5).TextColor(col).SingleLine().Shrink(1)
-				})
-				if p.commands && p.picked[s.ID] {
-					ui.Text(c, s.Script).Font(theme.MonoFont).FontSize(11).Padding(8, 10).Radius(6).Background(theme.Sunken).FillWidth()
-				}
-			})
+	groups := setupGroups(p.steps)
+	if len(groups) == 0 {
+		ui.Column(c).Grow(1).FillWidth().Center().Children(func() {
+			ui.Text(c, "Nothing to bring: the manifest asks for nothing "+p.host.Name+" could get.").FontSize(theme.TextUI).TextColor(theme.TextSoft).TextAlign(ui.Center)
+		})
+		return
+	}
+	rows := make([]ui.Track, (len(groups)+1)/2)
+	for i := range rows {
+		rows[i] = ui.Fr(1)
+	}
+	ui.Grid(c).Grow(1).FillWidth().MinHeight(0).Columns(2).RowTracks(rows...).Gap(theme.S3).Children(func() {
+		for _, g := range groups {
+			a.setupCard(c.Key(g.title), p, g)
 		}
 	})
+}
+
+// setupCard is a kind of steps: whether the host has them all, each step, and
+// its commands when asked for. The steps scroll inside the card.
+func (a *App) setupCard(c *ui.Context, p *setupPage, g setupGroup) {
+	widget.GridCard(c).Children(func() {
+		widget.CardTitle(c, nil, g.title, nil)
+		col, state := theme.Done, "Here"
+		if slices.ContainsFunc(g.steps, func(s setup.Step) bool { return !s.Done }) {
+			col, state = theme.Working, "To bring"
+		}
+		ui.Row(c.Key("status")).FillWidth().Shrink(0).Children(func() { widget.StatusLine(c, col, false, state) })
+		widget.Scroll(c.Key("steps")).Grow(1).FillWidth().MinHeight(0).Children(func() {
+			ui.Column(c).FillWidth().Gap(theme.S1).Children(func() {
+				for _, s := range g.steps {
+					a.setupStep(c.Key(s.ID), p, g, s)
+				}
+			})
+		})
+		widget.CardFoot(c, func() {
+			label := "Show commands"
+			if p.commands[g.title] {
+				label = "Hide commands"
+			}
+			if widget.GhostButton(c, label).Clicked() {
+				if p.commands == nil {
+					p.commands = map[string]bool{}
+				}
+				p.commands[g.title] = !p.commands[g.title]
+			}
+		})
+	})
+}
+
+func (a *App) setupStep(c *ui.Context, p *setupPage, g setupGroup, s setup.Step) {
+	ui.Column(c).FillWidth().Gap(theme.S1).Children(func() {
+		ui.Row(c).FillWidth().MinHeight(24).Gap(theme.S2).Children(func() {
+			on := p.picked[s.ID]
+			if p.session == "" {
+				if widget.Switch(c, &on, s.Title) {
+					p.picked[s.ID] = on
+				}
+			} else {
+				setupStateMark(c, p.status[s.ID], p.picked[s.ID])
+			}
+			ui.Column(c).Grow(1).MinWidth(0).Children(func() {
+				widget.Running(c, s.Title, widget.RunStyle{Size: theme.TextLabel})
+				col := theme.TextSoft
+				if s.Done {
+					col = theme.Done
+				}
+				detail := s.Detail
+				if s.Asks {
+					detail += " · asks you"
+				}
+				widget.Running(c.Key("detail"), detail, widget.RunStyle{Size: theme.TextLabel, Color: col})
+			})
+		})
+		if p.commands[g.title] && p.picked[s.ID] {
+			ui.Text(c, s.Script).Font(theme.MonoFont).FontSize(theme.TextLabel).TextColor(widget.CodeText).Padding(theme.S2, theme.S3).
+				Radius(theme.RadiusSmall).Background(theme.CodeGround).FillWidth().MinWidth(0)
+		}
+	})
+}
+
+// setupSide is the way to Sync environment and the terminal the steps run in.
+func (a *App) setupSide(c *ui.Context, p *setupPage) {
+	widget.Card(c.Key("sync")).FillWidth().Shrink(0).Children(func() {
+		widget.CardTitle(c, nil, "Sync environment", nil)
+		widget.CardNote(c.Key("note"), "Skills, subagents, commands, MCP servers and settings.", 0)
+		ui.Row(c.Key("open")).FillWidth().Shrink(0).Children(func() {
+			if widget.GhostButton(c, "Open").Clicked() {
+				a.openSync()
+			}
+		})
+	})
+	widget.GridCard(c.Key("terminal")).FillWidth().Grow(1).Basis(0).Children(func() {
+		widget.CardTitle(c, nil, "Its terminal", func() {
+			if p.session != "" {
+				if widget.GhostButton(c, "Show the terminal").Clicked() {
+					if s, ok := a.sessionByID(p.session); ok {
+						a.selectSession(s)
+						a.page = ""
+					}
+				}
+				return
+			}
+			if widget.Button(c, widget.Secondary, icon.Sync, "Scan again", "").Clicked() && !p.scanning {
+				a.scanSetup()
+			}
+		})
+		ui.Column(c.Key("ground")).Grow(1).FillWidth().MinHeight(0).Radius(theme.RadiusCard).Clip().Background(theme.CodeGround).Children(func() {
+			if pane := a.panes[p.session]; p.session != "" && pane != nil {
+				terminal.View(c.Key("term"), pane.term).Grow(1).FillWidth().Background(theme.TermGround).Padding(theme.S2, theme.S3)
+				return
+			}
+			widget.Scroll(c.Key("what")).Grow(1).FillWidth().MinHeight(0).Children(func() {
+				ui.Text(c, a.setupIntro(p)).Font(theme.MonoFont).FontSize(theme.TextUI).TextColor(widget.CodeText).Padding(theme.S3, theme.S4).FillWidth().MinWidth(0)
+			})
+		})
+	})
+}
+
+// setupIntro is what the terminal's place says before anything runs.
+func (a *App) setupIntro(p *setupPage) string {
+	return "The steps run here, in a session of " + p.host.Name + ": toolchains at the same versions (through mise), git's user, GitHub's CLI signed in, the agents. Answer here what they ask. Each step checks first, so running it again changes nothing."
 }
 
 // setupStateMark is a step's state while the setup runs.
@@ -225,43 +366,23 @@ func setupStateMark(c *ui.Context, state string, picked bool) {
 	}
 }
 
-// setupActions are the dry run, the run, and the ways to the rest.
-func (a *App) setupActions(c *ui.Context, p *setupPage) {
-	picked := a.pickedSteps()
-	ui.Row(c).FillWidth().Gap(8).Children(func() {
-		label := "Show commands"
-		if p.commands {
-			label = "Hide commands"
+// setupRun is the header's run, or while it runs the way on after it.
+func (a *App) setupRun(c *ui.Context, p *setupPage, picked []setup.Step) {
+	if p.session != "" {
+		if widget.Button(c, widget.Primary, icon.Sync, "Done: scan again", "").Clicked() {
+			p.session, p.status = "", nil
+			a.scanSetup()
 		}
-		if widget.GhostButton(c, label).Clicked() {
-			p.commands = !p.commands
-		}
-		if widget.GhostButton(c, "Sync environment").Tooltip("Skills, subagents, commands, MCP servers and settings").Clicked() {
-			a.page = pageSync
-		}
-		ui.Spacer(c)
-		if p.session != "" {
-			if widget.GhostButton(c, "Show the terminal").Clicked() {
-				if s, ok := a.sessionByID(p.session); ok {
-					a.selectSession(s)
-					a.page = ""
-				}
-			}
-			if widget.Button(c, widget.Secondary, icon.Sync, "Done: scan again", "").Clicked() {
-				p.session, p.status = "", nil
-				a.scanSetup()
-			}
-			return
-		}
-		label = "Set up"
-		if n := len(picked); n > 0 {
-			label = fmt.Sprintf("Set up %d %s", n, textfmt.Plural(n, "step", "steps"))
-		}
-		b := widget.PrimaryButton(c, icon.Play, label, "").Disabled(len(picked) == 0)
-		if b.Clicked() && len(picked) > 0 {
-			a.runSetup(picked)
-		}
-	})
+		return
+	}
+	label := "Set up"
+	if n := len(picked); n > 0 {
+		label = fmt.Sprintf("Set up %d %s", n, textfmt.Plural(n, "item", "items"))
+	}
+	b := widget.PrimaryButton(c, icon.Play, label, "").Disabled(len(picked) == 0)
+	if b.Clicked() && len(picked) > 0 {
+		a.runSetup(picked)
+	}
 }
 
 // pickedSteps are the steps to run.

@@ -234,30 +234,30 @@ func (a *App) trayView(c *ui.Context) {
 	case runtime.GOOS == "windows": // which rounds and outlines the flyout
 		box.Background(theme.Dialog)
 	default:
-		box.Background(theme.Dialog).Radius(10).Border(1, theme.BorderStrong)
+		box.Background(theme.Dialog).Radius(theme.RadiusSmall).Border(1, theme.BorderStrong)
 	}
-	box.Padding(12).Gap(8).Children(func() {
-		ui.Row(c).FillWidth().Gap(8).AlignItems(ui.Center).Children(func() {
+	box.Padding(theme.S3).Gap(theme.S2).Children(func() {
+		ui.Row(c).FillWidth().Gap(theme.S2).AlignItems(ui.Center).Children(func() {
 			ui.Column(c).Grow(1).MinWidth(0).Gap(1).Children(func() {
-				ui.Text(c, "enowX").FontSize(13).FontWeight(600)
+				ui.Text(c, "enowX").FontSize(theme.TextUI).FontWeight(600)
 				var parts []string
 				for _, p := range []string{a.host.Name, summary(a.sessions)} {
 					if p != "" {
 						parts = append(parts, p)
 					}
 				}
-				ui.Text(c, strings.Join(parts, " · ")).FontSize(11).TextColor(theme.Muted).SingleLine()
+				widget.Running(c, strings.Join(parts, " · "), widget.RunStyle{Size: theme.TextLabel, Color: theme.TextSoft})
 			})
 		})
 		list := a.traySessionList()
 		if len(list) == 0 {
-			ui.Text(c, "No agent is working or waiting.").FontSize(12).TextColor(theme.Muted).Padding(8, 0)
+			ui.Text(c, "No agent is working or waiting.").FontSize(theme.TextUI).TextColor(theme.TextSoft).Padding(theme.S2, 0)
 		}
 		for _, s := range list {
 			a.traySessionRow(c.Key(s.ID), s)
 		}
 		ui.Spacer(c)
-		ui.Row(c).FillWidth().Gap(6).Children(func() {
+		ui.Row(c).FillWidth().Gap(theme.S1).Children(func() {
 			if widget.Button(c, widget.Secondary, nil, "Open enowX", "").Clicked() {
 				if a.trayPanel != nil {
 					a.trayPanel.Close()
@@ -276,7 +276,7 @@ func (a *App) trayView(c *ui.Context) {
 }
 
 func (a *App) traySessionRow(c *ui.Context, s proto.SessionInfo) {
-	row := ui.ButtonBase(c).FillWidth().Height(36).PaddingX(8).Gap(8).Radius(theme.RadiusControl).Justify(ui.Start).
+	row := ui.ButtonBase(c).FillWidth().Height(36).Shrink(0).PaddingX(theme.S2).Gap(theme.S2).Radius(theme.RadiusCard).Justify(ui.Start).
 		Label(a.sessionName(s)).Cursor(ui.CursorPointer)
 	if row.Hovered() {
 		row.Background(theme.Hover)
@@ -289,10 +289,10 @@ func (a *App) traySessionRow(c *ui.Context, s proto.SessionInfo) {
 		case isWorking(s):
 			col, what = theme.Working, "working"
 		}
-		widget.Dot(c, col, isWorking(s), 7)
+		widget.Dot(c, col, false, 8)
 		ui.Column(c).Grow(1).MinWidth(0).Children(func() {
-			ui.Text(c, a.sessionName(s)).FontSize(12.5).SingleLine()
-			ui.Text(c, textfmt.LastPathPart(s.Project)+" · "+what).FontSize(10.5).TextColor(theme.Muted).SingleLine()
+			widget.Running(c, a.sessionName(s), widget.RunStyle{})
+			widget.Running(c.Key("line"), textfmt.LastPathPart(s.Project)+" · "+what, widget.RunStyle{Size: theme.TextLabel, Color: theme.TextSoft})
 		})
 	})
 	if row.Clicked() {

@@ -13,6 +13,12 @@ Each agent is tracked by the best layer it allows, and the app says which (Token
 3. **Its screen.** With **Read the counts agents print** on, the screens of running agents that have no records and aren't metered are read for the lines agents print their counts in. Only Aider's line is known (`Tokens: 4.4k sent, … received`); no other agent here prints per-call counts.
 4. **None.** Shown as not tracked, never guessed.
 
+## What "tokens" means
+
+The headline **Tokens**, everywhere (the Usage page, a session's line, `enowx usage`, `usage_summary` and `usage_session`, token budgets), is **input + output + cache write**. **Cache read is shown beside it and never added**: it is the same context read again on every call, on one Mac 4.8B against 70M of the rest over a week. **Input** means new input, without the cache. **Cost still prices every type**, cache read included.
+
+**Existing token budgets count less than they did**: a limit set when cache reads counted now takes far longer to reach. Nothing about a budget is changed for you; the Budgets tab says so, and a limit can be lowered there. Cost limits are as they were.
+
 ## Coverage
 
 "Checked" means checked against a real install on the developer's machine (October 2026); the others against the agents' documentation and source (for closed-source agents, open-source usage trackers that parse them), with fixtures written from that format.
@@ -20,7 +26,7 @@ Each agent is tracked by the best layer it allows, and the app says which (Token
 | Agent | Layer | What is counted | Where | Checked |
 |---|---|---|---|---|
 | Claude Code, Claude Agent Teams | records | each message: input, cache read, cache write, output, thinking; model (subagents too) | `~/.claude/projects/<folder>/*.jsonl` | yes |
-| Codex | records | each call's `token_count` (`last_token_usage`): input, cached, cache write, output, reasoning; model; the plan | `~/.codex/sessions/YYYY/MM/DD/rollout-*.jsonl` | yes |
+| Codex | records | each call's `token_count` (`last_token_usage`, or the difference between `total_token_usage` records where only that is written, the first being a baseline; records of rate limits alone skipped; a fork's copied records left out): input, cached (at most the input), cache write, output, reasoning; model; the plan | `~/.codex/sessions/YYYY/MM/DD/rollout-*.jsonl` | yes |
 | OpenCode | records | each model call (a `step-finish` part; the message holds only its last step): input, output, reasoning, cache read, cache write, cost; provider, model | `~/.local/share/opencode/opencode.db`, before 1.x `storage/part/` | yes |
 | CodeBuddy | records | each message: input, cache read, cache write, output, reasoning; model | `~/.codebuddy/projects/<folder>/*.jsonl` | yes |
 | Kilo Code, MiMo Code, OpenCode 2 | records | as OpenCode (OpenCode 2's folder unconfirmed) | `~/.local/share/{kilo,mimocode,opencode2}/*.db` | no |
@@ -57,15 +63,18 @@ What "input" means differs between agents (some count cached tokens in it, some 
 
 - **One record per model call** (`core/tokens.Call`): when; the project, session, agent, account, config, provider and model; the counts; the layer; for enowX's own use, which.
 - **Tied to its session**: the same agent's session run in the call's folder, started before it (the latest). Calls made outside enowX get the project their folder is in. A session's account and config are recorded with it.
-- **Kept by each host's daemon** in `~/.enowx-app/tokens/`, a JSON-lines file a day, **deduplicated by the call's ID** (the agent's message, response or step ID), so records read again count once. Files are read from where the last scan left off (`tokens/scan.json`); SQLite stores from the last row.
+- **Kept by each host's daemon** in `~/.enowx-app/tokens/`, a JSON-lines file a day, **deduplicated by the call's ID** (the agent's message, response or step ID), so records read again count once. An agent that writes one call over several records has **each field's largest kept**, not the first: Claude Code writes a record per content block, and its output grows over them (measured on one Mac's 117,651 messages, November 2026: 72.7% span several records, 28.8% differ between them, nearly all in output; keeping the first lost 40% of the output). A stored call that a later record grows gets a corrected line in its day's file. **One call counts once wherever it appears**: a resumed or copied conversation's call seen in another file or on another day goes to the call already kept. The IDs' hashes and days are read from the day files once per daemon run, not on every scan. Files are read from where the last scan left off (`tokens/scan.json`); SQLite stores from the last row.
 - **When**: every 20 seconds while tracking is on, and right after a session's turn ends.
 - **Kept a year**; older days are rolled up into a day's totals per agent, model, project and config (`rollups.json`).
+- **Recount**: when the way of counting changes (`tokens.RecountVersion`), the first scan of a new build with tracking on rebuilds the day files from the agents' records, only reading them. It copies the store aside first (`tokens/before-recount-<version>/`, the day files and `rollups.json`), keeps each call's day and session, leaves enowX's own use, metered and screen calls as they are, and doesn't touch rolled-up days. Calls whose records are gone keep their numbers, their days marked approximate (`recount.json`), and the page says so. The version is written last, so it runs once; cut short, it runs again from the same copy; a failure is logged and tried on the daemon's next start.
 - **Backfill**: turning tracking on (or **Read back now**, `tokens.backfill`) reads every record back as far as the settings say (30 days by default, up to a year).
 - **enowX's own use, apart**: the judge's tokens (each decision's, `core/decide`), RAG's embedder's (each index), never in the agents' totals or budgets. The judge's agent runs leave no records (`--no-session-persistence`, folders `enowx-judge-*` skipped). Canvas and notes agents are sessions, counted as any.
 
 ## Costs
 
 A price table, US dollars a million tokens (input, cache read, cache write, output), ships with enowX (`core/tokens/prices.json`, the providers' October 2026 prices) and the user's prices go over it (Tokens → Prices): a model ID or a prefix ending in `*`, optionally a provider, or a config's own price (OpenRouter's, a local model's 0). Local models cost nothing. When an agent records the cost itself (OpenCode, Pi, Goose, Aider, …), that cost counts. A model without a price is counted as unpriced, never guessed.
+
+Each type has its own rate: a **cache write kept for an hour** costs its own (`cacheWrite1h`, twice the input on Claude; Claude Code's records split the two) and the rest the 5-minute rate; a **long request** costs the long rates for the whole of it, by what was sent in all (`longAbove`: Claude Haiku 5.5 above 100K, GPT-6 Luna above 272K), each call on its own. A cost is **estimated** when its record doesn't name its model, taken from an earlier record (Pi's, CodeBuddy's, Aider's; Codex says it per turn): the page and `enowx usage` count those calls. GPT-6 Luna's and GLM-5.2's rows come from public price trackers (November 2026), not their makers' own pages: check them. Haiku 5.5's long rate is known only for input and output, so its cache prices stay the usual ones.
 
 Subscriptions: an agent signed in to a plan (Claude Code, Codex, Copilot, Cursor, Kiro, … without a model API of the user's set for it; Codex says its plan) has its tokens shown with the **API-equivalent** cost, marked as such. Its usage limits are in Settings → Agent accounts.
 
@@ -79,7 +88,7 @@ Per day, week or month, for everything, an agent, a config or a project, in toke
 
 ## In the app
 
-- **Resource usage → Tokens**: totals and a chart per day, input / cached / output side by side, split by agent, model, project, session, config or host, for today, 7, 30, 90 days or a year; enowX's own use apart; tabs for Budgets, Prices and Coverage.
+- **Resource usage → Tokens**: totals with Tokens, Input, Output, Cost and Calls as figures, and Cache read and Cache write as their own smaller ones; a chart per day of input, output and cache write, cache read in its legend and tooltips, not in the bars; split by agent, model, project, session, config or host, for today, 7, 30, 90 days or a year; enowX's own use apart; tabs for Budgets, Prices and Coverage.
 - **Every host's numbers together**: the app asks each host it reaches (the one shown and the ones watched); a host not reached shows its last synced totals. Each host writes its daily totals of the last 90 days to `settings/tokens-hosts/<its ID>.json`, synced with the user's data, every 30 minutes while tracking.
 - **Per session**: tokens and cost so far in the line under its header and beside the chat's context meter, and on hover in the session list.
 - **Per project**: the project's menu → **Token usage** opens the tab filtered to it.

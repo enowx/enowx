@@ -19,23 +19,24 @@ func (v *View) create(c *ui.Context, o Options) {
 			widget.Field(c, "Again", func() {
 				submit = widget.Input(c, &v.confirm, "The same").FillWidth().Password().Submitted()
 			})
-			widget.Switch(c, &v.remember, "Remember on this device")
-			ui.Text(c, rememberNote).FontSize(11.5).TextColor(theme.Muted)
+			widget.ToggleRow(c, "Remember on this device", rememberNote, &v.remember)
 			v.errorLine(c)
-			if widget.PrimaryButton(c, icon.Shield, "Make the vault", "").Clicked() || submit {
-				switch {
-				case len(v.password) < 8:
-					v.err = "The master password needs at least 8 characters."
-				case v.password != v.confirm:
-					v.err = "The two passwords differ."
-				default:
-					v.err = errText(o.Actions.Create(v.password, v.remember))
-					if v.err == "" {
-						v.password, v.confirm = "", ""
+			widget.CardNote(c, "There is no way back in without it: enowX can't recover a forgotten master password.", 0).TextColor(theme.Warning)
+			ui.Row(c).FillWidth().Shrink(0).Justify(ui.End).Children(func() {
+				if widget.PrimaryButton(c, nil, "Make the vault", "").Clicked() || submit {
+					switch {
+					case len(v.password) < 8:
+						v.err = "The master password needs at least 8 characters."
+					case v.password != v.confirm:
+						v.err = "The two passwords differ."
+					default:
+						v.err = errText(o.Actions.Create(v.password, v.remember))
+						if v.err == "" {
+							v.password, v.confirm = "", ""
+						}
 					}
 				}
-			}
-			ui.Text(c, "There is no way back in without it: enowX can't recover a forgotten master password.").FontSize(11.5).TextColor(theme.Warning)
+			})
 		})
 }
 
@@ -46,37 +47,37 @@ func (v *View) unlock(c *ui.Context, o Options) {
 	if !v.remember && o.Remember {
 		v.remember = true
 	}
-	v.hero(c, icon.Lock, "The vault is locked", "Unlock it to see your credentials and lend them to sessions.", func() {
-		submit := false
-		widget.Field(c, "Master password", func() {
-			submit = widget.Input(c, &v.password, "Your master password").FillWidth().Password().AutoFocus().Submitted()
+	widget.Card(c).Width(heroWidth).Shrink(1).Children(func() {
+		ui.Row(c).FillWidth().Gap(theme.S2).Justify(ui.Center).Children(func() {
+			ui.Text(c, "The vault is locked").FontSize(theme.TextRead).FontWeight(600)
+			ui.Icon(c, icon.Lock).FontSize(16).TextColor(theme.TextSoft)
 		})
-		widget.Switch(c, &v.remember, "Remember on this device")
+		ui.Text(c, "Unlock it to see your credentials and lend them to sessions.").FontSize(theme.TextUI).TextColor(theme.TextSoft).FillWidth().TextAlign(ui.Center)
+		submit := widget.Input(c, &v.password, "Your master password").FillWidth().Password().AutoFocus().Submitted()
+		widget.ToggleRow(c, "Remember on this device", "", &v.remember)
 		v.errorLine(c)
-		if widget.PrimaryButton(c, icon.Lock, "Unlock", "").Clicked() || submit {
+		if widget.PrimaryButton(c, nil, "Unlock", "").FillWidth().Clicked() || submit {
 			v.err = errText(o.Actions.Unlock(v.password, v.remember))
 			v.password = "" // wrong: typed again from the start
 		}
 	})
 }
 
-// hero is a centered card: a mark, a title, a line and a form.
+// heroWidth is how wide the vault's cards are while there's no list.
+const heroWidth = 420
+
+// hero is a centered card: its title and mark, a line and a form.
 func (v *View) hero(c *ui.Context, svg *ui.SVG, title, about string, body func()) {
-	ui.Column(c).FillWidth().AlignItems(ui.Center).Padding(32, 0).Children(func() {
-		widget.Card(c).Width(440).Padding(24).Gap(14).Children(func() {
-			ui.Row(c).Size(44, 44).Radius(12).Center().Background(theme.AccentSoft).Children(func() {
-				ui.Icon(c, svg).FontSize(22).TextColor(theme.Accent)
-			})
-			ui.Text(c, title).FontSize(17).FontWeight(650).TextColor(theme.TextStrong)
-			ui.Text(c, about).FontSize(12.5).TextColor(theme.TextSoft)
-			body()
-		})
+	widget.Card(c).Width(heroWidth).Shrink(1).Children(func() {
+		widget.CardTitle(c, nil, title, func() { ui.Icon(c, svg).FontSize(16).TextColor(theme.TextSoft) })
+		widget.CardNote(c, about, 0)
+		body()
 	})
 }
 
 func (v *View) errorLine(c *ui.Context) {
 	if v.err != "" {
-		ui.Text(c, v.err).FontSize(12).TextColor(theme.Error)
+		widget.CardNote(c, v.err, 0).TextColor(theme.Error)
 	}
 }
 
@@ -100,15 +101,15 @@ func (v *View) changeDialog(c *ui.Context, o Options) {
 		v.change = nil
 		return
 	}
-	widget.FormSheet(c, &f.open, 440, "Change master password", "The vault's key stays the same: hosts' copies open with the new password once they have the vault again.", func() {
+	widget.FormSheet(c, &f.open, 480, "Change master password", "The vault's key stays the same: hosts' copies open with the new password once they have the vault again.", func() {
 		widget.Field(c, "Current password", func() { widget.Input(c, &f.old, "").FillWidth().Password().AutoFocus() })
 		widget.Field(c, "New password", func() { widget.Input(c, &f.password, "At least 8 characters").FillWidth().Password() })
 		widget.Field(c, "Again", func() { widget.Input(c, &f.again, "").FillWidth().Password() })
 		if f.err != "" {
-			ui.Text(c, f.err).FontSize(12).TextColor(theme.Error)
+			ui.Text(c, f.err).FontSize(theme.TextLabel).TextColor(theme.Error)
 		}
 	}, func() {
-		if widget.PrimaryButton(c, icon.Check, "Change it", "").Clicked() {
+		if widget.PrimaryButton(c, nil, "Change it", "").Clicked() {
 			switch {
 			case f.password != f.again:
 				f.err = "The two new passwords differ."
@@ -166,11 +167,11 @@ func (v *View) AskCard(c *ui.Context, key string, ask Ask, unlock func(password 
 	case ask.Always:
 		card.Buttons = []widget.AskButton{refuse,
 			{Kind: widget.Secondary, Label: "Allow once", Do: func() { answer(AnswerOnce) }},
-			{Kind: widget.Primary, Icon: icon.Check, Label: "Always on " + ask.Host, Do: func() { answer(AnswerAlways) }}}
+			{Kind: widget.Primary, Label: "Always on " + ask.Host, Do: func() { answer(AnswerAlways) }}}
 	case ask.Danger:
 		card.Buttons = []widget.AskButton{refuse, {Kind: widget.Danger, Label: "Remove", Do: func() { answer(AnswerOnce) }}}
 	default:
-		card.Buttons = []widget.AskButton{refuse, {Kind: widget.Primary, Icon: icon.Check, Label: "Allow", Do: func() { answer(AnswerOnce) }}}
+		card.Buttons = []widget.AskButton{refuse, {Kind: widget.Primary, Label: "Allow", Do: func() { answer(AnswerOnce) }}}
 	}
 	return card
 }

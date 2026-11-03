@@ -89,7 +89,7 @@ func TestPricesNameModelsAsProvidersDo(t *testing.T) {
 			t.Errorf("%s %s: %q %v, want %q", tc.provider, tc.model, got.Model, ok, tc.want)
 		}
 	}
-	if _, ok := p.Find("", "gpt-6-luna", ""); ok {
+	if _, ok := p.Find("", "no-such-model-9", ""); ok {
 		t.Error("an unknown model got a price")
 	}
 	if cost, ok := p.Cost(Call{Provider: "local", Model: "qwen3", Input: 1e6}); !ok || cost != 0 {

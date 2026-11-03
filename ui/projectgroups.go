@@ -73,8 +73,8 @@ func (a *App) groupSection(c *ui.Context, e listEntry) int {
 		}
 	}
 	open := filtering || !a.foldedGroups[e.group]
-	ui.Row(c).Height(28).FillWidth().Gap(4).Margin(8, 0, 0, 0).Children(func() {
-		row := ui.ButtonBase(c).Grow(1).Height(28).PaddingX(4).Gap(6).Radius(6).Cursor(ui.CursorPointer).Label(e.group)
+	ui.Row(c).Height(theme.ControlHeight).FillWidth().Gap(theme.S1).Children(func() {
+		row := ui.ButtonBase(c).Grow(1).MinWidth(0).Height(theme.ControlHeight).PaddingX(theme.S2).Gap(theme.S1).Radius(theme.RadiusFull).Justify(ui.Start).Cursor(ui.CursorPointer).Label(e.group)
 		row.Drag(listDrag{group: e.group})
 		a.dropOnEntry(row, e)
 		if row.Hovered() {
@@ -85,11 +85,11 @@ func (a *App) groupSection(c *ui.Context, e listEntry) int {
 			if open {
 				chev = icon.ChevronDown
 			}
-			ui.Icon(c, chev).FontSize(11).TextColor(theme.Muted)
+			ui.Icon(c, chev).FontSize(12).TextColor(theme.TextSoft)
 			ui.Icon(c, icon.Folder).FontSize(12).TextColor(theme.TextSoft)
-			ui.Text(c, e.group).FontSize(12).FontWeight(600).TextColor(theme.TextSoft).SingleLine().Shrink(1)
+			ui.Text(c, e.group).FontSize(theme.TextLabel).FontWeight(500).TextColor(theme.TextSoft).SingleLine().Shrink(1)
 			ui.Spacer(c)
-			ui.Text(c, fmt.Sprint(len(e.projects))).FontSize(10.5).TextColor(theme.Muted).SingleLine()
+			ui.Text(c, fmt.Sprint(len(e.projects))).FontSize(theme.TextLabel).TextColor(theme.Muted).SingleLine()
 		})
 		if row.Clicked() && !filtering {
 			if a.foldedGroups == nil {
@@ -100,15 +100,15 @@ func (a *App) groupSection(c *ui.Context, e listEntry) int {
 		key := "group:" + e.group
 		a.menu.Open(row, key)
 		a.menu.Show(c, row, key, func(done func()) { a.groupMenuItems(c, e, done) })
-		more := widget.IconButton(c, icon.More, "More for "+e.group, false)
-		a.menu.OpenBelow(more, "group-more:"+e.group, 28)
+		more := smallIcon(c, icon.More, "More for "+e.group)
+		a.menu.OpenBelow(more, "group-more:"+e.group, 24)
 		a.menu.Show(c, more, "group-more:"+e.group, func(done func()) { a.groupMenuItems(c, e, done) })
 	})
 	if !open {
 		return 1
 	}
 	shown := 0
-	ui.Column(c).FillWidth().Padding(0, 0, 0, 10).Children(func() {
+	ui.Column(c).FillWidth().Padding(0, 0, 0, theme.S2).Children(func() {
 		for _, p := range e.projects {
 			if a.projectGroup(c.Key(p.Path), p) {
 				shown++
@@ -282,7 +282,7 @@ func (a *App) groupDialog(c *ui.Context) {
 			}
 		}
 		if len(groups) > 0 {
-			ui.Row(c).FillWidth().Gap(6).Wrap().Children(func() {
+			ui.Row(c.Key("groups")).FillWidth().Gap(theme.S1).Wrap().Children(func() {
 				for _, g := range groups {
 					if widget.GhostButton(c.Key(g), g).Label("Group “" + g + "”").Clicked() {
 						f.name = g
@@ -291,9 +291,9 @@ func (a *App) groupDialog(c *ui.Context) {
 			})
 		}
 	}, func() {
-		b := widget.PrimaryButton(c, icon.Check, verb, "")
+		b := widget.PrimaryButton(c, nil, verb, "")
 		if strings.TrimSpace(f.name) == "" {
-			b.Disabled(true).Opacity(0.45)
+			b.Disabled(true)
 		} else if b.Clicked() {
 			save = true
 		}

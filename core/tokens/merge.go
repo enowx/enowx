@@ -17,6 +17,7 @@ func Merge(q proto.TokensQuery, parts []proto.TokensSummary) proto.TokensSummary
 	own := map[string]*proto.TokenGroup{}
 	for _, p := range parts {
 		out.On = out.On || p.On
+		out.Approximate = out.Approximate || p.Approximate
 		if out.Since.IsZero() || p.Since.Before(out.Since) {
 			out.Since = p.Since
 		}

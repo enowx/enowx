@@ -196,6 +196,7 @@ func (s *Server) switchMode(p proto.SessionModeParams) error {
 	if _, ok := agent.FindChoice(set.Modes, p.Mode); !ok {
 		return fmt.Errorf("unknown mode %q", p.Mode)
 	}
+	s.sessions.SetMode(sess, p.Mode)
 	go func() {
 		for range len(set.Modes) + 1 {
 			if set.ModeShown(sess.Terminal().Text()) == p.Mode {

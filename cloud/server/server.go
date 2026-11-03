@@ -35,6 +35,8 @@ type Config struct {
 	DefaultTeamRepo string
 	// Blobs keeps teams' files (a chat's images); nil, none are kept.
 	Blobs blobstore.Store
+	// Contributor is the Contributor role on Discord; empty, it's off.
+	Contributor ContributorConfig
 }
 
 // Server answers the cloud's API. Its handlers run on net/http's
@@ -52,6 +54,8 @@ type Server struct {
 	contribs contributors
 	// present is who of each team is here now (presence.go).
 	present presences
+	// contributor is the Contributor role on Discord, nil when off (contributorrole.go).
+	contributor *contributorRole
 }
 
 // New is a server over db.
@@ -107,6 +111,7 @@ func New(cfg Config, db *store.DB, log *slog.Logger) *Server {
 	s.mux.HandleFunc("POST /invite/accept", s.inviteAccept)
 	s.mux.HandleFunc("POST /device", s.approve)
 	s.mux.HandleFunc("POST /signout", s.webSignOut)
+	s.contributorRoutes()
 	return s
 }
 

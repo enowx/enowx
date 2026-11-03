@@ -1,6 +1,7 @@
 package fileview
 
 import (
+	"fmt"
 	"path"
 	"strconv"
 	"strings"
@@ -20,8 +21,7 @@ import (
 // lines, numbered. It belongs to the main thread; its poller reports
 // through Options.Update.
 type Doc struct {
-	path     string          // in the session's folder
-	spans    [][]widget.Span // its lines colored, nil for plain text
+	path     string // in the session's folder
 	content  *proto.FileContent
 	lines    []string
 	image    ui.ImageSource // an image file's picture, decoded
@@ -29,7 +29,9 @@ type Doc struct {
 	imgH     int
 	err      string
 	polling  bool
-	list     ui.ListState
+	long     widget.LongText
+	edit     *editor // the file being edited, nil where it can't be
+	editNote string  // why it can't be, for the bar
 	copyText widget.CopyFeedback
 	copyPath widget.CopyFeedback
 	// markdown: the file is Markdown, which shows rendered unless raw.
@@ -90,18 +92,13 @@ func (d *Doc) follow(o Options) {
 	var seen time.Time // when the file last changed, as last read
 	go func() {
 		for {
-			f, err := cl.ReadFile(id, p, seen)
+			f, err := cl.ReadFileWhole(id, p, seen)
 			// Decoding a picture takes a while: not on the main thread.
 			var pic ui.ImageSource
 			var w, h int
 			var picErr error
 			if err == nil && !f.Unchanged && f.Image != "" {
 				pic, w, h, picErr = decodeImage(f.Image, f.Data)
-			}
-			// Nor does lexing a whole file.
-			var spans [][]widget.Span
-			if err == nil && !f.Unchanged && f.Image == "" {
-				spans = widget.HighlightLines(path.Base(p), "", f.Text)
 			}
 			keep := make(chan bool, 1)
 			o.Update(func() {
@@ -120,7 +117,8 @@ func (d *Doc) follow(o Options) {
 					d.content, d.image, d.err = &f, nil, "Can't show this image: "+picErr.Error()
 					return
 				default:
-					d.content, d.lines, d.spans, d.image, d.imgW, d.imgH = &f, splitLines(f.Text), spans, pic, w, h
+					d.content, d.lines, d.image, d.imgW, d.imgH = &f, splitLines(f.Text), pic, w, h
+					d.fromDisk(&f)
 				}
 				d.err = ""
 			})
@@ -156,30 +154,59 @@ func (d *Doc) Draw(c *ui.Context, o Options) {
 	ui.Column(c).Grow(1).FillWidth().MinHeight(0).Children(func() {
 		d.bar(c, o)
 		if d.err != "" {
-			ui.Row(c).FillWidth().Padding(8, 14).Background(theme.Fade(theme.Error, 0.1)).Children(func() {
-				ui.Text(c, d.err).FontSize(12).TextColor(theme.Error).Shrink(1)
+			ui.Row(c).FillWidth().Shrink(0).Padding(theme.S3, theme.S4, 0, theme.S4).Children(func() {
+				widget.Notice(c, nil, theme.Del, d.err, "", nil)
 			})
 		}
 		if (d.page || d.pdf) && o.Page != nil && d.content != nil {
 			o.Page(c, d.path, d.content.Modified)
 			return
 		}
-		d.text(c)
+		ui.Column(c).Grow(1).FillWidth().MinHeight(0).Background(codeGround(d)).Children(func() { d.text(c, o) })
 	})
+}
+
+// codeGround is what a file shows on: code on its dark ground in every
+// palette, a rendered page on the frame itself.
+func codeGround(d *Doc) ui.Color {
+	if d.markdown && !d.raw {
+		return ui.Transparent
+	}
+	return theme.CodeGround
 }
 
 // bar is the file's path, its size, and copying it or opening it in the
 // editor.
 func (d *Doc) bar(c *ui.Context, o Options) {
-	ui.Row(c).Height(42).Shrink(0).FillWidth().Padding(0, 10, 0, 14).Gap(8).
-		BorderWidth(0, 0, 1, 0).BorderColor(theme.Border).Children(func() {
-		dir, name := path.Split(d.path)
-		ui.Row(c).Grow(1).MinWidth(0).Children(func() {
-			if dir != "" {
-				ui.Text(c, dir).Font(theme.MonoFont).FontSize(12).TextColor(theme.Muted).SingleLine().Shrink(1)
-			}
-			ui.Text(c, name).Font(theme.MonoFont).FontSize(12).SingleLine().Shrink(0)
+	ui.Row(c).Height(44).Shrink(0).FillWidth().Padding(0, theme.S2, 0, theme.S4).Gap(theme.S2).Clip().
+		BorderWidth(0, 0, theme.Rule, 0).BorderColor(theme.Border).Children(func() {
+		ui.Icon(c, icon.File).FontSize(14).TextColor(theme.TextSoft)
+		ui.Row(c).MinWidth(64).Shrink(1).Children(func() {
+			widget.Running(c, d.path, widget.RunStyle{Size: theme.TextLabel, Mono: true, Always: true})
 		})
+		changed := false
+		if o.Status != nil {
+			if letter, col := statusLetter(o.Status(d.path)); letter != "" {
+				changed = true
+				ui.Text(c, letter).FontSize(theme.TextLabel).FontWeight(500).TextColor(col).SingleLine().Shrink(0)
+			}
+		}
+		if d.editNote != "" {
+			ui.Text(c.Key("edit-note"), d.editNote).FontSize(theme.TextLabel).TextColor(theme.TextSoft).SingleLine().Shrink(0)
+		}
+		ui.Spacer(c)
+		if e := d.edit; e != nil && e.dirty {
+			label := "Save"
+			if e.saving {
+				label = "Saving…"
+			}
+			if widget.PrimaryButton(c.Key("save"), nil, label, "").Tooltip("Save the changes").Clicked() {
+				d.save(o, false)
+			}
+		}
+		if changed && o.ShowChanges != nil && widget.Button(c.Key("show-changes"), widget.Secondary, icon.Git, "Show changes", "").Height(28).Clicked() {
+			o.ShowChanges(d.path)
+		}
 		if d.markdown && d.content != nil && !d.content.Binary {
 			cur := 0
 			if d.raw {
@@ -203,7 +230,7 @@ func (d *Doc) bar(c *ui.Context, o Options) {
 			if d.imgW > 0 {
 				size = strconv.Itoa(d.imgW) + "×" + strconv.Itoa(d.imgH) + " · " + size
 			}
-			ui.Text(c, size).FontSize(11).TextColor(theme.Muted).SingleLine().Shrink(0)
+			ui.Text(c, size).FontSize(theme.TextLabel).TextColor(theme.TextSoft).SingleLine().Shrink(0)
 		}
 		abs := ""
 		if o.Session.Dir != "" {
@@ -214,19 +241,23 @@ func (d *Doc) bar(c *ui.Context, o Options) {
 			if f.Truncated {
 				label, tip = "Copy displayed text", "Only the displayed part of this file will be copied"
 			}
-			widget.CopyIcon(c.Key("copy-text"), &d.copyText, icon.Copy, label, tip, f.Text)
+			text := f.Text
+			if d.Dirty() && d.edit.text != "" {
+				text = d.edit.text // what's being edited, as long as it's kept as a string
+			}
+			widget.CopyIcon(c.Key("copy-text"), &d.copyText, icon.Copy, label, tip, text)
 		}
 		if abs != "" {
 			widget.CopyIcon(c.Key("copy-path"), &d.copyPath, icon.Link, "Copy the path", "Copy the path", abs)
 		}
-		if abs != "" && o.OpenInEditor != nil && widget.IconButton(c, icon.Pencil, "Open in "+o.EditorName, false).Clicked() {
+		if abs != "" && o.OpenInEditor != nil && widget.IconButton(c, icon.External, "Open in "+o.EditorName, false).Clicked() {
 			o.OpenInEditor(abs, 0)
 		}
 	})
 }
 
 // text is the file's lines, numbered, or why it shows none.
-func (d *Doc) text(c *ui.Context) {
+func (d *Doc) text(c *ui.Context, o Options) {
 	f := d.content
 	switch {
 	case f == nil && d.err == "":
@@ -238,57 +269,41 @@ func (d *Doc) text(c *ui.Context) {
 		d.picture(c)
 		return
 	case d.markdown && !d.raw && !f.Binary && f.Text != "":
-		widget.MarkdownList(c.Key("preview"), &d.preview, f.Text, 720).Grow(1).FillWidth().MinHeight(0).Padding(18, 20)
+		widget.MarkdownList(c.Key("preview"), &d.preview, f.Text, 720).Grow(1).FillWidth().MinHeight(0).Padding(theme.S4, theme.S5)
 		return
 	case f.Binary:
 		centered(c, "A binary file: nothing to show as text.")
+		return
+	case d.edit != nil:
+		d.editorView(c, o)
 		return
 	case len(d.lines) == 0:
 		centered(c, "This file is empty.")
 		return
 	}
-	lines := d.lines
-	n := len(lines)
-	if f.Truncated {
-		n++
-	}
-	width := float32(len(strconv.Itoa(len(lines))))*7.5 + 16
-	if d.goTo {
+	d.long.Load(widget.LongSource{ID: fmt.Sprint(f.Path, f.Modified, len(f.Text)), Size: len(f.Text), Name: path.Base(d.path), Keep: true,
+		Make: func() (string, string) { return f.Text, "" }}, o.Update)
+	if d.goTo && d.long.Ready() {
 		d.goTo = false
-		d.list.ScrollTo(min(d.from, len(lines))-1, ui.Center)
+		d.long.GoToLine(min(d.from, len(d.lines)))
 	}
-	ui.List(c.Key("doc"), &d.list, n, func(i int) {
-		if i == len(lines) {
-			ui.Row(c).FillWidth().Height(lineHeight + 6).PaddingX(14).Children(func() {
-				ui.Text(c, "…the rest of this file is too long to show here").FontSize(11.5).TextColor(theme.Muted).SingleLine()
+	long := widget.LongOptions{Post: o.Update, Numbers: true, MarkFrom: d.from, MarkTo: d.to, Ink: ui.Hex("#E4E6EE")}
+	if f.Truncated {
+		long.Foot = func() {
+			ui.Row(c.Key("rest")).FillWidth().PaddingX(theme.S4).Children(func() {
+				ui.Text(c, "…the rest of this file is too long to show here").FontSize(theme.TextLabel).TextColor(ui.Hex("#8A8FA3")).SingleLine()
 			})
-			return
 		}
-		row := ui.Row(c).FillWidth().Height(lineHeight).Clip()
-		if i+1 >= d.from && i+1 <= d.to {
-			row.Background(theme.Selected)
-		}
-		row.Children(func() {
-			ui.Text(c, strconv.Itoa(i+1)).Font(theme.MonoFont).FontSize(11).TextColor(theme.Idle).Width(width).PaddingX(6).
-				TextAlign(ui.End).SingleLine().Shrink(0)
-			var spans []widget.Span
-			if i < len(d.spans) {
-				spans = d.spans[i]
-				if spans == nil {
-					spans = []widget.Span{} // an empty line
-				}
-			}
-			widget.CodeSpans(c, spans, lines[i]).Font(theme.MonoFont).FontSize(12).SingleLine().Shrink(1)
-		})
-	}).Grow(1).FillWidth().MinHeight(0).Padding(6, 0)
+	}
+	d.long.Draw(c.Key("doc"), long).Padding(theme.S2, widget.ScrollGutter, theme.S2, 0)
 }
 
 // picture shows an image: at its size when it fits, else scaled down to
 // the panel's width, on a ground that shows its transparent parts.
 func (d *Doc) picture(c *ui.Context) {
 	ui.Scroll(c).Grow(1).FillWidth().MinHeight(0).Children(func() {
-		ui.Column(c).FillWidth().Padding(16).AlignItems(ui.Center).Children(func() {
-			img := ui.Image(c, d.image).MaxWidth(float32(max(d.imgW, 1))).FillWidth().Background(theme.Sunken).Radius(4)
+		ui.Column(c).FillWidth().Padding(theme.S4).AlignItems(ui.Center).Children(func() {
+			img := ui.Image(c, d.image).MaxWidth(float32(max(d.imgW, 1))).FillWidth().Background(theme.Sunken).Radius(theme.RadiusSmall)
 			if d.imgW == 0 { // an SVG: as wide as the panel
 				img.MaxWidth(10000)
 			}

@@ -19,7 +19,7 @@ import (
 // body draws the rows while *open. It reports a click on the title.
 func Group(c *ui.Context, title string, count int, open *bool, body func()) {
 	ui.Column(c).FillWidth().Gap(2).Children(func() {
-		h := ui.ButtonBase(c.Key("head")).FillWidth().Height(28).PaddingX(6).Gap(6).Radius(theme.RadiusControl).
+		h := ui.ButtonBase(c.Key("head")).FillWidth().Height(theme.ControlHeight).PaddingX(theme.S2).Gap(theme.S1).Radius(theme.RadiusFull).
 			Justify(ui.Start).Cursor(ui.CursorPointer).Label(title)
 		if h.Hovered() {
 			h.Background(theme.Hover)
@@ -29,10 +29,10 @@ func Group(c *ui.Context, title string, count int, open *bool, body func()) {
 			if *open {
 				chev = icon.ChevronDown
 			}
-			ui.Icon(c, chev).FontSize(11).TextColor(theme.Muted)
-			ui.Text(c, strings.ToUpper(title)).FontSize(10.5).TextColor(theme.Muted).SingleLine().Shrink(1)
+			ui.Icon(c, chev).FontSize(12).TextColor(theme.TextSoft)
+			ui.Text(c, title).FontSize(theme.TextLabel).FontWeight(500).TextColor(theme.TextSoft).SingleLine().Shrink(1)
 			if count > 0 {
-				ui.Text(c, strconv.Itoa(count)).FontSize(10.5).TextColor(theme.Idle)
+				ui.Text(c, strconv.Itoa(count)).FontSize(theme.TextLabel).TextColor(theme.TextSoft)
 			}
 		})
 		if h.Clicked() {
@@ -48,24 +48,24 @@ func Group(c *ui.Context, title string, count int, open *bool, body func()) {
 // and a note under it (each "" for none), with trailing controls at its
 // right (a switch, a menu button).
 func Row(c *ui.Context, title, detail, note string, trailing func()) ui.Element {
-	r := ui.Row(c).FillWidth().Gap(10).Padding(7, 10).Radius(theme.RadiusControl)
+	r := ui.Row(c).FillWidth().Gap(theme.S2).MinHeight(theme.RowHeight).Padding(theme.S1, theme.S3).Radius(theme.RadiusCard)
 	if r.Hovered() {
 		r.Background(theme.Hover)
 	}
 	r.Children(func() {
-		ui.Column(c).Grow(1).MinWidth(0).Gap(2).Children(func() {
-			ui.Row(c).FillWidth().Gap(8).Children(func() {
-				ui.Text(c, title).FontSize(12.5).SingleLine().Shrink(0)
+		ui.Column(c).Grow(1).MinWidth(0).Children(func() {
+			ui.Row(c).FillWidth().Gap(theme.S2).Children(func() {
+				ui.Text(c, title).FontSize(theme.TextUI).SingleLine().Shrink(0)
 				if detail != "" {
-					ui.Text(c, detail).FontSize(11).TextColor(theme.Muted).SingleLine().Shrink(1)
+					ui.Text(c, detail).FontSize(theme.TextLabel).TextColor(theme.TextSoft).SingleLine().Shrink(1)
 				}
 			})
 			if note != "" {
-				ui.Text(c, note).FontSize(11.5).TextColor(theme.TextSoft).SingleLine().Shrink(1)
+				ui.Text(c, note).FontSize(theme.TextLabel).TextColor(theme.TextSoft).SingleLine().Shrink(1)
 			}
 		})
 		if trailing != nil {
-			ui.Row(c).Gap(4).Shrink(0).Children(trailing)
+			ui.Row(c).Gap(theme.S1).Shrink(0).Children(trailing)
 		}
 	})
 	return r
@@ -75,7 +75,7 @@ func Row(c *ui.Context, title, detail, note string, trailing func()) ui.Element 
 // to close it), keyed by key in m.
 func MoreMenu(c *ui.Context, m *ContextMenu, key string, items func(done func())) {
 	b := IconButton(c.Key("more:"+key), icon.More, "More", false)
-	m.OpenBelow(b, key, 24)
+	m.OpenBelow(b, key, theme.ControlHeight)
 	m.Show(c, b, key, items)
 }
 
@@ -84,8 +84,8 @@ func MoreMenu(c *ui.Context, m *ContextMenu, key string, items func(done func())
 func LogView(c *ui.Context, text string, height float32) {
 	lines := strings.Split(strings.TrimRight(text, "\n"), "\n")
 	slices.Reverse(lines)
-	ui.Scroll(c).FillWidth().Height(height).Radius(6).Background(theme.Sunken).Children(func() {
-		ui.Column(c).FillWidth().Padding(8, 10).Gap(1).Children(func() {
+	ui.Scroll(c).FillWidth().Height(height).Radius(theme.RadiusCard).Background(theme.Surface(theme.Background)).Children(func() {
+		ui.Column(c).FillWidth().Padding(theme.S3, theme.S4).Children(func() {
 			for i, line := range lines {
 				col := theme.TextSoft
 				switch lower := strings.ToLower(line); {
@@ -94,7 +94,7 @@ func LogView(c *ui.Context, text string, height float32) {
 				case strings.Contains(lower, "level=warn"):
 					col = theme.Warning
 				}
-				ui.Text(c.Key(strconv.Itoa(i)), line).Font(theme.MonoFont).FontSize(11).TextColor(col).SingleLine().Tooltip(line)
+				ui.Text(c.Key(strconv.Itoa(i)), line).Font(theme.MonoFont).FontSize(theme.TextLabel).TextColor(col).SingleLine().Tooltip(line)
 			}
 		})
 	})

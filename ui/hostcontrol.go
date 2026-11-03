@@ -72,24 +72,37 @@ func (a *App) hostCallAsked(from string, req proto.AppRequest, reply func(any, e
 	if ownAsker {
 		askerHost = " on " + h.host.Name
 	}
-	// A teammate's shared host always asks: the asker's mode is about the
-	// user's own machines, not their teammate's.
-	if p.Bypass != "" && ownAsker && !shared {
-		bypassed()
-		run()
-		return
-	}
+	var teammate bool
 	if s, ok := a.sessionByID(p.From); ok {
 		asker = a.sessionName(s)
+		teammate = s.Member != nil
 	}
-	after := " It can't be undone."
-	if hibernate {
-		after = " It can be continued later."
+	askUser := func() {
+		after := " It can't be undone."
+		if hibernate {
+			after = " It can be continued later."
+		}
+		q := &hostAsk{key: a.hostAskKey + 1, until: askUntil(hostAskLife),
+			about: "The agent of “" + asker + "”" + askerHost + " asks to " + controlWhat(p) + " on " + hostName + "." + after,
+			run:   run, refuse: func() { reply(nil, errors.New("the user said no")) }}
+		if (p.Method == proto.MethodSessionKill || hibernate) && ownAsker && !shared && !teammate {
+			q.about += alwaysAllowNote(asker)
+			q.always = func() { a.allowAlways(h.cl, p.From, run) }
+		}
+		a.hostAskKey++
+		a.hostAsks = append(a.hostAsks, q)
 	}
-	a.hostAskKey++
-	a.hostAsks = append(a.hostAsks, &hostAsk{key: a.hostAskKey, until: askUntil(hostAskLife),
-		about: "The agent of “" + asker + "”" + askerHost + " asks to " + controlWhat(p) + " on " + hostName + "." + after,
-		run:   run, refuse: func() { reply(nil, errors.New("the user said no")) }})
+	// A teammate's shared host always asks: the asker's mode is about the
+	// user's own machines, not their teammate's.
+	switch {
+	case p.Bypass == proto.ControlAlways && ownAsker && !shared:
+		a.whenNothingLost(p, func() { bypassed(); run() }, askUser)
+	case p.Bypass != "" && ownAsker && !shared:
+		bypassed()
+		run()
+	default:
+		askUser()
+	}
 }
 
 // hostAsk is a session waiting for the user's yes.
@@ -98,6 +111,7 @@ type hostAsk struct {
 	about  string
 	run    func()
 	refuse func()
+	always func() // Always allow, when its session can have that
 	until  time.Time
 }
 
@@ -113,10 +127,12 @@ func (a *App) hostControlAsk(*ui.Context) *widget.Ask {
 			do()
 		}
 	}
-	return &widget.Ask{Key: "host:" + strconv.Itoa(q.key), Title: "Let a session do this?", About: q.about, Buttons: []widget.AskButton{
-		{Kind: widget.Secondary, Label: "Cancel", Do: answer(q.refuse)},
-		{Kind: widget.Primary, Label: "Allow", Do: answer(q.run)},
-	}}
+	buttons := []widget.AskButton{{Kind: widget.Secondary, Label: "Cancel", Do: answer(q.refuse)}}
+	if q.always != nil {
+		buttons = append(buttons, widget.AskButton{Kind: widget.Secondary, Label: "Always allow", Do: answer(q.always)})
+	}
+	buttons = append(buttons, widget.AskButton{Kind: widget.Primary, Label: "Allow", Do: answer(q.run)})
+	return &widget.Ask{Key: "host:" + strconv.Itoa(q.key), Title: "Let a session do this?", About: q.about, Buttons: buttons}
 }
 
 // agentHibernates says p has an agent stop sessions' agents on another

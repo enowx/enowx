@@ -60,6 +60,7 @@ func (a *App) portsChanged(ch proto.PortsChange) {
 			ch.Session == a.selected && webViewAvailable() && a.alwaysPreviews(a.sessions[i], p.Port) {
 			s := a.sessions[i]
 			if !a.state.BrowserViews[s.ID] {
+				a.browserTabBehind(s)
 				a.showBrowserSoon()
 			}
 			a.browserOf(s.ID).Show(a.browserOptions(s), p)
@@ -140,13 +141,13 @@ func (a *App) portOfferCard(c *ui.Context, o portOffer, remote bool) {
 	if i := slices.IndexFunc(a.sessions, func(s proto.SessionInfo) bool { return s.ID == o.session }); i >= 0 {
 		name = a.sessionName(a.sessions[i])
 	}
-	widget.Float(ui.Column(c).FillWidth().Padding(12, 12, 12, 14).Gap(10).Radius(theme.RadiusCard).
-		Background(theme.Dialog).Border(1, theme.BorderStrong)).Transition(widget.OverlayMotion).Children(func() {
-		ui.Row(c).FillWidth().Gap(10).AlignItems(ui.Start).Children(func() {
-			ui.Icon(c, icon.Globe).FontSize(14).TextColor(theme.Accent).Margin(2, 0, 0, 0)
-			ui.Column(c).Grow(1).MinWidth(0).Gap(3).Children(func() {
-				ui.Text(c, o.port.Process+" is listening on :"+strconv.Itoa(o.port.Port)).FontSize(12.5).SingleLine().Shrink(1)
-				ui.Text(c, "in "+name).FontSize(11.5).TextColor(theme.Muted).SingleLine().Shrink(1)
+	widget.Float(ui.Column(c).FillWidth().Padding(theme.S3, theme.S3, theme.S3, theme.S4).Gap(theme.S2).Radius(theme.RadiusCard).
+		Background(theme.Dialog)).Transition(widget.OverlayMotion).Children(func() {
+		ui.Row(c).FillWidth().Gap(theme.S2).Children(func() {
+			ui.Icon(c, icon.Link).FontSize(14).TextColor(theme.Now)
+			ui.Column(c).Grow(1).MinWidth(0).Children(func() {
+				widget.Running(c, o.port.Process+" is listening on :"+strconv.Itoa(o.port.Port), widget.RunStyle{Always: true})
+				widget.Running(c.Key("in"), "in "+name, widget.RunStyle{Size: theme.TextLabel, Color: theme.TextSoft})
 			})
 			if widget.IconButton(c, icon.Close, "Dismiss", false).Clicked() {
 				a.dropPortOffer(o.port.Port)
@@ -156,11 +157,13 @@ func (a *App) portOfferCard(c *ui.Context, o portOffer, remote bool) {
 			a.sessions[i].Project != "" && webViewAvailable() {
 			s := a.sessions[i]
 			always := a.alwaysPreviews(s, o.port.Port)
-			if widget.Checkbox(c, &always, "Always preview :"+strconv.Itoa(o.port.Port)+" in this project") {
-				a.setAlwaysPreview(s, o.port.Port, always)
-			}
+			ui.Row(c).FillWidth().Children(func() {
+				if widget.Checkbox(c, &always, "Always preview :"+strconv.Itoa(o.port.Port)+" in this project") {
+					a.setAlwaysPreview(s, o.port.Port, always)
+				}
+			})
 		}
-		ui.Row(c).FillWidth().Gap(8).Justify(ui.End).Children(func() {
+		ui.Row(c).FillWidth().Gap(theme.S2).Justify(ui.End).Children(func() {
 			if widget.GhostButton(c, "Ports").Clicked() {
 				if i := slices.IndexFunc(a.sessions, func(s proto.SessionInfo) bool { return s.ID == o.session }); i >= 0 {
 					a.selectSession(a.sessions[i])
@@ -176,11 +179,11 @@ func (a *App) portOfferCard(c *ui.Context, o portOffer, remote bool) {
 			if webViewAvailable() {
 				kind = widget.Secondary
 			}
-			if widget.Button(c, kind, icon.External, label, "").Clicked() {
+			if widget.Button(c, kind, nil, label, "").Clicked() {
 				a.openPort(o.session, o.port)
 				a.dropPortOffer(o.port.Port)
 			}
-			if webViewAvailable() && widget.Button(c, widget.Primary, icon.Browser, "Preview", "").Clicked() {
+			if webViewAvailable() && widget.Button(c, widget.Primary, nil, "Preview", "").Clicked() {
 				if i := slices.IndexFunc(a.sessions, func(s proto.SessionInfo) bool { return s.ID == o.session }); i >= 0 {
 					a.previewPort(a.sessions[i], o.port)
 				}

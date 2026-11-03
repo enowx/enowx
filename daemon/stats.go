@@ -33,7 +33,7 @@ func (s *Server) stats() proto.DaemonStats {
 		return st.cached
 	}
 	st.last = time.Now()
-	if runtime.GOOS != "linux" && runtime.GOOS != "darwin" {
+	if runtime.GOOS != "linux" && runtime.GOOS != "darwin" && runtime.GOOS != "windows" {
 		st.cached = proto.DaemonStats{}
 		return st.cached
 	}
@@ -87,6 +87,7 @@ func (s *Server) stats() proto.DaemonStats {
 			out.Sessions = append(out.Sessions, *u)
 		}
 	}
+	out.Left = s.procsLeft(func(pid int) proto.Usage { return usage(st.sampler.One(pid)) })
 	st.cached = out
 	return out
 }

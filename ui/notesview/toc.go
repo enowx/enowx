@@ -19,7 +19,7 @@ import (
 
 // outlineWide is how wide the page's area is at least for its outline to
 // show beside it.
-const outlineWide = 940
+const outlineWide = 860
 
 // jumpState is the Jump to section dialog.
 type jumpState struct {
@@ -154,70 +154,77 @@ func (v *View) outlinePanel(c *ui.Context, p *page) {
 	if n, err := strconv.Atoi(p.ed.kept("outline level")); err == nil {
 		level = n
 	}
-	ui.Column(c).Width(232).Shrink(0).FillHeight().BorderWidth(0, 0, 0, 1).BorderColor(theme.Border).Children(func() {
-		ui.Row(c).FillWidth().Padding(14, 12, 6, 14).Gap(4).AlignItems(ui.Center).Children(func() {
-			ui.Text(c, "On this page").FontSize(11.5).FontWeight(600).TextColor(theme.Muted).Grow(1)
-			for _, l := range []int{1, 2, 3, 9} {
-				label := strconv.Itoa(l)
-				if l == 9 {
-					label = "All"
+	// A card as tall as it needs, and no taller than the frame's: its list
+	// scrolls inside it.
+	ui.Column(c).Width(240+theme.S5).Shrink(0).FillHeight().Padding(theme.S4, theme.S5, theme.S4, 0).Children(func() {
+		widget.Raise(ui.Column(c.Key("outline")).FillWidth().Shrink(1).MinHeight(0).Padding(theme.S3, theme.S2).Gap(theme.S1).Radius(theme.RadiusCard).Background(theme.Raised)).Children(func() {
+			ui.Row(c).FillWidth().Padding(0, 0, 0, theme.S2).Gap(0).Children(func() {
+				ui.Row(c).Grow(1).MinWidth(0).Children(func() {
+					widget.Running(c, "On this page", widget.RunStyle{Size: theme.TextLabel, Weight: 500, Color: theme.TextSoft})
+				})
+				for _, l := range []int{1, 2, 3, 9} {
+					label := strconv.Itoa(l)
+					if l == 9 {
+						label = "All"
+					}
+					b := ui.ButtonBase(c.Key(l)).Height(24).MinWidth(24).PaddingX(theme.S1).Radius(theme.RadiusFull).Center().Shrink(0).Cursor(ui.CursorPointer).Label("Outline to level " + label).
+						Tooltip("Headings down to this level")
+					if l == level {
+						b.Background(theme.Selected)
+					} else if b.Hovered() {
+						b.Background(theme.Hover)
+					}
+					b.Children(func() { ui.Text(c, label).FontSize(theme.TextLabel).TextColor(theme.TextSoft) })
+					if b.Clicked() {
+						p.ed.keep("outline level", strconv.Itoa(l))
+					}
 				}
-				b := ui.ButtonBase(c.Key(l)).Height(20).PaddingX(5).Radius(4).Center().Cursor(ui.CursorPointer).Label("Outline to level " + label).
-					Tooltip("Headings down to this level")
-				if l == level {
-					b.Background(theme.Selected)
-				} else if b.Hovered() {
-					b.Background(theme.Hover)
+			})
+			if done, total := noteblocks.Progress(p.ed.markdown()); total > 0 {
+				ui.Column(c).FillWidth().Padding(theme.S1, theme.S2).Children(func() { progressBar(c, "To-dos", done, total) })
+			}
+			widget.Scroll(c).FillWidth().Shrink(1).MinHeight(0).Children(func() {
+				ui.Column(c).FillWidth().Gap(2).Children(func() {
+					hidden := 99 // entries deeper than a folded one hide
+					for k, s := range out {
+						if s.Level > hidden {
+							continue
+						}
+						hidden = 99
+						if s.Level > level {
+							continue
+						}
+						folded := p.ed.kept("fold "+s.ID) == "1"
+						kids := k+1 < len(out) && out[k+1].Level > s.Level && out[k+1].Level <= level
+						if folded && kids {
+							hidden = s.Level
+						}
+						v.outlineEntry(c.Key(s.ID), p, s, s.ID == active, kids, folded)
+					}
+				})
+			})
+			if p.scroll.Y > 480 {
+				top := ui.ButtonBase(c).FillWidth().Height(theme.ControlHeight).Shrink(0).PaddingX(theme.S2).Gap(theme.S2).Radius(theme.RadiusFull).Justify(ui.Start).AlignItems(ui.Center).Cursor(ui.CursorPointer).Label("Back to the top")
+				if top.Hovered() {
+					top.Background(theme.Hover)
 				}
-				b.Children(func() { ui.Text(c, label).FontSize(10.5).TextColor(theme.TextSoft) })
-				if b.Clicked() {
-					p.ed.keep("outline level", strconv.Itoa(l))
+				top.Children(func() {
+					ui.Icon(c, icon.ArrowUp).FontSize(12).TextColor(theme.TextSoft)
+					ui.Text(c, "Back to top").FontSize(theme.TextUI).TextColor(theme.TextSoft)
+				})
+				if top.Clicked() {
+					p.scroll.ScrollTo(0, 0, ui.Smooth)
 				}
 			}
 		})
-		if done, total := noteblocks.Progress(p.ed.markdown()); total > 0 {
-			ui.Column(c).FillWidth().PaddingX(8).Children(func() { progressBar(c, "To-dos", done, total) })
-		}
-		ui.Scroll(c).Grow(1).FillWidth().MinHeight(0).Children(func() {
-			ui.Column(c).FillWidth().Padding(4, 8, 12, 8).Gap(1).Children(func() {
-				hidden := 99 // entries deeper than a folded one hide
-				for k, s := range out {
-					if s.Level > hidden {
-						continue
-					}
-					hidden = 99
-					if s.Level > level {
-						continue
-					}
-					folded := p.ed.kept("fold "+s.ID) == "1"
-					kids := k+1 < len(out) && out[k+1].Level > s.Level && out[k+1].Level <= level
-					if folded && kids {
-						hidden = s.Level
-					}
-					v.outlineEntry(c.Key(s.ID), p, s, s.ID == active, kids, folded)
-				}
-			})
-		})
-		top := ui.ButtonBase(c).FillWidth().Height(34).PaddingX(14).Gap(6).AlignItems(ui.Center).Cursor(ui.CursorPointer).Label("Back to top").
-			BorderWidth(1, 0, 0, 0).BorderColor(theme.Border)
-		if top.Hovered() {
-			top.Background(theme.Hover)
-		}
-		top.Children(func() {
-			ui.Icon(c, icon.ArrowUp).FontSize(12).TextColor(theme.Muted)
-			ui.Text(c, "Back to top").FontSize(12).TextColor(theme.TextSoft)
-		})
-		if top.Clicked() {
-			p.scroll.ScrollTo(0, 0, ui.Smooth)
-		}
 	})
 }
 
 // outlineEntry is section s in the outline: a click goes there, its
 // chevron folds the sections under it.
 func (v *View) outlineEntry(c *ui.Context, p *page, s noteblocks.Section, active, kids, folded bool) {
-	row := ui.ButtonBase(c).FillWidth().Height(26).Padding(0, 6, 0, 2+float32(max(s.Level-1, 0))*12).Gap(2).Radius(5).
-		AlignItems(ui.Center).Cursor(ui.CursorPointer).Label("Section " + s.Title)
+	row := ui.ButtonBase(c).FillWidth().Height(theme.ControlHeight).Shrink(0).Padding(0, theme.S2, 0, theme.S2+float32(max(s.Level-1, 0))*theme.S2).Gap(theme.S1).Radius(theme.RadiusFull).
+		Justify(ui.Start).AlignItems(ui.Center).Cursor(ui.CursorPointer).Label("Section " + s.Title)
 	switch {
 	case active:
 		row.Background(theme.Selected)
@@ -226,13 +233,13 @@ func (v *View) outlineEntry(c *ui.Context, p *page, s noteblocks.Section, active
 	}
 	row.Children(func() {
 		if kids {
-			chev := ui.ButtonBase(c).Size(16, 16).Radius(3).Center().Cursor(ui.CursorPointer).Label("Fold " + s.Title)
+			chev := ui.ButtonBase(c).Size(16, 16).Radius(theme.RadiusFull).Center().Shrink(0).Cursor(ui.CursorPointer).Label("Fold " + s.Title)
 			chev.Children(func() {
 				svg := icon.ChevronDown
 				if folded {
 					svg = icon.ChevronRight
 				}
-				ui.Icon(c, svg).FontSize(10).TextColor(theme.Muted)
+				ui.Icon(c, svg).FontSize(12).TextColor(theme.SoftOn(active))
 			})
 			if chev.Clicked() {
 				v := "1"
@@ -241,24 +248,21 @@ func (v *View) outlineEntry(c *ui.Context, p *page, s noteblocks.Section, active
 				}
 				p.ed.keep("fold "+s.ID, v)
 			}
-		} else {
-			ui.Box(c).Size(16, 16)
 		}
 		if !strings.HasPrefix(s.Kind, "h") {
-			ui.Icon(c, kindIcon(s.Kind)).FontSize(11).TextColor(theme.Muted).Margin(0, 4, 0, 0)
+			ui.Icon(c, kindIcon(s.Kind)).FontSize(12).TextColor(theme.SoftOn(active))
 		}
-		t := ui.Text(c, s.Title).FontSize(12).SingleLine().Grow(1).Shrink(1)
+		st := widget.RunStyle{Color: theme.TextSoft}
 		if active {
-			t.TextColor(theme.Accent).FontWeight(600)
-		} else {
-			t.TextColor(theme.TextSoft)
+			st = widget.RunStyle{Color: theme.TextStrong, Weight: 500, Always: true}
 		}
+		ui.Row(c).Grow(1).MinWidth(0).Children(func() { widget.Running(c, s.Title, st) })
 		if s.Todos > 0 {
-			col := theme.Muted
+			col := theme.TextSoft
 			if s.Done == s.Todos {
 				col = theme.Done
 			}
-			ui.Text(c, fmt.Sprintf("%d/%d", s.Done, s.Todos)).FontSize(10.5).TextColor(col)
+			ui.Text(c, fmt.Sprintf("%d/%d", s.Done, s.Todos)).FontSize(theme.TextLabel).TextColor(col).Shrink(0)
 		}
 	})
 	if row.Clicked() {
@@ -315,7 +319,7 @@ func (v *View) jumpDialog(c *ui.Context, p *page) {
 		}
 	}
 	go_ := ""
-	widget.Dialog(c, &j.open, 480, 8, func() {
+	widget.Dialog(c, &j.open, 480, theme.S2, func() {
 		prev := j.query
 		in := widget.Input(c, &j.query, "Jump to a section").FillWidth().AutoFocus()
 		if j.query != prev {
@@ -339,18 +343,19 @@ func (v *View) jumpDialog(c *ui.Context, p *page) {
 			go_ = matches[j.pick].ID
 		}
 		if len(matches) == 0 {
-			ui.Text(c, "No section has that in its title.").FontSize(12).TextColor(theme.Muted).Padding(8)
+			ui.Text(c, "No section has that in its title.").FontSize(theme.TextUI).TextColor(theme.TextSoft).Padding(theme.S2, theme.S3)
 		}
-		ui.Scroll(c).FillWidth().MaxHeight(360).Children(func() {
+		widget.Scroll(c).FillWidth().MaxHeight(360).Children(func() {
 			ui.Column(c).FillWidth().Gap(1).Children(func() {
 				for k, s := range matches {
 					row := ui.ButtonBase(c.Key(s.ID)).Label("Jump to " + s.Title)
 					widget.ListRow(c, row, k == j.pick, "jump", func() {
-						ui.Box(c).Width(float32(max(s.Level-1, 0)) * 12)
-						ui.Icon(c, kindIcon(s.Kind)).FontSize(12).TextColor(theme.Muted)
-						ui.Text(c, s.Title).FontSize(12.5).SingleLine().Shrink(1)
-						ui.Spacer(c)
-						ui.Text(c, "#"+s.ID).Font(theme.MonoFont).FontSize(10.5).TextColor(theme.Muted).SingleLine()
+						ui.Box(c).Width(float32(max(s.Level-1, 0)) * theme.S3)
+						ui.Icon(c, kindIcon(s.Kind)).FontSize(12).TextColor(theme.SoftOnPicked(k == j.pick))
+						ui.Row(c).Grow(1).MinWidth(0).Children(func() { widget.Running(c, s.Title, widget.RunStyle{}) })
+						ui.Row(c).MinWidth(0).Shrink(100).MaxWidth(160).Children(func() {
+							widget.Running(c.Key("id"), "#"+s.ID, widget.RunStyle{Size: theme.TextLabel, Color: theme.SoftOnPicked(k == j.pick)})
+						})
 					})
 					if row.Clicked() {
 						go_ = s.ID

@@ -34,9 +34,9 @@ func InlineIcons(c *ui.Context, s string, size float32, weight int, ink ui.Color
 			k++
 			switch {
 			case sp.code:
-				t.Font(theme.MonoFont).FontSize(size - 2).Background(theme.Raised).TextColor(theme.Accent)
+				t.Font(theme.MonoFont).FontSize(size - 2).Background(theme.Raised).TextColor(theme.Now)
 			case sp.url != "":
-				t.TextColor(theme.Accent).Underline()
+				t.TextColor(theme.Now).Underline()
 			}
 			if sp.bold {
 				t.Bold().TextColor(theme.TextStrong)

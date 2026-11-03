@@ -104,6 +104,14 @@ func (m *Manager) SetNote(s *Session, note string) {
 	m.notify(s)
 }
 
+// SetReport keeps its agent's report of a turn.
+func (m *Manager) SetReport(s *Session, outcome, text string) {
+	s.mu.Lock()
+	s.meta.Report, s.meta.ReportOutcome, s.meta.ReportAt = text, outcome, time.Now().UnixMilli()
+	s.mu.Unlock()
+	m.notify(s)
+}
+
 // quickExitsFor is how long quick exits count against starting again.
 const quickExitsFor = 30 * time.Second
 
@@ -121,6 +129,14 @@ func (s *Session) QuickExits() int {
 func (m *Manager) SetModel(s *Session, model, effort string) {
 	s.mu.Lock()
 	s.meta.Model, s.meta.Effort = model, effort
+	s.mu.Unlock()
+	m.notify(s)
+}
+
+// SetMode records the permission mode session s's agent is in.
+func (m *Manager) SetMode(s *Session, mode string) {
+	s.mu.Lock()
+	s.meta.Mode = mode
 	s.mu.Unlock()
 	m.notify(s)
 }

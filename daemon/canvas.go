@@ -72,7 +72,7 @@ func (s *Server) canvasEdit(e proto.CanvasEdit) (proto.Canvas, error) {
 		return proto.Canvas{}, err
 	}
 	c = s.withState(c)
-	s.broadcast(proto.EventCanvasChanged, proto.CanvasChange{Canvas: c, Op: e.Op, Frame: frame, Element: element, Session: e.Session})
+	s.canvasTells.tell(s, proto.CanvasChange{Canvas: c, Op: e.Op, Frame: frame, Element: element, Session: e.Session})
 	if e.Op == proto.CanvasOpMeta {
 		s.canvasesChanged()
 	}
@@ -207,7 +207,7 @@ func (s *Server) canvasRender(p proto.CanvasRenderParams) (proto.CanvasRendered,
 			return proto.CanvasRendered{}, err
 		}
 	}
-	r, err := s.appRender(proto.CanvasRenderRequest{HTML: doc, Width: f.Width, Height: f.Height, Format: format})
+	r, err := s.appRender(proto.CanvasRenderRequest{HTML: doc, Width: f.Width, Height: f.Height, Format: format, Keep: p.Keep, At: p.At})
 	out.Data, out.Wider, out.Motion = r.Data, r.Wider, r.Motion
 	return out, err
 }

@@ -95,7 +95,7 @@ func (a *App) conflictMark(c *ui.Context, s proto.SessionInfo) {
 	if len(list) == 0 {
 		return
 	}
-	col, lines := theme.Muted, 0
+	col, lines := theme.TextSoft, 0
 	for _, x := range list {
 		if x.Lines {
 			col = theme.Warning
@@ -105,6 +105,9 @@ func (a *App) conflictMark(c *ui.Context, s proto.SessionInfo) {
 	tip := fmt.Sprintf("Changes %d %s another session changes too", len(list), textfmt.Plural(len(list), "file", "files"))
 	if lines > 0 {
 		tip += fmt.Sprintf(", %d at the same lines", lines)
+	}
+	if s.ID == a.selected && theme.OnPicked != theme.TextStrong {
+		col = theme.OnPicked // on a bright field, its words' color reads
 	}
 	ui.Icon(c, icon.Alert).FontSize(12).TextColor(col).Tooltip(tip).Label(tip)
 }

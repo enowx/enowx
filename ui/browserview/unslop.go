@@ -39,16 +39,21 @@ func (v *View) unslopButton(c *ui.Context, o Options, page Page) {
 	if o.Unslop == nil {
 		return
 	}
-	label := "Unslop: find what makes this page look AI-made, and have the session's agent fix it in the code, pass by pass"
+	tip := "Find what makes this page look AI-made, and have the session's agent fix it in the code, pass by pass"
 	can := page != nil && !o.Unslopping && localURL(page.URL())
 	if page != nil && !localURL(page.URL()) {
-		label = "Unslop works on the project's pages running here (localhost)"
+		tip = "Unslop works on the project's pages running here (localhost)"
 	}
 	if o.Unslopping {
 		widget.Spinner(c, 12)
 		return
 	}
-	if navButton(c, icon.Wand, label, can) {
+	b := widget.Button(c.Key("unslop"), widget.Secondary, icon.Wand, "Unslop", "").Height(28).Tooltip(tip)
+	if !can {
+		b.Opacity(0.35).Label(tip)
+		return
+	}
+	if b.Clicked() {
 		o.Unslop()
 	}
 }

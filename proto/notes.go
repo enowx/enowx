@@ -7,6 +7,8 @@ import "time"
 const (
 	MethodNoteList   = "note.list"   // → []NoteInfo
 	MethodNoteGet    = "note.get"    // NoteRef → Note
+	MethodNoteTick   = "note.tick"   // NoteTick: who ticked a to-do
+	MethodNoteTicks  = "note.ticks"  // NoteRef → []NoteTick
 	MethodNoteSave   = "note.save"   // Note → NoteInfo (a new one without ID)
 	MethodNoteDelete = "note.delete" // NoteRef: it and the pages under it
 	MethodNoteMove   = "note.move"   // NoteMoveParams
@@ -48,6 +50,16 @@ type NoteInfo struct {
 type Note struct {
 	NoteInfo
 	Body string `json:"body"`
+}
+
+// NoteTick is a to-do an agent ticked: by which session, at which commit, which
+// the daemon fills in.
+type NoteTick struct {
+	Note    string    `json:"note"`
+	Item    string    `json:"item"`
+	Session string    `json:"session,omitempty"`
+	Commit  string    `json:"commit,omitempty"`
+	Time    time.Time `json:"time"`
 }
 
 // NoteRef names a page.

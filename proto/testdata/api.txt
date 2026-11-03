@@ -3,6 +3,7 @@ embed AutopushStatus AutopushSettings
 embed BrowserRequest BrowserAction
 embed Canvas CanvasInfo
 embed FanOutParams SessionCreateParams
+embed LeftProcess Usage
 embed Note NoteInfo
 embed PipelineStageRun PipelineStage
 embed ProjectDetail ProjectInfo
@@ -30,6 +31,7 @@ event canvas.chat
 event canvas.listed
 event canvas.render
 event canvas.unslop
+event canvas.video
 event checks.changed
 event cloud.changed
 event decide.made
@@ -185,6 +187,9 @@ field AgentInfo.install string
 field AgentInfo.installed bool
 field AgentInfo.name string
 field AgentInfo.signIn string
+field AgentStart.effort string
+field AgentStart.mode string
+field AgentStart.model string
 field AndroidADBConn.id uint32
 field AndroidADBConn.listener uint32
 field AndroidADBListener.id uint32
@@ -333,6 +338,32 @@ field BrowserUnslopParams.status bool
 field BuildDirection.done bool
 field BuildDirection.frame string
 field BuildDirection.session string
+field CacheCleanParams.items []string
+field CacheCleanParams.kinds []string
+field CacheCleanParams.olderDays int
+field CacheCleanResult.done int
+field CacheCleanResult.failed []CacheFailed
+field CacheCleanResult.freed int64
+field CacheFailed.path string
+field CacheFailed.why string
+field CacheItem.blocked string
+field CacheItem.bytes int64
+field CacheItem.name string
+field CacheItem.note string
+field CacheItem.path string
+field CacheItem.when time.Time
+field CacheKind.about string
+field CacheKind.bytes int64
+field CacheKind.default bool
+field CacheKind.id string
+field CacheKind.info bool
+field CacheKind.items []CacheItem
+field CacheKind.name string
+field CacheKind.perItem bool
+field CacheKind.warning string
+field CacheListParams.olderDays int
+field CacheReport.kinds []CacheKind
+field CacheReport.total int64
 field Canvas.brief *DesignBrief
 field Canvas.frames []CanvasFrame
 field CanvasAsset.data []byte
@@ -505,6 +536,7 @@ field CanvasRenderParams.at string
 field CanvasRenderParams.format string
 field CanvasRenderParams.frame string
 field CanvasRenderParams.id string
+field CanvasRenderParams.keep string
 field CanvasRenderParams.width int
 field CanvasRenderReply.data []byte
 field CanvasRenderReply.error string
@@ -512,10 +544,12 @@ field CanvasRenderReply.id string
 field CanvasRenderReply.motion *CanvasMotion
 field CanvasRenderReply.text string
 field CanvasRenderReply.wider int
+field CanvasRenderRequest.at string
 field CanvasRenderRequest.format string
 field CanvasRenderRequest.height int
 field CanvasRenderRequest.html string
 field CanvasRenderRequest.id string
+field CanvasRenderRequest.keep string
 field CanvasRenderRequest.script string
 field CanvasRenderRequest.width int
 field CanvasRendered.by string
@@ -537,6 +571,7 @@ field CanvasUnslop.findings []UnslopFinding
 field CanvasUnslop.frame string
 field CanvasUnslop.run *CanvasUnslopRun
 field CanvasUnslop.score int
+field CanvasUnslop.walk *UnslopWalk
 field CanvasUnslopParams.frame string
 field CanvasUnslopParams.id string
 field CanvasUnslopParams.only []string
@@ -577,6 +612,35 @@ field CanvasVersion.session string
 field CanvasVersion.time time.Time
 field CanvasVersionRef.id string
 field CanvasVersionRef.n int
+field CanvasVideoParams.fps int
+field CanvasVideoParams.frame string
+field CanvasVideoParams.from float64
+field CanvasVideoParams.id string
+field CanvasVideoParams.to float64
+field CanvasVideoParams.width int
+field CanvasVideoProgress.done int
+field CanvasVideoProgress.id string
+field CanvasVideoProgress.total int
+field CanvasVideoReply.error string
+field CanvasVideoReply.id string
+field CanvasVideoReply.result CanvasVideoResult
+field CanvasVideoRequest.fps int
+field CanvasVideoRequest.from float64
+field CanvasVideoRequest.height int
+field CanvasVideoRequest.html string
+field CanvasVideoRequest.id string
+field CanvasVideoRequest.name string
+field CanvasVideoRequest.outWidth int
+field CanvasVideoRequest.to float64
+field CanvasVideoRequest.warning string
+field CanvasVideoRequest.width int
+field CanvasVideoResult.data []byte
+field CanvasVideoResult.frames int
+field CanvasVideoResult.height int
+field CanvasVideoResult.path string
+field CanvasVideoResult.seconds float64
+field CanvasVideoResult.warning string
+field CanvasVideoResult.width int
 field Catalog.host string
 field Catalog.name string
 field Catalog.projects []CatalogProject
@@ -717,6 +781,11 @@ field ConfigAPI.smallModel string
 field Conflict.file string
 field Conflict.lines bool
 field Conflict.sessions []string
+field ControlAllow.name string
+field ControlAllow.session string
+field ControlAllow.since time.Time
+field ControlAllowParams.off bool
+field ControlAllowParams.session string
 field ControlLogEntry.bypass string
 field ControlLogEntry.err string
 field ControlLogEntry.from string
@@ -783,20 +852,24 @@ field DaemonInfo.version string
 field DaemonLog.path string
 field DaemonLog.text string
 field DaemonLogParams.lines int
+field DaemonSettings.agentStart map[string]AgentStart
 field DaemonSettings.hibernateAfter int
 field DaemonSettings.maxAgents int
 field DaemonStats.daemon Usage
 field DaemonStats.host HostUsage
+field DaemonStats.left []LeftProcess
 field DaemonStats.sessions []SessionUsage
 field DaemonStats.supported bool
 field DecideAsk.agent string
 field DecideAsk.command string
+field DecideAsk.exact bool
 field DecideAsk.exit int
 field DecideAsk.from string
 field DecideAsk.judge string
 field DecideAsk.mention bool
 field DecideAsk.output string
 field DecideAsk.parts []string
+field DecideAsk.passed bool
 field DecideAsk.place string
 field DecideAsk.project string
 field DecideAsk.prompt string
@@ -823,6 +896,7 @@ field DecideSettings.own []Judge
 field DecideSettings.policy string
 field DecideSettings.projects map[string]DecideProject
 field DecideSettings.provider string
+field DecideSettings.trimAll bool
 field DecideSettings.uses map[string]DecideUse
 field DecideUse.dailyCalls int
 field DecideUse.judge string
@@ -994,6 +1068,7 @@ field FileContent.data []byte
 field FileContent.image string
 field FileContent.modified time.Time
 field FileContent.path string
+field FileContent.readOnly bool
 field FileContent.size int64
 field FileContent.text string
 field FileContent.truncated bool
@@ -1015,6 +1090,7 @@ field FileRef.abs bool
 field FileRef.path string
 field FileRef.session string
 field FileRef.unless time.Time
+field FileRef.whole bool
 field FileStat.abs string
 field FileStat.dir bool
 field FileStat.files int
@@ -1035,6 +1111,14 @@ field FileUpload.path string
 field FileUpload.session string
 field FileUploaded.path string
 field FileUploaded.placed bool
+field FileWrite.abs bool
+field FileWrite.force bool
+field FileWrite.path string
+field FileWrite.session string
+field FileWrite.text string
+field FileWrite.unless time.Time
+field FileWritten.changed bool
+field FileWritten.modified time.Time
 field FolderEntry.git bool
 field FolderEntry.name string
 field FolderListParams.hidden bool
@@ -1060,14 +1144,18 @@ field GOABoard.agent string
 field GOABoard.level string
 field GOABoard.session string
 field GOABoard.tasks []GOATask
+field GOABoard.told []string
+field GOABoard.waiting []string
 field GOADelegateParams.agent string
 field GOADelegateParams.branch string
 field GOADelegateParams.config string
 field GOADelegateParams.effort string
 field GOADelegateParams.from string
 field GOADelegateParams.host string
+field GOADelegateParams.items []string
 field GOADelegateParams.model string
 field GOADelegateParams.noRoute bool
+field GOADelegateParams.note string
 field GOADelegateParams.project string
 field GOADelegateParams.prompt string
 field GOADelegateParams.session string
@@ -1094,6 +1182,9 @@ field GOARecallParams.session string
 field GOARememberParams.kind string
 field GOARememberParams.session string
 field GOARememberParams.text string
+field GOAReportParams.outcome string
+field GOAReportParams.session string
+field GOAReportParams.text string
 field GOARevertParams.id string
 field GOARules.clear bool
 field GOARules.rules string
@@ -1110,11 +1201,17 @@ field GOATask.dir string
 field GOATask.effort string
 field GOATask.host string
 field GOATask.id string
+field GOATask.items []string
 field GOATask.model string
+field GOATask.noReport bool
+field GOATask.note string
+field GOATask.open []string
+field GOATask.outcome string
 field GOATask.override bool
 field GOATask.project string
 field GOATask.prompt string
 field GOATask.ran []string
+field GOATask.reportAt int64
 field GOATask.result string
 field GOATask.reused bool
 field GOATask.said string
@@ -1129,6 +1226,8 @@ field GOATask.woken bool
 field GOATaskParams.id string
 field GOATaskParams.result string
 field GOATaskParams.status string
+field GOAWakeParams.id string
+field GOAWakeReply.text string
 field GOAWorkerParams.host string
 field GOAWorkerParams.session SessionInfo
 field GridArea.col int
@@ -1195,6 +1294,7 @@ field HookDecision.approve bool
 field HookDecision.block bool
 field HookDecision.command string
 field HookDecision.context string
+field HookDecision.continue string
 field HookDecision.reason string
 field HookEvent.agent string
 field HookEvent.allowed bool
@@ -1307,6 +1407,10 @@ field JudgeKey.id string
 field JudgeKey.key string
 field JudgeRef.id string
 field KitTemplateData.repo string
+field LeftProcess.name string
+field LeftProcess.pid int
+field LeftProcess.session string
+field LeftProcess.start string
 field MCPTest.error string
 field MCPTest.ok bool
 field MCPTest.protocol string
@@ -1441,6 +1545,11 @@ field NoteStage.data []byte
 field NoteStage.name string
 field NoteStage.path string
 field NoteStaged.path string
+field NoteTick.commit string
+field NoteTick.item string
+field NoteTick.note string
+field NoteTick.session string
+field NoteTick.time time.Time
 field NoteVersion.id string
 field NoteVersion.size int
 field NoteVersion.time time.Time
@@ -1465,6 +1574,8 @@ field NotifySoundFile.name string
 field NotifySoundParams.kind string
 field NotifySoundParams.session string
 field NotifySoundParams.text string
+field OnboardingState.done time.Time
+field OnboardingState.version int
 field PRParams.base string
 field PRParams.body string
 field PRParams.session string
@@ -1816,6 +1927,7 @@ field SessionCreateParams.fork bool
 field SessionCreateParams.goa bool
 field SessionCreateParams.goaWorker string
 field SessionCreateParams.group string
+field SessionCreateParams.mode string
 field SessionCreateParams.model string
 field SessionCreateParams.name string
 field SessionCreateParams.notesFor string
@@ -1865,6 +1977,7 @@ field SessionInfo.effort string
 field SessionInfo.exitCode int
 field SessionInfo.exitWhy string
 field SessionInfo.exited bool
+field SessionInfo.finishedAt int64
 field SessionInfo.goa bool
 field SessionInfo.goaWorker string
 field SessionInfo.group string
@@ -1884,7 +1997,11 @@ field SessionInfo.private bool
 field SessionInfo.project string
 field SessionInfo.prompt string
 field SessionInfo.queued bool
+field SessionInfo.report string
+field SessionInfo.reportAt int64
+field SessionInfo.reportOutcome string
 field SessionInfo.restored bool
+field SessionInfo.run int64
 field SessionInfo.skipPermissions bool
 field SessionInfo.skipUnheard bool
 field SessionInfo.state string
@@ -1893,6 +2010,7 @@ field SessionInfo.title string
 field SessionInfo.worked int64
 field SessionInfo.worktree bool
 field SessionInputParams.enter bool
+field SessionInputParams.from string
 field SessionInputParams.id string
 field SessionInputParams.paste bool
 field SessionInputParams.text string
@@ -1910,6 +2028,7 @@ field SessionPeek.hostName string
 field SessionPeek.messages []PeekMessage
 field SessionPeek.reason string
 field SessionPeek.session SessionInfo
+field SessionPeekParams.from string
 field SessionPeekParams.host string
 field SessionPeekParams.last int
 field SessionPeekParams.session string
@@ -1917,6 +2036,7 @@ field SessionPorts.ports []Port
 field SessionPorts.supported bool
 field SessionPrivateParams.id string
 field SessionPrivateParams.private bool
+field SessionRef.from string
 field SessionRef.id string
 field SessionRenameParams.id string
 field SessionRenameParams.name string
@@ -1964,6 +2084,8 @@ field SpaceMoveParams.id string
 field SpaceMoveParams.team string
 field SpaceRef.team string
 field StopAgentsResult.stopped int
+field StopProcessParams.pid int
+field StopProcessParams.start string
 field StreamRef.stream uint32
 field SyncApplied.from string
 field SyncApplied.paths []string
@@ -1987,6 +2109,7 @@ field SyncFile.size int64
 field SyncManifest.files []SyncEntry
 field SyncManifest.id string
 field SyncManifest.name string
+field SyncManifestParams.keepsOwnHistory bool
 field SyncPeerStatus.conflicts int
 field SyncPeerStatus.err string
 field SyncPeerStatus.last time.Time
@@ -2099,6 +2222,7 @@ field TokenCounts.cacheWrite int64
 field TokenCounts.calls int
 field TokenCounts.cost float64
 field TokenCounts.equivalent float64
+field TokenCounts.estimated int
 field TokenCounts.input int64
 field TokenCounts.output int64
 field TokenCounts.reasoning int64
@@ -2120,8 +2244,13 @@ field TokenGroup.key string
 field TokenGroup.label string
 field TokenPrice.cacheRead float64
 field TokenPrice.cacheWrite float64
+field TokenPrice.cacheWrite1h float64
 field TokenPrice.config string
 field TokenPrice.input float64
+field TokenPrice.longAbove int64
+field TokenPrice.longCacheRead float64
+field TokenPrice.longInput float64
+field TokenPrice.longOutput float64
 field TokenPrice.model string
 field TokenPrice.output float64
 field TokenPrice.provider string
@@ -2149,6 +2278,7 @@ field TokensSettings.on bool
 field TokensSettings.prices []TokenPrice
 field TokensSettings.screen bool
 field TokensSettings.traffic bool
+field TokensSummary.approximate bool
 field TokensSummary.budgets []TokenBudgetState
 field TokensSummary.days []TokenDay
 field TokensSummary.groups []TokenGroup
@@ -2459,6 +2589,8 @@ field UnslopFinding.fix string
 field UnslopFinding.pass string
 field UnslopFinding.rule string
 field UnslopFinding.severity string
+field UnslopFinding.state string
+field UnslopFinding.steps []string
 field UnslopFinding.targets []string
 field UnslopFinding.title string
 field UnslopLeaveOutParams.frame string
@@ -2494,6 +2626,14 @@ field UnslopStory.name string
 field UnslopStory.score int
 field UnslopStory.steps []UnslopStep
 field UnslopStory.width int
+field UnslopWalk.left int
+field UnslopWalk.limit string
+field UnslopWalk.millis int
+field UnslopWalk.states []UnslopWalkState
+field UnslopWalk.tried int
+field UnslopWalkState.findings int
+field UnslopWalkState.name string
+field UnslopWalkState.steps []string
 field Usage.cpu float64
 field Usage.procs int
 field Usage.rss uint64
@@ -2621,6 +2761,8 @@ method browser.reply
 method browser.serve
 method browser.unslop
 method browser.unslopShots
+method cache.clean
+method cache.list
 method canvas.asset
 method canvas.assetGet
 method canvas.build
@@ -2649,6 +2791,9 @@ method canvas.unslop
 method canvas.unslopLeaveOut
 method canvas.unslopSteps
 method canvas.version
+method canvas.video
+method canvas.videoProgress
+method canvas.videoReply
 method catalog.list
 method checks.list
 method checks.run
@@ -2673,6 +2818,7 @@ method daemon.setSettings
 method daemon.settings
 method daemon.stats
 method daemon.stopAgents
+method daemon.stopProcess
 method decide.ask
 method decide.judges
 method decide.log
@@ -2711,6 +2857,7 @@ method file.list
 method file.read
 method file.stat
 method file.upload
+method file.write
 method folder.list
 method folder.make
 method goa.agents
@@ -2720,12 +2867,14 @@ method goa.flags
 method goa.override
 method goa.recall
 method goa.remember
+method goa.report
 method goa.revert
 method goa.rules
 method goa.rules.save
 method goa.stall
 method goa.stall.save
 method goa.task
+method goa.wake
 method goa.worker
 method hooks.approve
 method hooks.decide
@@ -2737,6 +2886,8 @@ method hooks.saveProject
 method hooks.saveSession
 method hooks.test
 method host.call
+method host.controlAllow
+method host.controlAllowed
 method host.controlLog
 method host.keysToVault
 method host.share
@@ -2775,12 +2926,16 @@ method note.save
 method note.setAgent
 method note.setGroup
 method note.stage
+method note.tick
+method note.ticks
 method note.version
 method notify.get
 method notify.set
 method notify.sound
 method notify.soundRead
 method notify.soundSave
+method onboarding.get
+method onboarding.set
 method pipeline.cancel
 method pipeline.list
 method pipeline.remove
@@ -2980,9 +3135,12 @@ value ActedAllowed=allowed
 value ActedChosen=kept some
 value ActedDropped=dropped
 value ActedFlaky=marked flaky
+value ActedLeft=left to the agent's prompt
 value ActedNothing=
 value ActedOffered=offered
+value ActedPassed=short: passed on whole
 value ActedPaused=paused
+value ActedPromptGone=prompt gone
 value ActedQuiet=kept quiet
 value ActedReal=marked real
 value ActedRefused=refused
@@ -3096,6 +3254,7 @@ value CommandRecent=recent
 value CommandSaved=saved
 value ConfigKindAPI=api
 value ConfigKindAccount=
+value ControlAlways=always allowed
 value CredExpired=expired
 value CredInvalid=invalid
 value CredRevoked=revoked

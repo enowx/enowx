@@ -8,6 +8,7 @@ import (
 
 	"github.com/enowx/enowx/ui/icon"
 	"github.com/enowx/enowx/ui/theme"
+	"github.com/enowx/enowx/ui/widget"
 )
 
 // Pictures a message names (the user's attached screenshots, written into
@@ -52,16 +53,17 @@ func (ch *Chat) pictureChips(c *ui.Context, text string) {
 	if len(pics) == 0 {
 		return
 	}
-	ui.Row(c.Key("pictures")).FillWidth().Gap(6).Wrap().Children(func() {
+	ui.Row(c.Key("pictures")).FillWidth().Justify(ui.End).Gap(theme.S1).Wrap().Children(func() {
 		for _, p := range pics {
-			b := ui.ButtonBase(c.Key(p)).Height(26).Padding(0, 9).Gap(6).Radius(13).AlignItems(ui.Center).
-				Background(theme.Raised).Border(1, theme.Border).Cursor(ui.CursorPointer).Label("Show " + path.Base(p)).Tooltip(p)
+			b := ui.ButtonBase(c.Key(p)).Height(24).PaddingX(theme.S2).Gap(theme.S1).Radius(theme.RadiusFull).AlignItems(ui.Center).
+				MaxWidth(240).Shrink(1).MinWidth(0).Cursor(ui.CursorPointer).Label("Show " + path.Base(p)).Tooltip(p)
+			bg := theme.Raised
 			if b.Hovered() {
-				b.Border(1, theme.AccentLine)
+				bg = theme.Selected
 			}
-			b.Children(func() {
-				ui.Icon(c, icon.Image).FontSize(12).TextColor(theme.TextSoft)
-				ui.Text(c, path.Base(p)).FontSize(11.5).TextColor(theme.TextSoft).SingleLine().MaxWidth(220)
+			b.Background(bg).Children(func() {
+				ui.Icon(c, icon.Image).FontSize(13).TextColor(theme.SoftOn(b.Hovered())).Shrink(0)
+				widget.Running(c, path.Base(p), widget.RunStyle{Size: theme.TextLabel, Color: theme.Text})
 			})
 			if b.Clicked() && ch.links != nil {
 				ch.links(p)

@@ -40,9 +40,10 @@ type Options struct {
 	Proposals []Proposal
 	Accept    func(id string, done func(proto.NoteInfo, error))
 	Reject    func(id string, done func(error))
-	// CanAsk offers Ask an agent, whose panel the app draws beside the
-	// page while AssistantOpen.
-	CanAsk bool
+	// CanAsk offers the note agent; AgentPanel draws its panel in the frame,
+	// under the page's header, while AssistantOpen.
+	CanAsk     bool
+	AgentPanel func(c *ui.Context)
 	// Groups are the groups of notes, like folders, which the calls after
 	// change; nil calls leave the page without groups.
 	Groups      []proto.NoteGroup
@@ -155,6 +156,21 @@ func (v *View) SelectedNote() string {
 	return v.page.id
 }
 
+// Opened says the page open, if any, has been read.
+func (v *View) Opened() bool { return v.page != nil && v.page.ed != nil }
+
+// CloseNote leaves no page open, what's written kept.
+func (v *View) CloseNote() {
+	v.page, v.selected = nil, ""
+}
+
+// SetMode shows the page open in a mode: modeEdit, modeRead or modeSource.
+func (v *View) SetMode(mode int) {
+	if v.page != nil {
+		v.setMode(v.page, mode)
+	}
+}
+
 // reload reads page pg again, as after a change made elsewhere.
 func (v *View) reload(o Options, pg *page) {
 	pg.loading = true
@@ -228,7 +244,7 @@ func (v *View) Draw(c *ui.Context, o Options) {
 		if (!v.narrow || v.page == nil || v.treeOpen) && !o.ListOutside {
 			v.sidebar(c, o)
 		}
-		ui.Column(c).Grow(1).MinWidth(0).FillHeight().Background(theme.Background).Children(func() {
+		ui.Column(c).Grow(1).MinWidth(0).FillHeight().Children(func() {
 			if v.page == nil {
 				v.empty(c, o)
 				return
@@ -334,22 +350,25 @@ func (v *View) newPage(o Options, parent, group string) {
 }
 
 func (v *View) empty(c *ui.Context, o Options) {
-	ui.Column(c).Grow(1).FillWidth().Center().Gap(12).Padding(32).Children(func() {
-		ui.Icon(c, icon.Notebook).FontSize(30).TextColor(theme.Muted)
-		msg := "Pages of notes, plans and checklists, kept on " + o.Host + ". Your agents read and write them too."
-		if o.Team != "" {
-			msg = o.Space + "'s pages: notes, plans and checklists of the team, kept on " + o.Host + ". Your agents read and write them too."
-		}
-		if !o.Loaded && o.Err == "" {
-			msg = "Reading the notes…"
-		}
-		ui.Text(c, msg).FontSize(12.5).TextColor(theme.Muted).TextAlign(ui.Center).MaxWidth(420)
-		if o.Err != "" {
-			ui.Text(c, o.Err).FontSize(12).TextColor(theme.Error).TextAlign(ui.Center)
-		}
-		if o.Loaded && widget.PrimaryButton(c, icon.Plus, "New page", "").Clicked() {
-			v.newPage(o, "", "")
-		}
+	title, msg := "No note open", "Pages of notes, plans and checklists, kept on "+o.Host+". Your agents read and write them too."
+	if o.Team != "" {
+		msg = o.Space + "'s pages: notes, plans and checklists of the team, kept on " + o.Host + ". Your agents read and write them too."
+	}
+	if !o.Loaded && o.Err == "" {
+		title = "Reading the notes…"
+	}
+	if o.Err != "" {
+		title, msg = "The notes didn't load", o.Err
+	}
+	ui.Column(c).Grow(1).FillWidth().Padding(theme.S6).Children(func() {
+		widget.EmptyState(c, icon.Notebook, title, msg, func() {
+			if o.Err != "" {
+				return
+			}
+			if o.Loaded && widget.PrimaryButton(c, icon.Plus, "New note", "").Clicked() {
+				v.newPage(o, "", "")
+			}
+		})
 	})
 }
 
@@ -362,6 +381,22 @@ func titleOf(n proto.NoteInfo) string {
 
 // pageItems are a page's menu, in the tree and over the page.
 func (v *View) pageItems(c *ui.Context, o Options, n proto.NoteInfo, done func()) {
+	if o.History != nil && widget.MenuItem(c, icon.History, "Version history…", false) {
+		v.openHistory(o, n)
+		done()
+	}
+	if o.AttachProjects != nil && widget.MenuItem(c, icon.Link, "Attach to projects…", false) {
+		o.AttachProjects(n)
+		done()
+	}
+	if o.MoveSpace != nil && n.Parent == "" && widget.MenuItem(c, icon.Users, "Move or copy to a space…", false) {
+		o.MoveSpace(n)
+		done()
+	}
+	if o.Export != nil && widget.MenuItem(c, icon.ArrowUp, "Export…", false) {
+		o.Export(ExportPick{ID: n.ID, Title: titleOf(n)})
+		done()
+	}
 	if widget.MenuItem(c, icon.Plus, "Add a page inside", false) {
 		v.newPage(o, n.ID, "")
 		done()
@@ -380,22 +415,6 @@ func (v *View) pageItems(c *ui.Context, o Options, n proto.NoteInfo, done func()
 	}
 	if n.Parent != "" && widget.MenuItem(c, icon.ArrowUp, "Move to the top level", false) {
 		o.Move(n.ID, "", "", v.failed)
-		done()
-	}
-	if o.AttachProjects != nil && widget.MenuItem(c, icon.Git, "Attach to projects…", false) {
-		o.AttachProjects(n)
-		done()
-	}
-	if o.History != nil && widget.MenuItem(c, icon.File, "Version history…", false) {
-		v.openHistory(o, n)
-		done()
-	}
-	if o.MoveSpace != nil && n.Parent == "" && widget.MenuItem(c, icon.ArrowRight, "Move or copy to a space…", false) {
-		o.MoveSpace(n)
-		done()
-	}
-	if o.Export != nil && widget.MenuItem(c, icon.ArrowUp, "Export…", false) {
-		o.Export(ExportPick{ID: n.ID, Title: titleOf(n)})
 		done()
 	}
 	widget.MenuSeparator(c)
@@ -432,7 +451,7 @@ func (v *View) deleteDialog(c *ui.Context, o Options) {
 		msg = "The pages under it go too. It can't be brought back."
 	}
 	open := true
-	switch ui.AlertDialog(c, &open, "Delete “"+titleOf(n)+"”?", msg, "Cancel", "Delete") {
+	switch widget.AlertDialog(c, &open, "Delete “"+titleOf(n)+"”?", msg, "Cancel", "Delete") {
 	case 1:
 		if v.page != nil && v.page.id == n.ID {
 			v.page, v.selected = nil, ""

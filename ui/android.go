@@ -1,6 +1,7 @@
 package ui
 
 import (
+	"strings"
 	"sync"
 
 	"github.com/egoist/mygo"
@@ -84,8 +85,26 @@ func (a *App) androidOf() *androidview.View {
 }
 
 func (a *App) androidTab(c *ui.Context, s proto.SessionInfo) {
+	a.androidOf().Draw(c, a.androidOptions(s), a.androidWanted(s))
+}
+
+// androidCenter draws what the tool opened in the center: a device's screen or
+// its log.
+func (a *App) androidCenter(c *ui.Context, s proto.SessionInfo, view string) {
+	if view == androidview.ViewScreen {
+		a.androidOf().DrawScreen(c, a.androidOptions(s), a.androidWanted(s))
+		return
+	}
+	a.androidOf().DrawLogcat(c, a.androidOptions(s), a.androidWanted(s))
+}
+
+// androidWanted tells whether the tool or what it opened still shows.
+func (a *App) androidWanted(s proto.SessionInfo) func() bool {
 	gen := a.gen
-	a.androidOf().Draw(c, a.androidOptions(s), func() bool { return gen == a.gen && a.panelShows(panelAndroid) })
+	top := a.parentOf(s).ID
+	return func() bool {
+		return gen == a.gen && (a.panelShows(panelAndroid) || a.centerShows(top, centerAndroid+androidview.ViewScreen) || a.centerShows(top, centerAndroid+androidview.ViewLogcat))
+	}
 }
 
 // androidOptions connect the Android tool to the app, for session s.
@@ -122,6 +141,14 @@ func (a *App) androidOptions(s proto.SessionInfo) androidview.Options {
 			return a.local.get(opts)
 		},
 		NewScreenView: a.newScreenView(),
+		OpenCenter:    func(view string) { a.openCenter(s, centerAndroid+view) },
+		Current: func() string {
+			view, _ := strings.CutPrefix(a.centerFront(s), centerAndroid)
+			if view == a.centerFront(s) {
+				return ""
+			}
+			return view
+		},
 	}
 }
 

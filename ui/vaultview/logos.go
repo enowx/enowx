@@ -6,8 +6,6 @@ import (
 	"sync"
 
 	"github.com/egoist/mygo/ui"
-
-	"github.com/enowx/enowx/ui/theme"
 )
 
 // Platforms' own marks (Simple Icons, CC0), by platform ID, each with its
@@ -53,18 +51,4 @@ func logoOf(id string) (*ui.SVG, ui.Color, bool) {
 	}
 	n, _ := strconv.ParseUint(hex, 16, 32)
 	return svg, ui.RGBA(uint8(n>>16), uint8(n>>8), uint8(n), 1), true
-}
-
-// readable is a brand color drawn on the surface: a black one as text, a
-// dark one moved toward the text's color, so it reads in either theme.
-func readable(c ui.Color) ui.Color {
-	lum := 0.2126*float64(c.R) + 0.7152*float64(c.G) + 0.0722*float64(c.B)
-	mix := func(a, b uint8) uint8 { return uint8(float64(a)*0.6 + float64(b)*0.4) }
-	switch {
-	case lum < 70:
-		return theme.Text
-	case lum < 140:
-		return ui.RGBA(mix(c.R, theme.Text.R), mix(c.G, theme.Text.G), mix(c.B, theme.Text.B), 1)
-	}
-	return c
 }

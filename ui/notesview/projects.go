@@ -56,7 +56,7 @@ func (v *View) projectBadges(c *ui.Context, o Options, n proto.NoteInfo) {
 	if len(n.Projects) == 0 && o.AttachProjects == nil {
 		return
 	}
-	ui.Row(c).FillWidth().Gap(6).PaddingX(6).Wrap().AlignItems(ui.Center).Children(func() {
+	ui.Row(c).FillWidth().Gap(theme.S2).Padding(0, 0, theme.S2, theme.S1+2).Wrap().AlignItems(ui.Center).Children(func() {
 		shown := n.Projects
 		if len(shown) > badgesShown && !v.allBadges[n.ID] {
 			shown = shown[:badgesShown]
@@ -69,9 +69,9 @@ func (v *View) projectBadges(c *ui.Context, o Options, n proto.NoteInfo) {
 			v.projectBadge(c.Key(p.Ref), o, n, p, state)
 		}
 		if extra := len(n.Projects) - len(shown); extra > 0 {
-			more := ui.ButtonBase(c).Height(22).PaddingX(8).Radius(11).Border(1, theme.Border).Cursor(ui.CursorPointer).
+			more := ui.ButtonBase(c).Height(24).PaddingX(theme.S2).Radius(theme.RadiusFull).Background(theme.Sunken).Cursor(ui.CursorPointer).
 				Label(fmt.Sprintf("%d more projects", extra))
-			more.Children(func() { ui.Text(c, fmt.Sprintf("+%d", extra)).FontSize(11).TextColor(theme.TextSoft) })
+			more.Children(func() { ui.Text(c, fmt.Sprintf("+%d", extra)).FontSize(theme.TextLabel).TextColor(theme.TextSoft) })
 			if more.Clicked() {
 				if v.allBadges == nil {
 					v.allBadges = map[string]bool{}
@@ -84,13 +84,13 @@ func (v *View) projectBadges(c *ui.Context, o Options, n proto.NoteInfo) {
 			if len(n.Projects) > 0 {
 				label = "Projects…"
 			}
-			add := ui.ButtonBase(c).Height(22).PaddingX(8).Gap(4).Radius(11).Cursor(ui.CursorPointer).Label(label)
+			add := ui.ButtonBase(c).Height(24).PaddingX(theme.S2).Gap(theme.S1).Radius(theme.RadiusFull).MinWidth(0).Shrink(1).Cursor(ui.CursorPointer).Label(label)
 			if add.Hovered() {
 				add.Background(theme.Hover)
 			}
 			add.Children(func() {
-				ui.Icon(c, icon.Plus).FontSize(10).TextColor(theme.Muted)
-				ui.Text(c, label).FontSize(11).TextColor(theme.Muted)
+				ui.Icon(c, icon.Plus).FontSize(12).TextColor(theme.TextSoft)
+				ui.Text(c, label).FontSize(theme.TextLabel).TextColor(theme.TextSoft).SingleLine().MinWidth(0).Shrink(1)
 			})
 			if add.Clicked() {
 				o.AttachProjects(n)
@@ -100,20 +100,22 @@ func (v *View) projectBadges(c *ui.Context, o Options, n proto.NoteInfo) {
 }
 
 func (v *View) projectBadge(c *ui.Context, o Options, n proto.NoteInfo, p proto.NoteProject, state string) {
-	col, tip := theme.Accent, p.Path
+	col, tip := theme.TextSoft, p.Path
 	switch state {
 	case ProjectOffline:
 		col, tip = theme.Muted, p.HostName+" is offline: "+p.Path
 	case ProjectBroken:
 		col, tip = theme.Error, "Not on "+p.HostName+" any more: click to attach it again"
 	}
-	b := ui.ButtonBase(c).Height(22).PaddingX(8).Gap(5).Radius(11).Border(1, theme.Fade(col, 0.4)).
+	b := ui.ButtonBase(c).Height(24).PaddingX(theme.S2).Gap(theme.S1).Radius(theme.RadiusFull).Background(theme.Sunken).MinWidth(0).Shrink(1).
 		Cursor(ui.CursorPointer).Label("Project " + projectLabel(p)).Tooltip(tip).AlignItems(ui.Center)
 	b.Children(func() {
-		ui.Icon(c, icon.Folder).FontSize(10.5).TextColor(col)
-		ui.Text(c, projectLabel(p)).FontSize(11).TextColor(theme.TextSoft).SingleLine()
+		ui.Icon(c, icon.Folder).FontSize(12).TextColor(col)
+		ui.Row(c).MinWidth(0).Shrink(1).Children(func() {
+			widget.Running(c, projectLabel(p), widget.RunStyle{Size: theme.TextLabel})
+		})
 		if state != ProjectOnline {
-			ui.Text(c, state).FontSize(10).TextColor(col)
+			ui.Text(c, state).FontSize(theme.TextLabel).TextColor(col).Shrink(0)
 		}
 	})
 	if b.Clicked() {
@@ -157,10 +159,13 @@ func (v *View) projectFilterButton(c *ui.Context, o Options) {
 		return
 	}
 	b := widget.IconButton(c, icon.Git, "Projects: "+v.projectFilterLabel(projects), v.projectFilter != "")
-	v.menu.OpenBelow(b, "project-filter", 28)
+	v.menu.OpenBelow(b, "project-filter", theme.ControlHeight)
 	v.menu.Show(c, b, "project-filter", func(done func()) {
 		pick := func(c *ui.Context, svg *ui.SVG, label, value string) {
-			if widget.MenuItem(c, svg, label, v.projectFilter == value) {
+			if v.projectFilter == value {
+				svg = icon.Check // the one shown
+			}
+			if widget.MenuItem(c, svg, label, false) {
 				v.projectFilter = value
 				done()
 			}
@@ -229,12 +234,14 @@ func (v *View) byProjectTree(c *ui.Context, o Options, shown map[string]bool) {
 		if len(pages) == 0 {
 			return
 		}
-		ui.Row(c.Key(key)).FillWidth().Height(28).PaddingX(6).Gap(6).AlignItems(ui.Center).Children(func() {
-			ui.Icon(c, svg).FontSize(11).TextColor(theme.Muted)
-			ui.Text(c, title).FontSize(11.5).FontWeight(600).TextColor(theme.TextSoft).SingleLine().Shrink(1)
-			ui.Text(c, fmt.Sprint(len(pages))).FontSize(11).TextColor(theme.Muted)
+		ui.Row(c.Key(key)).FillWidth().Height(theme.ControlHeight).Shrink(0).PaddingX(theme.S3).Gap(theme.S2).Children(func() {
+			ui.Icon(c, svg).FontSize(12).TextColor(theme.TextSoft)
+			ui.Row(c).Grow(1).MinWidth(0).Children(func() {
+				widget.Running(c, title, widget.RunStyle{Size: theme.TextLabel, Weight: 500, Color: theme.TextSoft})
+			})
+			ui.Text(c, fmt.Sprint(len(pages))).FontSize(theme.TextLabel).TextColor(theme.TextSoft).Shrink(0)
 		})
-		ui.Column(c.Key(key+":pages")).FillWidth().Gap(1).Padding(0, 0, 0, 8).Children(func() {
+		ui.Column(c.Key(key + ":pages")).FillWidth().Gap(2).Children(func() {
 			for _, n := range pages {
 				v.treeRow(c.Key(n.ID), o, n, 0, false, nil)
 			}

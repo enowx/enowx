@@ -33,12 +33,13 @@ func TestStripKeepsItsScrollAsAnAgentWorks(t *testing.T) {
 	if !ok {
 		t.Fatalf("no strip: %q", tt.Texts())
 	}
+	start, _ := tt.Find("Design 10")
 	for range 20 {
-		tt.Scroll(first.X+first.W/2, first.Y+first.H/2, 0, 300)
+		tt.Scroll(first.X+first.W/2, first.Y+first.H/2, 300, 0)
 		tt.Frame()
 	}
 	before, _ := tt.Find("Design 10")
-	if moved, _ := tt.Find("Design 1"); moved.Y == first.Y {
+	if before.X == start.X {
 		t.Fatal("the strip didn't scroll")
 	}
 	v.canvas.Agent, v.canvas.AgentAt = "claude", time.Now() // its bar shows
@@ -47,7 +48,7 @@ func TestStripKeepsItsScrollAsAnAgentWorks(t *testing.T) {
 	v.canvas.Agent = "" // and goes
 	tt.Frame()
 	tt.Frame()
-	if after, _ := tt.Find("Design 10"); after.Y != before.Y {
-		t.Fatalf("the strip went from %v to %v as the agent's bar came and went", before.Y, after.Y)
+	if after, _ := tt.Find("Design 10"); after.X != before.X {
+		t.Fatalf("the strip went from %v to %v as the agent's bar came and went", before.X, after.X)
 	}
 }

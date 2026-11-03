@@ -77,36 +77,38 @@ func (a *App) pipelineDialog(c *ui.Context) {
 		a.piping = nil
 		return
 	}
-	widget.Dialog(c, &f.open, 600, 14, func() {
-		widget.DialogHeader(c, "New pipeline in “"+f.project.Name+"”",
-			"Agents take the task one after another on a branch of its own: each starts from what the one before ended with, once it is done.", false)
+	widget.Sheet(c, &f.open, 640, func() {
+		widget.SheetHead(c, &f.open, "New pipeline in "+f.project.Name,
+			"Agents take the task one after another on a branch of its own: each starts from what the one before ended with, once it is done.")
+	}, func() {
 		if f.err != "" {
 			widget.Notice(c, icon.Alert, theme.Error, f.err, "", nil)
 		}
 		widget.Field(c, "Task", func() {
 			prev := f.task
-			ui.TextAreaBase(c, &f.task).FillWidth().MinHeight(70).MaxHeight(160).Padding(10, 12).FontSize(13).
-				Placeholder("What should they do?").Label("Task").Radius(theme.RadiusControl).Background(theme.Sunken).
-				Border(1, theme.Border).AutoFocus()
+			widget.TextBox(c, &f.task, "What should they do?", 96).FillWidth().Label("Task").AutoFocus()
 			if f.task != prev && !f.named {
 				f.branch = branchFor(f.task)
 			}
 		})
-		widget.Field(c, "Branch", func() {
-			ui.Row(c).FillWidth().Gap(8).Children(func() {
+		branch := func() {
+			widget.Field(c, "Branch", func() {
 				prev := f.branch
-				widget.Input(c, &f.branch, "pipeline/add-search").Grow(1).Font(theme.MonoFont)
+				widget.Input(c, &f.branch, "pipeline/add-search").FillWidth()
 				if f.branch != prev {
 					f.named = true
 				}
-				if len(f.branches) > 0 {
-					ui.Text(c, "from").FontSize(11.5).TextColor(theme.Muted)
-					ui.Box(c).Width(170).Children(func() { branchSelect(c, &f.base, f.branches) })
-				}
 			})
-		})
+		}
+		if len(f.branches) > 0 {
+			widget.FieldCols(c.Key("branch"), branch, func() {
+				widget.Field(c, "From", func() { branchSelect(c, &f.base, f.branches) })
+			})
+		} else {
+			branch()
+		}
 		widget.Field(c, "Stages", func() {
-			ui.Column(c).FillWidth().Gap(6).Children(func() {
+			ui.Column(c).FillWidth().Gap(theme.S2).Children(func() {
 				for i := range f.stages {
 					a.pipelineStageRow(c.Key(i), f, i)
 				}
@@ -118,15 +120,17 @@ func (a *App) pipelineDialog(c *ui.Context) {
 			})
 		})
 		a.pipelineTeamRow(c, f)
-		widget.DialogFooter(c, "Skip permission prompts follows New session: "+onOff(a.skipPermissions)+".", func() {
-			if widget.GhostButton(c, "Cancel").Clicked() {
-				f.open = false
-			}
-			ok := strings.TrimSpace(f.task) != "" && strings.TrimSpace(f.branch) != "" && !f.busy
-			if widget.PrimaryButton(c, icon.Play, "Start", "").Disabled(!ok).Clicked() && ok {
-				a.startPipeline(f)
-			}
+	}, func() {
+		ui.Row(c).Grow(1).MinWidth(0).Children(func() {
+			widget.Running(c, "Skip permission prompts follows New session: "+onOff(a.skipPermissions)+".", widget.RunStyle{Size: theme.TextLabel, Color: theme.TextSoft})
 		})
+		if widget.Button(c, widget.Secondary, nil, "Cancel", "").Clicked() {
+			f.open = false
+		}
+		ok := strings.TrimSpace(f.task) != "" && strings.TrimSpace(f.branch) != "" && !f.busy
+		if widget.PrimaryButton(c, icon.Play, "Start", "").Disabled(!ok).Clicked() && ok {
+			a.startPipeline(f)
+		}
 	})
 }
 
@@ -141,39 +145,16 @@ func onOff(on bool) string {
 // open; stages after the first can go.
 func (a *App) pipelineStageRow(c *ui.Context, f *pipelineForm, i int) {
 	st := &f.stages[i]
-	widget.Card(c).FillWidth().Gap(6).Children(func() {
-		ui.Row(c).FillWidth().Gap(8).Children(func() {
-			ui.Text(c, string(rune('1'+i))).FontSize(11).TextColor(theme.Muted).Width(12)
-			widget.Input(c, &st.Name, "Name").Width(130)
-			sel := ui.SelectBase(c, &st.Agent)
-			widget.Trigger(sel.Trigger, sel.Open()).Grow(1).Label("Agent").Children(func() {
-				agentTile(c, st.Agent, 20)
-				ui.Text(c, a.agentName(st.Agent)).FontSize(12.5).SingleLine().Shrink(1)
-				ui.Spacer(c)
-				ui.Icon(c, icon.ChevronDown).FontSize(12).TextColor(theme.Muted)
-			})
-			sel.Popup(func(panel ui.Element) {
-				widget.Popup(panel.Margin(6, 0, 0, 0).Width(280))
-				ui.Scroll(c).FillWidth().MaxHeight(320).Children(func() {
-					ui.Column(c).FillWidth().Children(func() {
-						for _, ag := range a.agents {
-							if ag.Command == "" || !ag.Installed {
-								continue
-							}
-							item := sel.Item(ag.ID)
-							widget.PopupItem(item, item.Highlighted()).Children(func() {
-								agentTile(c, ag.ID, 20)
-								ui.Text(c, ag.Name).FontSize(12.5)
-							})
-						}
-					})
-				})
-			})
+	widget.Card(c).FillWidth().Padding(theme.S2, theme.S3).Gap(theme.S2).Children(func() {
+		ui.Row(c).FillWidth().Gap(theme.S2).Children(func() {
+			ui.Text(c, string(rune('1'+i))).FontSize(theme.TextLabel).TextColor(theme.TextSoft).Width(12).Shrink(0)
+			widget.Input(c, &st.Name, "Name").Width(130).Shrink(0)
+			ui.Row(c).Grow(1).Basis(0).MinWidth(0).Children(func() { a.stageAgentSelect(c, st) })
 			label := "Prompt"
 			if f.editing == i {
 				label = "Hide prompt"
 			}
-			if widget.GhostButton(c, label).Clicked() {
+			if widget.GhostButton(c, label).Shrink(0).Clicked() {
 				if f.editing == i {
 					f.editing = -1
 				} else {
@@ -186,11 +167,36 @@ func (a *App) pipelineStageRow(c *ui.Context, f *pipelineForm, i int) {
 			}
 		})
 		if f.editing == i && i < len(f.stages) {
-			ui.TextAreaBase(c, &f.stages[i].Prompt).FillWidth().MinHeight(90).MaxHeight(200).Padding(8, 10).
-				FontSize(12).Label("Prompt").Radius(theme.RadiusControl).Background(theme.Sunken).Border(1, theme.Border)
+			widget.TextBox(c, &f.stages[i].Prompt, "", 120).FillWidth().Label("Prompt")
 			ui.Text(c, "{task} is the task, {previous} what the stage before ended with, {base} the branch it started from.").
-				FontSize(11).TextColor(theme.Muted)
+				FontSize(theme.TextLabel).TextColor(theme.TextSoft)
 		}
+	})
+}
+
+// stageAgentSelect is a stage's agent, among those installed.
+func (a *App) stageAgentSelect(c *ui.Context, st *proto.PipelineStage) {
+	sel := ui.SelectBase(c, &st.Agent)
+	widget.Trigger(sel.Trigger, sel.Open()).Label("Agent").Children(func() {
+		ui.Row(c).Grow(1).MinWidth(0).Children(func() { widget.Running(c, a.agentName(st.Agent), widget.RunStyle{}) })
+		ui.Icon(c, icon.ChevronDown).FontSize(12).TextColor(theme.TextSoft)
+	})
+	sel.Popup(func(panel ui.Element) {
+		widget.Popup(panel.Margin(theme.S1, 0, 0, 0).Width(280))
+		widget.Scroll(c).FillWidth().MaxHeight(320).Children(func() {
+			ui.Column(c).FillWidth().Children(func() {
+				for _, ag := range a.agents {
+					if ag.Command == "" || !ag.Installed {
+						continue
+					}
+					item := sel.Item(ag.ID)
+					widget.PopupItem(item, item.Highlighted()).Children(func() {
+						agentTile(c, ag.ID, 20)
+						ui.Text(c, ag.Name).FontSize(theme.TextUI).SingleLine()
+					})
+				}
+			})
+		})
 	})
 }
 
@@ -257,7 +263,7 @@ func (a *App) pipelineCards(c *ui.Context, p proto.ProjectInfo) {
 			continue
 		}
 		// Indented as sessions are, by padding: a margin would push it out.
-		ui.Row(c.Key("pipeline:"+pl.ID)).FillWidth().Padding(2, 0, 2, 14).Children(func() {
+		ui.Row(c.Key("pipeline:"+pl.ID)).FillWidth().Padding(theme.S1, 0, theme.S1, 14).Children(func() {
 			a.pipelineCard(c, pl)
 		})
 	}
@@ -265,32 +271,32 @@ func (a *App) pipelineCards(c *ui.Context, p proto.ProjectInfo) {
 
 // pipelineCard is a pipeline's task, then a chip per stage.
 func (a *App) pipelineCard(c *ui.Context, pl proto.Pipeline) {
-	ui.Column(c).Grow(1).MinWidth(0).Gap(5).Padding(7, 8).Radius(theme.RadiusControl).
-		Background(theme.Raised).Border(1, theme.Border).Children(func() {
-		ui.Row(c).FillWidth().Gap(6).Children(func() {
-			ui.Icon(c, icon.List).FontSize(12).TextColor(theme.Muted)
-			ui.Text(c, pl.Task).FontSize(11.5).SingleLine().Shrink(1).Grow(1)
+	widget.Raise(ui.Column(c).Grow(1).MinWidth(0).Gap(theme.S1).Padding(theme.S2, theme.S1, theme.S2, theme.S3).Radius(theme.RadiusCard).
+		Background(theme.Raised)).Children(func() {
+		ui.Row(c).FillWidth().Gap(theme.S1).Children(func() {
+			ui.Icon(c, icon.List).FontSize(12).TextColor(theme.TextSoft)
+			ui.Row(c).Grow(1).MinWidth(0).Children(func() { widget.Running(c, pl.Task, widget.RunStyle{}) })
 			more := widget.IconButton(c, icon.More, "More for this pipeline", false)
-			a.menu.OpenBelow(more, "pipeline:"+pl.ID, 28)
+			a.menu.OpenBelow(more, "pipeline:"+pl.ID, theme.ControlHeight)
 			a.menu.Show(c, more, "pipeline:"+pl.ID, func(done func()) { a.pipelineMenuItems(c, pl, done) })
 		})
-		ui.Row(c).FillWidth().Gap(4).Wrap().Children(func() {
+		ui.Row(c).FillWidth().Gap(theme.S1).Wrap().Children(func() {
 			for i, st := range pl.Stages {
 				if i > 0 {
-					ui.Icon(c, icon.ChevronRight).FontSize(9).TextColor(theme.Idle)
+					ui.Icon(c, icon.ChevronRight).FontSize(10).TextColor(theme.Idle)
 				}
 				a.stageChip(c.Key(i), st)
 			}
 		})
 		if pl.Error != "" {
-			ui.Text(c, pl.Error).FontSize(10.5).TextColor(theme.Error)
+			ui.Text(c, pl.Error).FontSize(theme.TextLabel).TextColor(theme.Error)
 		}
 	})
 }
 
 // stageChip is a stage's name with its status; it opens its session.
 func (a *App) stageChip(c *ui.Context, st proto.PipelineStageRun) {
-	chip := ui.ButtonBase(c).Height(22).PaddingX(7).Gap(5).Radius(11).Label(st.Name).Tooltip(st.Name + ": " + st.Status).
+	chip := ui.ButtonBase(c).Height(24).PaddingX(theme.S2).Gap(theme.S1).Radius(theme.RadiusFull).MaxWidth(160).Label(st.Name).Tooltip(st.Name + ": " + st.Status).
 		Background(theme.Sunken)
 	if st.Session != "" {
 		chip.Cursor(ui.CursorPointer)
@@ -301,7 +307,7 @@ func (a *App) stageChip(c *ui.Context, st proto.PipelineStageRun) {
 	chip.Children(func() {
 		switch st.Status {
 		case proto.PipelineRunning:
-			widget.Spinner(c, 9)
+			widget.Spinner(c, 10)
 		case proto.PipelineDone:
 			ui.Icon(c, icon.Check).FontSize(10).TextColor(theme.Done)
 		case proto.PipelineWaiting:
@@ -309,9 +315,9 @@ func (a *App) stageChip(c *ui.Context, st proto.PipelineStageRun) {
 		case proto.PipelineFailed:
 			ui.Icon(c, icon.Close).FontSize(10).TextColor(theme.Error)
 		default:
-			ui.Box(c).Size(7, 7).Radius(4).Border(1, theme.Idle)
+			widget.Dot(c, theme.Idle, true, 8)
 		}
-		ui.Text(c, st.Name).FontSize(10.5).SingleLine().Shrink(1)
+		ui.Row(c).MinWidth(0).Shrink(1).Children(func() { widget.Running(c, st.Name, widget.RunStyle{Size: theme.TextLabel}) })
 	})
 	if chip.Clicked() && st.Session != "" {
 		if s, ok := a.sessionByID(st.Session); ok {

@@ -3,7 +3,6 @@ package chatview
 import (
 	"fmt"
 	"strings"
-	"time"
 
 	"github.com/egoist/mygo/ui"
 
@@ -13,18 +12,23 @@ import (
 	"github.com/enowx/enowx/ui/widget"
 )
 
-// The bar over the conversation: what the agent is at (working and for
-// how long, waiting for the user, done), search within the chat, and
-// opening or folding every turn's work at once; and over the end of a
-// conversation scrolled up, the button back to its latest.
+// What floats over the conversation, as a frame's corner holds little and
+// the transcript runs under it: search within the chat, opening or folding
+// every turn's work at once, and the button back to the latest; and at the
+// conversation's end, the line of what the agent is at.
 
-// toolbar draws the bar over turns, the list's rows more after the row of
-// older ones.
-func (ch *Chat) toolbar(c *ui.Context, o Options, turns []turn, more int) {
-	ui.Row(c.Key("chat-bar")).FillWidth().Height(38).Shrink(0).Padding(0, 12).Gap(8).AlignItems(ui.Center).
-		BorderWidth(0, 0, 1, 0).BorderColor(theme.Border).Children(func() {
-		ch.status(c, o, turns)
-		ui.Spacer(c)
+// chatTools are the search, the fold and the outline when folded, in the frame's
+// corner: bare beside a centered column, in a capsule where they'd lie over its
+// text. turns are the list's rows, more after the row of older ones.
+func (ch *Chat) chatTools(c *ui.Context, turns []turn, more int, outline bool) {
+	r := ui.Row(c.Key("chat-bar")).Absolute().Top(theme.S2).Right(theme.S3).Gap(theme.S1).AlignItems(ui.Center)
+	if ch.width > 0 {
+		r.MaxWidth(ch.width - 2*theme.S3)
+	}
+	if ch.finding || ch.toolsOverColumn() {
+		widget.Rim(r.Padding(theme.S1).Radius(theme.RadiusFull).Background(theme.Popover))
+	}
+	r.Children(func() {
 		if ch.finding {
 			ch.findField(c, turns, more)
 		} else if widget.IconButton(c.Key("find"), icon.Search, "Search the chat", false).Clicked() {
@@ -34,9 +38,11 @@ func (ch *Chat) toolbar(c *ui.Context, o Options, turns []turn, more int) {
 		if ch.anyOpen(turns) {
 			label, open = "Fold every step", false
 		}
-		svg := icon.ChevronsUD
-		if widget.IconButton(c.Key("fold"), svg, label, false).Clicked() {
+		if widget.IconButton(c.Key("fold"), icon.ChevronsUD, label, false).Clicked() {
 			ch.foldAll(turns, open)
+		}
+		if outline && !ch.finding {
+			ch.outlineButton(c, turns, more)
 		}
 	})
 	if c.Shortcut(ui.Cmd, ui.KeyF) {
@@ -44,9 +50,17 @@ func (ch *Chat) toolbar(c *ui.Context, o Options, turns []turn, more int) {
 	}
 }
 
-// status is what the agent is at: working and for how long, waiting for
-// the user, ended, or done and how long its last turn took.
-func (ch *Chat) status(c *ui.Context, o Options, turns []turn) {
+// toolsOverColumn says the column leaves no room at its side for chatTools'
+// three buttons and a margin.
+func (ch *Chat) toolsOverColumn() bool {
+	return ch.width < ch.column+2*(3*theme.ControlHeight+theme.S5)
+}
+
+// statusLine ends the conversation, saying what the agent is at when it isn't
+// working (the line of the turn under way says so then): waiting for the user,
+// ended, or done and how long its last turn took. It also says where approvals
+// show for an agent the chat can't answer for.
+func (ch *Chat) statusLine(c *ui.Context, o Options, turns []turn) {
 	// The last turn of the user's: notices after it are turns of their own.
 	var last *turn
 	for i := len(turns) - 1; i >= 0 && last == nil; i-- {
@@ -61,30 +75,30 @@ func (ch *Chat) status(c *ui.Context, o Options, turns []turn) {
 	case ch.ask.waiting:
 		dot, text = theme.Warning, "Waiting for you"
 	case o.Working:
-		dot, text = theme.Working, "Working"
-		if last != nil && last.prompt != nil && !last.prompt.Time.IsZero() {
-			text += " · " + took(time.Since(last.prompt.Time).Milliseconds())
-			c.After(time.Second)
-		}
+		text = ""
 	case last != nil && last.prompt != nil:
 		dot, text = theme.Done, "Done"
 		if d := last.elapsed(); d > 0 {
-			text += " · took " + took(d.Milliseconds())
+			text += ", took " + took(d.Milliseconds())
 		}
 	}
-	ui.Row(c).Gap(7).AlignItems(ui.Center).Shrink(1).MinWidth(0).Children(func() {
-		if o.Working && !ch.ask.waiting {
-			widget.Spinner(c, 11)
-		} else {
-			ui.Box(c).Size(7, 7).Radius(4).Background(dot)
+	ui.Row(c).FillWidth().Height(lineHeight).Gap(theme.S2).AlignItems(ui.Center).Children(func() {
+		if text != "" {
+			ui.Row(c).Size(14, 14).Shrink(0).Justify(ui.Center).AlignItems(ui.Center).Children(func() {
+				ui.Box(c).Size(8, 8).Radius(theme.RadiusFull).Background(dot)
+			})
+			ui.Text(c, text).FontSize(theme.TextUI).TextColor(theme.TextSoft).SingleLine().Shrink(0)
 		}
-		ui.Text(c, text).FontSize(12).TextColor(theme.TextSoft).SingleLine().Shrink(0)
-		// While it works, the step it is at.
-		if l := ch.latestTool; o.Working && !ch.ask.waiting && l != nil {
-			_, verb := toolLook(l.Text)
-			ui.Text(c, verb+" "+l.Detail).Font(theme.MonoFont).FontSize(11).TextColor(theme.Muted).SingleLine().Shrink(1).MaxWidth(360)
+		ui.Spacer(c)
+		if !ch.ask.canAnswer() {
+			widget.Running(c.Key("hint"), "Approvals and menus show in the terminal", widget.RunStyle{Color: theme.Muted})
 		}
 	})
+}
+
+// hasStatus says the conversation ends with a status line.
+func (ch *Chat) hasStatus(o Options) bool {
+	return !o.Working || ch.ask.waiting || o.Ended || !ch.ask.canAnswer()
 }
 
 // anyOpen says some turn's work shows open.
@@ -130,8 +144,8 @@ func (ch *Chat) findField(c *ui.Context, turns []turn, more int) {
 		}
 		ch.list.ScrollTo(hits[ch.findAt]+more, ui.Start)
 	}
-	ui.Row(c.Key("find-row")).Gap(4).AlignItems(ui.Center).Children(func() {
-		in := widget.Input(c.Key("find-in"), &ch.find, "Search the chat").Width(220).Height(28)
+	ui.Row(c.Key("find-row")).MinWidth(0).Shrink(1).Gap(theme.S1).AlignItems(ui.Center).Children(func() {
+		in := widget.Input(c.Key("find-in"), &ch.find, "Search the chat").Width(220).Shrink(1).MinWidth(64)
 		if ch.focusFind {
 			in.Focus()
 			ch.focusFind = false
@@ -150,7 +164,7 @@ func (ch *Chat) findField(c *ui.Context, turns []turn, more int) {
 		case len(hits) > 0:
 			count = fmt.Sprintf("%d of %d", ch.findAt+1, len(hits))
 		}
-		ui.Text(c, count).FontSize(11.5).TextColor(theme.Muted).SingleLine().Width(64)
+		ui.Text(c, count).FontSize(theme.TextLabel).TextColor(theme.TextSoft).SingleLine().Width(64).Shrink(0)
 		if widget.IconButton(c.Key("prev"), icon.ChevronUp, "Previous match", false).Clicked() {
 			goTo(ch.findAt - 1)
 		}
@@ -199,8 +213,8 @@ func entryText(e proto.TranscriptEntry) string {
 	return e.Text + "\n" + e.Detail + "\n" + e.Result
 }
 
-// toLatest is the button back to the conversation's latest, while it is
-// scrolled up away from it.
+// toLatest is the button back to the conversation's latest, over the composer,
+// while it is scrolled up away from it.
 func (ch *Chat) toLatest(c *ui.Context, working bool) {
 	if ch.list.AtEnd() {
 		return
@@ -209,15 +223,16 @@ func (ch *Chat) toLatest(c *ui.Context, working bool) {
 	if working {
 		label = "Follow the agent"
 	}
-	ui.Row(c.Key("to-latest")).Absolute().Left(0).Bottom(14).FillWidth().Justify(ui.Center).PassThrough().Children(func() {
-		b := ui.ButtonBase(c.Key("button")).Height(30).Padding(0, 12).Gap(6).Radius(15).AlignItems(ui.Center).
-			Background(theme.Raised).Border(1, theme.BorderStrong).Cursor(ui.CursorPointer).Label(label)
+	ui.Row(c.Key("to-latest")).Absolute().Left(0).Bottom(ch.composerH + theme.S4 + theme.S3).FillWidth().Justify(ui.Center).PassThrough().Children(func() {
+		b := ui.ButtonBase(c.Key("button")).Height(theme.ControlHeight).PaddingX(theme.S3).Gap(theme.S1).Radius(theme.RadiusFull).AlignItems(ui.Center).
+			Cursor(ui.CursorPointer).Label(label)
+		bg := theme.Popover
 		if b.Hovered() {
-			b.Background(theme.Hover)
+			bg = theme.Solid(theme.Selected)
 		}
-		b.Children(func() {
-			ui.Icon(c, icon.ArrowDown).FontSize(12).TextColor(theme.TextSoft)
-			ui.Text(c, label).FontSize(12).TextColor(theme.TextSoft).SingleLine()
+		widget.Rim(b.Background(bg)).Children(func() {
+			ui.Icon(c, icon.ArrowDown).FontSize(13).TextColor(theme.TextSoft)
+			ui.Text(c, label).FontSize(theme.TextUI).TextColor(theme.Text).SingleLine()
 		})
 		if b.Clicked() {
 			ch.list.ScrollToEnd()

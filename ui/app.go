@@ -20,6 +20,7 @@ import (
 	"github.com/enowx/enowx/core/hosts"
 	"github.com/enowx/enowx/core/projectsync"
 	"github.com/enowx/enowx/core/tailnet"
+	"github.com/enowx/enowx/internal/watchdog"
 	"github.com/enowx/enowx/proto"
 	"github.com/enowx/enowx/ui/activityview"
 	"github.com/enowx/enowx/ui/androidview"
@@ -63,6 +64,11 @@ type App struct {
 	connErr         string          // why the last connection failed
 	connFail        error           // the same, to tell what kind of failure it was
 	notice          string          // a.status is news, not a problem, while it equals this
+	bundleWarned    bool            // warnBundlePlace said it
+	video           *videoJob       // the MP4 being made (canvas_video.go)
+	onboard         onboardingState // the first run's setup
+	cacheState      *cacheSettings  // Settings' Clean cache
+	watchdog        *watchdog.Watch // the main thread's, once the window is open
 	sessionToasts   []*sessionToast // what notifications are about (sessiontoast.go)
 	sessionToastKey int
 	trust           *trustPrompt
@@ -74,7 +80,6 @@ type App struct {
 	appWindows      map[string]*appwindow.Window // desktop apps shown in their windows, by session ID
 	runCommands     map[string]*commandList      // project commands, by session ID, for its Run menu
 	commandForm     *commandForm
-	shortcutsOpen   bool                             // Settings › App lists the shortcuts
 	winW            float32                          // the window's width, last frame
 	settingsSection string                           // the Settings section shown
 	hostSet         *hostSettings                    // Settings' sections' state for the connected host
@@ -177,12 +182,15 @@ type App struct {
 	decisions          []*proto.Decision          // the judge stopped an agent or refused its command (decide_uses.go)
 	chatToasts         []*chatToast               // team chat messages, in the corner (teamchatnotify.go)
 	acctAsks           []*proto.AccountFallback   // accounts at their limit, asking to switch (accounts_switch.go)
+	panelPage          string                     // the Notes or Canvas page the panel was opened on
 	browserNews        bool                       // the Browser opened a page while the user was at something else
 	deletingServer     *hosts.Host                // the server whose deletion is asked about
 	clearingHost       *hosts.Host                // the host whose synced data's clearing is asked about
 	picked             map[string]bool            // sessions picked with ⌘ or ⇧ clicks, for Hibernate
 	hibernating        *hibernateForm             // hibernating sessions that would lose work, asked about
 	hibernateAsks      []*hibernateForm           // agents asking to hibernate sessions
+	alwaysAllowedSheet alwaysAllowedState         // Settings → Agents' sessions always allowed
+	background         backgroundState            // the user's own background image, as read
 	hostAsks           []*hostAsk                 // sessions asking to do what can't be undone (hostcontrol.go)
 	hostAskKey         int
 	asks               askLine                   // the cards waiting (asks.go)
@@ -193,10 +201,10 @@ type App struct {
 	chats              map[string]*chatview.Chat // by session ID
 	diffs              map[string]*diffview.View // by session ID
 	fileViews          map[string]*fileview.View // by session ID
-	// fileTabs are the files open in the side panel, by session ID; docs
-	// show them, by session ID and path.
-	fileTabs        map[string][]string
+	center             map[string]*centerTabs    // what tools opened in the center, by session ID
+	// docs are the files center tabs show, by session ID and path., by session ID and path.
 	docs            map[string]*fileview.Doc
+	leaveUnsaved    bool                      // the user said to quit without saving
 	pageViews       map[string]*pageView      // file tabs showing their page, by session and path
 	portViews       map[string]*portview.View // by session ID
 	trafficView     *trafficview.View         // the Traffic tool, for connection trafficGen
@@ -230,13 +238,10 @@ type App struct {
 	// connection dropped; 0 when not retrying.
 	retrying  int
 	retryHost string
-	// titleLeftW and titleRightW are how wide the title bar's sides were
-	// last frame, which they keep.
-	titleLeftW, titleRightW float32
-	credits                 creditview.Tracker
-	updates                 updater
-	hostList                []hosts.Host
-	passwords               map[string]string // SSH passwords when there is no keychain
+	credits   creditview.Tracker
+	updates   updater
+	hostList  []hosts.Host
+	passwords map[string]string // SSH passwords when there is no keychain
 	// keychainRead keeps the passwords read from the keychain this run,
 	// so its prompt comes once, not at each connection or watch. Guarded
 	// by keychainMu, which is held while reading.
@@ -266,10 +271,10 @@ type App struct {
 	maximized    string // session shown alone, if any
 	page         string // a rail view shown instead of the sessions, or ""
 	filter       string // the session list's filter
-	// accentInput is the Appearance page's custom accent as typed.
-	accentInput string
-	systemDark  bool   // effective native appearance, owned by the UI thread
-	status      string // last error, shown in the status bar
+	systemDark   bool   // effective native appearance, owned by the UI thread
+	status       string // last error or news, shown in a toast
+	statusSeen   string // the status statusAt is of
+	statusAt     time.Time
 
 	skipPermissions bool               // New session's default
 	deleting        *proto.SessionInfo // asking to confirm a delete
@@ -314,6 +319,8 @@ type Options struct {
 	// ResumeHost starts on the host shown when the app last quit, if it is
 	// still saved, instead of Start.
 	ResumeHost bool
+	// Onboarding runs the first run's setup on a user or device that hasn't done it.
+	Onboarding bool
 }
 
 // pane shows one attached session.
@@ -327,9 +334,9 @@ type pane struct {
 
 // LocalHost is this machine as a host.
 func LocalHost() hosts.Host {
-	name := "This PC"
+	name := "this PC"
 	if runtime.GOOS == "darwin" {
-		name = "This Mac"
+		name = "this Mac"
 	}
 	return hosts.Host{ID: hosts.LocalID, Name: name}
 }
@@ -345,6 +352,7 @@ func New(opts Options) *App {
 		skipPermissions: true,
 		systemDark:      true,
 	}
+	theme.UseStyle(theme.StyleByID(a.state.UIStyle))
 	theme.Apply(a.state.palette(a.lightAppearance()))
 	a.theme = theme.Window()
 	if a.state.SkipPermissions != nil {
@@ -371,19 +379,22 @@ func (a *App) Open() *mygo.Window {
 		BackgroundColor: theme.Hex(theme.Background),
 		// The view draws the title bar: the command bar sits in it.
 		TitleBarStyle:  mygo.TitleBarHidden,
-		TitleBarHeight: titleBarHeight,
+		TitleBarHeight: int(theme.BarHeight),
 		// The view draws the window's buttons, the same on every system
 		// (windowButtons); the window keeps its shadow and resizing edges.
 		HideWindowButtons: true,
 		Content:           ui.View(a.view),
 	})
 	a.onMain = a.win.Update
+	a.startDevDriver()
+	a.startWatchdog()
 	stopAppearance := mygo.Theme.OnUpdated(func() { a.systemAppearanceChanged(mygo.Theme.IsDark()) })
 	a.watchQuit()
 	a.usage.Every = a.usageEvery
 	a.win.OnFocus(func() { a.blurred = false; a.usage.Poke() })
 	a.win.OnBlur(func() { a.blurred = true })
 	setAppMenu(a)
+	a.holdForUnsaved()
 	a.win.OnClosed(func() {
 		stopAppearance()
 		a.disconnect()
@@ -504,7 +515,7 @@ func (a *App) handleEvent(gen int, ev proto.Event) {
 		if apply = a.buildEvent(ev.Data); apply == nil {
 			return
 		}
-	case proto.EventCanvasesChanged, proto.EventCanvasChanged, proto.EventCanvasRender:
+	case proto.EventCanvasesChanged, proto.EventCanvasChanged, proto.EventCanvasRender, proto.EventCanvasVideo:
 		if apply = a.canvasEvent(ev); apply == nil {
 			return
 		}
@@ -635,6 +646,19 @@ func (a *App) setProjects(list []proto.ProjectInfo) {
 	}
 }
 
+// viewOutdated says a view attached when session was as old shows a terminal that no
+// longer changes, it being as now: its program started again. Run says so even when
+// the stop between was never seen; a daemon too old for it, by what was seen.
+func viewOutdated(old, now proto.SessionInfo) bool {
+	if now.Exited || now.Queued {
+		return false
+	}
+	if old.Run != 0 && now.Run != 0 && old.Run != now.Run {
+		return true
+	}
+	return old.Exited || old.Queued
+}
+
 // upsert records a session and attaches to it once.
 func (a *App) upsert(info proto.SessionInfo) {
 	if a.removed[info.ID] {
@@ -644,7 +668,7 @@ func (a *App) upsert(info proto.SessionInfo) {
 		// A program that starts again (continued, or a queued agent's)
 		// runs in a new terminal of the daemon: the old stream shows the
 		// last one, so attach anew.
-		if old := a.sessions[i]; (old.Exited || old.Queued) && !info.Exited && !info.Queued {
+		if old := a.sessions[i]; viewOutdated(old, info) {
 			if p := a.panes[info.ID]; p != nil {
 				p.close()
 			}
@@ -664,6 +688,7 @@ func (a *App) upsert(info proto.SessionInfo) {
 func (a *App) remove(id string) {
 	a.removed[id] = true
 	a.sessions = slices.DeleteFunc(a.sessions, func(s proto.SessionInfo) bool { return s.ID == id })
+	a.closeGOATabOf(id)
 	a.updateTray()
 	if p := a.panes[id]; p != nil {
 		p.close()
@@ -679,10 +704,10 @@ func (a *App) remove(id string) {
 	delete(a.state.Chats, id)
 	delete(a.diffs, id)
 	delete(a.fileViews, id)
-	for _, p := range a.fileTabs[id] {
+	for _, p := range a.centerFiles(id) {
 		delete(a.docs, id+"\x00"+p)
 	}
-	delete(a.fileTabs, id)
+	delete(a.center, id)
 	delete(a.portViews, id)
 	a.stopForwards(id)
 	a.closeAppWindows(id)
@@ -757,6 +782,7 @@ func (a *App) attach(c *client.Client, gen int, id string) {
 		}
 		conn = &settledResize{ReadWriteCloser: conn, resize: st.ResizePixels}
 		t, err := terminal.New(terminal.Options{
+			Transparent:  true, // the view's own ground shows, as the slider has it
 			Conn:         conn,
 			ResizeByConn: true,
 			Theme:        theme.Terminal(),

@@ -143,6 +143,13 @@ func (b *Board) Working() []proto.GOATask {
 	return slices.DeleteFunc(b.List(), func(t proto.GOATask) bool { return Settled(t.Status) })
 }
 
+// IsSettled says whether task id is over, or gone from the board.
+func (b *Board) IsSettled(id string) bool {
+	tasks := b.List()
+	i := slices.IndexFunc(tasks, func(t proto.GOATask) bool { return t.ID == id })
+	return i < 0 || Settled(tasks[i].Status)
+}
+
 // Settled says whether a task in status is over.
 func Settled(status string) bool {
 	return status == proto.GOATaskDone || status == proto.GOATaskFailed || status == proto.GOATaskStopped

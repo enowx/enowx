@@ -24,6 +24,7 @@ type newSessionForm struct {
 	prompt        string
 	display       bool      // run with a virtual display
 	runSetup      bool      // run the project's worktree setup (.enowx.toml)
+	fanOut        bool      // give the prompt to the agents in also too
 	also          []string  // more agents given the prompt, each on its own branch
 	account       string    // the agent's account to sign in as, "" for its own
 	accountPicked bool      // picked by the user, not the preferences' default
@@ -152,7 +153,7 @@ func (a *App) startSession() {
 		f.err = "Not connected."
 		return
 	}
-	if len(f.also) > 0 && f.branchMode == proto.BranchNew {
+	if len(f.fanOutAgents()) > 0 && f.branchMode == proto.BranchNew {
 		a.startFanOut(cl, params)
 		return
 	}

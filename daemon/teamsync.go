@@ -42,6 +42,17 @@ type teamSyncer struct {
 	run   sync.Mutex
 	mu    sync.Mutex
 	last  map[string]syncStatus
+	// hashes are files' hashes by path, as of their size and time, so that a sync
+	// reads only what changed: spaces hold gigabytes, and this runs every 30 seconds.
+	// Only a sync touches it, under run.
+	hashes map[string]teamFileHash
+}
+
+// teamFileHash is a file's hash, as of its size and time.
+type teamFileHash struct {
+	size int64
+	mod  time.Time
+	hash string
 }
 
 type syncStatus struct {
@@ -229,6 +240,7 @@ func (ts *teamSync) run(ctx context.Context) error {
 	if ts.state.Files == nil {
 		ts.state.Files = map[string]syncedFile{}
 	}
+	ts.forgetUnshared()
 	var err error
 	if ts.keys, err = ts.srv.teamKeys(ctx, ts.c, ts.team, ts.role); err != nil {
 		return err
@@ -246,6 +258,19 @@ func (ts *teamSync) run(ctx context.Context) error {
 	return ts.save()
 }
 
+// forgetUnshared stops following files no longer shared (a canvas's versions), with
+// the copy kept to merge them. Otherwise, gone from what's listed, they'd count as
+// deleted here and be deleted for the whole team. The files themselves stay, and what
+// the cloud holds of them stays there too.
+func (ts *teamSync) forgetUnshared() {
+	for p := range ts.state.Files {
+		if !teamSynced(p) {
+			delete(ts.state.Files, p)
+			_ = os.Remove(ts.baseFile(p))
+		}
+	}
+}
+
 func (ts *teamSync) save() error {
 	data, _ := json.Marshal(ts.state)
 	return writeTeamFile(ts.stateFile(), data)
@@ -258,7 +283,7 @@ func teamSynced(p string) bool {
 	if p == "projects.json" || (strings.HasPrefix(p, "kit/") || strings.HasPrefix(p, "rules/") || strings.HasPrefix(p, "hosts/") || strings.HasPrefix(p, "chat/")) && !strings.Contains(p, "..") {
 		return true // the team's projects (teamprojects.go), kit (teamkit.go), projects' rules (rules.go), shared hosts (hostshare.go), chat (teamchat.go)
 	}
-	if !strings.HasPrefix(p, "notes/") && !strings.HasPrefix(p, "canvas/") || strings.Contains(p, "..") {
+	if !strings.HasPrefix(p, "notes/") && !strings.HasPrefix(p, "canvas/") || strings.Contains(p, "..") || usersync.CanvasHistory(p) {
 		return false
 	}
 	base := path.Base(p)
@@ -459,12 +484,25 @@ func (ts *teamSync) pushChanges(ctx context.Context) error {
 			return nil
 		}
 		seen[p] = true
+		f, known := ts.state.Files[p]
+		info, err := d.Info()
+		if err != nil {
+			return nil
+		}
+		hashes := &ts.srv.teamSync.hashes
+		was, kept := (*hashes)[full]
+		if kept && known && !f.Deleted && was.size == info.Size() && was.mod.Equal(info.ModTime()) && was.hash == f.Hash {
+			return nil
+		}
 		data, err := os.ReadFile(full)
 		if err != nil {
 			return nil
 		}
-		f, known := ts.state.Files[p]
 		h := hashOf(data)
+		if *hashes == nil {
+			*hashes = map[string]teamFileHash{}
+		}
+		(*hashes)[full] = teamFileHash{size: info.Size(), mod: info.ModTime(), hash: h}
 		if known && !f.Deleted && f.Hash == h {
 			return nil
 		}

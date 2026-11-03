@@ -15,15 +15,25 @@ import (
 // The color tokens. Status colors differ in lightness as well as hue.
 var (
 	Background   ui.Color // window, terminals
-	Ground       ui.Color // what the bento panels sit on: darker than the window
-	Panel        ui.Color // rail, session list, title and status bars
-	Raised       ui.Color // cards
-	Sunken       ui.Color // inputs, tracks: below the surface
+	Ground       ui.Color // the wallpaper the glass sits on
+	Panel        ui.Color // glass: the session list, the bars' capsules, the tools
+	Frame        ui.Color // the one bright frame the user works in
+	CodeGround   ui.Color // code, logs and output: dark in every palette
+	TermGround   ui.Color // what a terminal shows on: dark in every palette
+	Raised       ui.Color // cards on a frame
+	Sunken       ui.Color // wells: inputs, tracks, segmented controls
 	Hover        ui.Color
 	Selected     ui.Color
+	SoftSelected ui.Color // secondary words and icons on Selected (SoftOn)
+	Picked       ui.Color // what is selected, in the main lists, bars and tabs
+	OnPicked     ui.Color // words on Picked
+	DockGround   ui.Color // the tools dock
 	Border       ui.Color // hairlines between areas
 	BorderStrong ui.Color // outlines of controls
-	Dialog       ui.Color // dialogs, menus, pop-overs
+	BorderFloat  ui.Color // the line of what floats, in a flat style
+	Dialog       ui.Color // dialogs
+	Popover      ui.Color // menus, pop-overs
+	Composer     ui.Color // where the user writes to an agent
 	Text         ui.Color
 	TextStrong   ui.Color
 	TextSoft     ui.Color
@@ -40,19 +50,58 @@ var (
 	Warning ui.Color
 	Error   ui.Color
 	Idle    ui.Color
+
+	Add ui.Color // lines added
+	Del ui.Color // lines removed, destructive words
+	Now ui.Color // what happens now, the focus ring
 )
+
+// SurfaceOpacity is how opaque the main surfaces are over the user's own
+// background image, 1 with none. See Surface.
+var SurfaceOpacity float64 = 1
 
 // MonoFont is the font of paths, code and command output.
 const MonoFont = "monospace"
 
-// Shape: the same in every palette.
-const (
-	RadiusControl = 9  // buttons, inputs, rows
-	RadiusCard    = 12 // cards, menus
-	RadiusPanel   = 16 // dialogs, sections
-	RadiusBento   = 14 // the window's panels
-	BentoGap      = 8  // between the window's panels, and around them
-	ControlHeight = 32
+// Shape, spacing and type are the style's (style.go), the same in every palette.
+// They are read while drawing, as the colors are, and belong to the main thread.
+var (
+	RadiusFull    float32 // capsules: half the height, whatever the height is
+	RadiusControl float32 // buttons, inputs: a capsule at ControlHeight
+	RadiusTail    float32 // a bubble's corner toward who said it
+	RadiusSmall   float32 // thumbnails, swatches
+	RadiusCard    float32 // cards, bubbles, wells, menus
+	RadiusPanel   float32 // the window's panels, dialogs
+	RadiusBento   float32 // the window's panels
+	BentoGap      float32 // between the window's panels
+	WindowInset   float32 // around them
+	ControlHeight float32
+	BarHeight     float32 // the title bar's pieces
+	ScrollWidth   float32 // a scroll bar's thickness
+	BarRadius     float32 // the title bar's pieces' corners
+	RailWidth     float32 // the tools dock's region
+	ReadWidth     float32 // the column a conversation reads in
+	HeaderHeight  float32 // a page's header
+	RowHeight     float32 // a list's row
+	RowTwo        float32 // a list's row of two lines
+	RowTall       float32 // a row with a control or two lines of words
+	TabHeight     float32 // tabs and small segmented controls
+	Rule          float32 // the line between parts of a surface, 0 for none
+
+	// Spacing: the steps of every gap and padding.
+	S1, S2, S3, S4, S5, S6 float32
+
+	// Effects: see Style.
+	Flat, Butted, FullDock, DockedComposer, Tiled bool
+	Hairline                                      float32
+	Scrim                                         ui.Color
+	Family                                        string
+
+	// Type: the steps of every text size.
+	TextLabel float32 // labels, details
+	TextUI    float32 // controls, lists: the default
+	TextRead  float32 // what is read: conversations, notes
+	TextTitle float32 // the title of a frame or dialog
 )
 
 // current is the palette applied last.
@@ -61,30 +110,86 @@ var current Palette
 // Current is the palette in use.
 func Current() Palette { return current }
 
-func init() { Apply(Champagne) }
+func init() {
+	UseStyle(LiquidGlass)
+	Apply(Default)
+}
 
 // Apply sets every token from p.
 func Apply(p Palette) {
 	current = p
+	term := styled(darkPalette(p)).Background
+	p = styled(p)
 	Background, Panel, Raised, Sunken = p.Background, p.Panel, p.Raised, p.Sunken
-	Ground = Mix(p.Background, ui.Hex("#000000"), 0.5)
-	if p.Light {
-		Ground = Mix(p.Background, ui.Hex("#000000"), 0.035)
+	Ground, Frame, Popover = p.Ground, p.Frame, p.Popover
+	Composer = p.composer
+	if Composer.A == 0 {
+		Composer = p.Popover
 	}
 	Hover, Selected, Dialog = p.Hover, p.Selected, p.Dialog
 	Border, BorderStrong = p.Border, p.BorderStrong
 	Text, TextStrong, TextSoft, Muted = p.Text, p.TextStrong, p.TextSoft, p.Muted
 	Accent, OnAccent = p.Accent, p.OnAccent
-	AccentHigh = Mix(p.Accent, ui.Hex("#FFFFFF"), 0.22)
-	AccentSoft = Fade(p.Accent, 0.08)
-	AccentLine = Fade(p.Accent, 0.4)
-	Highlight = Fade(p.Text, 0.05)
+	AccentHigh = Mix(p.Accent, ui.Hex("#FFFFFF"), 0.12)
+	AccentSoft = Fade(p.Accent, 0.16)
+	AccentLine = p.Now
+	Highlight = ui.RGBA(255, 255, 255, 0.55)
 	if p.Light {
 		AccentHigh = Mix(p.Accent, ui.Hex("#000000"), 0.08)
 		AccentLine = Fade(p.Accent, 0.75)
-		Highlight = ui.RGBA(255, 255, 255, 0.65)
+		Highlight = ui.RGBA(255, 255, 255, 0.85)
 	}
+	SurfaceOpacity = 1
+	if p.backdrop {
+		SurfaceOpacity = p.opacity
+	}
+	CodeGround = Surface(ui.RGBA(10, 11, 18, 0.94))
+	if p.code.A != 0 {
+		CodeGround = p.code
+	}
+	TermGround = Surface(term)
+	SoftSelected = softOnSelected(p)
+	Picked, OnPicked, DockGround = p.Selected, p.TextStrong, p.Panel
+	if p.picked.A != 0 {
+		Picked, OnPicked = p.picked, p.onPicked
+	}
+	if p.dock.A != 0 {
+		DockGround = p.dock
+	}
+	BorderFloat = p.Border
+	if p.floatLine.A != 0 {
+		BorderFloat = p.floatLine
+	}
+	Add, Del, Now = p.Add, p.Del, p.Now
 	Working, Done, Warning, Error, Idle = p.Working, p.Done, p.Warning, p.Error, p.Idle
+}
+
+// softOnSelected is p's secondary words if they read on its selection on every surface,
+// else its main ones.
+func softOnSelected(p Palette) ui.Color {
+	for _, s := range []ui.Color{p.Panel, p.Frame, p.Popover, p.Dialog} {
+		if contrast(p.TextSoft, over(p.Selected, over(s, p.Ground))) < 4.5 {
+			return p.Text
+		}
+	}
+	return p.TextSoft
+}
+
+// SoftOn is the color of secondary words and icons on what is selected or not: anything
+// drawn on Selected takes its secondary color from here.
+func SoftOn(selected bool) ui.Color {
+	if selected {
+		return SoftSelected
+	}
+	return TextSoft
+}
+
+// SoftOnPicked is SoftOn for what is drawn on Picked.
+func SoftOnPicked(picked bool) ui.Color {
+	if picked {
+		return OnPicked
+	}
+	return TextSoft
 }
 
 // Window is the window theme MyGo's own controls draw with: the tokens of
@@ -94,8 +199,8 @@ func Window() *ui.Theme {
 	if current.Light {
 		t = *ui.LightTheme()
 	}
-	t.Background = Background
-	t.Surface = Raised
+	t.Background = Solid(Dialog) // what the toolkit's own panels fill with
+	t.Surface = Selected
 	t.SurfaceHover = Hover
 	t.SurfacePressed = Selected
 	t.Border = BorderStrong
@@ -109,10 +214,12 @@ func Window() *ui.Theme {
 	t.Warning = Warning
 	t.Success = Done
 	t.Selection = Fade(Accent, 0.28)
-	t.Focus = AccentLine
+	t.Focus = Now
 	t.Radius = RadiusControl
-	t.Inverse, t.InverseText = Selected, Text
-	t.Scrollbar = BorderStrong
+	t.Inverse, t.InverseText = Popover, Text
+	t.Scrollbar = Selected
+	t.ScrollbarWidth = ScrollWidth
+	t.FontSize = TextUI
 	return &t
 }
 
@@ -126,6 +233,15 @@ func Mix(a, b ui.Color, t float64) ui.Color {
 func Fade(c ui.Color, a float64) ui.Color {
 	c.A = uint8(a*255 + 0.5)
 	return c
+}
+
+// Solid is translucent c as it reads on the wallpaper's ground, opaque: for
+// what has no ground under it.
+func Solid(c ui.Color) ui.Color {
+	at := func(v, g uint8) uint8 {
+		return uint8(float64(g) + (float64(v)-float64(g))*float64(c.A)/255 + 0.5)
+	}
+	return ui.Color{R: at(c.R, Ground.R), G: at(c.G, Ground.G), B: at(c.B, Ground.B), A: 255}
 }
 
 // Hex writes c as #RRGGBB, as ui.Hex reads it back.

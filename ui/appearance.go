@@ -5,7 +5,6 @@ import (
 
 	"github.com/egoist/mygo/ui"
 
-	"github.com/enowx/enowx/ui/icon"
 	"github.com/enowx/enowx/ui/theme"
 	"github.com/enowx/enowx/ui/widget"
 )
@@ -13,7 +12,13 @@ import (
 // applyTheme sets the palette the state names, in every view and
 // terminal at once.
 func (a *App) applyTheme() {
-	theme.Apply(a.state.palette(a.lightAppearance()))
+	theme.UseStyle(theme.StyleByID(a.state.UIStyle))
+	a.showPalette(a.state.palette(a.lightAppearance()))
+}
+
+// showPalette has every view and terminal take p.
+func (a *App) showPalette(p theme.Palette) {
+	theme.Apply(p)
 	a.theme = theme.Window()
 	t := theme.Terminal()
 	for _, p := range a.panes {
@@ -30,64 +35,177 @@ func (a *App) applyTheme() {
 	}
 }
 
-// appearancePage picks the palette and, optionally, an accent of the
-// user's own.
+// appearancePage picks the palette, the mode and, optionally, an accent of the
+// user's own, beside how they look together.
 func (a *App) appearancePage(c *ui.Context) {
-	a.viewHeader(c, func() {
-		ui.Row(c).Grow(1).MinWidth(0).Children(func() { widget.Breadcrumb(c, "Settings", "Appearance") })
-		if widget.IconButton(c, icon.Close, "Back to sessions", false).Clicked() {
-			a.page = ""
+	widget.PageHeader(c, "Appearance", "On this device", nil)
+	body := ui.Scroll(c.Key("appearance-body")).Grow(1).FillWidth().MinHeight(0)
+	room := body.Bounds().H
+	body.Children(func() {
+		widget.PagePad(ui.Row(c).FillWidth().MinHeight(room)).Gap(theme.S4).AlignItems(ui.Stretch).Children(func() {
+			ui.Column(c).Grow(7).Basis(0).MinWidth(0).Gap(theme.S4).Children(func() {
+				a.stylePicker(c)
+				a.themePicker(c)
+				a.backgroundCard(c)
+				ui.Grid(c).FillWidth().Grow(1).Columns(2).Gap(theme.S3).AlignItems(ui.Stretch).Children(func() {
+					widget.Card(c).Children(func() { a.appearanceMode(c) })
+					widget.Card(c).Children(func() { a.accentPicker(c) })
+				})
+			})
+			widget.Card(c).Grow(5).Basis(0).Children(func() { a.themePreview(c) })
+		})
+	})
+}
+
+// themePicker is the palettes, each in its own colors whatever the current one.
+func (a *App) themePicker(c *ui.Context) {
+	ui.Column(c).FillWidth().Gap(theme.S2).Children(func() {
+		ui.Text(c, "Theme").FontSize(theme.TextUI).FontWeight(500)
+		ui.Grid(c).FillWidth().Columns(len(theme.Palettes) + 1).Gap(theme.S3).Children(func() {
+			for _, preset := range theme.Palettes {
+				p := theme.LookupAppearance(preset.ID, ui.Color{}, a.lightAppearance())
+				if a.paletteCard(c.Key(p.ID), p) {
+					a.state.FollowBackground = false
+					a.state.Theme = p.ID
+					if p.ID == theme.Default.ID {
+						a.state.Theme = ""
+					}
+					a.applyTheme()
+				}
+			}
+			a.followCard(c.Key(theme.FollowID))
+		})
+	})
+}
+
+// followCard is the choice of a palette derived from the background image:
+// disabled, saying why, until there is one to read.
+func (a *App) followCard(c *ui.Context) {
+	flat := a.state.flatStyle()
+	can := a.state.BackgroundImage != "" && a.state.derived != nil && !flat
+	on := a.state.FollowBackground && can
+	label := "Follow background"
+	tip := "Colors taken from your background image"
+	switch {
+	case flat:
+		label, tip = "Liquid Glass only", "A background image shows in Liquid Glass only: this style has no glass to see it through"
+	case !can:
+		label, tip = "Needs an image", "A background image is needed: choose one below"
+	}
+	card := ui.ButtonBase(c).MinWidth(0).Padding(theme.S2).Radius(theme.RadiusCard).Tooltip(tip)
+	switch {
+	case on:
+		card.Background(theme.Sunken).InsetShadow(0, 0, 0, 2, theme.Text)
+	case can && card.Hovered():
+		card.Background(theme.Hover)
+	default:
+		card.Background(theme.Sunken)
+	}
+	if can {
+		card.Cursor(ui.CursorPointer)
+	} else {
+		card.Opacity(0.5).Disabled(true)
+	}
+	card.Children(func() {
+		ui.Column(c).FillWidth().MinWidth(0).Gap(theme.S2).Children(func() {
+			ui.Row(c).FillWidth().Height(56).Radius(theme.S3).Clip().Children(func() {
+				if !can {
+					ui.Box(c).Grow(1).Basis(0).FillHeight().Background(theme.Hover)
+					return
+				}
+				p := theme.DerivedPalette(*a.state.derived, ui.Color{}, a.lightAppearance())
+				ui.Box(c).Grow(2).Basis(0).FillHeight().Background(p.Ground)
+				ui.Box(c).Grow(1).Basis(0).FillHeight().Background(p.Accent)
+			})
+			widget.Running(c, label, widget.RunStyle{Size: theme.TextLabel})
+		})
+	})
+	if can && card.Clicked() {
+		a.state.FollowBackground = !a.state.FollowBackground
+		a.applyTheme()
+	}
+}
+
+// accentPicker is the accent: the theme's own, one of the app's, or one typed.
+func (a *App) accentPicker(c *ui.Context) {
+	widget.CardTitle(c, nil, "Accent", nil)
+	ui.Text(c, "Give any theme an accent of your own: its buttons, selection and focus take it.").
+		FontSize(theme.TextLabel).TextColor(theme.TextSoft)
+	ui.Row(c).FillWidth().Wrap().Gap(theme.S2).Children(func() {
+		if widget.Button(c.Key("default"), widget.Secondary, nil, "Theme's own", "").Clicked() {
+			a.setAccent("")
+		}
+		for _, col := range theme.Accents {
+			hex := theme.Hex(col)
+			if a.swatch(c.Key(hex), col, strings.EqualFold(a.state.Accent, hex), hex) {
+				a.setAccent(hex)
+			}
 		}
 	})
-	ui.Scroll(c).Grow(1).FillWidth().Children(func() {
-		ui.Column(c).FillWidth().Padding(20).Gap(14).Children(func() {
-			a.appearanceMode(c)
-			widget.SectionLabel(c, "THEME", theme.Muted)
-			widget.FitGrid(c, 260, 4).Gap(12).Children(func() {
-				for _, preset := range theme.Palettes {
-					p := theme.LookupAppearance(preset.ID, ui.Color{}, a.lightAppearance())
-					if a.paletteCard(c.Key(p.ID), p) {
-						a.state.Theme = p.ID
-						if p.ID == theme.Palettes[0].ID {
-							a.state.Theme = ""
-						}
-						a.applyTheme()
-					}
+	widget.Field(c, "Custom", func() {
+		ui.Row(c).FillWidth().MinWidth(0).Gap(theme.S2).Children(func() {
+			widget.ColorPick(c.Key("custom"), "Custom accent", a.accentShown(), func(col ui.Color, done bool) {
+				if done {
+					a.setAccent(theme.Hex(col))
+					return
 				}
+				a.previewAccent(theme.Hex(col))
 			})
-
-			widget.SectionLabel(c, "ACCENT", theme.Muted).Margin(14, 0, 0, 0)
-			ui.Text(c, "Give any theme an accent of your own: its buttons, selection and focus take it.").
-				FontSize(12).TextColor(theme.Muted)
-			ui.Row(c).FillWidth().Gap(10).Children(func() {
-				own := a.state.Accent == ""
-				if a.swatch(c.Key("default"), theme.LookupAppearance(a.state.Theme, ui.Color{}, a.lightAppearance()).Accent, own, "Theme's own") {
-					a.setAccent("")
-				}
-				ui.Box(c).Width(1).Height(24).Background(theme.Border).Margin(0, 4)
-				for _, col := range theme.Accents {
-					hex := theme.Hex(col)
-					if a.swatch(c.Key(hex), col, strings.EqualFold(a.state.Accent, hex), hex) {
-						a.setAccent(hex)
-					}
-				}
-			})
-			ui.Row(c).Gap(10).Children(func() {
-				ui.Text(c, "Custom").FontSize(12).TextColor(theme.TextSoft)
-				in := widget.Input(c, &a.accentInput, "#D8C3A0").Width(130).Font(theme.MonoFont)
-				if in.Changed() {
-					if hex, ok := parseAccent(a.accentInput); ok {
-						a.setAccent(hex)
-					}
-				}
-				if a.accentInput != "" {
-					if _, ok := parseAccent(a.accentInput); !ok {
-						ui.Text(c, "Type a color as #RRGGBB.").FontSize(11.5).TextColor(theme.Warning)
-					}
-				}
+			ui.Row(c).Grow(1).Basis(0).MinWidth(0).Children(func() {
+				widget.Running(c, "Click the swatch to pick any color.", widget.RunStyle{Size: theme.TextLabel, Color: theme.TextSoft})
 			})
 		})
 	})
+}
+
+// accentShown is the color the picker starts from: the custom accent, else the
+// theme's own.
+func (a *App) accentShown() ui.Color {
+	if a.state.Accent != "" {
+		return ui.Hex(a.state.Accent)
+	}
+	return theme.Accent
+}
+
+// previewAccent shows the app in the accent hex while it is being picked: only
+// its release is kept (setAccent).
+func (a *App) previewAccent(hex string) {
+	st := a.state
+	st.Accent = hex
+	a.showPalette(st.palette(a.lightAppearance()))
+}
+
+// themePreview shows the theme on the controls and states the app is made of.
+// Nothing in it does anything: it is there to be looked at.
+func (a *App) themePreview(c *ui.Context) {
+	widget.CardTitle(c, nil, "With this theme", nil)
+	ui.Row(c).FillWidth().Wrap().Gap(theme.S2).Children(func() {
+		widget.PrimaryButton(c, nil, "Primary", "")
+		widget.Button(c, widget.Secondary, nil, "Secondary", "")
+		on := true
+		widget.Switch(c, &on, "A switch")
+		widget.Segmented(c.Key("sample"), []string{"Selected", "Not selected"}, 0, nil)
+	})
+	ui.Column(c).FillWidth().Children(func() {
+		for i, s := range []struct {
+			name, state string
+			col         ui.Color
+		}{
+			{"GOA session tabs", "Working", theme.Working},
+			{"Host keys to the vault", "Waiting on you", theme.Warning},
+			{"Dialog footers", "Failed", theme.Error},
+		} {
+			row := ui.Row(c.Key(s.name)).FillWidth().MinHeight(32).Gap(theme.S2)
+			if i > 0 {
+				row.BorderWidth(theme.Rule, 0, 0, 0).BorderColor(theme.Border)
+			}
+			row.Children(func() {
+				ui.Text(c, s.name).FontSize(theme.TextLabel).Grow(1).MinWidth(0).SingleLine()
+				widget.Legend(c, s.col, s.state)
+			})
+		}
+	})
+	widget.CodeBlockText(c, "$ go test ./ui\nok  github.com/enowx/enowx/ui  6.1s").Grow(1).Clip()
 }
 
 func (a *App) setAccent(hex string) {
@@ -104,56 +222,26 @@ func parseAccent(s string) (string, bool) {
 	return "#" + strings.ToUpper(s), true
 }
 
-// paletteCard previews a palette with its own colors, whatever the
-// current one; it reports whether it was clicked.
+// paletteCard is a palette's ground and accent, and its name; it reports whether
+// it was clicked.
 func (a *App) paletteCard(c *ui.Context, p theme.Palette) bool {
-	on := theme.Lookup(a.state.Theme, ui.Color{}).ID == p.ID
-	card := ui.ButtonBase(c).MinWidth(0).Padding(10).Gap(10).Radius(theme.RadiusCard).Cursor(ui.CursorPointer).Label(p.Name).
-		Background(theme.Raised)
+	on := !a.state.followsImage() && theme.Lookup(a.state.Theme, ui.Color{}).ID == p.ID
+	card := ui.ButtonBase(c).MinWidth(0).Padding(theme.S2).Radius(theme.RadiusCard).Cursor(ui.CursorPointer)
 	switch {
 	case on:
-		card.Border(1, theme.AccentLine)
+		card.Background(theme.Sunken).InsetShadow(0, 0, 0, 2, theme.Text)
 	case card.Hovered():
-		card.Border(1, theme.BorderStrong)
+		card.Background(theme.Hover)
 	default:
-		card.Border(1, theme.Border)
+		card.Background(theme.Sunken)
 	}
 	card.Children(func() {
-		ui.Column(c).FillWidth().Children(func() {
-			ui.Row(c).FillWidth().Height(74).Radius(9).Clip().Background(p.Background).Border(1, p.Border).Children(func() {
-				ui.Column(c).Width(18).FillHeight().Background(p.Panel).Padding(5, 0).Gap(4).AlignItems(ui.Center).Children(func() {
-					ui.Box(c).Size(9, 9).Radius(3).Background(p.Selected).Border(1, p.Accent)
-					ui.Box(c).Size(9, 9).Radius(3).Background(p.Selected)
-				})
-				ui.Column(c).Width(50).FillHeight().Background(p.Panel).Padding(6).Gap(4).
-					BorderWidth(0, 1, 0, 1).BorderColor(p.Border).Children(func() {
-					for i, col := range []ui.Color{p.Working, p.Warning, p.Idle} {
-						row := ui.Row(c.Key(i)).FillWidth().Height(10).Radius(3).Gap(3).PaddingX(3)
-						if i == 0 {
-							row.Background(p.Selected)
-						}
-						row.Children(func() {
-							ui.Box(c).Size(4, 4).Radius(2).Background(col)
-							ui.Box(c).Height(2).Grow(1).Radius(1).Background(p.Muted)
-						})
-					}
-				})
-				ui.Column(c).Grow(1).FillHeight().Padding(7).Gap(4).Children(func() {
-					ui.Box(c).Height(2).Width(44).Radius(1).Background(p.TextSoft)
-					ui.Box(c).Height(2).Width(30).Radius(1).Background(p.Muted)
-					ui.Spacer(c)
-					ui.Row(c).Gap(4).Children(func() {
-						ui.Box(c).Size(30, 10).Radius(3).Background(p.Accent)
-						ui.Box(c).Size(22, 10).Radius(3).Border(1, p.BorderStrong)
-					})
-				})
+		ui.Column(c).FillWidth().MinWidth(0).Gap(theme.S2).Children(func() {
+			ui.Row(c).FillWidth().Height(56).Radius(theme.S3).Clip().Children(func() {
+				ui.Box(c).Grow(2).Basis(0).FillHeight().Background(p.Background)
+				ui.Box(c).Grow(1).Basis(0).FillHeight().Background(p.Accent)
 			})
-		})
-		ui.Row(c).FillWidth().Gap(8).Children(func() {
-			ui.Text(c, p.Name).FontSize(12.5).Grow(1).SingleLine()
-			if on {
-				ui.Icon(c, icon.Check).FontSize(13).TextColor(theme.Accent)
-			}
+			widget.Running(c, p.Name, widget.RunStyle{Size: theme.TextLabel})
 		})
 	})
 	return card.Clicked()
@@ -161,18 +249,14 @@ func (a *App) paletteCard(c *ui.Context, p theme.Palette) bool {
 
 // swatch is one accent to pick; it reports whether it was clicked.
 func (a *App) swatch(c *ui.Context, col ui.Color, on bool, label string) bool {
-	b := ui.ButtonBase(c).Size(30, 30).Radius(15).Center().Shrink(0).Cursor(ui.CursorPointer).Label(label).Tooltip(label)
-	if theme.Current().Light {
-		b.Border(1, theme.BorderStrong)
-	}
+	b := ui.ButtonBase(c).Size(32, 32).Radius(theme.RadiusFull).Shrink(0).Cursor(ui.CursorPointer).Label(label).Tooltip(label).Background(col)
 	switch {
 	case on:
-		b.Border(1.5, theme.Text)
+		b.InsetShadow(0, 0, 0, 2, theme.Text)
 	case b.Hovered():
-		b.Border(1.5, theme.BorderStrong)
+		b.InsetShadow(0, 0, 0, 2, theme.TextSoft)
+	default:
+		b.InsetShadow(0, 0, 0, 0.5, theme.Border)
 	}
-	b.Children(func() {
-		ui.Box(c).Size(22, 22).Radius(11).Background(col).InsetShadow(0, 1, 0, 0, ui.RGBA(255, 255, 255, 0.3))
-	})
 	return b.Clicked()
 }

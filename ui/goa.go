@@ -12,8 +12,8 @@ import (
 // GOD of Agents mode (docs/goa.md): the connected host's GOA session is
 // the one the user drives, the session list folded away, the side panel
 // kept with the Sessions and Tasks tools, Notes, Canvas and the other
-// pages reached from a strip on top of the main view. The app also tells
-// GOA's host of its workers on other hosts, which only it sees.
+// pages reached from the title bar's capsule. The app also tells GOA's host
+// of its workers on other hosts, which only it sees.
 
 // goaApp is the app's side of GOA, on the main thread.
 type goaApp struct {
@@ -27,11 +27,10 @@ type goaApp struct {
 	detail   *goaDetail    // a session's details, from the Sessions tool
 	rules    *goaRulesForm // its rules being edited (goa_rules.go)
 	stall    *goaStallForm // when a task counts as stalled, being edited (goa_stall.go)
-	// tabs are the sessions open beside GOA, shown the one in view, ""
-	// for GOA itself (goa_tabs.go).
-	tabs  []*goaTab
-	shown string
-	err   string
+	// tabs are the sessions open beside GOA, as center tabs of its session
+	// (goa_tabs.go).
+	tabs []*goaTab
+	err  string
 	// chatSet is the GOA session last opened on its chat, once: the user's
 	// own choice of view is kept after.
 	chatSet string
@@ -97,7 +96,7 @@ func (a *App) goaEvent(ev proto.Event) {
 // goaRelay tells GOA's host that its worker info, on host (as the app
 // names it), changed: only the app sees other hosts.
 func (a *App) goaRelay(host string, info proto.SessionInfo) {
-	if a.client == nil || a.goa.host != a.host.ID || a.goaTaskOf(info.ID) == nil {
+	if a.client == nil || a.goa.host != a.host.ID || a.goaTaskOf(info.ID) == nil && !slices.Contains(a.goa.board.Told, info.ID) {
 		return
 	}
 	cl := a.client
@@ -114,7 +113,7 @@ func (a *App) goaCatchUp(host string, sessions []proto.SessionInfo) {
 		if t == nil || goaSettled(*t) {
 			continue
 		}
-		if st := goa.WorkerStatus(s); st != "" && st != t.Status {
+		if st := goa.WorkerStatus(s); st != "" && st != t.Status || s.ReportAt > t.ReportAt {
 			a.goaRelay(host, s)
 		}
 	}
@@ -173,7 +172,7 @@ func (a *App) toggleGOA() {
 // (nil for nothing): leaving takes the user away from the one session
 // they drive, so it asks first, as every action out of a mode does.
 func (a *App) confirmLeaveGOA(then func()) {
-	a.confirm("Leave GOD of Agents?", "You go back to the projects and their sessions. GOD of Agents keeps running, with its tasks and workers; the title bar's chip brings you back.", "Leave the mode", func() {
+	a.confirm("Leave GOD of Agents?", "GOA keeps running, and you can come back to it.", "Leave", func() {
 		a.leaveGOA()
 		if then != nil {
 			then()

@@ -28,5 +28,6 @@ func (a *App) activityTab(c *ui.Context, s proto.SessionInfo) {
 			return gen == a.gen && a.panelShows(panelActivity) && a.selected == s.ID && a.activityViews[s.ID] == v
 		},
 		OpenFile: func(p string) { a.showFile(s, p) },
+		OpenDiff: func(p string) { a.openCenter(s, centerDiff+a.diffOf(s.ID).PathOf(p)) },
 	})
 }

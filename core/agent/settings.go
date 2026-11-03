@@ -31,9 +31,26 @@ type Settings struct {
 	Efforts []Choice
 	// EffortCommand, with %s the level, sets the effort.
 	EffortCommand string
-	// ModelFlag and EffortFlag, with %s the choice, start the agent on a
-	// model and an effort: arguments of its command line.
-	ModelFlag, EffortFlag []string
+	// ModelFlag, EffortFlag and ModeFlag, with %s the choice, start the agent on a
+	// model, an effort and a permission mode: arguments of its command line.
+	ModelFlag, EffortFlag, ModeFlag []string
+}
+
+// StartArgs are the arguments that start agent id as a session was: its model, effort
+// and mode, passed each time it starts or resumes, so that it doesn't take what its own
+// global settings say by then. Skipping permissions has its own flag, so no mode goes with
+// it; what an agent's transcript names but its command line wouldn't take goes unsaid.
+func StartArgs(id, model, effort, mode string, skip bool) []string {
+	if strings.ContainsAny(model, "< ") {
+		model = ""
+	}
+	out := LaunchArgs(id, model, effort)
+	if s := SettingsOf(id); mode != "" && !skip && mode != "bypassPermissions" {
+		for _, f := range s.ModeFlag {
+			out = append(out, strings.ReplaceAll(f, "%s", mode))
+		}
+	}
+	return out
 }
 
 // LaunchArgs are the arguments that start agent id on model and effort
@@ -88,6 +105,7 @@ var claudeSettings = Settings{
 	EffortCommand: "/effort %s",
 	ModelFlag:     []string{"--model", "%s"},
 	EffortFlag:    []string{"--effort", "%s"},
+	ModeFlag:      []string{"--permission-mode", "%s"},
 }
 
 // codexSettings are Codex's, as of version 0.164 (its /model menu, which

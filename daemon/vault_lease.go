@@ -123,7 +123,7 @@ func (s *Server) vaultHelpers(id string, l *vaultLease, idx proto.VaultIndex) {
 		if dockerConfig(dir, registries) == nil && os.MkdirAll(bin, 0o700) == nil {
 			link := filepath.Join(bin, "docker-credential-enowx"+exeSuffix)
 			_ = os.Remove(link)
-			if os.Symlink(s.HookBin, link) == nil {
+			if os.Symlink(s.linkTarget(), link) == nil {
 				h["DOCKER_CONFIG"] = dir
 				h["PATH"] = bin + string(os.PathListSeparator) + os.Getenv("PATH")
 			}

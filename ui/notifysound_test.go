@@ -162,6 +162,10 @@ func TestNotificationSounds(t *testing.T) {
 		t.Fatalf("no section; shows %q", tt.Texts())
 	}
 	shot(t, tt, "notify-settings.png")
+	if err := tt.Click("Sound of agent finished"); err != nil {
+		t.Fatal(err)
+	}
+	run(100 * time.Millisecond)
 	if err := tt.Click("Bell"); err != nil {
 		t.Fatal(err)
 	}
@@ -292,8 +296,8 @@ func TestNotificationsShowWhatTheyAreAbout(t *testing.T) {
 	app.state.GOA, app.goa.host, app.goa.board.Session = true, hosts.LocalID, "goa"
 	app.toastSession(proto.NotifyDone, "this Mac", worker.ID, "Fix the totals", "")
 	app.openToast(app.sessionToasts[0])
-	if len(app.goa.tabs) != 1 || app.goa.tabs[0].id != worker.ID || app.goa.shown == "" || !app.goaOn() {
-		t.Fatalf("in GOA: tabs %+v shown %q", app.goa.tabs, app.goa.shown)
+	if len(app.goa.tabs) != 1 || app.goa.tabs[0].id != worker.ID || app.goaShownTab() == nil || !app.goaOn() {
+		t.Fatalf("in GOA: tabs %+v shown %v", app.goa.tabs, app.goaShownTab())
 	}
 	for app.goa.tabs[0].term == nil && app.goa.tabs[0].err == "" {
 		(<-posted)()

@@ -29,9 +29,26 @@ type mentionOption struct {
 	detail string
 }
 
+// chatPlaceholder is what an empty composer says: the side panel has room for
+// less of it.
+func (a *App) chatPlaceholder(team string) string {
+	if a.teamPageChat() != "" {
+		return "Message " + a.spaceName(team) + ", @ to mention"
+	}
+	// One line whatever the team's name: a placeholder that wraps is cut by its box.
+	name := []rune(a.spaceName(team))
+	if len(name) > 16 {
+		name = append(name[:15], '…')
+	}
+	return "Message " + string(name)
+}
+
 func (a *App) chatComposer(c *ui.Context, team string) {
 	hc := a.chatsOf()
-	col := ui.Column(c).FillWidth().Shrink(0).Padding(8, 10, 10, 10).Gap(6).BorderWidth(1, 0, 0, 0).BorderColor(theme.Border)
+	col := ui.Column(c).FillWidth().Shrink(0).Padding(theme.S2, a.chatPad()).Gap(theme.S1)
+	if a.teamPageChat() != "" {
+		col.Padding(theme.S2, theme.S5, theme.S5, theme.S5)
+	}
 	if files := col.DroppedFiles(); len(files) > 0 && a.chatWriter(team) {
 		a.addChatImageFiles(team, files)
 	}
@@ -43,15 +60,15 @@ func (a *App) chatComposer(c *ui.Context, team string) {
 			widget.Notice(c, icon.Alert, theme.Error, hc.err, "", nil)
 		}
 		if hc.editing != nil {
-			ui.Row(c).FillWidth().Gap(6).PaddingX(4).AlignItems(ui.Center).Children(func() {
-				ui.Icon(c, icon.Pencil).FontSize(12).TextColor(theme.Accent)
-				ui.Text(c, "Editing your message · Esc to cancel").FontSize(11.5).TextColor(theme.TextSoft).Grow(1).Shrink(1).SingleLine()
+			ui.Row(c).FillWidth().Gap(theme.S2).PaddingX(theme.S1).AlignItems(ui.Center).Children(func() {
+				ui.Icon(c, icon.Pencil).FontSize(12).TextColor(theme.Now)
+				ui.Text(c, "Editing your message · Esc to cancel").FontSize(theme.TextLabel).TextColor(theme.TextSoft).Grow(1).Shrink(1).SingleLine()
 				if widget.IconButton(c, icon.Close, "Stop editing", false).Clicked() {
 					a.stopEditing()
 				}
 			})
 			// What the message mentions as chips, kept unless dropped here.
-			ui.Row(c).FillWidth().Gap(6).Wrap().PaddingX(4).Children(func() {
+			ui.Row(c).FillWidth().Gap(theme.S2).Wrap().PaddingX(theme.S1).Children(func() {
 				for i, mn := range hc.mentions {
 					if strings.Contains(hc.editing.Text, "@"+mn.Title) {
 						continue
@@ -67,15 +84,11 @@ func (a *App) chatComposer(c *ui.Context, team string) {
 		a.pendingImages(c)
 		start, stop, query, typing := -1, -1, "", false
 		var options []mentionOption
-		box := ui.Row(c).FillWidth().Gap(4).Padding(3, 3, 3, 10).Radius(14).Background(theme.Sunken).AlignItems(ui.End)
-		border := theme.BorderStrong
-		if box.FocusWithin() {
-			border = theme.AccentLine
-		}
+		box := ui.Row(c).FillWidth().Gap(theme.S1).Padding(theme.S1, theme.S2, theme.S1, theme.S4).Radius(theme.RadiusPanel).AlignItems(ui.End)
 		send := false
-		box.Border(1, widget.Tint(box, "border", border)).Children(func() {
-			in := ui.TextAreaBase(c, &hc.draft).Grow(1).Shrink(1).MinWidth(0).Lines(1, 6).Padding(6, 0).FontSize(12.5).
-				Placeholder("Message " + a.spaceName(team) + " · @ to mention").Label("Message").
+		widget.Well(box, box.FocusWithin()).Children(func() {
+			in := ui.TextAreaBase(c, &hc.draft).Grow(1).Shrink(1).MinWidth(0).Lines(1, 6).Padding(theme.S2, widget.ScrollGutter, theme.S2, 0).FontSize(theme.TextUI).
+				Placeholder(a.chatPlaceholder(team)).Label("Message").
 				Tooltip("Enter to send · Shift+Enter for a new line")
 			_, caret := in.TextSelection()
 			if hc.setCaret >= 0 {
@@ -152,15 +165,12 @@ func (a *App) chatComposer(c *ui.Context, team string) {
 				hc.draft += "@"
 				hc.setCaret, hc.dismissed, hc.focus = len([]rune(hc.draft)), "", true
 			}
-			images, uploading := a.imagesReady()
-			empty := strings.TrimSpace(hc.draft) == "" && len(images) == 0 || uploading
-			b := ui.ButtonBase(c).Size(28, 28).Radius(14).Center().Shrink(0).Label("Send").Tooltip("Send (Enter)").Cursor(ui.CursorPointer).
-				Gradient(theme.AccentHigh, theme.Accent, 180).TextColor(theme.OnAccent)
+			empty := strings.TrimSpace(hc.draft) == "" && len(a.imagesSendable()) == 0
+			b := widget.IconButton(c, icon.Send, "Send", false).Tooltip("Send (Enter)")
 			if empty {
-				b.Opacity(0.35).Disabled(true)
+				b.Disabled(true)
 			}
-			b.Children(func() { ui.Icon(c, icon.ArrowUp).FontSize(13) })
-			send = widget.Pressable(b).Clicked() && !empty
+			send = b.Clicked() && !empty
 		})
 		if typing {
 			a.mentionMenu(c, box, start, stop, query, options)
@@ -301,17 +311,17 @@ func (a *App) mentionFiles(team, query string) []mentionOption {
 func (a *App) mentionMenu(c *ui.Context, box ui.Element, start, stop int, query string, options []mentionOption) {
 	hc := a.chatsOf()
 	ui.Overlay(c, func() {
-		widget.Popup(ui.Column(c).AttachTo(box, ui.AnchorTopLeft, ui.AnchorBottomLeft).Margin(0, 0, 6, 0).
+		widget.Popup(ui.Column(c).AttachTo(box, ui.AnchorTopLeft, ui.AnchorBottomLeft).Margin(0, 0, theme.S2, 0).
 			Width(max(box.LayoutBounds().W, 240)).MaxHeight(300)).Children(func() {
 			if len(options) == 0 {
 				msg := "Nothing in the team is called “" + query + "”"
 				if query == "" {
 					msg = "The team has no members, notes or projects to mention yet"
 				}
-				ui.Text(c, msg).FontSize(12).TextColor(theme.Muted).Padding(8, 10)
+				ui.Text(c, msg).FontSize(theme.TextLabel).TextColor(theme.Muted).Padding(theme.S2, theme.S2)
 				return
 			}
-			widget.PopupLabel(c, "MENTION")
+			widget.PopupLabel(c, "Mention")
 			for i, o := range options {
 				row := ui.ButtonBase(c.Key(o.m.Kind + ":" + o.m.ID)).Label(o.m.Title).Cursor(ui.CursorPointer)
 				widget.PopupItem(row, i == hc.pick || row.Hovered()).Children(func() {
@@ -322,8 +332,8 @@ func (a *App) mentionMenu(c *ui.Context, box ui.Element, start, stop int, query 
 							ui.Icon(c, mentionIcon(o.m.Kind)).FontSize(13).TextColor(theme.TextSoft)
 						})
 					}
-					ui.Text(c, o.m.Title).FontSize(12.5).TextColor(theme.Text).SingleLine().Shrink(0).MaxWidth(200)
-					ui.Text(c, o.detail).FontSize(11).TextColor(theme.Muted).SingleLine().Shrink(1).Grow(1)
+					ui.Text(c, o.m.Title).FontSize(theme.TextUI).TextColor(theme.Text).SingleLine().Shrink(0).MaxWidth(200)
+					ui.Text(c, o.detail).FontSize(theme.TextLabel).TextColor(theme.Muted).SingleLine().Shrink(1).Grow(1)
 				})
 				if row.Clicked() {
 					hc.draft = a.pickMention(hc.draft, start, stop, o.m)

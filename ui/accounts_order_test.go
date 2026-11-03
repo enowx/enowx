@@ -71,7 +71,7 @@ func TestAccountsOrderAndAsk(t *testing.T) {
 	app.saveAccountPrefs(st, "claude", proto.AccountPrefs{Order: []string{"Work", "", "Spare"}, Fallback: proto.FallbackAsk, Default: "Work"})
 	frames(func() bool { return srv != nil && len(st.info.Prefs["claude"].Order) == 3 }, "the order kept")
 	tt.Frame()
-	if !tt.HasText("Ask me first") || !tt.HasText("new sessions") {
+	if !tt.HasText("Ask me first") || !tt.HasText("New sessions") {
 		t.Fatalf("shown: %q", tt.Texts())
 	}
 	shot(t, tt, "accounts-order.png")

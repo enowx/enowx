@@ -39,7 +39,9 @@ const (
 // FeatureGroups are the groups, in order.
 var FeatureGroups = []string{GroupCore, GroupPreview, GroupNotes, GroupProject, GroupDesign, GroupSecure}
 
-const guideIntro = `You are running inside an enowX session, possibly on a remote Linux server. The user watches this session from the enowX app on their own computer. enowX's tools are commands of "$ENOWX_BIN" (set in every session's environment): "$ENOWX_BIN" help lists them all, "$ENOWX_BIN" guide prints this again. Use them rather than asking the user to do it by hand.`
+const guideIntro = `You are running inside an enowX session, possibly on a remote Linux server. The user watches this session from the enowX app on their own computer. enowX's tools are commands of "$ENOWX_BIN" (set in every session's environment): "$ENOWX_BIN" help lists them all, "$ENOWX_BIN" guide prints this again. Use them rather than asking the user to do it by hand.
+
+A to-do in a note is ticked in the same turn as the commit that finishes it, without being asked ("$ENOWX_BIN" notes check NOTE --item TEXT): this is mandatory. Done means built and committed. What only the owner can test goes in a separate owner's test item, and never keeps the build to-do open.`
 
 const guideMCP = `The same tools are MCP tools too, from "$ENOWX_BIN" mcp (stdio), screenshots as images, and its "enowx" tool runs any command above, for when MCP suits you better than the shell.`
 

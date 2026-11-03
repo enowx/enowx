@@ -102,6 +102,10 @@ func TestTokensTabEveryHost(t *testing.T) {
 	if got := app.tok.data.Summary.Total.Input; got != 1200+1200+5000 {
 		t.Fatalf("every host's input together: %d", got)
 	}
+	if err := tt.Click("Group by"); err != nil {
+		t.Fatal(err)
+	}
+	tt.Frame()
 	if err := tt.Click("Host"); err != nil {
 		t.Fatal(err)
 	}
@@ -112,11 +116,11 @@ func TestTokensTabEveryHost(t *testing.T) {
 		t.Fatal(err)
 	}
 	tt.Frame()
-	if err := tt.Click("Add budget"); err != nil {
+	if err := tt.Click("Add a budget"); err != nil {
 		t.Fatal(err)
 	}
 	tt.Frame()
-	if err := tt.Click("5000000"); err != nil {
+	if err := tt.Click("20000000"); err != nil {
 		t.Fatal(err)
 	}
 	tt.Type("2000")

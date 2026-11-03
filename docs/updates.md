@@ -14,7 +14,7 @@ Development builds (`make dev`) and builds without an update feed don't update t
 
 ## Where updates come from
 
-GitHub Releases of `enowx/enowx` (`updates.github` in `cmd/enowx/mygo.json`): apps read the update manifests of the latest published release, and check each update's signature against `updates.publicKey`, built into them.
+GitHub Releases of `enowdev/enowx` (`updates.github` in `cmd/enowx/mygo.json`): apps read the update manifests of the latest published release, and check each update's signature against `updates.publicKey`, built into them.
 
 The secret half of that key signs every release. It is the repository secret `MYGO_UPDATER_PRIVATE_KEY`, and a copy is kept by the maintainer outside the repository: installed apps accept only updates signed with it, so losing it strands them, and whoever has it can ship code to every user. Never commit it.
 
@@ -23,7 +23,7 @@ The secret half of that key signs every release. It is the repository secret `MY
 1. Set the version in `cmd/enowx/mygo.json`, and add its section to `CHANGELOG.md` (`## x.y.z`): it is what the update dialog shows.
 2. Commit, then tag and push: `git tag vx.y.z && git push origin vx.y.z`.
 3. The Release workflow (`.github/workflows/release.yml`) checks the tag against the version and the changelog, creates a draft release, and builds every platform on its own runner (`mygo build -upload`): the installers, each platform's signed archive, delta updates from the last versions, and `update-<platform>.json`, uploaded to the draft.
-4. Look at the draft, then publish it: from then on, apps find it within six hours, or at once with **Check for updates**.
+4. Look at the draft, then publish it: from then on, apps find it within six hours, or at once with **Check for updates**. Publish it as the latest and not as a pre-release: the feed only reads the latest. Publishing also posts the version's changelog to #releases on the Discord server, mentioning Update Notification (the `announce` job, as the bot, with the `DISCORD_RELEASE_BOT_TOKEN` secret: Discord lets only a bot with Mention Everyone ping a role that isn't mentionable). A failed post doesn't touch the release, and a rerun doesn't post twice.
 
 Running the workflow by hand builds the same files as the run's artifacts, publishing nothing.
 

@@ -8,6 +8,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/enowx/enowx/core/agent"
 	"github.com/enowx/enowx/core/goa"
 	"github.com/enowx/enowx/core/procstat"
 	"github.com/enowx/enowx/core/session"
@@ -104,6 +105,38 @@ func stallCase(l stallLook, lim proto.GOAStall) (string, time.Duration) {
 	return "", 0
 }
 
+// queuedQuiet is how long a session's screen stays still, with nothing running,
+// before a task queued for it goes in although its turn was never seen to end.
+const queuedQuiet = 20 * time.Second
+
+// queuedCanGo says a task queued for a session can go in now, its turn's end
+// unheard: an interrupt ends a turn with no hook, and a command typed at the
+// prompt (/model) says nothing either, so its state stays the working it last
+// was, gone stale. Only such a session counts: one with no state may be a plain
+// shell, in a command that reads what it is typed.
+func queuedCanGo(l stallLook, screen string) bool {
+	return l.Info.StateStale && !l.Info.Exited && !l.Info.Queued && !l.Gone &&
+		l.Still >= queuedQuiet && (l.NoCPU || l.CPU < stallCPUIdle) && agent.PromptFree(screen)
+}
+
+const (
+	// turnOverStill is how long a screen shows a turn's end before it counts.
+	turnOverStill = 20 * time.Second
+	// turnOverCPU is the percent of a core a session whose screen shows its turn over
+	// may use: an agent at rest isn't at 0 (Claude Code was seen at 1.6, its MCP
+	// servers beside it), and what really works shows it on its screen.
+	turnOverCPU = 20.0
+)
+
+// turnOverOnScreen says a session no hook speaks for (an agent with none, one started
+// by hand in a shell tab, or one whose hooks fail: it still says done from its last
+// turn, GOA having sent it another) shows its turn has ended. That is a report, not
+// "isn't moving". What is only quiet stays a stall.
+func turnOverOnScreen(l stallLook, screen string) bool {
+	silent := l.Info.State == "" || l.Info.StateStale || l.Info.State == proto.StateDone
+	return silent && !l.Info.Exited && l.Still >= turnOverStill && (l.NoCPU || l.CPU < turnOverCPU) && agent.TurnOverShown(screen)
+}
+
 // stallFollow is what was told of a task. Only watchStalls touches it.
 type stallFollow struct {
 	screen string
@@ -122,6 +155,7 @@ type stallHost struct {
 
 // stallWatch is what watchStalls keeps between looks.
 type stallWatch struct {
+	lost    map[string]time.Time    // hosts not reached, since when
 	follows map[string]*stallFollow // by task
 	sampled map[string]bool         // hosts ("" this one) sampled, as CPU use is measured between two
 }
@@ -149,43 +183,46 @@ func (s *Server) watchStalls(done <-chan struct{}) {
 	}
 }
 
-// stallPass looks once at every task said to be running. A host that can't be
-// reached says nothing of its tasks, which wait as they are.
+// stallPass looks once at every task said to be running, and every session GOA sent
+// something to with no task. A host that can't be reached says nothing of its
+// sessions, which wait as they are.
 func (s *Server) stallPass(w *stallWatch) {
+	s.goaFlushIdle()
 	lim := s.goaStall()
 	var open []proto.GOATask
 	for _, t := range s.goa.board.Working() {
-		if t.Session != "" && (t.Status == proto.GOATaskWorking || t.Status == proto.GOATaskStalled) {
+		if t.Session != "" && (t.Status == proto.GOATaskWorking || t.Status == proto.GOATaskStalled || t.Status == proto.GOATaskQueued) {
 			open = append(open, t)
 		}
 	}
-	if len(open) == 0 {
+	told := s.goaToldNow()
+	if len(open) == 0 && len(told) == 0 {
 		clear(w.sampled)
 		clear(w.follows)
 		return
 	}
 	hosts := map[string]*stallHost{}
 	seen := map[string]bool{}
+	given := map[string]bool{} // sessions given a queued task in this pass
 	for _, t := range open {
 		seen[t.ID] = true
-		key := t.Host
-		if s.thisHost(key) {
-			key = ""
-		}
-		h, looked := hosts[key]
-		if !looked {
-			h = s.stallHostNow(key)
-			if h != nil && !w.sampled[key] {
-				// What this sample says of the CPU counts from the next.
-				w.sampled[key] = true
-				h = nil
-			} else if h == nil {
-				delete(w.sampled, key)
+		key := s.stallKey(t.Host)
+		h := s.stallLookAt(w, hosts, key)
+		switch {
+		case h == nil:
+			if !w.sampled[key] { // else it was reached, and sampled for the first time
+				s.stallHostLost(w, key, t, lim)
 			}
-			hosts[key] = h
-		}
-		if h != nil {
+		case t.Status != proto.GOATaskQueued:
 			s.stallCheck(w, t, *h, lim)
+		case !given[t.Session] && s.queuedCheck(w, t, *h):
+			given[t.Session] = true
+		}
+	}
+	for id, was := range told {
+		seen[toldFollow(id)] = true
+		if h := s.stallLookAt(w, hosts, s.stallKey(was.Host)); h != nil {
+			s.toldCheck(w, id, was, *h, lim)
 		}
 	}
 	for id := range w.follows {
@@ -193,6 +230,86 @@ func (s *Server) stallPass(w *stallWatch) {
 			delete(w.follows, id)
 		}
 	}
+}
+
+// stallKey is host as watchStalls keeps it, "" for this one.
+func (s *Server) stallKey(host string) string {
+	if s.thisHost(host) {
+		return ""
+	}
+	return host
+}
+
+// stallLookAt is what host key says now, asked once a pass: nil when it can't be
+// reached, or was sampled for the first time, as CPU use is measured between two.
+func (s *Server) stallLookAt(w *stallWatch, hosts map[string]*stallHost, key string) *stallHost {
+	if h, looked := hosts[key]; looked {
+		return h
+	}
+	h := s.stallHostNow(key)
+	if h != nil && !w.sampled[key] {
+		// What this sample says of the CPU counts from the next.
+		w.sampled[key] = true
+		h = nil
+	} else if h == nil {
+		delete(w.sampled, key)
+	}
+	if h != nil || w.sampled[key] {
+		delete(w.lost, key)
+	}
+	hosts[key] = h
+	return h
+}
+
+// stallHostLost tells of task t once its host hasn't been reached for as long as
+// an idle session may be: the app, which reaches it, is closed, or the connection
+// dropped. Its session may be fine, and the line says so. A task told of moves to
+// stalled, so it is told once.
+func (s *Server) stallHostLost(w *stallWatch, key string, t proto.GOATask, lim proto.GOAStall) {
+	if w.lost == nil {
+		w.lost = map[string]time.Time{}
+	}
+	since, known := w.lost[key]
+	if !known {
+		w.lost[key] = time.Now()
+		return
+	}
+	limit := stallSeconds(lim.Idle)
+	if limit <= 0 || time.Since(since) < limit || t.Status != proto.GOATaskWorking {
+		return
+	}
+	if s.stallMark(t.ID, proto.GOATaskWorking, proto.GOATaskStalled) {
+		s.goaTellLine(goaLine{Task: t.ID, Session: t.Session, Text: fmt.Sprintf("[enowX GOA] Task %s %q on %s: its host can't be reached (the app is closed there, or the connection dropped), so what its session does isn't known. It stays open: look again once the host is back.", t.ID, t.Title, nonEmpty(t.Host, "this host"))})
+	}
+}
+
+// queuedCheck gives task t's session its oldest queued task if its prompt is
+// free, on host h, and says whether it did.
+func (s *Server) queuedCheck(w *stallWatch, t proto.GOATask, h stallHost) bool {
+	now := time.Now()
+	f := w.follows[t.ID]
+	if f == nil {
+		f = &stallFollow{since: now}
+		w.follows[t.ID] = f
+	}
+	info, there := h.infos[t.Session]
+	if !there {
+		return false
+	}
+	text, err := h.screen(t.Session)
+	if err != nil {
+		return false
+	}
+	if text != f.screen {
+		f.screen, f.since = text, now
+	}
+	look := stallLook{Info: info, NoCPU: !h.cpuKnown, CPU: h.cpuOf(t.Session), Still: now.Sub(f.since)}
+	if !queuedCanGo(look, text) {
+		return false
+	}
+	s.logger().Info("goa: a queued task goes in, its session's prompt being free", "session", t.Session, "task", t.ID)
+	s.goaDeliver(info)
+	return true
 }
 
 // stallCheck tells what's new of task t, on host h.
@@ -230,6 +347,10 @@ func (s *Server) stallCheck(w *stallWatch, t proto.GOATask, h stallHost, lim pro
 		look.CPU = h.cpuOf(t.Session)
 	}
 	look.Still = now.Sub(f.since)
+	if there && turnOverOnScreen(look, text) {
+		s.goaTurnOverSeen(t, text)
+		return
+	}
 	why, limit := stallCase(look, lim)
 	if why == "" {
 		f.told, f.fired = time.Time{}, false
@@ -240,6 +361,9 @@ func (s *Server) stallCheck(w *stallWatch, t proto.GOATask, h stallHost, lim pro
 	}
 	if t.Status != proto.GOATaskStalled && !s.stallMark(t.ID, proto.GOATaskWorking, proto.GOATaskStalled) {
 		return // settled meanwhile
+	}
+	if s.goa.board.IsSettled(t.ID) {
+		return // t is as this pass began, and a look at another host takes time
 	}
 	if !f.told.IsZero() && now.Sub(f.told) < stallAgain*limit {
 		return
@@ -259,7 +383,7 @@ func (s *Server) stallCheck(w *stallWatch, t proto.GOATask, h stallHost, lim pro
 	if look.NoCPU {
 		line += " (its host can't say what its processes use, so it may be a long build)"
 	}
-	s.goaTell(stallLine(t, line, text))
+	s.goaTellLine(goaLine{Text: stallLine(t, line, text), Task: t.ID, Session: t.Session})
 }
 
 // stallMark moves task id from one status to another, unless something else

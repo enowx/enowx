@@ -10,7 +10,6 @@ import (
 	"github.com/enowx/enowx/proto"
 	"github.com/enowx/enowx/ui/icon"
 	"github.com/enowx/enowx/ui/theme"
-	"github.com/enowx/enowx/ui/widget"
 )
 
 // groupFrom is how many tool calls in a row fold into one line: fewer
@@ -154,31 +153,43 @@ func summary(tools []proto.TranscriptEntry) string {
 }
 
 // toolRow is one tool call: what it did, opening to its output or change.
-// Calls that went well say nothing more; a failed one says so.
-func (ch *Chat) toolRow(c *ui.Context, e proto.TranscriptEntry, latest bool) {
-	svg, verb := toolLook(e.Text)
-	if e.Text == "Bash" {
-		svg, verb = shellLook(e)
-	}
-	status := func() {
-		switch {
-		case e.Added+e.Removed > 0:
-			ui.Text(c, fmt.Sprintf("+%d", e.Added)).FontSize(11.5).TextColor(theme.Done).SingleLine()
-			ui.Text(c, fmt.Sprintf("−%d", e.Removed)).FontSize(11.5).TextColor(theme.Error).SingleLine()
-		case e.Failed:
-			ui.Text(c, "failed").FontSize(11.5).TextColor(theme.Error).SingleLine()
-		case latest && !e.Done:
-			widget.Spinner(c, 11)
+// A failed one says so in the color of a failure.
+func (ch *Chat) toolRow(c *ui.Context, e proto.TranscriptEntry) {
+	svg, verb := lookOf(e)
+	l := lineLook{svg: svg, label: doneVerb(verb), detail: ch.toolDetailShown(e), name: verb}
+	if e.Failed {
+		l.svg, l.color, l.label, l.note = icon.Alert, theme.Del, "", "failed"
+		if why := firstLine(e.Result); why != "" {
+			l.note += ": " + why
+		}
+		if l.detail == "" {
+			l.label = doneVerb(verb)
 		}
 	}
-	ch.row(c, e.Index, svg, verb, toolDetailShown(e), status, func() { ch.toolBody(c, e) })
+	l.right = func(hovered bool) {
+		figures(c, e.Added, e.Removed)
+		passed := verb == "Run" && e.Done && !e.Failed
+		if passed {
+			ui.Text(c, "passed").FontSize(theme.TextUI).TextColor(theme.Add).SingleLine()
+		}
+		// Figures and a pass speak for a call; its time shows only when asked for.
+		if e.Done && e.DurationMs > 0 && (e.Added+e.Removed == 0 && !passed || hovered) {
+			ui.Text(c, took(e.DurationMs)).FontSize(theme.TextUI).TextColor(theme.TextSoft).SingleLine()
+		}
+	}
+	ch.stepLine(c, e.Index, l, func() { ch.toolBody(c, e) })
 }
 
-// toolDetailShown is a call's detail as the row shows it: a file by its
-// name, then its folder.
-func toolDetailShown(e proto.TranscriptEntry) string {
+// toolDetailShown is a call's detail as the row shows it: a file of the
+// session's folder from there, another by its name, then its folder.
+func (ch *Chat) toolDetailShown(e proto.TranscriptEntry) string {
 	switch e.Text {
 	case "Read", "Edit", "MultiEdit", "Write", "NotebookRead", "NotebookEdit":
+		if ch.dir != "" {
+			if rel, ok := strings.CutPrefix(e.Detail, strings.TrimSuffix(ch.dir, "/")+"/"); ok {
+				return rel
+			}
+		}
 		if strings.HasPrefix(e.Detail, "/") && !strings.Contains(e.Detail, ", ") {
 			return path.Base(e.Detail) + "  " + path.Dir(e.Detail)
 		}

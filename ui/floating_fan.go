@@ -60,7 +60,7 @@ func (a *App) floatingFan(c *ui.Context, panel ui.Element, st *floatingState, f,
 			// (fanSliceAt), so the whole sub-slice answers the pointer.
 			b := ui.ButtonBase(c.Key("fan:"+act.key)).Absolute().
 				Left(float32(x-floatingFanTarget/2)).Top(float32(y-floatingFanTarget/2)).
-				Size(floatingFanTarget, floatingFanTarget).Radius(floatingFanTarget / 2).Column().Center().Gap(3).
+				Size(floatingFanTarget, floatingFanTarget).Radius(floatingFanTarget / 2).Column().Center().Gap(theme.S1).
 				Label(act.label).Tooltip(act.label).Cursor(ui.CursorPointer)
 			// Dimmed by colour, not by MyGo's disabled state, which halves
 			// what the element paints: the sub-slice behind is opaque and
@@ -71,7 +71,7 @@ func (a *App) floatingFan(c *ui.Context, panel ui.Element, st *floatingState, f,
 			}
 			b.Children(func() {
 				ui.Icon(c, act.svg).FontSize(16).TextColor(icon)
-				ui.Text(c, act.short).FontSize(9).TextColor(icon).
+				ui.Text(c, act.short).FontSize(theme.TextLabel).TextColor(icon).
 					MaxWidth(floatingFanTarget).MaxLines(2).TextAlign(ui.Center).PassThrough()
 			})
 			if b.Clicked() && act.enabled && a.floatingShown && st.fan != "" {

@@ -21,6 +21,9 @@ func load(name string) *ui.SVG {
 // The icons.
 var (
 	Plus         = load("plus")
+	Monitor      = load("monitor")
+	EnterKey     = load("corner-down-left")
+	Languages    = load("languages")
 	PanelRight   = load("panel-right")
 	ArrowLeft    = load("arrow-left")
 	ArrowRight   = load("arrow-right")
@@ -49,6 +52,7 @@ var (
 	Check        = load("check")
 	Close        = load("x")
 	Tailscale    = load("tailscale")
+	Discord      = load("discord") // its logo, for what labels Discord itself
 	Trash        = load("trash")
 	Sync         = load("sync")
 	Lock         = load("lock")
@@ -100,6 +104,7 @@ var (
 	Bot        = load("agentbot")
 	Sparkle    = load("sparkle") // the agent's own words, in the chat's timeline
 	List       = load("list")
+	ListChecks = load("list-checks")
 	Notebook   = load("notebook")
 	// A note's layout blocks.
 	Info       = load("info")

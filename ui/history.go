@@ -10,6 +10,7 @@ import (
 
 	"github.com/enowx/enowx/client"
 	"github.com/enowx/enowx/proto"
+	"github.com/enowx/enowx/ui/icon"
 	"github.com/enowx/enowx/ui/textfmt"
 	"github.com/enowx/enowx/ui/theme"
 	"github.com/enowx/enowx/ui/widget"
@@ -54,61 +55,47 @@ func (a *App) historyDialogView(c *ui.Context) {
 	if !h.open {
 		return
 	}
-	widget.Dialog(c, &h.open, 640, 12, func() {
-		widget.DialogHeader(c, "Past conversations in “"+h.project.Name+"”",
-			"What Claude Code and Codex talked about in its folder and worktrees. Resume goes on with one in a new session, where it ran.", false)
-		widget.SearchField(c, &h.filter, "Filter", nil)
+	widget.FormSheet(c, &h.open, 480, "Past conversations in "+h.project.Name, "", func() {
+		widget.SearchField(c, &h.filter, "Filter", icon.Search)
 		switch {
 		case h.err != "":
-			widget.Notice(c, nil, theme.Error, h.err, "", nil)
+			widget.Notice(c, icon.Alert, theme.Error, h.err, "", nil)
 		case h.loading:
-			ui.Row(c).Gap(8).Padding(8).Children(func() {
+			ui.Row(c).FillWidth().Gap(theme.S2).Padding(theme.S2, theme.S3).Children(func() {
 				widget.Spinner(c, 13)
-				ui.Text(c, "Reading the conversations…").FontSize(12).TextColor(theme.Muted)
+				ui.Text(c, "Reading the conversations…").FontSize(theme.TextUI).TextColor(theme.TextSoft)
 			})
 		case len(h.list) == 0:
-			ui.Text(c, "No conversations here yet.").FontSize(12).TextColor(theme.Muted).Padding(8)
+			ui.Text(c, "No conversations here yet.").FontSize(theme.TextUI).TextColor(theme.TextSoft).Padding(theme.S2, theme.S3)
 		}
-		ui.Scroll(c).FillWidth().MaxHeight(440).Children(func() {
-			ui.Column(c).FillWidth().Gap(4).Children(func() {
-				for _, conv := range h.list {
-					if f := strings.ToLower(h.filter); f != "" && !strings.Contains(strings.ToLower(conv.Title+" "+conv.Branch), f) {
-						continue
-					}
-					a.conversationRow(c.Key(conv.Agent+conv.ID), conv)
+		ui.Column(c).FillWidth().Children(func() {
+			for _, conv := range h.list {
+				if f := strings.ToLower(h.filter); f != "" && !strings.Contains(strings.ToLower(conv.Title+" "+conv.Branch), f) {
+					continue
 				}
-			})
-		})
-	})
-}
-
-func (a *App) conversationRow(c *ui.Context, conv proto.Conversation) {
-	widget.Card(c).FillWidth().Children(func() {
-		ui.Row(c).FillWidth().Gap(10).Children(func() {
-			agentTile(c, conv.Agent, 26)
-			ui.Column(c).Grow(1).MinWidth(0).Gap(2).Children(func() {
-				title := conv.Title
-				if title == "" {
-					title = "(no message)"
-				}
-				ui.Text(c, title).FontSize(12.5).SingleLine()
-				var meta []string
-				if conv.Branch != "" {
-					meta = append(meta, conv.Branch)
-				} else {
-					meta = append(meta, path.Base(conv.Dir))
-				}
-				meta = append(meta, fmt.Sprintf("%d %s", conv.Messages, textfmt.Plural(conv.Messages, "message", "messages")))
-				if conv.Model != "" {
-					meta = append(meta, conv.Model)
-				}
-				meta = append(meta, textfmt.Age(conv.Updated, time.Now())+" ago")
-				ui.Text(c, strings.Join(meta, " · ")).FontSize(11).TextColor(theme.Muted).SingleLine()
-			})
-			if widget.GhostButton(c, "Resume").Clicked() {
-				a.resumeConversation(conv)
+				a.conversationRow(c.Key(conv.Agent+conv.ID), conv)
 			}
 		})
+	}, func() {})
+}
+
+// conversationRow is a conversation: its first message, whose it is and how
+// it went, and the way back to it.
+func (a *App) conversationRow(c *ui.Context, conv proto.Conversation) {
+	ui.Row(c).FillWidth().Shrink(0).MinHeight(44).Padding(theme.S1, theme.S3).Gap(theme.S2).Children(func() {
+		ui.Column(c).Grow(1).MinWidth(0).Children(func() {
+			widget.Running(c, nonEmpty(conv.Title, "(no message)"), widget.RunStyle{})
+			meta := []string{a.agentName(conv.Agent), nonEmpty(conv.Branch, path.Base(conv.Dir)),
+				fmt.Sprintf("%d %s", conv.Messages, textfmt.Plural(conv.Messages, "message", "messages"))}
+			if conv.Model != "" {
+				meta = append(meta, conv.Model)
+			}
+			meta = append(meta, textfmt.Age(conv.Updated, time.Now())+" ago")
+			widget.Running(c.Key("meta"), strings.Join(meta, " · "), widget.RunStyle{Size: theme.TextLabel, Color: theme.TextSoft})
+		})
+		if widget.Button(c, widget.Secondary, nil, "Resume", "").Clicked() {
+			a.resumeConversation(conv)
+		}
 	})
 }
 

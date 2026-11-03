@@ -55,12 +55,13 @@ func readCodeBuddy(path string, st *FileState) ([]Call, error) {
 			return
 		}
 		u := l.Message.Usage
-		c := Call{Time: anyTime(l.Timestamp), Dir: st.Dir, Conversation: st.Conv, Model: st.Model,
+		c := Call{Time: anyTime(l.Timestamp), Dir: st.Dir, Conversation: st.Conv, Model: st.Model, ModelInferred: true,
 			Input: max(u.Input-u.CacheRead-u.CacheCreate, 0), CacheRead: u.CacheRead, CacheWrite: u.CacheCreate, Output: u.Output}
 		id := l.ID
 		if pd := l.ProviderData; pd != nil {
 			id = cmp.Or(pd.MessageID, id)
 			c.Model = cmp.Or(pd.Model, c.Model)
+			c.ModelInferred = pd.Model == ""
 			st.Model = c.Model
 			if pd.RawUsage != nil {
 				c.Reasoning = pd.RawUsage.Completion.Reasoning

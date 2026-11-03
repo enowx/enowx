@@ -58,6 +58,9 @@ type agentHook struct {
 	Type    string `json:"type"`
 	Command string `json:"command"`
 	Timeout int    `json:"timeout"`
+	// AsyncRewake runs it in the background, and wakes Claude Code on exit code 2,
+	// even when idle, its stderr shown as a system reminder.
+	AsyncRewake bool `json:"asyncRewake,omitempty"`
 }
 
 // agentMatcher is a group of handlers for the events matcher matches.
@@ -80,7 +83,11 @@ func on(match, event, state string, timeout int) agentMatcher {
 // a permission or a question asked means waiting, the end of a turn done;
 // each hands the daemon its event.
 func claudeHookArgs() []string {
-	settings := map[string]any{"hooks": map[string][]agentMatcher{
+	return []string{"--settings", marshal(map[string]any{"hooks": claudeHooks()})}
+}
+
+func claudeHooks() map[string][]agentMatcher {
+	return map[string][]agentMatcher{
 		"SessionStart":       {on("", proto.HookSessionStart, "", waitTimeout)},
 		"UserPromptSubmit":   {on("", proto.HookPromptStart, proto.StateWorking, waitTimeout)},
 		"PreToolUse":         {on("", proto.HookToolBefore, "", waitTimeout)},
@@ -91,8 +98,27 @@ func claudeHookArgs() []string {
 		"Stop":               {on("", proto.HookTurnDone, proto.StateDone, waitTimeout)},
 		"PreCompact":         {on("", proto.HookCompact, "", waitTimeout)},
 		"SessionEnd":         {on("", proto.HookSessionEnd, "", 5)},
-	}}
-	return []string{"--settings", marshal(settings)}
+	}
+}
+
+// goaWakeSeconds is how long a hook waiting to wake GOA waits, as Claude Code enforces
+// a timeout on one: the next turn starts another.
+const goaWakeSeconds = 24 * 60 * 60
+
+// GOAHookArgs is HookArgs for GOD of Agents' own session. Workers' reports reach it
+// without its input box: in a turn through its hooks' context, and when idle, on Claude
+// Code, through a hook waiting in the background, which wakes it on exit code 2.
+// Armed at each start and each turn's end; the daemon heeds the latest.
+func GOAHookArgs(id string) []string {
+	if !hooksSupported() || Base(id) != "claude" {
+		return HookArgs(id)
+	}
+	hooks := claudeHooks()
+	wake := agentMatcher{Hooks: []agentHook{{Type: "command", Command: `[ -z "$` + EnvBin + `" ] || "$` + EnvBin + `" hook --wake`, Timeout: goaWakeSeconds, AsyncRewake: true}}}
+	for _, event := range []string{"SessionStart", "UserPromptSubmit", "Stop"} {
+		hooks[event] = append(hooks[event], wake)
+	}
+	return []string{"--settings", marshal(map[string]any{"hooks": hooks})}
 }
 
 // codexEvents are Codex's hook events enowX listens to: its name, the
@@ -111,6 +137,13 @@ var codexEvents = []struct {
 	{"PreCompact", "pre_compact", proto.HookCompact, "", waitTimeout},
 	{"SessionEnd", "session_end", proto.HookSessionEnd, "", 3},
 }
+
+// JudgeApprovesByHook says a PreToolUse hook can spare agent id's user its
+// permission prompt. Codex's can't: it takes no plain allow, and an allow with
+// updatedInput only rewrites the call, which then goes through its approval as
+// any other (codex-rs/core/src/tools/registry.rs, as of 0.166.0). Its
+// PermissionRequest hook is what answers its prompts.
+func JudgeApprovesByHook(id string) bool { return Base(id) != "codex" }
 
 // codexOn builds the same definition for the command line and its trust hash.
 func codexOn(event, state string, timeout int) agentMatcher {

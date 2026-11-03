@@ -11,8 +11,12 @@ import (
 	"github.com/enowx/enowx/ui/widget"
 )
 
-// slashShown is how many commands the slash menu lists at once.
-const slashShown = 8
+// slashShown is how many commands the slash menu lists at once, and
+// slashNameWidth how wide their names run: what they do needs room too.
+const (
+	slashShown     = 8
+	slashNameWidth = 260
+)
 
 // slashMatches are the agent's commands for the "/word" being typed:
 // those starting with it, then those containing it, then those whose
@@ -56,17 +60,17 @@ func (ch *Chat) slashMenu(c *ui.Context) {
 		return
 	}
 	matches := ch.slashMatches()
-	widget.Float(ui.Column(c.Key("slash")).FillWidth().Padding(6).Gap(1).Radius(theme.RadiusCard).
-		Background(theme.Dialog).Border(1, theme.BorderStrong)).Transition(widget.OverlayMotion).Children(func() {
+	widget.Float(ui.Column(c.Key("slash")).FillWidth().Padding(theme.S1).Radius(theme.RadiusCard).
+		Background(theme.Popover)).Transition(widget.OverlayMotion).Children(func() {
 		switch {
 		case !ch.commandsRead:
-			ui.Row(c).Gap(8).Padding(8, 10).Children(func() {
+			ui.Row(c).Gap(theme.S2).Padding(theme.S2, theme.S3).Children(func() {
 				widget.Spinner(c, 12)
-				ui.Text(c, "Reading the agent's commands…").FontSize(12).TextColor(theme.Muted)
+				ui.Text(c, "Reading the agent's commands…").FontSize(theme.TextUI).TextColor(theme.TextSoft)
 			})
 			return
 		case len(matches) == 0:
-			ui.Text(c, "No command matches "+ch.input).FontSize(12).TextColor(theme.Muted).Padding(8, 10)
+			ui.Text(c, "No command matches "+ch.input).FontSize(theme.TextUI).TextColor(theme.TextSoft).Padding(theme.S2, theme.S3)
 			return
 		}
 		for i, cmd := range matches {
@@ -76,9 +80,13 @@ func (ch *Chat) slashMenu(c *ui.Context) {
 				if cmd.Kind == "skill" {
 					svg = icon.Brain
 				}
-				ui.Icon(c, svg).FontSize(13).TextColor(theme.TextSoft)
-				ui.Text(c, "/"+cmd.Name).Font(theme.MonoFont).FontSize(12).TextColor(theme.Text).SingleLine().Shrink(0)
-				ui.Text(c, cmd.Description).FontSize(11.5).TextColor(theme.Muted).SingleLine().Shrink(1).Grow(1)
+				ui.Icon(c, svg).FontSize(14).TextColor(theme.TextSoft).Shrink(0)
+				ui.Row(c).MaxWidth(slashNameWidth).MinWidth(0).Shrink(0).Children(func() {
+					widget.Running(c, "/"+cmd.Name, widget.RunStyle{Color: theme.Text})
+				})
+				ui.Row(c).Grow(1).MinWidth(0).Children(func() {
+					widget.Running(c, cmd.Description, widget.RunStyle{Color: theme.TextSoft})
+				})
 				if cmd.Kind != "" && cmd.Kind != "command" {
 					widget.Tag(c, cmd.Kind, theme.Muted)
 				}

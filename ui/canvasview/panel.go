@@ -2,6 +2,7 @@ package canvasview
 
 import (
 	"fmt"
+	"slices"
 	"strconv"
 	"strings"
 	"time"
@@ -15,31 +16,110 @@ import (
 	"github.com/enowx/enowx/ui/widget"
 )
 
+// Tabs of the panel beside the stage.
+var panelTabs = []string{"layers", "comments", "versions", "grid"}
+
 // sidePanel is the panel beside the stage: the frame's layers and the
-// selection's properties, the comments, or the versions.
+// selection's properties, the comments, the versions, or the grid. The toolbar
+// shows it again once hidden.
 func (v *View) sidePanel(c *ui.Context, o Options) {
-	ui.Column(c.Key("canvas-panel")).Width(300).Shrink(0).FillHeight().Background(theme.Panel).BorderWidth(0, 0, 0, 1).BorderColor(theme.Border).
+	ui.Column(c.Key("canvas-panel")).Width(panelWidth).Shrink(0).FillHeight().BorderWidth(0, 0, 0, theme.Rule).BorderColor(theme.Border).
 		Transition(widget.PanelMotion(16)).Children(func() {
-		titles := map[string]string{"layers": "Layers", "comments": "Comments", "versions": "Versions", "grid": "Layout grid"}
-		ui.Row(c).FillWidth().Height(40).Shrink(0).PaddingX(12).AlignItems(ui.Center).BorderWidth(0, 0, 1, 0).BorderColor(theme.Border).Children(func() {
-			ui.Text(c, titles[v.panel]).FontSize(12.5).FontWeight(600).Grow(1)
-			if widget.IconButton(c, icon.Close, "Close panel", false).Clicked() {
-				v.panel = ""
+		ui.Row(c.Key("panel-tabs")).FillWidth().Shrink(0).Padding(theme.S3, theme.S3, theme.S2, theme.S3).Gap(theme.S1).AlignItems(ui.Center).Children(func() {
+			comments := "Comments"
+			if n := v.openComments(); n > 0 {
+				comments = fmt.Sprintf("Comments %d", n)
+			}
+			if i := panelSegments(c.Key("tabs"), []string{"Layers", comments, "Versions", "Grid"}, slices.Index(panelTabs, v.panel)); i >= 0 {
+				v.panel = panelTabs[i]
+				v.togglePanelLoad(o)
 			}
 		})
-		ui.Scroll(c).Grow(1).FillWidth().Children(func() {
-			ui.Column(c).FillWidth().Padding(10).Gap(8).Children(func() {
+		ui.Scroll(c.Key("panel-body")).Grow(1).FillWidth().MinHeight(0).Children(func() {
+			ui.Column(c).FillWidth().Padding(0, theme.S3, theme.S3, theme.S3).Gap(theme.S2).Children(func() {
 				switch v.panel {
 				case "layers":
 					v.layers(c, o)
 				case "comments":
-					v.commentsPanel(c, o)
+					v.commentsList(c, o)
 				case "versions":
 					v.versions(c, o)
 				case "grid":
 					v.gridPanel(c, o)
 				}
 			})
+		})
+		if v.panel == "comments" {
+			v.commentComposer(c, o)
+		}
+	})
+}
+
+// panelSegments are the panel's tabs, each as wide as its word needs: at equal
+// widths "Comments" wouldn't fit the panel, though all four do.
+func panelSegments(c *ui.Context, labels []string, current int) int {
+	clicked := -1
+	ui.Row(c).FillWidth().MinWidth(0).Padding(theme.S1).Radius(theme.RadiusFull).Background(theme.Sunken).Children(func() {
+		for i, label := range labels {
+			b := ui.ButtonBase(c.Key(i)).Grow(float32(len(label) + 1)).Basis(0).MinWidth(0).Height(28).PaddingX(2).Radius(theme.RadiusFull).Label(label)
+			bg, fg, weight := theme.Fade(theme.Selected, 0), theme.TextSoft, 400
+			switch {
+			case i == current:
+				bg, fg, weight = theme.Selected, theme.TextStrong, 500
+			case b.Hovered():
+				bg, fg = theme.Hover, theme.Text
+			}
+			if i != current {
+				b.Cursor(ui.CursorPointer)
+			}
+			b.Background(widget.QuickTint(b, "bg", bg)).Children(func() {
+				widget.Running(c, label, widget.RunStyle{Color: fg, Weight: weight})
+			})
+			if i != current && b.Clicked() {
+				clicked = i
+			}
+		}
+	})
+	return clicked
+}
+
+// showLayers shows the Layers panel, or has it show once the agent's closed.
+func (v *View) showLayers() {
+	if v.assistant {
+		v.panelBack = "layers"
+		return
+	}
+	v.panel = "layers"
+}
+
+// layerRow is a layer of the frame: a card in the panel, indented by its depth.
+func (v *View) layerRow(c *ui.Context, o Options, key, id, kind, text string, depth int) {
+	r := ui.ButtonBase(c.Key(key)).FillWidth().MinHeight(44).Shrink(0).Padding(theme.S1, theme.S3, theme.S1, theme.S3+float32(min(depth, 4))*theme.S2).Gap(theme.S2).Radius(theme.RadiusCard).
+		Justify(ui.Start).Cursor(ui.CursorPointer).Label("Layer " + id)
+	switch {
+	case v.sel == id:
+		r.Background(theme.Selected)
+	case v.recent(id):
+		r.Background(theme.AccentSoft)
+	case r.Hovered():
+		r.Background(theme.Hover)
+	default:
+		widget.Raise(r.Background(theme.Raised))
+	}
+	if r.Clicked() {
+		v.sel = id
+		if o.Web != nil {
+			o.Web.outline(id)
+		}
+	}
+	r.Children(func() {
+		ui.Column(c).Grow(1).MinWidth(0).Children(func() {
+			widget.Running(c, "#"+id, widget.RunStyle{Always: v.sel == id})
+			sub := kind
+			if text != "" {
+				sub += " · " + text
+			}
+			widget.Running(c.Key("sub"), sub, widget.RunStyle{Size: theme.TextLabel, Color: theme.SoftOn(v.sel == id)})
 		})
 	})
 }
@@ -52,44 +132,21 @@ func (v *View) layers(c *ui.Context, o Options) {
 		v.inspector(c, o, f)
 		widget.Divider(c)
 	}
-	row := func(key, id, kind, text string, depth int) {
-		r := ui.ButtonBase(c.Key(key)).FillWidth().Height(26).Padding(0, 6, 0, 6+float32(depth)*12).Gap(6).Radius(5).AlignItems(ui.Center).
-			Cursor(ui.CursorPointer).Label("Layer " + id)
-		switch {
-		case v.sel == id:
-			r.Background(theme.Selected)
-		case v.recent(id):
-			r.Background(theme.AccentSoft)
-		case r.Hovered():
-			r.Background(theme.Hover)
-		}
-		if r.Clicked() {
-			v.sel = id
-			if o.Web != nil {
-				o.Web.outline(id)
-			}
-		}
-		r.Children(func() {
-			ui.Text(c, kind).FontSize(10.5).TextColor(theme.Muted).Width(52).SingleLine()
-			ui.Text(c, id).FontSize(11.5).TextColor(theme.Text).SingleLine().Shrink(1)
-			ui.Text(c, text).FontSize(11).TextColor(theme.Muted).SingleLine().Shrink(1).Grow(1)
-		})
-	}
-	out := canvas.Outline(f.HTML)
+	out := v.outlineOf(f.HTML)
 	if len(out) > 0 {
-		widget.SectionLabel(c, "MOCKUP", theme.Muted)
+		widget.SectionLabel(c.Key("mockup"), "Mockup", theme.TextSoft)
 		for _, el := range out {
-			row("h:"+el.ID, el.ID, "<"+el.Tag+">", el.Text, el.Depth)
+			v.layerRow(c, o, "h:"+el.ID, el.ID, "<"+el.Tag+">", el.Text, el.Depth)
 		}
 	}
 	if len(f.Elements) > 0 {
-		widget.SectionLabel(c, "SHAPES", theme.Muted)
+		widget.SectionLabel(c.Key("shapes"), "Shapes", theme.TextSoft)
 		for _, el := range f.Elements {
-			row("s:"+el.ID, el.ID, el.Type, el.Text, 0)
+			v.layerRow(c, o, "s:"+el.ID, el.ID, el.Type, el.Text, 0)
 		}
 	}
 	if len(out) == 0 && len(f.Elements) == 0 {
-		ui.Text(c, "Nothing in this frame yet: add shapes from the toolbar, or ask an agent to design it.").FontSize(12).TextColor(theme.Muted)
+		ui.Text(c, "Nothing in this frame yet: add shapes from the toolbar, or ask an agent to design it.").FontSize(theme.TextUI).TextColor(theme.TextSoft)
 	}
 }
 
@@ -106,29 +163,36 @@ func (v *View) inspector(c *ui.Context, o Options, f proto.CanvasFrame) {
 		return
 	}
 	insp := v.htmlInspector(v.sel, src)
-	ui.Text(c, "#"+v.sel).FontSize(12).FontWeight(600)
-	ui.TextArea(c.Key("html:"+v.sel), &insp.text).FillWidth().Height(160).Font(theme.MonoFont).FontSize(11).
-		Padding(8).Radius(6).Background(theme.Sunken).Border(1, theme.Border).Label("HTML of " + v.sel)
-	ui.Row(c).FillWidth().Gap(6).Children(func() {
-		save := widget.Button(c, widget.Primary, nil, "Apply", "")
+	widget.Running(c.Key("html-id"), "#"+v.sel, widget.RunStyle{Weight: 500})
+	ui.Column(c.Key("html-code")).FillWidth().Height(160).Shrink(0).Radius(theme.RadiusCard).Clip().Background(theme.CodeGround).Children(func() {
+		ui.TextArea(c.Key("html:"+v.sel), &insp.text).FillWidth().FillHeight().Font(theme.MonoFont).FontSize(theme.TextLabel).TextColor(widget.CodeText).
+			Padding(theme.S2, theme.S3).Label("HTML of " + v.sel)
+	})
+	ui.Row(c.Key("html-actions")).FillWidth().Gap(theme.S1).Wrap().AlignItems(ui.Center).Children(func() {
+		save := widget.Button(c.Key("apply"), widget.Primary, nil, "Apply", "")
 		if insp.text == src {
-			save.Disabled(true).Opacity(0.5)
+			save.Disabled(true)
 		} else if save.Clicked() {
 			v.edit(o, proto.CanvasEdit{Op: proto.CanvasOpHTMLPatch, Target: v.sel, HTML: insp.text})
 		}
-		if o.AskAgent != nil && widget.Button(c, widget.Secondary, icon.Chat, "Ask agent", "").Label("Ask agent about "+v.sel).Clicked() {
-			v.assistant, v.panel = true, "" // room for the agent
-			o.AskAgent("@#" + v.sel + " ")
-		}
-		if widget.Button(c, widget.Secondary, icon.Comment, "Comment", "").Clicked() {
-			v.panel = "comments"
-			v.loadComments(o)
-		}
-		ui.Spacer(c)
-		if widget.IconButton(c, icon.Trash, "Remove "+v.sel, false).Clicked() {
-			v.remove(o, v.sel)
-		}
+		v.selectionActions(c, o, v.sel)
 	})
+}
+
+// selectionActions are what an element selected can go on to: the agent, a
+// comment, or away.
+func (v *View) selectionActions(c *ui.Context, o Options, id string) {
+	if o.AskAgent != nil && widget.Button(c.Key("ask"), widget.Secondary, nil, "Ask agent", "").Label("Ask agent about "+id).Clicked() {
+		v.OpenAssistant()
+		o.AskAgent("@#" + id + " ")
+	}
+	if widget.IconButton(c.Key("comment"), icon.Comment, "Comment", false).Clicked() {
+		v.panel = "comments"
+		v.loadComments(o)
+	}
+	if widget.IconButton(c.Key("remove"), icon.Trash, "Remove "+id, false).Clicked() {
+		v.remove(o, id)
+	}
 }
 
 // htmlEdit is a mockup element's HTML being edited, from src.
@@ -154,52 +218,40 @@ func (v *View) shapeInspector(c *ui.Context, o Options, el proto.CanvasElement) 
 		change(&x)
 		v.edit(o, proto.CanvasEdit{Op: proto.CanvasOpElementSet, Element: &x})
 	}
-	ui.Row(c).FillWidth().Gap(6).AlignItems(ui.Center).Children(func() {
-		ui.Text(c, el.ID).FontSize(12).FontWeight(600).Grow(1)
-		ui.Text(c, el.Type).FontSize(11).TextColor(theme.Muted)
+	ui.Row(c.Key("shape-head")).FillWidth().Gap(theme.S2).AlignItems(ui.Center).Children(func() {
+		ui.Row(c).Grow(1).MinWidth(0).Children(func() { widget.Running(c, el.ID, widget.RunStyle{Weight: 500}) })
+		ui.Text(c, el.Type).FontSize(theme.TextLabel).TextColor(theme.TextSoft).SingleLine()
 	})
+	where := el.From + " → " + el.To
 	if el.Type != proto.ShapeLine && el.Type != proto.ShapeArrow {
-		ui.Text(c, fmt.Sprintf("%g, %g · %g×%g", el.X, el.Y, el.W, el.H)).FontSize(11).TextColor(theme.Muted)
-	} else {
-		ui.Text(c, el.From+" → "+el.To).FontSize(11).TextColor(theme.Muted)
+		where = fmt.Sprintf("%g, %g · %g×%g", el.X, el.Y, el.W, el.H)
 	}
+	widget.Running(c.Key("where"), where, widget.RunStyle{Size: theme.TextLabel, Color: theme.TextSoft})
 	if el.Type != proto.ShapeImage {
-		ui.Row(c).FillWidth().Gap(6).Children(func() {
-			if widget.Button(c, widget.Secondary, icon.Pencil, "Edit text", "").Clicked() {
+		ui.Row(c.Key("shape-text")).FillWidth().Gap(theme.S1).AlignItems(ui.Center).Children(func() {
+			if widget.Button(c.Key("edit"), widget.Secondary, nil, "Edit text", "").Clicked() {
 				v.editing = &textEdit{id: el.ID, text: el.Text}
 			}
-			bold := widget.IconButton(c, icon.Type, "Bold", el.Bold)
-			if bold.Clicked() {
+			if widget.IconButton(c.Key("bold"), icon.Type, "Bold", el.Bold).Clicked() {
 				set(func(x *proto.CanvasElement) { x.Bold = !x.Bold })
 			}
 		})
 	}
 	if el.Type != proto.ShapeLine && el.Type != proto.ShapeArrow && el.Type != proto.ShapeImage {
-		ui.Text(c, "Fill").FontSize(11).TextColor(theme.Muted)
+		ui.Text(c.Key("fill-l"), "Fill").FontSize(theme.TextLabel).TextColor(theme.TextSoft)
 		swatches(c.Key("fill"), el.Fill, func(col string) { set(func(x *proto.CanvasElement) { x.Fill = col }) })
 	}
-	ui.Text(c, "Line").FontSize(11).TextColor(theme.Muted)
+	ui.Text(c.Key("line-l"), "Line").FontSize(theme.TextLabel).TextColor(theme.TextSoft)
 	swatches(c.Key("stroke"), el.Stroke, func(col string) { set(func(x *proto.CanvasElement) { x.Stroke = col }) })
-	ui.Row(c).FillWidth().Gap(6).Children(func() {
-		if o.AskAgent != nil && widget.Button(c, widget.Secondary, icon.Chat, "Ask agent", "").Label("Ask agent about "+v.sel).Clicked() {
-			v.assistant, v.panel = true, "" // room for the agent
-			o.AskAgent("@#" + v.sel + " ")
-		}
-		if widget.Button(c, widget.Secondary, icon.Comment, "Comment", "").Clicked() {
-			v.panel = "comments"
-			v.loadComments(o)
-		}
-		ui.Spacer(c)
-		if widget.IconButton(c, icon.Trash, "Remove "+el.ID, false).Clicked() {
-			v.remove(o, el.ID)
-		}
+	ui.Row(c.Key("shape-actions")).FillWidth().Gap(theme.S1).Wrap().AlignItems(ui.Center).Children(func() {
+		v.selectionActions(c, o, el.ID)
 	})
 }
 
 func swatches(c *ui.Context, cur string, pick func(string)) {
-	ui.Row(c).FillWidth().Gap(5).Children(func() {
+	ui.Row(c).FillWidth().Gap(theme.S1).Wrap().Children(func() {
 		for _, col := range append([]string{"none"}, palette...) {
-			s := ui.ButtonBase(c.Key(col)).Size(20, 20).Radius(5).Border(1, theme.BorderStrong).Cursor(ui.CursorPointer).Label("Color " + col)
+			s := ui.ButtonBase(c.Key(col)).Size(20, 20).Radius(theme.RadiusFull).Border(0.5, theme.BorderStrong).Cursor(ui.CursorPointer).Label("Color " + col)
 			if col == "none" {
 				s.Children(func() { ui.Icon(c, icon.Slash).FontSize(12).TextColor(theme.Muted) }).Center()
 			} else {
@@ -215,25 +267,10 @@ func swatches(c *ui.Context, cur string, pick func(string)) {
 	})
 }
 
-// commentsPanel is the comments, the open ones first, and one to write on
-// the selection.
-func (v *View) commentsPanel(c *ui.Context, o Options) {
-	on := "the frame"
-	if v.sel != "" {
-		on = "#" + v.sel
-	}
-	ui.TextArea(c.Key("draft"), &v.draft).FillWidth().Height(64).FontSize(12).Padding(8).Radius(6).
-		Background(theme.Sunken).Border(1, theme.Border).Placeholder("Comment on " + on + ": agents read it").Label("New comment")
-	add := widget.Button(c, widget.Primary, icon.Comment, "Comment", "").Label("Add comment")
-	if strings.TrimSpace(v.draft) == "" {
-		add.Disabled(true).Opacity(0.5)
-	} else if add.Clicked() && v.canvas != nil {
-		cm := proto.CanvasComment{Text: v.draft, Element: v.sel, Frame: v.frameOf().ID}
-		v.draft = ""
-		o.Comment(proto.CanvasCommentParams{ID: v.canvas.ID, Op: proto.CanvasCommentAdd, Comment: cm}, v.tookComments)
-	}
+// commentsList is the comments, the open ones first.
+func (v *View) commentsList(c *ui.Context, o Options) {
 	if len(v.comments) == 0 {
-		ui.Text(c, "No comments yet. Select an element and say what to change: an agent asked to work on the comments reads them.").FontSize(12).TextColor(theme.Muted)
+		ui.Text(c, "No comments yet. Select an element and say what to change: an agent asked to work on the comments reads them.").FontSize(theme.TextUI).TextColor(theme.TextSoft)
 	}
 	for _, resolved := range []bool{false, true} {
 		for _, cm := range v.comments {
@@ -242,6 +279,29 @@ func (v *View) commentsPanel(c *ui.Context, o Options) {
 			}
 		}
 	}
+}
+
+// commentComposer is one to write on the selection, at the panel's foot.
+func (v *View) commentComposer(c *ui.Context, o Options) {
+	on := "the frame"
+	if v.sel != "" {
+		on = "#" + v.sel
+	}
+	ui.Column(c.Key("comment-new")).FillWidth().Shrink(0).Padding(theme.S2, theme.S3, theme.S3, theme.S3).Gap(theme.S2).Children(func() {
+		ta := ui.TextArea(c.Key("draft"), &v.draft).FillWidth().Height(60).FontSize(theme.TextUI).TextColor(theme.Text).Padding(theme.S2, theme.S3).Radius(theme.RadiusCard).
+			Placeholder("Comment on " + on + ": agents read it").Label("New comment")
+		widget.Well(ta, false)
+		ui.Row(c.Key("add")).FillWidth().Justify(ui.End).Children(func() {
+			add := widget.Button(c, widget.Primary, nil, "Comment", "").Label("Add comment")
+			if strings.TrimSpace(v.draft) == "" {
+				add.Disabled(true)
+			} else if add.Clicked() && v.canvas != nil {
+				cm := proto.CanvasComment{Text: v.draft, Element: v.sel, Frame: v.frameOf().ID}
+				v.draft = ""
+				o.Comment(proto.CanvasCommentParams{ID: v.canvas.ID, Op: proto.CanvasCommentAdd, Comment: cm}, v.tookComments)
+			}
+		})
+	})
 }
 
 func (v *View) tookComments(list []proto.CanvasComment, err error) {
@@ -253,12 +313,12 @@ func (v *View) tookComments(list []proto.CanvasComment, err error) {
 }
 
 func (v *View) comment(c *ui.Context, o Options, cm proto.CanvasComment) {
-	card := ui.Column(c).FillWidth().Padding(10).Gap(6).Radius(8).Background(theme.Raised).Border(1, theme.Border)
+	card := widget.Raise(ui.Column(c).FillWidth().Shrink(0).Padding(theme.S2, theme.S3).Gap(theme.S1).Radius(theme.RadiusCard).Background(theme.Raised))
 	if cm.Resolved {
 		card.Opacity(0.55)
 	}
 	card.Children(func() {
-		ui.Row(c).FillWidth().Gap(6).AlignItems(ui.Center).Children(func() {
+		ui.Row(c.Key("head")).FillWidth().Gap(theme.S2).AlignItems(ui.Center).Children(func() {
 			who := "You"
 			if cm.Author != "" {
 				who = "Agent"
@@ -266,10 +326,10 @@ func (v *View) comment(c *ui.Context, o Options, cm proto.CanvasComment) {
 					who = o.AgentName(cm.Author)
 				}
 			}
-			ui.Text(c, who).FontSize(11.5).FontWeight(600)
+			ui.Text(c.Key("who"), who).FontSize(theme.TextUI).FontWeight(500).SingleLine().Shrink(0)
 			if cm.Element != "" {
-				on := ui.ButtonBase(c).Cursor(ui.CursorPointer).Label("Select " + cm.Element)
-				on.Children(func() { ui.Text(c, "#"+cm.Element).FontSize(11).TextColor(theme.Accent) })
+				on := ui.ButtonBase(c.Key("on")).Cursor(ui.CursorPointer).Label("Select " + cm.Element).MinWidth(0).Shrink(1)
+				on.Children(func() { widget.Running(c, "#"+cm.Element, widget.RunStyle{Size: theme.TextLabel, Color: theme.Accent}) })
 				if on.Clicked() {
 					v.sel = cm.Element
 					if o.Web != nil {
@@ -278,26 +338,27 @@ func (v *View) comment(c *ui.Context, o Options, cm proto.CanvasComment) {
 				}
 			}
 			ui.Spacer(c)
-			ui.Text(c, ago(cm.Created)).FontSize(10.5).TextColor(theme.Muted)
+			ui.Text(c.Key("ago"), ago(cm.Created)).FontSize(theme.TextLabel).TextColor(theme.TextSoft).SingleLine().Shrink(0)
 		})
-		ui.Text(c, cm.Text).FontSize(12).TextColor(theme.Text)
-		ui.Row(c).FillWidth().Gap(4).Children(func() {
+		ui.Text(c.Key("text"), cm.Text).FontSize(theme.TextLabel).TextColor(theme.TextSoft)
+		ui.Row(c.Key("actions")).FillWidth().Gap(theme.S1).AlignItems(ui.Center).Children(func() {
 			op, label := proto.CanvasCommentResolve, "Resolve"
 			if cm.Resolved {
 				op, label = proto.CanvasCommentReopen, "Reopen"
 			}
-			if widget.GhostButton(c, label).Clicked() {
+			if widget.GhostButton(c.Key("state"), label).Clicked() {
 				o.Comment(proto.CanvasCommentParams{ID: v.canvas.ID, Op: op, Comment: proto.CanvasComment{ID: cm.ID}}, v.tookComments)
 			}
-			if o.SendAgent != nil && !cm.Resolved && widget.GhostButton(c, "Send to agent").Clicked() {
-				v.assistant, v.panel = true, "" // room for the agent
+			ui.Spacer(c)
+			if o.SendAgent != nil && !cm.Resolved && widget.IconButton(c.Key("send"), icon.Chat, "Send to agent", false).Clicked() {
+				v.OpenAssistant()
 				on := "the design"
 				if cm.Element != "" {
 					on = "#" + cm.Element
 				}
 				o.SendAgent("Do comment " + cm.ID + " on " + on + ": " + cm.Text + "\nThen resolve it (canvas_resolve).")
 			}
-			if widget.GhostButton(c, "Delete").Clicked() {
+			if widget.IconButton(c.Key("delete"), icon.Trash, "Delete", false).Clicked() {
 				o.Comment(proto.CanvasCommentParams{ID: v.canvas.ID, Op: proto.CanvasCommentDelete, Comment: proto.CanvasComment{ID: cm.ID}}, v.tookComments)
 			}
 		})
@@ -322,4 +383,13 @@ func ago(t time.Time) string {
 func (v *View) onDesign(cm proto.CanvasComment) bool {
 	f := v.frameOf()
 	return cm.Frame == "" || cm.Frame == f.ID || strings.EqualFold(cm.Frame, f.Name)
+}
+
+// outlineOf is page's elements, worked out once for each page: parsing it again each frame
+// is what a long page would feel.
+func (v *View) outlineOf(page string) []canvas.HTMLElement {
+	if page != v.outlinePage || !v.outlineDone {
+		v.outlinePage, v.outline, v.outlineDone = page, canvas.Outline(page), true
+	}
+	return v.outline
 }

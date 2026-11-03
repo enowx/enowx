@@ -75,6 +75,8 @@ type hostChats struct {
 	// The draft's images, the images fetched by ID, and the one opened
 	// large, of message viewingOf (teamchatimages.go).
 	pending   []*pendingImage
+	out       []*outgoing       // messages on their way (teamchatoutbox.go)
+	rowOf     map[string]string // a message sent from here, the row it was shown in
 	nextKey   int
 	images    map[string]*chatImage
 	viewing   *proto.ChatAttachment
@@ -120,6 +122,11 @@ func (a *App) chatTeam() string {
 		return list[0].Team
 	}
 	return ""
+}
+
+// chatShows says team's chat shows now, in the side panel or on the Team page.
+func (a *App) chatShows(team string) bool {
+	return a.panelShows(panelChat) && a.chatTeam() == team || a.teamPageChat() == team
 }
 
 // wasRead says team's chat was read whole on connection gen.
@@ -206,7 +213,7 @@ func (a *App) teamChatEvent(data json.RawMessage) func() {
 				continue
 			}
 			hc.byTeam[m.Team] = append(have, m)
-			seen := a.panelShows(panelChat) && a.chatTeam() == m.Team && a.win != nil && a.win.IsFocused()
+			seen := a.chatShows(m.Team) && a.win != nil && a.win.IsFocused()
 			if m.Account == me || seen {
 				continue
 			}
@@ -262,6 +269,13 @@ func (a *App) chatTab(c *ui.Context) {
 		panelNote(c, "Sign in to enowX Cloud and join a team to chat with it.")
 		return
 	}
+	a.teamHeader(c, team)
+	a.chatBody(c, team)
+}
+
+// chatBody is team's chat: its messages and the composer, as the side panel and
+// the Team page show it.
+func (a *App) chatBody(c *ui.Context, team string) {
 	hc := a.chatsOf()
 	if !hc.wasShown || hc.listFor != team {
 		// Opened, or another team's: at its latest message, as a fresh
@@ -283,19 +297,19 @@ func (a *App) chatTab(c *ui.Context) {
 		}
 		a.state.ChatRead[team] = msgs[n-1].ID
 	}
-	a.teamHeader(c, team)
+	msgs = a.chatShown(team)
 	switch {
 	case len(msgs) == 0 && !hc.wasRead(team, a.gen):
 		// Not "no message yet": they may just not be read, or have come.
-		ui.Column(c).Grow(1).FillWidth().Center().Gap(8).Padding(24).Children(func() {
+		ui.Column(c).Grow(1).FillWidth().Center().Gap(theme.S2).Padding(theme.S5).Children(func() {
 			widget.Spinner(c, 14)
-			ui.Text(c, "Reading the chat…").FontSize(12).TextColor(theme.Muted)
+			ui.Text(c, "Reading the chat…").FontSize(theme.TextLabel).TextColor(theme.Muted)
 		})
 	case len(msgs) == 0:
-		ui.Column(c).Grow(1).FillWidth().Center().Gap(6).Padding(24).Children(func() {
+		ui.Column(c).Grow(1).FillWidth().Center().Gap(theme.S2).Padding(theme.S5).Children(func() {
 			ui.Icon(c, icon.Chat).FontSize(22).TextColor(theme.Idle)
-			ui.Text(c, "No message yet: say hello to "+a.spaceName(team)+".").FontSize(12).TextColor(theme.Muted)
-			ui.Text(c, "Type @ to mention a member, a note or a file.").FontSize(11).TextColor(theme.Idle)
+			ui.Text(c, "No message yet: say hello to "+a.spaceName(team)+".").FontSize(theme.TextLabel).TextColor(theme.Muted)
+			ui.Text(c, "Type @ to mention a member, a note or a file.").FontSize(theme.TextLabel).TextColor(theme.Idle)
 		})
 	default:
 		a.chatMessages(c, team, msgs)
@@ -308,7 +322,7 @@ func (a *App) chatTab(c *ui.Context) {
 // teamHeader names the team the Team group's tools show, with how many
 // members it has.
 func (a *App) teamHeader(c *ui.Context, team string) {
-	ui.Row(c).FillWidth().Height(36).Shrink(0).PaddingX(12).Gap(8).AlignItems(ui.Center).BorderWidth(0, 0, 1, 0).BorderColor(theme.Border).Children(func() {
+	ui.Row(c).FillWidth().Height(36).Shrink(0).PaddingX(theme.S3).Gap(theme.S2).AlignItems(ui.Center).BorderWidth(0, 0, 1, 0).BorderColor(theme.Border).Children(func() {
 		var teams []widget.Space
 		for _, sp := range a.spacesOf().list {
 			teams = append(teams, widget.Space{Team: sp.Team, Name: sp.Name})
@@ -317,12 +331,12 @@ func (a *App) teamHeader(c *ui.Context, team string) {
 			a.state.Panel.Team = t
 		})
 		if n := len(a.teamMembers(team)); n > 0 {
-			ui.Text(c, textfmt.Plural(n, "1 member", fmt.Sprintf("%d members", n))).FontSize(11).TextColor(theme.Muted).SingleLine()
+			ui.Text(c, textfmt.Plural(n, "1 member", fmt.Sprintf("%d members", n))).FontSize(theme.TextLabel).TextColor(theme.Muted).SingleLine()
 		}
 		if n := len(a.hereOf().byTeam[team].Online); n > 0 {
-			ui.Row(c).Gap(4).AlignItems(ui.Center).Children(func() {
-				ui.Box(c).Size(6, 6).Radius(3).Background(theme.Done)
-				ui.Text(c, fmt.Sprintf("%d online", n)).FontSize(11).TextColor(theme.Muted).SingleLine()
+			ui.Row(c).Gap(theme.S1).AlignItems(ui.Center).Children(func() {
+				ui.Box(c).Size(6, 6).Radius(theme.RadiusTail).Background(theme.Done)
+				ui.Text(c, fmt.Sprintf("%d online", n)).FontSize(theme.TextLabel).TextColor(theme.Muted).SingleLine()
 			})
 		}
 		ui.Spacer(c)
@@ -366,14 +380,14 @@ func (a *App) chatUnreadAll() (int, string) {
 // click opens the chat with the latest.
 func (a *App) chatChip(c *ui.Context) {
 	n, team := a.chatUnreadAll()
-	if n == 0 || a.panelShows(panelChat) && a.chatTeam() == team {
+	if n == 0 || a.chatShows(team) {
 		return
 	}
 	label := fmt.Sprintf("%d unread", n)
 	b := titleChip(c, "chat-unread", label).Tooltip("Team chat: messages you haven't read")
-	b.TextColor(theme.Accent).Children(func() {
+	b.TextColor(theme.Now).Children(func() {
 		ui.Icon(c, icon.Chat).FontSize(11)
-		ui.Text(c, label).FontSize(11.5).SingleLine()
+		ui.Text(c, label).FontSize(theme.TextLabel).SingleLine()
 	})
 	if b.Clicked() {
 		a.state.Panel.Team = team

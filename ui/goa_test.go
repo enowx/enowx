@@ -74,8 +74,8 @@ func TestGOAMode(t *testing.T) {
 		tt.Frame()
 	}
 	frames("the chip", func() bool { return tt.HasText("GOD of Agents") && app.goa.host == "local" })
-	click("One session controlling every session on every host")
-	frames("the agents, with their levels", func() bool { return tt.HasText("Start GOD of Agents") && tt.HasText("enforced") })
+	click("GOD of Agents")
+	frames("the agents, with their levels", func() bool { return tt.HasText("Start GOD of Agents") && tt.HasText("Enforced") })
 	shot(t, tt, "goa-start.png")
 	click("Start GOA")
 	frames("GOA mode", func() bool { return app.goaOn() })
@@ -148,8 +148,8 @@ func TestGOAMode(t *testing.T) {
 	tt.Release(row.X+10, row.Y+row.H/2)
 	frames("the tab", func() bool { return len(app.goa.tabs) == 1 && app.goa.tabs[0].term != nil })
 	tab := app.goa.tabs[0]
-	if !app.goaOn() || app.selected != gBefore || app.goa.shown != tab.key {
-		t.Fatalf("opening a tab: goa %v selected %q shown %q", app.goaOn(), app.selected, app.goa.shown)
+	if !app.goaOn() || app.selected != gBefore || app.goaShownTab() != tab {
+		t.Fatalf("opening a tab: goa %v selected %q shown %v", app.goaOn(), app.selected, app.goaShownTab())
 	}
 	if err := cl.Input(task.Session, "seen in the tab", false, true); err != nil {
 		t.Fatal(err)
@@ -160,8 +160,8 @@ func TestGOAMode(t *testing.T) {
 		tt.Frame()
 	}
 	shot(t, tt, "goa-tab.png")
-	click("Close this tab: the session keeps running")
-	if len(app.goa.tabs) != 0 || app.goa.shown != "" {
+	click("Close Fix the totals")
+	if len(app.goa.tabs) != 0 || app.goaShownTab() != nil {
 		t.Fatalf("the tab stayed: %+v", app.goa.tabs)
 	}
 	if err := cl.Input(task.Session, "still running", false, true); err != nil {
@@ -177,7 +177,7 @@ func TestGOAMode(t *testing.T) {
 		}
 	}
 	frames("opened again", func() bool { return len(app.goa.tabs) == 1 && app.goa.tabs[0].term != nil })
-	app.goaShow("")
+	app.centerOf(g0.ID).front = "" // its own tab, in front
 	tt.Frame()
 	if app.currentView(g0) != viewChat || app.goaShownTab() != nil {
 		t.Fatalf("back to GOA: view %q", app.currentView(g0))
@@ -203,36 +203,22 @@ func TestGOAMode(t *testing.T) {
 	frames("the task on the board", func() bool { return tt.HasText("Fix the totals") && tt.HasText("unknown") })
 	shot(t, tt, "goa-mode.png")
 
-	// GOA opens on its chat, its agent having one; the strip's Browser shows
-	// its browser in the main view, GOD of Agents its chat again.
+	// GOA opens on its chat, its agent having one; the Browser is the dock's
+	// tool as in a session, not one of its views.
 	g, _ := app.goaSession()
 	if app.currentView(g) != viewChat {
 		t.Fatalf("GOA opened on %q, not its chat", app.currentView(g))
 	}
-	app.goaShow(goaBrowser)
-	for range 10 {
-		tt.Advance(100 * time.Millisecond) // the strip's colours ease over
-		tt.Frame()
-	}
-	if app.page != "" || app.currentView(g) != viewBrowser {
-		t.Fatalf("Browser from the strip: page %q view %q", app.page, app.currentView(g))
-	}
-	shot(t, tt, "goa-browser.png")
 	if slices.Contains(app.sessionViews(g), viewBrowser) {
-		t.Fatalf("Browser twice: in the strip and in GOA's header (%q)", app.sessionViews(g))
-	}
-	app.goaShow("")
-	tt.Frame()
-	if app.currentView(g) != viewChat {
-		t.Fatalf("back to GOA: view %q", app.currentView(g))
+		t.Fatalf("Browser among GOA's views (%q)", app.sessionViews(g))
 	}
 
-	// The strip reaches the pages, and back.
+	// The title bar reaches the pages, and back.
 	click("Notes")
 	if app.page != pageNotes || !app.goaOn() {
 		t.Fatalf("Notes from GOA mode: page %q", app.page)
 	}
-	frames("the strip on the Notes page", func() bool { return tt.HasText("Leave") })
+	frames("the Notes page", func() bool { return app.page == pageNotes && tt.HasText("Sessions") })
 	// With no session list, Notes and Canvas show their own lists.
 	if app.notesOptions().ListOutside {
 		t.Fatal("Notes in GOA mode leaves its list to a sidebar that isn't there")
@@ -251,7 +237,7 @@ func TestGOAMode(t *testing.T) {
 	if app.page != "" {
 		t.Fatalf("back to GOA: page %q", app.page)
 	}
-	// Its rules: written in their dialog from the strip, saved on the host.
+	// Its rules: written in their dialog from its header, saved on the host.
 	click("Rules")
 	frames("the rules dialog", func() bool {
 		return app.goa.rules != nil && app.goa.rules.loaded && tt.HasText("Rules of GOD of Agents") && tt.HasText("Write with AI")
@@ -267,7 +253,8 @@ func TestGOAMode(t *testing.T) {
 	}
 
 	// Beside them, the host's limits: what isn't a time stays in the dialog.
-	click("Stall limits")
+	click("More for GOD of Agents")
+	click("Stall limits…")
 	frames("the limits dialog", func() bool {
 		return app.goa.stall != nil && app.goa.stall.loaded && tt.HasText("When a task counts as stalled")
 	})
@@ -295,7 +282,10 @@ func TestGOAMode(t *testing.T) {
 	if !app.goaOn() || app.confirming == nil {
 		t.Fatal("left GOA mode without asking first")
 	}
-	click("Leave the mode")
+	// Its button says Leave as the header's does, which Click would find first.
+	app.confirming.do()
+	app.confirming = nil
+	tt.Frame()
 	if app.goaOn() || app.state.GOA {
 		t.Fatal("still in GOA mode")
 	}

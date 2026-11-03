@@ -245,7 +245,11 @@ func (s *Server) withBuiltins(info proto.SessionInfo, ev proto.HookEvent, list [
 		out = append(slices.Clone(out), hooks.BuiltinJudge)
 	}
 	if decide.Use(st, proto.DecideTrim).On && !has(proto.HookActionTrim) {
-		out = append(slices.Clone(out), hooks.BuiltinTrim)
+		trim := hooks.BuiltinTrim
+		if st.TrimAll {
+			trim = hooks.BuiltinTrimAll
+		}
+		out = append(slices.Clone(out), trim)
 	}
 	return out
 }

@@ -1,0 +1,90 @@
+package onboardview
+
+import (
+	"testing"
+	"time"
+)
+
+// The clock runs to its stop and waits there, and back faster than forward.
+func TestClockStops(t *testing.T) {
+	now := time.Now()
+	k := clock{target: 100, last: now}
+	if !k.tick(now.Add(50*time.Millisecond)) || k.t != 50 {
+		t.Fatalf("forward: %v", k.t)
+	}
+	k.tick(now.Add(100 * time.Millisecond))
+	if k.t != 100 || k.tick(now.Add(150*time.Millisecond)) {
+		t.Fatalf("at its stop: %v", k.t)
+	}
+	k.target = 0
+	k.tick(now.Add(170 * time.Millisecond))
+	if want := float32(100 - 20*backSpeed); k.t != want {
+		t.Fatalf("back: %v, want %v", k.t, want)
+	}
+}
+
+// Each flow's stops rise and end at the end, and a new user gets every step the panel
+// counts, the opening being the first.
+func TestFlows(t *testing.T) {
+	for _, f := range []Flow{FlowNew, FlowReturning, FlowDevice} {
+		stops := stopsOf(f, true)
+		for i := 1; i < len(stops); i++ {
+			if stops[i].at <= stops[i-1].at {
+				t.Errorf("flow %d: stop %d at %v", f, i, stops[i].at)
+			}
+		}
+		if stops[len(stops)-1].at != tEnd {
+			t.Errorf("flow %d ends at %v", f, stops[len(stops)-1].at)
+		}
+	}
+	seen := map[int]bool{}
+	for _, s := range stopsOf(FlowNew, true) {
+		if s.step > 0 {
+			seen[s.step] = true
+		}
+	}
+	if len(seen)+1 != 7 {
+		t.Errorf("a new user sees %v", seen)
+	}
+	if got := communityLinks(); len(got) != 3 {
+		t.Errorf("links: %+v", got)
+	}
+}
+
+// Nobody skips the opening the first time, returning users included; a new device of
+// an account that has seen it comes in at the frames.
+func TestStartTimes(t *testing.T) {
+	if startAt(FlowNew, false) != 0 {
+		t.Error("a new user skipped the opening")
+	}
+	if startAt(FlowReturning, false) != 0 {
+		t.Error("a returning user skipped the opening")
+	}
+	if startAt(FlowDevice, false) < tOpeningEnd {
+		t.Error("a new device sat through the opening again")
+	}
+	if startAt(FlowReturning, true) != startAt(FlowNew, true) {
+		t.Error("with less motion, a returning user's opening differs")
+	}
+}
+
+// The design's tour of the styles is jumped over, both ways, and so is what isn't a
+// flow's own.
+func TestSkips(t *testing.T) {
+	now := time.Now()
+	k := clock{t: tStyle, target: tGOA, last: now, skips: skipsOf(FlowNew)}
+	k.tick(now.Add(10 * time.Millisecond))
+	if k.t != tStyleEnd {
+		t.Errorf("on from the style: at %v", k.t)
+	}
+	k = clock{t: tStyleEnd + 1, target: tStyle, last: now, skips: skipsOf(FlowNew)}
+	k.tick(now.Add(10 * time.Millisecond))
+	if k.t != tStyle {
+		t.Errorf("back to the style: at %v", k.t)
+	}
+	k = clock{t: tHost, target: tStyle, last: now, skips: skipsOf(FlowNew)}
+	k.tick(now.Add(10 * time.Millisecond))
+	if k.t >= tHost+100 {
+		t.Errorf("the regions' material was skipped: at %v", k.t)
+	}
+}

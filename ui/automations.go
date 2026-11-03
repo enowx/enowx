@@ -2,7 +2,6 @@ package ui
 
 import (
 	"path/filepath"
-	"strings"
 	"time"
 
 	"github.com/egoist/mygo/ui"
@@ -59,58 +58,82 @@ func (a *App) loadAutomations() {
 
 func (a *App) automationsSection(c *ui.Context) {
 	st := a.automationsOf()
-	sectionIntro(c, "Automations", "Prompts an agent gets on a schedule, each run in a session of its own on "+a.host.Name+", whether or not this app is open. Times are "+a.host.Name+"'s.")
-	ui.Row(c).FillWidth().Children(func() {
-		ui.Spacer(c)
+	widget.PageHeader(c, "Automations", "Prompts on a schedule, in "+a.host.Name+"'s time", func() {
 		if widget.PrimaryButton(c, icon.Plus, "Add an automation", "").Disabled(len(a.projects) == 0).Clicked() {
 			p, _ := a.currentProject()
 			st.editing = &proto.Automation{Project: p.Path, Agent: a.defaultAgent(), Schedule: "weekdays 09:00", Enabled: true}
 			st.formErr = ""
 		}
 	})
-	switch {
-	case st.err != "":
-		widget.Notice(c, icon.Alert, theme.Error, st.err, "", nil)
-	case !st.loaded:
-		widget.Spinner(c, 14)
-	case len(st.list) == 0 && st.editing == nil:
-		ui.Text(c, "None yet. Weekday triage of new issues, a nightly dependency update, a weekly summary of what changed: an agent can do them while you are away.").
-			FontSize(12).TextColor(theme.Muted)
-	}
+	now := time.Now()
+	week := automationWeek(st.list, now)
+	widget.FigsBand(c, automationFigs(st.list, week))
+	// The week takes what the cards leave of the frame; the frame scrolls only
+	// when there are more cards than fit with a week still readable.
+	scroll := ui.Scroll(c.Key("automations")).Grow(1).FillWidth().MinHeight(0)
+	height := scroll.Bounds().H
+	scroll.Children(func() {
+		ui.Column(c).FillWidth().MinHeight(height).Padding(theme.S4, theme.S5, theme.S5, theme.S5).Gap(theme.S3).Children(func() {
+			switch {
+			case st.err != "":
+				widget.Notice(c, icon.Alert, theme.Error, st.err, "", nil)
+			case !st.loaded:
+				widget.Spinner(c, 14)
+			case len(st.list) == 0:
+				widget.EmptyState(c, icon.History, "None yet", "Weekday triage of new issues, a nightly dependency update, a weekly summary of what changed: an agent can do them while you are away.", nil)
+			}
+			if len(st.list) == 0 {
+				return
+			}
+			rows := make([]ui.Track, (len(st.list)+1)/2)
+			for i := range rows {
+				rows[i] = ui.Fixed(automationCardHeight)
+			}
+			widget.Cols(c.Key("cards"), 2).Shrink(0).RowTracks(rows...).Children(func() {
+				for _, au := range st.list {
+					a.automationRow(c.Key(au.ID), st, au)
+				}
+			})
+			automationWeekBoard(c, week, now)
+		})
+	})
 	if st.editing != nil {
 		a.automationForm(c, st)
 	}
-	for _, au := range st.list {
-		a.automationRow(c.Key(au.ID), st, au)
-	}
 }
 
+// automationCardHeight holds a card whatever it says: a long prompt or a
+// failure is cut to its lines rather than growing it.
+const automationCardHeight = 248
+
 func (a *App) automationRow(c *ui.Context, st *automationsState, au proto.Automation) {
-	widget.Card(c).FillWidth().Children(func() {
-		ui.Row(c).FillWidth().Gap(10).Children(func() {
-			agentTile(c, au.Agent, 26)
-			ui.Column(c).Grow(1).MinWidth(0).Gap(2).Children(func() {
-				ui.Text(c, au.Name).FontSize(12.5).SingleLine()
-				detail := au.Schedule + " · " + a.agentName(au.Agent) + " · " + filepath.Base(au.Project)
-				if au.Enabled && !au.NextRun.IsZero() {
-					detail += " · next " + au.NextRun.Local().Format("Mon Jan 2 15:04")
-				}
-				ui.Text(c, detail).FontSize(11).TextColor(theme.Muted).SingleLine()
-				switch {
-				case au.LastError != "":
-					ui.Text(c, "Last run failed: "+au.LastError).FontSize(11).TextColor(theme.Error).MaxLines(2)
-				case !au.LastRun.IsZero():
-					ui.Text(c, "Last ran "+au.LastRun.Local().Format("Jan 2 15:04")).FontSize(11).TextColor(theme.Muted)
-				}
-			})
+	widget.GridCard(c).Children(func() {
+		widget.CardTitle(c, nil, au.Name, func() {
 			on := au.Enabled
 			if widget.Switch(c, &on, "Enabled") {
 				au.Enabled = on
 				a.saveAutomation(st, au, false)
 			}
-			if widget.GhostButton(c, "Run now").Clicked() {
+		})
+		ui.Row(c).FillWidth().Shrink(0).Gap(theme.S2).Children(func() {
+			ui.Box(c).Shrink(0).Tooltip(a.agentName(au.Agent)).Children(func() { agentTile(c, au.Agent, 32) })
+			ui.Row(c).Grow(1).MinWidth(0).Children(func() {
+				widget.Running(c, au.Schedule, widget.RunStyle{Mono: true})
+			})
+			automationProject(c, filepath.Base(au.Project))
+		})
+		lines := 2
+		if au.LastError != "" {
+			lines = 1
+			ui.Text(c, "Last run failed: "+au.LastError).FontSize(theme.TextLabel).TextColor(theme.Error).FillWidth().MinWidth(0).MaxLines(2).Shrink(0)
+		}
+		widget.CardNote(c, au.Prompt, lines).Shrink(0)
+		automationFacts(c, au)
+		widget.CardFoot(c, func() {
+			if widget.Button(c, widget.Secondary, icon.Play, "Run now", "").Clicked() {
 				a.runAutomation(au)
 			}
+			ui.Spacer(c)
 			widget.MoreMenu(c, &a.menu, "automation:"+au.ID, func(done func()) {
 				if widget.MenuItem(c, icon.Pencil, "Edit…", false) {
 					edit := au
@@ -121,7 +144,7 @@ func (a *App) automationRow(c *ui.Context, st *automationsState, au proto.Automa
 					a.shareAutomation(au)
 					done()
 				}
-				if widget.MenuItem(c, icon.Trash, "Remove", true) {
+				if widget.MenuItem(c, icon.Trash, "Remove…", true) {
 					a.askRemoveAutomation(au)
 					done()
 				}
@@ -130,78 +153,39 @@ func (a *App) automationRow(c *ui.Context, st *automationsState, au proto.Automa
 	})
 }
 
-// automationForm adds an automation, or changes the one being edited.
-func (a *App) automationForm(c *ui.Context, st *automationsState) {
-	e := st.editing
-	widget.Card(c).FillWidth().Border(1, theme.AccentLine).Children(func() {
-		ui.Column(c).FillWidth().Gap(10).Children(func() {
-			if st.formErr != "" {
-				widget.Notice(c, icon.Alert, theme.Error, st.formErr, "", nil)
-			}
-			widget.Field(c, "Name", func() { widget.Input(c, &e.Name, "Weekday triage").FillWidth().AutoFocus() })
-			widget.Field(c, "Project", func() {
-				sel := ui.SelectBase(c, &e.Project)
-				widget.Trigger(sel.Trigger, sel.Open()).FillWidth().Label("Project").Children(func() {
-					ui.Text(c, filepath.Base(e.Project)).FontSize(12.5).SingleLine()
-					ui.Spacer(c)
-					ui.Icon(c, icon.ChevronDown).FontSize(12).TextColor(theme.Muted)
-				})
-				sel.Popup(func(panel ui.Element) {
-					widget.Popup(panel.Margin(6, 0, 0, 0).Width(360))
-					for _, p := range a.projects {
-						item := sel.Item(p.Path)
-						widget.PopupItem(item, item.Highlighted()).Children(func() { ui.Text(c, p.Name).FontSize(12.5) })
-					}
-				})
+// automationProject is a project's name in a chip that keeps inside the row,
+// running when it's too long.
+func automationProject(c *ui.Context, name string) {
+	ui.Row(c.Key("project")).Height(24).MinWidth(0).MaxWidth(160).Shrink(1).PaddingX(theme.S2).Radius(theme.RadiusFull).Background(theme.Sunken).Children(func() {
+		widget.Running(c, name, widget.RunStyle{Size: theme.TextLabel})
+	})
+}
+
+// automationFacts are a card's figures: its next run, only while enabled, its
+// last run and where it runs.
+func automationFacts(c *ui.Context, au proto.Automation) {
+	next := "Off"
+	if au.Enabled {
+		next = "Not set"
+		if !au.NextRun.IsZero() {
+			next = automationWhen(au.NextRun, time.Now())
+		}
+	}
+	last := "Not yet"
+	if !au.LastRun.IsZero() {
+		last = automationWhen(au.LastRun, time.Now())
+	}
+	where := "Project folder"
+	if au.Branch {
+		where = "Worktree"
+	}
+	ui.Row(c.Key("facts")).FillWidth().Shrink(0).Gap(theme.S2).Children(func() {
+		for _, f := range [][2]string{{next, "next run"}, {last, "last run"}, {where, "runs in"}} {
+			ui.Column(c.Key(f[1])).Grow(1).Basis(0).MinWidth(0).Gap(2).Children(func() {
+				widget.Running(c.Key("v"), f[0], widget.RunStyle{Weight: 500})
+				widget.Running(c.Key("l"), f[1], widget.RunStyle{Size: theme.TextLabel, Color: theme.TextSoft})
 			})
-			widget.Field(c, "Agent", func() {
-				sel := ui.SelectBase(c, &e.Agent)
-				widget.Trigger(sel.Trigger, sel.Open()).FillWidth().Label("Agent").Children(func() {
-					agentTile(c, e.Agent, 20)
-					ui.Text(c, a.agentName(e.Agent)).FontSize(12.5).SingleLine()
-					ui.Spacer(c)
-					ui.Icon(c, icon.ChevronDown).FontSize(12).TextColor(theme.Muted)
-				})
-				sel.Popup(func(panel ui.Element) {
-					widget.Popup(panel.Margin(6, 0, 0, 0).Width(300))
-					ui.Scroll(c).FillWidth().MaxHeight(300).Children(func() {
-						ui.Column(c).FillWidth().Children(func() {
-							for _, ag := range a.agents {
-								if ag.Command == "" || !ag.Installed {
-									continue
-								}
-								item := sel.Item(ag.ID)
-								widget.PopupItem(item, item.Highlighted()).Children(func() {
-									agentTile(c, ag.ID, 20)
-									ui.Text(c, ag.Name).FontSize(12.5)
-								})
-							}
-						})
-					})
-				})
-			})
-			widget.Field(c, "When", func() {
-				widget.Input(c, &e.Schedule, "weekdays 09:00").FillWidth().Font(theme.MonoFont)
-				ui.Text(c, "hourly (or hourly :15), daily 09:00, weekdays 18:30, weekly mon 08:00").FontSize(11).TextColor(theme.Muted)
-			})
-			widget.Field(c, "Prompt", func() {
-				ui.TextAreaBase(c, &e.Prompt).FillWidth().MinHeight(70).MaxHeight(180).Padding(9, 11).FontSize(12.5).
-					Label("Prompt").Radius(theme.RadiusControl).Background(theme.Sunken).Border(1, theme.Border).
-					Placeholder("Triage the issues opened since yesterday and summarize them")
-			})
-			switchRow(c, &e.Branch, "A new branch each run", "In a worktree of its own, so runs don't touch each other or your work; otherwise in the project folder.")
-			switchRow(c, &e.SkipPermissions, "Skip permission prompts", "Nobody may be there to answer them.")
-			ui.Row(c).FillWidth().Gap(8).Children(func() {
-				ui.Spacer(c)
-				if widget.GhostButton(c, "Cancel").Clicked() {
-					st.editing = nil
-				}
-				ok := strings.TrimSpace(e.Name) != "" && strings.TrimSpace(e.Prompt) != "" && !st.busy
-				if widget.PrimaryButton(c, icon.Check, "Save", "").Disabled(!ok).Clicked() && ok {
-					a.saveAutomation(st, *e, true)
-				}
-			})
-		})
+		}
 	})
 }
 
@@ -251,7 +235,7 @@ func (a *App) runAutomation(au proto.Automation) {
 
 // askRemoveAutomation removes au once the user agrees.
 func (a *App) askRemoveAutomation(au proto.Automation) {
-	a.confirm("Remove “"+au.Name+"”?", "It stops running on its schedule, and its settings go. Sessions it already started stay.", "Remove", func() { a.removeAutomation(au) })
+	a.confirm("Remove this automation?", "“"+au.Name+"” stops running. Its past sessions stay.", "Remove", func() { a.removeAutomation(au) })
 }
 
 func (a *App) removeAutomation(au proto.Automation) {

@@ -9,7 +9,7 @@ Every use is **on** until the user turns it off (Settings → Decisions → Uses
 | Use | When | The judge says | What enowX does |
 |---|---|---|---|
 | A quiet session's state | an agent without hooks of its own (not Claude Code or Codex) goes quiet | done, waiting, stuck, failed | waiting: marks the session waiting and plays the input sound; stuck or failed: plays the error sound with why |
-| Approving commands | a hook **Ask the judge** before a tool runs | allow, ask, refuse | allow: the agent runs it without asking the user (Claude Code); refuse: the agent is told why; ask: the agent's own permission prompt |
+| Approving commands | a hook **Ask the judge** before a tool runs | allow, ask, refuse | allow: the agent runs it without asking the user (Claude Code; Codex still asks, as no PreToolUse hook can spare its prompt, and the log says `left to the agent's prompt`); refuse: the agent is told why; ask: the agent's own permission prompt |
 | Trimming long output | a hook **Trim its long output** before a tool runs | trimmed (with the lines kept), keep | the agent reads only the lines kept, with a note naming the file that holds the whole output; the exit code is unchanged |
 | Stopping loops | three of an agent's last eight commands failed, two of them the same | looping, progress | looping: presses Escape to stop the agent's turn, and asks the user whether to let it go on |
 | A model per prompt | asked: New session's **Suggest a model for this prompt**, `enowx decide route`, MCP `decide_route` | easy, medium, hard | suggests the agent's model and effort to match (below); nothing changes until the user or the agent asking takes it |
@@ -18,9 +18,13 @@ Every use is **on** until the user turns it off (Settings → Decisions → Uses
 | Team chat urgency | a team member's message comes in while the chat isn't open | urgent, normal, quiet | urgent: the sound, card and banner even when the chat is set to mentions or off; quiet: only counted unread. A message naming or answering the user is never kept quiet |
 | Flaky or real test failures | a check fails (the side panel's Checks) | flaky, real | shown on the failed check with why; a flaky one offers **Run again** |
 
+**Permission prompts on an agent's screen** are answered too, however the agent started, also Claude Code's that still show in `bypassPermissions` and a Claude Code run by hand in a shell tab (`daemon/prompt_answer.go`). enowX reads the screen, and asks the judge with the whole command and the prompt's warning; at its usual confidence minimum it presses allow or deny. What it isn't sure of, and what can't be undone, spends money, publishes or touches secrets, goes to the owner at once, saying how long the prompt gives; only a sure refusal is acted on there. Each is in `decide log`. A prompt that gave a time and left the screen unanswered is logged as `prompt gone`, and GOA is told; the agent learns from its own refusal. In a shell tab the answer's keys are known only for Claude Code's numbered menu; another agent's prompt there goes to the owner.
+
+**With no decision model set up, or none answering,** GOD of Agents answers its own workers' prompts: it is told at once, even mid-turn, with the command and the warning. What can't be undone, money, publishing and secrets still go to the owner. A session outside GOA, or with GOA off, goes to the owner as ever.
+
 **Approving commands and trimming** act through hooks ([hooks.md](hooks.md)). While their use is on, enowX adds its own built-in hook for each, with no hook to add (`core/hooks/builtin.go`); a `tool.before` hook of the user's with the same action replaces the built-in one, its conditions then saying which commands are covered. GOD of Agents and its workers are judged by GOA instead ([goa.md](goa.md)). Settings → Decisions → Uses has **Set your own…** for each, to change what it covers:
 - **Approve:** `tool.before`, action `judge`, Tool `^(Bash|shell|exec_command)$`.
-- **Trim:** `tool.before`, action `trim`, Text matching test, build and install commands. The command then runs as `enowx decide trim -- <command>`. Output up to 150 lines and 12,000 characters passes through as it is; longer output is trimmed by the judge.
+- **Trim:** `tool.before`, action `trim`, Text matching test, build and install commands, also behind a `cd`, an `export` or a variable set before them. The command then runs as `enowx decide trim -- <command>`, what comes before it staying outside for the agent's shell to keep. Output up to 150 lines and 12,000 characters passes through as it is, shown in the log as `short: passed on whole` for those commands, so that "never used" can be told from "nothing was long"; longer output is trimmed by the judge. The switch **Any command** covers every command a shell tool runs: exact content the agent asked for (`cat`, `sed -n`, `git diff`, `git show`, reads of a file) is cut only when the judge is at least 97% sure, and the whole output stays in the file it is told about, with its exit code unchanged. It leaves unwrapped what wrapping would break: what changes the agent's shell further on, and what never ends (dev servers, `tail -f`, what runs in the background, full-screen programs). It is off until tokens saved are measured against wrong trims and latency, which `decide log` shows. An agent started by hand in a shell tab has no hooks from enowX, so nothing is trimmed there. On Codex out of bypass a wrapped command can't be approved by a hook, so it comes back refused with the command to run instead.
 
 A refusal never overrides the user's own hooks: a hook that refuses still refuses, whatever the judge said.
 
@@ -74,7 +78,7 @@ Found on their own:
 - Ollama's decision models (Nimble, Clef, Clef Flash, Tev1, Kev);
 - a Kev or SGLang server on the host.
 
-Settings → Decisions → **Add a judge** → **A decision model** offers each provider above, its address and model filled in, and any other System One address.
+Settings → Decisions → **Add a judge** → **Decision model** offers each provider above, its address and model filled in, and any other System One address.
 
 Models of other shapes aren't asked directly: Perplexity Decider, Liquid d1, Microsoft-Decision-1, Celeris-1 and Baseten's mammoth-1 and elephant-1. Reach the System One ones through a gateway (Opper, OpenRouter), or add their address once they publish one.
 

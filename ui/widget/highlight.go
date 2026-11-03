@@ -143,6 +143,9 @@ func HighlightLines(name, lang, code string) [][]Span {
 	return lines
 }
 
+// Color is the span's color.
+func (s Span) Color() ui.Color { return s.kind.color() }
+
 // CodeSpans draws one line of HighlightLines in a RichText it returns for
 // the caller to style; plain stands for the line when it has no spans.
 func CodeSpans(c *ui.Context, spans []Span, plain string) ui.Element {
@@ -157,12 +160,31 @@ func CodeSpans(c *ui.Context, spans []Span, plain string) ui.Element {
 	})
 }
 
+// highlightCache keeps what was lexed lately: a code block is drawn frame after frame, and
+// lexing it each time is what made a long one lag. It belongs to the main thread.
+var highlightCache = map[[2]string][][]Span{}
+
+const highlightKeep = 256
+
+func highlightedOnce(lang, code string) [][]Span {
+	key := [2]string{lang, code}
+	if lines, ok := highlightCache[key]; ok {
+		return lines
+	}
+	if len(highlightCache) >= highlightKeep {
+		clear(highlightCache)
+	}
+	lines := HighlightLines("", lang, code)
+	highlightCache[key] = lines
+	return lines
+}
+
 // highlight draws a code block in lang inside a RichText; one that names
 // no language shows plain.
 func highlight(c *ui.Context, lang, code string) {
 	var lines [][]Span
-	if lang != "" {
-		lines = HighlightLines("", lang, code)
+	if lang != "" && len(code) <= longHighlight {
+		lines = highlightedOnce(lang, code)
 	}
 	if lines == nil {
 		ui.Text(c, code).TextColor(theme.Text)

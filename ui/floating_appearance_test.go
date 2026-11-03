@@ -16,10 +16,10 @@ func TestFloatingAppearanceIndependentAndPersisted(t *testing.T) {
 	app.host = LocalHost()
 	appAccent := theme.Accent
 	tt := floatingSectionFrame(t, app, app.floatingAppearance)
-	if err := tt.Click("Floating color #9DB6F5"); err != nil {
+	if err := tt.Click("Floating color #0E7490"); err != nil {
 		t.Fatal(err)
 	}
-	if app.floatingAccent() != mygoui.Hex("#9DB6F5") || theme.Accent != appAccent || app.state.Accent != "" {
+	if app.floatingAccent() != mygoui.Hex("#0E7490") || theme.Accent != appAccent || app.state.Accent != "" {
 		t.Fatal("floating color changed the app theme or did not apply")
 	}
 	plain := app.sliceFill(&floatingState{source: -1}, floatingAction{enabled: true}, 0)
@@ -33,10 +33,10 @@ func TestFloatingAppearanceIndependentAndPersisted(t *testing.T) {
 	}
 	app.saveState()
 	saved := loadState(file)
-	if saved.FloatingAccent != "#9DB6F5" || !saved.FloatingTint || !saved.FloatingCompact || !saved.FloatingReduceMotion {
+	if saved.FloatingAccent != "#0E7490" || !saved.FloatingTint || !saved.FloatingCompact || !saved.FloatingReduceMotion {
 		t.Fatal("floating appearance was not saved")
 	}
-	if err := tt.Click("Follow app theme"); err != nil {
+	if err := tt.Click("Follow app theme switch"); err != nil {
 		t.Fatal(err)
 	}
 	if app.state.FloatingAccent != "" || app.floatingAccent() != theme.Accent {

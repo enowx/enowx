@@ -14,59 +14,21 @@ import (
 	"github.com/enowx/enowx/ui/widget"
 )
 
-// A turn as a timeline: each thing in it (the user's message, a thought, a
-// tool call, the agent's words) a line along a rule, marked by an icon of
-// what it is. Color is kept for what needs the eye: the user's own
-// messages, the step under way, a failure.
-
-// tone is how a timeline mark is colored.
-type tone int
+// A turn reads as a conversation: the user's message a bubble at the right
+// in the accent, the agent's words plain text in the column, what it did in
+// quiet lines between, and what it does now in a line of its own at the end.
 
 const (
-	toneStep  tone = iota // a step done: quiet
-	toneUser              // the user's message
-	toneAgent             // the agent's own words
-	toneRun               // the step under way
-	toneFail              // a step that failed
-	toneAsk               // what the agent waits on the user for
+	// bubbleWidth and answerWidth are as wide as a message and an answer run:
+	// less than the column, so who says what shows in their edges.
+	bubbleWidth = 560
+	answerWidth = 640
+	// readLeading is the reading text's line height, 24 on its 15.
+	readLeading = 1.6
+	// bubbleControls is the room kept beside a bubble for its time and pencil,
+	// so that showing them under the pointer doesn't reflow the message.
+	bubbleControls = 88
 )
-
-// markSize is a mark's diameter; the rule runs through their centers.
-const markSize = 26
-
-// node is one line of the timeline: its mark on the rule, then body; last
-// stops the rule at the mark.
-func node(c *ui.Context, svg *ui.SVG, t tone, last bool, body func()) {
-	ui.Row(c).FillWidth().Gap(12).AlignItems(ui.Stretch).Children(func() {
-		ui.Column(c).Width(markSize).Shrink(0).AlignItems(ui.Center).Children(func() {
-			mark(c, svg, t)
-			if !last {
-				ui.Box(c).Width(1).Grow(1).MinHeight(6).Background(theme.BorderStrong)
-			}
-		})
-		ui.Column(c).Grow(1).MinWidth(0).Padding(3, 0, 12, 0).Gap(6).Children(body)
-	})
-}
-
-// mark is a node's icon in its circle.
-func mark(c *ui.Context, svg *ui.SVG, t tone) {
-	bg, border, fg := theme.Panel, theme.BorderStrong, theme.TextSoft
-	switch t {
-	case toneUser:
-		bg, border, fg = theme.Accent, theme.Accent, theme.OnAccent
-	case toneAgent:
-		fg = theme.Accent
-	case toneRun:
-		border, fg = theme.Working, theme.Working
-	case toneFail:
-		border, fg = theme.Error, theme.Error
-	case toneAsk:
-		bg, border, fg = theme.Fade(theme.Warning, 0.15), theme.Warning, theme.Warning
-	}
-	ui.Box(c).Size(markSize, markSize).Shrink(0).Radius(markSize/2).Center().Background(bg).Border(1, border).Children(func() {
-		ui.Icon(c, svg).FontSize(13).TextColor(fg)
-	})
-}
 
 // item is something the timeline shows of a turn: an entry, a run of
 // tool calls folded into one line, or (work) the line that opens the
@@ -77,10 +39,32 @@ type item struct {
 	work  bool
 }
 
+// isLine says the item is one of the quiet lines, which follow each other
+// without a gap, rather than a block of its own.
+func (ch *Chat) isLine(it item, latest bool) bool {
+	if it.entry == nil {
+		return true
+	}
+	switch it.entry.Kind {
+	case proto.TranscriptUser, proto.TranscriptAssistant:
+		return false
+	}
+	return !ch.asks(*it.entry, latest)
+}
+
 // turnTimeline draws turn t: the user's message, its work (step by step
 // while under way; once done, a line that opens to it), the agent's
-// answer. Notices stand apart, small and centered.
+// answer, and while it runs the line of what it does now. Notices stand
+// apart, small and centered.
 func (ch *Chat) turnTimeline(c *ui.Context, t turn, running bool) {
+	waiting := ch.ask.waiting
+	work := t.work
+	// The call under way is the line of what the agent does now, not a line
+	// of what it did.
+	var current *proto.TranscriptEntry
+	if n := len(work); running && !waiting && n > 0 && len(t.answer) == 0 && work[n-1].Kind == proto.TranscriptTool && !work[n-1].Done {
+		current, work = &work[n-1], work[:n-1]
+	}
 	var items []item
 	if t.prompt != nil {
 		items = append(items, item{entry: t.prompt})
@@ -90,7 +74,7 @@ func (ch *Chat) turnTimeline(c *ui.Context, t turn, running bool) {
 		items = append(items, item{work: true})
 	}
 	if open {
-		for _, st := range workSteps(t.work) {
+		for _, st := range workSteps(work) {
 			if st.entry != nil {
 				items = append(items, item{entry: st.entry})
 			} else if len(st.tools) >= groupFrom {
@@ -113,46 +97,71 @@ func (ch *Chat) turnTimeline(c *ui.Context, t turn, running bool) {
 	thinking := running && len(t.work) == 0 && len(t.answer) == 0 && t.prompt != nil
 	// Waiting on something no entry shows (a question of the agent's
 	// own screen): a card of its own, its terminal answering.
-	waitsElse := running && ch.ask.waiting && !thinking
+	waitsElse := running && waiting && !thinking
 	if waitsElse && len(items) > 0 {
 		if l := items[len(items)-1]; l.entry != nil && ch.asks(*l.entry, true) {
 			waitsElse = false
 		}
 	}
-	ui.Column(c).FillWidth().Children(func() {
-		for i, it := range items {
-			last := i == len(items)-1 && !thinking
-			latest := running && i == len(items)-1
-			switch {
-			case it.work:
-				ch.workNode(c.Key("work"), t, open, last)
-			case it.tools != nil:
-				ch.groupNode(c.Key(it.tools[0].Index), it.tools, latest, last)
-			case it.entry.Kind == proto.TranscriptUser:
-				ch.userNode(c.Key(it.entry.Index), *it.entry, running, last)
-			case ch.asks(*it.entry, latest):
-				ch.askNode(c.Key(it.entry.Index), *it.entry, last && !waitsElse)
-			default:
-				ch.entryNode(c.Key(it.entry.Index), *it.entry, latest, last && !waitsElse)
+	isLatest := func(i int) bool { return running && i == len(items)-1 }
+	ui.Column(c).FillWidth().Gap(theme.S4).Children(func() {
+		for i := 0; i < len(items); {
+			it := items[i]
+			if !ch.isLine(it, isLatest(i)) {
+				ch.blockItem(c.Key(i), *it.entry, running)
+				i++
+				continue
 			}
+			end := i
+			for end < len(items) && ch.isLine(items[end], isLatest(end)) {
+				end++
+			}
+			from := i
+			ui.Column(c.Key(from)).FillWidth().Children(func() {
+				for j := from; j < end; j++ {
+					ch.lineItem(c.Key(j), t, items[j], open, isLatest(j))
+				}
+			})
+			i = end
 		}
 		if waitsElse {
-			ch.waitNode(c.Key("wait"))
+			ch.waitCard(c.Key("wait"))
 		}
-		if thinking {
-			node(c.Key("thinking"), icon.Brain, toneRun, true, func() {
-				ui.Row(c).Height(20).Gap(8).AlignItems(ui.Center).Children(func() {
-					ui.Text(c, "Thinking").FontSize(12.5).TextColor(theme.TextSoft).Italic()
-					widget.Spinner(c, 11)
-				})
-			})
+		if running && (!waiting || thinking) {
+			ch.nowLine(c.Key("now"), t, current)
 		}
 		for i, e := range notices {
-			ui.Row(c.Key(fmt.Sprint("notice", i))).FillWidth().Justify(ui.Center).Padding(4, 0).Children(func() {
-				ui.Text(c, e.Text).FontSize(11).TextColor(theme.Muted)
+			ui.Row(c.Key(fmt.Sprint("notice", i))).FillWidth().Justify(ui.Center).Children(func() {
+				ui.Text(c, e.Text).FontSize(theme.TextLabel).TextColor(theme.Muted)
 			})
 		}
 	})
+}
+
+// blockItem is what stands apart in a turn: a message, words, or an ask.
+func (ch *Chat) blockItem(c *ui.Context, e proto.TranscriptEntry, running bool) {
+	switch {
+	case e.Kind == proto.TranscriptUser:
+		ch.userMessage(c, e, running)
+	case e.Kind == proto.TranscriptAssistant:
+		ui.Column(c).FillWidth().MaxWidth(answerWidth).FontSize(theme.TextRead).LineHeight(readLeading).Children(func() {
+			widget.MarkdownLinks(c, e.Text, ch.links)
+		})
+	default:
+		ch.askCardOf(c, e)
+	}
+}
+
+// lineItem is one of the turn's lines.
+func (ch *Chat) lineItem(c *ui.Context, t turn, it item, open, latest bool) {
+	switch {
+	case it.work:
+		ch.workLine(c, t, open)
+	case it.tools != nil:
+		ch.groupLine(c, it.tools, latest)
+	default:
+		ch.entryLine(c, *it.entry, latest)
+	}
 }
 
 // workOpen says turn t's work shows step by step: under way, or opened.
@@ -163,45 +172,55 @@ func (ch *Chat) workOpen(t turn, running bool) bool {
 	return running
 }
 
-// userNode is the user's message, with the pencil that sends it again
-// changed while the pointer is over it.
-func (ch *Chat) userNode(c *ui.Context, e proto.TranscriptEntry, running, last bool) {
+// userMessage is the user's message in its bubble: under the pointer, its
+// time and the pencil that sends it again changed.
+func (ch *Chat) userMessage(c *ui.Context, e proto.TranscriptEntry, running bool) {
 	editing := ch.editing != nil && ch.editing.Index == e.Index
 	text := e.Text
 	if ch.showUser != nil {
 		text = ch.showUser(text)
 	}
-	node(c, icon.Account, toneUser, last, func() {
-		row := ui.Row(c).FillWidth().Height(20).Gap(6).AlignItems(ui.Center)
+	ui.Column(c).FillWidth().Gap(theme.S2).AlignItems(ui.End).Children(func() {
+		row := ui.Row(c).FillWidth().Justify(ui.End).Gap(theme.S2).AlignItems(ui.Center).Label("Your message")
 		row.Children(func() {
-			who := "You"
-			if !e.Time.IsZero() {
-				who += " · " + e.Time.Local().Format("15:04")
-			}
-			ui.Text(c, who).FontSize(11.5).TextColor(theme.Accent).SingleLine()
-			ui.Spacer(c)
-			if ch.editable && (row.Hovered() || editing) {
-				tip := "Edit and send again"
-				if running {
-					tip = "Edit once the agent is done"
+			ui.Row(c).Width(bubbleControls).Shrink(0).Gap(theme.S1).Justify(ui.End).AlignItems(ui.Center).Children(func() {
+				if !row.Hovered() && !editing {
+					return
 				}
-				if widget.IconButton(c, icon.Pencil, tip, running).Clicked() && !running {
-					ch.edit(e)
+				if !e.Time.IsZero() {
+					ui.Text(c, e.Time.Local().Format("15:04")).FontSize(theme.TextLabel).TextColor(theme.Muted).SingleLine()
 				}
+				if ch.editable {
+					tip := "Edit and send again"
+					if running {
+						tip = "Edit once the agent is done"
+					}
+					b := widget.IconButton(c, icon.Pencil, tip, false)
+					if running {
+						b.Opacity(0.45)
+					}
+					if b.Clicked() && !running {
+						ch.edit(e)
+					}
+				}
+			})
+			bg := theme.Accent
+			if editing {
+				bg = theme.Fade(theme.Accent, 0.5)
 			}
+			ui.Column(c).MinWidth(0).Shrink(1).MaxWidth(bubbleWidth).Padding(theme.S2, theme.S4).
+				Radius(theme.RadiusCard, theme.RadiusCard, theme.RadiusTail, theme.RadiusCard).Background(bg).Children(func() {
+				ui.Text(c, text).FontSize(theme.TextRead).LineHeight(readLeading).TextColor(theme.OnAccent).Selectable()
+			})
 		})
-		t := ui.Text(c, text).TextColor(theme.TextStrong).Selectable()
-		if editing {
-			t.TextColor(theme.Accent)
-		}
 		ch.pictureChips(c, e.Text)
 	})
 }
 
-// workNode is a done turn's work in one line, opening it step by step
+// workLine is a done turn's work in one line, opening it step by step
 // (open) or folding it again: how long it took, its tool calls, the files
 // it changed.
-func (ch *Chat) workNode(c *ui.Context, t turn, open, last bool) {
+func (ch *Chat) workLine(c *ui.Context, t turn, open bool) {
 	tools, edited, failed := 0, map[string]bool{}, 0
 	for _, e := range t.work {
 		if e.Kind == proto.TranscriptTool {
@@ -214,92 +233,57 @@ func (ch *Chat) workNode(c *ui.Context, t turn, open, last bool) {
 			}
 		}
 	}
-	tn, svg := toneStep, icon.Check
-	if failed > 0 {
-		tn, svg = toneFail, icon.Alert
+	label := "Worked"
+	if d := t.elapsed().Round(time.Second); d > 0 {
+		label += " for " + d.String()
 	}
-	node(c, svg, tn, last, func() {
-		label := "Worked"
-		if d := t.elapsed().Round(time.Second); d > 0 {
-			label += " for " + d.String()
-		}
-		var parts []string
-		if tools > 0 {
-			parts = append(parts, fmt.Sprintf("%d %s", tools, plural(tools, "tool", "tools")))
-		}
-		if n := len(edited); n > 0 {
-			parts = append(parts, fmt.Sprintf("%d %s edited", n, plural(n, "file", "files")))
-		}
-		if failed > 0 {
-			parts = append(parts, fmt.Sprintf("%d failed", failed))
-		}
-		what := "Show the work"
-		if open {
-			what = "Hide the work"
-		}
-		head := ui.ButtonBase(c).FillWidth().Height(20).Gap(7).AlignItems(ui.Center).Justify(ui.Start).Cursor(ui.CursorPointer).Label(what)
-		head.Children(func() {
-			col := theme.TextSoft
-			if head.Hovered() {
-				col = theme.Text
-			}
-			ui.Text(c, label).FontSize(12.5).TextColor(col).SingleLine()
-			if len(parts) > 0 {
-				ui.Text(c, "· "+strings.Join(parts, " · ")).FontSize(12).TextColor(theme.Muted).SingleLine().Shrink(1)
-			}
-			chev := icon.ChevronRight
-			if open {
-				chev = icon.ChevronDown
-			}
-			ui.Icon(c, chev).FontSize(11).TextColor(theme.Muted)
-		})
-		if head.Clicked() {
-			ch.open[t.start] = !open
-		}
-	})
+	var parts []string
+	if tools > 0 {
+		parts = append(parts, fmt.Sprintf("%d %s", tools, plural(tools, "tool", "tools")))
+	}
+	if n := len(edited); n > 0 {
+		parts = append(parts, fmt.Sprintf("%d %s edited", n, plural(n, "file", "files")))
+	}
+	if failed > 0 {
+		parts = append(parts, fmt.Sprintf("%d failed", failed))
+	}
+	l := lineLook{svg: icon.Check, label: label, name: "Show the work", open: open, opens: true, chevron: true}
+	if open {
+		l.name = "Hide the work"
+	}
+	if failed > 0 {
+		l.svg, l.iconColor = icon.Alert, theme.Del
+	}
+	if len(parts) > 0 {
+		l.note = "· " + strings.Join(parts, " · ")
+	}
+	if drawLine(c, l).Clicked() {
+		ch.open[t.start] = !open
+	}
 }
 
-// entryNode is a thought, the agent's words, or one tool call.
-func (ch *Chat) entryNode(c *ui.Context, e proto.TranscriptEntry, latest, last bool) {
+// entryLine is a thought, or one tool call.
+func (ch *Chat) entryLine(c *ui.Context, e proto.TranscriptEntry, latest bool) {
 	switch e.Kind {
 	case proto.TranscriptThinking:
 		label := "Thought"
 		if e.DurationMs > 0 {
 			label += " for " + (time.Duration(e.DurationMs) * time.Millisecond).Round(time.Second).String()
 		}
-		tn := toneStep
+		l := lineLook{svg: icon.Brain, label: label}
 		if latest {
-			tn = toneRun
+			l.color, l.iconColor = theme.Now, theme.Now
 		}
-		node(c, icon.Brain, tn, last, func() {
-			ch.stepLine(c, e.Index, label, "", nil, func() {
-				ui.Text(c, e.Text).FontSize(12).TextColor(theme.Muted).Italic().Selectable()
-			})
-		})
-	case proto.TranscriptAssistant:
-		node(c, icon.Sparkle, toneAgent, last, func() {
-			widget.MarkdownLinks(c, e.Text, ch.links)
+		ch.stepLine(c, e.Index, l, func() {
+			ui.Text(c, widget.LongWords(e.Text)).FontSize(theme.TextUI).TextColor(theme.TextSoft).Italic().Selectable()
 		})
 	case proto.TranscriptTool:
-		svg, verb := toolLook(e.Text)
-		if e.Text == "Bash" {
-			svg, verb = shellLook(e)
-		}
-		tn := toneStep
-		switch {
-		case e.Failed:
-			tn = toneFail
-		case latest && !e.Done:
-			tn = toneRun
-		}
-		node(c, svg, tn, last, func() {
-			ch.stepLine(c, e.Index, verb, toolDetailShown(e), func() { toolStatus(c, e, latest) }, func() { ch.toolBody(c, e) })
-		})
+		ch.toolRow(c, e)
 	}
 }
 
-// groupNode is a run of tool calls on one line, opening to each.
-func (ch *Chat) groupNode(c *ui.Context, tools []proto.TranscriptEntry, latest, last bool) {
+// groupLine is a run of tool calls on one line, opening to each.
+func (ch *Chat) groupLine(c *ui.Context, tools []proto.TranscriptEntry, latest bool) {
 	key := -(tools[0].Index + 1)
 	open, set := ch.open[key]
 	if !set {
@@ -312,87 +296,40 @@ func (ch *Chat) groupNode(c *ui.Context, tools []proto.TranscriptEntry, latest, 
 		}
 		added, removed = added+e.Added, removed+e.Removed
 	}
-	tn := toneStep
-	switch {
-	case failed > 0:
-		tn = toneFail
-	case latest && !tools[len(tools)-1].Done:
-		tn = toneRun
-	}
 	svg, _ := toolLook(tools[len(tools)-1].Text)
-	node(c, svg, tn, last, func() {
-		status := func() {
-			if added+removed > 0 {
-				ui.Text(c, fmt.Sprintf("+%d", added)).FontSize(11.5).TextColor(theme.Done).SingleLine()
-				ui.Text(c, fmt.Sprintf("−%d", removed)).FontSize(11.5).TextColor(theme.Error).SingleLine()
+	l := lineLook{svg: svg, label: summary(tools), open: open, opens: true}
+	if failed > 0 {
+		l.iconColor = theme.Del
+	}
+	l.right = func(bool) {
+		figures(c, added, removed)
+		if failed > 0 {
+			ui.Text(c, fmt.Sprintf("%d failed", failed)).FontSize(theme.TextUI).TextColor(theme.Del).SingleLine()
+		}
+	}
+	if drawLine(c, l).Clicked() {
+		ch.open[key] = !open
+	}
+	if open {
+		ui.Column(c).FillWidth().Padding(0, 0, 0, lineIndent).Transition(widget.PageMotion).Children(func() {
+			for _, e := range tools {
+				ch.toolRow(c.Key(e.Index), e)
 			}
-			if failed > 0 {
-				ui.Text(c, fmt.Sprintf("%d failed", failed)).FontSize(11.5).TextColor(theme.Error).SingleLine()
-			}
-		}
-		if stepHead(c, summary(tools), "", status, open).Clicked() {
-			ch.open[key] = !open
-		}
-		if open {
-			ui.Column(c).FillWidth().Gap(0).Children(func() {
-				for i, e := range tools {
-					ch.toolRow(c.Key(e.Index), e, latest && i == len(tools)-1)
-				}
-			})
-		}
-	})
+		})
+	}
 }
 
 // stepLine is a step's line, opening to body.
-func (ch *Chat) stepLine(c *ui.Context, index int, label, detail string, status func(), body func()) {
-	open := ch.open[index]
-	if stepHead(c, label, detail, status, open).Clicked() {
-		ch.open[index] = !open
+func (ch *Chat) stepLine(c *ui.Context, index int, l lineLook, body func()) {
+	l.open, l.opens = ch.open[index], true
+	if l.name == "" {
+		l.name = l.label
 	}
-	if open {
-		ui.Column(c).FillWidth().Transition(widget.PageMotion).Children(body)
+	if drawLine(c, l).Clicked() {
+		ch.open[index] = !l.open
 	}
-}
-
-// stepHead is a step's clickable line: what it is, a detail in the code
-// font, its status, and the chevron saying it opens.
-func stepHead(c *ui.Context, label, detail string, status func(), open bool) ui.Element {
-	head := ui.ButtonBase(c).FillWidth().Height(20).Gap(8).AlignItems(ui.Center).Cursor(ui.CursorPointer).Justify(ui.Start).Label(label)
-	head.Children(func() {
-		col := theme.TextSoft
-		if head.Hovered() {
-			col = theme.Text
-		}
-		ui.Text(c, label).FontSize(12.5).TextColor(col).SingleLine().Shrink(0)
-		if detail != "" {
-			ui.Text(c, detail).Font(theme.MonoFont).FontSize(11).TextColor(theme.Muted).SingleLine().Shrink(1)
-		}
-		ui.Spacer(c)
-		if status != nil {
-			ui.Row(c).Gap(5).Shrink(0).Children(status)
-		}
-		chev := icon.ChevronRight
-		if open {
-			chev = icon.ChevronDown
-		}
-		ui.Icon(c, chev).FontSize(11).TextColor(theme.Muted)
-	})
-	return head
-}
-
-// toolStatus is a tool call's status at the end of its line.
-func toolStatus(c *ui.Context, e proto.TranscriptEntry, latest bool) {
-	switch {
-	case e.Added+e.Removed > 0:
-		ui.Text(c, fmt.Sprintf("+%d", e.Added)).FontSize(11.5).TextColor(theme.Done).SingleLine()
-		ui.Text(c, fmt.Sprintf("−%d", e.Removed)).FontSize(11.5).TextColor(theme.Error).SingleLine()
-	case e.Failed:
-		ui.Text(c, "failed").FontSize(11.5).TextColor(theme.Error).SingleLine()
-	case latest && !e.Done:
-		widget.Spinner(c, 11)
-	}
-	if e.Done && e.DurationMs > 0 {
-		ui.Text(c, took(e.DurationMs)).FontSize(11).TextColor(theme.Idle).SingleLine()
+	if l.open {
+		lineBody(c, body)
 	}
 }
 

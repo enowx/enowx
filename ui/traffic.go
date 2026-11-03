@@ -5,6 +5,7 @@ import (
 	"os"
 	"path/filepath"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/egoist/mygo"
@@ -26,13 +27,32 @@ func (a *App) trafficOf() *trafficview.View {
 }
 
 func (a *App) trafficTab(c *ui.Context, s proto.SessionInfo) {
+	a.trafficOf().Draw(c, a.trafficOptions(s))
+}
+
+// exchangeTab draws a request of the traffic, in the center; what is its tab's
+// ID without the kind: the exchange's ID, then its name.
+func (a *App) exchangeTab(c *ui.Context, s proto.SessionInfo, what string) {
+	if id, ok := exchangeID(what); ok {
+		a.trafficOf().DrawExchange(c, a.trafficOptions(s), id)
+	}
+}
+
+// exchangeID is the exchange a tab shows, from what its ID says after the kind.
+func exchangeID(what string) (int64, bool) {
+	id, _, _ := strings.Cut(what, " ")
+	n, err := strconv.ParseInt(id, 10, 64)
+	return n, err == nil
+}
+
+// trafficOptions connect the Traffic tool to the app, for session s.
+func (a *App) trafficOptions(s proto.SessionInfo) trafficview.Options {
 	top := a.parentOf(s)
-	v := a.trafficOf()
 	var tabs []proto.SessionInfo
 	if top.ID != "" {
 		tabs = append([]proto.SessionInfo{top}, a.tabsOf(top.ID)...)
 	}
-	v.Draw(c, trafficview.Options{
+	return trafficview.Options{
 		Host:     a.client,
 		HostName: a.host.Name,
 		Session:  s,
@@ -58,12 +78,32 @@ func (a *App) trafficTab(c *ui.Context, s proto.SessionInfo) {
 		},
 		OpenInBrowser: a.trafficOpenInBrowser(top),
 		Confirm:       a.confirm,
-	})
+		OpenExchange: func(id int64, name string) {
+			a.openCenter(s, centerExchange+strconv.FormatInt(id, 10)+" "+name)
+		},
+		Current: func() int64 {
+			if what, ok := strings.CutPrefix(a.centerFront(s), centerExchange); ok {
+				id, _ := exchangeID(what)
+				return id
+			}
+			return 0
+		},
+		ToolShown: a.panelShows(panelTraffic),
+	}
 }
 
 // saveDownload keeps data in the Downloads folder, named name (made unique),
 // and returns where.
 func saveDownload(name string, data []byte) (string, error) {
+	path, err := downloadPath(name)
+	if err != nil {
+		return "", err
+	}
+	return path, os.WriteFile(path, data, 0o600)
+}
+
+// downloadPath is a path for name in Downloads, not taken yet.
+func downloadPath(name string) (string, error) {
 	home, err := os.UserHomeDir()
 	if err != nil {
 		return "", err
@@ -75,12 +115,11 @@ func saveDownload(name string, data []byte) (string, error) {
 	path := filepath.Join(dir, name)
 	for i := 2; ; i++ {
 		if _, err := os.Stat(path); os.IsNotExist(err) {
-			break
+			return path, nil
 		}
 		ext := filepath.Ext(name)
 		path = filepath.Join(dir, name[:len(name)-len(ext)]+"-"+strconv.Itoa(i)+ext)
 	}
-	return path, os.WriteFile(path, data, 0o600)
 }
 
 // trafficEvent applies the interceptor's events to the tool's view.
@@ -201,6 +240,6 @@ func (a *App) trafficOpenInBrowser(s proto.SessionInfo) func(string) {
 			a.status = err.Error()
 			return
 		}
-		a.openPanel(panelBrowser)
+		a.openCenter(s, centerBrowser)
 	}
 }

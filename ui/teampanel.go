@@ -39,15 +39,15 @@ func (a *App) teamProjectsTab(c *ui.Context) {
 		}
 	}
 	if len(list) == 0 {
-		ui.Column(c).Grow(1).FillWidth().Center().Gap(6).Padding(24).Children(func() {
+		ui.Column(c).Grow(1).FillWidth().Center().Gap(theme.S2).Padding(theme.S5).Children(func() {
 			ui.Icon(c, icon.Folder).FontSize(22).TextColor(theme.Idle)
-			ui.Text(c, "No projects yet").FontSize(12.5).TextColor(theme.TextSoft)
-			ui.Text(c, "Admins add them by their Git link, in Settings › Cloud › the team › Projects.").FontSize(11).TextColor(theme.Muted).TextAlign(ui.Center)
+			ui.Text(c, "No projects yet").FontSize(theme.TextUI).TextColor(theme.TextSoft)
+			ui.Text(c, "Admins add them by their Git link, in Settings › Cloud › the team › Projects.").FontSize(theme.TextLabel).TextColor(theme.Muted).TextAlign(ui.Center)
 		})
 		return
 	}
 	ui.Scroll(c).Grow(1).FillWidth().MinHeight(0).Children(func() {
-		ui.Column(c).FillWidth().Gap(8).Padding(10, 12).Children(func() {
+		ui.Column(c).FillWidth().Gap(theme.S1).Padding(theme.S2, widget.ScrollGutter, theme.S2, theme.S2).Children(func() {
 			for _, p := range list {
 				a.teamProjectCard(c.Key(p.ID), p)
 			}
@@ -55,26 +55,27 @@ func (a *App) teamProjectsTab(c *ui.Context) {
 	})
 }
 
-// teamProjectCard is a team's project: its link, its copy on this host
-// or a way to clone it, and the sessions working in it.
+// teamProjectCard is a team's project in the panel: where it is here and its
+// notes, a way to start or clone there, and the sessions working in it.
 func (a *App) teamProjectCard(c *ui.Context, p proto.TeamProject) {
-	var sessions []proto.SessionInfo
-	for _, s := range a.sessions {
-		if !s.Exited && slices.ContainsFunc(p.Here, func(h proto.TeamProjectCopy) bool { return h.Path == s.Project }) {
-			sessions = append(sessions, s)
-		}
-	}
-	ui.Column(c).FillWidth().Radius(theme.RadiusCard).Background(theme.Raised).Border(1, theme.Border).Children(func() {
-		ui.Row(c).FillWidth().Gap(10).Padding(10, 12).AlignItems(ui.Center).Children(func() {
-			ui.Box(c).Size(28, 28).Radius(8).Background(theme.Sunken).Center().Shrink(0).Children(func() {
-				ui.Icon(c, icon.Folder).FontSize(14).TextColor(theme.TextSoft)
-			})
-			ui.Column(c).Grow(1).Shrink(1).MinWidth(0).Gap(2).Children(func() {
-				ui.Text(c, p.Name).FontSize(13).FontWeight(600).SingleLine()
-				ui.Text(c, strings.TrimPrefix(p.Ref, "git:")).FontSize(11).TextColor(theme.Muted).SingleLine()
+	ui.Column(c).FillWidth().Shrink(0).Children(func() {
+		ui.Row(c.Key("row")).FillWidth().Shrink(0).MinHeight(36).Padding(theme.S1, 0, theme.S1, theme.S3).Gap(theme.S2).Children(func() {
+			parts := []string{"Not on " + a.host.Name}
+			if len(p.Here) > 0 {
+				parts = []string{textfmt.TildePath(p.Here[0].Path, a.daemonInfo.Home)}
+				if n := len(a.sessionsOfTeamProject(p)); n > 0 {
+					parts = append(parts, textfmt.Plural(n, "1 session", fmt.Sprintf("%d sessions", n)))
+				}
+			}
+			if n := a.teamProjectNotes(p); n > 0 {
+				parts = append(parts, textfmt.Plural(n, "1 note", fmt.Sprintf("%d notes", n)))
+			}
+			ui.Column(c).Grow(1).Basis(0).MinWidth(0).Children(func() {
+				widget.Running(c, p.Name, widget.RunStyle{})
+				widget.Running(c.Key("sub"), strings.Join(parts, " · "), widget.RunStyle{Size: theme.TextLabel, Color: theme.TextSoft})
 			})
 			if len(p.Here) == 0 {
-				if widget.Button(c, widget.Secondary, icon.Download, "Clone", "").Tooltip("Clone " + p.Repo + " on " + a.host.Name).Clicked() {
+				if widget.Button(c, widget.Secondary, nil, "Clone", "").Tooltip("Clone " + p.Repo + " on " + a.host.Name).Clicked() {
 					a.cloneTeamProject(p)
 				}
 				return
@@ -84,41 +85,44 @@ func (a *App) teamProjectCard(c *ui.Context, p proto.TeamProject) {
 					a.openNewSession(proj)
 				}
 			}
+			widget.StatusLine(c, theme.Done, false, "Here")
 		})
-		ui.Column(c).FillWidth().Gap(6).Padding(0, 12, 10, 12).Children(func() {
-			ui.Row(c).FillWidth().Gap(6).Wrap().AlignItems(ui.Center).Children(func() {
-				if len(p.Here) > 0 {
-					widget.Tag(c, "on "+a.host.Name, theme.Done)
-					ui.Text(c, textfmt.TildePath(p.Here[0].Path, a.daemonInfo.Home)).FontSize(10.5).Font(theme.MonoFont).TextColor(theme.Muted).SingleLine().Shrink(1)
-				} else {
-					widget.Tag(c, "not on "+a.host.Name, theme.Muted)
-				}
-				if n := a.teamProjectNotes(p); n > 0 {
-					widget.Tag(c, textfmt.Plural(n, "1 note", fmt.Sprintf("%d notes", n)), theme.TextSoft)
-				}
-				if p.AddedBy != "" {
-					ui.Text(c, "added by "+p.AddedBy).FontSize(10.5).TextColor(theme.Idle).SingleLine()
-				}
-			})
-			for _, s := range sessions {
-				row := ui.ButtonBase(c.Key("s:"+s.ID)).FillWidth().Gap(8).Padding(5, 8).Radius(theme.RadiusControl).AlignItems(ui.Center).
-					Cursor(ui.CursorPointer).Label("Show " + a.sessionName(s))
-				if row.Hovered() || s.ID == a.selected {
-					row.Background(theme.Hover)
-				}
-				row.Children(func() {
-					ui.Icon(c, icon.Terminal).FontSize(12).TextColor(theme.TextSoft)
-					ui.Text(c, a.sessionName(s)).FontSize(12).SingleLine().Shrink(1).Grow(1)
-					if s.Member != nil {
-						memberAvatar(c, s.Member.Account, nonEmptyStr(s.Member.Name, s.Member.GitHub), 16).Tooltip("Started by " + nonEmptyStr(s.Member.Name, "@"+s.Member.GitHub))
-					}
-				})
-				if row.Clicked() {
-					a.selectSession(s)
-				}
+		a.teamProjectSessions(c, p)
+	})
+}
+
+// sessionsOfTeamProject are the host's sessions working in p.
+func (a *App) sessionsOfTeamProject(p proto.TeamProject) []proto.SessionInfo {
+	var sessions []proto.SessionInfo
+	for _, s := range a.sessions {
+		if !s.Exited && slices.ContainsFunc(p.Here, func(h proto.TeamProjectCopy) bool { return h.Path == s.Project }) {
+			sessions = append(sessions, s)
+		}
+	}
+	return sessions
+}
+
+// teamProjectSessions are the sessions working in p, each opening; one a member
+// started shows who.
+func (a *App) teamProjectSessions(c *ui.Context, p proto.TeamProject) {
+	for _, s := range a.sessionsOfTeamProject(p) {
+		row := ui.ButtonBase(c.Key("s:" + s.ID)).FillWidth().Shrink(0).MinHeight(theme.ControlHeight).Gap(theme.S2).PaddingX(theme.S3).Radius(theme.RadiusFull).Justify(ui.Start).
+			Cursor(ui.CursorPointer).Label("Show " + a.sessionName(s))
+		if row.Hovered() || s.ID == a.selected {
+			row.Background(theme.Hover)
+		}
+		row.Children(func() {
+			ui.Icon(c, icon.Terminal).FontSize(12).TextColor(theme.TextSoft)
+			ui.Row(c).Grow(1).Basis(0).MinWidth(0).Children(func() { widget.Running(c, a.sessionName(s), widget.RunStyle{Size: theme.TextLabel}) })
+			if s.Member != nil {
+				memberAvatar(c, s.Member.Account, nonEmptyStr(s.Member.Name, s.Member.GitHub), 16).Tooltip("Started by " + nonEmptyStr(s.Member.Name, "@"+s.Member.GitHub))
 			}
 		})
-	})
+		if row.Clicked() {
+			a.page = ""
+			a.selectSession(s)
+		}
+	}
 }
 
 func nonEmptyStr(a, b string) string {
@@ -149,8 +153,8 @@ func (a *App) teamMembersTab(c *ui.Context) {
 	c.After(membersRefresh)
 	if err := a.chatsOf().membersErr[team]; err != "" && len(members) == 0 {
 		hc := a.chatsOf()
-		ui.Column(c).Grow(1).FillWidth().Center().Gap(8).Padding(24).Children(func() {
-			ui.Text(c, "Couldn't read the team's members: "+err).FontSize(12).TextColor(theme.Muted).TextAlign(ui.Center)
+		ui.Column(c).Grow(1).FillWidth().Center().Gap(theme.S2).Padding(theme.S5).Children(func() {
+			ui.Text(c, "Couldn't read the team's members: "+err).FontSize(theme.TextLabel).TextColor(theme.Muted).TextAlign(ui.Center)
 			if widget.Button(c, widget.Secondary, nil, "Try again", "").Clicked() {
 				delete(hc.membersAt, team)
 				hc.membersErr[team] = ""
@@ -159,9 +163,9 @@ func (a *App) teamMembersTab(c *ui.Context) {
 		return
 	}
 	if len(members) == 0 {
-		ui.Column(c).Grow(1).FillWidth().Center().Gap(6).Padding(24).Children(func() {
+		ui.Column(c).Grow(1).FillWidth().Center().Gap(theme.S2).Padding(theme.S5).Children(func() {
 			widget.Spinner(c, 14)
-			ui.Text(c, "Reading the team's members…").FontSize(12).TextColor(theme.Muted)
+			ui.Text(c, "Reading the team's members…").FontSize(theme.TextLabel).TextColor(theme.Muted)
 		})
 		return
 	}
@@ -176,27 +180,26 @@ func (a *App) teamMembersTab(c *ui.Context) {
 		return boolOrder(a.online(team, y.Account.ID)) - boolOrder(a.online(team, x.Account.ID))
 	})
 	ui.Scroll(c).Grow(1).FillWidth().MinHeight(0).Children(func() {
-		ui.Column(c).FillWidth().Gap(2).Padding(8, 8).Children(func() {
+		ui.Column(c).FillWidth().Gap(theme.S1).Padding(theme.S2, widget.ScrollGutter, theme.S2, theme.S2).Children(func() {
 			for _, m := range members {
 				acc := m.Account
 				name := memberTitle(acc.Name, acc.GitHub)
 				vi := slices.IndexFunc(visitors, func(v proto.Visitor) bool { return v.Account == acc.ID && v.Team == team })
-				ui.Row(c.Key(acc.ID)).FillWidth().Gap(10).Padding(7, 8).Radius(theme.RadiusControl).AlignItems(ui.Center).Children(func() {
+				ui.Row(c.Key(acc.ID)).FillWidth().Shrink(0).MinHeight(36).Gap(theme.S2).Padding(theme.S1, 0, theme.S1, theme.S2).Children(func() {
 					online := a.online(team, acc.ID)
-					av := memberAvatar(c, acc.ID, name, 28)
+					av := memberAvatar(c, acc.ID, name, 24)
 					if online {
-						av.Children(func() { onlineDot(c, 28) })
+						av.Children(func() { onlineDot(c, 24) })
 					}
-					ui.Column(c).Grow(1).Shrink(1).MinWidth(0).Gap(1).Children(func() {
-						ui.Row(c).Gap(6).AlignItems(ui.Center).Children(func() {
-							ui.Text(c, name).FontSize(12.5).FontWeight(600).SingleLine().Shrink(1)
-							if acc.ID == me {
-								ui.Text(c, "you").FontSize(11).TextColor(theme.Muted)
-							}
-						})
-						sub := m.Role
+					ui.Column(c).Grow(1).Basis(0).MinWidth(0).Children(func() {
+						title := name
+						if acc.ID == me {
+							title += " (you)"
+						}
+						widget.Running(c, title, widget.RunStyle{})
+						sub := roleName(m.Role)
 						if acc.GitHub != "" {
-							sub = "@" + acc.GitHub + " · " + m.Role
+							sub = "@" + acc.GitHub + " · " + roleName(m.Role)
 						}
 						if vi >= 0 {
 							switch n := len(visitors[vi].Watching); {
@@ -206,12 +209,14 @@ func (a *App) teamMembersTab(c *ui.Context) {
 								sub += " · on " + a.host.Name
 							}
 						}
-						ui.Text(c, sub).FontSize(11).TextColor(theme.Muted).SingleLine()
+						widget.Running(c.Key("sub"), sub, widget.RunStyle{Size: theme.TextLabel, Color: theme.TextSoft})
 					})
 					if vi >= 0 {
-						ui.Box(c).Size(8, 8).Radius(4).Background(theme.Done).Shrink(0).Tooltip("On " + a.host.Name + " now")
+						ui.Row(c.Key("here")).Shrink(0).Tooltip("On " + a.host.Name + " now").Children(func() {
+							widget.StatusLine(c, theme.Done, false, "Here")
+						})
 					} else if online {
-						ui.Text(c, "online").FontSize(11).TextColor(theme.Done).Shrink(0)
+						widget.StatusLine(c.Key("on"), theme.Done, false, "Online")
 					}
 					if acc.ID != me && widget.IconButton(c, icon.AtSign, "Mention "+name+" in the chat", false).Clicked() {
 						a.mentionInChat(team, proto.ChatMention{Kind: proto.MentionUser, ID: acc.ID, Title: name})
@@ -231,5 +236,9 @@ func (a *App) mentionInChat(team string, mn proto.ChatMention) {
 	hc.draft += "@" + mn.Title + " "
 	hc.mentions = append(hc.mentions, mn)
 	hc.setCaret, hc.focus = len([]rune(hc.draft)), true
+	if a.page == pageTeam {
+		a.cloudOf().teams.pageTab = tabChat
+		return
+	}
 	a.openPanel(panelChat)
 }

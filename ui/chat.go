@@ -72,6 +72,10 @@ func (a *App) chatViewSending(c *ui.Context, s proto.SessionInfo, shown func() b
 	if send == nil {
 		send = func(text string, files []string) { a.sendWithFiles(s.ID, text, files) }
 	}
+	var deliver func(string, []string, func(error))
+	if tw.send == nil {
+		deliver = func(text string, files []string, done func(error)) { a.deliverToSession(s.ID, text, files, done) }
+	}
 	spent, spentTip := "", ""
 	if t, ok := a.sessionTokens(s.ID); ok {
 		spent, spentTip = tokenview.Spent(t), tokenview.SpentTip(t)
@@ -83,13 +87,20 @@ func (a *App) chatViewSending(c *ui.Context, s proto.SessionInfo, shown func() b
 			return gen == a.gen && shown() && a.chats[s.ID] == ch
 		})
 	}
+	column := float32(0)
+	if goa, ok := a.goaSession(); ok && a.goaOn() && goa.ID == s.ID {
+		column = 2000 // GOA's chat runs the frame's width, its list taking the side
+	}
 	ch.View(c, chatview.Options{
-		Agent:     s.Agent,
-		AgentName: a.agentName(s.Agent),
-		Working:   isWorking(s),
-		Send:      send,
-		Interrupt: func() { a.interruptSession(s) },
-		Set:       func(setting, id string) { a.setAgentSetting(s, setting, id) },
+		ColumnWidth: column,
+		Agent:       s.Agent,
+		Dir:         s.Dir,
+		AgentName:   a.agentName(s.Agent),
+		Working:     isWorking(s),
+		Send:        send,
+		Deliver:     deliver,
+		Interrupt:   func() { a.interruptSession(s) },
+		Set:         func(setting, id string) { a.setAgentSetting(s, setting, id) },
 		Paste: func(text string) bool {
 			if paste != nil {
 				return paste(ch, text)
@@ -115,8 +126,7 @@ func (a *App) chatViewSending(c *ui.Context, s proto.SessionInfo, shown func() b
 		AttachFiles: func() { a.pickChatFiles(s, ch) },
 		Drop:        func(paths []string) { a.attachToChat(s, ch, paths) },
 		OpenChanges: func(file string) {
-			a.openPanel(panelChanges)
-			a.diffOf(s.ID).OpenFile(file)
+			a.openCenter(s, centerDiff+a.diffOf(s.ID).PathOf(file))
 		},
 	})
 }
@@ -217,6 +227,36 @@ func (a *App) sendWithFiles(id, text string, files []string) {
 		msg = text + " " + msg
 	}
 	a.pasteToSession(id, msg)
+}
+
+// deliverToSession is sendWithFiles saying on the main thread how it went.
+func (a *App) deliverToSession(id, text string, files []string, done func(error)) {
+	p := a.panes[id]
+	if p == nil {
+		done(errors.New("the session isn't attached yet"))
+		return
+	}
+	msg := text
+	if len(files) > 0 {
+		msg = strings.Join(files, " ")
+		if strings.TrimSpace(text) != "" {
+			msg = text + " " + msg
+		}
+	}
+	if len(files) > 0 || strings.Contains(msg, "\n") {
+		msg = "\x1b[200~" + msg + "\x1b[201~"
+	}
+	go func() {
+		_, err := p.stream.Write([]byte(msg))
+		if err == nil {
+			time.Sleep(50 * time.Millisecond) // as writeThenEnter
+			_, err = p.stream.Write([]byte("\r"))
+		}
+		if err != nil {
+			err = fmt.Errorf("couldn't reach the session: %s", client.Explain(err))
+		}
+		a.onMain(func() { done(err) })
+	}()
 }
 
 // sendToSession types text into the session, then Enter. Text of several

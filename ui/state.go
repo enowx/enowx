@@ -14,35 +14,54 @@ import (
 // appState is what the app remembers between launches, in StateFile: the
 // host it showed, and per host the project and session that were open.
 type appState struct {
-	Host             string             `json:"host,omitempty"`
-	Projects         map[string]string  `json:"projects,omitempty"` // host ID → project path
-	Sessions         map[string]string  `json:"sessions,omitempty"` // host ID → session ID
-	SkipPermissions  *bool              `json:"skipPermissions,omitempty"`
-	Chats            map[string]bool    `json:"chats,omitempty"`            // session IDs shown as a chat
-	NotesAgents      map[string]string  `json:"notesAgents,omitempty"`      // note ID → the agent its Notes page talks to
-	CanvasGridHidden map[string]bool    `json:"canvasGridHidden,omitempty"` // canvases whose guides are hidden, on this device
-	CanvasChatWidth  float32            `json:"canvasChatWidth,omitempty"`  // the Canvas page's agent panel, as the user left it
-	NotesView        map[string]string  `json:"notesView,omitempty"`        // "<note ID> <what>" → how its page was left: tabs, toggles, outline
-	CloneDirs        map[string]string  `json:"cloneDirs,omitempty"`        // host ID → the folder cloned into last
-	Theme            string             `json:"theme,omitempty"`            // palette ID
-	ThemeMode        string             `json:"themeMode,omitempty"`        // dark (default), light, or system
-	Accent           string             `json:"accent,omitempty"`           // #RRGGBB replacing the palette's accent
-	TermFont         string             `json:"termFont,omitempty"`         // the terminals' font family; the system's monospaced font when empty
-	TermFontSize     float32            `json:"termFontSize,omitempty"`     // the terminals' text size; 13 when 0
-	RailWide         bool               `json:"railWide,omitempty"`         // the rail shows labels
-	Space            string             `json:"space,omitempty"`            // the team whose space Notes and Canvas show, "" the user's own
-	Layouts          map[string]layout  `json:"layouts,omitempty"`          // "<host ID> <project path>" → layout
-	Panel            sidePanel          `json:"panel,omitempty"`
-	ChatRead         map[string]string  `json:"chatRead,omitempty"` // the last message read of each team's chat
-	Discord          discordPrefs       `json:"discord,omitempty"`
-	Updates          updatePrefs        `json:"updates,omitempty"`
-	Editor           string             `json:"editor,omitempty"`       // the editor last opened (editor.id)
-	Previews         map[string]preview `json:"previews,omitempty"`     // session ID → where its browser was
-	BrowserViews     map[string]bool    `json:"browserViews,omitempty"` // session IDs showing the Browser as their view
-	TrafficViews     map[string]bool    `json:"trafficViews,omitempty"` // session IDs showing Traffic as their view
-	AutoPreview      map[string][]int   `json:"autoPreview,omitempty"`  // "<host ID> <project>" → ports previewed when opened
-	QuietPorts       bool               `json:"quietPorts,omitempty"`   // no card when a session opens a port
-	CloseQuits       bool               `json:"closeQuits,omitempty"`   // closing the window quits, rather than keeping the app in the tray
+	Host             string            `json:"host,omitempty"`
+	Projects         map[string]string `json:"projects,omitempty"` // host ID → project path
+	Sessions         map[string]string `json:"sessions,omitempty"` // host ID → session ID
+	SkipPermissions  *bool             `json:"skipPermissions,omitempty"`
+	Chats            map[string]bool   `json:"chats,omitempty"`            // session IDs shown as a chat
+	NotesAgents      map[string]string `json:"notesAgents,omitempty"`      // note ID → the agent its Notes page talks to
+	CanvasGridHidden map[string]bool   `json:"canvasGridHidden,omitempty"` // canvases whose guides are hidden, on this device
+	CanvasChatWidth  float32           `json:"canvasChatWidth,omitempty"`  // the Canvas page's agent panel, as the user left it
+	NotesView        map[string]string `json:"notesView,omitempty"`        // "<note ID> <what>" → how its page was left: tabs, toggles, outline
+	CloneDirs        map[string]string `json:"cloneDirs,omitempty"`        // host ID → the folder cloned into last
+	Theme            string            `json:"theme,omitempty"`            // palette ID
+	ThemeMode        string            `json:"themeMode,omitempty"`        // dark (default), light, or system
+	// BackgroundImage is this device's image behind the panels, "" for the
+	// theme's own; BackgroundOpacity how opaque the main surfaces over it are,
+	// nil for the default; BackgroundBlur its blur's sigma, nil for the default.
+	// FollowBackground derives the palette from BackgroundImage, Theme being the
+	// one to go back to; derived is those colors, as read from it, not saved.
+	// UIStyle is the style the app is built in, kept on this device; "" is the
+	// default, Liquid Glass.
+	UIStyle string `json:"uiStyle,omitempty"`
+	// OnboardedDevice says this device has been through setup's steps of its own.
+	OnboardedDevice  bool `json:"onboardedDevice,omitempty"`
+	FollowBackground bool `json:"followBackground,omitempty"`
+	derived          *theme.Derived
+	BackgroundImage  string `json:"backgroundImage,omitempty"`
+	// OnboardingTries is how many times onboarding started since it last finished.
+	OnboardingTries   int      `json:"onboardingTries,omitempty"`
+	BackgroundOpacity *float64 `json:"backgroundOpacity,omitempty"`
+	// BackgroundPlain: the ground alone under glass, none of the wallpaper's lights.
+	BackgroundPlain bool               `json:"backgroundPlain,omitempty"`
+	BackgroundBlur  *float64           `json:"backgroundBlur,omitempty"`
+	Accent          string             `json:"accent,omitempty"`       // #RRGGBB replacing the palette's accent
+	TermFont        string             `json:"termFont,omitempty"`     // the terminals' font family; the system's monospaced font when empty
+	TermFontSize    float32            `json:"termFontSize,omitempty"` // the terminals' text size; 13 when 0
+	RailWide        bool               `json:"railWide,omitempty"`     // the rail shows labels
+	Space           string             `json:"space,omitempty"`        // the team whose space Notes and Canvas show, "" the user's own
+	Layouts         map[string]layout  `json:"layouts,omitempty"`      // "<host ID> <project path>" → layout
+	Panel           sidePanel          `json:"panel,omitempty"`
+	ChatRead        map[string]string  `json:"chatRead,omitempty"` // the last message read of each team's chat
+	Discord         discordPrefs       `json:"discord,omitempty"`
+	Updates         updatePrefs        `json:"updates,omitempty"`
+	Editor          string             `json:"editor,omitempty"`       // the editor last opened (editor.id)
+	Previews        map[string]preview `json:"previews,omitempty"`     // session ID → where its browser was
+	BrowserViews    map[string]bool    `json:"browserViews,omitempty"` // session IDs showing the Browser as their view
+	TrafficViews    map[string]bool    `json:"trafficViews,omitempty"` // session IDs showing Traffic as their view
+	AutoPreview     map[string][]int   `json:"autoPreview,omitempty"`  // "<host ID> <project>" → ports previewed when opened
+	QuietPorts      bool               `json:"quietPorts,omitempty"`   // no card when a session opens a port
+	CloseQuits      bool               `json:"closeQuits,omitempty"`   // closing the window quits, rather than keeping the app in the tray
 	// What New session starts with (Settings): an agent, the project
 	// folder rather than a new branch, a time budget in minutes.
 	DefaultAgent  string `json:"defaultAgent,omitempty"`
@@ -72,6 +91,9 @@ type appState struct {
 	FloatingTint         bool   `json:"floatingTint,omitempty"`
 	FloatingCompact      bool   `json:"floatingCompact,omitempty"`
 	FloatingReduceMotion bool   `json:"floatingReduceMotion,omitempty"`
+	// SessionsByProject lists the sessions under their projects, rather
+	// than by state.
+	SessionsByProject bool `json:"sessionsByProject,omitempty"`
 	// HideSessions folds the sidebar away, giving the session the room.
 	HideSessions bool `json:"hideSessions,omitempty"`
 	// GOA shows GOD of Agents mode (goa.go).
@@ -84,7 +106,42 @@ func (st appState) palette(light bool) theme.Palette {
 	if st.Accent != "" {
 		accent = ui.Hex(st.Accent)
 	}
-	return theme.LookupAppearance(st.Theme, accent, light)
+	var p theme.Palette
+	if st.followsImage() {
+		p = theme.DerivedPalette(*st.derived, accent, light)
+	} else {
+		p = theme.LookupAppearance(st.Theme, accent, light)
+	}
+	if st.BackgroundImage != "" && !st.flatStyle() {
+		p = theme.WithBackdrop(p, st.backgroundOpacity())
+	}
+	return p
+}
+
+// flatStyle says the style chosen has no glass: the background image and what comes
+// of it (the panels' opacity, its colors) wait, kept, for Liquid Glass.
+func (st appState) flatStyle() bool { return theme.StyleByID(st.UIStyle).Flat }
+
+// followsImage says the palette comes from the image now: asked for, with an
+// image set and read. Otherwise it is the palette last saved.
+func (st appState) followsImage() bool {
+	return st.FollowBackground && st.BackgroundImage != "" && st.derived != nil && !st.flatStyle()
+}
+
+// backgroundOpacity is how opaque the panels over the user's image are.
+func (st appState) backgroundOpacity() float64 {
+	if st.BackgroundOpacity != nil {
+		return *st.BackgroundOpacity
+	}
+	return backgroundDefaultOpacity
+}
+
+// backgroundBlur is the sigma of the blur over the user's image.
+func (st appState) backgroundBlur() float64 {
+	if st.BackgroundBlur != nil {
+		return *st.BackgroundBlur
+	}
+	return backgroundDefaultBlur
 }
 
 func loadState(path string) appState {
@@ -92,9 +149,12 @@ func loadState(path string) appState {
 	if path == "" {
 		return st
 	}
-	if data, err := os.ReadFile(path); err == nil {
-		_ = json.Unmarshal(data, &st)
+	data, err := os.ReadFile(path)
+	if err != nil {
+		st.RailWide = true // who opens the app the first time sees the list whole
+		return st
 	}
+	_ = json.Unmarshal(data, &st)
 	return st
 }
 

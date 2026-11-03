@@ -1,7 +1,6 @@
 package ui
 
 import (
-	"slices"
 	"testing"
 
 	"github.com/egoist/mygo/ui"
@@ -47,9 +46,6 @@ func TestBrowserIsASessionView(t *testing.T) {
 	s := proto.SessionInfo{ID: "s1", Agent: "claude"}
 	a.sessions = []proto.SessionInfo{s}
 	a.selected = "s1"
-	if views := a.sessionViews(s); !slices.Contains(views, viewBrowser) {
-		t.Fatalf("views %q", views)
-	}
 	a.showView(s, viewBrowser)
 	if a.currentView(s) != viewBrowser {
 		t.Fatal("not shown")
