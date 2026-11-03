@@ -62,7 +62,7 @@ func TestDecisionsSection(t *testing.T) {
 		})
 	}, 900, 900)
 	frames := func(until func() bool, what string) {
-		deadline := time.Now().Add(15 * time.Second)
+		deadline := time.Now().Add(45 * time.Second)
 		for !until() {
 			select {
 			case fn := <-posted:

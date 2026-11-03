@@ -52,10 +52,7 @@ func TestUnslopReplay(t *testing.T) {
 	}, 1180, 760)
 	pump := func() {
 		time.Sleep(10 * time.Millisecond)
-		for _, fn := range h.later {
-			fn()
-		}
-		h.later = nil
+		h.later.run()
 	}
 	for range 300 {
 		pump()

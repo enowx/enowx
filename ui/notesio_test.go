@@ -28,8 +28,8 @@ func TestImportAndExportInTheNotesPage(t *testing.T) {
 	a, b := net.Pipe()
 	go srv.ServeConn(a)
 	app := New(Options{})
-	var later []func()
-	app.onMain = func(fn func()) { later = append(later, fn) }
+	var later mainQueue
+	app.onMain = later.post
 	cl, err := client.New(b, func(ev proto.Event) {
 		var apply func()
 		switch ev.Name {
@@ -68,10 +68,7 @@ func TestImportAndExportInTheNotesPage(t *testing.T) {
 				t.Fatalf("%s: never; shows %q", what, tt.Texts())
 			}
 			time.Sleep(10 * time.Millisecond)
-			for _, fn := range later {
-				fn()
-			}
-			later = nil
+			later.run()
 		}
 	}
 	click := func(label string) {

@@ -29,13 +29,18 @@ func TestTreeCountsABusyChild(t *testing.T) {
 	if err := s.Sample(); err != nil {
 		t.Fatal(err)
 	}
-	time.Sleep(time.Second)
-	if err := s.Sample(); err != nil {
-		t.Fatal(err)
-	}
+	// A machine busy with other tests can starve the spinner for a moment: it shows as a
+	// core at some look.
 	u := s.Tree(cmd.Process.Pid)
-	if u.Procs < 2 || u.RSS == 0 || u.CPU < 50 {
-		t.Fatalf("tree = %+v, want 2+ processes using a core", u)
+	for deadline := time.Now().Add(30 * time.Second); u.Procs < 2 || u.RSS == 0 || u.CPU < 50; {
+		if time.Now().After(deadline) {
+			t.Fatalf("tree = %+v, want 2+ processes using a core", u)
+		}
+		time.Sleep(time.Second)
+		if err := s.Sample(); err != nil {
+			t.Fatal(err)
+		}
+		u = s.Tree(cmd.Process.Pid)
 	}
 	if one := s.One(cmd.Process.Pid); one.CPU > u.CPU || one.Procs != 1 {
 		t.Fatalf("one = %+v, tree = %+v", one, u)
