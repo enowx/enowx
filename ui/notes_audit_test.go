@@ -144,7 +144,7 @@ func TestLayoutAuditNotes(t *testing.T) {
 			// A fresh view: a menu or mode the last state left would turn its
 			// button's click into a close.
 			h.app.notes = notesview.View{}
-			h.tt = ui.NewTester(func(c *ui.Context) { h.app.view(c) }, size[0], size[1])
+			h.tt = auditTester(h.app, size[0], size[1])
 			h.settle("", func() bool { return true })
 			if st.note != "" {
 				h.app.notes.Select(h.app.notesOptions(), st.note)

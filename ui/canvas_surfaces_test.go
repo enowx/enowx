@@ -52,7 +52,7 @@ func TestCanvasSurfacesAudit(t *testing.T) {
 	// No canvas yet: the list says so and the page offers one.
 	var problems []string
 	for _, size := range auditSizes {
-		h.tt = ui.NewTester(func(c *ui.Context) { h.app.view(c) }, size[0], size[1])
+		h.tt = auditTester(h.app, size[0], size[1])
 		h.settled()
 		if !h.tt.HasText("No canvases yet") || !h.tt.HasText("No canvas open") {
 			t.Fatalf("empty: %q", h.tt.Texts())
@@ -260,7 +260,7 @@ func TestCanvasSurfacesAudit(t *testing.T) {
 	}
 	for _, size := range drawSizes(auditSizes) {
 		w, hgt := size[0], size[1]
-		h.tt = ui.NewTester(func(c *ui.Context) { h.app.view(c) }, w, hgt)
+		h.tt = auditTester(h.app, w, hgt)
 		settled()
 		for _, s := range surfaces {
 			if only := os.Getenv("SURFACE"); only != "" && !strings.Contains(only, s.name) {
@@ -306,7 +306,7 @@ func TestUnslopSurfacesAudit(t *testing.T) {
 			if shots != "" && w != 1280 {
 				continue // pictures are slow: of one size
 			}
-			h.tt = ui.NewTester(func(c *ui.Context) { h.app.view(c) }, w, hgt)
+			h.tt = auditTester(h.app, w, hgt)
 			h.settled()
 			if shots != "" && w == 1280 {
 				shot(t, h.tt, filepath.Join("surfaces", name+".png"))

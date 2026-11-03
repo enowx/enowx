@@ -153,3 +153,37 @@ func TestTicksAreRecorded(t *testing.T) {
 		t.Fatalf("no project: %q", notes)
 	}
 }
+
+// A further line comes after three times the limit, and not before.
+func TestStallTellsAgainAfterThreeLimits(t *testing.T) {
+	srv := startServer(t)
+	task, err := srv.goa.board.Add(proto.GOATask{Title: "quiet", Session: "s1", Status: proto.GOATaskWorking, Created: time.Now().Add(-time.Hour)})
+	if err != nil {
+		t.Fatal(err)
+	}
+	lim := proto.GOAStall{Blank: 100, Idle: 100, Stuck: 100}
+	limit := 100 * time.Second
+	screen := "something\n"
+	h := stallHost{infos: map[string]proto.SessionInfo{"s1": {ID: "s1", Agent: "some-agent"}}, cpuKnown: true,
+		cpuOf:  func(string) float64 { return 0 },
+		screen: func(string) (string, error) { return screen, nil }}
+	f := &stallFollow{screen: screen, since: time.Now().Add(-time.Hour)}
+	w := &stallWatch{follows: map[string]*stallFollow{task.ID: f}, sampled: map[string]bool{}}
+	srv.stallCheck(w, task, h, lim)
+	if f.told.IsZero() {
+		t.Fatal("a stalled task's first line never came")
+	}
+	task.Status = proto.GOATaskStalled
+	early := time.Now().Add(-3*limit + time.Minute)
+	f.told = early
+	srv.stallCheck(w, task, h, lim)
+	if !f.told.Equal(early) {
+		t.Fatal("a further line came before three times the limit")
+	}
+	late := time.Now().Add(-3*limit - time.Minute)
+	f.told = late
+	srv.stallCheck(w, task, h, lim)
+	if f.told.Equal(late) {
+		t.Fatal("no further line after three times the limit")
+	}
+}

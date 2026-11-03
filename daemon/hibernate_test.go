@@ -34,8 +34,12 @@ func TestHibernateByHandAndWake(t *testing.T) {
 	if err != nil || len(res.Hibernated) != 0 || len(res.Plans) != 1 || !res.Plans[0].Working {
 		t.Fatalf("a working agent: %+v, %v", res, err)
 	}
-	if res.Plans[0].RSS == 0 && (runtime.GOOS == "linux" || runtime.GOOS == "darwin") {
-		t.Errorf("no memory to free planned: %+v", res.Plans[0])
+	// Its program may still be starting; once it runs, there is memory to free.
+	if runtime.GOOS == "linux" || runtime.GOOS == "darwin" {
+		waitFor(t, "memory to free planned", func() bool {
+			res, err = c.HibernateSessions(proto.SessionHibernateParams{IDs: []string{info.ID}})
+			return err == nil && len(res.Plans) == 1 && res.Plans[0].RSS != 0
+		})
 	}
 	// Once done.
 	res, err = c.HibernateSessions(proto.SessionHibernateParams{IDs: []string{info.ID}, WhenDone: true})
@@ -47,10 +51,11 @@ func TestHibernateByHandAndWake(t *testing.T) {
 		t.Fatal("hibernated while working")
 	}
 	sess, _ := srv.sessions.Get(info.ID)
-	pids := srv.sessionProgram(info.ID)
-	if len(pids) == 0 && runtime.GOOS != "windows" {
-		t.Fatal("no program found to stop")
-	}
+	var pids map[int]bool
+	waitFor(t, "a program found to stop", func() bool {
+		pids = srv.sessionProgram(info.ID)
+		return len(pids) > 0
+	})
 	if err := c.Call(proto.MethodSessionState, proto.SessionStateParams{ID: info.ID, State: proto.StateDone}, nil); err != nil {
 		t.Fatal(err)
 	}

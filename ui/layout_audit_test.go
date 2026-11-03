@@ -186,7 +186,7 @@ func TestLayoutAudit(t *testing.T) {
 			w, hgt := size[0], size[1]
 			closeAudit(h.app)
 			p.open(h.app)
-			tt := ui.NewTester(func(c *ui.Context) { h.app.view(c) }, w, hgt)
+			tt := auditTester(h.app, w, hgt)
 			h.tt = tt
 			for range 6 {
 				h.settle("", func() bool { return true })
@@ -209,6 +209,15 @@ func TestLayoutAudit(t *testing.T) {
 	if len(problems) > 0 {
 		t.Errorf("%d layout problems:\n%s", len(problems), strings.Join(problems, "\n"))
 	}
+}
+
+// auditTester draws the whole app at a size, for what it looks like at rest: with no
+// motion, as each frame paints the whole window, and something moving takes dozens of them
+// each time a test waits. What moves has tests of its own.
+func auditTester(a *App, w, h int) *ui.Tester {
+	tt := ui.NewTester(func(c *ui.Context) { a.view(c) }, w, h)
+	tt.SetPreferences(ui.Preferences{ReduceMotion: true})
+	return tt
 }
 
 // layoutProblems are what is wrong with the frame tt drew in a w×h

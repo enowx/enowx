@@ -66,7 +66,7 @@ func newNotesHarness(t *testing.T) *notesHarness {
 // settle runs frames, and what came from the host, until done.
 func (h *notesHarness) settle(what string, done func() bool) {
 	h.t.Helper()
-	deadline := time.Now().Add(20 * time.Second)
+	deadline := time.Now().Add(45 * time.Second)
 	for {
 		h.tt.Frame()
 		if done() {

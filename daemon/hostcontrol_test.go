@@ -416,6 +416,8 @@ func TestAlwaysAllowHibernateAndClose(t *testing.T) {
 		if err := srv.sessions.SetState(sess, proto.StateDone); err != nil {
 			t.Fatal(err)
 		}
+		// Its program starting still shows as at work, however its turn went.
+		waitFor(t, "a finished session settled", func() bool { return !srv.stoppingLoses("", info.ID, nil) })
 		return info.ID
 	}
 	call := func(from, method string, params any) error {

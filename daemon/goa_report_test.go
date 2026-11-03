@@ -207,15 +207,22 @@ func TestToldLineOnceNeverHoldsStop(t *testing.T) {
 			srv.goa.mu.Unlock()
 			srv.toldCheck(w, id, was, h, lim)
 		}
-		srv.goa.mu.Lock()
-		defer srv.goa.mu.Unlock()
-		n := 0
-		for _, l := range srv.goa.tell {
-			if l.Session == id {
-				n++
+		count := func() int {
+			srv.goa.mu.Lock()
+			defer srv.goa.mu.Unlock()
+			n := 0
+			for _, l := range srv.goa.tell {
+				if l.Session == id {
+					n++
+				}
 			}
+			return n
 		}
-		return n
+		// The daemon's own loop takes what waits to see if GOA can hear it, and puts it back.
+		for deadline := time.Now().Add(5 * time.Second); count() == 0 && time.Now().Before(deadline); {
+			time.Sleep(10 * time.Millisecond)
+		}
+		return count()
 	}
 	if n := check("quiet1", "something\n", "some-agent"); n != 1 {
 		t.Fatalf("quiet: %d lines", n)

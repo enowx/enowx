@@ -127,7 +127,7 @@ func TestSessionToolsHoldTheirFrames(t *testing.T) {
 			delete(h.app.center, s.ID)
 			h.app.selectSession(s)
 			st.open(h.app)
-			tt := ui.NewTester(func(c *ui.Context) { h.app.view(c) }, size[0], size[1])
+			tt := auditTester(h.app, size[0], size[1])
 			h.tt = tt
 			if st.want != "" {
 				h.settle(st.name, func() bool { return tt.HasText(st.want) })
