@@ -33,6 +33,10 @@ type conn struct {
 	// greeted is set once the handshake is done: events reach the
 	// connection only after, as its client reads none before.
 	greeted atomic.Bool
+	// parts: its client reads a frame too large for one as parts; lastPart
+	// numbers those sent.
+	parts    atomic.Bool
+	lastPart atomic.Uint32
 	// remote: it came through the team listener, a visitor's, served once
 	// visitor is set (visitors.go).
 	remote  bool
@@ -52,10 +56,21 @@ func (c *conn) serve() error {
 	if err := c.handshake(); err != nil {
 		return err
 	}
+	var large proto.Assembler // this goroutine's
 	for {
 		f, err := c.readFrame()
 		if err != nil {
 			return err
+		}
+		if f.Type == proto.TypePart && !c.remote { // a visitor gets no room to hold much
+			whole, done, err := large.Take(f)
+			if err != nil {
+				return err
+			}
+			if !done {
+				continue
+			}
+			f = whole
 		}
 		if c.remote && c.visitor.Load() == nil {
 			// Before their ticket: team.auth alone, one at a time, here;
@@ -150,7 +165,8 @@ func (c *conn) handshake() error {
 	if !ok {
 		return fmt.Errorf("protocol %d not supported (daemon speaks %d to %d)", h.Protocol, proto.MinVersion, proto.Version)
 	}
-	payload, _ := json.Marshal(proto.Hello{Protocol: v, Agent: "enowxd/" + Version})
+	c.parts.Store(h.Parts)
+	payload, _ := json.Marshal(proto.Hello{Protocol: v, Agent: "enowxd/" + Version, Parts: !c.remote})
 	// Greeted before the answer goes, under the lock events write with:
 	// an event finding it set waits for the answer, and none raised once
 	// the client has its answer is missed.
@@ -200,13 +216,54 @@ func (c *conn) stream(id uint32) *stream {
 	return c.streams[id]
 }
 
-// send writes a frame; errors surface in the read loop as the socket closes.
-func (c *conn) send(f proto.Frame) {
+// send writes a frame; a write that fails closes the socket, which the read loop
+// sees. A frame too large for this connection is refused alone (proto.ErrTooLarge,
+// which a caller waiting on an answer returns): the connection stays up for
+// everything else it carries.
+func (c *conn) send(f proto.Frame) error {
+	if len(f.Payload) > proto.MaxPayload {
+		return c.sendLarge(f)
+	}
+	return c.write(f)
+}
+
+func (c *conn) write(f proto.Frame) error {
 	c.wmu.Lock()
 	defer c.wmu.Unlock()
-	if err := proto.WriteFrame(c.nc, f); err != nil {
+	err := proto.WriteFrame(c.nc, f)
+	if err != nil {
 		_ = c.nc.Close()
 	}
+	return err
+}
+
+// sendLarge sends f as parts, other frames going between them, to a client that
+// takes them.
+func (c *conn) sendLarge(f proto.Frame) error {
+	if !c.parts.Load() || !proto.FitsParts(len(f.Payload)) {
+		c.srv.logger().Warn("frame too large, refused", "frame", frameName(f), "bytes", len(f.Payload), "parts", c.parts.Load())
+		return fmt.Errorf("%w: %s of %d bytes", proto.ErrTooLarge, frameName(f), len(f.Payload))
+	}
+	id := c.lastPart.Add(1)
+	for part := range proto.Parts(f, id) {
+		if err := c.write(part); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// frameName says which frame f is, for a log: an event's name, never its data.
+func frameName(f proto.Frame) string {
+	if f.Type == proto.TypeEvent {
+		var ev struct {
+			Name string `json:"name"`
+		}
+		if json.Unmarshal(f.Payload, &ev) == nil && ev.Name != "" {
+			return "event " + ev.Name
+		}
+	}
+	return f.Type.String()
 }
 
 func (c *conn) close() {

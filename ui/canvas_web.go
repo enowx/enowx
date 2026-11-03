@@ -75,7 +75,10 @@ func (a *App) renderCanvas(req proto.CanvasRenderRequest) {
 		if err != nil {
 			out.Error = err.Error()
 		}
-		_ = cl.CanvasRenderReply(out)
+		if err := cl.CanvasRenderReply(out); errors.Is(err, proto.ErrTooLarge) {
+			// A picture this connection can't carry: the daemon's call ends now, not at its timeout.
+			_ = cl.CanvasRenderReply(proto.CanvasRenderReply{ID: req.ID, Error: "canvas: the picture is too large to send: " + err.Error()})
+		}
 	}
 	if !webViewAvailable() || win == nil {
 		go reply(nil, errors.New("this device has no web view to render HTML"))

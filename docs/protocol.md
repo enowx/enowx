@@ -27,8 +27,15 @@ Every message is a frame:
 | tunnel-data | 8 | a tunnel | bytes of a tunnel (`tunnel.open`), both ways |
 | tunnel-close | 9 | a tunnel | the tunnel ended, from either side |
 | tunnel-ack | 10 | a tunnel | credit for bytes taken: u32, big endian |
+| part | 11 | the message's number | a piece of a larger frame (below) |
 
 Streams come from `session.attach`, tunnels from `tunnel.open`.
+
+### Frames larger than a frame
+
+A canvas's page with its files written in, or the picture of one, can pass 16 MiB. Between two sides that both said `"parts": true` in their `Hello`, such a frame goes as `part` frames of up to 8 MiB, each with its message's inner type (u8), inner channel, index and total (u32, big endian) before its data; a whole message is at most 256 MiB. Other frames go on between the parts, and parts of different messages may interleave. A visitor (the team listener) is sent parts but may not send them.
+
+Too large for a connection is never a reason to close it: the frame is refused alone. A reply becomes an RPC error saying so, a request's `Call` returns `proto.ErrTooLarge`, a render or a video started by an event fails at once with that error, and any other event doesn't reach that client and is logged (`frame too large, refused`). Only a failed write or read of the socket ends a connection. An app or daemon from before parts simply never gets them: it sees those errors, and what it could read still goes as one frame.
 
 ## Handshake and versions
 

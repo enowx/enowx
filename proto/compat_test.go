@@ -86,7 +86,7 @@ func apiLines(t *testing.T) []string {
 			}
 		}
 	}
-	for ty := TypeHello; ty <= TypeTunnelAck; ty++ {
+	for ty := TypeHello; ty <= TypePart; ty++ {
 		lines = append(lines, "frame "+ty.String()+"="+strconv.Itoa(int(ty)))
 	}
 	slices.Sort(lines)

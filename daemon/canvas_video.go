@@ -3,6 +3,7 @@ package daemon
 import (
 	"encoding/json"
 	"errors"
+	"fmt"
 	"strings"
 	"sync"
 	"time"
@@ -76,7 +77,9 @@ func (s *Server) canvasVideo(p proto.CanvasVideoParams) (proto.CanvasVideoResult
 	}()
 	raw, _ := json.Marshal(req)
 	ev, _ := json.Marshal(proto.Event{Name: proto.EventCanvasVideo, Data: raw})
-	app.send(proto.Frame{Type: proto.TypeEvent, Payload: ev})
+	if err := app.send(proto.Frame{Type: proto.TypeEvent, Payload: ev}); err != nil {
+		return proto.CanvasVideoResult{}, fmt.Errorf("canvas: the page can't reach the app to record it (%d MB with its files): %w", len(req.HTML)>>20, err)
+	}
 	wait := time.NewTimer(videoFirstWord)
 	defer wait.Stop()
 	heard := false

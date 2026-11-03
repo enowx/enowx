@@ -90,6 +90,8 @@ func (t Type) String() string {
 		return "tunnel-close"
 	case TypeTunnelAck:
 		return "tunnel-ack"
+	case TypePart:
+		return "part"
 	}
 	return fmt.Sprintf("type(%d)", uint8(t))
 }

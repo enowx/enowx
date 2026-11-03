@@ -1238,6 +1238,7 @@ field GridArea.rowSpan int
 field Header.name string
 field Header.value string
 field Hello.agent string
+field Hello.parts bool
 field Hello.protocol int
 field HibernatePlan.blocked string
 field HibernatePlan.cpu float64
@@ -2707,6 +2708,7 @@ frame event=4
 frame hello=1
 frame input=7
 frame output=5
+frame part=11
 frame request=2
 frame resize=6
 frame response=3
