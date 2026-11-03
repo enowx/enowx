@@ -15,7 +15,7 @@ const (
 	// budget is the most a frame may take, drawn again and again.
 	budget = 16 * time.Millisecond
 	// firstMost is the most the first frame may take, what's done once for the text
-	// included. A text laid out whole takes far longer: this stops there, instead of
+	// included. A text laid out whole takes far longer: New stops there, instead of
 	// drawing such frames until the tests run out of time.
 	firstMost = 5 * time.Second
 )
@@ -26,17 +26,22 @@ var Lines = sync.OnceValue(func() string { return strings.Repeat(strings.Repeat(
 // Line is one line of a megabyte.
 var Line = sync.OnceValue(func() string { return strings.Repeat("y", 1<<20) })
 
+// New is a Tester of view, which draws its first frame: t stops when that takes too long.
+func New(t *testing.T, name string, view func(c *ui.Context), width, height int) *ui.Tester {
+	t.Helper()
+	began := time.Now()
+	tt := ui.NewTester(view, width, height)
+	if first := time.Since(began); first > firstMost {
+		t.Fatalf("%s: the first frame took %v", name, first)
+	}
+	return tt
+}
+
 // Quick fails t when what tt shows costs too much to draw. tt's view asks for its next
 // frame itself (c.After(time.Millisecond)), so that nothing is skipped.
 func Quick(t *testing.T, name string, tt *ui.Tester) {
 	t.Helper()
 	began := time.Now()
-	tt.Image()
-	if first := time.Since(began); first > firstMost {
-		t.Errorf("%s: the first frame took %v", name, first)
-		return
-	}
-	began = time.Now()
 	const builds = 16
 	tt.Advance(builds * time.Millisecond)
 	tt.Image()

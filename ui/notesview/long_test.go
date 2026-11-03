@@ -10,8 +10,9 @@ import (
 	"github.com/enowx/enowx/ui/framecheck"
 )
 
-func longNoteTester(np *notesPage, o Options) *ui.Tester {
-	return ui.NewTester(func(c *ui.Context) {
+func longNoteTester(t *testing.T, name string, np *notesPage, o Options) *ui.Tester {
+	t.Helper()
+	return framecheck.New(t, name, func(c *ui.Context) {
 		c.After(time.Millisecond)
 		ui.Column(c).Width(1000).Height(700).Children(func() { np.v.Draw(c, o) })
 	}, 1000, 700)
@@ -32,7 +33,7 @@ func TestLongNotesStayQuick(t *testing.T) {
 		np := newNotesPage(body)
 		o := np.options()
 		np.v.Select(o, "p1")
-		tt := longNoteTester(np, o)
+		tt := longNoteTester(t, name, np, o)
 		framecheck.Quick(t, name, tt)
 		if got := np.v.page.ed.markdown(); len(got) < len(body)-8 {
 			t.Errorf("%s: %d bytes of %d left", name, len(got), len(body))
@@ -45,8 +46,7 @@ func TestLongNoteAsMarkdownStaysQuick(t *testing.T) {
 	np := newNotesPage(framecheck.Lines())
 	o := np.options()
 	np.v.Select(o, "p1")
-	tt := longNoteTester(np, o)
-	tt.Image()
+	tt := longNoteTester(t, "as blocks", np, o)
 	np.v.SetMode(modeSource)
 	framecheck.Quick(t, "as Markdown", tt)
 	if !tt.HasText("Too long to edit as Markdown here") {
@@ -61,8 +61,7 @@ func TestLongNoteShowsMoreAndKeepsItsBlocks(t *testing.T) {
 	np := newNotesPage(body)
 	o := np.options()
 	np.v.Select(o, "p1")
-	tt := longNoteTester(np, o)
-	tt.Image()
+	tt := longNoteTester(t, "a part at a time", np, o)
 	e := np.v.page.ed
 	if e.drawnTo() != blocksStep {
 		t.Fatalf("drawn: %d", e.drawnTo())

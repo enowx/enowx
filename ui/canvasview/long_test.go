@@ -46,7 +46,7 @@ func TestLongPreviewsStayQuick(t *testing.T) {
 	}
 	v := &View{canvas: &proto.Canvas{CanvasInfo: proto.CanvasInfo{ID: "c1"}, Frames: frames}}
 	o := Options{Render: func(id, frame, format string, done func([]byte, error)) {}}
-	tt := ui.NewTester(func(c *ui.Context) {
+	tt := framecheck.New(t, "previews", func(c *ui.Context) {
 		c.After(time.Millisecond)
 		ui.Column(c).Children(func() {
 			for _, f := range frames {
@@ -64,7 +64,7 @@ func TestLongLayersStayQuick(t *testing.T) {
 	v := &View{frame: "f1", sel: "one", canvas: &proto.Canvas{CanvasInfo: proto.CanvasInfo{ID: "c1"},
 		Frames: []proto.CanvasFrame{{ID: "f1", Name: "Home", Width: 1440, Height: 900, HTML: longPage()}}}}
 	o := Options{OffMain: offMain(queue)}
-	tt := ui.NewTester(func(c *ui.Context) {
+	tt := framecheck.New(t, "layers", func(c *ui.Context) {
 		c.After(time.Millisecond)
 		ui.Scroll(c).Width(320).Height(700).Children(func() {
 			ui.Column(c).FillWidth().Children(func() { v.layers(c, o) })
@@ -94,7 +94,7 @@ func TestLongCanvasStaysQuick(t *testing.T) {
 	}
 	v := &View{}
 	v.Open(o, "c1")
-	tt := ui.NewTester(func(c *ui.Context) {
+	tt := framecheck.New(t, "canvas", func(c *ui.Context) {
 		c.After(time.Millisecond)
 		ui.Column(c).Width(1280).Height(800).Children(func() { v.Draw(c, o) })
 	}, 1280, 800)

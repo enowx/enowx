@@ -32,7 +32,7 @@ func TestLongActivityStaysQuick(t *testing.T) {
 	v := New()
 	v.apply(proto.Transcript{Supported: true, Rev: 1, Entries: entries}, nil, "/work/app")
 	v.open[0] = true
-	tt := ui.NewTester(func(c *ui.Context) {
+	tt := framecheck.New(t, "activity", func(c *ui.Context) {
 		c.After(time.Millisecond)
 		ui.Column(c).Width(1000).Height(700).Children(func() { v.Draw(c, Options{}) })
 	}, 1000, 700)

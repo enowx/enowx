@@ -23,7 +23,7 @@ func TestLongOutputStaysQuick(t *testing.T) {
 		}
 		queue := make(chan func(), 16)
 		o := Options{Update: func(fn func()) { queue <- fn }}
-		tt := ui.NewTester(func(c *ui.Context) {
+		tt := framecheck.New(t, name, func(c *ui.Context) {
 			c.After(time.Millisecond)
 			ui.Column(c).Width(1000).Height(700).Children(func() { v.DrawOutput(c, o, "test") })
 		}, 1000, 700)

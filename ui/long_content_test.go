@@ -13,8 +13,9 @@ import (
 )
 
 // longContentTester draws body, a new frame each time, in a window as the app's.
-func longContentTester(body func(c *ui.Context)) *ui.Tester {
-	return ui.NewTester(func(c *ui.Context) {
+func longContentTester(t *testing.T, name string, body func(c *ui.Context)) *ui.Tester {
+	t.Helper()
+	return framecheck.New(t, name, func(c *ui.Context) {
 		c.After(time.Millisecond)
 		c.SetTheme(theme.Window())
 		ui.Column(c).Width(1000).Height(700).Background(theme.Ground).TextColor(theme.Text).Children(func() { body(c) })
@@ -40,7 +41,7 @@ func longSessionsApp(n int) *App {
 func TestLongSessionListsStayQuick(t *testing.T) {
 	app := longSessionsApp(1000)
 	for name, draw := range map[string]func(c *ui.Context){"by state": app.sessionsByState, "by project": app.sessionsByProject} {
-		tt := longContentTester(func(c *ui.Context) {
+		tt := longContentTester(t, name, func(c *ui.Context) {
 			ui.Scroll(c).Grow(1).FillWidth().MinHeight(0).Children(func() {
 				ui.Column(c).FillWidth().Children(func() { draw(c) })
 			})
@@ -54,7 +55,7 @@ func TestLongPaletteStaysQuick(t *testing.T) {
 	app.palette.open = true
 	for _, query := range []string{"", "session"} {
 		app.palette.query = query
-		tt := longContentTester(func(c *ui.Context) { app.commandPalette(c) })
+		tt := longContentTester(t, "palette "+query, func(c *ui.Context) { app.commandPalette(c) })
 		framecheck.Quick(t, "palette "+query, tt)
 	}
 }
@@ -82,7 +83,7 @@ func TestLongGOAPanelStaysQuick(t *testing.T) {
 		},
 		"a task in full": func(c *ui.Context) { app.goaTaskBody(c, long) },
 	} {
-		framecheck.Quick(t, name, longContentTester(draw))
+		framecheck.Quick(t, name, longContentTester(t, name, draw))
 	}
 }
 
@@ -95,6 +96,6 @@ func TestLongTeamChatStaysQuick(t *testing.T) {
 	}
 	// The list starts at its end: these are the ones in view.
 	msgs[1998].Text, msgs[1999].Text = framecheck.Line(), framecheck.Lines()
-	tt := longContentTester(func(c *ui.Context) { app.chatMessages(c, "team", msgs) })
+	tt := longContentTester(t, "team chat", func(c *ui.Context) { app.chatMessages(c, "team", msgs) })
 	framecheck.Quick(t, "team chat", tt)
 }

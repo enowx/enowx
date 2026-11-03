@@ -20,7 +20,7 @@ func TestLongReportStaysQuick(t *testing.T) {
 		run.Findings = append(run.Findings, proto.UnslopFinding{Pass: "01 Truth"})
 	}
 	p := Panel{brief: true}
-	tt := ui.NewTester(func(c *ui.Context) {
+	tt := framecheck.New(t, "unslop", func(c *ui.Context) {
 		c.After(time.Millisecond)
 		ui.Column(c).Width(900).Height(700).Children(func() {
 			p.Draw(c, run, PanelOptions{Reading: "Reading…"})

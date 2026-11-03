@@ -28,7 +28,7 @@ func TestLongTokenTablesStayQuick(t *testing.T) {
 			v.Split = i
 		}
 	}
-	tt := ui.NewTester(func(c *ui.Context) {
+	tt := framecheck.New(t, "tokens", func(c *ui.Context) {
 		c.After(time.Millisecond)
 		ui.Scroll(c).Width(1000).Height(700).Children(func() {
 			ui.Column(c).FillWidth().Children(func() {
