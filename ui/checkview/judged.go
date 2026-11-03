@@ -38,6 +38,6 @@ func (v *View) judgedLine(c *ui.Context, o Options, r proto.CheckRun, left float
 			}
 			widget.Tag(c, "real failure", theme.Error)
 		})
-		ui.Text(c, r.JudgedWhy).FontSize(theme.TextLabel).TextColor(theme.TextSoft).MaxLines(3)
+		ui.Text(c, widget.LongWords(r.JudgedWhy)).FontSize(theme.TextLabel).TextColor(theme.TextSoft).MaxLines(3)
 	})
 }

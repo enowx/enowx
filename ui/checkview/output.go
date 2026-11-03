@@ -26,6 +26,7 @@ func (v *View) DrawOutput(c *ui.Context, o Options, name string) {
 			command = commandOf(ch)
 		}
 	}
+	command = widget.LongLine(command)
 	// Long output is read once for each change, off the main thread: it's cleaned line by
 	// line, and only the rows in view are drawn.
 	long := v.outputText(name)

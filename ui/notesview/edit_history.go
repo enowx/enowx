@@ -23,7 +23,7 @@ type editHistory struct {
 }
 
 func (p *page) editState() editState {
-	body := p.ed.markdown()
+	body := p.ed.recentMarkdown()
 	if p.mode == modeSource {
 		body = p.src
 	}

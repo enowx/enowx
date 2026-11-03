@@ -54,6 +54,7 @@ func (v *View) followJump(c *ui.Context, p *page) {
 		return
 	}
 	i := p.ed.blockAt(s.Line)
+	p.ed.shown = max(p.ed.shown, i+1)
 	if !p.revealed {
 		p.ed.reveal(i, s.Line-p.ed.lineOf(i))
 		p.revealed = true
@@ -180,7 +181,7 @@ func (v *View) outlinePanel(c *ui.Context, p *page) {
 					}
 				}
 			})
-			if done, total := noteblocks.Progress(p.ed.markdown()); total > 0 {
+			if done, total := p.ed.progress(); total > 0 {
 				ui.Column(c).FillWidth().Padding(theme.S1, theme.S2).Children(func() { progressBar(c, "To-dos", done, total) })
 			}
 			widget.Scroll(c).FillWidth().Shrink(1).MinHeight(0).Children(func() {

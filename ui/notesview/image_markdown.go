@@ -4,6 +4,9 @@ import "regexp"
 
 // imageMatches excludes escaped markup and inline code from image rendering.
 func imageMatches(text string) [][]int {
+	if len(text) > longBlock {
+		return nil // it's looked through each frame; a block of images is short
+	}
 	return markdownTokenMatches(text, imageToken, '!')
 }
 

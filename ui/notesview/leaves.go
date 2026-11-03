@@ -83,7 +83,7 @@ func (e *editor) progressAt(line int) (string, int, int) {
 		s := e.env.outline[best]
 		return s.Title, s.Done, s.Todos
 	}
-	done, total := noteblocks.Progress(e.markdown())
+	done, total := e.progress()
 	return "This page", done, total
 }
 

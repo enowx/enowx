@@ -191,6 +191,7 @@ func (v *View) whereTheyWent(c *ui.Context, s proto.TokensSummary, o Options) {
 		top = max(top, g.Total())
 	}
 	for _, g := range s.Groups {
+		key := widget.LongLine(g.Key)
 		name := orText(g.Label, g.Key)
 		if splits[v.Split].by == proto.TokensByAgent && o.Agent != nil && g.Key != "" {
 			name = o.Agent(g.Key)
@@ -198,9 +199,9 @@ func (v *View) whereTheyWent(c *ui.Context, s proto.TokensSummary, o Options) {
 		parts := splitLine(g.TokenCounts)
 		tip := fmt.Sprintf("%s, %d calls", parts, g.Calls)
 		if splits[v.Split].by == proto.TokensByProject && g.Key != "" {
-			tip = g.Key + ": " + tip
+			tip = key + ": " + tip
 		}
-		ui.Column(c.Key("g:" + g.Key)).FillWidth().Shrink(0).Gap(theme.S1).Tooltip(tip).Children(func() {
+		ui.Column(c.Key("g:" + key)).FillWidth().Shrink(0).Gap(theme.S1).Tooltip(tip).Children(func() {
 			ui.Row(c).FillWidth().Height(24).Gap(theme.S2).Children(func() {
 				ui.Row(c).Width(128).Shrink(0).MinWidth(0).Children(func() {
 					widget.Running(c, name, widget.RunStyle{Size: theme.TextLabel})

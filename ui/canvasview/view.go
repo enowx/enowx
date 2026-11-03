@@ -144,6 +144,8 @@ type View struct {
 	outlinePage string // the page outline was worked out for
 	outline     []canvas.HTMLElement
 	outlineDone bool
+	htmlWork    htmlWork
+	htmlKeys    map[string]*htmlKeyed
 
 	selected string
 	canvas   *proto.Canvas // the canvas open, as last read
@@ -312,6 +314,7 @@ func (v *View) show(o Options, c proto.Canvas) {
 	v.canvas = &c
 	if old != nil && old.ID != c.ID {
 		v.thumbs = nil // another canvas's pictures: the disk keeps them
+		v.htmlKeys = nil
 	}
 	if !slices.ContainsFunc(c.Frames, func(f proto.CanvasFrame) bool { return f.ID == v.frame }) && len(c.Frames) > 0 {
 		v.frame = c.Frames[0].ID

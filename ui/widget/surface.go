@@ -92,9 +92,9 @@ func Notice(c *ui.Context, svg *ui.SVG, col ui.Color, title, body string, extra 
 			ui.Icon(c, svg).FontSize(16).TextColor(col).Margin(2, 0, 0, 0)
 		}
 		ui.Column(c).Gap(theme.S1).Grow(1).MinWidth(0).Children(func() {
-			ui.Text(c, title).FontSize(theme.TextUI).FontWeight(500).TextColor(titleCol)
+			ui.Text(c, LongWords(title)).FontSize(theme.TextUI).FontWeight(500).TextColor(titleCol)
 			if body != "" {
-				ui.Text(c, body).FontSize(theme.TextLabel).TextColor(theme.TextSoft)
+				ui.Text(c, LongWords(body)).FontSize(theme.TextLabel).TextColor(theme.TextSoft)
 			}
 			if extra != nil {
 				extra()

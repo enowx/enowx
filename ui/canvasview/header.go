@@ -3,7 +3,6 @@ package canvasview
 import (
 	"github.com/egoist/mygo/ui"
 
-	"github.com/enowx/enowx/core/canvas"
 	"github.com/enowx/enowx/proto"
 	"github.com/enowx/enowx/ui/icon"
 	"github.com/enowx/enowx/ui/theme"
@@ -115,7 +114,7 @@ func (v *View) exportMenu(c *ui.Context, o Options, cv proto.Canvas, f proto.Can
 	v.menu.Show(c, exp, "export", func(done func()) {
 		// A still of a moving design is one moment of it; only HTML moves.
 		still, moving := "", ""
-		if canvas.UsesMotion(f.HTML) {
+		if v.usesMotion(f.HTML) {
 			still, moving = "One frame", "Keeps the motion"
 		}
 		for _, e := range []struct{ label, format, sub string }{

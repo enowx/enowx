@@ -87,7 +87,7 @@ func (v *View) pictureIf(c *ui.Context, o Options, f proto.CanvasFrame, width in
 		t = &thumb{}
 		v.thumbs[id] = t
 	}
-	key := htmlKey(f) + "@" + strconv.Itoa(width)
+	key := v.keyOf(f) + "@" + strconv.Itoa(width)
 	if t.key == key {
 		return t.img
 	}
@@ -188,7 +188,7 @@ func (v *View) pictureIf(c *ui.Context, o Options, f proto.CanvasFrame, width in
 
 // thumbFailure is why design f's own picture couldn't be made, "" if it wasn't.
 func (v *View) thumbFailure(f proto.CanvasFrame) string {
-	if t := v.thumbs[f.ID]; t != nil && t.failed == htmlKey(f)+"@0" {
+	if t := v.thumbs[f.ID]; t != nil && t.failed == v.keyOf(f)+"@0" {
 		return t.failure
 	}
 	return ""

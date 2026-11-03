@@ -92,26 +92,29 @@ func sessionDone(s proto.SessionInfo) bool {
 // sessionsByState is the list by state: every project's sessions together,
 // each row naming its project quietly.
 func (a *App) sessionsByState(c *ui.Context) {
-	placed := map[string]bool{}
-	for _, g := range stateGroups {
-		var list []proto.SessionInfo
-		var names []string
-		for _, e := range a.projectEntries() {
-			for _, p := range e.projects {
-				for _, s := range a.projectSessions(p.Path) {
-					if !placed[s.ID] && g.has(s) {
-						placed[s.ID] = true
-						list, names = append(list, s), append(names, p.Name)
-					}
-				}
+	var all []proto.SessionInfo
+	var projects []string
+	for _, e := range a.projectEntries() {
+		for _, p := range e.projects {
+			for _, s := range a.projectSessions(p.Path) {
+				all, projects = append(all, s), append(projects, p.Name)
 			}
 		}
-		if len(list) == 0 {
-			continue
-		}
-		widget.SectionLabel(c.Key("state:"+g.label), g.label, theme.TextSoft).Padding(theme.S3, theme.S3, theme.S1, theme.S3)
-		for i, s := range list {
-			a.sessionRow(c.Key(s.ID), i, s, names[i])
+	}
+	placed := make(map[string]bool, len(all))
+	for _, g := range stateGroups {
+		shown := 0
+		for i := range all {
+			s := &all[i]
+			if placed[s.ID] || !g.has(*s) {
+				continue
+			}
+			placed[s.ID] = true
+			if shown == 0 {
+				widget.SectionLabel(c.Key("state:"+g.label), g.label, theme.TextSoft).Padding(theme.S3, theme.S3, theme.S1, theme.S3)
+			}
+			a.sessionRow(c.Key(s.ID), shown, *s, projects[i])
+			shown++
 		}
 	}
 }
@@ -401,7 +404,7 @@ func (a *App) sessionRow(c *ui.Context, i int, s proto.SessionInfo, project stri
 			// The agent's note stays out of the row, which keeps every row
 			// the same height; hovering the name shows it.
 			if s.Note != "" {
-				name.Tooltip(s.Note)
+				name.Tooltip(widget.LongWords(s.Note))
 			}
 			detail := project
 			if m := s.Member; m != nil {
