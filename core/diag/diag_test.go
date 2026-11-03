@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"runtime/debug"
 	"strings"
 	"testing"
 	"time"
@@ -141,6 +142,8 @@ func TestOversizedOldLogIsCutDownAtStart(t *testing.T) {
 
 func TestStartSaysHowTheLastRunEnded(t *testing.T) {
 	dir := t.TempDir()
+	// Start keeps the log open for a crash, which on Windows keeps its folder from going.
+	t.Cleanup(func() { _ = debug.SetCrashOutput(nil, debug.CrashOptions{}) })
 	run := func(end bool) string {
 		l := Open(dir, AppLog)
 		l.Start("app", "1.0", "b1")
