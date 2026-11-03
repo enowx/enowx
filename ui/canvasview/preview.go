@@ -123,7 +123,7 @@ func (v *View) pictureIf(c *ui.Context, o Options, f proto.CanvasFrame, width in
 	decode := func(data []byte, done func(error)) {
 		var bmp *ui.Bitmap
 		var err error
-		work := func() { bmp, err = ui.DecodeBitmap(data) }
+		work := func() { bmp, err = decodePicture(data) }
 		then := func() {
 			if err == nil && t.asked == key {
 				t.img, t.key = bmp, key
