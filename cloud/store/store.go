@@ -17,6 +17,7 @@ import (
 	"slices"
 	"strconv"
 	"strings"
+	"time"
 
 	_ "github.com/jackc/pgx/v5/stdlib" // registers "pgx"
 )
@@ -32,6 +33,10 @@ var migrations embed.FS
 // can share a database with other apps.
 const DefaultSchema = "enowx_cloud"
 
+// DefaultMaxConns keeps the server within a role's connection limit, which a
+// database shared with other apps shares with them.
+const DefaultMaxConns = 8
+
 // Config says which database to open.
 type Config struct {
 	// Postgres is a Postgres URL; empty, SQLite in Dir.
@@ -41,12 +46,18 @@ type Config struct {
 	Schema string
 	// Dir is the folder SQLite's cloud.db is in.
 	Dir string
+	// MaxConns is the most Postgres connections this server holds;
+	// DefaultMaxConns when 0.
+	MaxConns int
 }
 
 // DB is the server's database.
 type DB struct {
 	*sql.DB
 	postgres bool
+	// itemReads holds a place per page of items being read, so that they
+	// leave connections to everything else; nil on SQLite.
+	itemReads chan struct{}
 }
 
 var schemaName = regexp.MustCompile(`^[a-z_][a-z0-9_]{0,62}$`)
@@ -59,7 +70,7 @@ func Open(ctx context.Context, cfg Config) (*DB, error) {
 		if err != nil {
 			return nil, err
 		}
-		s = &DB{db, true}
+		s = &DB{DB: db, postgres: true, itemReads: make(chan struct{}, max(db.Stats().MaxOpenConnections/2, 1))}
 	} else {
 		if !slices.Contains(sql.Drivers(), "sqlite") {
 			return nil, errors.New("store: this build has no SQLite (built with -tags nosqlite): set ENOWX_CLOUD_DATABASE_URL to a Postgres URL")
@@ -72,7 +83,7 @@ func Open(ctx context.Context, cfg Config) (*DB, error) {
 		if err != nil {
 			return nil, fmt.Errorf("store: open %s: %w", path, err)
 		}
-		s = &DB{db, false}
+		s = &DB{DB: db}
 	}
 	if err := s.migrate(ctx); err != nil {
 		s.Close()
@@ -101,6 +112,14 @@ func openPostgres(ctx context.Context, cfg Config) (*sql.DB, error) {
 	if err != nil {
 		return nil, fmt.Errorf("store: open Postgres: %w", err)
 	}
+	conns := cfg.MaxConns
+	if conns <= 0 {
+		conns = DefaultMaxConns
+	}
+	db.SetMaxOpenConns(conns)
+	db.SetMaxIdleConns(max(conns/2, 1))
+	db.SetConnMaxIdleTime(5 * time.Minute)
+	db.SetConnMaxLifetime(30 * time.Minute)
 	if _, err := db.ExecContext(ctx, `CREATE SCHEMA IF NOT EXISTS `+schema); err != nil {
 		db.Close()
 		return nil, fmt.Errorf("store: Postgres schema %s: %w", schema, err)
