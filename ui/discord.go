@@ -109,6 +109,11 @@ func (a *App) discordActivity() *discordrpc.Activity {
 		act.Timestamps = &discordrpc.Times{Start: a.discord.started.Unix()}
 		if g, ok := a.goaSession(); ok {
 			act.Timestamps.Start = g.Created.Unix()
+			name := a.agentName(g.Agent)
+			act.State = name + " · " + act.State
+			if base := agent.Base(g.Agent); discordAgents[base] {
+				act.Assets.SmallImage, act.Assets.SmallText = base, name
+			}
 		}
 		return act
 	}
@@ -244,7 +249,7 @@ func (a *App) discordSection(c *ui.Context) {
 			}
 			discordSample(c, "With a session selected", details, "Claude Code · "+plural(max(len(a.sessions), 1), "session"))
 			discordSample(c, "With none selected", "In enowX", plural(len(a.sessions), "session")+" open")
-			discordSample(c, "In GOD of Agents mode", goaPresence, plural(max(len(a.sessions), 1), "session"))
+			discordSample(c, "In GOD of Agents mode", goaPresence, "Claude Code · "+plural(max(len(a.sessions), 1), "session"))
 		})
 	})
 }
