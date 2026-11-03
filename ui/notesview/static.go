@@ -18,6 +18,10 @@ import (
 // click on them opens them as text.
 
 func codeView(c *ui.Context, lang, code string) {
+	if len(code) > longBlock {
+		widget.CodeBlock(c, lang, code) // a window on it, whose rows only are drawn
+		return
+	}
 	ui.Column(c).FillWidth().MinWidth(0).Gap(theme.S1).Padding(theme.S3, theme.S4).Radius(theme.RadiusCard).Background(theme.CodeGround).
 		InsetShadow(0, 0, 0, 0.5, theme.Border).Children(func() {
 		if lang != "" {

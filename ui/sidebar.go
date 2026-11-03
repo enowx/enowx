@@ -401,7 +401,7 @@ func (a *App) sessionRow(c *ui.Context, i int, s proto.SessionInfo, project stri
 			// The agent's note stays out of the row, which keeps every row
 			// the same height; hovering the name shows it.
 			if s.Note != "" {
-				name.Tooltip(s.Note)
+				name.Tooltip(widget.LongWords(s.Note))
 			}
 			detail := project
 			if m := s.Member; m != nil {

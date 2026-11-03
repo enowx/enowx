@@ -350,7 +350,7 @@ func DrawError(c *ui.Context, msg string, dismiss func()) {
 		ui.Column(c).Grow(1).Shrink(1).MinWidth(0).Gap(theme.S1).Children(func() {
 			ui.Text(c, "Unslop didn't start").FontSize(theme.TextUI).FontWeight(600).TextColor(theme.Error)
 			widget.Scroll(c.Key("msg")).FillWidth().MaxHeight(200).Children(func() {
-				ui.Text(c, msg).FontSize(theme.TextLabel).TextColor(theme.TextSoft)
+				ui.Text(c, widget.LongWords(msg)).FontSize(theme.TextLabel).TextColor(theme.TextSoft)
 			})
 		})
 		if dismiss != nil && widget.IconButton(c, icon.Close, "Dismiss", false).Clicked() {
@@ -426,7 +426,7 @@ func (p *Panel) drawBrief(c *ui.Context, b proto.DesignBrief) {
 				}
 				ui.Column(c.Key(kv[0])).FillWidth().Gap(1).Children(func() {
 					ui.Text(c, kv[0]).FontSize(theme.TextLabel).FontWeight(500).TextColor(theme.TextSoft)
-					ui.Text(c, kv[1]).FontSize(theme.TextLabel).TextColor(theme.TextSoft)
+					ui.Text(c, widget.LongWords(kv[1])).FontSize(theme.TextLabel).TextColor(theme.TextSoft)
 				})
 			}
 		})
@@ -471,10 +471,10 @@ func DrawReview(c *ui.Context, rv proto.DesignReview, open func(session string))
 			return
 		}
 		for i, s := range append(append([]string{}, rv.Issues...), rv.Improvements...) {
-			ui.Text(c.Key(fmt.Sprint("r", i)), "· "+s).FontSize(theme.TextLabel).TextColor(theme.TextSoft)
+			ui.Text(c.Key(fmt.Sprint("r", i)), "· "+widget.LongWords(s)).FontSize(theme.TextLabel).TextColor(theme.TextSoft)
 		}
 		if rv.Keep != "" {
-			ui.Text(c, "Keep: "+rv.Keep).FontSize(theme.TextLabel).TextColor(theme.TextSoft)
+			ui.Text(c, "Keep: "+widget.LongWords(rv.Keep)).FontSize(theme.TextLabel).TextColor(theme.TextSoft)
 		}
 	})
 }

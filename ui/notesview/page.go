@@ -3,8 +3,6 @@ package notesview
 import (
 	"time"
 
-	"github.com/enowx/enowx/core/noteblocks"
-
 	"github.com/egoist/mygo/ui"
 
 	"github.com/enowx/enowx/core/iconlib"
@@ -219,7 +217,7 @@ func (v *View) pageBody(c *ui.Context, o Options, p *page, outline bool) {
 	if n, ok := noteOf(o, p.id); ok {
 		ui.Column(c).FillWidth().Padding(0, 0, 0, docLeft).Children(func() { v.projectBadges(c, o, n) })
 	}
-	if done, total := noteblocks.Progress(p.ed.markdown()); total > 0 && p.mode != modeSource && !outline {
+	if done, total := p.ed.progress(); total > 0 && p.mode != modeSource && !outline {
 		ui.Column(c).FillWidth().Padding(0, 6, theme.S2, docLeft+6).Children(func() { progressBar(c, "To-dos", done, total) })
 	}
 	if p.mode == modeSource {

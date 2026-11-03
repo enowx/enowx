@@ -233,7 +233,8 @@ func (a *App) chatBubble(c *ui.Context, team string, m proto.ChatMessage, bg, bo
 		a.replyQuote(c, team, m)
 		a.messageImages(c, team, m)
 		var loose []proto.ChatMention
-		parts := splitMentions(m.Text, m.Mentions)
+		text := widget.LongWords(m.Text)
+		parts := splitMentions(text, m.Mentions)
 		if m.Text == "" && m.Edited == nil {
 			return // images only
 		}
@@ -254,7 +255,7 @@ func (a *App) chatBubble(c *ui.Context, team string, m proto.ChatMessage, bg, bo
 			}
 		})
 		for _, mn := range m.Mentions {
-			if !strings.Contains(m.Text, "@"+mn.Title) {
+			if !strings.Contains(text, "@"+mn.Title) {
 				loose = append(loose, mn)
 			}
 		}
