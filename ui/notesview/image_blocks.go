@@ -28,7 +28,7 @@ func imageBlockParts(b block) ([]imagePart, bool) {
 		parts := imageParts(b.text)
 		return parts, len(parts) > 1
 	}
-	if b.kind != kLayout {
+	if b.kind != kLayout || len(b.text) > longBlock {
 		return nil, false
 	}
 	nodes := noteblocks.Parse(b.text)

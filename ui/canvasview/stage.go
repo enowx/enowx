@@ -181,7 +181,7 @@ func (v *View) interactStage(c *ui.Context, o Options, width, height float32) {
 	// A moving design keeps room for its controls from the start, so it doesn't
 	// shift once its page says it has motion.
 	room := float32(0)
-	if canvas.UsesMotion(v.frameOf().HTML) {
+	if v.usesMotion(v.frameOf().HTML) {
 		room = motionBarRoom
 	}
 	box := interactBox(b.W, b.H-room, width, height)
@@ -256,14 +256,14 @@ func (v *View) mockup(c *ui.Context, o Options, f proto.CanvasFrame, design ui.R
 	}
 	ui.Column(c.Key("outline")).Absolute().Left(0).Top(0).Size(w, h).Padding(theme.S4).Gap(theme.S1).Children(func() {
 		ui.Text(c, "This device shows mockups in a web view: here, their elements.").FontSize(theme.TextLabel).TextColor(ui.RGB(100, 116, 139))
-		for _, el := range canvas.Outline(f.HTML) {
+		for _, el := range v.outlineOf(o, f.HTML) {
 			row := ui.Row(c.Key(el.ID)).Padding(2, 6, 2, 6+float32(el.Depth)*12).Radius(theme.RadiusTail).Gap(theme.S2)
 			if v.recent(el.ID) {
 				row.Background(ui.RGBA(99, 102, 241, 0.18))
 			}
 			row.Children(func() {
 				ui.Text(c, "#"+el.ID).FontSize(theme.TextLabel).TextColor(ui.RGB(79, 70, 229))
-				ui.Text(c, el.Text).FontSize(theme.TextLabel).TextColor(ui.RGB(15, 23, 42)).SingleLine().Shrink(1)
+				ui.Text(c, widget.LongLine(el.Text)).FontSize(theme.TextLabel).TextColor(ui.RGB(15, 23, 42)).SingleLine().Shrink(1)
 			})
 		}
 	})

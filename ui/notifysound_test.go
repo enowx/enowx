@@ -182,8 +182,8 @@ func TestNotificationSounds(t *testing.T) {
 func TestRemoteAgentDoneSoundsOnce(t *testing.T) {
 	snd := catchSounds(t)
 	app := New(Options{})
-	var later []func()
-	app.onMain = func(fn func()) { later = append(later, fn) }
+	var later mainQueue
+	app.onMain = later.post
 	app.ntf.loaded, app.ntf.settings = true, notify.Defaults()
 	w := &hostWatch{host: hosts.Host{ID: "vps", Name: "datalix-vps"}, stop: make(chan struct{})}
 	w.status.sessions = []proto.SessionInfo{{ID: "r1", Agent: "claude", State: proto.StateWorking}}
@@ -194,11 +194,7 @@ func TestRemoteAgentDoneSoundsOnce(t *testing.T) {
 	}
 	deadline := time.Now().Add(soundGather + 500*time.Millisecond)
 	for time.Now().Before(deadline) {
-		fns := later
-		later = nil
-		for _, fn := range fns {
-			fn()
-		}
+		later.run()
 		time.Sleep(10 * time.Millisecond)
 	}
 	if got := snd.take(); len(got) != 1 {

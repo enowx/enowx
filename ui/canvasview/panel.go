@@ -9,7 +9,6 @@ import (
 
 	"github.com/egoist/mygo/ui"
 
-	"github.com/enowx/enowx/core/canvas"
 	"github.com/enowx/enowx/proto"
 	"github.com/enowx/enowx/ui/icon"
 	"github.com/enowx/enowx/ui/theme"
@@ -132,7 +131,7 @@ func (v *View) layers(c *ui.Context, o Options) {
 		v.inspector(c, o, f)
 		widget.Divider(c)
 	}
-	out := v.outlineOf(f.HTML)
+	out := v.outlineOf(o, f.HTML)
 	if len(out) > 0 {
 		widget.SectionLabel(c.Key("mockup"), "Mockup", theme.TextSoft)
 		for _, el := range out {
@@ -157,9 +156,13 @@ func (v *View) inspector(c *ui.Context, o Options, f proto.CanvasFrame) {
 		v.shapeInspector(c.Key("shape:"+el.ID), o, el)
 		return
 	}
-	src, err := canvas.ElementHTML(f.HTML, v.sel)
+	src, err := v.elementHTML(f.HTML, v.sel)
 	if err != nil {
 		v.sel = ""
+		return
+	}
+	if len(src) > htmlEditMost {
+		v.longElement(c, o)
 		return
 	}
 	insp := v.htmlInspector(v.sel, src)
@@ -383,13 +386,4 @@ func ago(t time.Time) string {
 func (v *View) onDesign(cm proto.CanvasComment) bool {
 	f := v.frameOf()
 	return cm.Frame == "" || cm.Frame == f.ID || strings.EqualFold(cm.Frame, f.Name)
-}
-
-// outlineOf is page's elements, worked out once for each page: parsing it again each frame
-// is what a long page would feel.
-func (v *View) outlineOf(page string) []canvas.HTMLElement {
-	if page != v.outlinePage || !v.outlineDone {
-		v.outlinePage, v.outline, v.outlineDone = page, canvas.Outline(page), true
-	}
-	return v.outline
 }

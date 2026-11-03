@@ -38,25 +38,30 @@ func TestStatsMeasureEachSession(t *testing.T) {
 			t.Fatalf("the busy session's processes never showed: %+v", st.Sessions)
 		}
 	}
-	time.Sleep(minSample + 200*time.Millisecond)
-	st, err := c.Stats()
-	if err != nil {
-		t.Fatal(err)
-	}
-	if !st.Supported || st.Host.MemTotal == 0 || st.Daemon.RSS == 0 {
-		t.Fatalf("stats = %+v", st)
-	}
-	got := map[string]float64{}
-	for _, s := range st.Sessions {
-		if s.RSS == 0 || s.Procs == 0 {
-			t.Fatalf("session %s measured nothing: %+v", s.ID, s)
+	// A machine busy with other tests can starve the session for a moment, or wake the idle
+	// one: at some look, busy uses a core and idle next to nothing.
+	for deadline := time.Now().Add(30 * time.Second); ; {
+		time.Sleep(minSample + 200*time.Millisecond)
+		st, err := c.Stats()
+		if err != nil {
+			t.Fatal(err)
 		}
-		got[s.ID] = s.CPU
-	}
-	if got[busy.ID()] < 50 {
-		t.Fatalf("busy session CPU = %.0f%%, want a core: %+v", got[busy.ID()], st.Sessions)
-	}
-	if cpu, ok := got[idle.ID()]; !ok || cpu > 10 {
-		t.Fatalf("idle session CPU = %.0f%% (measured %v)", cpu, ok)
+		if !st.Supported || st.Host.MemTotal == 0 || st.Daemon.RSS == 0 {
+			t.Fatalf("stats = %+v", st)
+		}
+		got := map[string]float64{}
+		for _, s := range st.Sessions {
+			if s.RSS == 0 || s.Procs == 0 {
+				t.Fatalf("session %s measured nothing: %+v", s.ID, s)
+			}
+			got[s.ID] = s.CPU
+		}
+		cpu, measured := got[idle.ID()]
+		if got[busy.ID()] >= 50 && measured && cpu <= 10 {
+			return
+		}
+		if time.Now().After(deadline) {
+			t.Fatalf("busy session CPU = %.0f%%, want a core; idle = %.0f%% (measured %v): %+v", got[busy.ID()], cpu, measured, st.Sessions)
+		}
 	}
 }

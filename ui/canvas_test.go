@@ -22,7 +22,7 @@ type canvasHarness struct {
 	app   *App
 	cl    *client.Client
 	tt    *ui.Tester
-	later []func()
+	later mainQueue
 }
 
 func newCanvasHarness(t *testing.T) *canvasHarness {
@@ -34,7 +34,7 @@ func newCanvasHarness(t *testing.T) *canvasHarness {
 	a, b := net.Pipe()
 	go srv.ServeConn(a)
 	h := &canvasHarness{t: t, app: New(Options{})}
-	h.app.onMain = func(fn func()) { h.later = append(h.later, fn) }
+	h.app.onMain = h.later.post
 	h.cl, err = client.New(b, func(ev proto.Event) {
 		apply := h.app.canvasEvent(ev)
 		switch ev.Name {
@@ -80,10 +80,7 @@ func (h *canvasHarness) settle(what string, done func() bool) {
 			h.t.Fatalf("%s: never; shows %q", what, h.tt.Texts())
 		}
 		time.Sleep(10 * time.Millisecond)
-		for _, fn := range h.later {
-			fn()
-		}
-		h.later = nil
+		h.later.run()
 	}
 }
 

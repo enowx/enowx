@@ -65,7 +65,7 @@ func (a *App) replyBar(c *ui.Context) {
 }
 
 // snippet is a message's text on one line.
-func snippet(text string) string { return strings.Join(strings.Fields(text), " ") }
+func snippet(text string) string { return strings.Join(strings.Fields(widget.LongLine(text)), " ") }
 
 // replyQuote is the message m answers, at the top of its bubble: a
 // block in its author's color, a click scrolling back to it.

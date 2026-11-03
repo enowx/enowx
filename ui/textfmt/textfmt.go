@@ -87,11 +87,18 @@ func Until(t, now time.Time) string {
 // FirstLine is s up to its first line break, cut to n runes with an
 // ellipsis.
 func FirstLine(s string, n int) string {
-	if i := strings.IndexAny(s, "\r\n"); i >= 0 {
-		s = s[:i]
-	}
-	if r := []rune(s); len(r) > n {
-		return string(r[:n-1]) + "…"
+	count, cut := 0, 0
+	for i, r := range s {
+		if r == '\r' || r == '\n' {
+			return s[:i]
+		}
+		if count == n-1 {
+			cut = i
+		}
+		if count == n {
+			return s[:cut] + "…"
+		}
+		count++
 	}
 	return s
 }
