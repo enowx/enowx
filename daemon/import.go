@@ -193,14 +193,14 @@ func (s *Server) importSession(in *importing, ms transfer.Session, ids map[strin
 		if preset.RefusesRootSkip && os.Geteuid() == 0 {
 			meta.SkipPermissions = false
 		}
-		command = thenShell(preset.Argv(agentLaunch(preset, meta.SkipPermissions, "", false, chatFor{guide: s.guideFor(meta)})))
+		command = thenShell(preset.Argv(agentLaunch(preset, meta.SkipPermissions, "", false, chatFor{guide: s.guideFor(meta), files: s.agentFilesDir(spec.ID)})))
 		if convo != "" {
-			l := agentLaunch(preset, meta.SkipPermissions, "", true, chatFor{guide: s.guideFor(meta)})
+			l := agentLaunch(preset, meta.SkipPermissions, "", true, chatFor{guide: s.guideFor(meta), files: s.agentFilesDir(spec.ID)})
 			l.Resume = convo
 			l.Hooks = append(l.Hooks, keptArgs(meta)...)
 			command = thenShell(preset.Argv(l))
 		}
-		meta.Restart, meta.Relaunch = thenShell(preset.Argv(agentLaunch(preset, meta.SkipPermissions, "", true, chatFor{guide: s.guideFor(meta)}))), len(preset.Continue) > 0
+		meta.Restart, meta.Relaunch = thenShell(preset.Argv(agentLaunch(preset, meta.SkipPermissions, "", true, chatFor{guide: s.guideFor(meta), files: s.agentFilesDir(spec.ID)}))), len(preset.Continue) > 0
 	case ms.Agent == agent.Shell:
 		meta.Relaunch = true
 	default:

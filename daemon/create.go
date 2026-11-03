@@ -100,6 +100,7 @@ func (s *Server) createSessionFor(p proto.SessionCreateParams, member *proto.Ses
 	chat.member = member != nil
 	if !p.SignIn {
 		chat.store = s.agentStore(p.Agent, id, true)
+		chat.files = s.agentFilesDir(id)
 	}
 	if p.Account == "" && p.AccountAuto && member == nil {
 		p.Account = s.defaultAccount(p.Agent, p.Project)
@@ -128,6 +129,7 @@ func (s *Server) createSessionFor(p proto.SessionCreateParams, member *proto.Ses
 	launch, err := launchFor(p, chat)
 	if err != nil {
 		s.configForget(id)
+		s.agentFilesForget(id)
 		return nil, err
 	}
 	if p.SignIn {
@@ -140,6 +142,7 @@ func (s *Server) createSessionFor(p proto.SessionCreateParams, member *proto.Ses
 	accountEnv, err := s.accounts.Env(agent.Base(p.Agent), p.Account)
 	if err != nil {
 		s.configForget(id)
+		s.agentFilesForget(id)
 		return nil, err
 	}
 	launch.env = append(append(launch.env, accountEnv...), chat.config.environ()...)
@@ -236,9 +239,13 @@ func (s *Server) createSessionFor(p proto.SessionCreateParams, member *proto.Ses
 		s.displays.stop(spec.ID)
 		s.vaultRelease(spec.ID)
 		s.configForget(spec.ID)
+		s.agentFilesForget(spec.ID)
 		return nil, err
 	}
 	s.began(sess, launch.command, launch.typed)
+	if launch.warn != "" {
+		s.sessions.SetNote(sess, launch.warn)
+	}
 	if _, isAgent := agent.Find(p.Agent); isAgent && !p.SignIn && p.NotesFor == "" && p.CanvasFor == "" {
 		s.recordAccount(proto.AccountLogEntry{Session: sess.ID(), Agent: agent.Base(p.Agent), Account: s.accountName(p.Account), Event: "start"})
 	}
@@ -312,6 +319,7 @@ type launch struct {
 	env      []string // added to the session's environment
 	name     string   // the session's name when it was given none
 	typed    string   // prompt typed in once the program is ready
+	warn     string   // what the user should know of how it starts, as the session's note
 	restart  []string // command after a daemon restart
 	relaunch bool     // restart the program at all after a daemon restart
 	skip     bool     // the agent skips permission prompts
@@ -376,6 +384,12 @@ func launchFor(p proto.SessionCreateParams, chat chatFor) (launch, error) {
 	first := agentLaunch(preset, skip, prompt, false, chat)
 	args := agent.StartArgs(preset.ID, p.Model, p.Effort, p.Mode, skip)
 	first.Hooks = append(first.Hooks, args...)
+	// A first prompt the command line can't hold is typed, as for agents that take
+	// none there.
+	longPrompt := !preset.TypePrompt && first.Prompt != "" && overCommandLimit(preset.Argv(first))
+	if longPrompt {
+		first.Prompt = ""
+	}
 	again := agentLaunch(preset, skip, "", true, chat)
 	again.Hooks = append(again.Hooks, args...)
 	if p.Resume != "" {
@@ -387,8 +401,11 @@ func launchFor(p proto.SessionCreateParams, chat chatFor) (launch, error) {
 		restart:  thenShell(preset.Argv(again)),
 		relaunch: len(preset.Continue) > 0,
 		skip:     skip,
+		warn:     commandWarning(preset, first),
 	}
 	switch {
+	case longPrompt:
+		l.typed = pasteStart + prompt + pasteEnd
 	case p.Resume != "" && strings.TrimSpace(p.Prompt) != "":
 		// A conversation resumed takes no first prompt on its command
 		// line: the next message is typed once it is back.
@@ -427,6 +444,7 @@ type chatFor struct {
 	notes, canvas, guide string
 	dirs                 []string
 	store                string // the session's conversations' folder (agentStore)
+	files                string // where its long arguments go as files (agentFilesDir)
 	// member: a team's member's session, which gets nothing of the host's
 	// user's model API (agentapi).
 	member bool
@@ -493,6 +511,7 @@ func agentLaunch(preset agent.Preset, skip bool, prompt string, cont bool, chat 
 	if guide == "" {
 		guide = agent.Guide
 	}
+	guide = guideWithoutSecrets(guide)
 	// Skipping stays a mode to switch to from the chat, except as root,
 	// where the agent would refuse to start with it.
 	allow := !(preset.RefusesRootSkip && os.Geteuid() == 0)
@@ -530,7 +549,9 @@ func agentLaunch(preset agent.Preset, skip bool, prompt string, cont bool, chat 
 		// --settings enowX's hooks use.
 		hooks = append(agentapi.WithSettings(hooks, run.settings), run.args...)
 	}
-	return agent.Launch{Prompt: prompt, SkipPermissions: skip, AllowSkip: allow, Continue: cont, SessionDir: chat.store, Hooks: hooks}
+	l := agent.Launch{Prompt: prompt, SkipPermissions: skip, AllowSkip: allow, Continue: cont, SessionDir: chat.store, Hooks: hooks}
+	l.Hooks = fitCommandLine(preset, l, chat.files)
+	return l
 }
 
 func contains(list []string, s string) bool {

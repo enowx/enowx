@@ -187,6 +187,9 @@ var secretText = regexp.MustCompile(`-----BEGIN [A-Z ]*PRIVATE KEY-----|\bAKIA[0
 // HoldsSecret says text holds a secret, by what keeps a chunk from the index.
 func HoldsSecret(text string) bool { return secretText.MatchString(text) }
 
+// MaskSecrets is text with what HoldsSecret finds taken out.
+func MaskSecrets(text string) string { return secretText.ReplaceAllString(text, "[secret removed]") }
+
 // generatedName finds what tools made for machines, worth nothing to search and
 // costly to embed: source maps, minified files, lockfiles.
 var generatedName = regexp.MustCompile(`(?i)(\.map|\.min\.(js|css)|\.bundle\.js|package-lock\.json|pnpm-lock\.yaml|yarn\.lock|go\.sum)$`)

@@ -54,6 +54,7 @@ func (s *Server) switchAgent(p proto.AccountSwitchParams) (proto.SessionInfo, er
 	}
 	chat := s.chatOf("", "", s.guideFor(meta))
 	chat.store = s.agentStore(preset.ID, info.ID, true)
+	chat.files = s.agentFilesDir(info.ID)
 	next := meta
 	next.Agent, next.Account = preset.ID, acc
 	run, err := s.configRunFor(info.ID, next) // the other agent's default config
