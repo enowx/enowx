@@ -17,6 +17,7 @@ import (
 	"github.com/egoist/mygo/ui"
 
 	"github.com/enowx/enowx/client"
+	"github.com/enowx/enowx/core/diag"
 	"github.com/enowx/enowx/core/hosts"
 	"github.com/enowx/enowx/core/projectsync"
 	"github.com/enowx/enowx/core/tailnet"
@@ -69,6 +70,8 @@ type App struct {
 	onboard         onboardingState // the first run's setup
 	cacheState      *cacheSettings  // Settings' Clean cache
 	watchdog        *watchdog.Watch // the main thread's, once the window is open
+	diag            *diag.Log       // what happened, for later (diagnostics.go); nil in tests
+	diagPage        string          // the page last logged
 	sessionToasts   []*sessionToast // what notifications are about (sessiontoast.go)
 	sessionToastKey int
 	trust           *trustPrompt
@@ -387,6 +390,7 @@ func (a *App) Open() *mygo.Window {
 	})
 	a.onMain = a.win.Update
 	a.startDevDriver()
+	a.startDiag()
 	a.startWatchdog()
 	stopAppearance := mygo.Theme.OnUpdated(func() { a.systemAppearanceChanged(mygo.Theme.IsDark()) })
 	a.watchQuit()

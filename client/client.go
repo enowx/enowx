@@ -47,6 +47,11 @@ type Client struct {
 	// numbers those sent.
 	parts    bool
 	lastPart atomic.Uint32
+	// id names this connection in both sides' logs; opened is when it did;
+	// closing, that this side ended it.
+	id      string
+	opened  time.Time
+	closing atomic.Bool
 	// adb are the ADB bridges listening on this daemon, by listener.
 	adb  map[uint32]func(id uint32)
 	err  error
@@ -85,7 +90,8 @@ func New(rw io.ReadWriteCloser, onEvent func(proto.Event)) (*Client, error) {
 		onEvent: onEvent,
 		done:    make(chan struct{}),
 	}
-	hello, _ := json.Marshal(proto.Hello{Protocol: proto.Version, Agent: "enowx/" + Version, Parts: true})
+	c.id = newConnID()
+	hello, _ := json.Marshal(proto.Hello{Protocol: proto.Version, Agent: "enowx/" + Version, Parts: true, Conn: c.id, Kind: Kind})
 	if err := c.write(proto.Frame{Type: proto.TypeHello, Payload: hello}); err != nil {
 		rw.Close()
 		return nil, fmt.Errorf("client: handshake: %w", err)
@@ -110,6 +116,7 @@ func New(rw io.ReadWriteCloser, onEvent func(proto.Event)) (*Client, error) {
 		return nil, fmt.Errorf("client: the daemon speaks protocol %d, older than %d: reconnect to update it", theirs.Protocol, proto.MinVersion)
 	}
 	c.parts = theirs.Parts
+	c.opened = time.Now()
 	go c.read()
 	return c, nil
 }
@@ -125,10 +132,13 @@ func (c *Client) Err() error {
 }
 
 // Close closes the connection. Sessions keep running in the daemon.
-func (c *Client) Close() error { return c.rw.Close() }
+func (c *Client) Close() error {
+	c.closing.Store(true)
+	return c.rw.Close()
+}
 
 // Call sends a request and decodes its result into out (which may be nil).
-func (c *Client) Call(method string, params, out any) error {
+func (c *Client) Call(method string, params, out any) (err error) {
 	var raw json.RawMessage
 	if params != nil {
 		b, err := json.Marshal(params)
@@ -138,6 +148,11 @@ func (c *Client) Call(method string, params, out any) error {
 		raw = b
 	}
 	ch := make(chan proto.Response, 1)
+	got := 0
+	if t := Trace.Load(); t != nil {
+		began := time.Now()
+		defer func() { (*t)(CallTrace{Method: method, Sent: len(raw), Got: got, Took: time.Since(began), Err: err}) }()
+	}
 	c.mu.Lock()
 	if c.err != nil {
 		c.mu.Unlock()
@@ -157,6 +172,7 @@ func (c *Client) Call(method string, params, out any) error {
 	}
 	select {
 	case resp := <-ch:
+		got = len(resp.Result)
 		if resp.Error != "" {
 			return fmt.Errorf("%s: %s", method, resp.Error)
 		}

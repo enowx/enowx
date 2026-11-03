@@ -53,6 +53,15 @@ func (a *App) connect(h hosts.Host) {
 	// The same host coming back: what the user had open stays.
 	back := a.client == nil && a.retryHost == h.ID && a.host.ID == h.ID
 	maximized, form, picker := a.maximized, a.newSession.open, a.addProject
+	switch {
+	case back:
+		a.diag.Event("conn.connecting", "host", h.ID, "name", h.Name, "retry", a.retrying)
+	case a.host.ID != "" && a.host.ID != h.ID:
+		a.diag.Event("host.switched", "from", a.host.ID, "to", h.ID, "name", h.Name)
+		a.diag.Event("conn.connecting", "host", h.ID, "name", h.Name)
+	default:
+		a.diag.Event("conn.connecting", "host", h.ID, "name", h.Name)
+	}
 	a.disconnect()
 	if back {
 		a.maximized, a.newSession.open, a.addProject = maximized, form, picker
@@ -89,8 +98,12 @@ func (a *App) connect(h hosts.Host) {
 	if gen == 1 {
 		openProject = a.opts.OpenProject
 	}
+	began := time.Now()
 	go func() {
 		c, err := hostconn.Connect(h, opts)
+		if err != nil {
+			a.diag.Event("conn.failed", "host", h.ID, "name", h.Name, "took", time.Since(began), "err", err)
+		}
 		a.onMain(func() {
 			if gen != a.gen {
 				if c != nil {
@@ -108,7 +121,9 @@ func (a *App) connect(h hosts.Host) {
 				a.promptSignIn(h, err)
 				return
 			}
+			a.diag.Event("conn.connected", "host", h.ID, "name", h.Name, "conn", c.ID(), "took", time.Since(began), "afterTries", a.retrying)
 			if a.retrying > 0 {
+				a.diag.Event("conn.reconnected", "host", h.ID, "name", h.Name, "conn", c.ID(), "afterTries", a.retrying)
 				a.notify("Reconnected to " + h.Name)
 			}
 			a.retrying, a.retryHost = 0, ""
@@ -121,7 +136,7 @@ func (a *App) connect(h hosts.Host) {
 			a.pollConflicts(c, gen)
 			go a.refresh(c, gen, openProject)
 			go a.checkDrift(c, h)
-			go a.watchDisconnect(c, gen)
+			go a.watchDisconnect(c, h, gen)
 			go func() { _ = c.ServeBrowsers() }() // an older daemon has no enowx browser
 			go func() { _ = c.ServeApp() }()
 			a.vaultConnected(c)
@@ -129,8 +144,9 @@ func (a *App) connect(h hosts.Host) {
 	}()
 }
 
-func (a *App) watchDisconnect(c *client.Client, gen int) {
+func (a *App) watchDisconnect(c *client.Client, h hosts.Host, gen int) {
 	<-c.Done()
+	a.logClosed("main", h, c)
 	a.onMain(func() {
 		if gen == a.gen && a.client == c {
 			a.client = nil
@@ -152,6 +168,7 @@ func (a *App) retryLater(h hosts.Host, err error) {
 	if err != nil {
 		a.connErr += " (" + client.Explain(err) + ")"
 	}
+	a.diag.Event("conn.retry", "host", h.ID, "name", h.Name, "try", a.retrying, "wait", wait, "err", err)
 	attempt := a.retrying
 	time.AfterFunc(wait, func() {
 		a.onMain(func() {

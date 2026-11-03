@@ -117,6 +117,8 @@ func (a *App) watch(w *hostWatch) {
 	for {
 		cl, err := hostconn.Connect(w.host, a.watchOptions(w))
 		if err != nil {
+			// A host off for a while fails again and again.
+			a.diag.Every("watch:"+w.host.ID, 10*time.Minute, "conn.failed", "use", "watch", "host", w.host.ID, "name", w.host.Name, "err", err)
 			state := hostOffline
 			if errors.Is(err, errNeedsYou) {
 				state = hostNeedsYou

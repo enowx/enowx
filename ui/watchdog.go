@@ -18,6 +18,7 @@ func (a *App) startWatchdog() {
 		return
 	}
 	a.watchdog = watchdog.Start(filepath.Join(dir, "watchdog"), "app", mygo.RunOnMain, a.watchdogScreen)
+	a.watchdog.SetDoing(a.diag.Doing)
 }
 
 // watchdogScreen says what the app shows, for a report: never what's in it.

@@ -9,6 +9,7 @@ import (
 	"github.com/enowx/enowx/core/checks"
 	"github.com/enowx/enowx/core/commands"
 	"github.com/enowx/enowx/core/credits"
+	"github.com/enowx/enowx/core/diag"
 	"github.com/enowx/enowx/core/display"
 	"github.com/enowx/enowx/core/intercept"
 	"github.com/enowx/enowx/core/vault"
@@ -56,6 +57,8 @@ type Server struct {
 	HookBin string
 	// Log receives diagnostics; nil discards them.
 	Log *slog.Logger
+	// Diag receives the connections' events, for later (core/diag); nil discards them.
+	Diag *diag.Log
 
 	sessions          *session.Manager
 	projects          *project.Store
@@ -316,7 +319,9 @@ func (s *Server) serveConn(nc net.Conn, remote bool) {
 		s.vault.drop(c)
 		s.visitorGone(c)
 	}()
-	if err := c.serve(); err != nil {
+	err := c.serve()
+	c.logClosed(err)
+	if err != nil {
 		s.logger().Debug("connection closed", "err", err)
 	}
 }

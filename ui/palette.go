@@ -103,6 +103,7 @@ func (a *App) commands() []command {
 		command{"agent-limit", "Agents at once…", "On " + a.host.Name, icon.Gauge, a.askAgentLimit},
 		command{"stop-agents", "Stop all agents", "On " + a.host.Name + " · Their sessions stay, to continue", icon.Stop, a.stopAgentsHere},
 		command{"quit-stop", "Quit and stop all agents", "On this device", icon.Stop, a.quitAndStopAgents},
+		command{"diagnostics", "Save diagnostics for a bug report", "This device's logs and " + a.host.Name + "'s, as a zip", icon.Download, a.saveDiagnostics},
 		command{"updates", "Check for updates", "enowX " + version.String, icon.ArrowUp, func() { a.checkForUpdates(true) }},
 		command{"sessions-panel", "Show or hide the sidebar", modKey + "⇧S", icon.Sidebar, a.toggleSessionsPanel},
 		command{"floating", "Floating control", floatingKey + " · Over any app", icon.Floating, a.toggleFloating},

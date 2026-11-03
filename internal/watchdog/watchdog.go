@@ -32,7 +32,11 @@ const (
 	memoryEvery = 5 * time.Minute
 	memoryMost  = 1 << 20
 	beatEvery   = time.Second
-	lookEvery   = 500 * time.Millisecond
+	// jumpEvery is how often the heap is looked at for a jump, jumpBytes how much
+	// it must grow to be one, and by half as well.
+	jumpEvery = 15 * time.Second
+	jumpBytes = 256 << 20
+	lookEvery = 500 * time.Millisecond
 )
 
 // Watch follows a thread that must keep answering.
@@ -49,7 +53,14 @@ type Watch struct {
 	slow   slowFrames
 	stopCh chan struct{}
 	once   sync.Once
+	// doing says what was happening lately, for a mark of memory jumping.
+	doing atomic.Pointer[func() string]
+	// heap is what the Go heap held at the last look, for that mark.
+	heap uint64
 }
+
+// SetDoing says how to tell what was happening lately, for a mark.
+func (w *Watch) SetDoing(doing func() string) { w.doing.Store(&doing) }
 
 // slowFrames counts frames that took long, since last written.
 type slowFrames struct {
@@ -81,17 +92,19 @@ func (w *Watch) Stop() { w.once.Do(func() { close(w.stopCh) }) }
 func (w *Watch) FrameStart() { w.frame.Store(time.Now().UnixNano()) }
 
 // FrameEnd ends what FrameStart began.
-func (w *Watch) FrameEnd() {
+func (w *Watch) FrameEnd() time.Duration {
 	began := w.frame.Swap(0)
 	if began == 0 {
-		return
+		return 0
 	}
-	if d := time.Duration(time.Now().UnixNano() - began); d >= slowFrame {
+	d := time.Duration(time.Now().UnixNano() - began)
+	if d >= slowFrame {
 		w.slow.mu.Lock()
 		w.slow.count++
 		w.slow.slowest = max(w.slow.slowest, d)
 		w.slow.mu.Unlock()
 	}
+	return d
 }
 
 // beat has the thread answer, over and over.
@@ -214,10 +227,15 @@ func reportTime(name string) string {
 func (w *Watch) memory() {
 	tick := time.NewTicker(memoryEvery)
 	defer tick.Stop()
+	glance := time.NewTicker(jumpEvery)
+	defer glance.Stop()
 	for {
 		select {
 		case <-w.stopCh:
 			return
+		case <-glance.C:
+			w.lookForJump()
+			continue
 		case <-tick.C:
 		}
 		w.slow.mu.Lock()
@@ -230,6 +248,30 @@ func (w *Watch) memory() {
 		}
 		w.line(line)
 	}
+}
+
+// lookForJump marks memory jumping since the last look, with what was happening.
+func (w *Watch) lookForJump() {
+	var m runtime.MemStats
+	runtime.ReadMemStats(&m)
+	if heapJumped(w.heap, m.HeapAlloc) {
+		w.line(w.jumpMark(w.heap, m.HeapAlloc))
+	}
+	w.heap = m.HeapAlloc
+}
+
+// heapJumped says the heap grew much and by much, from one look to the next.
+func heapJumped(before, now uint64) bool {
+	return before > 0 && now >= before+jumpBytes && now >= before+before/2
+}
+
+func (w *Watch) jumpMark(before, now uint64) string {
+	shown, _ := w.shown.Load().(string)
+	doing := ""
+	if f := w.doing.Load(); f != nil {
+		doing = (*f)()
+	}
+	return fmt.Sprintf("mark memory jump heap=%dMB from=%dMB doing=%q on screen: %s", now>>20, before>>20, doing, shown)
 }
 
 // memoryLine says what the Go heap holds and how many goroutines there are.

@@ -139,7 +139,8 @@ func (c *conn) handle(req proto.Request) (any, error) {
 	return h(c, req.Params)
 }
 
-func (c *conn) reply(id uint64, value any, err error) {
+// reply answers call id, and says how large the answer was.
+func (c *conn) reply(id uint64, value any, err error) int {
 	resp := proto.Response{ID: id}
 	if err != nil {
 		resp.Error = err.Error()
@@ -156,10 +157,12 @@ func (c *conn) reply(id uint64, value any, err error) {
 	}
 	if len(payload) > limit {
 		c.srv.logger().Warn("reply too large, refused", "bytes", len(payload), "limit", limit)
+		c.srv.Diag.Event("proto.too_large", "conn", c.id, "frame", "reply", "bytes", len(payload), "takesParts", c.parts.Load())
 		payload, _ = json.Marshal(proto.Response{ID: id,
 			Error: fmt.Sprintf("response payload of %d bytes exceeds the %d-byte frame limit", len(payload), limit)})
 	}
 	_ = c.send(proto.Frame{Type: proto.TypeResponse, Payload: payload})
+	return len(payload)
 }
 
 func decode(raw json.RawMessage, v any) error {

@@ -957,6 +957,11 @@ field DesignReview.score int
 field DesignReview.session string
 field DesignReviewParams.session string
 field DesignReviewParams.text string
+field DiagFile.name string
+field DiagFile.size int64
+field DiagFile.text string
+field Diagnostics.files []DiagFile
+field Diagnostics.version string
 field Diff.base string
 field Diff.files []DiffFile
 field Diff.truncated bool
@@ -1238,6 +1243,8 @@ field GridArea.rowSpan int
 field Header.name string
 field Header.value string
 field Hello.agent string
+field Hello.conn string
+field Hello.kind string
 field Hello.parts bool
 field Hello.protocol int
 field HibernatePlan.blocked string
@@ -2813,6 +2820,7 @@ method commands.list
 method commands.run
 method commands.save
 method credits.get
+method daemon.diagnostics
 method daemon.info
 method daemon.log
 method daemon.restart
