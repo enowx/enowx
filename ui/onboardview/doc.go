@@ -210,7 +210,7 @@ func bubble(c *ui.Context, text string, v look, bg, fg ui.Color) ui.Element {
 }
 
 // step is a line of what an agent did: what it did, and how that went at its right.
-func step(c *ui.Context, v look, ink ui.Color, lead func(), words func(), right string, rightCol ui.Color) {
+func step(c *ui.Context, lead func(), words func(), right string, rightCol ui.Color) {
 	ui.Row(c).FillWidth().Height(20).Gap(8).AlignItems(ui.Center).Children(func() {
 		lead()
 		ui.Row(c.Key("words")).Grow(1).MinWidth(0).Gap(4).AlignItems(ui.Center).Clip().Children(words)
@@ -218,7 +218,6 @@ func step(c *ui.Context, v look, ink ui.Color, lead func(), words func(), right 
 			line(c.Key("right"), right, 12, rightCol).Shrink(0)
 		}
 	})
-	_ = ink
 }
 
 func code(c *ui.Context, text string, col ui.Color) ui.Element {
@@ -262,13 +261,13 @@ func (v *View) sampleChat(c *ui.Context, s scene) {
 			para(c, "It should: the tab attaches through that host's client, the same path as this Mac's, and a stopped session is continued first.", vd)
 		})
 		kid(3, func() {
-			step(c, vd, vd.ink2, icon14(icon.File), func() { code(c, "Edited ui/goa_tabs.go", vd.ink2) }, "+211", addInk)
+			step(c, icon14(icon.File), func() { code(c, "Edited ui/goa_tabs.go", vd.ink2) }, "+211", addInk)
 		})
 		kid(4, func() {
-			step(c, vd, vd.ink2, icon14(icon.Terminal), func() { code(c, "Ran go test ./ui", vd.ink2) }, "passed", addInk)
+			step(c, icon14(icon.Terminal), func() { code(c, "Ran go test ./ui", vd.ink2) }, "passed", addInk)
 		})
 		kid(5, func() {
-			step(c, vd, vd.focus, func() { dot(c, 8, dotWork) }, func() { code(c, "Editing ui/goa_test.go", vd.focus) }, "Working", vd.focus)
+			step(c, func() { dot(c, 8, dotWork) }, func() { code(c, "Editing ui/goa_test.go", vd.focus) }, "Working", vd.focus)
 		})
 	})
 }
@@ -301,13 +300,13 @@ func (v *View) sampleGOA(c *ui.Context, o Options, s scene) {
 			para(c, "I gave the check to Codex and the README to Claude Code. I'll report when both are back.", vd)
 		})
 		kid("ga2", 38600, func() {
-			step(c, vd, vd.ink2, icon14(icon.Sparkle), delegated("Codex"), "fix the failing check", vd.ink2)
+			step(c, icon14(icon.Sparkle), delegated("Codex"), "fix the failing check", vd.ink2)
 		})
 		kid("ga3", 38850, func() {
-			step(c, vd, vd.ink2, icon14(icon.Sparkle), delegated("Claude Code"), "update the README", vd.ink2)
+			step(c, icon14(icon.Sparkle), delegated("Claude Code"), "update the README", vd.ink2)
 		})
 		kid("ga4", 39100, func() {
-			step(c, vd, vd.ink2, icon14(icon.Lock), func() {
+			step(c, icon14(icon.Lock), func() {
 				line(c, "Codex", 12, vd.ink).FontWeight(500)
 				line(c, "asks to run", 12, vd.ink2)
 				code(c, "git push", vd.ink2)

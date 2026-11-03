@@ -72,7 +72,7 @@ func (v *View) taskConversation(c *ui.Context, o Options, s scene) {
 		bubble(c.Key("bubble"), v.task.prompt, vd, fadeColor(vd.accent, lift), fg).Translate(fx, fy)
 		if a, rise := show(t, 42350); a > .004 {
 			ui.Column(c.Key("work")).FillWidth().Opacity(a).Translate(0, rise).Children(func() {
-				step(c, vd, vd.focus, func() { dot(c, 8, dotWork) }, func() {
+				step(c, func() { dot(c, 8, dotWork) }, func() {
 					code(c, nonEmpty(name, "The agent")+" is working in its session", vd.focus)
 				}, "Working", vd.focus)
 			})
