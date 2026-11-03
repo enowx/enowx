@@ -69,6 +69,9 @@ func (v *View) pageView(c *ui.Context, o Options) {
 	v.jumpDialog(c, p)
 }
 
+// headIconRoom is how wide the header's title is from which it also offers to pick an icon.
+const headIconRoom = 64
+
 // pageHeader is the frame's top: the page's title and where it is, its state,
 // then what can be done with it. It keeps its height whatever it holds.
 func (v *View) pageHeader(c *ui.Context, o Options, p *page) {
@@ -79,9 +82,10 @@ func (v *View) pageHeader(c *ui.Context, o Options, p *page) {
 		if v.narrow && widget.IconButton(c, icon.Sidebar, "Pages", v.treeOpen).Clicked() {
 			v.treeOpen = !v.treeOpen
 		}
-		ui.Row(c).Grow(1).MinWidth(0).Gap(theme.S2).Children(func() {
+		title := ui.Row(c).Grow(1).MinWidth(0).Gap(theme.S2)
+		title.Children(func() {
 			v.breadcrumb(c, o, p.id)
-			if p.ed != nil && p.icon == "" {
+			if p.ed != nil && p.icon == "" && title.Bounds().W >= headIconRoom {
 				v.iconButton(c, o, p, 16)
 			}
 			v.titleField(c, p)

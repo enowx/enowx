@@ -131,7 +131,7 @@ func pageButton(c *ui.Context, label string, on, enabled bool) ui.Element {
 
 // commandButton opens the command palette.
 func (a *App) commandButton(c *ui.Context) {
-	b := widget.BarField(ui.ButtonBase(c.Key("command")).Width(340).Shrink(1).MinWidth(160).Height(theme.BarHeight).PaddingX(theme.S4).Gap(theme.S2).
+	b := widget.BarField(ui.ButtonBase(c.Key("command")).Width(340).Shrink(1).MinWidth(96).Height(theme.BarHeight).PaddingX(theme.S4).Gap(theme.S2).
 		Label("Run a command").Cursor(ui.CursorPointer))
 	b.Justify(ui.Start).TextColor(theme.TextSoft).Children(func() {
 		ui.Icon(c, icon.Search).FontSize(14)

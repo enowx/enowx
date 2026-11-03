@@ -139,10 +139,13 @@ func TestSettingsBodyDrawsTheFloatingSection(t *testing.T) {
 	}
 }
 
-// Floating control sits right after App in the segmented control, and
-// nothing indexes the slice positionally.
+// Floating control sits in the App group, right after Appearance, and nothing
+// indexes the slice positionally.
 func TestFloatingSectionFollowsApp(t *testing.T) {
-	if got, want := slices.Index(settingsSections(), sectionFloating), slices.Index(settingsSections(), sectionApp)+1; got != want {
-		t.Fatalf("floating is at %d, App at %d", got, want)
+	if got, want := slices.Index(settingsSections(), sectionFloating), slices.Index(settingsSections(), sectionAppearance)+1; got != want {
+		t.Fatalf("floating is at %d, Appearance at %d", got, want-1)
+	}
+	if slices.Index(settingsSections(), sectionAppearance) != slices.Index(settingsSections(), sectionApp)+1 {
+		t.Fatal("Appearance doesn't follow App")
 	}
 }

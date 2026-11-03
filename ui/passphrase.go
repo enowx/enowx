@@ -92,5 +92,9 @@ func (a *App) passphraseAsk(c *ui.Context) *widget.Ask {
 
 func passphraseFacts(c *ui.Context, p *passphrasePrompt) {
 	widget.CardNote(c.Key("about"), "The server accepts this key. Type its passphrase to sign in; enowX doesn't save it.", 0).FontSize(theme.TextUI)
-	widget.CodeBlockText(c.Key("path"), textfmt.ShortHome(p.path))
+	// A long path stays one line, running to show the rest.
+	ui.Row(c.Key("path")).FillWidth().MinWidth(0).Padding(theme.S3, theme.S4).Radius(theme.RadiusCard).Background(theme.CodeGround).
+		InsetShadow(0, 0, 0, 0.5, theme.Border).Children(func() {
+		widget.Running(c, textfmt.ShortHome(p.path), widget.RunStyle{Mono: true, Color: widget.CodeText, Always: true})
+	})
 }
