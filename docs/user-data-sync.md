@@ -34,3 +34,7 @@ enowx-app sync forget --yes       # take the synced data off this host
 ```
 
 The same are MCP tools: `sync_status`, `sync_now`, `sync_conflicts`, `sync_resolve`, `sync_trash`, `sync_restore`.
+
+## Older apps
+
+A canvas's versions stopped being synced in 0.6.0. An older app would take a host's not listing them for their deletion, and delete them on the other host, so a host on 0.6.0 or later gives it no manifest: its sync fails, saying to update the app, and nothing is changed. Update every device and host together.

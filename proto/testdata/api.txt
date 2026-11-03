@@ -2109,6 +2109,7 @@ field SyncFile.size int64
 field SyncManifest.files []SyncEntry
 field SyncManifest.id string
 field SyncManifest.name string
+field SyncManifestParams.keepsOwnHistory bool
 field SyncPeerStatus.conflicts int
 field SyncPeerStatus.err string
 field SyncPeerStatus.last time.Time

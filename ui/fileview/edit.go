@@ -91,6 +91,9 @@ func editingBlocked(f *proto.FileContent) string {
 		return "Read only"
 	case f.Truncated:
 		return "Read only: over " + strconv.Itoa(proto.MaxEdit>>20) + " MB, the first part shows"
+	case strings.ContainsRune(f.Text, utf8.RuneError):
+		// What isn't UTF-8 reaches here replaced: saving would write that over the real bytes.
+		return "Read only: not UTF-8 text"
 	}
 	for rest := f.Text; rest != ""; {
 		i := strings.IndexByte(rest, '\n')

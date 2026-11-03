@@ -8,7 +8,7 @@ import "time"
 // had at their last sync (core/usersync). A daemon lists, reads and
 // writes the files; the app decides what goes where.
 const (
-	MethodSyncManifest  = "sync.manifest"  // → SyncManifest
+	MethodSyncManifest  = "sync.manifest"  // SyncManifestParams → SyncManifest
 	MethodSyncRead      = "sync.read"      // SyncReadParams → SyncReadResult
 	MethodSyncWrite     = "sync.write"     // SyncWriteParams → SyncWriteResult
 	MethodSyncReport    = "sync.report"    // SyncPeerStatus: how a sync with a peer went
@@ -140,4 +140,11 @@ type SyncTrashItem struct {
 	Path    string    `json:"path"`
 	Title   string    `json:"title,omitempty"`
 	Deleted time.Time `json:"deleted"`
+}
+
+// SyncManifestParams is who asks for a manifest. KeepsOwnHistory says the one syncing leaves
+// a canvas's versions on their host. An app that doesn't say so reads their absence here as
+// their deletion, and would delete them on the other host: it's refused.
+type SyncManifestParams struct {
+	KeepsOwnHistory bool `json:"keepsOwnHistory,omitempty"`
 }

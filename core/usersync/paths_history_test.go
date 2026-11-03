@@ -11,6 +11,7 @@ func TestCanvasHistoryIsntSynced(t *testing.T) {
 		"canvas/0123456789ab/history.json":       false,
 		"canvas/0123456789ab/history/12.json":    false,
 		"canvas/0123456789ab/history/frames/a":   false,
+		"canvas-history-backup/personal/x/a":     false,
 	} {
 		if got := Synced(p); got != want {
 			t.Errorf("%s: %v", p, got)

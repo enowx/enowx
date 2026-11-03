@@ -58,3 +58,28 @@ func TestWrite(t *testing.T) {
 		t.Fatalf("left behind: %v", entries)
 	}
 }
+
+// A write that fails leaves the file as it was, and nothing beside it.
+func TestWriteFailureLosesNothing(t *testing.T) {
+	if runtime.GOOS == "windows" || os.Geteuid() == 0 {
+		t.Skip("needs a folder that refuses writes")
+	}
+	root := t.TempDir()
+	path := filepath.Join(root, "a.txt")
+	if err := os.WriteFile(path, []byte("old"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Chmod(root, 0o555); err != nil {
+		t.Fatal(err)
+	}
+	defer os.Chmod(root, 0o755)
+	if _, err := Write(root, proto.FileWrite{Path: "a.txt", Text: "new"}); err == nil {
+		t.Fatal("wrote into a folder that refuses it")
+	}
+	if b, _ := os.ReadFile(path); string(b) != "old" {
+		t.Fatalf("the file became %q", b)
+	}
+	if entries, _ := os.ReadDir(root); len(entries) != 1 {
+		t.Fatalf("left behind: %v", entries)
+	}
+}

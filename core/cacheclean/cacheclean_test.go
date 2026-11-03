@@ -152,3 +152,10 @@ func TestTrimLog(t *testing.T) {
 		t.Fatalf("%d bytes", len(got))
 	}
 }
+
+// What's kept for going back isn't Clean cache's to remove.
+func TestCanvasBackupIsNeverCleaned(t *testing.T) {
+	if Allowed("canvas-history-backup/personal/0123456789ab/history/1.json") {
+		t.Fatal("the canvases' backups can be cleaned")
+	}
+}

@@ -2,6 +2,8 @@ package ui
 
 import (
 	"errors"
+	"log"
+	"runtime/debug"
 	"time"
 
 	"github.com/egoist/mygo"
@@ -20,6 +22,10 @@ import (
 
 // onboardingVersion is what a finished run records.
 const onboardingVersion = 1
+
+// onboardingTriesMost is how many times it may start without finishing before it stops
+// starting: a crash in it mustn't keep the app from opening. Settings can run it again.
+const onboardingTriesMost = 3
 
 // onboardingState is the app's part. It belongs to the main thread.
 type onboardingState struct {
@@ -54,6 +60,9 @@ func (a *App) onboardingDecide(st proto.OnboardingState, err error, used bool) {
 	switch {
 	case account && device:
 	case err != nil && device:
+	case a.state.OnboardingTries >= onboardingTriesMost:
+		// It started this often and never finished: whatever stops it, the app comes first.
+		log.Printf("onboarding: started %d times without finishing, so it doesn't run", a.state.OnboardingTries)
 	case account:
 		a.onboardingRun(onboardview.FlowDevice)
 	case used:
@@ -66,11 +75,16 @@ func (a *App) onboardingDecide(st proto.OnboardingState, err error, used bool) {
 // onboardingRun starts it.
 func (a *App) onboardingRun(flow onboardview.Flow) {
 	a.onboard.view, a.onboard.flow = onboardview.New(), flow
+	a.state.OnboardingTries++
+	a.saveState()
 	a.onboardingAgents()
 }
 
 // onboardingAgain is Settings' Run setup again: the whole of it, from the opening.
-func (a *App) onboardingAgain() { a.onboardingRun(onboardview.FlowNew) }
+func (a *App) onboardingAgain() {
+	a.state.OnboardingTries = 0 // asked for: whatever happened before says nothing
+	a.onboardingRun(onboardview.FlowNew)
+}
 
 // onboardingAgents reads which agents can hold GOD of Agents.
 func (a *App) onboardingAgents() {
@@ -80,7 +94,7 @@ func (a *App) onboardingAgents() {
 // onboardingDone records it, and hands over to the app.
 func (a *App) onboardingDone() {
 	a.onboard.view = nil
-	a.state.OnboardedDevice = true
+	a.state.OnboardedDevice, a.state.OnboardingTries = true, 0
 	a.saveState()
 	if cl := a.client; cl != nil {
 		go func() {
@@ -101,7 +115,22 @@ func (a *App) onboardingView(c *ui.Context) {
 	if view == nil {
 		return
 	}
-	view.Draw(c, a.onboardingOptions())
+	a.onboardingGuarded(c, func() { view.Draw(c, a.onboardingOptions()) })
+}
+
+// onboardingGuarded draws it, and if that fails, gives up on it for the app: nothing about
+// setting up is worth a window that won't open.
+func (a *App) onboardingGuarded(c *ui.Context, draw func()) {
+	defer func() {
+		if r := recover(); r != nil {
+			log.Printf("onboarding: gave up: %v\n%s", r, debug.Stack())
+			a.onboard.view = nil
+			a.state.OnboardedDevice = true
+			a.saveState()
+			c.After(0)
+		}
+	}()
+	draw()
 }
 
 func (a *App) onboardingOptions() onboardview.Options {

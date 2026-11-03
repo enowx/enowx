@@ -43,6 +43,7 @@ func TestEditorFromDisk(t *testing.T) {
 		"Read only": {ReadOnly: true},
 		"over":      {Truncated: true},
 		"a line":    {Text: strings.Repeat("y", editLineMost+1)},
+		"UTF-8":     {Text: "caf\uFFFD\n"},
 	} {
 		if got := editingBlocked(&f); !strings.Contains(got, why) {
 			t.Errorf("%q: %q", why, got)

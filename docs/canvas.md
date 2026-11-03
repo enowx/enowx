@@ -148,8 +148,10 @@ A frame with HTML needs a web engine. The daemon asks the app connected to the h
 On the host, in `~/.enowx-app/canvas/<id>/`:
 
 - `canvas.json`: the canvas as shown.
-- `history/<n>.json`: every version, whole, the last 400.
+- `history/<n>.json`: every version, the last 400: its canvas without its designs, and their names in `history/frames/`, where each design's content is kept once, compressed.
 - `history.json`: which version is shown, and what made each.
+
+Versions kept whole by an older enowX are converted once, in the background, as the daemon starts. Each canvas's are first kept as they were in `canvas-history-backup/personal/<id>/` (`canvas-history-backup/<team>/<id>/` for a team's), a folder sync and Clean cache don't touch, and a backup that fails leaves that canvas unconverted until the next start; the log says which. **To go back:** stop the daemon, then put the backup's `history/` and `history.json` in place of the canvas's own in `canvas/<id>/`. Once you're sure of your canvases, the backup folder can be deleted by hand: until then it keeps the disk space the conversion would free.
 - `comments.json`.
 - `chat.json`: the conversation with the agent beside it.
 - `assets/`: images that shapes show (`--src NAME`) and HTML shows (`assets/NAME`).

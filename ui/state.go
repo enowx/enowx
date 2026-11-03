@@ -35,10 +35,12 @@ type appState struct {
 	// default, Liquid Glass.
 	UIStyle string `json:"uiStyle,omitempty"`
 	// OnboardedDevice says this device has been through setup's steps of its own.
-	OnboardedDevice   bool `json:"onboardedDevice,omitempty"`
-	FollowBackground  bool `json:"followBackground,omitempty"`
-	derived           *theme.Derived
-	BackgroundImage   string   `json:"backgroundImage,omitempty"`
+	OnboardedDevice  bool `json:"onboardedDevice,omitempty"`
+	FollowBackground bool `json:"followBackground,omitempty"`
+	derived          *theme.Derived
+	BackgroundImage  string `json:"backgroundImage,omitempty"`
+	// OnboardingTries is how many times onboarding started since it last finished.
+	OnboardingTries   int      `json:"onboardingTries,omitempty"`
 	BackgroundOpacity *float64 `json:"backgroundOpacity,omitempty"`
 	// BackgroundPlain: the ground alone under glass, none of the wallpaper's lights.
 	BackgroundPlain bool               `json:"backgroundPlain,omitempty"`

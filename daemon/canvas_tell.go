@@ -1,6 +1,7 @@
 package daemon
 
 import (
+	"path/filepath"
 	"sync"
 	"time"
 
@@ -58,24 +59,39 @@ func (t *canvasTeller) flush(s *Server, id string) {
 // convertCanvasHistories turns every canvas's versions kept whole into versions sharing
 // their frames, once, unhurried, at the daemon's start.
 func (s *Server) convertCanvasHistories() {
-	stores := []*canvas.Store{s.canvases}
+	root := s.canvasHistoryBackups()
+	type place struct {
+		store *canvas.Store
+		name  string
+	}
+	places := []place{{s.canvases, "personal"}}
 	for _, sp := range s.spaces() {
 		if st, err := s.canvasesIn(sp.Team); err == nil {
-			stores = append(stores, st)
+			places = append(places, place{st, sp.Team})
 		}
 	}
 	var freed int64
-	for _, st := range stores {
-		list, err := st.List()
+	for _, pl := range places {
+		list, err := pl.store.List()
 		if err != nil {
 			continue
 		}
 		for _, c := range list {
-			n, err := st.ConvertHistory(c.ID)
-			if err != nil {
-				s.logger().Warn("canvas: convert versions", "err", err)
+			// Nothing is converted without its way back: a backup that fails leaves the
+			// canvas as it was, and it's tried again at the next start.
+			dest := filepath.Join(root, pl.name, c.ID)
+			todo, err := pl.store.BackupHistory(c.ID, dest)
+			switch {
+			case err != nil:
+				s.logger().Warn("canvas: versions not converted: their backup failed", "canvas", c.ID, "err", err)
+			case todo:
+				s.logger().Info("canvas: versions backed up before converting", "canvas", c.ID, "backup", dest)
+				n, err := pl.store.ConvertHistory(c.ID)
+				if err != nil {
+					s.logger().Warn("canvas: convert versions", "err", err)
+				}
+				freed += n
 			}
-			freed += n
 			select {
 			case <-s.done:
 				return
@@ -87,3 +103,12 @@ func (s *Server) convertCanvasHistories() {
 		s.logger().Info("canvas: versions now share their frames", "freedMB", freed>>20)
 	}
 }
+
+// canvasHistoryBackups is where canvases' versions are kept from before their conversion: a
+// folder of its own in the data folder, which neither sync nor Clean cache know of.
+func (s *Server) canvasHistoryBackups() string {
+	return filepath.Join(s.dataDir, canvasBackupFolder)
+}
+
+// canvasBackupFolder is that folder's name.
+const canvasBackupFolder = "canvas-history-backup"

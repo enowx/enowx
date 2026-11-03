@@ -139,6 +139,98 @@ func (s *Store) pruneFrames(id string, versions []proto.CanvasVersion) {
 	}
 }
 
+// historyBackupDone marks a backup as whole, in its folder.
+const historyBackupDone = "complete"
+
+// BackupHistory keeps canvas id's versions as they are, in folder dest, for its conversion:
+// what's there isn't touched again, so a conversion that stopped partway keeps the originals.
+// Files are linked rather than copied where the system can: a conversion replaces a version's
+// file rather than writing in it, so the link keeps the old content, and costs nothing until
+// then. It says whether there's anything to convert: nothing to keep means nothing to do.
+func (s *Store) BackupHistory(id, dest string) (bool, error) {
+	if _, err := s.folder(id); err != nil {
+		return false, err
+	}
+	dir := filepath.Join(s.dir, id, "history")
+	if _, err := os.Stat(filepath.Join(dir, historyFormat)); err == nil {
+		return false, nil
+	}
+	entries, err := os.ReadDir(dir)
+	if os.IsNotExist(err) {
+		return false, nil
+	}
+	if err != nil {
+		return false, err
+	}
+	if len(entries) == 0 {
+		return false, nil
+	}
+	if _, err := os.Stat(filepath.Join(dest, historyBackupDone)); err == nil {
+		return true, nil
+	}
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if err := keepFiles(dir, filepath.Join(dest, "history")); err != nil {
+		return false, err
+	}
+	if err := keepFile(s.historyFile(id), filepath.Join(dest, "history.json")); err != nil && !os.IsNotExist(err) {
+		return false, err
+	}
+	return true, writeFile(filepath.Join(dest, historyBackupDone), []byte("complete\n"))
+}
+
+// keepFiles keeps the files of folder from in folder to, the folders in it too.
+func keepFiles(from, to string) error {
+	entries, err := os.ReadDir(from)
+	if err != nil {
+		return err
+	}
+	if err := os.MkdirAll(to, 0o700); err != nil {
+		return err
+	}
+	for _, e := range entries {
+		a, b := filepath.Join(from, e.Name()), filepath.Join(to, e.Name())
+		if e.IsDir() {
+			err = keepFiles(a, b)
+		} else {
+			err = keepFile(a, b)
+		}
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// keepFile links or copies a file, and checks that what's there is as long as the original.
+func keepFile(from, to string) error {
+	info, err := os.Stat(from)
+	if err != nil {
+		return err
+	}
+	if have, err := os.Stat(to); err == nil && have.Size() == info.Size() {
+		return nil // from a backup that stopped partway
+	}
+	_ = os.Remove(to)
+	if os.Link(from, to) != nil {
+		data, err := os.ReadFile(from)
+		if err != nil {
+			return err
+		}
+		if err := os.WriteFile(to, data, 0o600); err != nil {
+			return err
+		}
+	}
+	have, err := os.Stat(to)
+	if err != nil {
+		return err
+	}
+	if have.Size() != info.Size() {
+		return fmt.Errorf("the copy of %s isn't whole", filepath.Base(from))
+	}
+	return nil
+}
+
 // ConvertHistory turns canvas id's versions still kept whole into versions naming their
 // frames, one at a time, each read back before its whole copy goes, and says how many
 // bytes that freed. It stops at a version it can't vouch for, which stays as it was.
