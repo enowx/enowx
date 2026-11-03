@@ -39,24 +39,31 @@ func (s *DB) Items(ctx context.Context, teamID, accID string, after int64) (api.
 	if _, err := role(ctx, s, teamID, accID); err != nil {
 		return api.Items{}, err
 	}
+	out := api.Items{Items: []api.Item{}, Seq: after}
+	last, more, err := s.itemPageEnd(ctx, teamID, after)
+	if err != nil || last == after {
+		return out, err
+	}
+	out.More = more
+	if s.itemReads != nil {
+		select {
+		case s.itemReads <- struct{}{}:
+			defer func() { <-s.itemReads }()
+		case <-ctx.Done():
+			return out, ctx.Err()
+		}
+	}
 	rows, err := s.QueryContext(ctx, `SELECT id, kind, version, epoch, sealed, deleted, seq, updated, updated_by FROM items
-		WHERE team_id = $1 AND seq > $2 ORDER BY seq LIMIT $3`, teamID, after, itemPage+1)
+		WHERE team_id = $1 AND seq > $2 AND seq <= $3 ORDER BY seq`, teamID, after, last)
 	if err != nil {
 		return api.Items{}, err
 	}
 	defer rows.Close()
-	out := api.Items{Items: []api.Item{}, Seq: after}
-	size := 0
 	for rows.Next() {
 		it, err := scanItem(rows)
 		if err != nil {
 			return api.Items{}, err
 		}
-		if len(out.Items) == itemPage || len(out.Items) > 0 && size+len(it.Sealed) > itemPageBytes {
-			out.More = true
-			break
-		}
-		size += len(it.Sealed)
 		out.Items = append(out.Items, it)
 		out.Seq = it.Seq
 	}
@@ -66,6 +73,33 @@ func (s *DB) Items(ctx context.Context, teamID, accID string, after int64) (api.
 	// Seq stays at the last item read, never the team's latest: an item
 	// committed between this read and another would be skipped for good.
 	return out, nil
+}
+
+// itemPageEnd is the seq of the last item of the page after seq after, and
+// whether more follow, from the items' sizes: the bodies of a page's 200 items
+// can be gigabytes, and those read only to be dropped hold a connection all the
+// same while they cross the network.
+func (s *DB) itemPageEnd(ctx context.Context, teamID string, after int64) (last int64, more bool, err error) {
+	rows, err := s.QueryContext(ctx, `SELECT seq, COALESCE(length(sealed), 0) FROM items
+		WHERE team_id = $1 AND seq > $2 ORDER BY seq LIMIT $3`, teamID, after, itemPage+1)
+	if err != nil {
+		return after, false, err
+	}
+	defer rows.Close()
+	last = after
+	count, size := 0, 0
+	for rows.Next() {
+		var seq int64
+		var n int
+		if err := rows.Scan(&seq, &n); err != nil {
+			return after, false, err
+		}
+		if count == itemPage || count > 0 && size+n > itemPageBytes {
+			return last, true, nil
+		}
+		last, count, size = seq, count+1, size+n
+	}
+	return last, false, rows.Err()
 }
 
 func scanItem(r interface{ Scan(...any) error }) (api.Item, error) {
