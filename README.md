@@ -5,7 +5,7 @@
 <h1 align="center">enowX</h1>
 
 <p align="center">
-  Run Claude Code, Codex and 43 other coding agents in parallel, each on its own branch in its own git worktree, on your machine or your own server. Watch, compare and merge them from one native app.<br>
+  enowX is a native desktop app to run and manage multiple AI coding agents, such as Claude Code, Codex and OpenCode, in parallel, on your machine or your own server.<br>
   <strong>Local-first, no telemetry. A team cloud only when you want one.</strong>
 </p>
 
@@ -19,11 +19,17 @@
   <a href="LICENSE">MIT License</a>
 </p>
 
+<p align="center">
+  <img src="docs/assets/readme/styles.webp" width="880" alt="The enowX window changing between its four styles, Liquid Glass, Ledger, Tonal and Bento, while its regions stay in place">
+</p>
+
+<sub>First-run setup's style step, from its design, with a sample conversation. It isn't a recording of the app.</sub>
+
 > **Download:** [the latest release](https://github.com/enowdev/enowx/releases/latest) for macOS, Windows and Linux. Not yet signed or notarized, see [docs/install.md](docs/install.md) to open it. It updates itself.
 
 ![One prompt given to two Claude Code sessions, each on its own branch, working side by side, then compared](docs/assets/readme/fan-out.gif)
 
-<sub>Every recording on this page is the app itself with real Claude Code sessions, on a small notes project. Long waits are sped up.</sub>
+<sub>Every recording below is the app itself with real Claude Code sessions, on a small notes project. Long waits are sped up.</sub>
 
 ## Why I built it
 
