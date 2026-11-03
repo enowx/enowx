@@ -233,7 +233,7 @@ func (a *App) sendWithFiles(id, text string, files []string) {
 func (a *App) deliverToSession(id, text string, files []string, done func(error)) {
 	p := a.panes[id]
 	if p == nil {
-		done(errors.New("The session isn't attached yet."))
+		done(errors.New("the session isn't attached yet"))
 		return
 	}
 	msg := text

@@ -440,8 +440,3 @@ func panelNote(c *ui.Context, text string) {
 		ui.Text(c, text).FontSize(theme.TextUI).TextColor(theme.TextSoft).TextAlign(ui.Center)
 	})
 }
-
-// newsDot marks a button whose tool has something new.
-func newsDot(c *ui.Context) {
-	ui.Box(c).Size(8, 8).Radius(theme.RadiusFull).Shrink(0).Background(theme.Now)
-}

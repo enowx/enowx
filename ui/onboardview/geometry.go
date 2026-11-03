@@ -7,8 +7,6 @@ import (
 // rect is a place in the window.
 type rect struct{ x, y, w, h float32 }
 
-func (r rect) ui() ui.Rect { return ui.Rect{X: r.x, Y: r.y, W: r.w, H: r.h} }
-
 func (r rect) cx() float32 { return r.x + r.w/2 }
 
 func (r rect) cy() float32 { return r.y + r.h/2 }

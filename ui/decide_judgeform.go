@@ -146,15 +146,6 @@ func (f *judgeForm) judge() (proto.Judge, string) {
 	return j, ""
 }
 
-func indexOf(list []string, s string) int {
-	for i, x := range list {
-		if x == s {
-			return i
-		}
-	}
-	return -1
-}
-
 // keyFields are where a key comes from: typed here (kept on the host
 // alone, never shown again) or a vault credential, which other hosts can
 // use too.

@@ -149,13 +149,6 @@ func line(c *ui.Context, text string, size float32, col ui.Color) ui.Element {
 	return ui.Text(c, text).FontSize(size).LineHeight(lead).TextColor(col).SingleLine()
 }
 
-// running is a line that may not fit: it runs under the pointer rather than being cut.
-func running(c *ui.Context, text string, size float32, weight int, col ui.Color) {
-	ui.Row(c).Grow(1).MinWidth(0).Children(func() {
-		widget.Running(c, text, widget.RunStyle{Size: size, Weight: weight, Color: col})
-	})
-}
-
 // tile is the rounded square an icon sits on.
 func tile(c *ui.Context, svg *ui.SVG, size float32, col, ink ui.Color, opacity float32) {
 	ui.Box(c).Size(28, 28).Radius(8).Background(col).Center().Shrink(0).Opacity(opacity).Children(func() {

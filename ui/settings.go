@@ -91,6 +91,3 @@ func (a *App) settingsSide(c *ui.Context) {
 		}
 	})
 }
-
-// settingsOn says where the host's name reads in a section's header.
-func (a *App) settingsOn() string { return "On " + a.host.Name }

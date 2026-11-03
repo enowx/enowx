@@ -139,13 +139,6 @@ func (a *App) settingsBody(c *ui.Context) {
 	}
 }
 
-// settingsColumn heads the frame and scrolls what's under it, at the frame's
-// whole width.
-func settingsColumn(c *ui.Context, title, sub string, actions, body func()) {
-	widget.PageHeader(c, title, sub, actions)
-	widget.PageBody(c, true, body)
-}
-
 // sessionDefaults are what New session starts with.
 func (a *App) sessionDefaults(c *ui.Context) {
 	hs := a.hostSettingsOf()
@@ -687,14 +680,6 @@ func logFill(c *ui.Context, text string) {
 		ui.Column(c).FillWidth().Padding(theme.S3, theme.S4).Children(func() {
 			ui.Text(c, text).Font(theme.MonoFont).FontSize(theme.TextUI).TextColor(widget.CodeText).FillWidth().MinWidth(0)
 		})
-	})
-}
-
-// sectionIntro heads a part of a Settings section: what it is about.
-func sectionIntro(c *ui.Context, title, about string) {
-	ui.Column(c).FillWidth().Gap(theme.S1).Children(func() {
-		ui.Text(c, title).FontSize(theme.TextRead)
-		ui.Text(c, about).FontSize(theme.TextUI).TextColor(theme.TextSoft)
 	})
 }
 

@@ -30,12 +30,11 @@ type LongText struct {
 	wantCols int  // the width changed meanwhile
 	list     ui.ListState
 
-	findOpen bool
-	find     string
-	found    []int // rows with a match, in order
-	foundAt  int
-	findGen  int
-	goneTo   int // the line last scrolled to, for GoToLine
+	find    string
+	found   []int // rows with a match, in order
+	foundAt int
+	findGen int
+	goneTo  int // the line last scrolled to, for GoToLine
 
 	Copied CopyFeedback
 }
@@ -333,7 +332,7 @@ func (l *LongText) drawRow(c *ui.Context, o LongOptions, i int, numbers float32,
 			ui.Icon(c, icon.Reply).FontSize(10).TextColor(CodeDim).Shrink(0).Margin(0, 2, 0, 0)
 		}
 		part := ln.text[r.from:r.to]
-		if ln.spans == nil || len(ln.spans) == 0 {
+		if len(ln.spans) == 0 {
 			ui.Text(c.Key("text"), strings.ReplaceAll(part, "\t", "    ")).Font(theme.MonoFont).FontSize(theme.TextUI).TextColor(ink).SingleLine().Shrink(1).Selectable()
 			return
 		}

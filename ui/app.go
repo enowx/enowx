@@ -80,7 +80,6 @@ type App struct {
 	appWindows      map[string]*appwindow.Window // desktop apps shown in their windows, by session ID
 	runCommands     map[string]*commandList      // project commands, by session ID, for its Run menu
 	commandForm     *commandForm
-	shortcutsOpen   bool                             // Settings › App lists the shortcuts
 	winW            float32                          // the window's width, last frame
 	settingsSection string                           // the Settings section shown
 	hostSet         *hostSettings                    // Settings' sections' state for the connected host
@@ -239,13 +238,10 @@ type App struct {
 	// connection dropped; 0 when not retrying.
 	retrying  int
 	retryHost string
-	// titleLeftW and titleRightW are how wide the title bar's sides were
-	// last frame, which they keep.
-	titleLeftW, titleRightW float32
-	credits                 creditview.Tracker
-	updates                 updater
-	hostList                []hosts.Host
-	passwords               map[string]string // SSH passwords when there is no keychain
+	credits   creditview.Tracker
+	updates   updater
+	hostList  []hosts.Host
+	passwords map[string]string // SSH passwords when there is no keychain
 	// keychainRead keeps the passwords read from the keychain this run,
 	// so its prompt comes once, not at each connection or watch. Guarded
 	// by keychainMu, which is held while reading.

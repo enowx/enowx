@@ -56,13 +56,6 @@ func appendRules(rules, added string) (string, bool) {
 	return out, len(out) <= proto.RulesMaxBytes
 }
 
-// rulesDraftBox is what asks an AI for rules, then their earlier versions, for a
-// dialog that keeps the two together.
-func (a *App) rulesDraftBox(c *ui.Context, d *rulesDraft, forWhat, path string, text *string) {
-	a.rulesAskBox(c, d, forWhat, path, text)
-	a.rulesVersionsRow(c, d, forWhat, path, text)
-}
-
 // rulesAskBox lets the user say what they want and has an AI put it in text
 // (rules of forWhat; path a project's folder).
 func (a *App) rulesAskBox(c *ui.Context, d *rulesDraft, forWhat, path string, text *string) {

@@ -17,7 +17,7 @@ const cacheUsage = `usage: enowx-app cache [clean]
   (none) | list [--older DAYS]  what this host's enowX folder takes, and what can go
   clean --kind a,b [--item PATH]... [--older DAYS] --yes
                                 take that away; without --yes, says what would go.
-                                Old backups and worktrees go by --item only.`
+                                Old backups and worktrees go by --item only`
 
 // cache shows what a host's enowX folder takes, and cleans what can go.
 func (r runner) cache(args []string) error {
