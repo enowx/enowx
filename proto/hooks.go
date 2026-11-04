@@ -190,6 +190,8 @@ type HookEvent struct {
 	// PermissionMode is the permission mode the agent's hook reports it in
 	// (permission_mode: Claude Code's, Codex's), "" when it says none.
 	PermissionMode string `json:"permissionMode,omitempty"`
+	// Scratchpad is the agent's own folder for scratch files, if it says.
+	Scratchpad string `json:"scratchpad,omitempty"`
 	// Via is how it was seen (HookInAgent, HookOutside).
 	Via  string    `json:"via,omitempty"`
 	Time time.Time `json:"time"`

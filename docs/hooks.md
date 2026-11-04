@@ -69,7 +69,7 @@ Limits: **once a session**, **at most N times a session**, **apart at least** so
 - **Add context:** text the agent reads before a prompt or at a session's start.
 - **Refuse:** a tool about to run, a prompt, or a commit, push or merge is refused, and Reason is told to the agent, or shown in the Git panel. On other events, the refusal is only logged.
 - **Change the command:** Find (a regular expression) in a tool's command is replaced by Replace (`$1` for a group).
-  - Claude Code asks the user about the new command, unless the session skips permissions.
+  - Claude Code asks the user about the new command, unless the session is in bypass, by the mode it reports with the call.
   - Codex takes a changed command only as approved, so a Codex session that asks gets it as a refusal naming the command to run instead.
 - **Ask the judge** (before a tool runs): enowX's judge allows the command without asking the user, leaves it to them, or refuses it ([decide.md](decide.md)). On Codex an allow doesn't spare the prompt: its own permission checks stay, and the decision log says `left to the agent's prompt`; the judge can still refuse a command.
 - **Trim its long output** (before a tool runs): the command runs through `enowx decide trim`, and a long output reaches the agent cut by the judge to what matters ([decide.md](decide.md)).

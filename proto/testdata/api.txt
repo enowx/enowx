@@ -1322,6 +1322,7 @@ field HookEvent.permissionMode string
 field HookEvent.port int
 field HookEvent.project string
 field HookEvent.prompt string
+field HookEvent.scratchpad string
 field HookEvent.session string
 field HookEvent.text string
 field HookEvent.time time.Time
@@ -3272,6 +3273,7 @@ value CredUnchecked=unchecked
 value CredValid=valid
 value DecideAnyProvider=any
 value DecideApprove=approve
+value DecideBypass=bypass
 value DecideChat=chat
 value DecideContext=context
 value DecideFlaky=flaky
