@@ -58,29 +58,8 @@ func gone(status string) bool {
 // mayPeek says an optional token in the request belongs to its owner or a
 // moderator, who see what isn't public yet.
 func (s *Service) mayPeek(r *http.Request, it api.LibraryItem) bool {
-	token, ok := strings.CutPrefix(r.Header.Get("Authorization"), "Bearer ")
-	if !ok || token == "" {
-		return false
-	}
-	var accID string
-	if store.IsLibraryToken(token) {
-		acc, err := s.db.LibrarySessionAccount(r.Context(), token)
-		if err != nil {
-			return false
-		}
-		accID = acc.ID
-	} else {
-		me, err := s.db.Me(r.Context(), token)
-		if err != nil {
-			return false
-		}
-		accID = me.Account.ID
-	}
-	if accID == it.Creator.ID {
-		return true
-	}
-	role, err := s.roleOf(r.Context(), accID)
-	return err == nil && role != ""
+	accID, role := s.viewer(r)
+	return accID != "" && (accID == it.Creator.ID || role != "")
 }
 
 // publicItem is item id when the request may see it, or answers.
@@ -100,9 +79,17 @@ func (s *Service) publicItem(w http.ResponseWriter, r *http.Request) (api.Librar
 }
 
 func (s *Service) getItem(w http.ResponseWriter, r *http.Request) {
-	if it, ok := s.publicItem(w, r); ok {
-		reply(w, it)
+	it, ok := s.publicItem(w, r)
+	if !ok {
+		return
 	}
+	unlisted, err := s.db.LibraryOwnerUnlisted(r.Context(), it.Creator.ID)
+	if err != nil {
+		s.answer(w, nil, err)
+		return
+	}
+	it.Unlisted = unlisted
+	reply(w, it)
 }
 
 // listVersions are the versions anyone may look at: what shows now, and what
