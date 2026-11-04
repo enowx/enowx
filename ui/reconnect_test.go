@@ -18,6 +18,10 @@ import (
 // once it answers, its sessions back in view.
 func TestReconnectsByItself(t *testing.T) {
 	t.Setenv("ENOWX_HOME", t.TempDir())
+	// A host with Xpra asks the screen's scale, which waits for a window's loop this has none of.
+	scale := screenScale
+	screenScale = func() int { return 1 }
+	t.Cleanup(func() { screenScale = scale })
 	path, err := transport.SocketPath()
 	if err != nil {
 		t.Fatal(err)
