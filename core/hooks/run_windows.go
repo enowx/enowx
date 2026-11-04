@@ -5,6 +5,7 @@ package hooks
 import (
 	"os/exec"
 	"strconv"
+	"strings"
 
 	"github.com/enowx/enowx/internal/quietcmd"
 )
@@ -20,3 +21,6 @@ func killGroup(cmd *exec.Cmd) {
 
 // shellQuote quotes s for cmd, which runs hooks' commands.
 func shellQuote(s string) string { return `"` + s + `"` }
+
+// quotable says shellQuote keeps s as it is: cmd has no way to quote these.
+func quotable(s string) bool { return !strings.ContainsAny(s, "\"\r\n%") }

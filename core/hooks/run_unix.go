@@ -23,3 +23,6 @@ func killGroup(cmd *exec.Cmd) {
 
 // shellQuote quotes s for the shell that runs hooks' commands.
 func shellQuote(s string) string { return "'" + strings.ReplaceAll(s, "'", `'\''`) + "'" }
+
+// quotable says shellQuote keeps s as it is.
+func quotable(string) bool { return true }
