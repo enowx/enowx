@@ -96,7 +96,7 @@ type Preset struct {
 	// Builtin: the agent is enowX's own program, always there, running as Args say.
 	Builtin bool
 	// VaultPlatform is the vault's platform whose credential the agent's official form
-	// runs on (daemon/agentkey.go): lent to its session's environment alone.
+	// runs on (daemon/agentkey.go): lent to its own process alone, never its tabs.
 	VaultPlatform string
 }
 
