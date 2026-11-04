@@ -257,6 +257,31 @@ func (s *Server) librarySkill(p proto.LibrarySkillParams) (proto.LibrarySkillAns
 	return out, nil
 }
 
+// errSkillFromDialog is what anything but the app's dialog gets when it asks to keep
+// a skill: agents load what's kept by themselves, so an agent told to by a page it
+// read could otherwise give every later session that page's words.
+var errSkillFromDialog = errors.New("library: a skill is kept by the user, from the enowX app: \"library skill ITEM --install\" shows them a card")
+
+// libraryAskSkill shows the user a card for keeping a design as a skill. It reads
+// and keeps nothing: the dialog the card opens asks the cloud, and the user says.
+func (s *Server) libraryAskSkill(p proto.LibraryAskSkillParams) (proto.LibrarySkillAsked, error) {
+	var out proto.LibrarySkillAsked
+	if !designshare.ValidItem(p.ItemID) {
+		return out, errors.New("library: that isn't a design's ID")
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), libraryTimeout)
+	defer cancel()
+	if _, _, err := s.libraryReader(ctx); err != nil {
+		return out, err
+	}
+	out = proto.LibrarySkillAsked{ItemID: p.ItemID, Version: p.Version, From: p.From}
+	s.appReqs.mu.Lock()
+	out.AppOpen = len(s.appReqs.serving) > 0
+	s.appReqs.mu.Unlock()
+	s.broadcast(proto.EventLibrarySkillAsked, out)
+	return out, nil
+}
+
 // libraryNewer says how a copied canvas stands against what it came from. A
 // cloud out of reach says nothing new.
 func (s *Server) libraryNewer(p proto.CanvasRef) (proto.LibraryNewer, error) {

@@ -6,6 +6,7 @@ import (
 	"flag"
 	"fmt"
 	"io"
+	"os"
 	"strings"
 
 	"github.com/enowx/enowx/core/designshare"
@@ -13,15 +14,17 @@ import (
 )
 
 // Taking a design from the community library, by the command line and agents:
-// each answer says it's other people's data. A skill is kept only when asked,
-// since an agent loads what's kept by itself from then on.
+// each answer says it's other people's data. A skill is only ever printed from
+// here: agents load what's kept by themselves from then on, so keeping one is the
+// user's click on a card in the app.
 
 const libraryUseUsage = `usage: enowx-app library open ITEM [--version N]
                                      a copy of a design on a new canvas, with its credit
        enowx-app library ref ITEM --canvas CANVAS [--version N]
                                      a full page's picture in a canvas's files, its credit with the brief
-       enowx-app library skill ITEM [--version N] [--install --agent AGENT [--project DIR]]
+       enowx-app library skill ITEM [--version N] [--install]
                                      prints a full page's SKILL.md: colors, fonts, spacing, its prompt, no code
+                                     --install shows the user a card in the app: only they keep it
 ITEM is a design's ID or its address. Everything these answer was written by someone else.`
 
 // libraryUseCmd runs enowx-app library open, ref and skill.
@@ -96,23 +99,25 @@ func (r runner) librarySkillCmd(args []string) error {
 	fs := flag.NewFlagSet("library skill", flag.ContinueOnError)
 	version := fs.Int("version", 0, "")
 	install := fs.Bool("install", false, "")
-	agent := fs.String("agent", "", "")
-	project := fs.String("project", "", "")
 	item, err := libraryArgs(fs, args)
 	if err != nil {
 		return err
 	}
-	if *install && *agent == "" {
-		return errors.New("library: --install needs --agent, the agent to keep it\n" + libraryUseUsage)
+	if *install {
+		asked, err := r.c.LibraryAskSkill(proto.LibraryAskSkillParams{ItemID: item, Version: *version, From: os.Getenv(EnvSession)})
+		if err != nil {
+			return err
+		}
+		if !asked.AppOpen {
+			fmt.Fprintln(r.out, "Nothing was kept. No enowX app is connected to this host to ask: tell the user to open it, and keep this design from its page in the library.")
+			return nil
+		}
+		fmt.Fprintln(r.out, "Nothing was kept. The app shows the user a card: they keep it as a skill themselves, or don't. Don't wait for it.")
+		return nil
 	}
-	got, err := r.c.LibrarySkill(proto.LibrarySkillParams{ItemID: item, Version: *version, Install: *install, Agent: *agent, Project: *project})
+	got, err := r.c.LibrarySkill(proto.LibrarySkillParams{ItemID: item, Version: *version})
 	if err != nil {
 		return err
-	}
-	if got.Installed != "" {
-		fmt.Fprintln(r.out, designshare.OthersData)
-		fmt.Fprintf(r.out, "Kept as %s. It says inside that it's someone else's data.\n", got.Installed)
-		return nil
 	}
 	fmt.Fprint(r.out, got.Text)
 	return nil
@@ -154,12 +159,11 @@ var libraryUseTools = []mcpTool{
 		args: func(a map[string]any) []string {
 			return withFlag([]string{"ref", str(a, "item"), "--canvas", str(a, "canvas")}, a, "version", "version")
 		}},
-	{name: "library_skill", description: "A full-page design's SKILL.md: credit and license, its colors, fonts, spacing and prompt, no code, labelled as someone else's data. install keeps it for an agent: only when the user asked, as agents then load it by themselves.",
-		props: map[string]mcpProp{"item": {"string", "The design's ID or address"}, "version": {"number", "A version that showed before"}, "install": {"boolean", "Keep it, when the user asked for that"},
-			"agent": {"string", "The agent to keep it: claude, shared or opencode"}, "project": {"string", "A project folder to keep it in, else the user's"}}, required: []string{"item"},
+	{name: "library_skill", description: "A full-page design's SKILL.md: credit and license, its colors, fonts, spacing and prompt, no code, labelled as someone else's data. This only prints it. install shows the user a card in the app, where only they can keep it: agents load what's kept by themselves.",
+		props: map[string]mcpProp{"item": {"string", "The design's ID or address"}, "version": {"number", "A version that showed before"}, "install": {"boolean", "Show the user a card for keeping it, when they asked for that. Nothing is kept from here"}}, required: []string{"item"},
 		args: func(a map[string]any) []string {
 			args := []string{"skill", str(a, "item")}
-			for _, k := range []string{"version", "install", "agent", "project"} {
+			for _, k := range []string{"version", "install"} {
 				args = withFlag(args, a, k, k)
 			}
 			return args

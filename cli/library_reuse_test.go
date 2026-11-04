@@ -101,18 +101,18 @@ func TestLibraryCommandsLabelOtherPeoplesData(t *testing.T) {
 	if _, err := os.Stat(file); err == nil {
 		t.Error("printing a skill kept it")
 	}
-	if _, err := run("skill", id, "--install"); err == nil {
-		t.Error("installing without saying for which agent")
-	}
-	said, err := run("skill", id, "--install", "--agent", "claude")
+	said, err := run("skill", id, "--install")
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !strings.HasPrefix(said, designshare.OthersData) {
+	if !strings.Contains(said, "Nothing was kept") {
 		t.Errorf("install:\n%s", said)
 	}
-	if data, err := os.ReadFile(file); err != nil || !strings.Contains(string(data), designshare.OthersData) {
-		t.Errorf("kept: %v\n%s", err, data)
+	if _, err := os.Stat(file); err == nil {
+		t.Error("an agent's --install kept it")
+	}
+	if _, err := run("skill", id, "--install", "--agent", "claude"); err == nil {
+		t.Error("there's no choosing an agent from here")
 	}
 }
 
