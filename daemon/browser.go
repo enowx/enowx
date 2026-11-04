@@ -59,7 +59,10 @@ func (s *Server) browserAct(a proto.BrowserAction) (proto.BrowserResult, error) 
 	b.mu.Lock()
 	if len(b.serving) == 0 {
 		b.mu.Unlock()
-		return proto.BrowserResult{}, errors.New("no enowX app is connected to this host to show the Browser: open the app")
+		if s.renderer() != nil {
+			return proto.BrowserResult{}, errors.New("the enowX app only watches this host, and a Browser needs it showing this host: the user has to switch to this host in the app")
+		}
+		return proto.BrowserResult{}, errors.New("no enowX app is connected to this host to show the Browser: the user has to open the app")
 	}
 	app := b.serving[len(b.serving)-1]
 	if b.pending == nil {

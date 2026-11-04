@@ -82,3 +82,49 @@ func TestCanvasRendersThroughAnAppWatching(t *testing.T) {
 		return err != nil && strings.Contains(err.Error(), canvas.ErrNeedsBrowser.Error())
 	})
 }
+
+// A session just woken renders through the app only watching, as any other, even while
+// it comes back; an app that only serves requests is told apart from none, and a Browser
+// says it needs the app showing this host.
+func TestCanvasRenderForASessionJustWoken(t *testing.T) {
+	starts, _ := wakeAgent(t)
+	srv := startServer(t)
+	caller := connect(t, srv, nil)
+	cv := htmlDesign(t, caller)
+	render := func() (proto.CanvasRendered, error) {
+		return caller.RenderCanvas(proto.CanvasRenderParams{ID: cv.ID, Frame: cv.Frames[0].ID, Format: proto.RenderPNG})
+	}
+
+	old := connect(t, srv, nil)
+	if err := old.ServeApp(); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := render(); err == nil || !strings.Contains(err.Error(), "update the app") {
+		t.Fatalf("an old app watching: %v", err)
+	}
+
+	var watching *client.Client
+	watching = connect(t, srv, func(e proto.Event) {
+		var req proto.CanvasRenderRequest
+		if e.Name == proto.EventCanvasRender && json.Unmarshal(e.Data, &req) == nil {
+			go func() { _ = watching.CanvasRenderReply(proto.CanvasRenderReply{ID: req.ID, Data: []byte("picture")}) }()
+		}
+	})
+	if err := watching.ServeCanvasRenders(); err != nil {
+		t.Fatal(err)
+	}
+	info := asleepAgent(t, srv, caller, starts)
+	if got, err := render(); err != nil || string(got.Data) != "picture" {
+		t.Fatalf("hibernated: %q, %v", got.Data, err)
+	}
+	if _, err := caller.WakeSession(info.ID); err != nil {
+		t.Fatal(err)
+	}
+	if got, err := render(); err != nil || string(got.Data) != "picture" {
+		t.Fatalf("just woken: %q, %v", got.Data, err)
+	}
+	_, err := srv.browserAct(proto.BrowserAction{Session: info.ID, Action: proto.BrowserScreenshot})
+	if err == nil || !strings.Contains(err.Error(), "only watches this host") {
+		t.Fatalf("a Browser: %v", err)
+	}
+}
