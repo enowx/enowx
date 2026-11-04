@@ -9,6 +9,7 @@ import (
 	"context"
 
 	"github.com/enowx/enowx/core/platformagent/record"
+	"github.com/enowx/enowx/core/platformagent/tools"
 )
 
 // Decision is the user's answer to a tool asking for permission.
@@ -54,7 +55,8 @@ type HookAnswer struct {
 }
 
 // Hooks hands enowX the agent's events; nil outside a session. The agent acts on what
-// they answer, which is what makes GOA enforced on it.
+// they answer, which is what makes GOA enforced on it. ToolBefore and ToolAfter may
+// come side by side while read-only calls run, so implementations lock.
 type Hooks interface {
 	// State reports proto.State* for the session.
 	State(state string)
@@ -87,6 +89,13 @@ type Options struct {
 
 	Front Front
 	Hooks Hooks
+
+	// ExtraTools are offered besides the built-in ones, and win over one of their name.
+	ExtraTools []tools.Tool
+	// FirstParty says BaseURL is the real API behind another address, so requests may
+	// carry what a proxy could reject (eager input streaming, refusal fallbacks); an
+	// unset BaseURL or Anthropic's own address is first-party anyway.
+	FirstParty bool
 }
 
 // Runner is the turn-taking API the terminal drives; Agent implements it.
