@@ -1,6 +1,7 @@
 package daemon
 
 import (
+	"fmt"
 	"slices"
 	"strings"
 	"time"
@@ -160,4 +161,37 @@ func (s *Server) noteBackground(found map[string][]proto.BackgroundAgent) {
 			s.logger().Info("procs: a session's background agents", "session", info.ID, "agents", names)
 		}
 	}
+}
+
+// stopBackgroundAgent stops one of p.Session's background agents and all it started, and no other
+// process: the rest of the session goes on. Asked first, then forced (endProcs).
+func (s *Server) stopBackgroundAgent(p proto.StopBackgroundParams) error {
+	sess, err := s.sessions.Get(p.Session)
+	if err != nil {
+		return err
+	}
+	if !slices.ContainsFunc(sess.Info().Background, func(b proto.BackgroundAgent) bool { return b.PID == p.PID && b.Start == p.Start }) {
+		return fmt.Errorf("procs: process %d isn't a background agent of session %s", p.PID, p.Session)
+	}
+	list, err := procstat.Snapshot()
+	if err != nil {
+		return fmt.Errorf("procs: list processes: %w", err)
+	}
+	kids := make(map[int][]int, len(list))
+	for _, x := range list {
+		kids[x.PPID] = append(kids[x.PPID], x.PID)
+	}
+	tree := map[int]bool{}
+	for queue := []int{p.PID}; len(queue) > 0; queue = queue[1:] {
+		tree[queue[0]] = true
+		queue = append(queue, kids[queue[0]]...)
+	}
+	procs := s.procs.procsTake(func(x startedProc) bool { return x.Session == p.Session && tree[x.PID] })
+	if !slices.ContainsFunc(procs, func(x startedProc) bool { return x.PID == p.PID && x.Start == p.Start }) {
+		return fmt.Errorf("procs: process %d has already ended", p.PID)
+	}
+	s.logger().Info("procs: stopped a background agent", "session", p.Session, "pid", p.PID, "processes", len(procs))
+	s.sessions.SetBackground(sess, slices.DeleteFunc(slices.Clone(sess.Info().Background), func(b proto.BackgroundAgent) bool { return b.PID == p.PID }))
+	go s.endProcs(procs)
+	return nil
 }

@@ -109,3 +109,21 @@ func projectLine(c *ui.Context, project, dir, branch, host string) {
 		line.Tooltip(full).Selectable()
 	}
 }
+
+// askStopBackground asks before stopping one of session s's background agents, saying what goes.
+func (a *App) askStopBackground(s proto.SessionInfo, b proto.BackgroundAgent) {
+	cl := a.client
+	if cl == nil {
+		return
+	}
+	about := fmt.Sprintf("%s (pid %d) stops, with all it started: what it hasn't saved is lost, and its conversation can't be taken up from here. %s itself goes on.",
+		b.Name, b.PID, a.sessionName(s))
+	a.confirm("Stop this background agent?", about, "Stop", func() {
+		id, ref := s.ID, proto.StopBackgroundParams{Session: s.ID, PID: b.PID, Start: b.Start}
+		go func() {
+			if err := cl.Call(proto.MethodSessionStopBackground, ref, nil); err != nil {
+				a.onMain(func() { a.status = id + ": " + err.Error() })
+			}
+		}()
+	})
+}

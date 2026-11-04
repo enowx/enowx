@@ -484,6 +484,12 @@ func (a *App) sessionMenuItems(c *ui.Context, s proto.SessionInfo, done func()) 
 		a.toggleMaximized(s.ID)
 		done()
 	}
+	for _, b := range s.Background {
+		if widget.MenuItem(c.Key(fmt.Sprintf("bg-%d", b.PID)), icon.Stop, "Stop background agent "+b.Name, false) {
+			a.askStopBackground(s, b)
+			done()
+		}
+	}
 	if a.canReview(s) && !(a.panelShows(panelChanges) && a.selected == s.ID) && widget.MenuItem(c, icon.Git, "Show changes", false) {
 		a.selectSession(s)
 		a.openPanel(panelChanges)

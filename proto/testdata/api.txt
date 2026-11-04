@@ -2133,6 +2133,9 @@ field SpaceMoveParams.id string
 field SpaceMoveParams.team string
 field SpaceRef.team string
 field StopAgentsResult.stopped int
+field StopBackgroundParams.pid int
+field StopBackgroundParams.session string
+field StopBackgroundParams.start string
 field StopProcessParams.pid int
 field StopProcessParams.start string
 field StreamRef.stream uint32
@@ -3084,6 +3087,7 @@ method session.resize
 method session.rewind
 method session.screen
 method session.state
+method session.stopBackground
 method session.takeover.answer
 method session.takeover.ask
 method session.takeover.end

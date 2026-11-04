@@ -415,3 +415,13 @@ type BackgroundAgent struct {
 	// Stuck: it has used next to no CPU for a good while (procs_background.go).
 	Stuck bool `json:"stuck,omitempty"`
 }
+
+// MethodSessionStopBackground stops one of a session's background agents, with all it started.
+const MethodSessionStopBackground = "session.stopBackground" // StopBackgroundParams
+
+// StopBackgroundParams names a background agent of a session, as its SessionInfo.Background does.
+type StopBackgroundParams struct {
+	Session string `json:"session"`
+	PID     int    `json:"pid"`
+	Start   string `json:"start"`
+}

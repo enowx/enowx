@@ -77,6 +77,33 @@ esac
 	if helperEnds(info, true, time.Hour) {
 		t.Fatal("ended with a background agent at work")
 	}
+	// Stopped, one goes with what it started; the other and the session stay; a process that
+	// isn't one is refused.
+	var kilo, gemini proto.BackgroundAgent
+	for _, b := range sess.Info().Background {
+		if b.Name == "kilo" {
+			kilo = b
+		} else {
+			gemini = b
+		}
+	}
+	stop := func(pid int, start string) error {
+		return c.Call(proto.MethodSessionStopBackground, proto.StopBackgroundParams{Session: created.ID, PID: pid, Start: start}, nil)
+	}
+	if err := stop(os.Getpid(), "x"); err == nil {
+		t.Fatal("stopped what isn't a background agent")
+	}
+	if err := stop(kilo.PID, kilo.Start); err != nil {
+		t.Fatal(err)
+	}
+	for deadline := time.Now().Add(reapGrace + 5*time.Second); alive(kilo.PID); time.Sleep(100 * time.Millisecond) {
+		if time.Now().After(deadline) {
+			t.Fatal("still running")
+		}
+	}
+	if !alive(gemini.PID) || sess.Info().Exited {
+		t.Fatalf("it took more: %+v", sess.Info())
+	}
 	if err := c.KillSession(created.ID); err != nil {
 		t.Fatal(err)
 	}
