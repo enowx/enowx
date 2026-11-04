@@ -39,6 +39,7 @@ func (m *ContextMenu) OpenBelow(anchor ui.Element, key string, height float32) {
 
 // Show draws key's menu, if open, at the pointer over anchor; items builds
 // its entries with MenuItem and MenuSeparator, and calls done to close it.
+// One taller than the window scrolls.
 func (m *ContextMenu) Show(c *ui.Context, anchor ui.Element, key string, items func(done func())) {
 	at := m.open
 	if at == nil || at.key != key {
@@ -48,23 +49,14 @@ func (m *ContextMenu) Show(c *ui.Context, anchor ui.Element, key string, items f
 	closeMenu := func() { open = false }
 	ui.PopoverBase(c, anchor, &open, func(panel ui.Element) {
 		Popup(panel.AttachTo(anchor, ui.AnchorTopStart, ui.AnchorTopStart).Margin(at.y+4, 0, 0, at.x+4).MinWidth(190))
-		items(closeMenu)
+		// MyGo moves a panel placed along its anchor into the window, so all of
+		// the window's height is its room, wherever it opens.
+		_, h := c.Size()
+		FitScroll(c, max(h-popupChrome, popupLeast), func() { items(closeMenu) })
 	})
 	if !open && m.open == at {
 		m.open = nil
 	}
-}
-
-// ShowLong is Show for a menu that may not fit the window: what doesn't, scrolls.
-func (m *ContextMenu) ShowLong(c *ui.Context, anchor ui.Element, key string, items func(done func())) {
-	_, h := c.Size()
-	room := h - anchor.Bounds().Y
-	if at := m.open; at != nil {
-		room -= at.y
-	}
-	m.Show(c, anchor, key, func(done func()) {
-		menuScroll(c, room-menuEdge, func() { items(done) })
-	})
 }
 
 // ShowBeside is Show for a menu whose anchor is at the window's edge: it opens
@@ -78,25 +70,11 @@ func (m *ContextMenu) ShowBeside(c *ui.Context, anchor ui.Element, key string, i
 	closeMenu := func() { open = false }
 	ui.PopoverBase(c, anchor, &open, func(panel ui.Element) {
 		Popup(panel.AttachTo(anchor, ui.AnchorTopLeft, ui.AnchorBottomRight).Margin(0, theme.S1, theme.S1, 0).MinWidth(190))
-		items(closeMenu)
+		FitScroll(c, PopupRoom(c, anchor, popupAny), func() { items(closeMenu) })
 	})
 	if !open && m.open == at {
 		m.open = nil
 	}
-}
-
-// menuEdge is what a menu leaves between it and the window's edge.
-const menuEdge = 24
-
-// menuMinRoom is the least a menu shows, however near the edge it opens.
-const menuMinRoom = 160
-
-// menuScroll holds a menu's entries in room, scrolling what doesn't fit, so a long menu
-// stays in the window.
-func menuScroll(c *ui.Context, room float32, items func()) {
-	Scroll(c).FillWidth().MaxHeight(max(room, menuMinRoom)).Children(func() {
-		ui.Column(c).FillWidth().Children(items)
-	})
 }
 
 // MenuItem is an entry of a context menu; danger colors destructive ones.

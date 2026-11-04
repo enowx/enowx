@@ -82,7 +82,7 @@ func (a *App) issueButton(c *ui.Context) {
 		case len(a.issues.issues) == 0:
 			ui.Text(c, "No open issues match.").FontSize(theme.TextLabel).TextColor(theme.Muted).Padding(theme.S2)
 		}
-		widget.Scroll(c).FillWidth().MaxHeight(340).Children(func() {
+		widget.Scroll(c).FillWidth().MaxHeight(widget.PopupRoom(c, b, 340+theme.ControlHeight) - theme.ControlHeight).Children(func() {
 			ui.Column(c).FillWidth().Children(func() {
 				for _, is := range a.issues.issues {
 					item := ui.ButtonBase(c.Key(is.Number)).FillWidth().Label(is.Title).Cursor(ui.CursorPointer)

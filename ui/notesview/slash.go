@@ -84,11 +84,7 @@ func (e *editor) slashMenu(c *ui.Context, in ui.Element, i int) {
 	}
 	e.slash = min(e.slash, len(items)-1)
 	ui.Overlay(c, func() {
-		h := float32(420)
-		if _, wh := c.Size(); wh > 0 {
-			h = min(h, wh-120)
-		}
-		menu := widget.Popup(ui.Column(c).AttachTo(in, ui.AnchorBottomStart, ui.AnchorTopStart).Width(264).MaxHeight(h).Margin(theme.S1, 0, 0, 0))
+		menu := widget.Popup(ui.Column(c).AttachTo(in, ui.AnchorBottomStart, ui.AnchorTopStart).Width(264).MaxHeight(widget.PopupRoom(c, in, 420)).Margin(theme.S1, 0, 0, 0))
 		e.menuIn = menu.Hovered()
 		menu.Children(func() {
 			widget.PopupLabel(c, "Blocks")

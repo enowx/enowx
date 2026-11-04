@@ -140,7 +140,7 @@ func (e *editor) imageMentionMenu(c *ui.Context, in ui.Element, text string, set
 	}
 	e.mentionPick = min(e.mentionPick, len(matches)-1)
 	ui.Overlay(c, func() {
-		menu := widget.Popup(ui.Column(c).AttachTo(in, ui.AnchorBottomStart, ui.AnchorTopStart).Width(264).MaxHeight(280).Margin(theme.S1, 0, 0, 0))
+		menu := widget.Popup(ui.Column(c).AttachTo(in, ui.AnchorBottomStart, ui.AnchorTopStart).Width(264).MaxHeight(widget.PopupRoom(c, in, 280)).Margin(theme.S1, 0, 0, 0))
 		e.menuIn = e.menuIn || menu.Hovered()
 		menu.Children(func() {
 			widget.PopupLabel(c, "Mention an image")
