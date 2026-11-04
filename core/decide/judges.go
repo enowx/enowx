@@ -48,6 +48,9 @@ var LocalServers = []string{"http://127.0.0.1:11434/v1", "http://127.0.0.1:1234/
 // enowX doesn't know.
 func AgentProvider(id string) string {
 	base := agent.Base(id)
+	if base == agent.PlatformID {
+		return proto.ProviderAnthropic // it has no one-shot command to judge with
+	}
 	for _, a := range agentJudges {
 		if a.agent == base {
 			return a.provider

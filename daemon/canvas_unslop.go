@@ -39,6 +39,7 @@ func (s *Server) canvasUnslop(p proto.CanvasUnslopParams) (proto.CanvasUnslop, e
 	}
 	f, n := from, i+1
 	if p.Start {
+		s.endUnslopRegions(cv.ID) // a new run replaces the last, whose agents nothing would end
 		name := from.Name + " · unslop"
 		desc := "Unslopped from design " + fmt.Sprint(i+1)
 		c, err := s.canvasEdit(proto.CanvasEdit{ID: cv.ID, Op: proto.CanvasOpFrameCopy, Frame: from.ID, Name: &name, Description: &desc})
@@ -143,6 +144,7 @@ func (s *Server) canvasUnslop(p proto.CanvasUnslopParams) (proto.CanvasUnslop, e
 	}
 	if ok && run.Done && strings.EqualFold(p.Pass, "done") && p.Region == "" {
 		s.background.start(func() { s.reviewCanvas(cv, f, n, p.Session) })
+		s.background.start(func() { s.endUnslopRegions(cv.ID) })
 	}
 	if ok {
 		s.broadcast(proto.EventCanvasUnslop, run)

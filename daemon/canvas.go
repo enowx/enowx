@@ -9,11 +9,11 @@ import (
 	"fmt"
 	"image"
 	"image/png"
+	"slices"
 	"strings"
 	"sync"
 	"time"
 
-	"github.com/enowx/enowx/core/agent"
 	"github.com/enowx/enowx/core/canvas"
 	"github.com/enowx/enowx/proto"
 )
@@ -25,6 +25,54 @@ type canvasState struct {
 	mu      sync.Mutex
 	paused  map[string]bool
 	pending map[string]chan proto.CanvasRenderReply
+	// renderers are the apps that render but serve no Browsers, the latest last.
+	renderers []*conn
+}
+
+// serveRenders has c render frames.
+func (cs *canvasState) serveRenders(c *conn) {
+	cs.mu.Lock()
+	defer cs.mu.Unlock()
+	cs.renderers = append(slices.DeleteFunc(cs.renderers, func(o *conn) bool { return o == c }), c)
+}
+
+// dropRenderer forgets c, which closed.
+func (cs *canvasState) dropRenderer(c *conn) {
+	cs.mu.Lock()
+	defer cs.mu.Unlock()
+	cs.renderers = slices.DeleteFunc(cs.renderers, func(o *conn) bool { return o == c })
+}
+
+// renderer is the app to render a frame: the latest showing this host, else the latest
+// only watching it; nil with no app connected.
+func (s *Server) renderer() *conn {
+	b := &s.browsers
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	if n := len(b.serving); n > 0 {
+		return b.serving[n-1]
+	}
+	cs := &s.canvasState
+	cs.mu.Lock()
+	defer cs.mu.Unlock()
+	if n := len(cs.renderers); n > 0 {
+		return cs.renderers[n-1]
+	}
+	return nil
+}
+
+// errOldApp is a render with an app connected that doesn't render for this host.
+var errOldApp = errors.New("canvas: the frame has HTML, which the enowX app renders, and the app connected to this host is a version that renders only for the host it shows: the user has to update the app, or show this host in it")
+
+// noRenderer says what a render with no renderer needs.
+func (s *Server) noRenderer() error {
+	r := &s.appReqs
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	if len(r.serving) > 0 {
+		return errOldApp
+	}
+	return canvas.ErrNeedsBrowser
 }
 
 func (cs *canvasState) isPaused(id string) bool {
@@ -140,13 +188,12 @@ func (s *Server) canvasControl(p proto.CanvasControl) (proto.CanvasInfo, error) 
 		return ch.Canvas.CanvasInfo, nil
 	case proto.CanvasStop:
 		s.canvasState.setPaused(p.ID, true)
-		if sess, err := s.sessions.Get(c.Agent); err == nil {
-			key := "\x03"
-			if preset, ok := agent.Find(sess.Meta().Agent); ok {
-				key = preset.InterruptKey()
-			}
-			s.sessions.Input(sess, []byte(key))
+		_ = s.interruptSession(c.Agent) // none, when no agent has touched it lately
+		// The last to touch it may be a region's agent, and the redesign goes on without it.
+		if run, ok := s.unslopRuns.status(c.ID); ok && run.Lead != "" && run.Lead != c.Agent {
+			_ = s.interruptSession(run.Lead)
 		}
+		s.background.start(func() { s.endUnslopRegions(c.ID) })
 	default:
 		return proto.CanvasInfo{}, errors.New("canvas: pause, resume, stop, open or compare")
 	}
@@ -239,16 +286,12 @@ func encodePNG(img image.Image) ([]byte, error) {
 // canvasRenderTimeout bounds a render by the app: a page loading.
 const canvasRenderTimeout = 40 * time.Second
 
-// appRender has the latest app serving Browsers render req.
+// appRender has the app that renders frames render req.
 func (s *Server) appRender(req proto.CanvasRenderRequest) (proto.CanvasRenderReply, error) {
-	b := &s.browsers
-	b.mu.Lock()
-	if len(b.serving) == 0 {
-		b.mu.Unlock()
-		return proto.CanvasRenderReply{}, canvas.ErrNeedsBrowser
+	app := s.renderer()
+	if app == nil {
+		return proto.CanvasRenderReply{}, s.noRenderer()
 	}
-	app := b.serving[len(b.serving)-1]
-	b.mu.Unlock()
 	req.ID = newRenderID()
 	ch := make(chan proto.CanvasRenderReply, 1)
 	cs := &s.canvasState

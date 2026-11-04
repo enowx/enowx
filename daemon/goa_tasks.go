@@ -155,6 +155,17 @@ func (s *Server) goaOpenTask(id string) bool {
 	})
 }
 
+// goaTaskUnderWay is the task session id has at hand or queued, "" for none. One whose
+// turn ended is GOA's to settle, with nothing for the session to go on with.
+func (s *Server) goaTaskUnderWay(id string) string {
+	for _, t := range s.goa.board.List() {
+		if t.Session == id && (t.Status == proto.GOATaskWorking || t.Status == proto.GOATaskWaiting || t.Status == proto.GOATaskStalled || t.Status == proto.GOATaskQueued) {
+			return t.ID
+		}
+	}
+	return ""
+}
+
 // goaSkipOn switches a session started asking to skipping prompts, when the
 // task asks that and its agent can change mode as it runs. One that can't goes
 // on as it is: its prompts reach GOA.
@@ -171,29 +182,67 @@ func (s *Server) goaSkipOn(p proto.GOADelegateParams, info proto.SessionInfo) {
 // goaDeliver gives a session that ended its turn its oldest queued task, or,
 // when it ended for good, says those tasks can't go.
 func (s *Server) goaDeliver(info proto.SessionInfo) {
+	// One at a time, from claiming a task until it has been typed: a turn's end, an
+	// app's word and the stall watch may all come at once, and each change of a session
+	// still done from its last turn says so again.
+	s.goa.delivering.Lock()
+	defer s.goa.delivering.Unlock()
+	for s.goaDeliverNext(info) {
+	}
+}
+
+// goaDeliverNext gives or fails session info's oldest queued task, and says whether
+// the next one is to be looked at too: all of them fail with a session that ended.
+func (s *Server) goaDeliverNext(info proto.SessionInfo) bool {
 	var next *proto.GOATask
+	running := false
 	tasks := s.goa.board.List()
 	for i := range tasks {
-		if t := &tasks[i]; t.Session == info.ID && t.Status == proto.GOATaskQueued && (next == nil || t.Created.Before(next.Created)) {
-			next = t
+		t := &tasks[i]
+		if t.Session != info.ID {
+			continue
+		}
+		switch t.Status {
+		case proto.GOATaskQueued:
+			if next == nil || t.Created.Before(next.Created) {
+				next = t
+			}
+		case proto.GOATaskWorking, proto.GOATaskWaiting, proto.GOATaskStalled:
+			running = true
 		}
 	}
 	if next == nil {
-		return
+		return false
+	}
+	if !info.Exited {
+		if running {
+			return false // the task before has its turn: this one follows it
+		}
+		if sess, err := s.sessions.Get(info.ID); err == nil {
+			if now := sess.Info(); now.State == proto.StateWorking && !now.StateStale {
+				return false // at work again since this change was heard
+			}
+		}
 	}
 	if info.Exited {
+		if goa.ComesBack(info) {
+			go s.queuedWake(*next, info) // it waits for the agent: this holds the others up
+			return false
+		}
 		t, _ := s.goa.board.Update(next.ID, func(t *proto.GOATask) {
-			t.Status, t.Result = proto.GOATaskFailed, "its session ended before it could take this"
+			t.Status, t.Result = proto.GOATaskFailed, "its session ended before it could take this, and can't come back on a conversation"
 		})
 		s.goaChanged()
-		s.goaTell(fmt.Sprintf("[enowX GOA] Task %s %q failed: its session %s ended before it could take it. Delegate it again.", t.ID, t.Title, t.Session))
-		s.goaDeliver(info)
-		return
+		s.goaTell(fmt.Sprintf("[enowX GOA] Task %s %q failed: its session %s ended before it could take it, and can't come back on a conversation (a shell, or a program enowX can't continue). Delegate it again to another session.", t.ID, t.Title, t.Session))
+		return true
 	}
 	from := ""
 	if g, ok := s.goaSession(); ok {
 		from = g.ID
 	}
+	// Until it's typed the session still says done, of the turn before this task's.
+	s.goa.giving.Store(next.Session, true)
+	defer s.goa.giving.Delete(next.Session)
 	// Claimed first: a turn's end and the stall watch may both come to give it.
 	claimed := false
 	_, _ = s.goa.board.Update(next.ID, func(t *proto.GOATask) {
@@ -203,15 +252,25 @@ func (s *Server) goaDeliver(info proto.SessionInfo) {
 		}
 	})
 	if !claimed {
-		return
+		return false
 	}
 	err := s.goaCall(from, next.Host, proto.MethodSessionInput, proto.SessionInputParams{ID: next.Session, Text: next.Prompt, Paste: true, Enter: true}, nil)
 	if err != nil {
-		_, _ = s.goa.board.Update(next.ID, func(t *proto.GOATask) {
-			t.Status, t.Result = proto.GOATaskFailed, "it couldn't be delivered: "+err.Error()
-		})
+		// Not tried again: it may have gone in, and a task must not go in twice.
+		s.goaQueuedFailed(*next, "it couldn't be delivered, and may not have reached its session: "+err.Error())
+		return false
 	}
+	s.logger().Info("goa: a queued task went in", "session", next.Session, "task", next.ID, "host", next.Host)
 	s.goaChanged()
+	return false
+}
+
+// goaQueuedFailed says on the board and to GOA that queued task t won't go in.
+func (s *Server) goaQueuedFailed(t proto.GOATask, why string) {
+	s.logger().Warn("goa: a queued task can't go in", "session", t.Session, "task", t.ID, "host", t.Host, "why", why)
+	_, _ = s.goa.board.Update(t.ID, func(t *proto.GOATask) { t.Status, t.Result = proto.GOATaskFailed, why })
+	s.goaChanged()
+	s.goaTell(fmt.Sprintf("[enowX GOA] Task %s %q failed: %s. Check session %s, then delegate it again.", t.ID, t.Title, why, t.Session))
 }
 
 // goaSpawn starts a new session for task t on p's host, as GOA's worker.
@@ -277,6 +336,9 @@ const goaTurnLeast = 3 * time.Second
 // session is no longer done, a task having been typed in since; on another host, which
 // can't be asked as simply, it came just after the task was given.
 func (s *Server) goaTurnStale(info proto.SessionInfo, t proto.GOATask) bool {
+	if _, giving := s.goa.giving.Load(info.ID); giving {
+		return true
+	}
 	if sess, err := s.sessions.Get(info.ID); err == nil {
 		return sess.Info().State != proto.StateDone
 	}
@@ -312,9 +374,12 @@ func (s *Server) goaWorkerChanged(info proto.SessionInfo) {
 		head := fmt.Sprintf("[enowX GOA] Task %s %q (%s)", t.ID, t.Title, where)
 		switch status {
 		case proto.GOATaskTurnEnded:
-			said := s.goaResult(t)
+			said := nonEmpty(info.TurnText, "")
+			if said == "" {
+				said = s.goaResult(t)
+			}
 			t, _ = s.goa.board.Update(t.ID, func(t *proto.GOATask) { t.Said = said })
-			s.goaTellLine(goaLine{Task: t.ID, Session: t.Session, Text: head + " finished a turn, which may be mid-work: " + clip(oneLine(said), goaResultMax) + " Check it (chat " + t.Session + hostFlag + "), then settle it: goa task " + t.ID + " --status done|failed --result \"…\"."})
+			s.goaTellTurnEnd(goaLine{Task: t.ID, Session: t.Session, Text: head + " finished a turn, which may be mid-work: " + clip(oneLine(said), goaResultMax) + " Check it (chat " + t.Session + hostFlag + "), then settle it: goa task " + t.ID + " --status done|failed --result \"…\"."}, said)
 		case proto.GOATaskWaiting:
 			ask := s.goaAskOf(t)
 			t, _ = s.goa.board.Update(t.ID, func(t *proto.GOATask) { t.Asks, t.Urgent = askLine(ask), ask.Urgent })
@@ -412,7 +477,7 @@ func (s *Server) goaReportSeen(info proto.SessionInfo) {
 	})
 	for _, t := range changed {
 		where, hostFlag := goaTaskPlace(t)
-		s.goaTellLine(goaLine{Task: t.ID, Session: t.Session, Text: fmt.Sprintf("[enowX GOA] Task %s %q (%s) reports %s: %s Check it (chat %s%s), then settle it: goa task %s --status done|failed --result \"…\".", t.ID, t.Title, where, t.Outcome, clip(oneLine(t.Said), goaResultMax), t.Session, hostFlag, t.ID)})
+		s.goaTellReport(info, goaLine{Task: t.ID, Session: t.Session, Text: fmt.Sprintf("[enowX GOA] Task %s %q (%s) reports %s: %s%s Check it (chat %s%s), then settle it: goa task %s --status done|failed --result \"…\".", t.ID, t.Title, where, t.Outcome, clip(oneLine(t.Said), goaResultMax), s.goaAsleepNamed(t.Host, t.Outcome, t.Session, t.Said), t.Session, hostFlag, t.ID)})
 	}
 	if len(changed) > 0 {
 		s.goaChanged()
@@ -458,13 +523,24 @@ func (s *Server) goaResult(t proto.GOATask) string {
 	if g, ok := s.goaSession(); ok {
 		from = g.ID
 	}
-	var tr proto.Transcript
-	if err := s.goaCall(from, t.Host, proto.MethodSessionTranscript, proto.TranscriptParams{ID: t.Session, Tail: 20}, &tr); err == nil {
-		for i := len(tr.Entries) - 1; i >= 0; i-- {
-			if e := tr.Entries[i]; e.Kind == proto.TranscriptAssistant && strings.TrimSpace(e.Text) != "" {
-				return clip(strings.TrimSpace(e.Text), goaResultMax)
-			}
+	// Never a message from before the turn's end: wait for the transcript to have it.
+	deadline := time.Now().Add(turnEndWait)
+	for {
+		var tr proto.Transcript
+		err := s.goaCall(from, t.Host, proto.MethodSessionTranscript, proto.TranscriptParams{ID: t.Session, Tail: 20}, &tr)
+		if err != nil {
+			break // it has none: its screen says
 		}
+		if text, ok := turnEndIn(tr.Entries); ok {
+			return clip(text, goaResultMax)
+		}
+		if time.Now().After(deadline) {
+			if len(tr.Entries) == 0 {
+				break
+			}
+			return "(its last message isn't in its transcript yet: chat " + t.Session + " shows it)"
+		}
+		time.Sleep(turnEndEvery)
 	}
 	var sc proto.SessionScreen
 	if err := s.goaCall(from, t.Host, proto.MethodSessionScreen, proto.SessionRef{ID: t.Session}, &sc); err != nil {

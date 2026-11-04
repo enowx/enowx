@@ -26,7 +26,7 @@ func (a *App) pollConflicts(cl *client.Client, gen int) {
 	go func() {
 		for {
 			ask := make(chan string, 1)
-			a.onMain(func() {
+			a.quietly(func() {
 				if gen != a.gen {
 					close(ask)
 					return

@@ -41,12 +41,13 @@ var Version = version.String
 
 // Server serves connections. One Server runs per user per machine.
 type Server struct {
-	exitsLogged sync.Map // session IDs whose end is in the log
-	pipes       pipelines
-	autos       automations
-	hooks       *hookEngine // the user's hooks (hooks.go)
-	control     controlLog  // requests made through host.call (hostcontrol.go)
-	agentModes  agentModes  // what agents' hooks last said of their permission mode (agentmode.go)
+	exitsLogged  sync.Map // session IDs whose end is in the log
+	pipes        pipelines
+	autos        automations
+	hooks        *hookEngine // the user's hooks (hooks.go)
+	control      controlLog  // requests made through host.call (hostcontrol.go)
+	agentModes   agentModes  // what agents' hooks last said of their permission mode (agentmode.go)
+	modeSwitches sync.Map    // session ID → *sync.Mutex: one mode switch at a time, as two pressing the key at once could end on a mode neither asked for (switchMode)
 	// WorktreeRoot is where worktrees are created.
 	WorktreeRoot string
 	// Hash is the SHA-256 of the executable the daemon started from
@@ -59,6 +60,9 @@ type Server struct {
 	Log *slog.Logger
 	// Diag receives the connections' events, for later (core/diag); nil discards them.
 	Diag *diag.Log
+
+	restartLostMu sync.Mutex
+	restartLost   []proto.RestartItem // what the last restart ended (restart.go)
 
 	sessions          *session.Manager
 	projects          *project.Store
@@ -85,6 +89,7 @@ type Server struct {
 	teams             teamSpaces       // the teams' notes and canvases (spaces.go)
 	teamSync          teamSyncer       // their syncs with the cloud (teamsync.go)
 	teamProjectsState teamProjectState // the teams\' projects found here (teamprojects.go)
+	rulesPlaces       rulesPlacesCache // where each folder's rules are (rules.go)
 	visitors          visitorList      // the teams\' members connected (visitors.go)
 	share             hostSharing      // what the host shares, its team listener (hostshare.go)
 	takeover          takeovers        // sessions visitors took over (takeover.go)
@@ -135,7 +140,8 @@ type Server struct {
 	traf         traffic            // the HTTP interceptor (traffic.go)
 	android      androidState       // Android devices (android.go)
 	hibernates   hibernations       // sessions to hibernate once done (hibernate.go)
-	daemonID     string             // DaemonInfo.ID
+	wakes        sessionWakes
+	daemonID     string // DaemonInfo.ID
 	links        *projectlinks.Store
 	cloud        *cloudLink     // the host's sign-in to a team cloud
 	pushes       autopushes     // auto pushes running (autopush.go)
@@ -209,6 +215,7 @@ func newServer(dir, hookBin string) (*Server, error) {
 	s.userdata.EmptyTrash(time.Now())
 	s.publishSoon(s.projects.List())
 	s.vault.audit = vault.OpenAudit(filepath.Join(dir, "vault", "audit.jsonl"))
+	s.userdata.Guard("vault/audit.jsonl", s.vault.audit.Locker())
 	intercept.KnownSecrets(s.lentSecrets)
 	s.loadShell()
 	s.newRAG(dir)
@@ -259,6 +266,7 @@ func newServer(dir, hookBin string) (*Server, error) {
 	// project's mocks answer its tests.
 	s.runner.Env = func(session string) []string { return s.trafficEnvFor(session, "") }
 	s.runner.OnFailed = s.judgeCheck // flaky or real, when the use is on
+	s.writeHostGuide()
 	s.restore()
 	s.pipes.load(pipelinesFile(dir))
 	s.resumePipelines()
@@ -266,9 +274,11 @@ func newServer(dir, hookBin string) (*Server, error) {
 	s.sweepTransfers()
 	s.sweepFetches()
 	go s.saveHistories(s.done)
+	go s.transcripts.keepDropping(s.done)
 	go s.teamSyncLoop(s.done)
 	go s.startSharing() // a host shared before: its listener again
 	go s.watchPorts(s.done)
+	go s.watchRules(s.done)
 	go s.runScheduler(s.done)
 	go s.runAutomations(s.done)
 	go s.watchGit(s.done)
@@ -314,6 +324,7 @@ func (s *Server) serveConn(nc net.Conn, remote bool) {
 		delete(s.conns, c)
 		s.mu.Unlock()
 		s.browsers.drop(c)
+		s.canvasState.dropRenderer(c)
 		s.projWatches.drop(c)
 		s.appReqs.drop(c)
 		s.vault.drop(c)
@@ -339,6 +350,7 @@ func (s *Server) Close() {
 		s.stopShares()
 		s.shares.mu.Unlock()
 		s.projWatches.stopAll()
+		s.noteForRestart()
 		s.persist.stopping()
 		var tags []tag
 		for _, sess := range s.sessions.List() {
@@ -362,9 +374,14 @@ func (s *Server) Close() {
 // deleteSession hangs up a session and forgets it for good.
 func (s *Server) deleteSession(id string) error {
 	s.procsLook() // what it started up to now, while its tree still shows it
+	var was proto.SessionInfo
+	if sess, err := s.sessions.Get(id); err == nil {
+		was = sess.Info()
+	}
 	if err := s.sessions.Kill(id); err != nil {
 		return err
 	}
+	s.endRegionsOfLead(was)
 	// What it started outside its terminal goes too: no leftovers.
 	reap(tag{key: session.EnvSession, value: id})
 	s.endSessionProcs(id)

@@ -9,7 +9,7 @@ A pipeline runs coding agents one after another on one task: plan, then implemen
 - A stage's prompt is a template: `{task}` is the task, `{previous}` what the stage before ended with, `{base}` the base branch. The defaults (`proto.DefaultPipeline`) ask the first agent for a numbered plan and to change nothing, the second to carry the plan out and run the checks, the third to review the branch against the base and fix what it finds. Stages can be renamed, given other agents and prompts, added (up to 8) and removed in the dialog.
 - A stage is done when its agent's hooks say so (Claude Code, Codex), or, for agents without hooks, once its screen has been quiet for 15 seconds after its first 15. An agent asking the user something (`waiting`) holds the pipeline until it is answered in its session. A session deleted, or a program ending with an error, fails the pipeline.
 - What a stage ended with is its agent's last answer, from its conversation where enowX reads it (Claude Code, Codex), else the end of its screen; up to 8,000 bytes go to the next stage.
-- Skip permission prompts follows the New session dialog's setting.
+- Skip permission prompts follows the New session dialog's setting; Claude Code always skips them.
 
 The daemon keeps its pipelines in `~/.enowx-app/pipelines.json`: one restarted goes on following the stage that was running, whose session it restores. Cancelling stops the pipeline and leaves its sessions as they are; a pipeline that ended can be removed from the list.
 

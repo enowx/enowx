@@ -1,5 +1,7 @@
 package cli
 
+import "slices"
+
 // goaTools are GOD of Agents' commands as MCP tools (feature "goa").
 var goaTools = []mcpTool{
 	{name: "goa_skill", description: "A built-in guide of GOD of Agents: setup (doing every setting of enowX with the user, stopping for what needs them), features (every feature).",
@@ -25,11 +27,12 @@ var goaTools = []mcpTool{
 			"host":  {"string", "The host, as the app names it (sessions_everywhere lists them); this one when left out"},
 			"model": {"string", "A model chosen by hand"}, "effort": {"string", "An effort chosen by hand"}, "config": {"string", "A config of the agent's (another provider)"},
 			"no_route": {"boolean", "Keep the agent's own model and effort"},
+			"doc":      {"string", "A Project Docs document, NOTE or NOTE#SECTION: refused while its project's gate is closed, its words prepended to the prompt"},
 			"note":     {"string", "The note the task belongs to"}, "items": {"string", "Its to-dos the task finishes, one per line: the worker is told to tick them, and settling it done says which aren't"}},
 		required: []string{"prompt"},
 		args: func(a map[string]any) []string {
 			args := []string{"delegate", "--json"}
-			for _, k := range []string{"note", "items", "title", "session", "agent", "project", "branch", "host", "model", "effort", "config"} {
+			for _, k := range []string{"note", "items", "title", "session", "agent", "project", "branch", "host", "model", "effort", "config", "doc"} {
 				args = withFlag(args, a, k, k)
 			}
 			return append(withFlag(args, a, "no_route", "no-route"), "--", str(a, "prompt"))
@@ -62,6 +65,36 @@ var goaTools = []mcpTool{
 			}
 			return args
 		}},
+	{name: "goa_switch", description: "What GOD of Agents runs on on this host, or change it, restarting it: another config goes on with the same conversation, or says it can't and leaves GOA as it was; another agent starts a new conversation, so it needs new_conversation. At work it needs force. Asked by an agent, the user says yes first. GOA itself can't change itself: it is told to ask the user.",
+		props: map[string]mcpProp{"agent": {"string", "An agent goa_agents offers; left out, the one it runs on"}, "config": {"string", "A config of that agent, by name, or official; left out, the one it runs on or, for another agent, the preferred"},
+			"check": {"boolean", "Only say what the change would do"}, "new_conversation": {"boolean", "The user agreed that a new agent's conversation doesn't carry over"},
+			"force": {"boolean", "The user agreed to cut off what GOA is at"}},
+		args: func(a map[string]any) []string {
+			args := []string{"switch"}
+			for _, k := range []string{"agent", "config", "check", "force"} {
+				args = withFlag(args, a, k, k)
+			}
+			return withFlag(args, a, "new_conversation", "new-conversation")
+		}},
 	{name: "goa_agents", description: "The agents GOD of Agents can run on here, and how far each holds it to delegating: enforced, limited or watched.",
 		args: func(map[string]any) []string { return []string{"agents"} }},
+}
+
+// goaOfferedTools are the tools GOD of Agents' server offers: every tool offered goes
+// with each request, 222 of them at about 40,000 tokens each time against 3,000 for 6.
+// Its work is delegating; its "enowx" tool runs every other command. goa_switch isn't one:
+// a change ends the turn asking for it, so it is the user's, and refused there.
+var goaOfferedTools = []string{"goa_agents", "goa_delegate", "goa_board", "goa_task", "goa_recall", "goa_remember",
+	"sessions_everywhere", "session_read", "session_chat", "session_answer", "enowx"}
+
+// goaOffered is groups with the tools offered GOD of Agents only.
+func goaOffered(groups []mcpGroup) []mcpGroup {
+	out := make([]mcpGroup, 0, len(groups))
+	for _, g := range groups {
+		g.tools = slices.DeleteFunc(slices.Clone(g.tools), func(t mcpTool) bool { return !slices.Contains(goaOfferedTools, t.name) })
+		if len(g.tools) > 0 {
+			out = append(out, g)
+		}
+	}
+	return out
 }

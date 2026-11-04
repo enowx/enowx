@@ -7,7 +7,7 @@ GOD of Agents (GOA) is one session the user drives that controls every enowX ses
 **GOD of Agents** in the title bar's pages (or ⌘K, "GOD of Agents") enters the mode. With no GOA on the host shown, it asks which agent to run GOA on, each with how far it holds GOA to delegating (below). In the mode:
 
 - GOA's session is the main view, as a session's: the same header, tab strip, tools dock and panel, with the session list folded away.
-- The title bar reaches the pages as anywhere. GOA's header has **Rules** and **Leave**, which goes back (GOA keeps running), and its More menu **Stall limits**.
+- The title bar reaches the pages as anywhere. GOA's header has **Settings** (what it runs on, below), **Rules** and **Leave**, which goes back (GOA keeps running), and its More menu **Stall limits**.
 - Notes and Canvas show their own lists beside the page, with the choice of the user's own or a team's space, as the session list that holds them elsewhere is folded away.
 - GOA's session opens on its **chat** when its agent has one (Claude Code, Codex…), once; Chat and Terminal stay in its header, the tools open in center tabs as in a session, and the view picked is kept.
 - The side panel stays, its **GOA** group first:
@@ -25,21 +25,52 @@ Leaving the mode asks first, whichever way: the title bar's **Sessions**, **Leav
 
 - **A folder of its own**, outside every project (`<enowX's folder>/goa`), with no branch.
 - **Every feature on**, its guide `agent.GOAGuide` first: delegate, don't work; don't poll; who answers which permission; keep the board and its collection.
-- **Its permissions asked**: enowX's own tools are allowed (Claude Code's `--allowedTools mcp__enowx`, Codex's MCP server approved) and reading is allowed by its hook, unless the path looks like a secret; an edit goes by the session's permission mode: Claude Code asks unless it is in auto mode or the like; Codex writes in GOA's folder and the system's temporary folders unasked, its sandbox stopping the rest.
+- **On Claude Code, in bypass**, as all its sessions are ([agents.md](agents.md#claude-code-always-runs-in-bypass)). What holds GOA there doesn't depend on the mode: `--tools` gives it no Bash, and its hook's refusals are denies, which bypass doesn't pass. It edits in its own folder unasked. Reading what looks like a secret is its hook's ask, which Claude Code still prompts for, and enowX leaves that prompt to the user. As it is in bypass, what can't be undone runs without the app's card ([goa-tools.md](goa-tools.md#when-the-user-is-asked)).
+- **On other agents, its permissions asked**: enowX's own tools are allowed (Codex's MCP server approved) and reading is allowed by its hook, unless the path looks like a secret; an edit goes by the session's permission mode: Codex writes in GOA's folder and the system's temporary folders unasked, its sandbox stopping the rest.
+
+### Only on agents proven to hold it
+
+GOA is offered only on agents run for real as GOA, a model pressed to work by itself getting nowhere: Claude Code (and its teams), Codex, OpenCode; Claude Platform is offered ahead of that run, as its hooks hold it the same way. On any other agent starting it is refused, saying why, and `goa agents` lists the reason; a GOA already running there goes on. Qwen Code and Goose come next, by the same test. OpenCode from a major version not tested yet is refused too.
+
+**Edits stay in its own folder**, on every agent, and not its agent's settings there (`.claude`, `.codex`, `.opencode`, `opencode.json`), loaded at its next start. On Claude Code the hook refuses the rest, links followed; on Codex its sandbox holds, which also allows the system's temporary folder.
+
+**A link in its folder, on OpenCode 2:** its rules go by the path asked for, not where it leads, and it has no plugin to look. GOA can't make one without a shell, and starting refuses when one leads out, but a link another session makes in that folder while GOA runs is a way out until the next start.
+
+**Its tools:** its MCP server offers 11 (`goa_*`, the sessions' it needs, `enowx` for every other command), about 3,000 tokens a request against about 40,000 for all 223. **`opencode run --standalone`** may offer enowX's tools only from its second request; enowX starts the TUI, where they came with the first in these runs. Its guide tells it not to take them for missing.
 
 ### Held to delegating, as far as each agent allows
 
 | Level | Agents | How |
 |---|---|---|
-| enforced | Claude Code (and its teams), Codex | Their own hooks hand every tool call to the daemon first (`tool.before`); every tool but these is refused before it runs: enowX's MCP tools (`mcp__enowx__*`), its tools for reading and editing files, or one `"$ENOWX_BIN" …` or reading command (`cat`, `head`, `tail`, `ls`, `wc`, `grep`, `rg`, `sed -n 'Np'`, no secret named) with nothing chained, piped, redirected or substituted (`core/goa.Allowed`). Claude Code also starts with only its tools for files (`--tools Read,Grep,Glob,Edit,Write,NotebookEdit`, enowX's MCP server only, `--strict-mcp-config`, `ENABLE_TOOL_SEARCH=false` so enowX's tools load); Codex runs its commands read-only (`--sandbox read-only`). |
+| enforced | Claude Code (and its teams), Codex, Claude Platform | Their own hooks hand every tool call to the daemon first (`tool.before`); every tool but these is refused before it runs: enowX's MCP tools (`mcp__enowx__*`), its tools for reading and editing files, or one `"$ENOWX_BIN" …` or reading command (`cat`, `head`, `tail`, `ls`, `wc`, `grep`, `rg`, `sed -n 'Np'`, no secret named) with nothing chained, piped, redirected or substituted (`core/goa.Allowed`). Claude Code also starts with only its tools for files (`--tools Read,Grep,Glob,Edit,Write,NotebookEdit`, enowX's MCP server only, `--strict-mcp-config`, `ENABLE_TOOL_SEARCH=false` so enowX's tools load); Codex runs its commands read-only (`--sandbox read-only`). |
+| enforced | OpenCode 1 and 2 | No hooks: a config for its version offers enowX's tools, reading (not secrets) and editing its own folder, and refuses the rest. From 2, `--standalone` (or its background server ignores the config) and policies, which hold for any agent. Before 2, an agent's permissions and a plugin, kept outside GOA's folder, that hold for an agent the user switches to and through links. |
 | limited | agents whose tools can be restricted at start but have no hooks | Started with enowX's tools only. (No agent enowX knows is limited and not enforced today.) |
 | watched | every other agent | Only told. The programs GOA's session runs itself (found by the session's tag in their environment) and the files that change in the host's git projects while no other session works there are flagged to the user, with a banner; a file unchanged, or changed only in tracked files, when GOA started can be put back as it was (`git stash create` keeps that state without touching the folder). Best effort: a change GOA makes in a folder a worker works in passes as the worker's. |
+
+Its duty to delegate is in its inject, so it doesn't rest on a guide being read. **Claude Code, Codex and Claude Platform have no exception:** their hooks refuse the rest, even if the user asks. **On other agents,** GOA may do something itself only if the user's own message in the chat asks for that task, not a file, repository, web page or tool's output, and it says so when it does. That is an instruction, which nothing enforces; a watched agent's actions are still flagged.
 
 The app shows each agent's level when picking GOA's; `enowx goa agents` lists them.
 
 No enowX command that runs a program of GOA's choosing works in its session, or in its MCP server: `creds use … -- COMMAND`, `decide trim -- COMMAND`, and `run` of a project command (listing them still works). Those would be a way around the tools it lacks.
 
-Checked with Codex itself, started as GOA: enowX's tools reached it over MCP as `mcp__enowx__…`, as its hooks name them; it read a project's file and wrote one in its own folder, and handed over a write outside it and a `go version`. Checked with Claude Code itself, started as GOA: it read a project's file and wrote one (in auto mode, unasked), and handed `go version` to a session, having no Bash.
+Checked with Codex itself, started as GOA: enowX's tools reached it over MCP as `mcp__enowx__…`, as its hooks name them; it read a project's file and wrote one in its own folder, and handed over a write outside it and a `go version`. Checked with Claude Code itself, started as GOA: it read a project's file and wrote one (in auto mode, unasked), and handed `go version` to a session, having no Bash. In bypass (2.1.318, its answers stood in for by a local server): a Write outside its folder came back refused by its hook and wrote nothing, and a Read of a `.env` stopped at Claude Code's prompt.
+
+### Changing what it runs on
+
+**Settings** in GOA's header shows the agent and config it runs on, each agent it is offered on (installed and proven, above) with its level, and the configs of the agent picked, the official one first. What a pick would do, or why it can't be done, shows before anything is pressed. `enowx goa switch [--agent A] [--config NAME|official]` and MCP `goa_switch` do the same on this host; with no agent or config, or `--check`, they only say.
+
+- **Another config, the same agent:** GOA restarts on the new config and goes on with the same conversation (`--resume` with its ID). Before GOA stops, the daemon checks the config can reach that conversation and start: an account's home has it (conversations are shared by links; one with a `projects` folder of its own, or a variable moving its home, doesn't), the account is signed in on this host, the vault lends a model API's key. If not, the user is told, and GOA goes on untouched. A GOA with no conversation yet just restarts.
+- **Another agent:** a conversation doesn't carry over to it, so the app says so and asks first (`--new-conversation`), then GOA restarts on a new one, its config the one picked (left out, the agent's preferred). Going back to the first agent later is a new conversation too: its session doesn't take conversations from before the change (`Meta.ConvoSince`).
+- **At work** (working, or asking something), the app asks first, as a restart cuts that off (`--force`). This is the daemon's word, not the app's, so a line reaching GOA as the user presses counts.
+- **If it doesn't take:** an agent ending within 5 seconds of starting (`goaSwitchSettle`) puts GOA back on what it was, on its conversation, and the error says what the screen last said. What only shows later, as a key an API refuses at its first request, its screen says.
+
+**What stays.** The change happens in GOA's own session, same ID: its tabs, the board (`goa-board.json`), its collection, its rules and its waiting lines (`goa-tell.json`). Its workers are sessions of their own and keep running. While it changes, no line goes to GOA: the hook waiting to wake it ends with nothing, and what comes waits for the agent that follows.
+
+**What holds it stays,** on every path: the restart goes through what `goa start` does, and a config can't undo it. On GOA a config's flags are only `--model`, `-m` and `--effort`, and its variables none of `ENOWX_*`, `ENABLE_TOOL_SEARCH`, `OPENCODE_CONFIG*` or `OPENCODE_PERMISSION` (`goa.ConfigArgs`, `goa.ConfigEnv`); the panel says so of a config that has others. A model API's own variables (its `OPENCODE_CONFIG`, say) go on as they are, under what holds OpenCode's GOA. A limit's fallback to another agent is refused for GOA: an agent only changes by this.
+
+**Its permission mode.** On Claude Code, bypass, whatever the change. On another agent, another config keeps the mode GOA runs in (`Meta.Mode`, passed as its agent's flag), including after a mode set by the user; another agent starts in what the user chose for that agent's new sessions (on a config, not that), else its own default.
+
+**GOA can't change itself.** A change ends the turn asking for it, and for an agent loses its conversation, unasked. So GOA isn't offered `goa_switch`, and `goa switch` through its `enowx` tool only reads: it is told to ask the user. Asked by another session's agent, a change is a `confirm` method of control: the user says yes first ([goa-tools.md](goa-tools.md#when-the-user-is-asked)). An older daemon answers as not knowing the method, which the app and the command say, GOA going on as it was.
 
 ## Tasks
 
@@ -55,7 +86,7 @@ There is no limit on workers; rate limits fall to accounts' fallback ([accounts.
 
 **A task's to-dos.** `goa delegate --note NOTE --items "one\nper line"` shows the worker the to-dos its task finishes, with the rule to tick each in the same turn as its commit. Settling the task done doesn't tick them: it says which aren't ticked (`Open` on the board), as a to-do done but not committed is the worker's to say. GOA never tells a worker to leave a to-do open.
 
-**Which session a project's task goes to** (`goa.PickSession`): an agent's session of its own in the project's folder, not in a worktree, whose branch is another task's; the user's, not a teammate's; of `--agent` when given, with the same `--yolo`, and the same `--config` when given. Not one working, asking the user, or with an open task on the board, and not a running one of an agent without hooks, as it may be working unseen. Of those, a running one first, then a hibernated one, then one that ended; among equals, the newest. With none, a new session. A running session keeps its own config when the judge's route names another provider's. An agent that quit to the shell in its terminal counts as running, as the daemon can't tell it from one at rest.
+**Which session a project's task goes to** (`goa.PickSession`): an agent's session of its own in the project's folder, not in a worktree, whose branch is another task's; the user's, not a teammate's; of `--agent` when given, and the same `--config` when given. Not one working, asking the user, or with an open task on the board, and not a running one of an agent without hooks, as it may be working unseen. Of those, a running one first, then a hibernated one, then one that ended; among equals, the newest. With none, a new session. A running session keeps its own config when the judge's route names another provider's. An agent that quit to the shell in its terminal counts as running, as the daemon can't tell it from one at rest.
 
 ## Every session reports to GOA
 
@@ -67,7 +98,13 @@ Routes, in order:
 2. `goa report --outcome done|partly|nothing|blocked|refused|failed "what happened"`, which every task's prompt asks for at the end of each turn. The report stays on the session, on its own host, and reaches GOA as the session's changes do, through the app for another host's. It goes on the task as `Outcome`.
 3. For an agent with no hooks, one started by hand in a shell tab, and one whose hooks fail: the screen. A session no hook speaks for, still for 20 seconds, using under 20% of a core (an agent at rest isn't at 0), showing a turn's end (the time it took, or a prompt mark alone on its line) raises a report, not "isn't moving". Only what follows that end can say otherwise: the turn's own words above it and a footer's under it don't. A screen only quiet, with no such sign, stays a stall line. A session GOA sent something to with no task is watched the same way, on any host: it reports its turn's end, says once if it goes quiet for the idle limit with no sign why, and says if it is gone. A shell with no agent, back at its prompt, has finished: one line, once. Those two lines only say to look: they never keep GOA's turn going, and reading the session takes them back. Whatever a line says, a turn's end is kept going only once for one session, until GOA reads it or sends it something; further lines wait for its next tool call or its idle moment.
 
+**One line per turn.** A turn's report and its end reach GOA as one line. A report made while the agent works waits up to 30 seconds for its turn's end, and that end joins it. A turn's end still waiting for GOA takes a report that comes after it. A report whose moment has passed goes alone, and the turn's end then has its own line. Lines of one session never change order; a question, a failure or a correction is never merged and comes after what was held. Each real turn has its own line, also when several wait for a busy GOA.
+
+**The message is the turn's real last one.** Where the agent's turn-end hook says it (`last_assistant_message`: seen on Claude Code 2.1.318), that is the text, which goes along with the session's updates (`SessionInfo.TurnText`), so it reaches GOA on another host too. Otherwise the transcript is read until it holds the turn's end: its last entry is a message, not a tool's call. Claude Code's transcript was seen over a second behind its Stop hook. Six seconds on, the line says the message isn't recorded yet and where to read it, rather than give an older one.
+
 What the session doesn't say, enowX says for it: its process exiting or crashing, with the exit code and its last words, marked `NoReport` on the board and never shown as at work; a turn interrupted; a limit its agent showed; a lost sign-in, as what it asks; going silent, as a stall line; a host that can't be reached, once, after the idle limit.
+
+A task for a session asleep brings it back on its conversation first, hibernated or ended, once, whoever gets there first; one queued goes in when it is back. What can't come back (a plain shell) fails at once, with that said, on the board and to GOA, as does a wake that fails.
 
 A line stays until it has gone in: kept in `goa-tell.json` while GOA is busy, hibernated or stopped and over a daemon's restart, put back if typing it fails, the newest 200 kept. Only a stall line of a task since settled is dropped, as moot; a report isn't. With no GOA on the host at all there is no one to tell.
 
@@ -93,6 +130,17 @@ Workers' reports never go through GOA's input box while anything of the user's c
 | Idle | A background hook (`asyncRewake`, 24 hours at most, armed at each start and turn's end) wakes it on exit code 2, the lines as a system reminder | No way in documented: below | Below |
 
 Idle with no such route, or that hook gone: the line waits, and is typed only into a composer sure to be empty, with no key pressed for 5 seconds and nothing at work or asked. A prompt the screen can't be sure of counts as a draft, so the line goes on waiting, shown in GOA's Tasks panel under Waiting for GOA. It never sends with a draft in the prompt. A line waiting goes with the next turn, however that starts. Claude Code's channels also push into an idle session, but they are a research preview, a custom one needs a development flag at each start, and they need Anthropic sign-in, so they aren't used.
+
+## Tasks from Project Docs
+
+`goa delegate --doc NOTE[#SECTION]` (`doc` on `goa_delegate`) hands over a task of a [Project Docs](project-docs.md) project. It reads the project first and refuses while its gate is closed, naming each document in the way; the owner approves in the Notes page. Otherwise it prepends to the prompt what the task needs of the documents, up to 8000 bytes, saying what was cut and how to read it: the section, the PRD's and Technical Spec's sections it is based on, the acceptance criteria not met yet; without such links, the document's outline. A line of that context, `Project Docs: <project ID> <doc ID>#<section>`, ties the task to its project: the board and the protocol don't change, so a daemon of before serves all of it.
+
+The gate holds only with `--doc`: `goa delegate` without it hands over whatever it is given, and the guide tells GOA to stop while the gate is closed.
+
+- `docs plan PROJECT` (`docs_plan`): the Work Breakdown's tasks, written `- [ ] T-1: verb phrase (stage, depends on T-0)`, their dependencies, the board tasks whose title names them, what is ready and the exact command for each. It delegates nothing.
+- `docs progress PROJECT` (`docs_progress`): documents by status, the gate, tasks planned and done, the project's tasks on the board, acceptance criteria done.
+- `docs verify PROJECT --task ID` (`docs_verify`): the task's result beside the criteria that apply to it, the document's or section's own, else User Stories and Acceptance Criteria. It ticks nothing: the checker ticks with `notes check`, only with evidence, and names what remains.
+
 ## Workers' permission prompts
 
 On the worker's host, before each tool call of a GOA worker (its agent's hooks):
@@ -114,13 +162,17 @@ GOA's collection is its folder's (`rag.ProjectID` of GOA's folder), apart from e
 
 **Write with AI**, there and in a project's rules, takes what the user wants in their own words and has an AI write it as clear rules, added after those there, which it sees but never gets to change (`rules.draft`): the app does the adding, exactly as they are, and a new rule that goes against one is shown to the user, not settled. Changing or removing a rule is by hand. It's refused past 32 KB, cutting nothing. Rules that couldn't be read can't be edited or saved over; saving them empty asks first. **Earlier versions** brings back the last 20 before a save (`rules.history`), kept on that host. The first of the host's judges that writes is asked: agents' one-shot commands, then model APIs, then local models, never a decision model, which only picks; the policy *local only* keeps it on the host. The result lands in the editor, to read and undo; nothing is saved until the user saves. Text that looks like it holds a secret isn't sent.
 
+## Project Docs
+
+A project documented as notes hands GOA its tasks, with the approval gate before them: [project-docs.md](project-docs.md#god-of-agents).
+
 ## Commands and tools
 
-`enowx goa board|delegate|task|remember|recall|rules|agents|flags|start` ([cli.md](cli.md#god-of-agents)); MCP `goa_board`, `goa_delegate`, `goa_task`, `goa_remember`, `goa_recall`, `goa_agents` (feature `goa`, always on in GOA's session). Everything else GOA reaches is the rest of enowX's tools, on any host: [goa-tools.md](goa-tools.md).
+`enowx goa board|delegate|task|remember|recall|rules|agents|flags|start|switch` ([cli.md](cli.md#god-of-agents)); MCP `goa_board`, `goa_delegate`, `goa_task`, `goa_remember`, `goa_recall`, `goa_agents`, `docs_plan`, `docs_progress`, `docs_verify`, and `goa_switch`, not offered to GOA itself (feature `goa`, always on in GOA's session). Everything else GOA reaches is the rest of enowX's tools, on any host: [goa-tools.md](goa-tools.md).
 
 ## Protocol
 
-`goa.agents`, `goa.board`, `goa.delegate`, `goa.task`, `goa.override`, `goa.worker`, `goa.flags`, `goa.revert`, `goa.remember`, `goa.recall`, `goa.rules`, `goa.rules.save`, `rules.draft`; events `goa.changed` (the board) and `goa.flagged`; `SessionCreateParams.GOA` and `GOAWorker`, `SessionInfo.GOA` and `GOAWorker`, `SessionAsk.Urgent`. Older daemons ignore the fields and lack the methods: the app's chip then says the host's enowX is too old.
+`goa.agents`, `goa.board`, `goa.delegate`, `goa.task`, `goa.override`, `goa.worker`, `goa.flags`, `goa.revert`, `goa.remember`, `goa.recall`, `goa.rules`, `goa.rules.save`, `goa.switch`, `rules.draft`; events `goa.changed` (the board) and `goa.flagged`; `SessionCreateParams.GOA` and `GOAWorker`, `SessionInfo.GOA` and `GOAWorker`, `SessionAsk.Urgent`. Older daemons ignore the fields and lack the methods: the app's chip then says the host's enowX is too old.
 
 ## What it can't do yet
 
@@ -132,7 +184,7 @@ A task shows its project's name, path and host, kept from when it was delegated 
 
 A session is also read for what stops it, every few seconds, whatever started it, a shell tab with an agent run by hand included (`core/agent/prompts.go`): prompts in bypass mode, startup dialogs, usage limits, signing in, updates, listed by their words; and, for what nobody listed, a screen still for 20 seconds, not saying it works, that ends on a question or a menu. It goes to waiting, GOA's line quotes what's asked and any time it gives, and `session_ask` says the same; when a timed prompt goes, GOA is told to read what happened.
 
-A task for a project goes to that project's own session, even busy, asking, hibernated or started with other permissions (`goa delegate --project`, `core/goa.PickSession`). A busy one has it queued, shown so on the board, delivered at its turn's end, oldest first; if the session ends first the task fails with that said. A new session starts only when the project has none, or on `--branch` or a named `--config`, what the user asked for, and delegate says so. Worktrees and shell tabs don't take a project's tasks. A queued task goes in when its session's turn ends, or, its turn's end unheard as after an interrupt, once its prompt is really free: hooks gone stale, its screen still for 20 seconds, nothing running, and it neither works nor asks by what it shows.
+A task for a project goes to that project's own session, even busy, asking, hibernated or started with other permissions (`goa delegate --project`, `core/goa.PickSession`). A busy one has it queued, shown so on the board and kept over a daemon's restart, delivered at its turn's end, oldest first and one at a time; a queued task goes in only once the task before it has stopped running. Its turn's end is heard from its hooks, or for another host's session from the app. A session whose end went unheard (an interrupt, a daemon's restart, a turn over before the task came) gets it from the stall watch, once its screen has been still for 20 seconds with nothing running. A hibernated session is brought back first. If it can't go in, because its session ended or is gone, can't be brought back, or typing failed, the task fails, the board says why and GOA is told; a failed typing isn't tried again, as it may have gone in. A host that can't be reached keeps it queued, and GOA is told once. A new session starts only when the project has none, or on `--branch` or a named `--config`, what the user asked for, and delegate says so. Worktrees and shell tabs don't take a project's tasks. A queued task goes in when its session's turn ends, or, its turn's end unheard as after an interrupt, once its prompt is really free: hooks gone stale, its screen still for 20 seconds, nothing running, and it neither works nor asks by what it shows.
 
 A task that isn't moving goes to `stalled` on the board until its screen moves, and GOA gets one line naming how, for how long and what the screen shows; a further one comes only after three times the limit, and again each time that passes while it stays stalled. The hook event `session.stalled` fires once per stall, with no hook needed for GOA to be told.
 

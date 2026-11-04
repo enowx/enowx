@@ -166,6 +166,9 @@ type HookEvent struct {
 	Project string `json:"project,omitempty"`
 	Branch  string `json:"branch,omitempty"`
 	Prompt  string `json:"prompt,omitempty"`
+	// Source is why its agent's session started (HookSessionStart): startup,
+	// resume, clear or compact, as its agent says.
+	Source string `json:"source,omitempty"`
 	// Tool is the tool's name, Command its command line or what it was
 	// given, Failed that it failed.
 	Tool    string `json:"tool,omitempty"`
@@ -190,6 +193,13 @@ type HookEvent struct {
 	// PermissionMode is the permission mode the agent's hook reports it in
 	// (permission_mode: Claude Code's, Codex's), "" when it says none.
 	PermissionMode string `json:"permissionMode,omitempty"`
+	// Scratchpad is the agent's own folder for scratch files, if it says.
+	Scratchpad string `json:"scratchpad,omitempty"`
+	// LastMessage is the turn's last message, from an agent whose turn-end hook says it.
+	LastMessage string `json:"lastMessage,omitempty"`
+	// BackgroundTasks is how many tasks the agent says still run as its turn ends, from one
+	// whose turn-end hook says (Claude Code's background_tasks).
+	BackgroundTasks int `json:"backgroundTasks,omitempty"`
 	// Via is how it was seen (HookInAgent, HookOutside).
 	Via  string    `json:"via,omitempty"`
 	Time time.Time `json:"time"`
@@ -204,6 +214,8 @@ type HookDecision struct {
 	Context string `json:"context,omitempty"`
 	Command string `json:"command,omitempty"`
 	Approve bool   `json:"approve,omitempty"`
+	// Ask has the agent ask the user about this tool call, even in a mode that asks nothing.
+	Ask bool `json:"ask,omitempty"`
 	// Continue keeps a turn going to take this, at its end: lines for GOD of Agents.
 	Continue string `json:"continue,omitempty"`
 }

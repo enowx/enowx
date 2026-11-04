@@ -26,11 +26,16 @@ func GuideArgs(id string) []string { return guideArgsWith(id, Guide, GuideFile) 
 // the user has on.
 func GuideArgsText(id, text string) []string { return guideArgsWith(id, text, GuideFile) }
 
+// GuideArgsIn is GuideArgsText for a session whose agent reads the file at path.
+func GuideArgsIn(id, text, path string) []string {
+	return guideArgsWith(id, text, func() string { return path })
+}
+
 // guideArgsWith gives agent id text as GuideArgs gives the Guide; file is
 // where the agents that take a file read it.
 func guideArgsWith(id, text string, file func() string) []string {
 	switch id {
-	case "claude", "claude-agent-teams", "openclaude", "qoder", "qoder-cn", "omp", "prime-agent", "droid", "qwen-code", "codebuddy":
+	case "claude", PlatformID, "claude-agent-teams", "openclaude", "qoder", "qoder-cn", "omp", "prime-agent", "droid", "qwen-code", "codebuddy":
 		return []string{"--append-system-prompt", text}
 	case "codex":
 		if own := codexInstructions(); own != "" {

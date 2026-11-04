@@ -152,6 +152,8 @@ func TestGOARefusesDoingTheWorkItself(t *testing.T) {
 		`{"tool_name":"Bash","tool_input":{"command":"go test ./..."}}`,
 		`{"tool_name":"Bash","tool_input":{"command":"\"$ENOWX_BIN\" ls; sed -i s/a/b/ totals.go"}}`,
 		`{"tool_name":"Task","tool_input":{"prompt":"fix it"}}`,
+		`{"tool_name":"Edit","tool_input":{"file_path":"/src/shop/totals.go","old_string":"a","new_string":"b"}}`,
+		`{"tool_name":"Write","tool_input":{"file_path":"/src/shop/plan.md","content":"# Plan"}}`,
 	}
 	for _, in := range refused {
 		code, _, reason := hookOf(in, "--event", proto.HookToolBefore)
@@ -169,10 +171,10 @@ func TestGOARefusesDoingTheWorkItself(t *testing.T) {
 		}
 	}
 	for in, unasked := range map[string]bool{
-		`{"tool_name":"Read","tool_input":{"file_path":"/src/shop/totals.go"}}`:                                   true,
-		`{"tool_name":"Read","tool_input":{"file_path":"/src/shop/.env"}}`:                                        false,
-		`{"tool_name":"Edit","tool_input":{"file_path":"/src/shop/totals.go","old_string":"a","new_string":"b"}}`: false,
-		`{"tool_name":"Write","tool_input":{"file_path":"/src/shop/plan.md","content":"# Plan"}}`:                 false,
+		`{"tool_name":"Read","tool_input":{"file_path":"/src/shop/totals.go"}}`:                         true,
+		`{"tool_name":"Read","tool_input":{"file_path":"/src/shop/.env"}}`:                              false,
+		`{"tool_name":"Edit","tool_input":{"file_path":"totals.go","old_string":"a","new_string":"b"}}`: false,
+		`{"tool_name":"Write","tool_input":{"file_path":"plan.md","content":"# Plan"}}`:                 false,
 	} {
 		code, out, reason := hookOf(in, "--event", proto.HookToolBefore)
 		if code != 0 || strings.Contains(out, `"permissionDecision":"allow"`) != unasked {
@@ -650,7 +652,7 @@ func TestGOABringsSessionsBack(t *testing.T) {
 		t.Fatal(err)
 	}
 	waitFor(t, "it ended", func() bool { return plain.Info().Exited })
-	if task, err := delegate(proto.GOADelegateParams{Session: plain.ID(), Prompt: "lost task"}); err == nil || !strings.Contains(err.Error(), "can't be brought back") {
+	if task, err := delegate(proto.GOADelegateParams{Session: plain.ID(), Prompt: "lost task"}); err == nil || !strings.Contains(err.Error(), "can't come back") {
 		t.Fatalf("a session that can't come back: %+v %v", task, err)
 	}
 	if n := len(a.goa.board.List()); n != before {
@@ -786,8 +788,8 @@ func TestSkipUnheardAgents(t *testing.T) {
 		t.Skip("uses sh")
 	}
 	bin := t.TempDir()
-	for _, name := range []string{"opencode", "claude"} {
-		if err := os.WriteFile(filepath.Join(bin, name), []byte("#!/bin/sh\nsleep 60\n"), 0o755); err != nil {
+	for _, name := range []string{"opencode", "claude", "codex"} {
+		if err := os.WriteFile(filepath.Join(bin, name), []byte("#!/bin/sh\n[ \"$1\" = --version ] && { echo 1.0.0; exit 0; }\nsleep 60\n"), 0o755); err != nil {
 			t.Fatal(err)
 		}
 	}
@@ -809,7 +811,7 @@ func TestSkipUnheardAgents(t *testing.T) {
 	if s := create(proto.SessionCreateParams{Agent: "opencode", SkipUnheard: true}); !s.SkipPermissions {
 		t.Fatal("OpenCode's prompts would wait unseen")
 	}
-	if s := create(proto.SessionCreateParams{Agent: "claude", SkipUnheard: true}); s.SkipPermissions {
+	if s := create(proto.SessionCreateParams{Agent: "codex", SkipUnheard: true}); s.SkipPermissions {
 		t.Fatal("an agent with hooks was put in bypass though nobody asked")
 	}
 
@@ -829,8 +831,8 @@ func TestSkipUnheardAgents(t *testing.T) {
 		t.Fatal("a worker skipped with no GOA that keeps prompts skipped")
 	}
 	g := create(proto.SessionCreateParams{Agent: "claude", GOA: true, SkipUnheard: true})
-	if g.SkipPermissions || !g.SkipUnheard {
-		t.Fatalf("GOA on an agent with hooks: %+v", g)
+	if !g.SkipPermissions || !g.SkipUnheard {
+		t.Fatalf("GOA on Claude Code, which always skips: %+v", g)
 	}
 	if w := worker(); !w.SkipPermissions {
 		t.Fatal("GOA's OpenCode worker would wait on a prompt it can't hear of")

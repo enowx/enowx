@@ -83,3 +83,45 @@ func TestBuildAPage(t *testing.T) {
 		t.Fatalf("picked: %v", picked)
 	}
 }
+
+// The panel closes at any stage, and a long review stays inside the window, scrolling.
+func TestBuildPanelClosesAndFits(t *testing.T) {
+	cv := proto.Canvas{CanvasInfo: proto.CanvasInfo{ID: "c1", Title: "Ledger", Kind: proto.CanvasMockup},
+		Frames: []proto.CanvasFrame{{ID: "f1", Name: "One", Width: 1440, Height: 900, HTML: `<main>A</main>`}, {ID: "f2", Name: "Two", Width: 1440, Height: 900, HTML: `<main>B</main>`}}}
+	o := Options{Load: func(id string, done func(proto.Canvas, error)) { done(cv, nil) },
+		Comments: func(id string, done func([]proto.CanvasComment, error)) { done(nil, nil) },
+		Edit:     func(e proto.CanvasEdit, done func(proto.Canvas, error)) { done(cv, nil) },
+		Canvases: []proto.CanvasInfo{cv.CanvasInfo}}
+	var issues []string
+	for range 60 {
+		issues = append(issues, "Polish: a long note of what the review found, that wraps over a few lines of the panel")
+	}
+	o.BuildRun = &proto.CanvasBuildRun{ID: "c1", What: "A pricing page", Stage: proto.BuildReviewing,
+		Review: &proto.DesignReview{Round: 1, Done: true, Score: 6, Issues: issues, Keep: "the last words"}}
+	v := &View{}
+	v.Open(o, "c1")
+	tt := ui.NewTester(func(c *ui.Context) {
+		ui.Column(c).Width(900).Height(500).TextColor(theme.Text).Background(theme.Background).Children(func() {
+			v.Draw(c, o)
+		})
+	}, 900, 500)
+	tt.Frame()
+	tt.Frame()
+	if !tt.HasText("Independent review · round 1") {
+		t.Fatalf("no review: %q", tt.Texts())
+	}
+	head, ok := tt.Find("Independent review · round 1")
+	if !ok || head.Y < 0 {
+		t.Fatalf("its review is off the window: %+v, %v", head, ok)
+	}
+	if head, ok := tt.Find("Build"); !ok || head.Y < 0 {
+		t.Fatalf("its head, with Close, is off the window: %+v, %v", head, ok)
+	}
+	if err := tt.Click("Close"); err != nil {
+		t.Fatalf("no Close while it runs: %v", err)
+	}
+	tt.Frame()
+	if tt.HasText("Independent review · round 1") {
+		t.Fatal("still shown")
+	}
+}

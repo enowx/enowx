@@ -20,6 +20,7 @@ import (
 
 	"github.com/enowx/enowx/cli"
 	"github.com/enowx/enowx/core/hosts"
+	"github.com/enowx/enowx/core/memtune"
 	"github.com/enowx/enowx/daemon"
 	"github.com/enowx/enowx/transport"
 	enowxui "github.com/enowx/enowx/ui"
@@ -64,6 +65,11 @@ func main() {
 		return
 	}
 
+	if !takeLinks() {
+		return // the app already running got this launch's link
+	}
+
+	memtune.Start(nil) // for the app; a daemon of this program starts its own in Run
 	remote := flag.String("remote", "", "open the server at `user@host[:port]` over SSH")
 	project := flag.String("project", "", "open `DIR` (a path on that host) as a project")
 	flag.Parse()
@@ -98,6 +104,8 @@ func main() {
 		ResumeHost:    *remote == "",
 		Onboarding:    true,
 	})
+	// Before Run, for the link a launch brings.
+	mygo.App.OnOpenURL(app.OpenLink)
 	mygo.App.WhenReady(func() { app.Open() })
 	if err := mygo.App.Run(); err != nil {
 		log.Fatal(err)

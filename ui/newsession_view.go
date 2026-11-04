@@ -7,6 +7,7 @@ import (
 	"github.com/enowx/enowx/core/agent"
 	"github.com/enowx/enowx/core/hosts"
 	"github.com/enowx/enowx/proto"
+	"github.com/enowx/enowx/ui/chatview"
 	"github.com/enowx/enowx/ui/icon"
 	"github.com/enowx/enowx/ui/theme"
 	"github.com/enowx/enowx/ui/widget"
@@ -44,6 +45,9 @@ func (a *App) newSessionDialog(c *ui.Context) {
 		ui.Column(c.Key("agent-project")).FillWidth().Shrink(0).Children(func() {
 			widget.FieldCols(c, func() { a.agentPicker(c) }, func() { a.projectPicker(c) })
 		})
+		if chatview.OwnChat(f.agent) {
+			a.platformNewSessionNote(c)
+		}
 		if install {
 			a.installCard(c, ag)
 			a.formError(c)
@@ -67,7 +71,7 @@ func (a *App) newSessionDialog(c *ui.Context) {
 		if ag.SignIn != "" {
 			a.signInCard(c, ag)
 		}
-		if ag.CanSkipPermissions {
+		if ag.CanSkipPermissions && !ag.AlwaysSkips {
 			a.skipPermissionsField(c)
 		}
 		if f.project.IsGit {
@@ -240,7 +244,7 @@ func (a *App) agentPicker(c *ui.Context) {
 					missing = append(missing, ag)
 				}
 			}
-			widget.Scroll(c).FillWidth().MaxHeight(420).Children(func() {
+			widget.Scroll(c).FillWidth().MaxHeight(widget.PopupRoom(c, sel.Trigger, 420)).Children(func() {
 				ui.Column(c).FillWidth().Children(func() {
 					for i, ag := range here {
 						if ag.ID == agent.Shell && i > 0 {
@@ -339,7 +343,7 @@ func branchSelect(c *ui.Context, value *string, branches []string) {
 		ui.Icon(c, icon.ChevronDown).FontSize(12).TextColor(theme.TextSoft)
 	})
 	sel.Popup(func(panel ui.Element) {
-		widget.Popup(panel.Margin(theme.S1, 0, 0, 0).MinWidth(180).MaxWidth(360).MaxHeight(280))
+		widget.Popup(panel.Margin(theme.S1, 0, 0, 0).MinWidth(180).MaxWidth(360).MaxHeight(widget.PopupRoom(c, sel.Trigger, 280)))
 		widget.Scroll(c).FillWidth().Children(func() {
 			for _, b := range branches {
 				item := sel.Item(b)

@@ -22,6 +22,7 @@ func init() {
 	adapters["claude"] = claudeCode
 	adapters["codex"] = codex
 	adapters["opencode"] = openCodeLike("opencode", ".config/opencode/opencode.json")
+	adapters["opencode2"] = adapters["opencode"]
 	adapters["kilo"] = openCodeLike("kilo", ".config/kilo/kilo.json")
 	adapters["gemini"] = geminiCLI
 	adapters["antigravity"] = antigravity

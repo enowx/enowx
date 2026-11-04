@@ -156,6 +156,17 @@ func TestCommandLineDrivesTheDaemon(t *testing.T) {
 	if out := run("status", "helper"); strings.Contains(out, "hibernated") {
 		t.Fatalf("woken, still %s", out)
 	}
+	// Sent to while hibernated, it comes back and says so: not a plain "Done" with nothing
+	// arriving, as session_send answered.
+	run("hibernate", "helper", "--force")
+	if out := run("send", "helper", "while it slept"); !strings.Contains(out, "brought back on its conversation") {
+		t.Fatalf("send to one hibernated:\n%s", out)
+	}
+	for deadline := time.Now().Add(10 * time.Second); !strings.Contains(run("read", id), "heard: while it slept"); time.Sleep(200 * time.Millisecond) {
+		if time.Now().After(deadline) {
+			t.Fatalf("never heard:\n%s", run("read", id))
+		}
+	}
 	if !strings.Contains(run("agents"), "claude") {
 		t.Fatal("agents doesn't list the claude on PATH")
 	}

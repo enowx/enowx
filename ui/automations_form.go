@@ -40,7 +40,7 @@ func (a *App) automationForm(c *ui.Context, st *automationsState) {
 				Placeholder("Triage the issues opened since yesterday and summarize them")
 		})
 		switchRow(c, &e.Branch, "Own branch", "In a worktree of its own, so runs don't touch each other or your work; otherwise in the project folder.")
-		switchRow(c, &e.SkipPermissions, "Skip permission prompts", "Nobody may be there to answer them.")
+		switchRow(c, &e.SkipPermissions, "Skip permission prompts", "Nobody may be there to answer them. Claude Code always skips them.")
 	}, func() {
 		ok := strings.TrimSpace(e.Name) != "" && strings.TrimSpace(e.Prompt) != "" && !st.busy
 		if widget.PrimaryButton(c, icon.Check, "Save", "").Disabled(!ok).Clicked() && ok {
@@ -60,7 +60,7 @@ func (a *App) automationProjectPick(c *ui.Context, project *string) {
 	})
 	sel.Popup(func(panel ui.Element) {
 		widget.Popup(panel.Margin(theme.S2, 0, 0, 0).Width(300))
-		widget.Scroll(c).FillWidth().MaxHeight(300).Children(func() {
+		widget.Scroll(c).FillWidth().MaxHeight(widget.PopupRoom(c, sel.Trigger, 300)).Children(func() {
 			ui.Column(c).FillWidth().Children(func() {
 				for _, p := range a.projects {
 					item := sel.Item(p.Path)
@@ -81,7 +81,7 @@ func (a *App) automationAgentPick(c *ui.Context, id *string) {
 	})
 	sel.Popup(func(panel ui.Element) {
 		widget.Popup(panel.Margin(theme.S2, 0, 0, 0).Width(300))
-		widget.Scroll(c).FillWidth().MaxHeight(300).Children(func() {
+		widget.Scroll(c).FillWidth().MaxHeight(widget.PopupRoom(c, sel.Trigger, 300)).Children(func() {
 			ui.Column(c).FillWidth().Children(func() {
 				for _, ag := range a.agents {
 					if ag.Command == "" || !ag.Installed {

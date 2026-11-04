@@ -247,6 +247,9 @@ func (n *noteImports) stopAll() {
 
 // exportNotes writes the notes p picks to p.Out, or for the app to read.
 func (s *Server) exportNotes(p proto.NoteExportParams) (proto.NoteExported, error) {
+	if p.Format == proto.ExportRepo {
+		return s.exportRepo(p)
+	}
 	sel := notesio.Selection{IDs: p.IDs, Group: p.Group, All: p.All}
 	if len(p.IDs) == 0 && p.Group == "" && !p.All {
 		return proto.NoteExported{}, errors.New("export: pick notes, a group, or all")

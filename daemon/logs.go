@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/enowx/enowx/core/diag"
+	"github.com/enowx/enowx/core/selfprofile"
 	"github.com/enowx/enowx/proto"
 )
 
@@ -14,6 +15,7 @@ const logsSweepEvery = 6 * time.Hour
 
 func init() {
 	slowMethods[proto.MethodDaemonDiagnostics] = true // it reads files
+	slowMethods[proto.MethodDaemonRestartPlan] = true // it samples processes
 }
 
 // daemonLogWriter is where the daemon's logger writes: its log, and its output too
@@ -25,7 +27,7 @@ func daemonLogWriter(l *diag.Log) io.Writer {
 			return l
 		}
 	}
-	return io.MultiWriter(os.Stderr, l)
+	return io.MultiWriter(diag.Scrubbed(os.Stderr), l) // a service's output lands in the journal
 }
 
 // keepLogsSwept removes what is past the logs' limits until done.
@@ -50,5 +52,8 @@ func keepLogsSwept(dir string, done <-chan struct{}, l *diag.Log) {
 
 // diagnostics reads this host's logs for a bug report.
 func (s *Server) diagnostics() proto.Diagnostics {
-	return proto.Diagnostics{Version: Version, Files: diag.Collect(s.dataDir)}
+	files := diag.Collect(s.dataDir)
+	me := selfprofile.Take(selfprofile.Options{Kind: "daemon", Version: Version, Areas: s.profileAreas})
+	files = append(files, proto.DiagFile{Name: diag.ProfileFile, Text: diag.Scrub(selfprofile.TextOf(me))})
+	return proto.Diagnostics{Version: Version, Files: files}
 }

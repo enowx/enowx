@@ -12,6 +12,8 @@ import (
 	"net/url"
 	"strings"
 	"time"
+
+	"github.com/enowx/enowx/cloud/library"
 )
 
 // Signing in to the cloud's pages with GitHub (OAuth's web flow): the
@@ -111,6 +113,11 @@ func (s *Server) githubCallback(w http.ResponseWriter, r *http.Request) {
 	acc, err := s.db.GitHubAccount(r.Context(), user.ID, user.Login, user.Name, user.Email, user.Avatar)
 	if err != nil {
 		s.pageInternal(w, err)
+		return
+	}
+	// Signing in to the library joins no team, and starts no session here.
+	if s.library != nil && library.IsSignIn(next) {
+		s.library.FinishSignIn(w, r, acc.ID, next)
 		return
 	}
 	s.joinDefault(r.Context(), acc.ID)

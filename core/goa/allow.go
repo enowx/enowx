@@ -7,8 +7,8 @@ import (
 )
 
 // metaTools are an agent's own tools that do no work: loading enowX's
-// tools, keeping a to-do list.
-var metaTools = map[string]bool{"ToolSearch": true, "TodoWrite": true, "ListMcpResourcesTool": true, "ReadMcpResourceTool": true}
+// tools, keeping a to-do list, asking the user.
+var metaTools = map[string]bool{"ToolSearch": true, "TodoWrite": true, "AskUserQuestion": true, "ListMcpResourcesTool": true, "ReadMcpResourceTool": true}
 
 // readTools and editTools are agents' tools for a file: GOA reads a
 // project's context and writes what is small itself, and hands the rest
@@ -35,6 +35,50 @@ func Allowed(tool, command, bin string) (ok bool, why string) {
 		return false, "GOD of Agents runs enowX's commands and ones that only read (\"$ENOWX_BIN\" …, cat, rg …, one command, nothing chained, no secrets): hand this to a session with goa delegate"
 	}
 	return false, "GOD of Agents reads and edits files and uses enowX's tools; " + tool + " is refused. Hand this to a session (goa delegate)"
+}
+
+// agentSettings are what an agent loads from a folder when it starts there: hooks and
+// plugins run as programs, and they could give it back what GOA lacks.
+var agentSettings = map[string]bool{".claude": true, ".codex": true, ".opencode": true, ".mcp.json": true, "opencode.json": true, "opencode.jsonc": true}
+
+// EditInside says whether tool, if it edits, stays in GOA's folder dir: its files only,
+// through whatever links lead there, and not its agent's settings. Paths are relative to
+// dir or absolute. Codex's apply_patch names none: its sandbox holds it.
+func EditInside(tool string, paths []string, dir string) (ok bool, why string) {
+	if !editTools[tool] || tool == "apply_patch" && len(paths) == 0 {
+		return true, ""
+	}
+	refuse := "GOD of Agents edits only in its own folder, and not its agent's settings there: hand this to a session (goa delegate)"
+	if len(paths) == 0 {
+		return false, refuse
+	}
+	root := realPath(dir)
+	for _, p := range paths {
+		if !filepath.IsAbs(p) {
+			p = filepath.Join(dir, p)
+		}
+		rel, err := filepath.Rel(root, realPath(p))
+		if err != nil || rel == "." || rel == ".." || strings.HasPrefix(rel, ".."+string(filepath.Separator)) {
+			return false, refuse
+		}
+		if first, _, _ := strings.Cut(filepath.ToSlash(rel), "/"); agentSettings[first] {
+			return false, refuse
+		}
+	}
+	return true, ""
+}
+
+// realPath is p with its links followed, as far as it exists.
+func realPath(p string) string {
+	p = filepath.Clean(p)
+	if real, err := filepath.EvalSymlinks(p); err == nil {
+		return real
+	}
+	parent := filepath.Dir(p)
+	if parent == p {
+		return p
+	}
+	return filepath.Join(realPath(parent), filepath.Base(p))
 }
 
 // ReadOnly says whether tool call only reads a file, so nothing is lost

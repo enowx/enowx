@@ -17,6 +17,30 @@ const (
 	MethodRulesHistory = "rules.history"
 )
 
+// How an agent got the rules (SessionRules.Via).
+const (
+	RulesViaStart = "start" // in what it loads as it starts: its system prompt, or a file named on its command line
+	RulesViaHook  = "hook"  // added to its context by its own hook
+	RulesViaFile  = "file"  // in the guide's file it is told to read: not known read
+	RulesViaAsked = "asked" // printed for it, when it ran the guide
+)
+
+// SessionRules is what a session's agent has of the rules that hold for it,
+// saved with the session. A version is the first characters of the rules' hash,
+// "" for no rules.
+type SessionRules struct {
+	For     string    `json:"for,omitempty"`     // whose: RulesForProject, RulesForGOA
+	Version string    `json:"version,omitempty"` // the version it last got
+	Current string    `json:"current,omitempty"` // the version there is now
+	Via     string    `json:"via,omitempty"`     // how it got that (RulesVia*)
+	At      time.Time `json:"at,omitzero"`       // when
+	// Again: it compacted or resumed, so its hook gives them once more.
+	Again bool `json:"again,omitempty"`
+	// Hook: its hooks can give it the rules, so a change reaches it with its
+	// next prompt; otherwise only what it reads.
+	Hook bool `json:"hook,omitempty"`
+}
+
 // RulesMaxBytes is the most rules hold: they go in every session's guide.
 const RulesMaxBytes = 32 << 10
 

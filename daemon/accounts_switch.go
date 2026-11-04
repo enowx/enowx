@@ -1,6 +1,7 @@
 package daemon
 
 import (
+	"errors"
 	"fmt"
 	"slices"
 	"strings"
@@ -39,6 +40,10 @@ func (s *Server) switchAgent(p proto.AccountSwitchParams) (proto.SessionInfo, er
 		return proto.SessionInfo{}, err
 	}
 	info, meta := sess.Info(), sess.Meta()
+	if meta.GOA {
+		// Started here it would be no GOA: held by nothing, on an agent perhaps not proven.
+		return proto.SessionInfo{}, errors.New("goa: GOD of Agents changes agent only by its own Settings or `goa switch`, never by itself")
+	}
 	preset, ok := agent.Find(p.Agent)
 	if !ok {
 		return proto.SessionInfo{}, fmt.Errorf("unknown agent %q", p.Agent)
@@ -52,7 +57,7 @@ func (s *Server) switchAgent(p proto.AccountSwitchParams) (proto.SessionInfo, er
 			acc = a.ID
 		}
 	}
-	chat := s.chatOf("", "", s.guideFor(meta))
+	chat := s.chatOf("", "", s.guideIn(meta, info.Dir))
 	chat.store = s.agentStore(preset.ID, info.ID, true)
 	chat.files = s.agentFilesDir(info.ID)
 	next := meta
@@ -62,7 +67,8 @@ func (s *Server) switchAgent(p proto.AccountSwitchParams) (proto.SessionInfo, er
 		return proto.SessionInfo{}, err
 	}
 	chat.config = run
-	keep := proto.SessionCreateParams{Agent: preset.ID, Prompt: prompt, SkipPermissions: meta.SkipPermissions}
+	// A Claude Code session always skips, which nobody asked of the agent taking over.
+	keep := proto.SessionCreateParams{Agent: preset.ID, Prompt: prompt, SkipPermissions: meta.SkipPermissions && !agent.AlwaysSkips(meta.Agent)}
 	if agent.Base(preset.ID) == agent.Base(meta.Agent) {
 		keep.Model, keep.Effort, keep.Mode = meta.Model, meta.Effort, meta.Mode // the same agent: only its account changes
 	}
@@ -79,12 +85,14 @@ func (s *Server) switchAgent(p proto.AccountSwitchParams) (proto.SessionInfo, er
 	}
 	meta.Agent, meta.Account, meta.AccountFirst, meta.Conversation, meta.Config = preset.ID, acc, "", "", run.sessionInfo()
 	meta.Restart, meta.Relaunch, meta.SkipPermissions = l.restart, l.relaunch, l.skip
+	keepBypass(&meta)
+	meta.Rules = s.rulesAtStart(meta, info.Dir, true)
 	env, err := s.agentEnv(meta)
 	if err != nil {
 		return proto.SessionInfo{}, err
 	}
 	spec := session.Spec{ID: info.ID, Dir: info.Dir, Created: info.Created, History: sess.History(),
-		Env: append(append(append(append(s.hostEnvFor(meta.Member), env...), l.env...), s.vaultEnvFor(info.ID, meta.Project, meta.Creds)...), run.environ()...), Command: l.command, Meta: meta}
+		Env: append(append(append(append(s.hostEnvFor(meta.Member), env...), l.env...), s.vaultEnvFor(info.ID, meta.Project, s.agentCreds(meta.Agent, meta.Project, meta.Account, meta.Creds), meta.Agent)...), run.environ()...), Command: l.command, Meta: meta}
 	started, err := s.sessions.Replace(spec)
 	if err != nil {
 		return proto.SessionInfo{}, err

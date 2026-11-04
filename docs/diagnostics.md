@@ -7,7 +7,9 @@ What explains a problem later, where it is, how to read it, and how much disk it
 - **In the app:** command palette → **Save diagnostics for a bug report**. It writes a zip to Downloads: this device's logs and, for a remote host, that host's (`daemon.diagnostics`).
 - **On any host:** `enowx-app diagnostics` prints the recent connection events of its app and daemon, merged by time. `--all` shows the end of both logs, `--lines N` how many, and `--bundle FILE` writes the zip. It reads the files itself, so it works with the daemon down.
 
-A bundle holds the logs below and the five newest freeze reports, 6 MiB of each at most (the end). It doesn't hold the whole outputs in the temporary folder: those are commands' output.
+- **What the programs hold:** `enowx-app profile` measures the running daemon and the app attached to it, restarting nothing and changing nothing: system memory (RSS, PSS and the page kinds on Linux, the physical footprint on macOS), the Go heap, which code holds it, goroutines, CPU over a window with `--cpu N`, pprof files with `--out DIR`, and what sessions' programs take. See [performance.md](performance.md).
+
+A bundle holds the logs below, the five newest freeze reports, 6 MiB of each at most (the end), and `profile.txt`, that profile when it was made, if the programs answered. It doesn't hold the whole outputs in the temporary folder: those are commands' output.
 
 ## The files
 
@@ -43,6 +45,8 @@ Lines read `TIME EVENT key=value…`, with the same connection's `conn=` on both
 | `canvas.load` | app | which canvas, its designs, its HTML's size, how long |
 | `webview.created`, `webview.destroyed`, `webview.render` | app | the Canvas page's web view; a hidden one for a render (at most once in 10 s) |
 | `frame.slow` | app | a frame over 250 ms, with what was on screen, at most once in 30 s |
+| `daemon.kept`, `daemon.replaceAsked`, `daemon.replaceWhenDone` | app | a daemon of another version left running, with how much it runs; replacing it, asked for or once nothing would stop |
+| `restart.plan`, `restart.noted`, `restart.tabAgent`, `restart.carryOn` | daemon | what a restart would stop; what was noted of a session as the daemon stopped; an agent brought back in a terminal; an agent told to carry on |
 | `logs.swept` | both | files and bytes removed |
 | `log.dropped` | both | lines lost because the writer fell behind |
 

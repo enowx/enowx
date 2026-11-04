@@ -68,23 +68,40 @@ func (v *View) buildHUD(c *ui.Context, o Options, cv proto.Canvas) {
 	if run == nil || run.ID != cv.ID || v.buildClosed == run.What+run.Stage {
 		return
 	}
-	raised(ui.Column(c.Key("build-hud")).Absolute().Left(theme.S3).Bottom(v.hudBottom(cv)).Width(hudWidth).Padding(theme.S3, theme.S4).Gap(theme.S2).Radius(theme.RadiusCard)).Children(func() {
+	// However long what it says: it fits above where it floats, its body scrolling.
+	bottom := v.hudBottom(cv)
+	room := ui.Box(c.Key("build-hud:room")).Absolute().Top(0).Bottom(bottom).Left(0).Width(0).Bounds().H
+	card := raised(ui.Column(c.Key("build-hud")).Absolute().Left(theme.S3).Bottom(bottom).Width(hudWidth).Padding(theme.S3, theme.S4).Gap(theme.S2).Radius(theme.RadiusCard))
+	if room > 0 {
+		card.MaxHeight(max(room-theme.S3, 80))
+	}
+	// The nearest element handling input gets a scroll first: without this the board takes it.
+	card.HandleInput(func(ev ui.InputEvent) bool { return ev.Kind == ui.InputZoom })
+	if v.sel == "" && v.editing == nil && c.Shortcut(0, ui.KeyEscape) {
+		v.buildClosed = run.What + run.Stage
+	}
+	card.Children(func() {
 		ui.Row(c.Key("head")).FillWidth().Gap(theme.S2).MinHeight(theme.ControlHeight).AlignItems(ui.Center).Children(func() {
 			ui.Text(c, "Build").FontSize(theme.TextUI).FontWeight(600).TextColor(theme.TextStrong).SingleLine().Shrink(0)
 			ui.Row(c).Grow(1).MinWidth(0).Children(func() {
 				widget.Running(c, run.What, widget.RunStyle{Size: theme.TextLabel, Color: theme.TextSoft})
 			})
-			if run.Done && widget.IconButton(c, icon.Close, "Close", false).Clicked() {
+			// Closed at any stage, not only once it is done: the next stage shows it again.
+			if widget.IconButton(c, icon.Close, "Close", false).Clicked() {
 				v.buildClosed = run.What + run.Stage
 			}
 		})
 		buildStepper(c, run.Stage)
-		if len(run.Directions) > 0 {
-			v.buildDirections(c, o, cv, *run)
-		}
-		if run.Review != nil {
-			unslopview.DrawReview(c, *run.Review, o.OpenReviewer)
-		}
+		widget.Scroll(c.Key("body")).FillWidth().Shrink(1).MinHeight(0).Children(func() {
+			ui.Column(c).FillWidth().Gap(theme.S2).Children(func() {
+				if len(run.Directions) > 0 {
+					v.buildDirections(c, o, cv, *run)
+				}
+				if run.Review != nil {
+					unslopview.DrawReview(c, *run.Review, o.OpenReviewer)
+				}
+			})
+		})
 	})
 }
 

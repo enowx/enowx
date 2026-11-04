@@ -197,9 +197,9 @@ func (a *App) goaSessionLine(host string, s proto.SessionInfo) (string, ui.Color
 		return "Needs you: " + t.Asks, theme.Warning
 	case t != nil:
 		if t.NoReport {
-			return t.Title + " · " + t.Status + " · no report", theme.Warning
+			return t.Title + " · " + goaStatusWord(*t) + " · no report", theme.Warning
 		}
-		return t.Title + " · " + t.Status, theme.TextSoft
+		return t.Title + " · " + goaStatusWord(*t), theme.TextSoft
 	}
 	return host + " · " + goaSentence(statusOf(s).label), theme.TextSoft
 }
@@ -336,7 +336,7 @@ func (a *App) goaTaskRow(c *ui.Context, t proto.GOATask) {
 		m.Children(func() {
 			ui.Column(c).Grow(1).MinWidth(0).Children(func() {
 				widget.Running(c, t.Title, widget.RunStyle{})
-				widget.Running(c.Key("on"), name+" · "+taskRanOn(t, s, shown), widget.RunStyle{Size: theme.TextLabel, Color: theme.TextSoft})
+				widget.Running(c.Key("on"), name+" · "+taskRanOn(t, s, shown)+taskBackground(t), widget.RunStyle{Size: theme.TextLabel, Color: theme.TextSoft})
 			})
 		})
 		if m.Clicked() {
@@ -364,7 +364,7 @@ func goaSentence(s string) string {
 
 // goaTaskState is a task's state: its dot and word.
 func goaTaskState(c *ui.Context, t proto.GOATask) {
-	label := goaSentence(t.Status)
+	label := goaSentence(goaStatusWord(t))
 	if t.Urgent != "" && t.Status == proto.GOATaskWaiting {
 		label = "Waiting on you"
 	}
@@ -374,9 +374,19 @@ func goaTaskState(c *ui.Context, t proto.GOATask) {
 	widget.Legend(c, goaStatusColor(t), label)
 }
 
+// goaStatusWord is a task's status as shown: asleep rather than the working it stopped at.
+func goaStatusWord(t proto.GOATask) string {
+	if t.Asleep {
+		return "asleep"
+	}
+	return t.Status
+}
+
 // goaStatusColor is a task's status as a color.
 func goaStatusColor(t proto.GOATask) ui.Color {
 	switch {
+	case t.Asleep:
+		return theme.Idle
 	case t.Urgent != "" && t.Status == proto.GOATaskWaiting, t.Status == proto.GOATaskStalled:
 		return theme.Warning
 	case t.Status == proto.GOATaskWorking:
@@ -395,13 +405,16 @@ func goaStatusColor(t proto.GOATask) ui.Color {
 // effort and why, where it runs, what it asks, its result.
 func (a *App) goaTaskBody(c *ui.Context, t proto.GOATask) {
 	widget.KV(c, "Task", t.Title, false)
-	widget.KV(c, "State", t.Status+" · "+textfmt.Age(t.Created, time.Now()), false)
+	widget.KV(c, "State", goaStatusWord(t)+" · "+textfmt.Age(t.Created, time.Now()), false)
 	s, shown := a.sessionOn(a.goaHostName(t.Host), t.Session)
 	model := taskRanOn(t, s, shown)
 	if t.Config != "" {
 		model += " · " + t.Config
 	}
 	widget.KV(c, "Model", model, false)
+	if line, _ := backgroundLine(proto.SessionInfo{Background: t.Background}, time.Now()); line != "" {
+		widget.KV(c, "Background", line, false)
+	}
 	if t.Why != "" {
 		widget.KV(c, "Why", t.Why, false)
 	}
@@ -429,6 +442,21 @@ func (a *App) goaHostName(host string) string {
 		}
 	}
 	return host
+}
+
+// taskBackground says the agents in a task's worker's background.
+func taskBackground(t proto.GOATask) string {
+	if len(t.Background) == 0 {
+		return ""
+	}
+	names := make([]string, len(t.Background))
+	for i, b := range t.Background {
+		names[i] = b.Name
+		if b.Stuck {
+			names[i] += " (stuck)"
+		}
+	}
+	return fmt.Sprintf(" · %d in background: %s", len(names), strings.Join(names, ", "))
 }
 
 // taskRanOn is what a task really runs on: what its agent said, a session on
@@ -550,7 +578,7 @@ func goaChoice(c *ui.Context, label string, value *string, choices []agent.Choic
 		ui.Icon(c, icon.ChevronDown).FontSize(12).TextColor(theme.TextSoft)
 	})
 	sel.Popup(func(panel ui.Element) {
-		widget.Popup(panel.Margin(theme.S1, 0, 0, 0).MinWidth(220).MaxHeight(280))
+		widget.Popup(panel.Margin(theme.S1, 0, 0, 0).MinWidth(220).MaxHeight(widget.PopupRoom(c, sel.Trigger, 280)))
 		widget.Scroll(c).FillWidth().Children(func() {
 			item := func(id, name string) {
 				it := sel.Item(id)

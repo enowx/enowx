@@ -39,6 +39,14 @@ func SaveConfig(dir string, c Config) error {
 	} else {
 		delete(all, "worktree")
 	}
+	if c.GuideBlockOff() {
+		all["guide"] = map[string]any{"block": false}
+	} else if g, _ := all["guide"].(map[string]any); g != nil {
+		delete(g, "block")
+		if len(g) == 0 {
+			delete(all, "guide")
+		}
+	}
 	if len(all) == 0 {
 		if err := os.Remove(path); err != nil && !errors.Is(err, fs.ErrNotExist) {
 			return fmt.Errorf("project: %s: %w", ConfigFile, err)

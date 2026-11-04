@@ -2,8 +2,10 @@ package usersync
 
 import (
 	"crypto/rand"
+	"crypto/sha256"
 	"encoding/hex"
 	"fmt"
+	"io"
 	"maps"
 	"path"
 	"slices"
@@ -221,6 +223,22 @@ func Sync(a, b Side, base *Base) (Report, error) {
 	rep.Changed = [2][]string{appliedA, appliedB}
 	base.Last = time.Now().UTC()
 	return rep, nil
+}
+
+// Fingerprint says what two hosts' files are, for telling they haven't changed since
+// a sync: on the same files one does the same.
+func Fingerprint(a, b proto.SyncManifest) string {
+	h := sha256.New()
+	for _, m := range []proto.SyncManifest{a, b} {
+		io.WriteString(h, m.ID+"\x00")
+		for _, f := range m.Files {
+			if Synced(f.Path) {
+				io.WriteString(h, f.Path+"\x00"+f.Hash+"\x00")
+			}
+		}
+		io.WriteString(h, "\x01")
+	}
+	return hex.EncodeToString(h.Sum(nil))
 }
 
 func hashes(files []proto.SyncEntry) map[string]string {

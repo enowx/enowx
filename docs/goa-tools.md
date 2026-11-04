@@ -42,7 +42,7 @@ GOD of Agents (one session controlling every session, on any host; PLAN §10) re
 
 ## When the user is asked
 
-What can't be undone (the `confirm` methods in `core/hostcontrol`: close, push, pull request, merge, discard, removing a project, a host's environment variable) and hibernating or stopping sessions, asked by an agent, follow the asking session's permission mode:
+What can't be undone (the `confirm` methods in `core/hostcontrol`: close, push, pull request, merge, discard, removing a project, a host's environment variable, changing what GOA runs on) and hibernating or stopping sessions, asked by an agent, follow the asking session's permission mode:
 
 - **In bypass, on the user's own hosts:** done without asking, and logged: `control log` says `not asked: the agent is in bypassPermissions`.
 - **Always allowed, hibernating and closing only:** the card for these two offers **Always allow**, for the session asking. From then on, on the user's own hosts, that session hibernates and closes sessions without a card, each logged: `control log` says `not asked: the user always allows this session, and nothing would be lost`. It still asks for an agent at work, something served, an app shown, a program left running, what can't come back on its conversation (a shell, where it can't tell what runs), its own session, and a teammate's session; and for push, pull request, merge, discard, removing a project and a host's environment variables, whatever it was allowed. A teammate's session never gets the choice, and a request to a teammate's shared host always asks. The asking session's daemon holds the rule, in a file that outlives a restart (`control-allow.json`); the app checks another of the user's hosts' sessions, which only it reaches. Settings → Agents → Always allowed lists the sessions and revokes the choice. It isn't reachable through `host.call`, but like the rest here it is no boundary against an agent with the host's socket.
@@ -135,6 +135,7 @@ This follows the agent's mode; it isn't a boundary against the agent. A command 
 | Import and export | `notes import-status` | `notes import\|export` | this host | ✅ |
 | Canvases, designs, comments, versions, exports | `canvas list\|show\|comments\|history\|screenshot` (`canvas_*`) | `canvas new\|write\|patch\|shape\|…` | synced | ✅ |
 | Design brief, unslop, review, build | `canvas brief`, `browser unslop` | `canvas build`, `review` | this host | ✅ |
+| Community library (opt-in) | `library search\|show\|prompt` (`library_*`), other people's data, labelled | `library publish` only shows the user a card to the form; sending is the user's, in the app | the host's cloud | ✅ |
 | Icons | `icons search` (`icons_search`) | | needs no host | ✅ |
 | Team chat | `team chat` (`team_chat_read`) | `team chat --send` (`team_chat_send`) | cloud | ✅ |
 | Your data's sync | `sync status\|conflicts\|trash` (`sync_*`) | `sync now\|resolve\|restore` | all hosts | ✅ |
@@ -162,6 +163,7 @@ This follows the agent's mode; it isn't a boundary against the agent. A command 
 | Its own RAG collection, projects' read-only | `goa recall` (`goa_recall`) | `goa remember` (`goa_remember`) | projects' through the app | ✅ |
 | When a task counts as stalled | `goa stall` (`goa_stall`) | `goa stall --blank\|--idle\|--stuck` (`goa_stall`) | this host | ✅ |
 | The agents it runs on, their level | `goa agents` (`goa_agents`) | | this host | ✅ |
+| What it runs on itself | `goa switch` (`goa_switch`, not offered to it) | the user's: Settings in its header, or `goa switch`, which it is refused ([goa.md](goa.md#changing-what-it-runs-on)) | `--host` | — the user's |
 | What a watched GOA did itself | `goa flags` | reverting: the user's, in the app | this host | — the user's |
 
 ## Built-in skills

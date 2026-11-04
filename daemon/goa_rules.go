@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"slices"
 	"strconv"
 	"strings"
 	"time"
@@ -17,8 +18,7 @@ import (
 
 // The user's rules for GOD of Agents: Markdown in the synced settings, so
 // every host's GOA follows them. GOA reads them in its guide when it
-// starts, and, its agent having a start-of-prompt hook, again with the
-// next prompt after they change.
+// starts, and, its agent having hooks, as rules_given.go gives them.
 
 func (s *Server) goaRulesFile() string { return filepath.Join(s.dataDir, "settings", "goa-rules.md") }
 
@@ -58,28 +58,7 @@ func goaRulesGuide(rules string) string {
 	if rules == "" {
 		return ""
 	}
-	return "\n\n## The user's rules for you\n\nFollow these in all you do as GOD of Agents. Pass on to a worker, in its prompt, those that bear on its task.\n\n" + rules + "\n"
-}
-
-// goaRulesChanged is GOA session id's rules when they changed since it
-// was last given them ("" otherwise), and marks them given.
-func (s *Server) goaRulesChanged(id string) string {
-	rules := s.goaRules().Rules
-	sum := fmt.Sprintf("%x", sha256.Sum256([]byte(rules)))
-	s.goa.mu.Lock()
-	defer s.goa.mu.Unlock()
-	if s.goa.rulesGiven == nil {
-		s.goa.rulesGiven = map[string]string{}
-	}
-	prev, seen := s.goa.rulesGiven[id]
-	s.goa.rulesGiven[id] = sum
-	if !seen || prev == sum {
-		return "" // its first prompt: its guide had them; or nothing changed
-	}
-	if rules == "" {
-		return "The user removed their rules for you as GOD of Agents: those you were given no longer hold."
-	}
-	return "The user changed their rules for you as GOD of Agents; these replace those you were given:\n\n" + rules
+	return "\n\n## The user's rules for you\n\nFollow these in all you do as GOD of Agents. Pass on to a worker, in its prompt, those that bear on its task.\n\n" + rulesVersionLine(rules) + "\n\n" + rules + "\n"
 }
 
 // rulesSystem is what the AI drafting rules is told, by what they're for.
@@ -197,19 +176,22 @@ func (s *Server) keepRulesVersion(key, rules string) {
 
 // rulesHistory lists p's rules as they were, newest first.
 func (s *Server) rulesHistory(p proto.RulesDraftParams) []proto.RulesVersion {
-	key := "project:" + p.Path
-	if p.For == proto.RulesForGOA {
-		key = "goa"
+	keys := []string{"goa"}
+	if p.For != proto.RulesForGOA {
+		keys = rulesHistoryKeys(p.Path)
 	}
-	dir := s.rulesHistoryDir(key)
-	entries, _ := os.ReadDir(dir)
 	out := []proto.RulesVersion{}
-	for i := len(entries) - 1; i >= 0; i-- {
-		n, err := strconv.ParseInt(strings.TrimSuffix(entries[i].Name(), ".md"), 10, 64)
-		data, rerr := os.ReadFile(filepath.Join(dir, entries[i].Name()))
-		if err == nil && rerr == nil {
-			out = append(out, proto.RulesVersion{Time: time.Unix(0, n), Rules: string(data)})
+	for _, key := range keys {
+		dir := s.rulesHistoryDir(key)
+		entries, _ := os.ReadDir(dir)
+		for _, e := range entries {
+			n, err := strconv.ParseInt(strings.TrimSuffix(e.Name(), ".md"), 10, 64)
+			data, rerr := os.ReadFile(filepath.Join(dir, e.Name()))
+			if err == nil && rerr == nil {
+				out = append(out, proto.RulesVersion{Time: time.Unix(0, n), Rules: string(data)})
+			}
 		}
 	}
+	slices.SortFunc(out, func(a, b proto.RulesVersion) int { return b.Time.Compare(a.Time) })
 	return out
 }

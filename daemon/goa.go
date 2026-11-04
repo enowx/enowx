@@ -6,7 +6,9 @@ import (
 	"os"
 	"path/filepath"
 	"slices"
+	"strings"
 	"sync"
+	"time"
 
 	"github.com/enowx/enowx/core/agent"
 	"github.com/enowx/enowx/core/goa"
@@ -25,6 +27,8 @@ import (
 // mu guards the rest.
 type goaState struct {
 	board *goa.Board
+	// delivering holds a queued task's delivery, from its claim until it is typed.
+	delivering sync.Mutex
 
 	mu     sync.Mutex
 	tell   []goaLine         // lines for GOA until it takes them, kept in tellFile
@@ -36,15 +40,25 @@ type goaState struct {
 	pending map[string]proto.HookEvent
 	flags   []proto.GOAFlag
 	watch   map[string]*goaWatch // watched GOA sessions, by ID (goa_watch.go)
-	// rulesGiven is the hash of the rules each GOA session was last given
-	// (goa_rules.go).
-	rulesGiven map[string]string
 	// stallSet tells watchStalls the limits changed.
 	stallSet chan struct{}
 
 	// told are the sessions with no task GOA sent something to, by what it last
 	// heard of each and the report it last heard: it hears of them as of a task.
 	told map[string]goaTold
+
+	// asleep are the sessions on other hosts last heard hibernated.
+	asleep map[string]bool
+
+	// giving are the sessions a queued task is being typed into. Apart from mu: it is
+	// read within the board's lock.
+	giving sync.Map
+
+	// waking are the sessions being brought back for a queued task (queuedWake).
+	waking map[string]bool
+
+	// switching: its agent or config is being changed (goa_switch.go).
+	switching bool
 
 	tellFile string
 	// tellSave has one write of tellFile at a time, the latest last. It is taken
@@ -81,33 +95,56 @@ func (s *Server) goaSession() (proto.SessionInfo, bool) {
 }
 
 // goaCreate makes p and meta GOA's: its folder, no project or branch,
-// every feature, its permissions asked (enowX's tools need none). One GOA
+// every feature, its permissions asked (enowX's tools need none) unless its agent
+// always skips them, as Claude Code does: there its hook's refusals hold GOA. One GOA
 // runs on a host at a time.
 func (s *Server) goaCreate(p *proto.SessionCreateParams, meta *session.Meta) (string, error) {
 	if g, ok := s.goaSession(); ok && !g.Exited {
 		return "", fmt.Errorf("goa: GOD of Agents already runs on this host: session %s", g.ID)
 	}
-	if _, ok := agent.Find(p.Agent); !ok {
-		return "", fmt.Errorf("goa: %q isn't an agent GOD of Agents can run on", p.Agent)
+	if _, err := s.goaAgentReady(p.Agent); err != nil {
+		return "", err
+	}
+	goaParams(p, meta)
+	return s.goaDir(), nil
+}
+
+// goaAgentReady is agent id's preset, GOA's folder made, if GOA may start on it.
+func (s *Server) goaAgentReady(id string) (agent.Preset, error) {
+	preset, ok := agent.Find(id)
+	if !ok {
+		return preset, fmt.Errorf("goa: %q isn't an agent GOD of Agents can run on", id)
+	}
+	if why := goa.NotProven(id); why != "" {
+		return preset, fmt.Errorf("goa: %s: %s", preset.Name, why)
 	}
 	dir := s.goaDir()
 	if err := os.MkdirAll(dir, 0o700); err != nil {
-		return "", fmt.Errorf("goa: %w", err)
+		return preset, fmt.Errorf("goa: %w", err)
 	}
+	if agent.IsOpenCode(id) {
+		if err := goaOpenCodeReady(preset, dir); err != nil {
+			return preset, err
+		}
+	}
+	return preset, nil
+}
+
+// goaParams makes p and meta what every start of GOA on a new conversation is.
+func goaParams(p *proto.SessionCreateParams, meta *session.Meta) {
 	p.Project, p.Parent, p.BranchMode, p.SkipPermissions, p.GOAWorker = "", "", proto.BranchNone, false, ""
 	p.Features = agent.AllFeatures()
 	meta.Project, meta.GOA, meta.GOAWorker, meta.Features = "", true, "", p.Features
 	if meta.Name == "" {
 		meta.Name = "GOD of Agents"
 	}
-	return dir, nil
 }
 
 // goaChat is chat as GOA's, for a GOA session (meta): its guide first.
 func (s *Server) goaChat(chat chatFor, meta session.Meta) chatFor {
 	if meta.GOA {
 		chat.goa = true
-		chat.guide = agent.GOAGuide + goaRulesGuide(s.goaRules().Rules) + chat.guide
+		chat.guide = agent.GOAGuide + agent.GOAAgentNote(meta.Agent) + goaRulesGuide(s.goaRules().Rules) + chat.guide
 	}
 	return chat
 }
@@ -129,12 +166,20 @@ func (s *Server) goaHook(info proto.SessionInfo, ev proto.HookEvent) (d proto.Ho
 		return d, false
 	}
 	if info.GOA {
-		if ok, why := goa.Allowed(ev.Tool, ev.Command, s.HookBin); !ok {
+		ok, why := goa.Allowed(ev.Tool, ev.Command, s.HookBin)
+		if ok {
+			ok, why = goa.EditInside(ev.Tool, ev.Paths, s.goaDir())
+		}
+		if !ok {
 			s.logger().Info("goa: a tool refused", "session", info.ID, "tool", ev.Tool)
 			return proto.HookDecision{Block: true, Reason: why}, true
 		}
-		// Reading needs no asking, unless of a secret; an edit stays the
-		// user's, as its agent asks.
+		// Reading needs no asking, unless of a secret, which stays the user's even in a mode
+		// that asks nothing, as Claude Code's always is here; an edit, in its folder alone,
+		// goes by the mode.
+		if why := goa.Urgent(ev.Tool, ev.Command, ev.Paths); why != "" && agent.AlwaysSkips(info.Agent) && !strings.HasPrefix(ev.Tool, "mcp__") {
+			return proto.HookDecision{Ask: true, Reason: "GOD of Agents asks: " + why}, false
+		}
 		d.Approve = goa.ReadOnly(ev.Tool, ev.Command) && goa.Urgent(ev.Tool, ev.Command, ev.Paths) == ""
 		return d, false
 	}
@@ -154,6 +199,12 @@ func mergeWorker(d, w proto.HookDecision) proto.HookDecision {
 		return w
 	}
 	d.Approve = d.Approve || w.Approve
+	if w.Ask {
+		d.Ask, d.Reason = true, w.Reason
+	}
+	if d.Ask {
+		d.Approve = false
+	}
 	return d
 }
 
@@ -168,6 +219,12 @@ func (s *Server) goaBoard() proto.GOABoard {
 				b.Tasks[i].Dir, b.Tasks[i].Branch, b.Tasks[i].SessionName = info.Dir, info.Branch, info.Name
 				b.Tasks[i].Project = nonEmpty(t.Project, info.Project)
 			}
+		}
+	}
+	for i, t := range b.Tasks {
+		b.Tasks[i].Asleep = !goa.Settled(t.Status) && s.goaAsleep(t)
+		if sess, err := s.sessions.Get(t.Session); t.Host == "" && err == nil {
+			b.Tasks[i].Background = sess.Info().Background
 		}
 	}
 	b.Told = s.goaToldIDs()
@@ -197,16 +254,27 @@ func (s *Server) goaSeen(info proto.SessionInfo) {
 	}
 	if s.goa.board.Has(info.ID) {
 		s.goaRanOn(info)
-		go func() {
-			s.goaReportSeen(info)
-			s.goaWorkerChanged(info)
-			if info.State == proto.StateDone || info.Exited && !info.Hibernated {
-				s.goaDeliver(info)
-			}
-		}()
+		go s.goaWorkerSeen(info)
 		return
 	}
 	go s.goaToldChanged(info)
+}
+
+// goaWorkerSeen follows a change of worker info, heard from this host's sessions or
+// from the app for another host's: the board, then its next queued task if it can
+// take one.
+func (s *Server) goaWorkerSeen(info proto.SessionInfo) {
+	if s.goaNoteAsleep(info) {
+		s.goaChanged()
+	}
+	if info.State == proto.StateWorking {
+		s.goaTurnStarted(info.ID)
+	}
+	s.goaReportSeen(info)
+	s.goaWorkerChanged(info)
+	if info.State == proto.StateDone || info.Exited && !info.Hibernated {
+		s.goaDeliver(info)
+	}
 }
 
 // goaRanOn records the model a task's session says it runs on, each change, on
@@ -242,6 +310,13 @@ type goaLine struct {
 	// Soft: it only says to look. It never keeps GOA's turn going, and reading the
 	// session takes it back.
 	Soft bool `json:"soft,omitempty"`
+	// Turn says it tells of a turn (goa_turnline.go): a report (goaLineReport) or its
+	// end (goaLineTurn). Those of one turn become one line.
+	Turn string `json:"turn,omitempty"`
+	// Closed: its turn is over and told, so nothing more merges into it.
+	Closed bool `json:"closed,omitempty"`
+	// HoldUntil keeps a report back for its turn's end to join it.
+	HoldUntil time.Time `json:"holdUntil,omitzero"`
 }
 
 // goaTellMax bounds what waits for a GOA that never comes back, the oldest going.
@@ -256,6 +331,9 @@ func (s *Server) goaTellLine(line goaLine) {
 		return
 	}
 	s.goa.mu.Lock()
+	if line.Turn == "" && line.Session != "" {
+		releaseHeld(s.goa.tell, line.Session) // what it says of the session comes first
+	}
 	s.goa.tell = append(s.goa.tell, line)
 	if over := len(s.goa.tell) - goaTellMax; over > 0 {
 		s.goa.tell = slices.Delete(s.goa.tell, 0, over)
@@ -320,16 +398,27 @@ func (s *Server) goaFlushIdle() {
 
 // goaLinesToSay takes what waits for GOA, less what its task's end made moot.
 func (s *Server) goaLinesToSay() []goaLine {
+	now := time.Now()
 	s.goa.mu.Lock()
+	if s.goa.switching {
+		s.goa.mu.Unlock()
+		return nil // its agent is being replaced: a line given now would go with it
+	}
 	lines := s.goa.tell
 	s.goa.tell = nil
-	s.goa.mu.Unlock()
+	// Of a session, nothing goes past what it holds back; another session's go on.
+	held := map[string]bool{}
 	var out []goaLine
 	for _, l := range lines {
-		if l.Task == "" || !s.goa.board.IsSettled(l.Task) {
+		switch {
+		case l.HoldUntil.After(now) || held[l.Session] && l.Session != "":
+			held[l.Session] = true
+			s.goa.tell = append(s.goa.tell, l)
+		case l.Task == "" || !s.goa.board.IsSettled(l.Task):
 			out = append(out, l)
 		}
 	}
+	s.goa.mu.Unlock()
 	return out
 }
 
@@ -359,10 +448,18 @@ func goaAgents() []proto.GOAAgent {
 			continue
 		}
 		level, why := goa.LevelOf(a.ID)
-		out = append(out, proto.GOAAgent{Agent: a.ID, Name: a.Name, Level: level, Why: why, Installed: a.Installed})
+		out = append(out, proto.GOAAgent{Agent: a.ID, Name: a.Name, NotYet: goa.NotProven(a.ID), Level: level, Why: why, Installed: a.Installed})
 	}
 	// The strictest first, as the user would pick.
 	rank := map[string]int{proto.GOAEnforced: 0, proto.GOALimited: 1, proto.GOAWatched: 2}
-	slices.SortStableFunc(out, func(x, y proto.GOAAgent) int { return rank[x.Level] - rank[y.Level] })
+	slices.SortStableFunc(out, func(x, y proto.GOAAgent) int {
+		if (x.NotYet == "") != (y.NotYet == "") {
+			if x.NotYet == "" {
+				return -1
+			}
+			return 1
+		}
+		return rank[x.Level] - rank[y.Level]
+	})
 	return out
 }

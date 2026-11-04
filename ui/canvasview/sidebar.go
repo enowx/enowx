@@ -44,6 +44,7 @@ func (v *View) sidebar(c *ui.Context, o Options) {
 			})
 			v.spaceLine(c, o)
 			widget.Input(c.Key("filter"), &v.filter, "Filter canvases").Label("Filter canvases")
+			v.communityEntry(c, o)
 		})
 		ui.Scroll(c.Key("list-rows")).Grow(1).FillWidth().MinHeight(0).Children(func() {
 			ui.Column(c).FillWidth().Padding(theme.S1, theme.S3, theme.S3, theme.S3).Gap(theme.S1).Children(func() {

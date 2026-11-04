@@ -49,7 +49,7 @@ func (a *App) canvasRegionView(c *ui.Context, cv proto.Canvas, hc *hostCanvasCha
 	shown := func() bool {
 		return a.page == pageCanvas && a.canvases.AssistantOpen() && a.canvases.Selected() == cv.ID && hc.viewing == s.ID
 	}
-	switch p := a.panes[s.ID]; {
+	switch p := a.wantPane(s.ID); {
 	case chatview.Supported(s):
 		ui.Column(c).Grow(1).FillWidth().MinHeight(0).Children(func() {
 			a.chatViewSending(c.Key("chat:"+s.ID), s, shown, chatTweaks{showUser: canvasRegionPrompt})
@@ -101,6 +101,9 @@ func (a *App) regionBar(c *ui.Context, cv proto.Canvas, hc *hostCanvasChat, s pr
 				}
 			}
 			widget.Tag(c, label, col)
+			if !s.Exited && widget.Button(c.Key("end"), widget.Secondary, icon.Stop, "End", "").Tooltip("End this region's agent and all it started").Clicked() {
+				a.confirm("End this region's agent?", "“"+s.Name+"” stops, with all it started, and its conversation goes. What it changed on the design stays.", "End", func() { a.endRegionAgent(hc, s.ID) })
+			}
 		})
 		if !hasRun || len(run.Regions) == 0 {
 			widget.Running(c.Key("name"), s.Name, widget.RunStyle{Weight: 500})
@@ -153,4 +156,10 @@ func (a *App) regionViewing() string {
 		return a.canvasChat.viewing
 	}
 	return ""
+}
+
+// endRegionAgent ends region agent id, and goes back to the main agent.
+func (a *App) endRegionAgent(hc *hostCanvasChat, id string) {
+	hc.viewing = ""
+	a.killSession(id)
 }

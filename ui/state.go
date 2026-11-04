@@ -20,6 +20,7 @@ type appState struct {
 	SkipPermissions  *bool             `json:"skipPermissions,omitempty"`
 	Chats            map[string]bool   `json:"chats,omitempty"`            // session IDs shown as a chat
 	NotesAgents      map[string]string `json:"notesAgents,omitempty"`      // note ID → the agent its Notes page talks to
+	BannersClosed    map[string]string `json:"bannersClosed,omitempty"`    // session ID → the notice closed over it
 	CanvasGridHidden map[string]bool   `json:"canvasGridHidden,omitempty"` // canvases whose guides are hidden, on this device
 	CanvasChatWidth  float32           `json:"canvasChatWidth,omitempty"`  // the Canvas page's agent panel, as the user left it
 	NotesView        map[string]string `json:"notesView,omitempty"`        // "<note ID> <what>" → how its page was left: tabs, toggles, outline

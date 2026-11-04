@@ -117,6 +117,10 @@ type SessionAsk struct {
 	// a GOA worker's call that can't be undone, spends money, publishes,
 	// touches secrets, or the judge isn't sure of (docs/goa.md).
 	Urgent string `json:"urgent,omitempty"`
+	// Woken: answering, its agent had stopped, and was brought back on its conversation.
+	// Told: what it asked went with it, so the answer went in as a message.
+	Woken bool `json:"woken,omitempty"`
+	Told  bool `json:"told,omitempty"`
 }
 
 // SessionAnswerParams answer session ID's agent: one of SessionAsk's
@@ -146,4 +150,7 @@ type ProjectConfig struct {
 	Path  string   `json:"path"`
 	Copy  []string `json:"copy"`
 	Setup string   `json:"setup,omitempty"`
+	// GuideBlockOff keeps enowX's block out of its AGENTS.md or CLAUDE.md, for agents
+	// with no other way to the guide.
+	GuideBlockOff bool `json:"guideBlockOff,omitempty"`
 }

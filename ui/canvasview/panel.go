@@ -134,18 +134,39 @@ func (v *View) layers(c *ui.Context, o Options) {
 	out := v.outlineOf(o, f.HTML)
 	if len(out) > 0 {
 		widget.SectionLabel(c.Key("mockup"), "Mockup", theme.TextSoft)
-		for _, el := range out {
+		for _, el := range out[:v.layersShown(len(out))] {
 			v.layerRow(c, o, "h:"+el.ID, el.ID, "<"+el.Tag+">", el.Text, el.Depth)
 		}
+		v.moreLayers(c.Key("more-mockup"), len(out))
 	}
 	if len(f.Elements) > 0 {
 		widget.SectionLabel(c.Key("shapes"), "Shapes", theme.TextSoft)
-		for _, el := range f.Elements {
+		for _, el := range f.Elements[:v.layersShown(len(f.Elements))] {
 			v.layerRow(c, o, "s:"+el.ID, el.ID, el.Type, el.Text, 0)
 		}
+		v.moreLayers(c.Key("more-shapes"), len(f.Elements))
 	}
 	if len(out) == 0 && len(f.Elements) == 0 {
 		ui.Text(c, "Nothing in this frame yet: add shapes from the toolbar, or ask an agent to design it.").FontSize(theme.TextUI).TextColor(theme.TextSoft)
+	}
+}
+
+// layersAtOnce is how many rows of each list the panel draws until asked for the rest. A
+// row holds about 30 KB of drawing state, so a long page's whole list took 100 MB.
+const layersAtOnce = 200
+
+// layersShown is how many of n layers show.
+func (v *View) layersShown(n int) int {
+	if v.layersAll {
+		return n
+	}
+	return min(n, layersAtOnce)
+}
+
+// moreLayers offers those of n layers that don't show.
+func (v *View) moreLayers(c *ui.Context, n int) {
+	if rest := n - v.layersShown(n); rest > 0 && widget.GhostButton(c, fmt.Sprintf("Show %d more", rest)).Clicked() {
+		v.layersAll = true
 	}
 }
 

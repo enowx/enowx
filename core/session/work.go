@@ -72,6 +72,26 @@ func (m *Manager) SetFeatures(s *Session, on map[string]bool) {
 	m.notify(s)
 }
 
+// UpdateRules changes what session s's agent has of its rules by f, which
+// runs locked, so what it reads and changes goes together: it only computes.
+func (m *Manager) UpdateRules(s *Session, f func(*proto.SessionRules)) {
+	s.mu.Lock()
+	var r proto.SessionRules
+	if s.meta.Rules != nil {
+		r = *s.meta.Rules
+	}
+	before := r
+	f(&r)
+	changed := r != before
+	if changed {
+		s.meta.Rules = &r
+	}
+	s.mu.Unlock()
+	if changed {
+		m.notify(s)
+	}
+}
+
 // SetNoAutoHibernate keeps session s from hibernating on its own, or
 // lets it again.
 func (m *Manager) SetNoAutoHibernate(s *Session, never bool) {
@@ -104,6 +124,21 @@ func (m *Manager) SetNote(s *Session, note string) {
 	m.notify(s)
 }
 
+// turnTextMost bounds what a session keeps of its turn's last message: what GOA's line
+// holds, as it goes with every update of the session.
+const turnTextMost = 2000
+
+// NoteTurnText keeps the message s's turn ended on, or "" as a turn starts. It says
+// nothing by itself: a change of state follows.
+func (m *Manager) NoteTurnText(s *Session, text string) {
+	if r := []rune(text); len(r) > turnTextMost {
+		text = string(r[:turnTextMost]) + "…"
+	}
+	s.mu.Lock()
+	s.meta.TurnText = text
+	s.mu.Unlock()
+}
+
 // SetReport keeps its agent's report of a turn.
 func (m *Manager) SetReport(s *Session, outcome, text string) {
 	s.mu.Lock()
@@ -126,11 +161,32 @@ func (s *Session) QuickExits() int {
 }
 
 // SetModel records what session s's agent last said it runs on.
-func (m *Manager) SetModel(s *Session, model, effort string) {
+func (m *Manager) SetModel(s *Session, model, effort, started string, moved bool) {
 	s.mu.Lock()
-	s.meta.Model, s.meta.Effort = model, effort
+	s.meta.Model, s.meta.Effort, s.meta.ModelStarted, s.meta.ModelMoved = model, effort, started, moved
 	s.mu.Unlock()
 	m.notify(s)
+}
+
+// SetBackground records the agents session s's agent has in the background; changed: which they are.
+func (m *Manager) SetBackground(s *Session, agents []proto.BackgroundAgent) (changed bool) {
+	s.mu.Lock()
+	changed = !slices.EqualFunc(s.background, agents, func(a, b proto.BackgroundAgent) bool { return a.PID == b.PID && a.Start == b.Start && a.Left == b.Left })
+	any := len(agents) > 0 || changed
+	s.background = agents
+	s.mu.Unlock()
+	if any {
+		m.notify(s) // their CPU and memory are live, each look
+	}
+	return changed
+}
+
+// movedFromLocked is SessionInfo.ModelStarted. The caller holds s.mu.
+func (s *Session) movedFromLocked() string {
+	if s.meta.ModelMoved {
+		return s.meta.ModelStarted
+	}
+	return ""
 }
 
 // SetMode records the permission mode session s's agent is in.

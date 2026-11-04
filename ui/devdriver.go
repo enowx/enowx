@@ -23,6 +23,10 @@ type devRequest struct {
 	Out   string   `json:"out"`
 	Size  [2]int   `json:"size"`
 	Steps []string `json:"steps"`
+	// NoPicture only takes the steps, on the window itself, drawing nothing off screen:
+	// for measuring what a page costs (scripts/profile-scenario.sh), as a drawing's own
+	// memory would count. Steps that act on a drawing (click, right, type, move) don't run.
+	NoPicture bool `json:"noPicture,omitempty"`
 }
 
 // startDevDriver answers the request files of a development build's home.
@@ -52,6 +56,13 @@ func (a *App) startDevDriver() {
 // runDevRequest takes the steps, one at a time so that what they load arrives
 // between them, then writes the picture and what it shows.
 func (a *App) runDevRequest(req devRequest) {
+	if req.NoPicture {
+		for _, step := range req.Steps {
+			_ = a.devStep(nil, step)
+		}
+		_ = os.WriteFile(req.Out+".txt", []byte("done\n"), 0o644)
+		return
+	}
 	w, h := req.Size[0], req.Size[1]
 	if w == 0 {
 		w, h = 1440, 900
@@ -83,6 +94,9 @@ func (a *App) runDevRequest(req devRequest) {
 // devStep takes one step.
 func (a *App) devStep(tt *ui.Tester, step string) error {
 	verb, arg, _ := strings.Cut(step, ":")
+	if tt == nil && (verb == "click" || verb == "right" || verb == "type" || verb == "move") {
+		return nil
+	}
 	switch verb {
 	case "click":
 		return tt.Click(arg)

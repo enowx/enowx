@@ -18,6 +18,7 @@ const syncUsage = `usage: enowx-app sync COMMAND
   now [--no-wait]        ask the enowX app to sync this host now, and wait for it
   hosts                  the hosts this one synced with, and when
   conflicts              changes made on two hosts that don't merge
+  show ID [--version N]  print a version of a conflict (the first unless N)
   resolve ID --keep HOST|N|both
                          settle a conflict: keep a host's version (or the Nth), or both
   trash                  synced files deleted lately, kept 30 days
@@ -38,6 +39,7 @@ func (r runner) sync(args []string) error {
 	keep := fs.String("keep", "", "")
 	noWait := fs.Bool("no-wait", false, "")
 	yes := fs.Bool("yes", false, "")
+	version := fs.Int("version", 1, "")
 	arg, err := parseWithArg(fs, args)
 	if err != nil {
 		return errors.New(syncUsage)
@@ -108,6 +110,20 @@ func (r runner) sync(args []string) error {
 			fmt.Fprintf(r.out, "%s\t%s\t%s\n", c.ID, name, strings.Join(vs, ", "))
 		}
 		return nil
+	case "show":
+		if arg == "" {
+			return errors.New(syncUsage)
+		}
+		v, err := r.c.SyncConflictVersion(arg, *version)
+		if err != nil {
+			return err
+		}
+		if v.Deleted {
+			fmt.Fprintf(r.out, "%s deleted it\n", v.Host)
+			return nil
+		}
+		_, err = r.out.Write(v.Data)
+		return err
 	case "resolve":
 		if arg == "" || *keep == "" {
 			return errors.New(syncUsage)

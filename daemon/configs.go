@@ -11,6 +11,7 @@ import (
 	"github.com/enowx/enowx/core/agent"
 	"github.com/enowx/enowx/core/agentapi"
 	"github.com/enowx/enowx/core/decide"
+	"github.com/enowx/enowx/core/goa"
 	"github.com/enowx/enowx/core/session"
 	"github.com/enowx/enowx/proto"
 )
@@ -83,10 +84,14 @@ func (s *Server) configRunFor(id string, meta session.Meta) (*configRun, error) 
 	if c.Agent != agent.Base(meta.Agent) {
 		return nil, fmt.Errorf("configs: %s is a config of %s, not %s", c.Name, agentName(c.Agent), agentName(meta.Agent))
 	}
-	run := &configRun{info: configInfo(c), env: slices.Clone(c.Env)}
+	env, args := c.Env, c.Args
+	if meta.GOA {
+		env, args = goa.ConfigEnv(env), goa.ConfigArgs(args) // no config loosens what holds GOA
+	}
+	run := &configRun{info: configInfo(c), env: slices.Clone(env)}
 	// Its effort by the agent's flag (an agent with none takes it with its
 	// API, as Aider).
-	run.args = append(append(run.args, agent.LaunchArgs(meta.Agent, "", c.Effort)...), c.Args...)
+	run.args = append(append(run.args, agent.LaunchArgs(meta.Agent, "", c.Effort)...), args...)
 	if c.Kind != proto.ConfigKindAPI || c.API == nil {
 		return run, nil
 	}

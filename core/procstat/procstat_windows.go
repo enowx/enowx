@@ -1,6 +1,7 @@
 package procstat
 
 import (
+	"errors"
 	"slices"
 	"strconv"
 	"strings"
@@ -185,4 +186,17 @@ func Args(pid int) []string {
 		args, _ = windows.DecomposeCommandLine(string(utf16.Decode(line)))
 	})
 	return args
+}
+
+func process(pid int) (Proc, error) {
+	list, err := processes()
+	if err != nil {
+		return Proc{}, err
+	}
+	for _, p := range list {
+		if p.PID == pid {
+			return p, nil
+		}
+	}
+	return Proc{}, errors.New("procstat: no such process")
 }

@@ -77,7 +77,7 @@ func TestHooksSection(t *testing.T) {
 	*f.lists["agents"] = "aider"
 	f.hook.Command = `grep -q 'main' && { echo "Push to a branch, not main." >&2; exit 2; }; exit 0`
 	tt.Frame()
-	if !hasText(tt, "In the agent: Claude Code, Codex") {
+	if !hasText(tt, "In the agent: Claude Code, Claude Platform, Codex") {
 		t.Fatalf("reach: %q", tt.Texts())
 	}
 	if err := tt.Click("Test"); err != nil {

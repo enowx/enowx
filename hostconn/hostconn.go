@@ -54,6 +54,12 @@ type Options struct {
 	TrustHost func(addr, fingerprint string) bool
 	// DaemonCommand starts this machine's daemon when none runs.
 	DaemonCommand []string
+	// ReplaceBusy replaces a daemon of another version even if that stops work: the
+	// user said so. Otherwise it stays while it would, and Kept is told.
+	ReplaceBusy bool
+	// Kept, if set, is told a daemon of another version was left running, and what
+	// replacing it would stop.
+	Kept func(info proto.DaemonInfo, plan proto.RestartPlan)
 	// Password gives the SSH password of hosts with PasswordAuth.
 	Password func(hosts.Host) (string, error)
 	// Passphrase is asked for the passphrase of an SSH key the server
@@ -141,9 +147,12 @@ func connectLocal(opts Options) (*client.Client, error) {
 		// (a test, a tool) uses the daemon there, never stops it.
 		return c, nil
 	}
-	// A daemon left running by another version of the app speaks another
-	// protocol, and one from another build of this version runs other code:
-	// replace it. Its sessions end with it.
+	// A daemon left running by another version of the app, or another build of this
+	// one, runs other code: replace it, unless that would stop work. Its sessions'
+	// programs end with it, and connections stay compatible across versions.
+	if keepBusyDaemon(c, info, opts) {
+		return c, nil
+	}
 	if info.Version == version.String {
 		opts.progress("Restarting the daemon (new build of the app)")
 	} else {
@@ -154,6 +163,22 @@ func connectLocal(opts Options) (*client.Client, error) {
 		return nil, err
 	}
 	return dial()
+}
+
+// keepBusyDaemon says the daemon c reaches stays, replacing it being something to ask
+// about first. A daemon that can't say is left alone too: nothing dies unasked.
+func keepBusyDaemon(c *client.Client, info proto.DaemonInfo, opts Options) bool {
+	if opts.ReplaceBusy {
+		return false
+	}
+	plan, err := c.RestartPlan()
+	if err == nil && plan.Empty() {
+		return false
+	}
+	if opts.Kept != nil {
+		opts.Kept(info, plan)
+	}
+	return true
 }
 
 func connectRemote(h hosts.Host, opts Options) (*client.Client, error) {
@@ -197,6 +222,14 @@ func connectRemote(h hosts.Host, opts Options) (*client.Client, error) {
 		ssh.Close()
 		return nil, err
 	}
+	if busy, err := remoteDaemonBusy(ssh, user, target, opts); err == nil && busy {
+		c, err := bridge(ssh, user, target, opts, ssh.Bridge)
+		if err != nil {
+			return nil, err
+		}
+		c.SetTunnel(ssh.DialTCP)
+		return c, nil
+	}
 	arch, err := ensureDaemon(ssh, user, opts)
 	if err != nil {
 		ssh.Close()
@@ -226,6 +259,43 @@ func connectRemote(h hosts.Host, opts Options) (*client.Client, error) {
 	}
 	c.SetTunnel(ssh.DialTCP)
 	return c, nil
+}
+
+// remoteDaemonBusy says a daemon of another version runs on the server and stays,
+// replacing it being something to ask about first. Only one already running is asked:
+// starting one for this would bring its sessions back just to replace them.
+func remoteDaemonBusy(ssh *transport.SSHClient, user string, target transport.SSHTarget, opts Options) (bool, error) {
+	if opts.ReplaceBusy {
+		return false, nil
+	}
+	bin := `"$HOME/` + transport.RemoteDaemonPath + `"`
+	if _, err := ssh.Run(transport.AsUser(user, `pgrep -u "$(id -u)" -f 'enowxd serve' >/dev/null`), nil); err != nil {
+		return false, nil // none runs, or there's no asking
+	}
+	out, err := ssh.Run(transport.AsUser(user, inspectScript(bin)), nil)
+	if err != nil {
+		return false, err
+	}
+	uname, have, hash := parseInspect(out)
+	arch, err := linuxArch(uname)
+	if err != nil {
+		return false, err
+	}
+	if want := embeddedHash(arch); have == "" || have == version.String && (hash == "" || want == "" || hash == want) {
+		return false, nil // it is this build, or there is none
+	}
+	probeOpts := opts
+	probeOpts.OnEvent = nil // the app hears the daemon it keeps
+	probe, err := bridge(ssh, user, target, probeOpts, ssh.BridgeSession)
+	if err != nil {
+		return false, err
+	}
+	defer probe.Close()
+	info, err := probe.Info()
+	if err != nil {
+		return false, err
+	}
+	return keepBusyDaemon(probe, info, opts), nil
 }
 
 // bridge opens a client to the server's daemon, starting it when needed.

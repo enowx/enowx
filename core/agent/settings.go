@@ -1,6 +1,9 @@
 package agent
 
-import "strings"
+import (
+	"slices"
+	"strings"
+)
 
 // Choice is one value of a setting an agent can change while it runs: a
 // model, a permission mode, an effort level.
@@ -34,6 +37,10 @@ type Settings struct {
 	// ModelFlag, EffortFlag and ModeFlag, with %s the choice, start the agent on a
 	// model, an effort and a permission mode: arguments of its command line.
 	ModelFlag, EffortFlag, ModeFlag []string
+	// KeptModeFlag takes ModeFlag's place starting it again, for an agent that keeps its
+	// mode with the conversation: it counts only when nothing is kept, so that what enowX
+	// last read off the screen, maybe stale, can't change a session's mode by itself.
+	KeptModeFlag []string
 }
 
 // StartArgs are the arguments that start agent id as a session was: its model, effort
@@ -47,6 +54,21 @@ func StartArgs(id, model, effort, mode string, skip bool) []string {
 	out := LaunchArgs(id, model, effort)
 	if s := SettingsOf(id); mode != "" && !skip && mode != "bypassPermissions" {
 		for _, f := range s.ModeFlag {
+			out = append(out, strings.ReplaceAll(f, "%s", mode))
+		}
+	}
+	return out
+}
+
+// KeptArgs are StartArgs for starting agent id again, a session already under way.
+func KeptArgs(id, model, effort, mode string, skip bool) []string {
+	s := SettingsOf(id)
+	if len(s.KeptModeFlag) == 0 {
+		return StartArgs(id, model, effort, mode, skip)
+	}
+	out := StartArgs(id, model, effort, "", skip)
+	if mode != "" && !skip && mode != "bypassPermissions" {
+		for _, f := range s.KeptModeFlag {
 			out = append(out, strings.ReplaceAll(f, "%s", mode))
 		}
 	}
@@ -74,7 +96,7 @@ func LaunchArgs(id, model, effort string) []string {
 // claudeSettings are Claude Code's, as of version 2.1.308 (claude --help;
 // its /model menu, whose first ten entries these are; and its screen while
 // Shift+Tab cycles: auto, manual, accept edits, plan, bypass when allowed,
-// then auto again). The model IDs are the names its transcript records.
+// then auto again, the same on 2.1.318). The model IDs are the names its transcript records.
 var claudeSettings = Settings{
 	Models: []Choice{
 		{ID: "default", Label: "Default", Note: "recommended: Opus 5.5 today"},
@@ -160,6 +182,8 @@ func SettingsOf(id string) Settings {
 	switch id {
 	case "claude":
 		return claudeSettings
+	case PlatformID:
+		return platformSettings
 	case "codex":
 		return codexSettings
 	}
@@ -185,6 +209,25 @@ func (s Settings) ModeShown(screen string) string {
 		}
 	}
 	return ""
+}
+
+// ModeReachable says the mode key takes the agent from mode from to mode to without going
+// through plan mode by the way: Claude Code's cycle has it between accept edits and bypass,
+// and no other way to change mode as it runs (2.1.318).
+func (s Settings) ModeReachable(from, to string) bool {
+	at := slices.IndexFunc(s.Modes, func(c Choice) bool { return c.ID == from })
+	if at < 0 {
+		return false
+	}
+	for n := 1; n < len(s.Modes); n++ {
+		switch s.Modes[(at+n)%len(s.Modes)].ID {
+		case to:
+			return true
+		case modePlan:
+			return false
+		}
+	}
+	return false
 }
 
 // FindChoice returns the choice with the given ID, or one whose ID the given

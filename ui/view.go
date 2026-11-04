@@ -102,16 +102,18 @@ func (a *App) view(c *ui.Context) {
 	a.cloudSignInDialog(c)
 	a.spaceMoveDialog(c)
 	a.rulesDialog(c)
-	a.confirmDialog(c)
+	a.platformSheet(c)
 	a.renameDialog(c)
 	a.goaStartDialog(c)
 	a.goaDetailDialog(c)
 	a.goaOverrideDialog(c)
 	a.goaRulesDialog(c)
+	a.goaSettingsDialog(c)
 	a.goaStallDialog(c)
 	a.unslopCompareDialog(c)
 	a.unslopChoiceDialog(c)
 	a.replayDialog(c)
+	a.libraryLinkDialog(c)
 	a.deleteDialog(c)
 	a.hibernateDialog(c)
 	a.removeProjectDialog(c)
@@ -119,6 +121,7 @@ func (a *App) view(c *ui.Context) {
 	a.cloneDialog(c)
 	a.noteImportDialog(c)
 	a.noteExportDialog(c)
+	a.confirmDialog(c) // last: what a dialog asks shows over it
 	a.saveState()
 }
 

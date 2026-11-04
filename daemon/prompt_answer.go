@@ -30,6 +30,11 @@ func (s *Server) promptSeen(info proto.SessionInfo, p agent.ScreenPrompt, screen
 	}
 	text := s.maskLent(agent.ScreenEnd(screen, promptScreenLines))
 	urgent := goa.Urgent("", text, nil)
+	// An agent whose prompts no hook answers goes by the same policy, by what shows.
+	if agent.HookSupport(info.Agent)[proto.HookPermission] != proto.HookInAgent && !info.GOA && s.sessionInBypass(info) &&
+		s.bypassPolicy(info, "", text, nil, "", "its permission prompt, on its screen") && s.pressAnswer(info, p, proto.AnswerAllow) {
+		return
+	}
 	if s.useOn(proto.DecideApprove) {
 		d, err := s.decideFor(info, proto.DecideAsk{Use: proto.DecideApprove,
 			Command: "The agent's permission prompt, as its screen shows it, the command and its warning included:\n" + text})

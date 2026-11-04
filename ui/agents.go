@@ -13,6 +13,7 @@ import (
 	"github.com/enowx/enowx/core/accounts"
 	"github.com/enowx/enowx/core/agent"
 	"github.com/enowx/enowx/proto"
+	"github.com/enowx/enowx/ui/chatview"
 	"github.com/enowx/enowx/ui/icon"
 	"github.com/enowx/enowx/ui/textfmt"
 	"github.com/enowx/enowx/ui/theme"
@@ -162,6 +163,9 @@ func (a *App) agentPage(c *ui.Context, st *accountsState, apis *agentAPIState, a
 	scroll.Children(func() {
 		ui.Column(c).FillWidth().Gap(theme.S3).Children(func() {
 			way := accounts.WayOf(ag.ID)
+			if chatview.OwnChat(ag.ID) {
+				a.platformAgentRow(c)
+			}
 			above := ui.Column(c.Key("above")).FillWidth().Shrink(0).Gap(theme.S1)
 			st.aboveH = above.Bounds().H
 			above.Children(func() {

@@ -10,9 +10,12 @@ import (
 	"path/filepath"
 	"slices"
 	"strings"
+	"sync"
+	"time"
 
 	"github.com/enowx/enowx/cloud/api"
 	cloudclient "github.com/enowx/enowx/cloud/client"
+	"github.com/enowx/enowx/core/project"
 	"github.com/enowx/enowx/proto"
 )
 
@@ -27,13 +30,129 @@ import (
 // guide.
 const maxRules = proto.RulesMaxBytes
 
-func (s *Server) ownRulesFile(project string) string {
-	key := s.remoteRef(project) // the same however the remote is written
-	if key == "" {
-		key = "path:" + project
-	}
+// rulesPlacesCache keeps each folder's ownRulesPlaces a while.
+type rulesPlacesCache struct {
+	mu sync.Mutex
+	of map[string]ownRulesPlaces
+}
+
+// ownRulesFileOf is the file of rules kept under key.
+func (s *Server) ownRulesFileOf(key string) string {
 	h := sha256.Sum256([]byte(key))
 	return filepath.Join(s.dataDir, "settings", "rules", hex.EncodeToString(h[:8])+".md")
+}
+
+// ownRulesPlaces are the files a project of the user's may keep its rules in.
+type ownRulesPlaces struct {
+	home    string   // where its rules go: by its remote, else its main folder
+	earlier []string // where an earlier save may have left them, by a path as it was spelled
+	above   []string // the rules of the folders it's in, nearest first, for a folder in no repository
+	at      time.Time
+}
+
+// ownRulesPlacesOf finds folder's places; what Git says of it is kept a while,
+// as a prompt's hook asks each time.
+func (s *Server) ownRulesPlacesOf(folder string) ownRulesPlaces {
+	st := &s.rulesPlaces
+	st.mu.Lock()
+	c, ok := st.of[folder]
+	st.mu.Unlock()
+	if ok && time.Since(c.at) < remoteFresh {
+		return c
+	}
+	id, inRepo := project.Identity(folder)
+	seen := map[string]bool{}
+	var keys []string
+	add := func(key string) {
+		if !seen[key] {
+			seen[key] = true
+			keys = append(keys, key)
+		}
+	}
+	if ref := s.remoteRef(folder); ref != "" {
+		add(ref) // the same however the remote is written
+	}
+	add("path:" + id)
+	add("path:" + project.Canonical(folder))
+	add("path:" + folder)
+	for _, wt := range project.Worktrees(id) {
+		add("path:" + wt)
+	}
+	for _, known := range s.projects.Paths() {
+		if project.Canonical(known) == id {
+			add("path:" + known)
+		}
+	}
+	places := ownRulesPlaces{home: s.ownRulesFileOf(keys[0]), at: time.Now()}
+	for _, key := range keys[1:] {
+		places.earlier = append(places.earlier, s.ownRulesFileOf(key))
+	}
+	if !inRepo {
+		home, _ := os.UserHomeDir()
+		for dir := filepath.Dir(id); dir != filepath.Dir(dir) && dir != home; dir = filepath.Dir(dir) {
+			places.above = append(places.above, s.ownRulesFileOf("path:"+dir))
+		}
+	}
+	st.mu.Lock()
+	if st.of == nil {
+		st.of = map[string]ownRulesPlaces{}
+	}
+	st.of[folder] = places
+	st.mu.Unlock()
+	return places
+}
+
+// found is the file holding the rules, "" when none does; inherited says it is
+// a folder's above.
+func (p ownRulesPlaces) found() (file string, inherited bool) {
+	for _, f := range append([]string{p.home}, p.earlier...) {
+		if exists(f) {
+			return f, false
+		}
+	}
+	for _, f := range p.above {
+		if exists(f) {
+			return f, true
+		}
+	}
+	return "", false
+}
+
+// target is the file a save goes in: the one above
+// when that is what the user was shown, else its home.
+func (p ownRulesPlaces) target() string {
+	if f, inherited := p.found(); inherited {
+		return f
+	}
+	return p.home
+}
+
+// write saves rules in target, or clears them, and leaves no copy under an
+// earlier spelling to come back.
+func (p ownRulesPlaces) write(rules string) error {
+	target := p.target()
+	if rules == "" {
+		os.Remove(target)
+	} else if err := writeTeamFile(target, []byte(rules+"\n")); err != nil {
+		return err
+	}
+	for _, f := range append([]string{p.home}, p.earlier...) {
+		if f != target {
+			os.Remove(f)
+		}
+	}
+	return nil
+}
+
+// rulesHistoryKeys are the keys folder's versions are kept under: the first
+// from now on, the others as earlier saves spelled it.
+func rulesHistoryKeys(folder string) []string {
+	id, _ := project.Identity(folder)
+	keys := []string{"project:" + id}
+	if folder != id {
+		keys = append(keys, "project:"+folder)
+	}
+	return keys
 }
 
 // teamRulesFile is the file of team's project's rules, under the team's
@@ -70,7 +189,8 @@ func (s *Server) projectRules(path string) (proto.ProjectRules, error) {
 		return proto.ProjectRules{Path: path, Rules: string(data), Team: sp.Team, Project: tp.Name, Editors: editors,
 			CanEdit: admin || sp.Role == api.RoleMember && editors == proto.RulesByMembers}, nil
 	}
-	data, _ := os.ReadFile(s.ownRulesFile(path))
+	file, _ := s.ownRulesPlacesOf(path).found()
+	data, _ := os.ReadFile(file)
 	return proto.ProjectRules{Path: path, Rules: string(data), CanEdit: true}, nil
 }
 
@@ -91,13 +211,10 @@ func (s *Server) saveProjectRules(p proto.ProjectRules) (proto.ProjectRules, err
 		return proto.ProjectRules{}, errors.New("rules: they look like they hold a secret: agents read them, keep credentials in the vault")
 	}
 	if rules != strings.TrimSpace(cur.Rules) {
-		s.keepRulesVersion("project:"+p.Path, cur.Rules)
+		s.keepRulesVersion(rulesHistoryKeys(p.Path)[0], cur.Rules)
 	}
 	if cur.Team == "" {
-		file := s.ownRulesFile(p.Path)
-		if rules == "" {
-			os.Remove(file)
-		} else if err := writeTeamFile(file, []byte(rules+"\n")); err != nil {
+		if err := s.ownRulesPlacesOf(p.Path).write(rules); err != nil {
 			return proto.ProjectRules{}, err
 		}
 		return s.projectRules(p.Path)
@@ -166,5 +283,6 @@ func (s *Server) rulesGuide(project string) string {
 	if r.Team != "" {
 		whose = "the team's"
 	}
-	return "\n\n## This project's rules\n\nThese are " + whose + " rules for this project: follow them in all you do here.\n\n" + strings.TrimSpace(r.Rules) + "\n"
+	rules := strings.TrimSpace(r.Rules)
+	return "\n\n## This project's rules\n\nThese are " + whose + " rules for this project: follow them in all you do here.\n\n" + rulesVersionLine(rules) + "\n\n" + rules + "\n"
 }

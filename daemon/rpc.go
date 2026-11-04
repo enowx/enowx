@@ -48,10 +48,13 @@ var handlers = merge(
 	notifyHandlers,
 	noteIOHandlers,
 	canvasHandlers,
+	platformHandlers,
 	projectLinkHandlers,
 	vaultHandlers,
 	hibernateHandlers,
 	cloudHandlers,
+	libraryHandlers,
+	libraryReuseHandlers,
 	sessionPeekHandlers,
 	visitorHandlers,
 	hostShareHandlers,
@@ -64,13 +67,13 @@ var handlers = merge(
 // slowMethods answer from a goroutine of their own, so that the
 // connection's other requests and typing don't wait for them; their
 // answers may overtake those of requests sent before.
-var slowMethods = slow(methodsOf(reviewHandlers, tokenHandlers, cloudHandlers, sessionPeekHandlers, visitorHandlers, teamChatHandlers, fileHandlers, hibernateHandlers, noteIOHandlers, projectSyncHandlers, trafficHandlers, androidHandlers, agentAPIHandlers), proto.MethodSessionPorts, proto.MethodSessionDisplay, proto.MethodSessionDisplayStop, proto.MethodTunnelOpen,
+var slowMethods = slow(methodsOf(reviewHandlers, tokenHandlers, cloudHandlers, libraryHandlers, libraryReuseHandlers, sessionPeekHandlers, visitorHandlers, teamChatHandlers, fileHandlers, hibernateHandlers, noteIOHandlers, projectSyncHandlers, trafficHandlers, androidHandlers, agentAPIHandlers), proto.MethodSessionPorts, proto.MethodSessionDisplay, proto.MethodSessionDisplayStop, proto.MethodTunnelOpen,
 	proto.MethodTransferPack, proto.MethodTransferRead, proto.MethodTransferWrite, proto.MethodTransferUnpack,
 	proto.MethodSetupScan, proto.MethodEnvMCPTest, proto.MethodEnvSkillFetch, proto.MethodEnvSkillInstall, proto.MethodEnvPluginRun, proto.MethodChecksList, proto.MethodChecksRun, proto.MethodChecksSet,
 	proto.MethodSessionRewind, proto.MethodAgentHistory, proto.MethodAutomationRun,
 	proto.MethodSessionFanOut, proto.MethodBrowserAct, proto.MethodFeaturesRequest, proto.MethodNoteChat, proto.MethodNoteChatLog, proto.MethodCanvasRender,
 	proto.MethodProjectCopyRequest, proto.MethodProjectSyncRequest, proto.MethodAutopushNow, proto.MethodAutopushSet, proto.MethodProjectKeepCopy, proto.MethodProjectFileRead,
-	proto.MethodSessionCreate, proto.MethodSessionContinue, proto.MethodSessionFork,
+	proto.MethodSessionCreate, proto.MethodSessionContinue, proto.MethodSessionFork, proto.MethodSessionMode,
 	proto.MethodVaultAsk, proto.MethodVaultAttach, proto.MethodVaultScan, proto.MethodHostKeysToVault,
 	// An unslop asks the app it came from to read its page, and makes sessions.
 	proto.MethodBrowserUnslop, proto.MethodBrowserUnslopShots, proto.MethodCanvasUnslop, proto.MethodCanvasBuild, proto.MethodCanvasMatch)

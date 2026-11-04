@@ -20,6 +20,9 @@ const (
 	bundleEach = 6 << 20
 	// bundleReports is how many freeze reports it holds, the newest.
 	bundleReports = 5
+	// ProfileFile is where a bundle holds what the programs measured when it was made
+	// (`enowx-app profile`).
+	ProfileFile = "profile.txt"
 )
 
 // logNames are the logs of data folder dir a bundle holds, in order. What `decide

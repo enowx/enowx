@@ -9,6 +9,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/enowx/enowx/core/agent"
 	"github.com/enowx/enowx/core/hostcontrol"
 	"github.com/enowx/enowx/core/project"
 	"github.com/enowx/enowx/proto"
@@ -195,7 +196,7 @@ func (s *Server) projectConfig(path string) (proto.ProjectConfig, error) {
 	if err != nil {
 		return proto.ProjectConfig{}, err
 	}
-	out := proto.ProjectConfig{Path: dir, Copy: cfg.Worktree.Copy, Setup: cfg.Worktree.Setup}
+	out := proto.ProjectConfig{Path: dir, Copy: cfg.Worktree.Copy, Setup: cfg.Worktree.Setup, GuideBlockOff: cfg.GuideBlockOff()}
 	if out.Copy == nil {
 		out.Copy = []string{}
 	}
@@ -209,6 +210,13 @@ func (s *Server) saveProjectConfig(p proto.ProjectConfig) (proto.ProjectConfig, 
 	}
 	var cfg project.Config
 	cfg.Worktree.Copy, cfg.Worktree.Setup = p.Copy, p.Setup
+	if p.GuideBlockOff {
+		off := false
+		cfg.Guide.Block = &off
+		if err := agent.RemoveProjectBlock(dir); err != nil {
+			return proto.ProjectConfig{}, err
+		}
+	}
 	if err := project.SaveConfig(dir, cfg); err != nil {
 		return proto.ProjectConfig{}, err
 	}

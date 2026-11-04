@@ -10,6 +10,7 @@ package chatview
 
 import (
 	"strings"
+	"sync/atomic"
 	"time"
 
 	"github.com/egoist/mygo/ui"
@@ -25,6 +26,10 @@ import (
 const (
 	// pollEvery is how often a shown chat asks for news.
 	pollEvery = 700 * time.Millisecond
+	// pollStreaming is how often while an agent that records its answers as they
+	// arrive (OwnChat) works: quick enough for them to read as streaming. Asking
+	// costs the daemon a look at the file's end, and the app nothing without news.
+	pollStreaming = 120 * time.Millisecond
 	// page is about how many entries the chat asks for at once: the last
 	// ones when it opens, older ones as the user scrolls up to them.
 	page = 300
@@ -35,7 +40,7 @@ const (
 
 // Supported reports whether the session's agent could show as a chat:
 // its daemon reads the conversations of some agents only.
-func Supported(s proto.SessionInfo) bool { return transcript.Supports(s.Agent) }
+func Supported(s proto.SessionInfo) bool { return transcript.Supports(s.Agent) || OwnChat(s.Agent) }
 
 // Chat is one session's chat. It belongs to the main thread; its poller
 // reports through the update function given to Follow.
@@ -66,9 +71,15 @@ type Chat struct {
 	// turns from there on animate in.
 	animateFrom int
 
-	list        ui.ListState
-	olderAsked  bool          // older entries are on the way
-	older       chan struct{} // asks the poller for older entries
+	list       ui.ListState
+	olderAsked bool          // older entries are on the way
+	older      chan struct{} // asks the poller for older entries
+	// streaming tells the poller to ask at pollStreaming; hurry cuts its wait short
+	// when that starts. The main thread sets them, the poller reads them.
+	streaming atomic.Bool
+	hurry     chan struct{}
+	// live are the answers still arriving, by entry index, while the turn runs.
+	live        map[int]*widget.MarkdownStream
 	scrollToEnd bool
 	// outlineScroll is where the outline of the user's messages is scrolled;
 	// outlineLeft that the user took it from its end (outline.go).
@@ -82,6 +93,8 @@ type Chat struct {
 	model, mode, effort string
 	// The context the conversation fills, of the model's window.
 	contextUsed, contextWindow int64
+	// What the conversation has cost and may cost, in dollars, for agents that say.
+	cost, budget float64
 
 	input string
 	// out are the messages sent and not yet recorded; sending is the options
@@ -110,6 +123,8 @@ type Chat struct {
 	ownAnswer string // the user's own answer to the agent's question
 	// openChanges shows a file's changes in the Git panel (Options).
 	openChanges func(file string)
+	// noticeAction is Options.NoticeAction, as the last frame gave it.
+	noticeAction func(notice string) (label string, do func())
 	// The search within the chat: shown, its words (found the words the
 	// last match was looked for with), the match shown.
 	finding, focusFind bool
@@ -132,7 +147,7 @@ type Chat struct {
 
 // New returns an empty chat.
 func New() *Chat {
-	return &Chat{open: map[int]bool{}, answered: map[int]int{}, histAt: -1, pending: map[string]pendingSet{}, older: make(chan struct{}, 1)}
+	return &Chat{open: map[int]bool{}, answered: map[int]int{}, histAt: -1, pending: map[string]pendingSet{}, older: make(chan struct{}, 1), hurry: make(chan struct{}, 1)}
 }
 
 // pendingSet is a setting asked for, and when.
@@ -208,8 +223,13 @@ func (ch *Chat) Follow(cl *client.Client, id string, update func(func()), wanted
 					return
 				}
 			}
+			wait := pollEvery
+			if ch.streaming.Load() {
+				wait = pollStreaming
+			}
 			select {
-			case <-time.After(pollEvery):
+			case <-time.After(wait):
+			case <-ch.hurry:
 			case <-ch.older:
 				ch.fetchOlder(cl, id, update, wanted)
 			}
@@ -255,7 +275,7 @@ func (ch *Chat) fetchOlder(cl *client.Client, id string, update func(func()), wa
 func news(last, t proto.Transcript) bool {
 	return len(t.Entries) > 0 || t.Reset || t.Supported != last.Supported || t.Reason != last.Reason ||
 		t.Model != last.Model || t.Mode != last.Mode || t.Effort != last.Effort ||
-		t.ContextTokens != last.ContextTokens
+		t.ContextTokens != last.ContextTokens || t.CostUSD != last.CostUSD || t.BudgetUSD != last.BudgetUSD
 }
 
 func (ch *Chat) apply(t proto.Transcript) {
@@ -294,6 +314,7 @@ func (ch *Chat) apply(t proto.Transcript) {
 		}
 	}
 	ch.model, ch.mode, ch.effort = t.Model, t.Mode, t.Effort
+	ch.cost, ch.budget = t.CostUSD, t.BudgetUSD
 	if t.ContextTokens > 0 {
 		ch.contextUsed, ch.contextWindow = t.ContextTokens, t.ContextWindow
 	}
@@ -406,6 +427,12 @@ type Options struct {
 	ShowTerminal func()
 	// OpenChanges shows file's changes in the session's Git panel.
 	OpenChanges func(file string)
+	// OpenConsole opens where the agent's account shows what it has left; nil leaves
+	// out the link to it.
+	OpenConsole func()
+	// NoticeAction says what can be done about a notice of the agent's (a key
+	// refused: add another), "" for nothing.
+	NoticeAction func(notice string) (label string, do func())
 	// AttachFiles asks for files to attach to the next message; Drop
 	// attaches files dropped on the chat. Nil hides or ignores them.
 	AttachFiles func()
@@ -420,6 +447,7 @@ func (ch *Chat) View(c *ui.Context, o Options) {
 	ch.showUser = o.ShowUser
 	ch.agentName, ch.dir = o.AgentName, o.Dir
 	ch.openChanges = o.OpenChanges
+	ch.noticeAction = o.NoticeAction
 	ch.editable = o.Edit != nil && agent.CanRewind(o.Agent) && !o.Ended
 	ch.ask = asking{waiting: o.Waiting && !o.Ended, answer: o.Answer, terminal: o.ShowTerminal}
 	if p, ok := agent.Find(o.Agent); ok {
@@ -440,6 +468,7 @@ func (ch *Chat) View(c *ui.Context, o Options) {
 	}
 	ch.sending = o
 	ch.outgoingLook(o, time.Now())
+	ch.followSpeed(o)
 	col.Children(func() {
 		switch {
 		case len(ch.turns) == 0 && len(ch.out) > 0:
@@ -465,6 +494,20 @@ func (ch *Chat) View(c *ui.Context, o Options) {
 			ch.composer(c, o)
 		}
 	})
+}
+
+// followSpeed has the poller ask at the speed this frame calls for.
+func (ch *Chat) followSpeed(o Options) {
+	fast := OwnChat(o.Agent) && !o.Ended && (o.Working || ch.outgoingFlying())
+	if fast && !ch.streaming.Swap(true) {
+		select {
+		case ch.hurry <- struct{}{}:
+		default:
+		}
+	} else if !fast {
+		ch.streaming.Store(false)
+		clear(ch.live)
+	}
 }
 
 // footRoom is what the end of a conversation keeps free, to be read clear of

@@ -39,9 +39,49 @@ var hookHandlers = map[string]handler{
 // user's hooks and what they decided; a Git commit, push or merge the
 // agent is about to run goes by the hooks before Git too.
 func (s *Server) sessionHook(p proto.SessionHookParams) (proto.HookDecision, error) {
+	// A Stop isn't a turn's end until it is known nothing keeps the agent going, so
+	// done doesn't show, to wait or to GOA's lines, while it is still at work.
+	stopping := p.Event.Event == proto.HookTurnDone && p.State == proto.StateDone
+	if stopping {
+		p.State = ""
+	}
+	d, err := s.sessionEvent(p)
+	if stopping && err == nil {
+		if sess, gerr := s.sessions.Get(p.ID); gerr == nil {
+			state := proto.StateDone
+			if goesOn(p.Event, d) {
+				state = proto.StateWorking
+			}
+			err = s.sessions.SetState(sess, state)
+		}
+	}
+	return d, err
+}
+
+// goesOn says the agent's turn doesn't end at this Stop: it was given more to do, or
+// tasks of its own still run in the background and will bring it back.
+func goesOn(ev proto.HookEvent, d proto.HookDecision) bool {
+	return d.Continue != "" || ev.BackgroundTasks > 0
+}
+
+// sessionEvent is sessionHook but for the state a Stop means.
+func (s *Server) sessionEvent(p proto.SessionHookParams) (proto.HookDecision, error) {
 	sess, err := s.sessions.Get(p.ID)
 	if err != nil {
 		return proto.HookDecision{}, err
+	}
+	// Answered before it counts as waiting: nothing is asked of the user.
+	if p.Event.Event == proto.HookPermission && s.bypassAnswer(sess.Info(), p.Event) {
+		if p.Event.PermissionMode != "" {
+			s.agentModes.note(p.ID, p.Event.PermissionMode, time.Now())
+		}
+		return proto.HookDecision{Approve: true}, nil
+	}
+	switch p.Event.Event {
+	case proto.HookTurnDone:
+		s.sessions.NoteTurnText(sess, s.maskLent(p.Event.LastMessage))
+	case proto.HookPromptStart:
+		s.sessions.NoteTurnText(sess, "")
 	}
 	if p.State != "" {
 		if err := s.sessions.SetState(sess, p.State); err != nil {
@@ -50,7 +90,7 @@ func (s *Server) sessionHook(p proto.SessionHookParams) (proto.HookDecision, err
 	}
 	info := sess.Info()
 	if !userSession(info) {
-		return proto.HookDecision{}, nil // the app's own agents
+		return proto.HookDecision{Context: s.giveRules(sess, info, p.Event)}, nil // the app's own agents; a tab's has its session's rules
 	}
 	ev := p.Event
 	if ev.PermissionMode != "" {
@@ -88,6 +128,11 @@ func (s *Server) sessionHook(p proto.SessionHookParams) (proto.HookDecision, err
 		dir = info.Dir
 	}
 	continuing := s.goaHookLines(sess, info, ev, &d)
+	if !d.Block {
+		if rules := s.giveRules(sess, info, ev); rules != "" {
+			d.Context = strings.TrimSpace(d.Context + "\n\n" + rules)
+		}
+	}
 	switch ev.Event {
 	case proto.HookToolAfter:
 		s.toolStep(info, ev)
@@ -96,17 +141,12 @@ func (s *Server) sessionHook(p proto.SessionHookParams) (proto.HookDecision, err
 		s.todoHead(info)
 		if !d.Block {
 			go s.turnStarted(info)
-			if info.GOA {
-				if changed := s.goaRulesChanged(info.ID); changed != "" {
-					d.Context = strings.TrimSpace(d.Context + "\n\n" + changed)
-				}
-			}
 			if extra := s.ragContext(info, dir, ev.Prompt); extra != "" {
 				d.Context = strings.TrimSpace(d.Context + "\n\n" + extra)
 			}
 		}
 	case proto.HookTurnDone:
-		if continuing {
+		if continuing || goesOn(ev, d) {
 			break // it goes on, to take what it was given
 		}
 		go s.turnEnded(info)

@@ -64,6 +64,13 @@ func apply(c *proto.Canvas, e proto.CanvasEdit) (frame, element string, err erro
 		c.Frames = append(c.Frames, f)
 		return f.ID, "", nil
 	}
+	if e.Op == proto.CanvasOpReference {
+		if strings.TrimSpace(e.Reference) == "" {
+			return "", "", errors.New("canvas: a reference needs its credit")
+		}
+		c.References = append(c.References, e.Reference)
+		return "", "", nil
+	}
 	if e.Op == proto.CanvasOpBrief {
 		c.Brief = e.Brief
 		return "", "", nil

@@ -14,6 +14,7 @@ import (
 	"path/filepath"
 	"slices"
 	"strings"
+	"sync/atomic"
 	"text/tabwriter"
 	"time"
 
@@ -30,7 +31,7 @@ const EnvSession = "ENOWX_SESSION"
 // Commands are the command line's commands, for the programs that also
 // do other things with their arguments to tell them apart.
 var Commands = []string{"ls", "list", "sessions", "peek", "status", "spawn", "send", "read", "wait", "kill", "hibernate", "wake", "agents", "projects", "project", "shells", "notes", "features", "creds", "canvas", "review", "sync", "cache", "diagnostics", "icons", "attach", "pipeline", "pipelines", "note", "automation", "automations", "hooks", "accounts", "configs", "rag", "decide", "usage", "browser", "traffic", "android", "mcp", "guide", "ports", "run", "api", "notify", "cloud", "team", "help",
-	"interrupt", "stop", "continue", "fork", "rename", "close", "chat", "answer", "switch", "changes", "settings", "control", "goa"}
+	"background", "profile", "interrupt", "stop", "continue", "fork", "rename", "close", "chat", "answer", "switch", "changes", "settings", "control", "goa", "claude-platform", "docs", "library"}
 
 // Is reports whether args start with one of Commands.
 func Is(args []string) bool { return len(args) > 0 && slices.Contains(Commands, args[0]) }
@@ -83,8 +84,11 @@ const usage = `usage: enowx-app <command> [arguments]
                                    move a group's projects before project P, or last
   projects rename-group FROM TO    rename a group ("" ungroups its projects)
   notify [sound|set|status]        sounds the user's enowX app plays ("notify help")
+  background [SESSION]             agents in sessions' backgrounds; background stop SESSION PID --yes stops one
   cache [clean]                    what this host's enowX folder takes, and cleaning what can go ("cache --help")
   diagnostics [--all] [--bundle F] recent connection events from the logs, or all the logs as a zip for a bug report
+  profile [--cpu SECONDS] [--json] [--out DIR]
+                                   what the running app and daemon hold and use, changing nothing
   cloud [login|logout|devices|approve|url]
                                    this host's sign-in to a team cloud ("cloud help")
   team [list|create|members|invite|join|role|remove|leave]
@@ -92,7 +96,10 @@ const usage = `usage: enowx-app <command> [arguments]
   notes [show|new|write|move|rm|import|export]
                                    the user's notes on this host ("notes help")
   icons search WORD [--lib L]      SVG icons for notes and groups (lib:name), by name and keyword
+  library open|ref|skill ITEM      take a design from the community library: a copy, a reference, a skill
   canvas COMMAND                   mockups, wireframes and diagrams the user watches built live
+  library [search|show|prompt|publish]
+                                   the community library: other people's designs, as data; publish only opens the app's form
   review -                         as a design's independent reviewer: send the verdict (Score:, Issue:, Improve:, Keep:, Next:)
                                    ("canvas help"; "canvas guide" on designing them)
   shells [use PATH|login]          the host's shells, and the one its terminals start with
@@ -165,6 +172,8 @@ func Run(args []string, out io.Writer) error {
 		return nil
 	}
 	switch args[0] {
+	case "claude-platform":
+		return claudePlatform(args[1:], out) // an agent, not a command of the daemon's
 	case "diagnostics":
 		return runner{out: out}.diagnostics(args[1:]) // the daemon may be what is down
 	case "android":
@@ -217,6 +226,8 @@ func (r runner) command(args []string) error {
 		return r.read(rest)
 	case "wait":
 		return r.wait(rest)
+	case "background":
+		return r.background(rest)
 	case "kill":
 		return r.closeSession(rest)
 	case "hibernate":
@@ -265,18 +276,24 @@ func (r runner) command(args []string) error {
 		return r.team(rest)
 	case "sync":
 		return r.sync(rest)
+	case "profile":
+		return r.profile(rest)
 	case "cache":
 		return r.cache(rest)
 	case "features":
 		return r.features(rest)
 	case "creds":
 		return r.creds(rest)
+	case "docs":
+		return r.docs(rest)
 	case "notes":
 		return r.notes(rest)
 	case "icons":
 		return r.icons(rest)
 	case "canvas":
 		return r.canvasCmd(rest)
+	case "library":
+		return r.libraryCmd(rest)
 	case "review":
 		return r.review(rest)
 	case "attach":
@@ -403,6 +420,8 @@ func State(s proto.SessionInfo) string {
 		return fmt.Sprintf("exited(%d)", s.ExitCode)
 	case s.Queued:
 		return "queued"
+	case len(s.Background) > 0 && !s.Active && s.State != proto.StateWorking && s.State != proto.StateWaiting:
+		return fmt.Sprintf("background(%d)", len(s.Background)) // its turn ended, not its work
 	case s.State != "":
 		return s.State
 	case s.Active:
@@ -562,7 +581,17 @@ func (r runner) send(args []string) error {
 	if err != nil {
 		return err
 	}
-	return r.c.Call(proto.MethodSessionInput, proto.SessionInputParams{ID: s.ID, Text: strings.Join(fs.Args()[1:], " "), Paste: true, Enter: !*noEnter, From: os.Getenv(EnvSession)}, nil)
+	var res proto.SessionInputResult
+	if err := r.c.Call(proto.MethodSessionInput, proto.SessionInputParams{ID: s.ID, Text: strings.Join(fs.Args()[1:], " "), Paste: true, Enter: !*noEnter, From: os.Getenv(EnvSession)}, &res); err != nil {
+		return err
+	}
+	switch {
+	case res.Woken:
+		fmt.Fprintf(r.out, "%s was %s: brought back on its conversation, and it has your message.\n", s.ID, State(s))
+	case !res.Sent && s.Exited:
+		return fmt.Errorf("%s is %s and its host's daemon is too old to bring it back, so nothing arrived: wake it, then send again", s.ID, State(s))
+	}
+	return nil
 }
 
 func (r runner) read(args []string) error {
@@ -585,6 +614,13 @@ func (r runner) read(args []string) error {
 // new to count as done.
 const quietFor = 3 * time.Second
 
+// doneSettles is how long done must hold, with the screen still, to count.
+const doneSettles = 3 * time.Second
+
+// hookedQuietFor is quietFor for an agent whose hooks report its turns: quiet then only
+// means it hasn't started one, or that its hook is slow on a busy host.
+const hookedQuietFor = 20 * time.Second
+
 func (r runner) wait(args []string) error {
 	fs := flag.NewFlagSet("wait", flag.ContinueOnError)
 	timeout := fs.Duration("timeout", 30*time.Minute, "")
@@ -596,37 +632,127 @@ func (r runner) wait(args []string) error {
 	if err := fs.Parse(args); err != nil || fs.NArg() != 1 {
 		return errors.New("usage: enowx-app wait SESSION [--timeout 30m]")
 	}
+	// By the session's events: read by the list twice a second, one agent waiting on
+	// another took a whole list of sessions 120 times a minute. The list stays for an
+	// event missed and for a session on another host, whose events don't come here.
+	every := waitListEvery
+	if r.host != "" {
+		every = waitListEveryHost
+	}
+	var latest atomic.Pointer[proto.SessionInfo]
+	var target atomic.Pointer[string]
+	changed := make(chan struct{}, 1)
+	r.c.Listen(func(ev proto.Event) {
+		id := target.Load()
+		if id == nil {
+			return
+		}
+		switch ev.Name {
+		case proto.EventSessionUpdated:
+			var info proto.SessionInfo
+			if json.Unmarshal(ev.Data, &info) != nil || info.ID != *id {
+				return
+			}
+			latest.Store(&info)
+		case proto.EventSessionRemoved:
+			var ref proto.SessionRef
+			if json.Unmarshal(ev.Data, &ref) != nil || ref.ID != *id {
+				return
+			}
+		default:
+			return
+		}
+		select {
+		case changed <- struct{}{}:
+		default:
+		}
+	})
 	s, err := r.session(fs.Arg(0))
 	if err != nil {
 		return err
 	}
+	target.Store(&s.ID)
+	listed := time.Now()
 	deadline := time.Now().Add(*timeout)
-	var quietSince time.Time
+	var w turnWait
 	for {
 		state := State(s)
-		switch {
-		case s.Exited, state == proto.StateDone, state == proto.StateWaiting:
+		if w.over(s, time.Now()) {
 			fmt.Fprintln(r.out, state)
 			return nil
-		case state == "idle":
-			if quietSince.IsZero() {
-				quietSince = time.Now()
-			} else if time.Since(quietSince) >= quietFor {
-				fmt.Fprintln(r.out, state)
-				return nil
-			}
-		default:
-			quietSince = time.Time{}
 		}
 		if time.Now().After(deadline) {
 			return fmt.Errorf("wait: %s is still %s after %s", s.ID, state, *timeout)
 		}
-		time.Sleep(500 * time.Millisecond)
-		if s, err = r.session(s.ID); err != nil {
-			return err
+		wait := min(time.Until(listed.Add(every)), time.Until(deadline))
+		if !w.calm.IsZero() {
+			wait = min(wait, waitSettleLook) // it may end with nothing more said
+		}
+		list := false
+		timer := time.NewTimer(max(wait, time.Millisecond))
+		select {
+		case <-changed:
+			if info := latest.Swap(nil); info != nil {
+				s = *info
+			} else {
+				list = true // removed: the list says so
+			}
+		case <-timer.C:
+			list = time.Since(listed) >= every
+		case <-r.c.Done():
+			timer.Stop()
+			return fmt.Errorf("wait: the connection to enowX ended: %w", r.c.Err())
+		}
+		timer.Stop()
+		if list {
+			if s, err = r.session(s.ID); err != nil {
+				return err
+			}
+			listed = time.Now()
 		}
 	}
 }
+
+// turnWait follows a session until its agent has truly ended its turn or is asking.
+type turnWait struct {
+	calm  time.Time // since when what would end the wait has held
+	state string    // that state
+}
+
+// over says the wait ends on session s, as seen now. Exited or asking ends it at once.
+// Done must hold with the screen still, as a Stop can be followed by more: a hook, a
+// reminder or a tool's next step. A state gone stale is an agent long at one step, which
+// isn't an end at all; an agent whose hooks report its turns isn't done by being quiet.
+func (w *turnWait) over(s proto.SessionInfo, now time.Time) bool {
+	state := State(s)
+	var need time.Duration
+	switch {
+	case s.Exited, state == proto.StateWaiting:
+		return true
+	case state == proto.StateDone && !s.Active:
+		need = doneSettles
+	case state == "idle" && !s.StateStale:
+		need = quietFor
+		if agent.HookSupport(s.Agent)[proto.HookTurnDone] == proto.HookInAgent {
+			need = hookedQuietFor
+		}
+	default:
+		w.calm = time.Time{}
+		return false
+	}
+	if w.calm.IsZero() || w.state != state {
+		w.calm, w.state = now, state
+	}
+	return now.Sub(w.calm) >= need
+}
+
+// How often wait reads the list of sessions, events telling it sooner, and looks again
+// at what must hold a while.
+const (
+	waitSettleLook    = 500 * time.Millisecond
+	waitListEvery     = 15 * time.Second
+	waitListEveryHost = 3 * time.Second
+)
 
 func (r runner) note(args []string) error {
 	if len(args) == 0 {
@@ -696,7 +822,7 @@ func sessionGuide(all bool) string {
 		return agent.Guide
 	}
 	defer c.Close()
-	g, err := c.FeaturesGuide(proto.FeaturesParams{Session: os.Getenv(EnvSession)})
+	g, err := c.FeaturesGuide(proto.FeaturesParams{Session: os.Getenv(EnvSession), Reading: true})
 	if err != nil || g.Guide == "" {
 		return agent.Guide
 	}

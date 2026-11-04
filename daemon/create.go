@@ -87,15 +87,19 @@ func (s *Server) createSessionFor(p proto.SessionCreateParams, member *proto.Ses
 		dir = goaDir
 	}
 	meta.SkipUnheard = p.SkipUnheard
-	if p.SkipUnheard && len(agent.HookArgs(p.Agent)) == 0 {
+	if p.SkipUnheard && !agent.ReportsItself(p.Agent) {
 		p.SkipPermissions = true
 	}
 	// Settle what to run before creating a worktree it would leave behind.
 	id := session.NewID()
-	guide := s.guideFor(meta)
-	if meta.Project == "" && p.NotesFor == "" && p.CanvasFor == "" && !p.GOA {
-		guide += s.projectGuide(dir) // a folder of no project's, a team's maybe
+	guideMeta, guideDir := meta, dir
+	if p.Parent != "" {
+		// A tab: its session's project and folder, settled below.
+		if parent, err := s.sessions.Get(p.Parent); err == nil {
+			guideMeta.Project, guideDir = parent.Meta().Project, parent.Info().Dir
+		}
 	}
+	guide := s.guideIn(guideMeta, guideDir)
 	chat := s.goaChat(s.chatOf(p.NotesFor, p.CanvasFor, guide), meta)
 	chat.member = member != nil
 	if !p.SignIn {
@@ -126,6 +130,7 @@ func (s *Server) createSessionFor(p proto.SessionCreateParams, member *proto.Ses
 		p = s.withAgentStart(p)
 	}
 	meta.Model, meta.Effort, meta.Mode = strings.TrimPrefix(p.Model, "default"), strings.TrimPrefix(p.Effort, "default"), p.Mode
+	meta.ModelStarted = meta.Model
 	launch, err := launchFor(p, chat)
 	if err != nil {
 		s.configForget(id)
@@ -196,7 +201,13 @@ func (s *Server) createSessionFor(p proto.SessionCreateParams, member *proto.Ses
 	}
 
 	meta.Restart, meta.Relaunch, meta.SkipPermissions = launch.restart, launch.relaunch, launch.skip
+	if !p.SignIn {
+		keepBypass(&meta)
+	}
 	meta.Budget = time.Duration(p.Budget) * time.Second
+	if !p.SignIn {
+		meta.Rules = s.rulesAtStart(meta, dir, false)
+	}
 	spec := session.Spec{
 		ID:      id,
 		Command: launch.command, Dir: dir, Env: append(append(slices.Clone(p.Env), launch.env...), s.hostEnvFor(member)...), Cols: p.Cols, Rows: p.Rows, Meta: meta,
@@ -218,10 +229,10 @@ func (s *Server) createSessionFor(p proto.SessionCreateParams, member *proto.Ses
 		spec.Env = append(spec.Env, disp.Env()...)
 		spec.Meta.Display, spec.Meta.DisplayScale = disp.Port, disp.Scale
 	}
-	if p.NotesFor == "" && p.CanvasFor == "" && !p.SignIn && member == nil {
-		// The vault's credentials it asked for, and its helpers.
-		env, names := s.vaultSessionEnv(spec.ID, meta.Project, meta.Parent, p.Creds)
-		spec.Env, spec.Meta.Creds = append(spec.Env, env...), names
+	if needsKey := s.agentKeyPlatform(p.Agent, p.Account) != ""; (p.NotesFor == "" && p.CanvasFor == "" || needsKey) && !p.SignIn && member == nil {
+		// The vault's credentials it asked for, those its agent runs on, and its helpers.
+		env, names := s.vaultSessionEnv(spec.ID, meta.Project, meta.Parent, s.agentCreds(p.Agent, meta.Project, p.Account, p.Creds), p.Agent)
+		spec.Env, spec.Meta.Creds = append(append(spec.Env, env...), chat.config.environ()...), names // its config's API over any key lent
 	}
 	// An agent that keeps no record of its tokens is metered through
 	// the interceptor, when the user tracks that way (tokens_layers.go).
@@ -230,6 +241,9 @@ func (s *Server) createSessionFor(p proto.SessionCreateParams, member *proto.Ses
 	}
 	if member != nil {
 		spec.Env = memberEnviron(spec.Env)
+	}
+	if p.NotesFor == "" && p.CanvasFor == "" && !p.SignIn && !p.GOA && member == nil && meta.Project != "" {
+		s.keepGuideBlock(p.Agent, spec.Dir)
 	}
 	if _, isAgent := agent.Find(p.Agent); isAgent && !p.SignIn && s.mustQueue() {
 		return s.enqueue(spec, launch.command, launch.typed)
@@ -359,10 +373,10 @@ func launchFor(p proto.SessionCreateParams, chat chatFor) (launch, error) {
 	if !ok {
 		return launch{}, fmt.Errorf("unknown agent %q", p.Agent)
 	}
-	skip := p.SkipPermissions && len(preset.SkipPermissions)+len(preset.SkipEnv) > 0
-	if skip && preset.RefusesRootSkip && os.Geteuid() == 0 {
-		return launch{}, fmt.Errorf("%s refuses to skip permission prompts as root; reconnect and let enowX run as a regular user (Manage hosts → Ask user again), or turn off Skip permission prompts", preset.Name)
+	if other := preset.NamesakeHere(); other != "" {
+		return launch{}, fmt.Errorf("%s at %s isn't the agent, but another program with its name: install the agent to start it", preset.Name, other)
 	}
+	skip := agent.Skips(preset.ID, p.SkipPermissions) && len(preset.SkipPermissions)+len(preset.SkipEnv) > 0
 	switch {
 	case chat.goa:
 		if note := agent.GOANote(preset.ID, chat.guide); note != "" && prompt != "" {
@@ -391,7 +405,7 @@ func launchFor(p proto.SessionCreateParams, chat chatFor) (launch, error) {
 		first.Prompt = ""
 	}
 	again := agentLaunch(preset, skip, "", true, chat)
-	again.Hooks = append(again.Hooks, args...)
+	again.Hooks = append(again.Hooks, agent.KeptArgs(preset.ID, p.Model, p.Effort, p.Mode, skip)...)
 	if p.Resume != "" {
 		first.Resume, first.Fork = p.Resume, p.Fork
 	}
@@ -402,6 +416,9 @@ func launchFor(p proto.SessionCreateParams, chat chatFor) (launch, error) {
 		relaunch: len(preset.Continue) > 0,
 		skip:     skip,
 		warn:     commandWarning(preset, first),
+	}
+	if agent.AlwaysSkips(preset.ID) && preset.SkipRefused() {
+		l.warn = strings.TrimSpace(l.warn + " " + preset.Name + " refuses bypass as root, so this session asks before it runs tools: let enowX run as a regular user (Manage hosts → Ask user again).")
 	}
 	switch {
 	case longPrompt:
@@ -458,8 +475,20 @@ type chatFor struct {
 // user's ordinary sessions, as the Notes, Canvas and GOA agents have tools of
 // their own and a teammate's session none of this.
 func (ch chatFor) toolEnv(id string) []string {
-	if ch.member || ch.notes != "" || ch.canvas != "" || ch.goa {
+	if ch.member || ch.notes != "" || ch.canvas != "" {
 		return nil
+	}
+	if ch.goa {
+		if ch.files == "" {
+			return nil
+		}
+		if agent.IsOpenCode(id) {
+			return goaOpenCodeEnv(id, ch.dataDir())
+		}
+		return agent.ToolEnvGuide(id, programPath(), filepath.Join(ch.dataDir(), "goa", agent.GOAGuideName))
+	}
+	if file := ch.ownGuideFile(id); file != "" {
+		return agent.ToolEnvGuide(id, programPath(), file)
 	}
 	return toolEnv(id)
 }
@@ -512,13 +541,14 @@ func agentLaunch(preset agent.Preset, skip bool, prompt string, cont bool, chat 
 		guide = agent.Guide
 	}
 	guide = guideWithoutSecrets(guide)
+	given := chat.agentGuide(preset.ID, guide)
 	// Skipping stays a mode to switch to from the chat, except as root,
 	// where the agent would refuse to start with it.
-	allow := !(preset.RefusesRootSkip && os.Geteuid() == 0)
+	allow := !preset.SkipRefused()
 	if home, err := os.UserHomeDir(); err == nil && !chat.goa {
 		// Agents whose command line takes no guide read it from their home
 		// (GOA's own is a file its first prompt names: agent.GOANote).
-		if err := agent.PlaceGuideText(preset.ID, home, guide); err != nil {
+		if err := agent.PlaceGuideText(preset.ID, home, guideInjected(preset.ID, agent.SharedGuide(guide))); err != nil {
 			slog.Warn("could not give the agent its guide", "agent", preset.ID, "err", err)
 		}
 	}
@@ -526,7 +556,11 @@ func agentLaunch(preset agent.Preset, skip bool, prompt string, cont bool, chat 
 	if !chat.member {
 		tools = agent.ToolArgs(preset.ID, programPath())
 	}
-	hooks := append(append(agent.HookArgs(preset.ID), tools...), agent.GuideArgsText(preset.ID, guide)...)
+	guideArgs := agent.GuideArgsText(preset.ID, given)
+	if file := chat.ownGuideFile(preset.ID); file != "" {
+		guideArgs = agent.GuideArgsIn(preset.ID, given, file)
+	}
+	hooks := append(append(agent.HookArgs(preset.ID), tools...), guideArgs...)
 	if agent.Base(preset.ID) == "codex" && len(hooks) > 0 {
 		// Codex runs only hooks it trusts: enowX's own are trusted here.
 		if err := agent.TrustCodexHooks(""); err != nil {
@@ -535,7 +569,7 @@ func agentLaunch(preset agent.Preset, skip bool, prompt string, cont bool, chat 
 	}
 	switch {
 	case chat.goa:
-		hooks = append(agent.GOAHookArgs(preset.ID), agent.GOAArgs(preset.ID, programPath(), guide)...)
+		hooks = append(agent.GOAHookArgs(preset.ID), agent.GOAArgs(preset.ID, programPath(), given)...)
 	case chat.notes != "":
 		hooks = append(agent.HookArgs(preset.ID), agent.NotesArgs(preset.ID, programPath(), chat.notes)...)
 	case chat.canvas != "":
@@ -544,10 +578,17 @@ func agentLaunch(preset agent.Preset, skip bool, prompt string, cont bool, chat 
 	if home, err := os.UserHomeDir(); err == nil && !chat.member && (chat.config == nil || !chat.config.api) {
 		hooks = append(hooks, agentapi.LaunchArgs(home, preset.ID)...) // its model API's config
 	}
+	if agent.Skips(preset.ID, false) {
+		// Repeated, --settings takes the last alone (run on 2.1.318): one, merged.
+		hooks = agentapi.WithSettings(hooks, map[string]any{agent.BypassAccepted: true})
+	}
 	if run := chat.config; run != nil {
 		// Its config's (configs.go): Claude Code's settings go into the
 		// --settings enowX's hooks use.
 		hooks = append(agentapi.WithSettings(hooks, run.settings), run.args...)
+	}
+	if preset.ID == "opencode" {
+		hooks = append(hooks, agent.OpenCodeArgs(preset.Command)...)
 	}
 	l := agent.Launch{Prompt: prompt, SkipPermissions: skip, AllowSkip: allow, Continue: cont, SessionDir: chat.store, Hooks: hooks}
 	l.Hooks = fitCommandLine(preset, l, chat.files)

@@ -27,13 +27,19 @@ const (
 
 // record is a session as saved on disk.
 type record struct {
-	ID       string               `json:"id"`
-	Created  time.Time            `json:"created"`
-	Dir      string               `json:"dir"`
-	Command  []string             `json:"command,omitempty"`
-	Relaunch bool                 `json:"relaunch,omitempty"`
+	ID       string    `json:"id"`
+	Created  time.Time `json:"created"`
+	Dir      string    `json:"dir"`
+	Command  []string  `json:"command,omitempty"`
+	Relaunch bool      `json:"relaunch,omitempty"`
+	// What the daemon's stopping noted, for the next one alone: an update of the record
+	// forgets it, as it no longer holds.
+	MidTurn  bool                 `json:"midTurn,omitempty"`      // its agent was at work
+	TabAgent []string             `json:"tabAgent,omitempty"`     // an agent run by hand in its terminal, to bring back
+	Lost     []string             `json:"lost,omitempty"`         // what ran in its terminal, which can't come back
 	Restart  []string             `json:"restart,omitempty"`      // nil with Relaunch: the login shell
 	Convo    string               `json:"conversation,omitempty"` // Meta.Conversation
+	Since    time.Time            `json:"convoSince,omitzero"`    // Meta.ConvoSince
 	Exited   bool                 `json:"exited,omitempty"`
 	Note     string               `json:"note,omitempty"`
 	Finished int64                `json:"finishedAt,omitempty"` // Meta.FinishedAt
@@ -49,6 +55,8 @@ type record struct {
 	Model    string               `json:"model,omitempty"`
 	Effort   string               `json:"effort,omitempty"`
 	Mode     string               `json:"mode,omitempty"`
+	Started  string               `json:"modelStarted,omitempty"`
+	Moved    bool                 `json:"modelMoved,omitempty"`
 	Budget   int64                `json:"budget,omitempty"` // seconds
 	Display  bool                 `json:"display,omitempty"`
 	Parent   string               `json:"parent,omitempty"`
@@ -69,6 +77,8 @@ type record struct {
 	HibernatedByHand bool      `json:"hibernatedByHand,omitempty"`
 	HibernatedAt     time.Time `json:"hibernatedAt,omitzero"`
 	NoAutoHibernate  bool      `json:"noAutoHibernate,omitempty"`
+	// Rules is what its agent last got of its rules (rules_given.go).
+	Rules *proto.SessionRules `json:"rules,omitempty"`
 }
 
 // persistence saves the daemon's sessions. Its methods are safe from any
@@ -134,12 +144,13 @@ func (p *persistence) update(s *session.Session, command []string) {
 	old, known := p.records[info.ID]
 	r := record{
 		ID: info.ID, Created: info.Created, Dir: info.Dir, Command: info.Command, Relaunch: meta.Relaunch, Restart: meta.Restart,
-		Finished: meta.FinishedAt, Convo: meta.Conversation, Exited: info.Exited, ExitCode: info.ExitCode, Name: meta.Name, Prompt: info.Prompt,
-		Project: meta.Project, Agent: meta.Agent, Branch: meta.Branch, Worktree: meta.Worktree, Skip: meta.SkipPermissions, Unheard: meta.SkipUnheard, Model: meta.Model, Effort: meta.Effort, Mode: meta.Mode,
+		Finished: meta.FinishedAt, Convo: meta.Conversation, Since: meta.ConvoSince, Exited: info.Exited, ExitCode: info.ExitCode, Name: meta.Name, Prompt: info.Prompt,
+		Project: meta.Project, Agent: meta.Agent, Branch: meta.Branch, Worktree: meta.Worktree, Skip: meta.SkipPermissions, Unheard: meta.SkipUnheard, Model: meta.Model, Effort: meta.Effort, Mode: meta.Mode, Started: meta.ModelStarted, Moved: meta.ModelMoved,
 		Budget: int64(meta.Budget / time.Second), Display: meta.Display > 0, Parent: meta.Parent, Note: meta.Note,
 		Group: meta.Group, Account: meta.Account, Config: meta.Config, Member: meta.Member, Private: meta.Private, NotesFor: meta.NotesFor, Canvas: meta.CanvasFor, GOA: meta.GOA, GOAWorker: meta.GOAWorker, Features: meta.Features, Creds: meta.Creds,
 		Hibernated: meta.Hibernated && info.Exited, HibernatedByHand: meta.HibernatedByHand, HibernatedAt: meta.HibernatedAt,
 		NoAutoHibernate: meta.NoAutoHibernate,
+		Rules:           meta.Rules,
 	}
 	if command != nil {
 		r.Command = command
@@ -196,6 +207,26 @@ func (p *persistence) loadHistory(id string) []byte {
 
 // stopping marks the daemon as stopping: the sessions it hangs up next are
 // relaunched at the next start, not recorded as exited.
+// restartNote is what a daemon's stopping notes of a session.
+type restartNote struct {
+	midTurn  bool
+	tabAgent []string
+	lost     []string
+}
+
+// noteRestart keeps note in session id's record, for the next daemon.
+func (p *persistence) noteRestart(id string, note restartNote) {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	r, known := p.records[id]
+	if !known || p.closing {
+		return
+	}
+	r.MidTurn, r.TabAgent, r.Lost = note.midTurn, note.tabAgent, note.lost
+	p.records[id] = r
+	p.saveLocked()
+}
+
 func (p *persistence) stopping() {
 	p.mu.Lock()
 	p.closing = true
@@ -240,10 +271,17 @@ func (s *Server) restore() {
 			Meta: session.Meta{
 				FinishedAt: r.Finished,
 				Name:       r.Name, Prompt: r.Prompt, Project: r.Project, Agent: r.Agent, Branch: r.Branch,
-				Worktree: r.Worktree, SkipPermissions: r.Skip, SkipUnheard: r.Unheard, Model: r.Model, Effort: r.Effort, Mode: r.Mode, Conversation: r.Convo, Relaunch: r.Relaunch, Restart: r.Restart, Restored: true,
+				Worktree: r.Worktree, SkipPermissions: r.Skip, SkipUnheard: r.Unheard, Model: r.Model, Effort: r.Effort, Mode: r.Mode, ModelStarted: r.Started, ModelMoved: r.Moved, Conversation: r.Convo, ConvoSince: r.Since, Relaunch: r.Relaunch, Restart: r.Restart, Restored: true,
 				Budget: time.Duration(r.Budget) * time.Second, Parent: r.Parent, Note: r.Note, Group: r.Group, Account: r.Account, Config: r.Config, Member: r.Member, Private: r.Private, NotesFor: r.NotesFor, CanvasFor: r.Canvas, GOA: r.GOA, GOAWorker: r.GOAWorker, Features: r.Features, Creds: r.Creds,
-				Hibernated: r.Hibernated, HibernatedByHand: r.HibernatedByHand, HibernatedAt: r.HibernatedAt, NoAutoHibernate: r.NoAutoHibernate,
+				Hibernated: r.Hibernated, HibernatedByHand: r.HibernatedByHand, HibernatedAt: r.HibernatedAt, NoAutoHibernate: r.NoAutoHibernate, Rules: r.Rules,
 			},
+		}
+		if r.Relaunch {
+			keepBypass(&spec.Meta)
+		}
+		for _, what := range r.Lost {
+			line := "\r\n\x1b[33m── This was running here, and ended when the daemon restarted: " + what + " ──\x1b[0m"
+			spec.History = append(spec.History, line...)
 		}
 		_, dirErr := os.Stat(r.Dir)
 		if r.Exited || !r.Relaunch || dirErr != nil {
@@ -252,6 +290,11 @@ func (s *Server) restore() {
 			if !r.Exited {
 				spec.ExitCode = -1 // stopped with the daemon, not relaunched
 			}
+		} else if s.keyAwaitsApp(r.ID, spec.Meta) {
+			// It would start with no key: stopped until an app can lend it.
+			s.logger().Info("a session waits for an app to lend its key", "id", r.ID)
+			s.waitForKey(r.ID)
+			spec.Exited, spec.ExitCode, spec.Command = true, -1, r.Command
 		} else if run, err := s.configRunFor(r.ID, spec.Meta); err != nil {
 			// Its config's key can't be read yet (no app to lend it): it
 			// waits, stopped, to be continued, rather than start as another.
@@ -262,7 +305,8 @@ func (s *Server) restore() {
 			spec.Env = append(spec.Env, run.environ()...)
 			spec.Command = r.Restart
 			if r.Member == nil {
-				spec.Env = append(spec.Env, s.vaultEnvFor(r.ID, r.Project, r.Creds)...)
+				env, names := s.restartVaultEnv(r.ID, spec.Meta)
+				spec.Env, spec.Meta.Creds = append(append(spec.Env, env...), run.environ()...), names // its config's API over any key lent
 			}
 			if env, err := s.agentEnv(spec.Meta); err == nil {
 				spec.Env = append(spec.Env, env...)
@@ -272,16 +316,22 @@ func (s *Server) restore() {
 			if preset, ok := agent.Find(r.Agent); ok && len(r.Restart) > 0 && len(preset.Continue) > 0 {
 				// The command saved has the hooks and guide of the daemon
 				// that saved it.
-				chat := s.goaChat(s.chatOf(r.NotesFor, r.Canvas, s.guideFor(spec.Meta)), spec.Meta)
+				chat := s.goaChat(s.chatOf(r.NotesFor, r.Canvas, s.guideIn(spec.Meta, spec.Dir)), spec.Meta)
 				chat.member = r.Member != nil
 				chat.store = s.agentStore(r.Agent, r.ID, true)
 				chat.files = s.agentFilesDir(r.ID)
 				chat.config = run
-				l := agentLaunch(preset, r.Skip, "", hasConversation(preset, r.Convo), chat)
+				l := agentLaunch(preset, spec.Meta.SkipPermissions, "", hasConversation(preset, r.Convo), chat)
 				l.Resume = r.Convo // its own, not the folder's latest
 				l.Hooks = append(l.Hooks, keptArgs(spec.Meta)...)
 				spec.Command = thenShell(preset.Argv(l))
 				spec.Meta.Restart = spec.Command
+				spec.Meta.Rules = s.rulesAtStart(spec.Meta, spec.Dir, true)
+				spec.Env = append(spec.Env, chat.ownGuideEnv(r.Agent)...)
+			}
+			if len(r.TabAgent) > 0 {
+				spec.Command = thenShell(agent.TabAgentBypass(r.TabAgent)) // not a bare shell, which what is sent to it would run
+				s.Diag.Event("restart.tabAgent", "session", r.ID, "agent", r.TabAgent[0])
 			}
 			if r.Display {
 				// A new display: the old one went with the daemon.
@@ -302,6 +352,7 @@ func (s *Server) restore() {
 			continue
 		}
 		s.persist.update(sess, r.Command)
+		s.restored(sess, r)
 	}
 }
 
@@ -349,6 +400,10 @@ func (s *Server) saveHistories(done <-chan struct{}) {
 // starting before it isn't continued: nothing good comes of a tight loop.
 const quickExitsMax = 3
 
+// errStillRunning is continueSession's word for a session not to bring back, by which
+// another host's daemon says so too.
+const errStillRunning = "the session is still running"
+
 func (s *Server) continueSession(id string) (*session.Session, error) {
 	return s.resumeSession(id, "")
 }
@@ -356,26 +411,34 @@ func (s *Server) continueSession(id string) (*session.Session, error) {
 // resumeSession is continueSession on conversation convo of its agent's,
 // where the agent can name one: its last otherwise.
 func (s *Server) resumeSession(id, convo string) (*session.Session, error) {
+	return s.resumeSessionIn(id, convo, "")
+}
+
+// resumeSessionIn is resumeSession in mode, this once: what it comes back in after is what
+// it always does (agent.Launch.Mode).
+func (s *Server) resumeSessionIn(id, convo, mode string) (*session.Session, error) {
 	sess, err := s.sessions.Get(id)
 	if err != nil {
 		return nil, err
 	}
 	info, meta := sess.Info(), sess.Meta()
 	if !info.Exited {
-		return nil, errors.New("the session is still running")
+		return nil, errors.New(errStillRunning)
 	}
+	keepBypass(&meta)
 	if sess.QuickExits() >= quickExitsMax {
 		return nil, fmt.Errorf("it ended right after starting %d times in a row, so enowX won't start it again by itself: %s", quickExitsMax, info.ExitWhy)
 	}
 	if !meta.Relaunch {
 		return nil, errors.New("this session's command can't be continued: start it again in a new session")
 	}
-	command := meta.Restart
+	command, restart := meta.Restart, meta.Restart
 	run, err := s.configRunFor(id, meta) // its config, as it starts again
 	if err != nil {
 		return nil, err
 	}
 	meta.Config = run.sessionInfo()
+	var ownGuide []string
 	if preset, ok := agent.Find(meta.Agent); ok && len(preset.Continue) > 0 {
 		// The one asked for, else the one it was on: the folder's latest
 		// may be another session's.
@@ -385,7 +448,7 @@ func (s *Server) resumeSession(id, convo string) (*session.Session, error) {
 		if convo == "" {
 			convo = meta.Conversation
 		}
-		chat := s.goaChat(s.chatOf(meta.NotesFor, meta.CanvasFor, s.guideFor(meta)), meta)
+		chat := s.goaChat(s.chatOf(meta.NotesFor, meta.CanvasFor, s.guideIn(meta, info.Dir)), meta)
 		chat.member = meta.Member != nil
 		chat.store = s.agentStore(meta.Agent, id, true)
 		chat.files = s.agentFilesDir(id)
@@ -393,21 +456,35 @@ func (s *Server) resumeSession(id, convo string) (*session.Session, error) {
 		l := agentLaunch(preset, meta.SkipPermissions, "", hasConversation(preset, convo), chat)
 		l.Resume = convo
 		l.Hooks = append(l.Hooks, keptArgs(meta)...)
-		command = thenShell(preset.Argv(l))
+		restart = thenShell(preset.Argv(l))
+		command = restart
+		if mode != "" {
+			l.Mode = mode
+			command = thenShell(preset.Argv(l))
+			meta.Mode, meta.SkipPermissions = mode, false
+		}
 		if len(preset.Resume) > 0 {
 			meta.Conversation = convo
 		}
+		meta.Rules = s.rulesAtStart(meta, info.Dir, true)
+		ownGuide = chat.ownGuideEnv(meta.Agent)
 	}
-	meta.Restart, meta.Restored, meta.Hibernated, meta.HibernatedByHand, meta.HibernatedAt = command, false, false, false, time.Time{}
+	meta.Restart, meta.Restored, meta.Hibernated, meta.HibernatedByHand, meta.HibernatedAt = restart, false, false, false, time.Time{}
 	env, err := s.agentEnv(meta)
 	if err != nil {
 		return nil, err
 	}
-	env = append(env, run.environ()...)
+	if s.keyAwaitsApp(id, meta) {
+		return nil, fmt.Errorf("%s runs on a key in the vault: %w", agentName(meta.Agent), errNoVaultApp)
+	}
+	env = append(append(env, ownGuide...), run.environ()...)
 	spec := session.Spec{ID: id, Dir: info.Dir, Created: info.Created, History: sess.History(),
 		Env: append(append(s.hostEnvFor(meta.Member), env...), s.trafficEnvFor(meta.Parent, id)...), Command: command, Meta: meta}
 	if meta.Member == nil {
-		spec.Env = append(spec.Env, s.vaultEnvFor(id, meta.Project, meta.Creds)...)
+		var vaultEnv []string
+		vaultEnv, meta.Creds = s.restartVaultEnv(id, meta)
+		spec.Meta.Creds = meta.Creds
+		spec.Env = append(append(spec.Env, vaultEnv...), run.environ()...) // its config's API over any key lent
 	}
 	if meta.Display > 0 {
 		// Its display went with its program, or stays: one either way.
@@ -455,11 +532,15 @@ func (s *Server) agentEnv(meta session.Meta) ([]string, error) {
 	if meta.Member != nil {
 		return append(append(preset.Environ(meta.SkipPermissions), acc...), memberEnv(meta.Member, s.accounts.Home(meta.Account))...), nil
 	}
-	return append(append(append(append(append(preset.Environ(meta.SkipPermissions), apiEnv(meta.Agent)...), acc...), notesEnv(meta.NotesFor != "")...), canvasEnv(meta.CanvasFor != "")...), append(goaEnv(meta), restoredToolEnv(meta)...)...), nil
+	return append(append(append(append(append(preset.Environ(meta.SkipPermissions), apiEnv(meta.Agent)...), acc...), notesEnv(meta.NotesFor != "")...), canvasEnv(meta.CanvasFor != "")...), append(goaEnv(meta), s.restoredToolEnv(meta)...)...), nil
 }
 
 // restoredToolEnv is toolEnv for a session coming back, by what it is.
-func restoredToolEnv(meta session.Meta) []string {
+func (s *Server) restoredToolEnv(meta session.Meta) []string {
+	if meta.GOA && agent.IsOpenCode(meta.Agent) {
+		// What holds it is this: without it, it comes back with every tool of its agent's.
+		return goaOpenCodeEnv(meta.Agent, s.dataDir)
+	}
 	if meta.NotesFor != "" || meta.CanvasFor != "" || meta.GOA {
 		return nil
 	}

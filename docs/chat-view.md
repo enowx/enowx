@@ -9,7 +9,9 @@ The daemon reads the transcript the agent records on its own host (`session.tran
 | Agent | Transcript | Status |
 |---|---|---|
 | Claude Code | `~/.claude/projects/<folder>/<session>.jsonl`; `<folder>` is the working directory with every character other than a letter or digit replaced by `-`. Records of type `user` and `assistant` carry `message.content`: a string, or blocks `text`, `thinking`, `tool_use` (`id`, `name`, `input`) and `tool_result` (`tool_use_id`, `content`, `is_error`). Records with `isMeta` or `isSidechain` (subagents) aren't the conversation. | Supported. Format as read by `codex-rs/external-agent-migration/src/sessions/records_cla.rs` in openai/codex. |
+| Claude Platform | `<session dir>/<id>.jsonl`: a session's own folder (`~/.enowx-app/agent-sessions/<session>/`), or `~/.enowx-app/claude-platform/sessions/` run by hand, its first line's `dir` saying where it ran. One record a line (`core/platformagent/record`): `block_start` and `delta` show an answer as it streams, a delta changing its entry's revision; `assistant` replaces them with the final text and thoughts, each where it first showed; `tool_start` to `tool_end` is a call; a `sidechain`'s steps fold into its `Task` call. Cost and budget go in `Transcript.CostUSD` and `BudgetUSD`. | Reads the same way; the chat follows it live. |
 | Codex | `~/.codex/sessions/YYYY/MM/DD/rollout-*.jsonl` (`$CODEX_HOME` if set): lines `{timestamp, type, payload}`. `session_meta` has the `cwd`, `turn_context` the model and effort, `event_msg` `token_count` the last answer's tokens and the model's window. Since about 0.160, `event_msg` `item_started`/`item_completed` carry the conversation as Codex shows it (`UserMessage`, `AgentMessage`, `Reasoning`, `Plan`, `CommandExecution` with its exit code and output, `FileChange` with a unified diff per file, `McpToolCall`, `WebSearch`, `ImageView`), and those are read: the model's own calls there are scripts (`exec`) calling the real tools. Older rollouts are read from `response_item` (assistant `message`s, `reasoning` summaries, `function_call`/`custom_tool_call` with `apply_patch` and their outputs) and `user_message` events. | Supported; checked against Codex 0.164. The newest 200 rollouts are searched for a session's folder. |
+| Claude Platform | enowX's own agent: its record (`core/platformagent/record`), which streams its answers. | Supported. Its sessions open on the chat; see below. |
 | OpenCode, Gemini CLI, Kiro CLI | — | Terminal only: the Chat tab doesn't show for them. |
 
 ## Which file belongs to a session
@@ -28,14 +30,28 @@ A message sent shows in the same frame, the composer emptied, without waiting fo
 
 The outline of the user's messages stands at the conversation's side when the column leaves room for it. A column running the frame's width (GOD of Agents') gives up that side; otherwise the outline folds to a button in the chat's corner.
 
+## Claude Platform's chat
+
+The chat is this agent's main face: its sessions open on it, right after they start, with the terminal a tab away (leaving the chat is remembered per session), and the composer doesn't wait for the terminal to attach: without one, a message goes through the daemon (`session.input`).
+
+While it works the poller asks every 120 ms rather than 700, so an answer changing revision reads as streaming; with no news the app isn't woken, and it goes back to 700 ms when the agent stops. An answer still arriving is parsed from its last blank line outside a fence on (`widget.MarkdownStream`), not whole for each change, and isn't kept in the Markdown or highlight caches; a code block still arriving shows its last 8 KB in plain text and gets its colors when it closes. Once the turn is done the answer draws as any other.
+
+Beside the context, a chip says what the session has cost at list prices and of what budget (`Transcript.CostUSD`, `BudgetUSD`), amber from 80% of the budget, red at it; it shows only for an agent that reports a cost, and opens to the spend, the budget, `/budget`, and the Claude Console, where the remaining credit shows: an ordinary API key can't read it. A notice about a refused or missing key offers the agent's API keys.
+
+Answers to its questions are keys: one digit for an option, the digit after the last option then the text and Enter for an answer of the user's own, and the same for the rest of the agent's asks (`Preset.Approve`). A question with several picks or more than nine options is answered in the terminal.
+
+Its sheet (Settings → Agents, its chat, the new session dialog; `ui/platformview`) lists the vault's `anthropic` credentials by name, adds them with the vault's form, tests and removes them, and edits the host's `<data dir>/claude-platform/system-prompt.md` through `platform.prompt` and `platform.prompt.save`. Reset removes that file, for the built-in prompt.
+
 ## Changing the agent's settings
 
 The composer shows the agent's model, permission mode and effort, as the transcript and the screen say them, and changes them the way the agent's user would (`core/agent/settings.go`):
 
+Claude Platform is changed the same way as Claude Code: `/model <name>` (Opus 5.5, its default, Fable 5.1, Sonnet 5.5, Haiku 5.5, Opus 5, Sonnet 5, Haiku 4.5), Shift+Tab until the screen says the mode (ask first, accept edits, plan, bypass permissions, each named on its status line), `/effort <level>`. All read back from its record's `meta`. Its chat offers no going back to edit a message.
+
 | Setting | Claude Code | Codex (checked on 0.164) |
 |---|---|---|
 | Model | types `/model <name>`, with the names Claude Code records: Default, Opus 5.5, Fable 5.1, Sonnet 5.5, Haiku 5.5, Haiku 4.5, Sonnet 5, Opus 5, Fable 5, Opus 4.8 (the first ten of its `/model` menu on 2.1.308). Read back from `message.model`. | types `/model <slug>`: GPT-6-Luna, GPT-5.6-Terra, GPT-5.6-Luna (its `/model` menu). Read back from `turn_context`. |
-| Mode | the daemon presses Shift+Tab until the screen says the mode (`session.mode`): auto, manual, accept edits, plan, bypass permissions, in that order (checked on 2.1.308). Bypass is in the cycle because enowX starts Claude Code with `--allow-dangerously-skip-permissions`, except as root. Read back from the screen, else from `permissionMode`. | Shift+Tab switches Default and Plan; the status line says "Plan mode" and nothing in Default. |
+| Mode | the daemon lands on the mode (`session.mode`) and the call says if it didn't. Shift+Tab goes auto, manual, accept edits, plan, bypass permissions, in that order (checked on 2.1.318), with no other way to change mode as it runs, so plan is on the way from any of the first three to bypass. A key is pressed where the way doesn't go through plan, one at a time, each waiting for the screen; none if the screen doesn't say a mode. Otherwise Claude Code starts again on its conversation in that mode (`--permission-mode`, or bypass), which is refused while its agent is at work or asking, or if stopping would lose what it runs or serves; bypass is what it comes back in after. Read back from the screen, else from `permissionMode`. | Shift+Tab switches Default and Plan; the status line says "Plan mode" and nothing in Default. |
 | Effort | types `/effort <level>`: low, medium, high, xhigh, max. Read back from `effort` on assistant records. | types `/model --reasoning=<level>`: low, medium, high, xhigh, max. Read back from `turn_context`. |
 
 Other agents show no settings.
@@ -43,6 +59,8 @@ Other agents show no settings.
 ## Keeping them
 
 A session keeps its model, effort and permission mode through restarts, wakes, reconnects, app updates and forks. What its agent last said it runs on is kept with the session, and passed on its command line each time it starts or resumes (`--model`, `--effort`, `--permission-mode` for Claude Code, `-c model=…` and `-c model_reasoning_effort=…` for Codex). A change made in the agent, as `/model`, is what its transcript says next, so it becomes the session's. Exceptions: a session on a config has what the config says; one skipping permissions has that flag rather than a mode; Codex's Plan mode can't be asked for on its command line, so it comes back in Default; and a shell tab's agent, started by hand, has what it was started with.
+
+When the model its agent says differs from what the session started on, the session says so: `(started on …)` beside the model in the app's row and in `enowx-app ls`, `modelStarted` in its info, and a line in the daemon's log. Claude Code's transcript tells the two causes apart: `/model` records its answer, so that becomes the session's model, and a model it moved to by itself never goes on its command line, so a restart returns to the one it was given. Other agents' transcripts read the same either way (Codex's `turn_context`, OMP's `model_change`), so what they last said stands, with the same words.
 
 Claude Code saves what `/model` and `/effort` set as its default, in a file all its sessions read, and enowX can't stop that. Sessions already there aren't changed by it, as they say their own at each start. New ones take what Settings, New sessions start on says for that agent; left at "The agent's own", they take whatever that file says by then. A task's routing picks what a new session starts on: a session that already exists keeps its own, unless GOA or the user asks for a model by hand.
 

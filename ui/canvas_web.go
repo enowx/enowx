@@ -8,6 +8,7 @@ import (
 	"github.com/egoist/mygo"
 	"github.com/egoist/mygo/ui"
 
+	"github.com/enowx/enowx/client"
 	"github.com/enowx/enowx/core/canvas"
 	"github.com/enowx/enowx/core/diag"
 	"github.com/enowx/enowx/proto"
@@ -60,7 +61,9 @@ func (a *App) canvasWeb() *canvasview.Web {
 			}
 			return cl.CanvasAsset(id, name)
 		},
-		Update: a.onMain,
+		Update:  a.onMain,
+		Quiet:   a.quietly,
+		Showing: func() bool { return a.page == pageCanvas },
 	}
 }
 
@@ -70,9 +73,9 @@ const motionPaint = 100 * time.Millisecond
 // renders runs one render at a time.
 var renders sync.Mutex
 
-// renderCanvas renders req's page and replies to the daemon.
-func (a *App) renderCanvas(req proto.CanvasRenderRequest) {
-	cl, win := a.client, a.win
+// renderCanvas renders req's page and replies to the daemon that asked, through cl.
+func (a *App) renderCanvas(cl *client.Client, req proto.CanvasRenderRequest) {
+	win := a.win
 	if cl == nil {
 		return
 	}

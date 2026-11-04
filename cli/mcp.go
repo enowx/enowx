@@ -352,7 +352,7 @@ var sessionTools = []mcpTool{
 	{name: "session_read", description: "What a session's or a tab's screen shows.",
 		props: map[string]mcpProp{"id": {"string", "The session or tab"}}, required: []string{"id"},
 		args: func(a map[string]any) []string { return []string{"read", str(a, "id")} }},
-	{name: "session_send", description: "Type a message into a session and send it.",
+	{name: "session_send", description: "Type a message into a session and send it. A session asleep (hibernated or ended) is brought back on its conversation first, and says so; one that can't come back (a plain shell) is an error, nothing sent.",
 		props: map[string]mcpProp{"id": {"string", "The session"}, "text": {"string", "The message"}}, required: []string{"id", "text"},
 		args: func(a map[string]any) []string { return []string{"send", str(a, "id"), str(a, "text")} }},
 	{name: "session_note", description: "Say where this session is at, in a line shown under it in enowX (at milestones).",
@@ -448,6 +448,8 @@ func mcpGroups() []mcpGroup {
 		{attachTools, runner.notes},
 		{contextTools, runner.projectCmd},
 		{canvasTools, runner.canvasCmd},
+		{libraryTools, runner.libraryCmd},
+		{libraryUseTools, runner.libraryUseCmd},
 		{projectLinkTools, runner.projectCmd},
 		{onAnyHost([]string{"project"}, rulesTools), runner.command},
 		{peekTools, runner.command},
@@ -455,6 +457,9 @@ func mcpGroups() []mcpGroup {
 		{credsTools, runner.creds},
 		{controlTools, runner.command},
 		{goaTools, runner.goaCmd},
+		{docsSkillTools, runner.docs},
+		{docsGOATools, runner.docs},
+		{docsTools, runner.docs},
 	}
 }
 
@@ -496,6 +501,7 @@ func (r runner) mcp(in io.Reader, out io.Writer) error {
 	}
 	if os.Getenv(proto.EnvGOA) != "" {
 		instructions = agent.GOAGuide + instructions // GOD of Agents' server
+		groups = goaOffered(groups)
 	}
 	if os.Getenv(proto.EnvCanvasChat) != "" {
 		// The Canvas page's agent: its canvases, nothing else.
@@ -511,6 +517,7 @@ func (r runner) mcp(in io.Reader, out io.Writer) error {
 			{slices.DeleteFunc(slices.Clone(attachTools), func(t mcpTool) bool { return t.name != "notes_projects" }), runner.notes},
 			{contextTools, runner.projectCmd},
 		}
+		groups = append(groups, notesDocsGroups(mcpGroups())...)
 	}
 	for _, g := range groups {
 		for _, t := range g.tools {

@@ -103,6 +103,9 @@ func (e *editor) draw(c *ui.Context) {
 	numbers := numbersOf(e.blocks[:upTo])
 	ui.Column(c).FillWidth().Gap(2).Children(func() {
 		for i := range upTo {
+			if i == 0 && e.open != 0 && e.firstShown() == 1 {
+				continue // a Project Docs line: its strip above the page says it
+			}
 			e.blockLine(c.Key(i), i, numbers[i])
 		}
 		if upTo < len(e.blocks) {

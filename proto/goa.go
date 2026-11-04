@@ -77,6 +77,9 @@ type GOAAgent struct {
 	Level     string `json:"level"` // GOAEnforced, GOALimited, GOAWatched
 	Why       string `json:"why"`
 	Installed bool   `json:"installed"`
+	// NotYet says why GOA isn't offered on it; "" when it is. An older daemon says
+	// nothing of it, and takes any agent.
+	NotYet string `json:"notYet,omitempty"`
 }
 
 // Statuses of a task on GOA's board.
@@ -96,9 +99,11 @@ const (
 // GOATask is a task on GOA's board: the session it went to, how it was
 // routed, where it is.
 type GOATask struct {
-	ID     string `json:"id"`
-	Title  string `json:"title"`
-	Prompt string `json:"prompt"`
+	// Background are the agents in its worker's background, for a worker on this host.
+	Background []BackgroundAgent `json:"background,omitempty"`
+	ID         string            `json:"id"`
+	Title      string            `json:"title"`
+	Prompt     string            `json:"prompt"`
 	// Host is the worker's host as the app names it, "" for GOA's own.
 	Host    string `json:"host,omitempty"`
 	Session string `json:"session,omitempty"`
@@ -122,8 +127,11 @@ type GOATask struct {
 	Override bool `json:"override,omitempty"`
 	// Reused: no session was named, and the project had this one for it.
 	// Woken: its agent had stopped, and was brought back for the prompt.
-	Reused bool   `json:"reused,omitempty"`
-	Woken  bool   `json:"woken,omitempty"`
+	Reused bool `json:"reused,omitempty"`
+	Woken  bool `json:"woken,omitempty"`
+	// Asleep: not settled, its session is hibernated, so nothing moves until something
+	// is sent to it or it's woken. As the board is read, not kept.
+	Asleep bool   `json:"asleep,omitempty"`
 	Status string `json:"status"`
 	// Project is the project its session works in, when it has one.
 	Project string `json:"project,omitempty"`
@@ -163,6 +171,59 @@ type GOABoard struct {
 	Told []string `json:"told,omitempty"`
 	// Waiting are the lines waiting for GOA to take them.
 	Waiting []string `json:"waiting,omitempty"`
+}
+
+// MethodGOASwitch changes the agent or config this host's GOA runs on, restarting it:
+// GOASwitchParams → GOASwitchResult (docs/goa.md). An older daemon answers it as an
+// unknown method, and GOA stays as it is.
+const MethodGOASwitch = "goa.switch"
+
+// How a change of GOA's leaves its conversation.
+const (
+	GOAConversationSame = "same" // the one it was on goes on
+	GOAConversationNone = "none" // it hasn't any yet, so there's nothing to go on with
+	GOAConversationNew  = "new"  // a new agent: the one it was on doesn't carry over
+)
+
+// GOAConfigOfficial names an agent's official config in GOASwitchParams.Config.
+const GOAConfigOfficial = "official"
+
+// GOASwitchParams is what GOA should run on.
+type GOASwitchParams struct {
+	// Agent is the agent to run on, "" the one it runs on.
+	Agent string `json:"agent,omitempty"`
+	// Config is a config of that agent (its ID or name), or GOAConfigOfficial. "": the one
+	// it runs on for the same agent, the preferred one for another.
+	Config string `json:"config,omitempty"`
+	// Check only says what the change would do, and an error if it can't be done.
+	Check bool `json:"check,omitempty"`
+	// NewConversation is the yes to a new agent's conversation not carrying over.
+	NewConversation bool `json:"newConversation,omitempty"`
+	// Force is the yes to restarting GOA at work.
+	Force bool `json:"force,omitempty"`
+	// From is the session asking, "" for the user's: GOA can't change itself.
+	From string `json:"from,omitempty"`
+}
+
+// GOASwitchResult is what a change did or, not Restarted, would do. Not Restarted and not
+// asked to Check: a yes it needs is missing (AtWork, Conversation GOAConversationNew).
+type GOASwitchResult struct {
+	Session   SessionInfo `json:"session"`
+	Restarted bool        `json:"restarted,omitempty"`
+	// Same: it already runs on them, so nothing would change.
+	Same bool `json:"same,omitempty"`
+	// AtWork: it is working, or asking something, and a restart would cut that off.
+	AtWork bool `json:"atWork,omitempty"`
+	// Agent, Level and Config are what it runs on or would, Config a name, "" the official.
+	Agent  string `json:"agent,omitempty"`
+	Level  string `json:"level,omitempty"`
+	Config string `json:"config,omitempty"`
+	// Conversation is a GOAConversation*.
+	Conversation string `json:"conversation,omitempty"`
+	// Mode is the permission mode it starts in, "" its agent's own default.
+	Mode string `json:"mode,omitempty"`
+	// Note is what the user should know of the config: what GOA doesn't take of it.
+	Note string `json:"note,omitempty"`
 }
 
 // MethodGOAWake waits for lines for GOD of Agents, for its idle agent's background hook:

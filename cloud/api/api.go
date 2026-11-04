@@ -34,6 +34,10 @@ type Info struct {
 	URL string `json:"url,omitempty"`
 	// SignIn lists the sign-in methods set up (SignInGitHub).
 	SignIn []string `json:"signIn"`
+	// Features lists what this server has beyond teams (FeatureLibrary).
+	Features []string `json:"features,omitempty"`
+	// LibraryURL is the website of the library, with FeatureLibrary.
+	LibraryURL string `json:"libraryUrl,omitempty"`
 }
 
 // Error is the body of a request that failed.

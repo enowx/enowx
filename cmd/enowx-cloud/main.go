@@ -16,6 +16,7 @@ import (
 	"time"
 
 	"github.com/enowx/enowx/cloud/blobstore"
+	"github.com/enowx/enowx/cloud/library"
 	"github.com/enowx/enowx/cloud/server"
 	"github.com/enowx/enowx/cloud/store"
 	"github.com/enowx/enowx/version"
@@ -71,6 +72,21 @@ func run(log *slog.Logger) error {
 	} else {
 		cfg.Blobs = blobstore.Dir(filepath.Join(data, "blobs"))
 	}
+	// enowX UI: off unless asked for. It shares the store above, teams' files
+	// untouched, under a prefix of its own, and over a bucket only on Postgres.
+	if env("ENOWX_CLOUD_LIBRARY", "") == "on" {
+		if os.Getenv("ENOWX_CLOUD_R2_BUCKET") != "" && os.Getenv("ENOWX_CLOUD_DATABASE_URL") == "" {
+			return errors.New("ENOWX_CLOUD_LIBRARY needs ENOWX_CLOUD_DATABASE_URL: the library runs on Postgres")
+		}
+		cfg.Library = &server.LibraryConfig{Blobs: cfg.Blobs, Prefix: env("ENOWX_CLOUD_LIBRARY_PREFIX", ""), PublicURL: env("ENOWX_CLOUD_LIBRARY_PUBLIC_URL", ""),
+			ReturnURL: env("ENOWX_CLOUD_LIBRARY_RETURN_URL", ""), WebSecret: env("ENOWX_CLOUD_LIBRARY_WEB_SECRET", ""), AdminTeam: env("ENOWX_CLOUD_LIBRARY_ADMIN_TEAM", ""),
+			// The Contributor role's bot; off until a channel is named.
+			Announce: library.Announce{BotToken: env("ENOWX_CLOUD_DISCORD_BOT_TOKEN", ""), ChannelID: env("ENOWX_CLOUD_LIBRARY_DISCORD_CHANNEL", "")}}
+		// Searching by meaning: off unless the owner names an embedder.
+		if base := env("ENOWX_CLOUD_LIBRARY_EMBED_URL", ""); base != "" {
+			cfg.Library.Embedder = library.NewHTTPEmbedder(base, env("ENOWX_CLOUD_LIBRARY_EMBED_MODEL", ""), os.Getenv("ENOWX_CLOUD_LIBRARY_EMBED_KEY"))
+		}
+	}
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
 	conns, err := strconv.Atoi(env("ENOWX_CLOUD_DATABASE_MAX_CONNS", "0"))
@@ -85,9 +101,11 @@ func run(log *slog.Logger) error {
 	if cfg.URL == "" {
 		log.Warn("ENOWX_CLOUD_URL is unset: GitHub sign-in and invite links need it")
 	}
+	handler := server.New(cfg, db, log)
+	go handler.RunLibrary(ctx)
 	srv := &http.Server{
 		Addr:              addr,
-		Handler:           server.New(cfg, db, log),
+		Handler:           handler,
 		ReadHeaderTimeout: 10 * time.Second,
 		IdleTimeout:       2 * time.Minute,
 	}

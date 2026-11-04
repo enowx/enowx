@@ -14,7 +14,7 @@ var hibernateHandlers = map[string]handler{
 		return c.srv.hibernateSessions(p, mode)
 	}),
 	proto.MethodSessionWake: with(func(c *conn, p proto.SessionRef) (any, error) {
-		sess, err := c.srv.continueSession(p.ID)
+		sess, err := c.srv.wakeSession(p.ID)
 		if err != nil {
 			return nil, err
 		}

@@ -44,6 +44,8 @@ type procTracker struct {
 	mu    sync.Mutex
 	path  string
 	known map[int]startedProc
+	// agentSeen is when each background agent was first seen: backgroundLocked.
+	agentSeen map[startedProc]agentLook
 }
 
 func (t *procTracker) load(path string) {
@@ -138,7 +140,7 @@ func (s *Server) procsLook() {
 	if !followed {
 		return
 	}
-	list, err := procstat.Snapshot()
+	list, err := s.recentProcesses()
 	if err != nil {
 		return
 	}
@@ -147,13 +149,19 @@ func (s *Server) procsLook() {
 	roots := sessionOf // by its name where it runs under one, else by its environment
 	t.mu.Lock()
 	defer t.mu.Unlock()
+	was := t.known
 	known, changed := mergeTrees(t.known, list, self, roots, spare)
+	if adoptDetached(known, list, procstat.Env, s.isSession) {
+		changed = true
+	}
 	t.known = known
+	found := t.backgroundLocked(list, was, procstat.Args, time.Now())
 	if changed {
 		if err := t.saveLocked(); err != nil {
 			s.logger().Warn("procs: keep what sessions started", "err", err)
 		}
 	}
+	s.noteBackground(found)
 }
 
 // watchProcs follows what sessions start until done closes.

@@ -5,7 +5,9 @@ package agent
 
 import (
 	"context"
+	"os"
 	"os/exec"
+	"path/filepath"
 	"slices"
 	"strings"
 	"time"
@@ -89,15 +91,21 @@ type Preset struct {
 	// Homepage is where the agent's documentation is, to install it from
 	// when Install is empty.
 	Homepage string
-	// Namesake tells another program that installs under the same name
-	// from the agent: it prints Says when run with Args.
+	// Namesake tells the agent from another program that installs under its name.
 	Namesake *Namesake
+	// Builtin: the agent is enowX's own program, always there, running as Args say.
+	Builtin bool
+	// VaultPlatform is the vault's platform whose credential the agent's official form
+	// runs on (daemon/agentkey.go): lent to its own process alone, never its tabs.
+	VaultPlatform string
 }
 
-// Namesake is another program with an agent's name.
+// Namesake is another program with an agent's name. The agent is confirmed, not the
+// other ruled out: what the other prints changes with its versions.
 type Namesake struct {
 	Args []string
-	Says string
+	// AgentSays is what the agent prints when run with Args.
+	AgentSays string
 }
 
 // Base is the agent whose ways a preset shares (its hooks, commands,
@@ -146,10 +154,14 @@ type Launch struct {
 	SessionDir string
 	// Hooks report the agent's state to enowX (HookArgs).
 	Hooks []string
+	// Mode starts an agent that AlwaysSkips in this mode, this once and with bypass still
+	// one to switch to; "" is bypass, what it always comes back in.
+	Mode string
 }
 
 // Argv returns the command line that starts the agent as l says.
 func (p Preset) Argv(l Launch) []string {
+	l = p.holdBypass(l)
 	argv := append([]string{p.Program()}, p.Args...)
 	switch {
 	case l.Resume != "" && l.Fork && len(p.Fork) > 0:
@@ -179,36 +191,74 @@ func (p Preset) Argv(l Launch) []string {
 	return argv
 }
 
-// Program is the name the agent runs as on this host: Command, else the
-// first of Aliases on the PATH.
+// Program is the name the agent runs as on this host: the first of Command and Aliases
+// on the PATH that is the agent, else Command.
 func (p Preset) Program() string {
-	if _, err := exec.LookPath(p.Command); err != nil {
-		for _, a := range p.Aliases {
-			if _, err := exec.LookPath(a); err == nil {
-				return a
-			}
-		}
+	if p.Builtin {
+		return runningProgram()
+	}
+	if name := p.found(); name != "" {
+		return name
 	}
 	return p.Command
 }
 
-// Installed reports whether the agent's program is on this host's PATH,
-// and is the agent rather than a namesake.
-func (p Preset) Installed() bool {
-	for _, name := range append([]string{p.Command}, p.Aliases...) {
-		if _, err := exec.LookPath(name); err == nil {
-			return p.Namesake == nil || !p.Namesake.is(name)
-		}
+// Installed reports whether the agent's program is on this host's PATH, and is the
+// agent rather than a namesake.
+func (p Preset) Installed() bool { return p.Builtin || p.found() != "" }
+
+// runningProgram is enowX's program as sessions reach it: the daemon sets EnvBin to the
+// path that outlives an update (daemon.useLauncher), under whichever name it runs.
+func runningProgram() string {
+	if bin := os.Getenv(EnvBin); bin != "" {
+		return bin
 	}
-	return false
+	exe, _ := os.Executable()
+	return exe
 }
 
-// is reports whether the program name is the namesake.
-func (n Namesake) is(name string) bool {
+// NamesakeHere is the path of another program with the agent's name on this host, the
+// reason a session can't start it, when it is all there is of the agent.
+func (p Preset) NamesakeHere() string {
+	if p.Namesake == nil || p.found() != "" {
+		return ""
+	}
+	for _, name := range append([]string{p.Command}, p.Aliases...) {
+		if path, err := exec.LookPath(name); err == nil {
+			return path
+		}
+	}
+	return ""
+}
+
+// found is how to run the agent here, "" when it isn't: its name, or its path when a
+// namesake comes first on the PATH and would run instead.
+func (p Preset) found() string {
+	for _, name := range append([]string{p.Command}, p.Aliases...) {
+		if _, err := exec.LookPath(name); err != nil {
+			continue
+		}
+		if p.Namesake == nil || p.Namesake.confirms(name) {
+			return name
+		}
+		for _, dir := range filepath.SplitList(os.Getenv("PATH")) {
+			path, err := exec.LookPath(filepath.Join(dir, name))
+			if err == nil && p.Namesake.confirms(path) {
+				return path
+			}
+		}
+	}
+	return ""
+}
+
+// confirms reports whether the program name is the agent.
+func (n Namesake) confirms(name string) bool {
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
-	out, _ := quietcmd.CommandContext(ctx, name, n.Args...).CombinedOutput()
-	return strings.Contains(string(out), n.Says)
+	cmd := quietcmd.CommandContext(ctx, name, n.Args...)
+	cmd.WaitDelay = time.Second // what it left running mustn't hold the answer
+	out, _ := cmd.CombinedOutput()
+	return strings.Contains(string(out), n.AgentSays)
 }
 
 // Environ is what the agent's environment gets, skipping permissions or
@@ -228,7 +278,7 @@ func List() []proto.AgentInfo {
 	for _, p := range Presets {
 		out = append(out, proto.AgentInfo{
 			ID: p.ID, Name: p.Name, Command: p.Program(), Installed: p.Installed(),
-			CanSkipPermissions: len(p.SkipPermissions)+len(p.SkipEnv) > 0, Install: p.Install, Homepage: p.Homepage,
+			CanSkipPermissions: len(p.SkipPermissions)+len(p.SkipEnv) > 0, AlwaysSkips: AlwaysSkips(p.ID), Install: p.Install, Homepage: p.Homepage,
 			SignIn: strings.Join(append(slices.Clone(p.SignInEnv), p.SignIn...), " "),
 		})
 	}

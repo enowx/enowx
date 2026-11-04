@@ -93,7 +93,13 @@ func (a *App) startAutoSync() {
 		t := time.NewTicker(autoSyncTick)
 		defer t.Stop()
 		for range t.C {
-			a.onMain(a.autoSyncTick)
+			a.quietly(func() {
+				if len(a.sortedLinks()) == 0 {
+					a.autoSyncTick() // reading the links asks for its own frame
+					return
+				}
+				a.onMain(a.autoSyncTick) // what it starts shows
+			})
 		}
 	}()
 }

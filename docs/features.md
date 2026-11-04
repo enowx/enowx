@@ -11,4 +11,6 @@
 
 Agents: `enowx-app features` lists the switches for their session; `features on NAME --reason "…"` from a session asks the user in the app (Keep it off / For this session / Turn on everywhere) and waits for the answer: an agent never turns a feature on by itself. MCP: `features_list`, `features_request`, `feature_help`. The MCP server serves only the tools of the features on, and its instructions are the session's guide.
 
+**Project Docs** (`projectdocs`, on by default, needs Notes) serves the `docs_*` tools; the Notes page's agent gets only the read-only ones: [project-docs.md](project-docs.md).
+
 New features register in `core/agent.Features` (ID, group, default, guide part, MCP tools).

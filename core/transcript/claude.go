@@ -222,6 +222,7 @@ func (p *claudeParser) parse(line []byte, r *Reader) {
 	if rec.Type == "user" {
 		if m := modelSet.FindSubmatch(line); m != nil {
 			r.Model = string(bytes.TrimSpace(m[1]))
+			r.ModelChosen = r.Model
 		}
 	}
 	if rec.IsMeta {

@@ -109,6 +109,9 @@ func (a *App) sessionField(c *ui.Context) {
 			})
 			ui.Icon(c, icon.ChevronDown).FontSize(12).TextColor(theme.TextSoft)
 		})
+		if widget.AnchorNew(b) {
+			f.contOpen = false
+		}
 		if b.Clicked() {
 			f.contOpen = !f.contOpen
 		}
@@ -118,7 +121,7 @@ func (a *App) sessionField(c *ui.Context) {
 		ui.PopoverBase(c, b, &f.contOpen, func(panel ui.Element) {
 			widget.Popup(panel.AttachTo(b, ui.AnchorTopLeft, ui.AnchorBottomLeft).Margin(theme.S1, 0, 0, 0).Width(592)).Gap(theme.S1)
 			widget.SearchField(c, &f.contFilter, "Find a session by name or branch", icon.Search)
-			widget.Scroll(c).FillWidth().MaxHeight(280).Children(func() {
+			widget.Scroll(c).FillWidth().MaxHeight(widget.PopupRoom(c, b, 280+theme.ControlHeight) - theme.ControlHeight).Children(func() {
 				ui.Column(c).FillWidth().Children(func() {
 					if a.choiceRow(c, nil) {
 						f.cont, f.contOpen = nil, false
@@ -197,9 +200,6 @@ func (a *App) goOn(ch sessionChoice) {
 		if s.Hibernated {
 			s, err = cl.WakeSession(s.ID)
 		}
-		if err == nil && prompt != "" {
-			err = cl.Input(s.ID, prompt, true, true)
-		}
 		a.onMain(func() {
 			f.busy = false
 			if err != nil {
@@ -210,6 +210,14 @@ func (a *App) goOn(ch sessionChoice) {
 			a.upsert(s)
 			a.selectSession(s)
 		})
+		if err != nil || prompt == "" {
+			return
+		}
+		// It goes in once the agent is back, which a woken one can take a while to be:
+		// the user watches that in the session, not in this dialog.
+		if err := cl.Input(s.ID, prompt, true, true); err != nil {
+			a.onMain(func() { a.status = "The message wasn't sent: " + client.Explain(err) })
+		}
 	}()
 }
 

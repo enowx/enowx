@@ -24,11 +24,27 @@ func TestPickEncoder(t *testing.T) {
 
 // What plays everywhere: yuv420p, no sound, its index at the front.
 func TestVideoArgs(t *testing.T) {
-	args := videoArgs("libx264", 30, 1440, 900, "out.part")
+	args := videoArgs("libx264", 30, 1440, 900, "out.part", false)
 	for _, want := range []string{"yuv420p", "-an", "+faststart", "scale=1440:900:flags=lanczos", "out.part"} {
 		if !slices.Contains(args, want) {
 			t.Errorf("no %s in %v", want, args)
 		}
+	}
+}
+
+// A preview is smaller, and as silent and as playable.
+func TestVideoArgsOfAPreview(t *testing.T) {
+	args := videoArgs("libx264", 30, 720, 450, "out.part", true)
+	for _, want := range []string{"yuv420p", "-an", "+faststart", "30"} {
+		if !slices.Contains(args, want) {
+			t.Errorf("no %s in %v", want, args)
+		}
+	}
+	if slices.Contains(args, "18") {
+		t.Errorf("a full export's quality: %v", args)
+	}
+	if args := videoArgs("h264_videotoolbox", 30, 720, 450, "out.part", true); !slices.Contains(args, "3M") {
+		t.Errorf("another encoder's rate: %v", args)
 	}
 }
 

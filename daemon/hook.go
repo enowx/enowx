@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"io"
 	"os"
-	"path/filepath"
 	"strings"
 	"time"
 
@@ -83,6 +82,14 @@ func answerHook(event, agentID string, data []byte, d proto.HookDecision, stdout
 			return 0
 		}
 	}
+	if d.Ask && event == proto.HookToolBefore {
+		fmt.Fprintln(stdout, askOutput(d.Reason))
+		return 0
+	}
+	if d.Approve && event == proto.HookPermission {
+		fmt.Fprintln(stdout, permissionAllowOutput())
+		return 0
+	}
 	if d.Approve && event == proto.HookToolBefore {
 		if agentID != "codex" {
 			fmt.Fprintln(stdout, approveOutput())
@@ -133,37 +140,29 @@ func agentEvent(event string, data []byte) proto.HookEvent {
 		Error    string          `json:"error"`
 		Cwd      string          `json:"cwd"`
 		Mode     string          `json:"permission_mode"`
+		Scratch  string          `json:"scratchpad_dir"`
+		Last     string          `json:"last_assistant_message"`
+		Source   string          `json:"source"`
+		Tasks    json.RawMessage `json:"background_tasks"`
 	}
 	_ = json.Unmarshal(data, &in)
-	ev := proto.HookEvent{Event: event, Prompt: in.Prompt, Tool: in.Tool, PermissionMode: in.Mode, Failed: in.Event == "PostToolUseFailure" || in.Error != ""}
-	var input map[string]any
-	if json.Unmarshal(in.Input, &input) == nil {
-		for _, k := range []string{"command", "cmd"} {
-			if v, ok := input[k].(string); ok {
-				ev.Command = v
-				break
-			}
-		}
-		for _, k := range []string{"file_path", "path", "notebook_path"} {
-			if v, ok := input[k].(string); ok && v != "" {
-				ev.Paths = append(ev.Paths, relTo(in.Cwd, v))
-			}
-		}
-		if ev.Command == "" && len(ev.Paths) == 0 {
-			ev.Command = strings.TrimSpace(string(in.Input))
-		}
-	}
+	ev := hooks.ToolEvent(event, in.Tool, in.Input, in.Cwd)
+	ev.Prompt, ev.PermissionMode, ev.Scratchpad, ev.LastMessage, ev.Failed = in.Prompt, in.Mode, in.Scratch, in.Last, in.Event == "PostToolUseFailure" || in.Error != ""
+	ev.Source, ev.BackgroundTasks = in.Source, countOf(in.Tasks)
 	return ev
 }
 
-// relTo is path p from folder dir, with slashes, when it is inside it.
-func relTo(dir, p string) string {
-	if dir != "" && filepath.IsAbs(p) {
-		if rel, err := filepath.Rel(dir, p); err == nil && !strings.HasPrefix(rel, "..") {
-			p = rel
-		}
+// countOf is how many items a JSON list or object has, 0 for anything else.
+func countOf(raw json.RawMessage) int {
+	var list []json.RawMessage
+	if json.Unmarshal(raw, &list) == nil {
+		return len(list)
 	}
-	return filepath.ToSlash(p)
+	var object map[string]json.RawMessage
+	if json.Unmarshal(raw, &object) == nil {
+		return len(object)
+	}
+	return 0
 }
 
 // Display gives this process's session a virtual display and prints the
@@ -256,6 +255,28 @@ func rewriteOutput(data []byte, d proto.HookDecision) (string, bool) {
 	}}
 	b, err := json.Marshal(out)
 	return string(b), err == nil
+}
+
+// permissionAllowOutput answers a permission prompt yes, without showing the user.
+// Claude Code does so for another hook's ask too (run on 2.1.318); a hook's deny never
+// asks.
+func permissionAllowOutput() string {
+	b, _ := json.Marshal(map[string]any{"hookSpecificOutput": map[string]any{
+		"hookEventName": "PermissionRequest",
+		"decision":      map[string]any{"behavior": "allow"},
+	}})
+	return string(b)
+}
+
+// askOutput has an agent ask the user about its tool call: Claude Code does so under bypass
+// too (run on 2.1.318).
+func askOutput(why string) string {
+	b, _ := json.Marshal(map[string]any{"hookSpecificOutput": map[string]any{
+		"hookEventName":            "PreToolUse",
+		"permissionDecision":       "ask",
+		"permissionDecisionReason": why,
+	}})
+	return string(b)
 }
 
 // approveOutput tells an agent to run its tool without asking the user:

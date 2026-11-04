@@ -24,6 +24,22 @@ Where there is no systemd (Alpine, containers) or lingering couldn't be turned o
 
 The app's main thread is watched: asked to answer every second, it leaves a report in `watchdog/` under the data folder when it takes over 0.7 seconds (at most once a minute: lag) or 3 seconds (a stall). A report holds every goroutine's stack, whether a frame was being built, and what was on screen as of its last answer (the page, session, agent and style, never what's in them). The newest 30 stay. `watchdog/app.log` and `watchdog/daemon.log` get a line every 5 minutes with the Go heap, its objects, goroutines and slow frames, so growth over hours shows, and a mark when memory jumps. A panic's stack goes to `app.log` or `enowxd.log`; a process killed from outside leaves no report, and its next start says `lastRun=unclean`. All the logs, their limits and how to get them: [diagnostics.md](diagnostics.md).
 
+## When a daemon restarts
+
+A session's program runs on a terminal the daemon holds, so a daemon that stops ends it. So an update waits while that would cost anything ([updates.md](updates.md)). When it does stop (asked for, Settings' **Restart the daemon**, a server's reboot), what can come back does:
+
+| What ran | After a restart |
+|---|---|
+| An agent, idle | Back on its conversation, in its mode, model and permissions |
+| An agent mid-turn | The same, and told once to carry on from where it stopped, checking what already ran. Its prompt isn't sent again. Only when the daemon stopped in an orderly way: a crash notes nothing |
+| An agent run by hand in a terminal | Back on its conversation (its `--continue`, or its `--resume ID`) and then the shell, with its mode, model and permission flags alone, so never a prompt or a key. A one-shot run (`-p`, `exec`) isn't brought back |
+| A command in a terminal | Ended, and never run again. The terminal says what it was, the app says so as it connects, and the shell comes back |
+| GOD of Agents' board, lines waiting for it and tasks queued | Kept on disk, and carried on |
+
+Each step goes in the daemon's log (`restart.*`, [diagnostics.md](diagnostics.md)).
+
+What each system gets today is the same on macOS, Linux and Windows, and on remote hosts. Keeping programs alive across a daemon's replacement isn't built yet: a small process holding the terminals would do it on macOS and Linux, and Windows' ConPTY needs its own answer.
+
 ## What Clean cache never touches
 
 `core/cacheclean` lists only `screenshots/` (not those a note names), `reviews/`, `unslop/`, `trash/`, `intercept/profiles/`, `canvas-chat/`, `notes-chat/`, `app-backup/`, `worktrees/`, `watchdog/` reports, older rotated logs and saved outputs by their exact names ([diagnostics.md](diagnostics.md)), and thins canvases' versions. Nothing else can be removed: the vault and its keys (`vault/`, `vault-run/`, `configs-run/`), `cloud/`, `accounts`, `settings/`, `sessions.json`, `agent-sessions/`, notes, canvases, `tokens/`, `goa-board.json`, `usersync/`, `link-bases/`, `enowx.db`, Traffic's certificate, sessions' terminal history, and anything a running session or process uses.

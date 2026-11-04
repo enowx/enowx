@@ -63,14 +63,21 @@ type Meta struct {
 	// Model and Effort: what its agent last said it runs on. Mode: its permission mode, the
 	// same way. All three go on its command line whenever it starts again.
 	Model, Effort, Mode string
+	// ModelStarted is what it was started on, or the user last chose in its agent; ModelMoved:
+	// its agent no longer says that one.
+	ModelStarted string
+	ModelMoved   bool
 	// Conversation is its agent's conversation, by the id the agent
 	// resumes it with: it goes on with its own, not the folder's latest.
 	Conversation string
-	Restored     bool
-	Project      string
-	Agent        string
-	Branch       string
-	Worktree     bool
+	// ConvoSince: conversations of its folder older than this aren't its own, as its agent
+	// changed then; zero, its creation.
+	ConvoSince time.Time
+	Restored   bool
+	Project    string
+	Agent      string
+	Branch     string
+	Worktree   bool
 	// Queued: the session waits for the daemon to start its agent
 	// (it shows a note and runs nothing meanwhile).
 	Queued bool
@@ -85,6 +92,8 @@ type Meta struct {
 	// Note is what the session is at, as its agent or the user last said
 	// (SessionInfo.Note).
 	Note string
+	// TurnText is the message its last turn ended on, when its agent's hook says.
+	TurnText string
 	// Report, ReportOutcome and ReportAt are its agent's last report of a turn
 	// (SessionInfo). They don't outlast the daemon, their news having gone.
 	Report        string
@@ -127,6 +136,8 @@ type Meta struct {
 	HibernatedAt     time.Time
 	// NoAutoHibernate keeps the daemon from hibernating it on its own.
 	NoAutoHibernate bool
+	// Rules: proto.SessionInfo.Rules. Replaced whole, never changed in place.
+	Rules *proto.SessionRules `json:",omitempty"`
 }
 
 // EnvSession names the environment variable holding a session's ID in
@@ -159,9 +170,10 @@ type Session struct {
 	lastInput  time.Time
 	streamed   time.Time // when an attached stream last checked the screen
 	active     bool
-	state      string    // what the agent's hooks last said (proto.State*)
-	stateAt    time.Time // when they said it
-	shown      string    // the state last reported to OnUpdate
+	state      string                  // what the agent's hooks last said (proto.State*)
+	background []proto.BackgroundAgent // agents in its process tree but its own: Manager.SetBackground
+	stateAt    time.Time               // when they said it
+	shown      string                  // the state last reported to OnUpdate
 	prompt     string
 	typed      []rune // the line being typed, until the first prompt is known
 	inEscape   bool
@@ -207,6 +219,7 @@ func (s *Session) Info() proto.SessionInfo {
 		Report:          s.meta.Report,
 		ReportOutcome:   s.meta.ReportOutcome,
 		ReportAt:        s.meta.ReportAt,
+		TurnText:        s.meta.TurnText,
 		Group:           s.meta.Group,
 		Account:         s.meta.Account,
 		Config:          cloneConfig(s.meta.Config),
@@ -220,6 +233,7 @@ func (s *Session) Info() proto.SessionInfo {
 		Hibernated:      s.meta.Hibernated && s.exited,
 		HibernatedHow:   hibernatedHow(s.meta, s.exited),
 		NoAutoHibernate: s.meta.NoAutoHibernate,
+		Rules:           s.meta.Rules,
 		Project:         s.meta.Project,
 		Agent:           s.meta.Agent,
 		Branch:          s.meta.Branch,
@@ -238,6 +252,8 @@ func (s *Session) Info() proto.SessionInfo {
 		Model:           s.meta.Model,
 		Effort:          s.meta.Effort,
 		ModelLast:       s.meta.Model != "" && (s.exited || s.meta.Hibernated),
+		ModelStarted:    s.movedFromLocked(),
+		Background:      s.background,
 		Restored:        s.meta.Restored,
 		Exited:          s.exited,
 		ExitCode:        s.code,

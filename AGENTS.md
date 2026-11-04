@@ -30,6 +30,7 @@ Go 1.27+ is required (MyGo needs it). With an older `go`, set `GOTOOLCHAIN=go1.2
 | `core/git` | Thin wrappers over the `git` CLI | **No** |
 | `core/project` | Project folders a daemon knows, in the user's order and groups, stored in `~/.enowx-app/projects.json` | **No** |
 | `core/notes` | The user's notes on a host, a Markdown file each in `~/.enowx-app/notes` (see `docs/notes.md`) | **No** |
+| `core/projectdocs` | Project Docs: a project documented as notes under one project note: the first line and Based on lines in the body, catalog and templates, staleness, the approval gate, the guard on agents' writes, the skills (see `docs/project-docs.md`) | **No** |
 | `core/features` | Which features agents get, per scope (everywhere, host, project, session), resolved for a session; the registry is `core/agent.Features` (see `docs/features.md`) | **No** |
 | `core/notify` | How the app notifies of agents: the settings kept in the synced settings, the sounds built in (synthesized), quiet hours | **No** |
 | `core/usersync` | Keeps the user's data (notes, canvases, settings, vault) the same on every host: three-way file sync, merges, conflicts, trash (see `docs/user-data-sync.md`) | **No** |
@@ -44,6 +45,9 @@ Go 1.27+ is required (MyGo needs it). With an older `go`, set `GOTOOLCHAIN=go1.2
 | `core/vault` | The user's credential vault: sealed with a key that stays on the device, its platforms, what a session gets of a credential, hosts' imports, the SSH agent and the record of uses (see `docs/vault.md`) | **No** |
 | `core/accounts` | Agents' configs (synced): other accounts, each a home of its own sharing the agent's settings, and model APIs; team members' accounts per host (see `docs/configs.md`, `docs/accounts.md`) | **No** |
 | `core/agent` | Agent presets (Claude Code, Codex, …) and how they take a first prompt | **No** |
+| `core/platformagent` | Claude Platform, enowX's own agent (see `docs/claude-platform.md`): the loop over Anthropic's Messages API | **No** |
+| `core/platformagent/record` | Its conversation's file format, read by `core/transcript` and `core/tokens` | **No** |
+| `core/platformagent/terminal`, `tools`, `permission`, `mcpclient` | Its screen in a session's terminal, its tools, permission rules and MCP client | **No** |
 | `core/agentapi` | How each agent takes a model API: per session by its environment and flags (a config's), or in its own settings, backed up first, for those that can't (see `docs/configs.md`, `docs/agent-api.md`) | **No** |
 | `core/hosts` | The device's server list (`~/.enowx-app/hosts.json`); passwords live in the keychain, never here | **No** |
 | `core/tailnet` | Devices on the user's tailnet, via the `tailscale` CLI | **No** |
@@ -76,13 +80,18 @@ Go 1.27+ is required (MyGo needs it). With an older `go`, set `GOTOOLCHAIN=go1.2
 | `core/discordrpc` | Discord Rich Presence over the Discord app's local IPC socket (named pipe on Windows) | **No** |
 | `core/cacheclean` | Clean cache: what a host's enowX folder takes, what can go of it, and removing that, never anything outside the few folders it names (see `docs/daemon.md`) | **No** |
 | `core/procstat` | Memory and CPU of process trees and of the machine, for the resource usage view | **No** |
+| `core/selfprofile` | What the process it runs in holds and uses, by the system's count and the Go runtime's, for `enowx-app profile` (see `docs/performance.md`) | **No** |
+| `core/memtune` | How long-running programs give memory back: the limit on the Go heap, returning what a burst leaves (see `docs/performance.md`) | **No** |
 | `cloud/` | The team cloud's server (`cloud/server`), its database (`cloud/store`), API types (`cloud/api`) and the sealing of a team's keys and items (`cloud/seal`) (see `docs/cloud.md`) | **No** |
+| `cloud/library` | enowX UI's server, under `/v1/library`: the community library's API, its web sign-in, moderation (see `docs/library.md`) | **No** |
+| `core/designshare` | A canvas's design made into what the community library keeps: its bundle and checks, the host's drafts, the code, skills and `enowx://` links people take from it; `core/designshare/thumb` its picture (see `docs/library.md`) | **No** |
 | `cmd/enowx-cloud` | The cloud server's entry point and its image (`Dockerfile`) | **No** |
 | `hostconn/` | Connects to a host's daemon: starts or replaces it locally, installs or upgrades it over SSH | **No** |
 | `docs/` | The docs, and package `docs` shipping them in the program for `goa doc` (all top-level `*.md` but `PLAN.md`) | **No** |
 | `version/` | The release version shared by app, daemon and client | **No** |
 | `internal/quietcmd` | Starts programs in the background without a console window on Windows | **No** |
 | `internal/watchdog` | Leaves a report when a thread stops answering (every goroutine's stack, what was on screen), and a line of what memory holds, in the data folder's `watchdog` folder | **No** |
+| `internal/rpccount` | A connection counting calls and bytes, for tests saying how often a method is called | **No** |
 | `internal/testlisten` | A test binary standing in for a dev server a session starts, for tests of ports | **No** |
 | `core/*` (others) | Runner, scheduler, store (later) | **No** |
 | `transport/` | Local socket, SSH, daemon spawning | **No** |
@@ -92,8 +101,10 @@ Go 1.27+ is required (MyGo needs it). With an older `go`, set `GOTOOLCHAIN=go1.2
 | `ui/widget` | Controls every view shares: buttons, dialogs, menus, chips, Markdown | Yes |
 | `ui/textfmt` | How values read in the UI: sizes, plurals, paths | **No** |
 | `ui/localpicker` | Picks files and folders of this device, for adding them to a session's folder | Yes |
-| `ui/chatview`, `ui/activityview`, `ui/appwindow`, `ui/libraryview`, `ui/browserview`, `ui/checkview`, `ui/diffview`, `ui/fileview`, `ui/portview`, `ui/trafficview`, `ui/androidview`, `ui/notesview`, `ui/canvasview`, `ui/vaultview`, `ui/usageview`, `ui/folderpicker`, `ui/syncview` | Self-contained views; they get what they need from `ui` through options and callbacks, never import it | Yes |
+| `ui/chatview`, `ui/activityview`, `ui/appwindow`, `ui/libraryview`, `ui/communityview`, `ui/browserview`, `ui/checkview`, `ui/diffview`, `ui/fileview`, `ui/portview`, `ui/trafficview`, `ui/androidview`, `ui/notesview`, `ui/canvasview`, `ui/vaultview`, `ui/usageview`, `ui/folderpicker`, `ui/syncview` | Self-contained views; they get what they need from `ui` through options and callbacks, never import it | Yes |
 | `ui/onboardview` | The first run: the app assembling itself, a clock driving the opening, frames, wires and the change of style, the seven steps in a panel; its links in `links.go` (see `docs/onboarding.md`); self-contained like the views above | Yes |
+| `ui/platformview` | Claude Platform's sheet (API keys, from the vault; its system prompt) and the words its chat says of them; self-contained like the views above | Yes |
+| `ui/projectdocsview` | Project Docs on the Notes page: making a project, its summary, a document's strip; self-contained like the views above, drawn through a hook of `ui/notesview` | Yes |
 | `ui/tokenview` | The Tokens tab of Resource usage: every host's token use, budgets, prices, coverage; self-contained like the views above | Yes |
 
 Keep MyGo out of packages marked **No**. If MyGo ever has to be replaced, only `ui/`, `cmd/enowx` and the terminal emulation in `core/session` should change.

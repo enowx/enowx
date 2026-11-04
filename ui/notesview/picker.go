@@ -22,10 +22,11 @@ import (
 type iconPicker struct {
 	custom    bool // the Custom tab
 	query     string
-	color     string // "#rrggbb" for the icons picked, "" the text's
-	shown     int    // icons listed, more on demand
-	svg       string // the SVG code pasted
-	ownColors bool   // the user's SVG keeps its colors
+	color     string  // "#rrggbb" for the icons picked, "" the text's
+	shown     int     // icons listed, more on demand
+	listRoom  float32 // how high the list may be in a pop-over, 0 for elsewhere
+	svg       string  // the SVG code pasted
+	ownColors bool    // the user's SVG keeps its colors
 	err       string
 	prefs     proto.NoteIconPrefs
 	loaded    bool
@@ -86,11 +87,20 @@ func (p *iconPicker) results() []iconlib.Icon {
 	return p.cache
 }
 
+const (
+	// pickerListMost is how high the picker's list of icons gets; pickerAroundList
+	// is about what the picker takes around it: its tabs, search and filters.
+	pickerListMost   = 300
+	pickerAroundList = 200
+)
+
 // iconPopover is the picker in a pop-over below anchor while *open.
 func (v *View) iconPopover(c *ui.Context, o Options, anchor ui.Element, open *bool, current string, pick func(ref string)) {
 	ui.PopoverBase(c, anchor, open, func(panel ui.Element) {
 		widget.Popup(panel).Padding(0)
+		v.picker.listRoom = widget.PopupRoom(c, anchor, pickerListMost+pickerAroundList) - pickerAroundList
 		v.iconPickerBody(c, o, current, pick)
+		v.picker.listRoom = 0
 	})
 }
 
@@ -185,7 +195,11 @@ func (v *View) libraryIcons(c *ui.Context, o Options, current string, pick func(
 			}
 		})
 	}
-	widget.Scroll(c).FillWidth().MaxHeight(300).Children(func() {
+	room := float32(pickerListMost)
+	if p.listRoom > 0 {
+		room = p.listRoom
+	}
+	widget.Scroll(c).FillWidth().MaxHeight(room).Children(func() {
 		ui.Column(c).FillWidth().Gap(theme.S2).Children(func() {
 			if strings.TrimSpace(p.query) == "" {
 				v.iconSection(c, "Favorites", p.prefs.Favorites, current, pick)

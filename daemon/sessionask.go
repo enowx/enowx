@@ -96,6 +96,33 @@ func approveKeys(agentID string) agent.ApproveKeys {
 // answerSession presses the keys of p.Answer in its session's agent, when
 // it waits for one of them.
 func (s *Server) answerSession(p proto.SessionAnswerParams) (proto.SessionAsk, error) {
+	if !s.notRunning(p.ID) {
+		return s.answerRunning(p)
+	}
+	// Asleep: back first, where it may ask again, or the question went with it.
+	told, err := asleepAnswer(p.Answer)
+	if err != nil {
+		return proto.SessionAsk{}, err
+	}
+	var out proto.SessionAsk
+	woken, err := s.wakeThen(p.ID, func() error {
+		ask, err := s.sessionAsk(p.ID)
+		if err != nil {
+			return err
+		}
+		if ask.Waiting {
+			out, err = s.answerRunning(p)
+			return err
+		}
+		out.Told = true
+		return s.input(proto.SessionInputParams{ID: p.ID, Text: told, Paste: true, Enter: true})
+	})
+	out.Woken = woken
+	return out, err
+}
+
+// answerRunning is answerSession of an agent running.
+func (s *Server) answerRunning(p proto.SessionAnswerParams) (proto.SessionAsk, error) {
 	ask, err := s.sessionAsk(p.ID)
 	if err != nil {
 		return ask, err

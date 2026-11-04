@@ -3,6 +3,7 @@ package accounts
 import (
 	"strings"
 
+	"github.com/enowx/enowx/core/agent"
 	"github.com/enowx/enowx/core/agentapi"
 )
 
@@ -51,6 +52,7 @@ func (w Way) Says() string {
 // docs and never signed in (kind.docsOnly); each Why says so.
 var agentWays = map[string]Way{
 	"claude":             {Key: true, Checked: "run"},
+	agent.PlatformID:     {Key: true, Why: "No other account: it signs in with nothing but an API key from the vault, and a config's model API speaks Anthropic's protocol.", Checked: "run"},
 	"claude-agent-teams": {Base: "claude", Why: "Its sessions are Claude Code's, so they use Claude Code's configs.", Checked: "help"},
 	"codex":              {Key: true, Checked: "run"},
 	"opencode":           {Key: true, Why: "No separate account: it has no documented folder for one sign-in alone.", Checked: "run"},
@@ -59,7 +61,7 @@ var agentWays = map[string]Way{
 	"openclaude":         {Key: true, Why: "No other account: OPENCLAUDE_CONFIG_DIR moves its folder, but its docs don't say where in it, if there, a sign-in is kept.", Checked: "docs"},
 	"grok":               {Key: true, Why: "Its model API is in ~/.grok/config.toml, from a third party's docs: x.ai's couldn't be read. enowX doesn't write it.", Checked: "docs"},
 	"copilot":            {Key: true, Why: "No other account: its docs keep the token in the system keychain under one service, which COPILOT_HOME doesn't move, without saying how it's keyed. Its own /user switch changes accounts.", Checked: "docs"},
-	"opencode2":          {Key: true, Why: "Only opencode.jsonc takes a model API; enowX doesn't write it yet.", Checked: "docs"},
+	"opencode2":          {Key: true, Why: "No separate account: it has no documented folder for one sign-in alone.", Checked: "run"},
 	"mimo-code":          {Key: true, Why: "No other account: MIMOCODE_HOME stands for several folders at once (config, data, state, cache), which a home linked from one folder can't share. Its own settings hold the API; enowX doesn't write them yet.", Checked: "docs"},
 	"ante":               {Key: true, Why: "No other account: ANTE_HOME moves all of its settings, but its docs name no file for a sign-in. catalog.json holds the API; enowX doesn't write it yet.", Checked: "docs"},
 	"trae":               {Key: true, Why: "Its 2.0 settings for a model API aren't documented. No other account: its docs document neither TRAE_HOME nor a file for the sign-in.", Checked: "docs"},

@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"errors"
+	"io/fs"
 	"os"
 	"path"
 	"path/filepath"
@@ -32,6 +33,13 @@ const deletedMark = "enowx team item deleted"
 // yet (the team's members unread, a note's ID still in another space as a
 // move between spaces reaches this host).
 const teamRetryFor = 24 * time.Hour
+
+// teamRetryLate is how often it asks after that.
+const teamRetryLate = time.Hour
+
+// teamRecheck is the version of the one pull of every item a host makes, when a version
+// of enowX may have left it past items it hadn't taken.
+const teamRecheck = 1
 
 // sealDeletion is the mark of file p's deletion, item id at version: its
 // path and deletedMark, sealed as an item's content is. nil when it
@@ -201,15 +209,29 @@ func (s *Server) heldElsewhere(team, p string) bool {
 // user's own).
 func (s *Server) spacesHolding(kind, name string) []string {
 	var out []string
-	if _, err := os.Stat(filepath.Join(s.dataDir, kind, name)); err == nil {
+	if holdsSomething(filepath.Join(s.dataDir, kind, name)) {
 		out = append(out, "")
 	}
 	for _, sp := range s.spaces() {
-		if _, err := os.Stat(filepath.Join(s.teamsDir(), sp.Team, kind, name)); err == nil {
+		if holdsSomething(filepath.Join(s.teamsDir(), sp.Team, kind, name)) {
 			out = append(out, sp.Team)
 		}
 	}
 	return out
+}
+
+// holdsSomething says path is a file, or a folder with a file in it: an empty folder
+// holds no note or canvas, whatever left it, and mustn't keep a team's out.
+func holdsSomething(path string) bool {
+	found := false
+	_ = filepath.WalkDir(path, func(_ string, d fs.DirEntry, err error) error {
+		if err == nil && !d.IsDir() {
+			found = true
+			return filepath.SkipAll
+		}
+		return nil
+	})
+	return found
 }
 
 // keepOurs leaves file p as it is here, item it not taken: the item's
@@ -243,15 +265,24 @@ func (ts *teamSync) later(p string, it api.Item, why string) {
 // pullFrom is the sequence number a pull asks for changes after: the last
 // seen, or before items to ask again for while it is time to.
 func (ts *teamSync) pullFrom() int64 {
+	// Once, for a host a version of enowX left past items it never took: every item
+	// again, those it has passing by, as their versions say.
+	if ts.state.Recheck < teamRecheck {
+		ts.state.Retry, ts.state.RetrySince = 0, time.Time{}
+		return 0
+	}
 	from, retry, since := ts.state.Seq, ts.state.Retry, ts.state.RetrySince
-	ts.state.Retry, ts.state.RetrySince = 0, time.Time{}
 	if retry <= 0 || retry-1 >= from {
+		ts.state.Retry, ts.state.RetrySince = 0, time.Time{}
 		return from
 	}
+	// Never given up on, as what was seen isn't seen again: after a while, less often.
 	if time.Since(since) > teamRetryFor {
-		ts.srv.logger().Warn("cloud: gave up on a team's changes not taken", "team", ts.team)
-		return from
+		if time.Since(ts.state.RetryAt) < teamRetryLate {
+			return from
+		}
+		ts.state.RetryAt = time.Now()
 	}
-	ts.state.RetrySince = since // kept while they still wait
+	ts.state.Retry = 0 // what still waits says so again, as it comes
 	return retry - 1
 }

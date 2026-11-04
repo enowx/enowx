@@ -96,6 +96,26 @@ func ovGOA(a *App) {
 	a.openPanel(panelSessions)
 }
 
+// ovGOASettings shows GOA's settings panel, with what a host would list; set fills it in.
+func ovGOASettings(a *App, set func(f *goaSettingsForm)) {
+	ovGOA(a)
+	a.sessions[0].Agent = "claude"
+	a.accts = accountsState{host: a.host.ID, asked: true, loaded: true, only: map[string]*string{}, list: []proto.Account{
+		{ID: "work", Agent: "claude", Name: "Work"},
+		{ID: "long", Agent: "claude", Name: ovLong, Kind: proto.ConfigKindAPI},
+		{ID: "cdx", Agent: "codex", Name: "Codex gateway", Kind: proto.ConfigKindAPI},
+	}}
+	a.goa.err, a.goa.agents = "", []proto.GOAAgent{
+		{Agent: "claude", Name: "Claude Code", Installed: true, Level: proto.GOAEnforced, Why: "its hooks refuse every tool but enowX's and those reading and editing files, and it starts with those only"},
+		{Agent: "codex", Name: "Codex", Installed: true, Level: proto.GOAEnforced, Why: "its hooks refuse every tool but enowX's before it runs"},
+		{Agent: "opencode", Name: "OpenCode with " + ovLong, Installed: true, Level: proto.GOAEnforced, Why: "its config offers it enowX's tools, reading, and editing its own folder only, and refuses the rest"},
+	}
+	f := &goaSettingsForm{open: true, agent: "claude"}
+	set(f)
+	f.checked = goaSettingsKey(f.agent, f.config) // what set says stays: the audit asks no host
+	a.goa.settings = f
+}
+
 // ovGOATab shows a worker in a tab of GOA's strip, as far as it got.
 func ovGOATab(a *App, host, err string) {
 	ovGOA(a)
@@ -114,6 +134,7 @@ func ovLeaveGOA(a *App) {
 	a.goa.board = proto.GOABoard{}
 	delete(a.center, a.sessions[0].ID)
 	a.goa.flags, a.goa.tabs, a.goa.detail, a.goa.start, a.goa.override, a.goa.rules, a.goa.stall = nil, nil, nil, nil, nil, nil, nil
+	a.goa.settings, a.goa.err, a.accts = nil, "", accountsState{}
 	a.sessions = a.sessions[:1]
 	a.sessions[0].GOA = false
 	a.state.Panel.Open, a.state.Panel.Tab = false, ""
@@ -372,6 +393,42 @@ func auditOverlayPages() []auditPage {
 		{name: "ov-goa-rules", open: func(a *App) {
 			ovGOA(a)
 			a.goa.rules = &goaRulesForm{open: true, loaded: true, text: "- Delegate every task that edits code.", err: "That looks like it holds a secret"}
+		}},
+		{name: "ov-goa-settings", open: func(a *App) {
+			ovGOASettings(a, func(f *goaSettingsForm) { f.checked = goaSettingsKey(f.agent, f.config) })
+		}},
+		{name: "ov-goa-settings-config", open: func(a *App) {
+			ovGOASettings(a, func(f *goaSettingsForm) {
+				f.config = "long"
+				f.check = proto.GOASwitchResult{Conversation: proto.GOAConversationSame, Note: "GOD of Agents runs on this config without its flags other than model and effort, and without the variables that would loosen what holds it."}
+			})
+		}},
+		{name: "ov-goa-settings-agent", open: func(a *App) {
+			ovGOASettings(a, func(f *goaSettingsForm) {
+				f.agent, f.config = "codex", ""
+				f.check = proto.GOASwitchResult{Conversation: proto.GOAConversationNew}
+			})
+		}},
+		{name: "ov-goa-settings-refused", open: func(a *App) {
+			ovGOASettings(a, func(f *goaSettingsForm) {
+				f.config, f.checkErr = "long", ovLong+" keeps conversations apart and doesn't have this one, so it can't go on with it: GOD of Agents keeps running as it was"
+			})
+		}},
+		{name: "ov-goa-settings-ask", open: func(a *App) {
+			ovGOASettings(a, func(f *goaSettingsForm) {
+				f.agent, f.config = "codex", ""
+				f.check = proto.GOASwitchResult{Conversation: proto.GOAConversationNew}
+			})
+			s, _ := a.goaSession()
+			a.goaSwitchAsk(a.goa.settings, s, proto.GOASwitchResult{Agent: "codex", Conversation: proto.GOAConversationNew, AtWork: true})
+		}},
+		{name: "ov-goa-settings-reading", open: func(a *App) {
+			ovGOASettings(a, func(f *goaSettingsForm) { f.checked = goaSettingsKey(f.agent, f.config) })
+			a.goa.agents = nil
+		}},
+		{name: "ov-goa-settings-old", open: func(a *App) {
+			ovGOASettings(a, func(f *goaSettingsForm) { f.checked = goaSettingsKey(f.agent, f.config) })
+			a.goa.err = "This host's enowX is too old for GOD of Agents: update it."
 		}},
 		{name: "ov-goa-rules-loading", open: func(a *App) { ovGOA(a); a.goa.rules = &goaRulesForm{open: true} }},
 		{name: "ov-goa-stall", open: func(a *App) {

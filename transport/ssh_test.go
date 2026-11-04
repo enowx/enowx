@@ -1,6 +1,7 @@
 package transport
 
 import (
+	"errors"
 	"crypto/ed25519"
 	"crypto/rand"
 	"os"
@@ -108,5 +109,21 @@ func TestSSHConfigHostsListsAliases(t *testing.T) {
 	}
 	if r := got[0].Real; r.Host != "10.0.0.5" || r.User != "deploy" || r.Port != "2222" || r.Jump != "bastion" {
 		t.Fatalf("box goes to %+v", r)
+	}
+}
+
+// A nologin account says why on stdout, its stderr empty: the error says so too, not
+// only the exit status.
+func TestCommandErrorSaysWhatTheCommandSaid(t *testing.T) {
+	exit := errors.New("Process exited with status 1")
+	for _, c := range []struct{ stderr, stdout, want string }{
+		{"", "This account is currently not available.\n", "Process exited with status 1: This account is currently not available."},
+		{"denied\n", "other\n", "Process exited with status 1: denied"},
+		{" \n", "\n", "Process exited with status 1"},
+	} {
+		err := commandError(exit, c.stderr, c.stdout)
+		if err.Error() != c.want || !errors.Is(err, exit) {
+			t.Errorf("stderr %q stdout %q: %v, want %q", c.stderr, c.stdout, err, c.want)
+		}
 	}
 }

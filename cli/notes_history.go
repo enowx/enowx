@@ -23,6 +23,9 @@ func (r runner) noteHistory(cmd string, args []string) error {
 		if os.Getenv(proto.EnvNotesPropose) != "" {
 			return errors.New("notes: here notes are only proposed: write the version's text with write, which the user accepts")
 		}
+		if proposed, err := r.guardNoteRestore(n.ID, args[1]); proposed || err != nil {
+			return err
+		}
 		_, err := r.c.RestoreNote(n.ID, args[1])
 		return err
 	case len(args) == 2:

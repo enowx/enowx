@@ -8,6 +8,7 @@ import (
 	"os"
 	"path"
 	"path/filepath"
+	"strings"
 	"time"
 	"unicode/utf8"
 )
@@ -44,6 +45,11 @@ func (b *Base) set(p, hash string, data []byte) {
 }
 
 func mergeable(p string, data []byte) bool {
+	// Merged without a base; a conflict, two whole versions, isn't merged at all, and
+	// every base is read and written whole each sync.
+	if AppendOnly(p) || strings.HasPrefix(p, ConflictsDir) {
+		return false
+	}
 	switch path.Ext(p) {
 	case ".md", ".json", ".txt", ".html", ".css", ".svg":
 		return len(data) <= mergeMax && utf8.Valid(data)
@@ -66,6 +72,12 @@ func LoadBase(dir, peer string) (*Base, error) {
 	}
 	if b.Files == nil {
 		b.Files = map[string]BaseFile{}
+	}
+	for p, file := range b.Files {
+		if file.Data != nil && !mergeable(p, file.Data) { // kept by an older build
+			file.Data = nil
+			b.Files[p] = file
+		}
 	}
 	return b, nil
 }

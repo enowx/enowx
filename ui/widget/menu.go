@@ -16,8 +16,9 @@ type ContextMenu struct {
 }
 
 type menuAt struct {
-	key  string
-	x, y float32
+	key   string
+	x, y  float32
+	shown bool // drawn at least once, so its anchor's state holds it
 }
 
 // Open opens key's menu at the pointer when anchor is right-clicked.
@@ -37,18 +38,37 @@ func (m *ContextMenu) OpenBelow(anchor ui.Element, key string, height float32) {
 	}
 }
 
-// Show draws key's menu, if open, at the pointer over anchor; items builds
-// its entries with MenuItem and MenuSeparator, and calls done to close it.
-func (m *ContextMenu) Show(c *ui.Context, anchor ui.Element, key string, items func(done func())) {
+// showing is key's open menu, unless its anchor has been away: a menu goes
+// with what it belongs to, rather than coming back when the user returns.
+func (m *ContextMenu) showing(anchor ui.Element, key string) *menuAt {
 	at := m.open
 	if at == nil || at.key != key {
+		return nil
+	}
+	if AnchorNew(anchor) && at.shown {
+		m.open = nil
+		return nil
+	}
+	at.shown = true
+	return at
+}
+
+// Show draws key's menu, if open, at the pointer over anchor; items builds
+// its entries with MenuItem and MenuSeparator, and calls done to close it.
+// One taller than the window scrolls.
+func (m *ContextMenu) Show(c *ui.Context, anchor ui.Element, key string, items func(done func())) {
+	at := m.showing(anchor, key)
+	if at == nil {
 		return
 	}
 	open := true
 	closeMenu := func() { open = false }
 	ui.PopoverBase(c, anchor, &open, func(panel ui.Element) {
 		Popup(panel.AttachTo(anchor, ui.AnchorTopStart, ui.AnchorTopStart).Margin(at.y+4, 0, 0, at.x+4).MinWidth(190))
-		items(closeMenu)
+		// MyGo moves a panel placed along its anchor into the window, so all of
+		// the window's height is its room, wherever it opens.
+		_, h := c.Size()
+		FitScroll(c, max(h-popupChrome, popupLeast), func() { items(closeMenu) })
 	})
 	if !open && m.open == at {
 		m.open = nil
@@ -58,15 +78,15 @@ func (m *ContextMenu) Show(c *ui.Context, anchor ui.Element, key string, items f
 // ShowBeside is Show for a menu whose anchor is at the window's edge: it opens
 // up and to the left of it, clear of what sits under the anchor.
 func (m *ContextMenu) ShowBeside(c *ui.Context, anchor ui.Element, key string, items func(done func())) {
-	at := m.open
-	if at == nil || at.key != key {
+	at := m.showing(anchor, key)
+	if at == nil {
 		return
 	}
 	open := true
 	closeMenu := func() { open = false }
 	ui.PopoverBase(c, anchor, &open, func(panel ui.Element) {
 		Popup(panel.AttachTo(anchor, ui.AnchorTopLeft, ui.AnchorBottomRight).Margin(0, theme.S1, theme.S1, 0).MinWidth(190))
-		items(closeMenu)
+		FitScroll(c, PopupRoom(c, anchor, popupAny), func() { items(closeMenu) })
 	})
 	if !open && m.open == at {
 		m.open = nil
@@ -120,6 +140,26 @@ func MenuItemOff(c *ui.Context, svg *ui.SVG, label string) {
 		}
 		ui.Text(c, label).FontSize(theme.TextUI).SingleLine().Shrink(1).MinWidth(0)
 	})
+}
+
+// MenuItemTrailing is a menu item with an icon at its end, for one that opens rather
+// than acts.
+func MenuItemTrailing(c *ui.Context, svg *ui.SVG, label string, trailing *ui.SVG) bool {
+	b := ui.ButtonBase(c).Gap(theme.S2).Padding(theme.S1, theme.S3).MinHeight(theme.ControlHeight).Radius(theme.RadiusCard).
+		Cursor(ui.CursorPointer).Label(label).FillWidth().Justify(ui.Start)
+	bg := theme.Fade(theme.Selected, 0)
+	if b.Hovered() {
+		bg = theme.Selected
+	}
+	b.Background(QuickTint(b, "bg", bg)).TextColor(theme.Text)
+	b.Children(func() {
+		if svg != nil {
+			ui.Icon(c, svg).FontSize(14)
+		}
+		ui.Text(c, label).FontSize(theme.TextUI).SingleLine().Shrink(1).MinWidth(0).Grow(1)
+		ui.Icon(c, trailing).FontSize(12).TextColor(theme.TextSoft)
+	})
+	return b.Clicked()
 }
 
 // MenuItemSub is a menu item with a quieter line under its label.

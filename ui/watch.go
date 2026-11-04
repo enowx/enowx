@@ -28,9 +28,14 @@ import (
 
 // Watch timing: how often a connected host is asked, and how long an
 // unreachable one waits before the next try, at most.
+var watchEvery = 15 * time.Second
+
 const (
-	watchEvery    = 15 * time.Second
+	watchUnseen   = time.Minute // while the window isn't focused: events still tell of sessions
 	watchRetryMax = 5 * time.Minute
+	// watchListsEvery is how often a connected host's sessions and projects are
+	// read whole: events keep them current between, this only catches what one missed.
+	watchListsEvery = 5 * time.Minute
 )
 
 // Host states a watch reports.
@@ -72,10 +77,13 @@ type hostWatch struct {
 	host   hosts.Host
 	status hostStatus
 	stop   chan struct{}
+	// wake cuts a wait to try the host again short, as the user asks.
+	wake chan struct{}
 	// cl is the watch's connection while it is up, info its daemon: links
 	// between hosts sync over it (autosync.go).
 	cl   *client.Client
 	info proto.DaemonInfo
+	poke chan struct{} // the window came back into focus: ask now
 }
 
 // errNeedsYou stops a watch's connecting where the user would be asked.
@@ -104,7 +112,7 @@ func (a *App) syncWatches() {
 	}
 	for id, h := range want {
 		if _, ok := a.watches[id]; !ok {
-			w := &hostWatch{host: h, status: hostStatus{state: hostConnecting}, stop: make(chan struct{})}
+			w := &hostWatch{host: h, status: hostStatus{state: hostConnecting}, stop: make(chan struct{}), wake: make(chan struct{}, 1), poke: make(chan struct{}, 1)}
 			a.watches[id] = w
 			go a.watch(w)
 		}
@@ -113,9 +121,9 @@ func (a *App) syncWatches() {
 
 // watch keeps w's connection and asks it how the host is, until w stops.
 func (a *App) watch(w *hostWatch) {
-	retry := watchEvery
+	wait := retryWait{first: watchEvery, most: watchRetryMax}
 	for {
-		cl, err := hostconn.Connect(w.host, a.watchOptions(w))
+		cl, err := a.dialWatch(w)
 		if err != nil {
 			// A host off for a while fails again and again.
 			a.diag.Every("watch:"+w.host.ID, 10*time.Minute, "conn.failed", "use", "watch", "host", w.host.ID, "name", w.host.Name, "err", err)
@@ -124,19 +132,17 @@ func (a *App) watch(w *hostWatch) {
 				state = hostNeedsYou
 			}
 			a.onMain(func() { w.status.state, w.status.err = state, client.Explain(err) })
-			select {
-			case <-w.stop:
+			if !w.pause(&wait) {
 				return
-			case <-time.After(retry):
 			}
-			retry = min(retry*2, watchRetryMax)
 			continue
 		}
-		retry = watchEvery
+		began := time.Now()
 		a.onMain(func() {
 			w.cl = cl
 			a.syncSoon()
-			a.vaultConnected(cl) // the vault answers its requests too
+			a.vaultConnected(cl)                        // the vault answers its requests too
+			go func() { _ = cl.ServeCanvasRenders() }() // an agent there sees its canvases too
 		})
 		go func() { _ = cl.ServeApp() }() // what agents there ask across hosts comes here
 		a.poll(w, cl)
@@ -151,14 +157,50 @@ func (a *App) watch(w *hostWatch) {
 			return
 		default:
 		}
+		// One that held is tried again at once. One that dropped as it came up would
+		// otherwise connect, and read everything, again and again without a pause.
+		if time.Since(began) >= connectSteady {
+			wait.held()
+		} else if !w.pause(&wait) {
+			return
+		}
+	}
+}
+
+// pause waits to try the host again, or less if the user asks; false when w stops.
+func (w *hostWatch) pause(wait *retryWait) bool {
+	timer := time.NewTimer(wait.failed())
+	defer timer.Stop()
+	select {
+	case <-w.stop:
+		return false
+	case <-w.wake:
+		wait.held()
+	case <-timer.C:
+	}
+	return true
+}
+
+// dialWatch connects w's connection.
+func (a *App) dialWatch(w *hostWatch) (*client.Client, error) {
+	if a.watchDial != nil {
+		return a.watchDial(w.host)
+	}
+	return hostconn.Connect(w.host, a.watchOptions(w))
+}
+
+// retryNow has w try its host now, not when its wait ends.
+func (w *hostWatch) retryNow() {
+	select {
+	case w.wake <- struct{}{}:
+	default:
 	}
 }
 
 // poll asks cl how its host is every watchEvery, until the connection
 // drops or w stops.
 func (a *App) poll(w *hostWatch, cl *client.Client) {
-	t := time.NewTicker(watchEvery)
-	defer t.Stop()
+	var listed time.Time
 	for {
 		start := time.Now()
 		info, err := cl.Info()
@@ -166,23 +208,58 @@ func (a *App) poll(w *hostWatch, cl *client.Client) {
 		if err != nil {
 			return
 		}
-		stats, _ := cl.Stats()
-		sessions, err := cl.Sessions()
-		if err != nil {
-			return
+		// What a host uses shows on screen only, and asking has it look at all its
+		// processes; events tell of its sessions meanwhile.
+		unseen := a.unfocused.Load()
+		var stats proto.DaemonStats
+		if !unseen {
+			stats, _ = cl.Stats()
 		}
-		projects, _ := cl.Projects()
+		var sessions []proto.SessionInfo
+		var projects []proto.ProjectInfo
+		read := time.Since(listed) >= watchListsEvery
+		if read {
+			if sessions, err = cl.Sessions(); err != nil {
+				return
+			}
+			projects, _ = cl.Projects()
+			listed = time.Now()
+		}
 		a.onMain(func() {
-			w.status = hostStatus{state: hostOnline, latency: latency, usage: stats.Host, sessions: sessions, projects: projects, checked: time.Now()}
+			usage := stats.Host
+			if unseen {
+				usage = w.status.usage
+			}
+			st := hostStatus{state: hostOnline, latency: latency, usage: usage, sessions: w.status.sessions, projects: w.status.projects, checked: time.Now()}
+			if read {
+				st.sessions, st.projects = sessions, projects
+			}
+			w.status = st
 			w.cl, w.info = cl, info
-			a.goaCatchUp(w.host.Name, sessions)
+			// Every poll, from what's known: a turn's end in a task's first seconds doesn't count yet.
+			a.goaCatchUp(w.host.Name, st.sessions)
 		})
+		wait := watchEvery
+		if unseen {
+			wait = watchUnseen
+		}
 		select {
 		case <-w.stop:
 			return
 		case <-cl.Done():
 			return
-		case <-t.C:
+		case <-w.poke:
+		case <-time.After(wait):
+		}
+	}
+}
+
+// pokeWatches has every watch ask now: the window is back in sight. It runs on the main thread.
+func (a *App) pokeWatches() {
+	for _, w := range a.watches {
+		select {
+		case w.poke <- struct{}{}:
+		default:
 		}
 	}
 }
@@ -237,6 +314,22 @@ func (a *App) watchEvent(w *hostWatch, ev proto.Event) {
 		var req proto.VaultRequest
 		if json.Unmarshal(ev.Data, &req) == nil {
 			a.onMain(func() { a.vaultEvent(w.cl, w.host, req) })
+		}
+		return
+	}
+	if ev.Name == proto.EventCanvasRender {
+		var req proto.CanvasRenderRequest
+		if json.Unmarshal(ev.Data, &req) == nil {
+			a.onMain(func() { a.renderCanvas(w.cl, req) })
+		}
+		return
+	}
+	if ev.Name == proto.EventSessionRemoved {
+		var ref proto.SessionRef
+		if json.Unmarshal(ev.Data, &ref) == nil {
+			a.onMain(func() {
+				w.status.sessions = slices.DeleteFunc(w.status.sessions, func(s proto.SessionInfo) bool { return s.ID == ref.ID })
+			})
 		}
 		return
 	}

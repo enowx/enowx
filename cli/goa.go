@@ -33,6 +33,8 @@ const goaUsage = `usage: enowx-app goa COMMAND
       --model M --effort E --config C
                        chosen by hand, over the judge's route; --no-route keeps the agent's own
       --title T        the task's title on the board; --yolo skips the worker's permission prompts
+      --doc NOTE[#SECTION]
+                       a Project Docs document: refused while its project's gate is closed, its words prepended to the prompt
   task ID [--status working|waiting|done|failed|stopped] [--result TEXT]
                                    settle a task, or say where it stands
   report --outcome done|partly|nothing|blocked|refused|failed TEXT
@@ -46,7 +48,9 @@ const goaUsage = `usage: enowx-app goa COMMAND
                                    how long a task may not move before GOA is told, on this host (90s, 10m; 0 its default)
   agents                           the agents GOA can run on, and how far each holds it
   flags                            what a GOA only watched did itself
-  start [--agent A]                start GOD of Agents on this host`
+  start [--agent A]                start GOD of Agents on this host
+  switch [--agent A] [--config NAME|official] [--check] [--new-conversation] [--force]
+                                   what GOA runs on; change it, restarting GOA: a config keeps its conversation (or GOA stays as it was), an agent starts a new one`
 
 // goaReport is a session reporting how its turn ended, to its own host's daemon.
 func (r runner) goaReport(args []string) error {
@@ -116,6 +120,8 @@ func (r runner) goaCmd(args []string) error {
 		return r.goaFlags()
 	case "start":
 		return r.goaStart(rest)
+	case "switch":
+		return r.goaSwitch(rest)
 	}
 	return errors.New(goaUsage)
 }
@@ -171,10 +177,20 @@ func (r runner) goaBoard(args []string) error {
 		if t.SessionName != "" {
 			where = t.SessionName + " " + where
 		}
-		fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%s\t%s\n", t.ID, t.Status, where, taskModel(t), taskPlace(t), t.Title)
+		status := t.Status
+		if t.Asleep {
+			status = "asleep"
+		}
+		if n := len(t.Background); n > 0 {
+			status += fmt.Sprintf(" +%d background", n)
+		}
+		fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%s\t%s\n", t.ID, status, where, taskModel(t), taskPlace(t), t.Title)
 	}
 	w.Flush()
 	for _, t := range b.Tasks {
+		if t.Asleep {
+			fmt.Fprintf(r.out, "%s: its session is hibernated, and takes nothing up until something is sent to it or it is woken (it was %s)\n", t.ID, t.Status)
+		}
 		if t.Urgent != "" {
 			fmt.Fprintf(r.out, "%s waits on the user (%s): %s\n", t.ID, t.Urgent, t.Asks)
 		} else if t.Asks != "" {
@@ -200,6 +216,7 @@ func (r runner) goaDelegate(args []string) error {
 	fs.BoolVar(&p.SkipPermissions, "yolo", false, "")
 	note := fs.String("note", "", "")
 	items := fs.String("items", "", "")
+	doc := fs.String("doc", "", "")
 	asJSON := fs.Bool("json", false, "")
 	words, err := parseAll(fs, args)
 	if err != nil || len(words) == 0 {
@@ -216,6 +233,11 @@ func (r runner) goaDelegate(args []string) error {
 			if item = strings.TrimSpace(item); item != "" {
 				p.Items = append(p.Items, item)
 			}
+		}
+	}
+	if *doc != "" {
+		if err := r.withDocContext(&p, *doc); err != nil {
+			return err
 		}
 	}
 	if p.Project != "" && p.Host == "" {
@@ -340,7 +362,11 @@ func (r runner) goaAgents() error {
 	w := tabwriter.NewWriter(r.out, 0, 2, 2, ' ', 0)
 	fmt.Fprintln(w, "AGENT\tLEVEL\tINSTALLED\tWHY")
 	for _, a := range list {
-		fmt.Fprintf(w, "%s\t%s\t%v\t%s\n", a.Agent, a.Level, a.Installed, a.Why)
+		level, why := a.Level, a.Why
+		if a.NotYet != "" {
+			level, why = "not offered", a.NotYet
+		}
+		fmt.Fprintf(w, "%s\t%s\t%v\t%s\n", a.Agent, level, a.Installed, why)
 	}
 	return w.Flush()
 }

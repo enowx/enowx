@@ -46,6 +46,7 @@ var guidePlaces = map[string][]guidePlace{
 	"devin":        {own(".devin/rules/enowx.md", "")},
 	"gemini":       {block(".gemini/GEMINI.md")},
 	"opencode":     {own(".enowx-app/agent-guide.md", "")}, // named by ToolEnv's config
+	"opencode2":    {own(".enowx-app/agent-guide.md", "")},
 	"kilo":         {own(".enowx-app/agent-guide.md", "")},
 	"ante":         {block(".ante/AGENTS.md", ".claude/CLAUDE.md")},
 	"mimo-code":    {block(".config/mimocode/AGENTS.md")},
@@ -156,5 +157,5 @@ func GuideNote(id string) string {
 	if len(GuideArgs(id)) > 0 || len(guidePlaces[Base(id)]) > 0 {
 		return ""
 	}
-	return `(This runs in an enowX session: "$ENOWX_BIN" guide lists the tools it gives you.)`
+	return `(This runs in an enowX session: "$ENOWX_BIN" guide lists the tools it gives you and this project's rules: run it first.)`
 }

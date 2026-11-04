@@ -12,7 +12,9 @@ Every config also has a name, a badge color, an effort (the agent's own effort f
 
 - **Settings → Agents**: every agent, installed ones first, with search: a page per agent saying how it takes a config, or why it can't, and its configs, the official one first by default, in the order sessions use them. **New config** makes one in a dialog; a config's menu edits, duplicates, signs in (an account, on this host), makes it the default for new sessions, keeps it to some projects, or removes it after asking. None of these change the official config.
 - **New session** picks **Default** or a config; by default the one the preferences name ([accounts.md](accounts.md)).
+- **The tab bar's +**: an agent with configs opens in the menu to pick one, the preferred marked; one with none stays one click. A long menu scrolls in the window.
 - A session's row shows its config's badge; its menu switches it to another config, its conversation picked up.
+- **GOD of Agents** picks its own in **Settings** in its header, or `goa switch`, where a config's other flags and variables don't apply ([goa.md](goa.md#changing-what-it-runs-on)).
 - **Command line**: `enowx-app configs`, `spawn --config NAME` ([cli.md](cli.md)). MCP: `configs_list`, `configs_add`, `configs_edit`, `configs_remove`, and `session_spawn`'s `config` (feature **Agent configs**).
 
 Configs are in the synced settings (`settings/configs.json`, [user-data-sync.md](user-data-sync.md)), so every host of the user's has them. Keys stay in the vault and are read on the host that starts the session. An account's sign-in stays on the host it was made on: signed in once per host, from the config's menu.
@@ -25,9 +27,10 @@ A model API's key is read from the vault as the session starts (the app holding 
 
 | Agent | How it takes a model API per session |
 |---|---|
+| Claude Platform | `ANTHROPIC_BASE_URL`, `ANTHROPIC_API_KEY` (the key); `--model`. Anthropic's protocol; nothing else anywhere ([claude-platform.md](claude-platform.md)) |
 | Claude Code (and Agent Teams) | `ANTHROPIC_BASE_URL`, `ANTHROPIC_AUTH_TOKEN` (the key), `ANTHROPIC_MODEL`, `ANTHROPIC_DEFAULT_HAIKU_MODEL`, `CLAUDE_CODE_MAX_CONTEXT_TOKENS`, `CLAUDE_CODE_MAX_OUTPUT_TOKENS` in its environment; the same but the key, the model picker's options and each model's effort in the `--settings` enowX's hooks already pass (flag settings win over the user's own) |
 | Codex | `-c` overrides: `model_provider="enowx"`, `model_providers.enowx.*` (`base_url`, `env_key`, `wire_api = "responses"`), `model`, `model_reasoning_effort`, `model_context_window`, `features.shell_snapshot=false` (its snapshots hold the environment, the key among it), a profile `enowx-<model>` for each other model; the key in `ENOWX_CODEX_API_KEY` |
-| OpenCode | `OPENCODE_CONFIG`: a config of the session's own merged over the user's, its provider `enowx` with `apiKey: {env:ENOWX_OPENCODE_API_KEY}`, the key in that variable |
+| OpenCode, OpenCode 2 | `--standalone` from version 2, as its background server ignores what a session's environment says ([agents.md](agents.md#opencode-1-and-2)); `OPENCODE_CONFIG`: a config of the session's own merged over the user's, its provider `enowx` with `apiKey: {env:ENOWX_OPENCODE_API_KEY}`, the key in that variable |
 | Gemini CLI | `GOOGLE_GEMINI_BASE_URL` (https, unless it's localhost, 127.0.0.1 or [::1]: a config is refused otherwise, as the CLI would), `GEMINI_API_KEY`, `GEMINI_CLI_AUTH_OVERRIDE=gemini-api-key` (the key's sign-in for this run, the user's settings untouched), `GEMINI_MODEL` and `--model` |
 | Antigravity | `GOOGLE_GEMINI_BASE_URL`, `GEMINI_API_KEY`; `--model`, optional |
 | GitHub Copilot | `COPILOT_PROVIDER_*`, `COPILOT_MODEL`; `COPILOT_PROVIDERS_CONFIG` to an empty file of the session's own, as the user's `providers.json` wins over those variables when it lists anything |
@@ -70,6 +73,7 @@ What each agent's CLI or docs offered on 2026-11-01 or 02, beside what enowX dri
 | Agent | Takes | Checked | Why not more |
 |---|---|---|---|
 | Claude Code | another account, a model API per session, an API key | run |  |
+| Claude Platform | a model API per session, an API key | run | No other account: it signs in with nothing but an API key from the vault, and a config's model API speaks Anthropic's protocol. |
 | Codex | another account, a model API per session, an API key | run |  |
 | OpenCode | a model API per session, an API key | run | No separate account: it has no documented folder for one sign-in alone. |
 | Gemini CLI | a model API per session, an API key | docs | No other account: GEMINI_CLI_HOME moves its folder, but its docs name no file for the sign-in, and reports have it in the system keychain, which that doesn't move. Its API's address is https unless it's on localhost. |

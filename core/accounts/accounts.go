@@ -282,6 +282,9 @@ func (s *Store) Env(agent, id string) ([]string, error) {
 	return []string{k.env + "=" + home}, nil
 }
 
+// HomeVar is the variable naming the home of agent (a base ID), "" for one with no accounts.
+func HomeVar(agent string) string { return kinds[agent].env }
+
 // HasHome says account id has a home on this host: it was signed in
 // here (or is being), as homes are made by signing in or by a session.
 func (s *Store) HasHome(id string) bool {

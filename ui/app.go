@@ -30,6 +30,7 @@ import (
 	"github.com/enowx/enowx/ui/canvasview"
 	"github.com/enowx/enowx/ui/chatview"
 	"github.com/enowx/enowx/ui/checkview"
+	"github.com/enowx/enowx/ui/communityview"
 	"github.com/enowx/enowx/ui/creditview"
 	"github.com/enowx/enowx/ui/diffview"
 	"github.com/enowx/enowx/ui/fileview"
@@ -37,7 +38,9 @@ import (
 	"github.com/enowx/enowx/ui/libraryview"
 	"github.com/enowx/enowx/ui/localpicker"
 	"github.com/enowx/enowx/ui/notesview"
+	"github.com/enowx/enowx/ui/platformview"
 	"github.com/enowx/enowx/ui/portview"
+	"github.com/enowx/enowx/ui/projectdocsview"
 	"github.com/enowx/enowx/ui/syncview"
 	"github.com/enowx/enowx/ui/theme"
 	"github.com/enowx/enowx/ui/trafficview"
@@ -72,11 +75,14 @@ type App struct {
 	watchdog        *watchdog.Watch // the main thread's, once the window is open
 	diag            *diag.Log       // what happened, for later (diagnostics.go); nil in tests
 	diagPage        string          // the page last logged
+	daemonBehind    *daemonBehind   // a daemon left at another version, to replace (daemon_behind.go)
+	replaceDaemon   string          // the host whose daemon the next connection replaces, asked for
 	sessionToasts   []*sessionToast // what notifications are about (sessiontoast.go)
 	sessionToastKey int
 	trust           *trustPrompt
 	runAs           *runAsPrompt
 	menu            widget.ContextMenu
+	tabMenuAgent    string // the agent whose configs the + menu shows
 	passphrase      *passphrasePrompt
 	signIn          *signInPrompt
 	sync            *syncview.Dialog
@@ -129,7 +135,10 @@ type App struct {
 	attaching         *noteAttachForm // the dialog attaching a note to projects
 	// saveAs asks where to save a file named name, "" for nowhere; nil
 	// asks with the system's dialog (tests answer themselves).
-	saveAs     func(name string) (string, error)
+	saveAs func(name string) (string, error)
+
+	projectDocs projectdocsview.View // Project Docs on the Notes page
+
 	canvases   canvasview.View // the Canvas page
 	canvasList *hostCanvases   // the connected host's canvases
 	canvasChat *hostCanvasChat // the open canvas's conversation with its agent
@@ -145,6 +154,9 @@ type App struct {
 	quitting           bool
 	library            *libraryview.View // the Settings page's library, for libraryHost
 	libraryHost        string
+	community          *communityview.View // the community library's page, for communityHost
+	communityHost      string
+	libLink            *libraryLink               // an enowx:// link's dialog
 	setup              *setupPage                 // the Setup page, for the host it was opened on
 	setupPolled        time.Time                  // when the setup's status was last read
 	drift              map[string]int             // steps a host lacks to be what this device is, by host ID
@@ -176,6 +188,7 @@ type App struct {
 	compare            compareDialog              // a fan-out's sessions, to keep one
 	accts              accountsState              // Settings → Agent accounts
 	localPick          localpicker.Picker         // picks this device's files to add to a session
+	platformSheetView  platformview.View          // Claude Platform's API keys and system prompt
 	autos              automationsState           // Settings → Automations
 	hooks              hooksState                 // Settings → Hooks
 	ragSet             ragSettingsState           // Settings → RAG (rag.go)
@@ -202,6 +215,7 @@ type App struct {
 	tabs               map[string]string         // the tab each session shows in front, by session ID
 	installs           map[string]func()         // install sessions, by session ID: what to check once each ends
 	chats              map[string]*chatview.Chat // by session ID
+	chatDrawn          map[string]time.Time      // when each was last drawn (chatOnScreen)
 	diffs              map[string]*diffview.View // by session ID
 	fileViews          map[string]*fileview.View // by session ID
 	center             map[string]*centerTabs    // what tools opened in the center, by session ID
@@ -236,11 +250,17 @@ type App struct {
 	tok        tokensState   // token usage: the Tokens tab, sessions' badges (tokens.go)
 	goa        goaApp        // GOD of Agents mode (goa.go)
 	blurred    bool          // the window isn't the focused one
+	unfocused  atomic.Bool   // the same, for goroutines
 	winCtl     windowControl // what the window buttons act on, when not win (tests)
 	// retrying counts the tries to connect again to retryHost after its
 	// connection dropped; 0 when not retrying.
 	retrying  int
 	retryHost string
+	// connectedAt is when the shown connection came up, triedBefore the tries it took.
+	connectedAt time.Time
+	triedBefore int
+	// watchDial, when set, connects watches: tests.
+	watchDial func(hosts.Host) (*client.Client, error)
 	credits   creditview.Tracker
 	updates   updater
 	hostList  []hosts.Host
@@ -260,7 +280,9 @@ type App struct {
 	daemonInfo proto.DaemonInfo // the connected daemon, as it described itself
 	projects   []proto.ProjectInfo
 	sessions   []proto.SessionInfo
-	panes      map[string]*pane
+	panes      map[string]*pane // the terminals attached (panes.go), nil while attaching
+	paneSeen   map[string]time.Time
+	canvasLeft time.Time // when the Canvas page was noticed left (panes.go)
 	// removed remembers killed sessions, so a late update can't revive them.
 	removed map[string]bool
 
@@ -391,12 +413,13 @@ func (a *App) Open() *mygo.Window {
 	a.onMain = a.win.Update
 	a.startDevDriver()
 	a.startDiag()
+	a.logLink()
 	a.startWatchdog()
 	stopAppearance := mygo.Theme.OnUpdated(func() { a.systemAppearanceChanged(mygo.Theme.IsDark()) })
 	a.watchQuit()
 	a.usage.Every = a.usageEvery
-	a.win.OnFocus(func() { a.blurred = false; a.usage.Poke() })
-	a.win.OnBlur(func() { a.blurred = true })
+	a.win.OnFocus(func() { a.blurred = false; a.unfocused.Store(false); a.usage.Poke(); a.pokeWatches() })
+	a.win.OnBlur(func() { a.blurred = true; a.unfocused.Store(true) })
 	setAppMenu(a)
 	a.holdForUnsaved()
 	a.win.OnClosed(func() {
@@ -414,6 +437,10 @@ func (a *App) Open() *mygo.Window {
 		for range time.Tick(time.Minute) {
 			a.onMain(a.vaultTick)
 			a.onMain(a.notionSyncTick)
+			a.onMain(func() {
+				a.unloadPanes(time.Now())
+				a.unloadCanvasPage(time.Now())
+			})
 		}
 	}()
 	a.setUpTray()
@@ -521,6 +548,14 @@ func (a *App) handleEvent(gen int, ev proto.Event) {
 		}
 	case proto.EventCanvasesChanged, proto.EventCanvasChanged, proto.EventCanvasRender, proto.EventCanvasVideo:
 		if apply = a.canvasEvent(ev); apply == nil {
+			return
+		}
+	case proto.EventLibraryPublishAsked:
+		if apply = a.libraryAsked(ev.Data); apply == nil {
+			return
+		}
+	case proto.EventLibrarySkillAsked:
+		if apply = a.librarySkillAsked(ev.Data); apply == nil {
 			return
 		}
 	case proto.EventTeamChat:
@@ -663,7 +698,7 @@ func viewOutdated(old, now proto.SessionInfo) bool {
 	return old.Exited || old.Queued
 }
 
-// upsert records a session and attaches to it once.
+// upsert records a session; its terminal attaches when wanted (panes.go).
 func (a *App) upsert(info proto.SessionInfo) {
 	if a.removed[info.ID] {
 		return
@@ -682,10 +717,6 @@ func (a *App) upsert(info proto.SessionInfo) {
 	} else {
 		a.sessions = append(a.sessions, info)
 	}
-	if _, ok := a.panes[info.ID]; !ok && a.client != nil {
-		a.panes[info.ID] = nil // attaching
-		go a.attach(a.client, a.gen, info.ID)
-	}
 	a.updateTray()
 }
 
@@ -698,6 +729,7 @@ func (a *App) remove(id string) {
 		p.close()
 	}
 	delete(a.panes, id)
+	delete(a.paneSeen, id)
 	delete(a.tabs, id)
 	for parent, tab := range a.tabs {
 		if tab == id {
@@ -705,6 +737,7 @@ func (a *App) remove(id string) {
 		}
 	}
 	delete(a.chats, id)
+	delete(a.chatDrawn, id)
 	delete(a.state.Chats, id)
 	delete(a.diffs, id)
 	delete(a.fileViews, id)

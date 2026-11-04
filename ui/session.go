@@ -39,6 +39,8 @@ func statusOf(s proto.SessionInfo) sessionStatus {
 		return sessionStatus{label: "needs input", color: theme.Warning}
 	case isWorking(s):
 		return sessionStatus{label: "working", color: theme.Working}
+	case len(s.Background) > 0:
+		return sessionStatus{label: "background", color: theme.Working, hollow: true} // its turn ended, not its work
 	case s.State == proto.StateDone:
 		return sessionStatus{label: "done", color: theme.Done, hollow: true}
 	}

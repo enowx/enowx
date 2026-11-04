@@ -131,8 +131,14 @@ func (ch *Chat) turnTimeline(c *ui.Context, t turn, running bool) {
 			ch.nowLine(c.Key("now"), t, current)
 		}
 		for i, e := range notices {
-			ui.Row(c.Key(fmt.Sprint("notice", i))).FillWidth().Justify(ui.Center).Children(func() {
-				ui.Text(c, e.Text).FontSize(theme.TextLabel).TextColor(theme.Muted)
+			ui.Row(c.Key(fmt.Sprint("notice", i))).FillWidth().Justify(ui.Center).Gap(theme.S2).AlignItems(ui.Center).Children(func() {
+				ui.Text(c, widget.LongWords(e.Text)).FontSize(theme.TextLabel).TextColor(theme.Muted).Shrink(1).MinWidth(0)
+				if ch.noticeAction == nil {
+					return
+				}
+				if label, do := ch.noticeAction(e.Text); label != "" && widget.Button(c.Key("act"), widget.Secondary, nil, label, "").Shrink(0).Clicked() {
+					do()
+				}
 			})
 		}
 	})
@@ -145,11 +151,32 @@ func (ch *Chat) blockItem(c *ui.Context, e proto.TranscriptEntry, running bool) 
 		ch.userMessage(c, e, running)
 	case e.Kind == proto.TranscriptAssistant:
 		ui.Column(c).FillWidth().MaxWidth(answerWidth).FontSize(theme.TextRead).LineHeight(readLeading).Children(func() {
+			if s := ch.liveAnswer(e, running); s != nil {
+				s.Draw(c, e.Text, ch.links)
+				return
+			}
 			widget.MarkdownLinks(c, e.Text, ch.links)
 		})
 	default:
 		ch.askCardOf(c, e)
 	}
+}
+
+// liveAnswer is the stream entry e draws through while it may still change: words of
+// the turn under way, for an agent recording them as they arrive. Nil draws it whole.
+func (ch *Chat) liveAnswer(e proto.TranscriptEntry, running bool) *widget.MarkdownStream {
+	if !running || !ch.streaming.Load() {
+		return nil
+	}
+	if ch.live == nil {
+		ch.live = map[int]*widget.MarkdownStream{}
+	}
+	s := ch.live[e.Index]
+	if s == nil {
+		s = &widget.MarkdownStream{}
+		ch.live[e.Index] = s
+	}
+	return s
 }
 
 // lineItem is one of the turn's lines.

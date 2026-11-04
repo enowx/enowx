@@ -27,6 +27,19 @@ var Presets = []Preset{
 		Homepage: "https://code.claude.com/docs",
 	},
 	{
+		ID: PlatformID, Name: "Claude Platform", Command: PlatformID, Builtin: true,
+		Args:            []string{"claude-platform"},
+		SkipPermissions: []string{"--dangerously-skip-permissions"},
+		AllowSkip:       []string{"--allow-dangerously-skip-permissions"},
+		Continue:        []string{"--continue"},
+		Resume:          []string{"--resume"},
+		SessionDir:      []string{"--session-dir"},
+		Interrupt:       "\x1b",
+		Approve:         ApproveKeys{Allow: "1", Always: "2", Deny: "3"},
+		VaultPlatform:   "anthropic",
+		Homepage:        "https://platform.claude.com/docs",
+	},
+	{
 		ID: "codex", Name: "Codex", Command: "codex",
 		SkipPermissions: []string{"--dangerously-bypass-approvals-and-sandbox"},
 		Continue:        []string{"resume", "--last"},
@@ -185,8 +198,8 @@ var Presets = []Preset{
 	},
 	{
 		ID: "goose", Name: "Goose", Command: "goose",
-		// The database migration tool installs as goose too.
-		Namesake:   &Namesake{Args: []string{"--version"}, Says: "goose version: v"},
+		// The database migration tool installs as goose too, and its help has no sessions.
+		Namesake:   &Namesake{Args: []string{"--help"}, AgentSays: "session"},
 		TypePrompt: true,
 		SkipEnv:    []string{"GOOSE_MODE=auto"},
 		Install:    "curl -fsSL https://github.com/block/goose/releases/download/stable/download_cli.sh | CONFIGURE=false bash",
@@ -201,7 +214,8 @@ var Presets = []Preset{
 	},
 	{
 		ID: "kilo", Name: "Kilo Code", Command: "kilo",
-		TypePrompt: true,
+		// Typed in, it was lost: its screen settles before its input takes keys (7.8.18).
+		PromptFlag: []string{"--prompt"},
 		Install:    npmInstall("Kilo Code CLI", "@kilocode/cli"),
 		Homepage:   "https://kilo.ai/docs/cli",
 	},

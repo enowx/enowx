@@ -1,6 +1,7 @@
 package agentapi
 
 import (
+	"encoding/json"
 	"io/fs"
 	"os"
 	"path/filepath"
@@ -214,5 +215,62 @@ func TestGeminiAddressIsHTTPSUnlessLocal(t *testing.T) {
 	}
 	if _, err := Prepare("codex", API{BaseURL: "http://gw.example.com"}); err != nil {
 		t.Errorf("the rule reached another agent: %v", err)
+	}
+}
+
+// A session's config holds the provider in both OpenCode versions' forms, its key by
+// name alone.
+func TestOpenCodeConfigFitsBothVersions(t *testing.T) {
+	dir := t.TempDir()
+	for _, id := range []string{"opencode", "opencode2"} {
+		l, err := SessionLaunch(id, API{BaseURL: "https://x.example/v1", APIKey: "k-secret", Model: "cb/m1", Models: []Model{{ID: "cb/m1"}}}, dir)
+		if err != nil {
+			t.Fatal(err)
+		}
+		var cfg struct {
+			Model     string         `json:"model"`
+			Provider  map[string]any `json:"provider"`
+			Providers map[string]any `json:"providers"`
+		}
+		data, err := os.ReadFile(strings.TrimPrefix(l.Env[0], "OPENCODE_CONFIG="))
+		if err != nil || json.Unmarshal(data, &cfg) != nil {
+			t.Fatalf("%v: %s", err, data)
+		}
+		if cfg.Model != "enowx/cb/m1" || cfg.Provider["enowx"] == nil || cfg.Providers["enowx"] == nil || strings.Contains(string(data), "k-secret") {
+			t.Fatalf("%s: %s", id, data)
+		}
+	}
+}
+
+// Claude Platform's key goes in its session's environment and nowhere else, and it has
+// no settings for one to be written to.
+func TestPlatformSessionKeyInItsEnvironmentAlone(t *testing.T) {
+	const key = "sk-ant-api03-test"
+	dir := t.TempDir()
+	l, err := SessionLaunch(platformID, API{BaseURL: "https://gw.example/", APIKey: key, Model: "m"}, dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	env := strings.Join(l.Env, "\n")
+	if !strings.Contains(env, "ANTHROPIC_BASE_URL=https://gw.example\n") || !strings.Contains(env, "ANTHROPIC_API_KEY="+key) {
+		t.Fatalf("env: %v", l.Env)
+	}
+	if strings.Join(l.Args, " ") != "--model m" || l.Settings != nil {
+		t.Fatalf("args: %v, settings: %v", l.Args, l.Settings)
+	}
+	if entries, _ := os.ReadDir(dir); len(entries) != 0 {
+		t.Fatalf("files: %v", entries)
+	}
+	if _, err := SessionLaunch(platformID, API{BaseURL: "https://gw.example", Protocol: OpenAI}, dir); err == nil {
+		t.Fatal("it speaks Anthropic's protocol alone")
+	}
+	if err := Set(t.TempDir(), platformID, API{BaseURL: "https://gw.example", APIKey: key}); err == nil {
+		t.Fatal("a key written in its settings")
+	}
+	if slices.Contains(Supported(), platformID) || !PerSession(platformID) {
+		t.Fatalf("supported: %v", Supported())
+	}
+	if a, err := Of(t.TempDir(), platformID); err != nil || a.Current != nil || a.Protocols[0] != Anthropic {
+		t.Fatalf("of: %+v, %v", a, err)
 	}
 }

@@ -120,6 +120,9 @@ func (a *App) workspaceView(c *ui.Context) {
 	case a.page == pageCanvas && a.client != nil:
 		a.canvasPage(c)
 		return
+	case a.page == pageCommunity && a.client != nil:
+		a.communityPage(c)
+		return
 	case a.page == pageTeam && a.client != nil:
 		a.teamPage(c)
 		return
@@ -257,6 +260,9 @@ func (a *App) sessionFactsLine(s proto.SessionInfo) string {
 	if t, ok := a.sessionTokens(s.ID); ok {
 		parts = append(parts, tokenview.Spent(t))
 	}
+	if rules := textfmt.SessionRules(s.Rules); rules != "" {
+		parts = append(parts, rules)
+	}
 	return strings.Join(parts, " · ")
 }
 
@@ -298,7 +304,7 @@ func (a *App) sessionBanner(c *ui.Context, s proto.SessionInfo) {
 	} else if can && text == "" {
 		text, col = statusOf(s).label, statusOf(s).color
 	}
-	if text == "" {
+	if text == "" || a.state.BannersClosed[s.ID] == text {
 		return
 	}
 	ui.Row(c.Key("banner")).Shrink(0).FillWidth().Padding(theme.S3, theme.S5, 0, theme.S5).Children(func() {
@@ -307,6 +313,14 @@ func (a *App) sessionBanner(c *ui.Context, s proto.SessionInfo) {
 			ui.Row(c).Grow(1).MinWidth(0).Children(func() { widget.Running(c, text, widget.RunStyle{}) })
 			if can && widget.GhostButton(c, "Continue").Clicked() {
 				a.continueSession(s)
+			}
+			// Gone until it says something else: a banner is news, not a fixture.
+			if widget.IconButton(c.Key("close"), icon.Close, "Close this notice", false).Clicked() {
+				if a.state.BannersClosed == nil {
+					a.state.BannersClosed = map[string]string{}
+				}
+				a.state.BannersClosed[s.ID] = text
+				a.saveState()
 			}
 		})
 	})
@@ -334,7 +348,7 @@ func canChat(s proto.SessionInfo) bool { return chatview.Supported(s) }
 
 // sessionBody is a session's chat or terminal, filling what is left.
 func (a *App) sessionBody(c *ui.Context, s proto.SessionInfo) {
-	switch p := a.panes[s.ID]; {
+	switch p := a.wantPane(s.ID); {
 	case a.state.BrowserViews[s.ID]:
 		a.browserTab(c.Key("browser-view"), s)
 	case a.state.TrafficViews[s.ID]:

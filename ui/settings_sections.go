@@ -186,7 +186,7 @@ func (a *App) sessionDefaults(c *ui.Context) {
 							a.saveState()
 						}
 					})
-					widget.CardNote(c, "They run tools without asking. It also covers GOD of Agents, its workers and the chats of notes and canvases for agents that can't tell enowX they ask, like OpenCode. Claude Code and Codex can switch it in the chat; others keep theirs until they restart.", 0)
+					widget.CardNote(c, "They run tools without asking. Claude Code always does, whatever this says. It also covers GOD of Agents, its workers and the chats of notes and canvases for agents that can't tell enowX they ask, like OpenCode. Codex can switch it in the chat; others keep theirs until they restart.", 0)
 				})
 				a.agentStartCard(c)
 				widget.Card(c).Children(func() {

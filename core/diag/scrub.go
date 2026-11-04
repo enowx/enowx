@@ -1,6 +1,7 @@
 package diag
 
 import (
+	"io"
 	"regexp"
 )
 
@@ -20,6 +21,18 @@ var secrets = []struct {
 	{regexp.MustCompile(`\beyJ[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{10,}(\.[A-Za-z0-9_-]+)?`), "[masked]"},
 	// Long runs of one alphabet are keys more often than anything a log needs: IDs here are shorter.
 	{regexp.MustCompile(`\b[A-Za-z0-9+/_-]{48,}={0,2}`), "[masked]"},
+}
+
+// Scrubbed is w with what is written to it scrubbed, for a whole line at a time.
+func Scrubbed(w io.Writer) io.Writer { return scrubWriter{w} }
+
+type scrubWriter struct{ w io.Writer }
+
+func (s scrubWriter) Write(p []byte) (int, error) {
+	if _, err := io.WriteString(s.w, Scrub(string(p))); err != nil {
+		return 0, err
+	}
+	return len(p), nil
 }
 
 // Scrub masks what looks like a secret in text.

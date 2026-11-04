@@ -1,7 +1,10 @@
 package ui
 
 import (
+	"fmt"
 	"path/filepath"
+	"strings"
+	"time"
 
 	"github.com/egoist/mygo/ui"
 
@@ -21,6 +24,9 @@ const pathChars = 34
 func (a *App) sessionFacts(c *ui.Context, s proto.SessionInfo) {
 	if model, full := modelLine(s); model != "" {
 		ui.Text(c, model).FontSize(theme.TextLabel).Font(theme.MonoFont).TextColor(theme.Muted).SingleLine().Shrink(1).Tooltip(full)
+	}
+	if line, full := backgroundLine(s, time.Now()); line != "" {
+		ui.Text(c, line).FontSize(theme.TextLabel).TextColor(theme.Accent).SingleLine().Tooltip(full)
 	}
 	branch := ""
 	if s.Worktree {
@@ -48,7 +54,32 @@ func modelLine(s proto.SessionInfo) (short, full string) {
 		short += " (last)"
 		full += ", the last it said: it isn't running"
 	}
+	if s.ModelStarted != "" {
+		short += " (started on " + textfmt.ShortModel(s.ModelStarted) + ")"
+		full += "\nStarted on " + s.ModelStarted + ": its agent moved to this one, by a fallback or a change in the agent"
+	}
 	return short, full
+}
+
+// backgroundLine is what a session's row says of agents in its background, short and whole.
+func backgroundLine(s proto.SessionInfo, now time.Time) (short, full string) {
+	var parts, lines []string
+	for _, b := range s.Background {
+		facts := textfmt.Age(b.Since, now) + " · " + textfmt.CPU(b.CPUPercent) + " · " + textfmt.Bytes(b.Memory)
+		parts = append(parts, b.Name+" "+facts)
+		line := fmt.Sprintf("%s, pid %d: %s", b.Name, b.PID, facts)
+		if b.Stuck {
+			line += ", has used no CPU for a while"
+		}
+		if b.Left {
+			line += ", left from under its agent"
+		}
+		lines = append(lines, line+"\n"+b.Command)
+	}
+	if len(parts) == 0 {
+		return "", ""
+	}
+	return fmt.Sprintf("%d in background: %s", len(parts), strings.Join(parts, ", ")), strings.Join(lines, "\n")
 }
 
 // projectLine says a project by name and path, with host when it's another's;
@@ -77,4 +108,38 @@ func projectLine(c *ui.Context, project, dir, branch, host string) {
 	if full != "" {
 		line.Tooltip(full).Selectable()
 	}
+}
+
+// askStopBackground asks before stopping one of session s's background agents, saying what goes.
+func (a *App) askStopBackground(s proto.SessionInfo, b proto.BackgroundAgent) {
+	cl := a.client
+	if cl == nil {
+		return
+	}
+	about := fmt.Sprintf("%s (pid %d) stops, with all it started: what it hasn't saved is lost, and its conversation can't be taken up from here. %s itself goes on.",
+		b.Name, b.PID, a.sessionName(s))
+	a.confirm("Stop this background agent?", about, "Stop", func() {
+		id, ref := s.ID, proto.StopBackgroundParams{Session: s.ID, PID: b.PID, Start: b.Start}
+		go func() {
+			if err := cl.Call(proto.MethodSessionStopBackground, ref, nil); err != nil {
+				a.onMain(func() { a.status = id + ": " + err.Error() })
+			}
+		}()
+	})
+}
+
+// backgroundAtRisk warns of the agents in sessions' backgrounds, which a restart stops: their
+// sessions come back on their conversations, they don't.
+func backgroundAtRisk(sessions []proto.SessionInfo) string {
+	var names []string
+	for _, s := range sessions {
+		for _, b := range s.Background {
+			names = append(names, b.Name)
+		}
+	}
+	if len(names) == 0 {
+		return ""
+	}
+	return fmt.Sprintf("Restarting stops %d background %s (%s). Their sessions come back; they don't, and what they haven't saved may be lost.",
+		len(names), textfmt.Plural(len(names), "agent", "agents"), strings.Join(names, ", "))
 }

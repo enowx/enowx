@@ -14,7 +14,9 @@ import (
 	"path/filepath"
 	"syscall"
 
+	"github.com/enowx/enowx/core/agent"
 	"github.com/enowx/enowx/core/diag"
+	"github.com/enowx/enowx/core/memtune"
 	"github.com/enowx/enowx/internal/watchdog"
 	"github.com/enowx/enowx/transport"
 	"github.com/enowx/enowx/version"
@@ -48,12 +50,16 @@ func Run() error {
 	log := slog.New(slog.NewTextHandler(daemonLogWriter(logFile), nil))
 	useLoginPath(log)
 	exe, _ := os.Executable()
-	srv, err := newServer(dir, useLauncher(dir, exe, log.Warn))
+	program := useLauncher(dir, exe, log.Warn)
+	// What a built-in agent runs as (agent.Preset.Program), not an outer session's.
+	_ = os.Setenv(agent.EnvBin, program)
+	srv, err := newServer(dir, program)
 	if err != nil {
 		l.Close()
 		return err
 	}
 	srv.Log, srv.Diag = log, logFile
+	memtune.Start(srv.done)
 	go keepLogsSwept(dir, srv.done, logFile)
 	go srv.watchProgram(exe)
 	dog := watchdog.Start(filepath.Join(dir, "watchdog"), "daemon", nil, nil) // its memory: it has no one thread to stall

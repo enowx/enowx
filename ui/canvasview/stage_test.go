@@ -6,6 +6,7 @@ import (
 	imgcolor "image/color"
 	"image/png"
 	"testing"
+	"time"
 
 	"github.com/egoist/mygo/ui"
 
@@ -104,5 +105,89 @@ func TestErrorBarStaysInItsFrame(t *testing.T) {
 	tt.Frame()
 	if v.err != "" {
 		t.Fatal("not dismissed")
+	}
+}
+
+type closingPage struct {
+	livePage
+	closed *int
+}
+
+func (p closingPage) Close() { *p.closed++ }
+
+// Left a while, the page's web view goes, and comes back on drawing again.
+func TestUnloadClosesTheWebViewAndDrawingBringsItBack(t *testing.T) {
+	cv := proto.Canvas{CanvasInfo: proto.CanvasInfo{ID: "c1", Title: "Shop", Kind: proto.CanvasMockup},
+		Frames: []proto.CanvasFrame{{ID: "f1", Name: "Home", Width: 400, Height: 300, HTML: `<main id="hero">Hi</main>`}}}
+	closed, made := 0, 0
+	o := Options{
+		Load:     func(id string, done func(proto.Canvas, error)) { done(cv, nil) },
+		Comments: func(id string, done func([]proto.CanvasComment, error)) { done(nil, nil) },
+		Web: &Web{NewPage: func(done func(Page, error)) {
+			made++
+			done(closingPage{closed: &closed}, nil)
+		}, Update: func(fn func()) { fn() }},
+	}
+	v := &View{}
+	v.web = o.Web
+	v.Open(o, "c1")
+	tt := ui.NewTester(func(c *ui.Context) {
+		ui.Column(c).Width(1800).Height(800).Children(func() { v.Draw(c, o) })
+	}, 1800, 800)
+	for range 4 {
+		tt.Frame()
+	}
+	if made != 1 || o.Web.page == nil {
+		t.Fatalf("made %d pages", made)
+	}
+	v.Unload()
+	if closed != 1 || o.Web.page != nil {
+		t.Fatalf("closed %d", closed)
+	}
+	for range 4 {
+		tt.Frame()
+	}
+	if made != 2 || o.Web.page == nil || o.Web.pending == "" {
+		t.Fatalf("made %d, pending %d bytes", made, len(o.Web.pending))
+	}
+}
+
+// With a way to run on the main thread without a frame, asking the page draws no frames
+// unless it has news, and stops when the page no longer shows.
+func TestAskingThePageDrawsNoFrames(t *testing.T) {
+	updates, quiet := 0, 0
+	showing := true
+	asked := make(chan struct{}, 64)
+	var posted = make(chan func(), 64)
+	w := &Web{
+		Update:  func(fn func()) { updates++; fn() },
+		Quiet:   func(fn func()) { posted <- fn },
+		Showing: func() bool { return showing },
+	}
+	w.page = livePage{}
+	var loop bool
+	if !w.asking(&loop, 5*time.Millisecond, func() { quiet++; asked <- struct{}{} }) {
+		t.Fatal("it should run without frames")
+	}
+	for quiet < 3 {
+		(<-posted)()
+		<-asked
+	}
+	if updates != 0 {
+		t.Fatalf("%d frames for nothing new", updates)
+	}
+	w.news(func() bool { return false })
+	(<-posted)()
+	if updates != 0 {
+		t.Fatalf("%d frames for no news", updates)
+	}
+	w.news(func() bool { return true })
+	(<-posted)()
+	if updates != 1 {
+		t.Fatalf("%d frames for news", updates)
+	}
+	showing = false
+	for loop {
+		(<-posted)()
 	}
 }

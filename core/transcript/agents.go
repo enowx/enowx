@@ -9,6 +9,8 @@ import (
 	"slices"
 	"strings"
 	"time"
+
+	"github.com/enowx/enowx/core/platformagent/record"
 )
 
 // Found is a conversation an agent recorded, by the path a Reader opens it
@@ -26,8 +28,9 @@ var readers = map[string]struct {
 }{
 	"claude":             {claudeFound, NewClaudeReader, claudeID},
 	"claude-agent-teams": {claudeFound, NewClaudeReader, claudeID},
-	"codex":              {CodexFiles, NewCodexReader, nil},
+	"codex":              {CodexFiles, NewCodexReader, codexID},
 	"omp":                {OMPFiles, NewOMPReader, OMPConversationID},
+	record.AgentID:       {PlatformFiles, NewPlatformReader, claudeID},
 }
 
 func claudeID(path string) string { return strings.TrimSuffix(filepath.Base(path), ".jsonl") }
@@ -68,6 +71,17 @@ func FindIn(agent, home, dir, store string) []Found {
 	return Find(agent, home, dir)
 }
 
+// HomeOf is where agent keeps its files under home, "" for an agent with none known here.
+func HomeOf(agent, home string) string {
+	switch agent {
+	case "claude", "claude-agent-teams":
+		return ClaudeHome(home)
+	case "codex":
+		return codexHome(home)
+	}
+	return ""
+}
+
 // Find lists the conversations agent had in dir, newest change first.
 func Find(agent, home, dir string) []Found {
 	if r, ok := readers[agent]; ok {
@@ -95,19 +109,11 @@ func claudeFound(home, dir string) []Found {
 }
 
 // ForkID is the id agent forks the conversation at path by, "" when it has
-// none to give: the one it resumes by, or Codex's own.
-func ForkID(agent, path string) string {
-	if path == "" {
-		return ""
-	}
-	if agent == "codex" {
-		return codexID(path)
-	}
-	return ConversationID(agent, path)
-}
+// none to give: the one it resumes by.
+func ForkID(agent, path string) string { return ConversationID(agent, path) }
 
-// Compacted says the conversation at path holds a compaction, as Claude Code
-// and Codex record one.
+// Compacted says the conversation at path holds a compaction, as Claude Code,
+// Codex and Claude Platform record one.
 func Compacted(agent, path string) bool {
 	data, err := os.ReadFile(path)
 	if err != nil {
@@ -125,7 +131,7 @@ func Compacted(agent, path string) bool {
 		if json.Unmarshal(line, &rec) != nil {
 			continue
 		}
-		if rec.Summary || agent == "codex" && rec.Type == "compacted" {
+		if rec.Summary || agent == "codex" && rec.Type == "compacted" || agent == record.AgentID && rec.Type == record.Compact {
 			return true
 		}
 	}

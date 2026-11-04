@@ -29,7 +29,7 @@ import (
 // a web engine, the app's.
 
 // ErrNeedsBrowser is a frame with HTML, which only a web engine renders.
-var ErrNeedsBrowser = errors.New("canvas: the frame has HTML, which the enowX app renders: open the app connected to this host")
+var ErrNeedsBrowser = errors.New("canvas: the frame has HTML, which the enowX app renders, and no app is connected to this host: it needs the user to open the app with this host connected or watched, which an agent can't do: say so, and go on without the picture")
 
 // PNG draws frame f's shapes as a PNG, f's size times scale.
 func PNG(f proto.CanvasFrame, assets Assets, scale float64) ([]byte, error) {

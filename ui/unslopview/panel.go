@@ -108,8 +108,8 @@ func (p *Panel) Draw(c *ui.Context, run *proto.CanvasUnslopRun, o PanelOptions) 
 			if widget.IconButton(c, fold, tip, false).Clicked() {
 				h.folded = !h.folded
 			}
-			if run.Done && widget.IconButton(c, icon.Close, "Close", false).Clicked() {
-				h.closed = run.Frame + "true"
+			if widget.IconButton(c, icon.Close, "Close", false).Clicked() {
+				h.closed = run.Frame + fmt.Sprint(run.Done) // as it ends, it shows again
 			}
 		})
 		ui.Row(c.Key("score")).FillWidth().Gap(theme.S1).AlignItems(ui.Baseline).Children(func() {

@@ -3,7 +3,8 @@
 //
 //	enowxd serve    serve the per-user socket (~/.enowx-app/enowxd.sock)
 //	enowxd bridge   pipe stdin/stdout to the socket, starting the daemon if needed
-//	enowxd stop     stop the running daemon, ending its sessions
+//	enowxd stop     stop the running daemon, ending its sessions (stop SESSION is the
+//	                command line's: one session's agent)
 //	enowxd version  print the version
 //	enowxd hook S   report an agent's state (run by its hooks)
 //	enowxd ls|spawn|send|wait|…   the command line (enowxd help)
@@ -40,20 +41,22 @@ func main() {
 	if len(os.Args) > 1 {
 		cmd = os.Args[1]
 	}
+	// "stop SESSION" is the command line's, stopping one session's agent, not this.
+	stopDaemon := cmd == "stop" && len(os.Args) == 2
 	var err error
-	switch cmd {
-	case "serve":
+	switch {
+	case cmd == "serve":
 		err = daemon.Run()
-	case "bridge":
+	case cmd == "bridge":
 		startService()
 		err = daemon.Bridge("serve")
-	case "stop":
+	case stopDaemon:
 		err = stop()
-	case "version":
+	case cmd == "version":
 		fmt.Println(daemon.Version)
-	case "hook":
+	case cmd == "hook":
 		os.Exit(daemon.Hook(os.Args[2:], os.Stdin, os.Stdout, os.Stderr))
-	case "display":
+	case cmd == "display":
 		err = daemon.Display()
 	default:
 		if cli.Is(os.Args[1:]) {

@@ -106,6 +106,14 @@ type SessionInputParams struct {
 	From string `json:"from,omitempty"`
 }
 
+// SessionInputResult is what came of MethodSessionInput. Sent: it went in, which a
+// daemon from before this result doesn't say, typing or not. Woken: its agent had
+// stopped, and was brought back on its conversation for it.
+type SessionInputResult struct {
+	Sent  bool `json:"sent"`
+	Woken bool `json:"woken,omitempty"`
+}
+
 // SessionInfo describes a session.
 type SessionInfo struct {
 	// Member is the team's member who started it from their device, nil
@@ -146,6 +154,12 @@ type SessionInfo struct {
 	Model     string `json:"model,omitempty"`
 	Effort    string `json:"effort,omitempty"`
 	ModelLast bool   `json:"modelLast,omitempty"`
+	// ModelStarted is what it was started on, or the user last chose in its agent, when its
+	// agent says it now runs on another, a fallback say; "" when it doesn't.
+	ModelStarted string `json:"modelStarted,omitempty"`
+	// Background are other agents running under or left by this one, as its process tree
+	// shows them: see BackgroundAgent.
+	Background []BackgroundAgent `json:"background,omitempty"`
 	// SkipUnheard is SessionCreateParams.SkipUnheard: for GOD of Agents,
 	// what its workers follow.
 	SkipUnheard bool `json:"skipUnheard,omitempty"`
@@ -176,7 +190,9 @@ type SessionInfo struct {
 	// Report is what its agent last reported of a turn (goa report), Outcome one of
 	// GOAOutcomes; ReportAt, in Unix milliseconds, tells one from the next. On the
 	// session, it reaches GOA by the road its changes take, on any host.
-	Report        string `json:"report,omitempty"`
+	Report string `json:"report,omitempty"`
+	// TurnText is the message its last turn ended on, when its agent's hook says.
+	TurnText      string `json:"turnText,omitempty"`
 	ReportOutcome string `json:"reportOutcome,omitempty"`
 	ReportAt      int64  `json:"reportAt,omitempty"`
 	// Group is the fan-out the session is part of: sessions given one
@@ -206,6 +222,9 @@ type SessionInfo struct {
 	HibernatedHow *HibernateState `json:"hibernatedHow,omitempty"`
 	// NoAutoHibernate keeps the daemon from hibernating it on its own.
 	NoAutoHibernate bool `json:"noAutoHibernate,omitempty"`
+	// Rules is what its agent has of the rules that hold for it, nil for a
+	// session they don't concern.
+	Rules *SessionRules `json:"rules,omitempty"`
 }
 
 // MethodSessionPrivate keeps a session from the host's teams, or shows it
@@ -375,4 +394,34 @@ const MethodSessionFork = "session.fork"
 type SessionForkParams struct {
 	ID     string `json:"id"`
 	Prompt string `json:"prompt,omitempty"`
+}
+
+// BackgroundAgent is an agent a session's agent started, seen in its process tree. An agent's
+// subagents that run inside its own process, or only at its API, don't show here.
+type BackgroundAgent struct {
+	PID     int    `json:"pid"`
+	Start   string `json:"start"` // with PID it names the process: StopProcessParams
+	Name    string `json:"name"`  // the agent's program
+	Command string `json:"command,omitempty"`
+	// Since is when the daemon first saw it.
+	Since time.Time `json:"since"`
+	// Left: it no longer runs under the session's program.
+	Left bool `json:"left,omitempty"`
+	// Memory is its resident memory in bytes, and CPU the CPU time it used in seconds, when last looked at.
+	Memory uint64  `json:"memory,omitempty"`
+	CPU    float64 `json:"cpu,omitempty"`
+	// CPUPercent is how much of a core it used between the last two looks.
+	CPUPercent float64 `json:"cpuPercent,omitempty"`
+	// Stuck: it has used next to no CPU for a good while (procs_background.go).
+	Stuck bool `json:"stuck,omitempty"`
+}
+
+// MethodSessionStopBackground stops one of a session's background agents, with all it started.
+const MethodSessionStopBackground = "session.stopBackground" // StopBackgroundParams
+
+// StopBackgroundParams names a background agent of a session, as its SessionInfo.Background does.
+type StopBackgroundParams struct {
+	Session string `json:"session"`
+	PID     int    `json:"pid"`
+	Start   string `json:"start"`
 }

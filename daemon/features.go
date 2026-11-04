@@ -44,12 +44,16 @@ func (s *Server) resolveFeatures(project string, own map[string]bool) (map[strin
 
 // guideFor is the guide a session of meta's project gets, with its
 // switches; "" leaves agents the full one (no switches read).
-func (s *Server) guideFor(meta session.Meta) string {
+func (s *Server) guideFor(meta session.Meta) string { return s.guideIn(meta, "") }
+
+// guideIn is guideFor a session whose folder is dir: a folder of no project's has
+// rules too, a team's maybe.
+func (s *Server) guideIn(meta session.Meta, dir string) string {
 	if s.features == nil {
 		return agent.Guide
 	}
 	r, st, _ := s.resolveFeatures(meta.Project, meta.Features)
-	return agent.GuideFor(features.On(r), st.LazyOn()) + s.projectGuide(meta.Project)
+	return agent.GuideFor(features.On(r), st.LazyOn()) + s.projectGuide(rulesFolder(meta, dir))
 }
 
 // featuresState is the switches as Settings shows them.
