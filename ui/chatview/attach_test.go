@@ -2,6 +2,7 @@ package chatview
 
 import (
 	"errors"
+	"github.com/enowx/enowx/proto"
 	"slices"
 	"testing"
 )
@@ -27,6 +28,7 @@ func TestMessageGoesWithItsAttachments(t *testing.T) {
 		t.Fatal("attachments kept after sending")
 	}
 	// An image alone is a message too.
+	ch.apply(proto.Transcript{Supported: true, Rev: 1, Entries: []proto.TranscriptEntry{userEntry(0, "look at this /srv/shot.png")}})
 	ch.Attach("only.png", nil)("/srv/only.png", nil)
 	if !ch.send(o, "") || !slices.Equal(files, []string{"/srv/only.png"}) {
 		t.Fatalf("image alone: %q", files)

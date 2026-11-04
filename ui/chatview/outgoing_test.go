@@ -26,6 +26,7 @@ func TestOutgoingSettles(t *testing.T) {
 	if len(ch.out) != 1 {
 		t.Fatalf("after the first: %d left", len(ch.out))
 	}
+	ch.outgoingLook(o, time.Now()) // the next message can now leave the local queue
 	ch.apply(proto.Transcript{Supported: true, Rev: 3, Entries: []proto.TranscriptEntry{{Index: 3, Kind: proto.TranscriptAssistant, Text: "ok"}}})
 	if len(ch.out) != 1 {
 		t.Fatalf("the same entry took the second: %d left", len(ch.out))
@@ -49,8 +50,9 @@ func TestCommandShowsNoBubble(t *testing.T) {
 // A send that fails keeps the message, to retry or take back with its files.
 func TestOutgoingFails(t *testing.T) {
 	ch := New()
+	ch.apply(proto.Transcript{Supported: true, Rev: 1})
 	var done func(error)
-	o := Options{Deliver: func(_ string, _ []string, d func(error)) { done = d }}
+	o := Options{Deliver: func(_, _ string, _ []string, d func(error)) { done = d }}
 	ch.outgoingSend(o, "hello", []string{"/tmp/a.png"})
 	done(errors.New("no connection"))
 	m := ch.out[0]

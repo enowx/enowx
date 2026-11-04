@@ -8,6 +8,9 @@ import (
 )
 
 var sessionHandlers = map[string]handler{
+	proto.MethodSessionDeliver: with(func(c *conn, p proto.DeliveryParams) (any, error) {
+		return c.srv.deliver(p)
+	}),
 	proto.MethodSessionCreate: with(func(c *conn, p proto.SessionCreateParams) (any, error) {
 		sess, err := c.srv.createSession(p)
 		if err != nil {

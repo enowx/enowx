@@ -72,6 +72,7 @@ var methods = map[string]Level{
 	proto.MethodSessionCreate:         Change,
 	proto.MethodSessionFanOut:         Change,
 	proto.MethodSessionInput:          Change,
+	proto.MethodSessionDeliver:        Change,
 	proto.MethodSessionInterrupt:      Change,
 	proto.MethodSessionAnswer:         Change,
 	proto.MethodSessionMode:           Change,

@@ -283,10 +283,13 @@ func (ch *Chat) apply(t proto.Transcript) {
 	ch.loaded, ch.supported, ch.reason = true, t.Supported, t.Reason
 	if t.Reset {
 		ch.entries, ch.base, ch.open = nil, 0, map[int]bool{}
-		first = true
 		for _, m := range ch.out {
-			m.after = 0
+			if !first {
+				m.changed = true
+				m.failed = "The conversation changed. Check the terminal."
+			}
 		}
+		first = true
 	}
 	if len(ch.entries) == 0 && len(t.Entries) > 0 {
 		ch.base = t.Entries[0].Index
@@ -382,7 +385,9 @@ type Options struct {
 	Send func(text string, files []string)
 	// Deliver, when set, is Send that says on the main thread how it went, so that
 	// a message that couldn't go offers Retry.
-	Deliver   func(text string, files []string, done func(error))
+	// Repeated calls with the same key must never repeat terminal input.
+	Deliver   func(key, text string, files []string, done func(error))
+	Run       int64 // the program run; pending messages never move to another run
 	Interrupt func()
 	// Set changes a setting ("model", "mode" or "effort") to the agent's
 	// value id.

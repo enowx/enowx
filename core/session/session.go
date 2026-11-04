@@ -146,6 +146,8 @@ const EnvSession = "ENOWX_SESSION"
 
 // Session is one running (or exited) program.
 type Session struct {
+	inputMu  sync.Mutex // orders queued input, independently of callbacks
+	inputSeq uint64
 	// started is when its program started; exitWhy why it ended, when it wasn't
 	// clean; quickExits how many times in a row, over Replace too, it ended
 	// right after starting, the last at lastExit.
@@ -641,7 +643,35 @@ func (s *Session) noteScreen(now time.Time, changed bool) {
 
 // Input types p into the session and records it (see NoteInput).
 func (m *Manager) Input(s *Session, p []byte) {
+	m.input(s, p, nil)
+}
+
+// InputSequence identifies the most recently queued input, independently of echo.
+func (s *Session) InputSequence() uint64 {
+	s.inputMu.Lock()
+	defer s.inputMu.Unlock()
+	return s.inputSeq
+}
+
+// InputIfUnchanged queues p only if no other input followed sequence after.
+// It does not infer the contents of the program's composer from its screen.
+func (m *Manager) InputIfUnchanged(s *Session, p []byte, after uint64) bool {
+	_, ok := m.input(s, p, &after)
+	return ok
+}
+
+func (m *Manager) input(s *Session, p []byte, after *uint64) (uint64, bool) {
+	s.inputMu.Lock()
+	if after != nil && s.inputSeq != *after {
+		s.inputMu.Unlock()
+		return 0, false
+	}
 	s.term.Send(p)
+	if len(p) > 0 {
+		s.inputSeq++
+	}
+	seq := s.inputSeq
+	s.inputMu.Unlock()
 	prompted := s.NoteInput(p)
 	s.mu.Lock()
 	changed := s.stateChanged(time.Now())
@@ -655,6 +685,7 @@ func (m *Manager) Input(s *Session, p []byte) {
 	if prompted || changed {
 		m.notify(s)
 	}
+	return seq, true
 }
 
 // SetState records the state the agent's hooks report (proto.State*).

@@ -55,4 +55,12 @@ Adding to the API means recording it: `go test ./proto -run API -update`, and ch
 
 ## Methods
 
+### Chat delivery
+
+`session.deliver` takes `DeliveryParams` (`id`, `run`, `key`, `text`) and returns `DeliveryResult`. A key identifies one logical message within one live program run. Replaying it with the same text returns its original result without additional input; changing its text is refused. The daemon retains keys until the run is replaced or removed, with a limit of 4096 per run; reaching the limit refuses new keys rather than evicting replay protection. A daemon restart changes the run, so an old request cannot become a new paste. This ledger is not a durable message queue.
+
+The result describes terminal input queued, not a recorded user message. `interrupted` says other input or a replaced run prevented completing the paste/Enter sequence. A caller must not recover by pasting again or sending a bare Enter: ownership of the remaining draft is unknown. The request runs beside the connection reader so manual terminal input can cancel its Enter on the same connection. New apps receiving `unknown method` request a daemon update without falling back to `session.input`; old apps continue to use the unchanged methods.
+
+The Chat client distinguishes its own unsent queue, an uncertain terminal send, and a user entry recorded in the transcript. Only the latter is acknowledgement. This does not add a receipt ID to an agent's own transcript: matching uses the complete text and attachment paths, and a transcript reset invalidates pending matches.
+
 The methods, by domain, are in `proto/*.go` (each file's constants say what they take and return) and are handled in `daemon/rpc_*.go`; `TestEveryMethodHasHandler` checks every one has a handler. `testdata/api.txt` lists them all.

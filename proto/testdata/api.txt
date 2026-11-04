@@ -950,6 +950,11 @@ field Decision.use string
 field Decision.verdict string
 field Decision.why string
 field Decision.wrong bool
+field DeliveryParams.id string
+field DeliveryParams.key string
+field DeliveryParams.run int64
+field DeliveryParams.text string
+field DeliveryResult.interrupted bool
 field DesignBrief.firstScreen string
 field DesignBrief.fixed string
 field DesignBrief.peers string
@@ -3354,6 +3359,7 @@ method session.clear
 method session.commands
 method session.continue
 method session.create
+method session.deliver
 method session.detach
 method session.display
 method session.displayStop
