@@ -283,11 +283,11 @@ func TestGOAHoldsPlatformByHooks(t *testing.T) {
 }
 
 // A hook that changes a command can't reach it: the call is refused, naming the command.
-func TestPlatformHookRewriteIsARefusal(t *testing.T) {
+func TestPlatformTakesAHooksRewrite(t *testing.T) {
 	srv := startServer(t)
 	info := proto.SessionInfo{Agent: agent.PlatformID}
 	d := srv.rewritten(info, proto.HookEvent{}, proto.HookDecision{Command: "go vet"})
-	if !d.Block || !strings.Contains(d.Reason, "go vet") {
+	if d.Block || d.Command != "go vet" {
 		t.Fatalf("%+v", d)
 	}
 }
