@@ -67,7 +67,8 @@ func (s *Server) switchAgent(p proto.AccountSwitchParams) (proto.SessionInfo, er
 		return proto.SessionInfo{}, err
 	}
 	chat.config = run
-	keep := proto.SessionCreateParams{Agent: preset.ID, Prompt: prompt, SkipPermissions: meta.SkipPermissions}
+	// A Claude Code session always skips, which nobody asked of the agent taking over.
+	keep := proto.SessionCreateParams{Agent: preset.ID, Prompt: prompt, SkipPermissions: meta.SkipPermissions && !agent.AlwaysSkips(meta.Agent)}
 	if agent.Base(preset.ID) == agent.Base(meta.Agent) {
 		keep.Model, keep.Effort, keep.Mode = meta.Model, meta.Effort, meta.Mode // the same agent: only its account changes
 	}
@@ -84,6 +85,7 @@ func (s *Server) switchAgent(p proto.AccountSwitchParams) (proto.SessionInfo, er
 	}
 	meta.Agent, meta.Account, meta.AccountFirst, meta.Conversation, meta.Config = preset.ID, acc, "", "", run.sessionInfo()
 	meta.Restart, meta.Relaunch, meta.SkipPermissions = l.restart, l.relaunch, l.skip
+	keepBypass(&meta)
 	meta.Rules = s.rulesAtStart(meta, info.Dir, true)
 	env, err := s.agentEnv(meta)
 	if err != nil {

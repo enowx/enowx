@@ -42,6 +42,8 @@ type AgentInfo struct {
 	Installed bool   `json:"installed"`
 	// CanSkipPermissions: the agent has a mode that runs tools without asking.
 	CanSkipPermissions bool `json:"canSkipPermissions,omitempty"`
+	// AlwaysSkips: its sessions run in that mode whatever is asked, so there is nothing to choose.
+	AlwaysSkips bool `json:"alwaysSkips,omitempty"`
 	// Install is a shell command that installs the agent, "" if unknown.
 	Install string `json:"install,omitempty"`
 	// SignIn is the command that signs the agent in without a browser on

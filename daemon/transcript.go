@@ -2,7 +2,6 @@ package daemon
 
 import (
 	"context"
-	"fmt"
 	"github.com/enowx/enowx/core/git"
 	"github.com/enowx/enowx/core/project"
 	"os"
@@ -251,34 +250,6 @@ func (s *Server) findTranscript(id string, info proto.SessionInfo, home string, 
 	return reset
 }
 
-// switchMode cycles session id's agent to mode, watching its screen, on a
-// goroutine of its own: requests on a connection run in order, and each
-// step waits for the agent to redraw.
-func (s *Server) switchMode(p proto.SessionModeParams) error {
-	sess, err := s.sessions.Get(p.ID)
-	if err != nil {
-		return err
-	}
-	set := agent.SettingsOf(sess.Info().Agent)
-	if set.ModeKey == "" {
-		return fmt.Errorf("%s takes its permission mode only as it starts: skipping prompts needs a new session, or a restart with them skipped", agentName(sess.Info().Agent))
-	}
-	if _, ok := agent.FindChoice(set.Modes, p.Mode); !ok {
-		return fmt.Errorf("unknown mode %q", p.Mode)
-	}
-	s.sessions.SetMode(sess, p.Mode)
-	go func() {
-		for range len(set.Modes) + 1 {
-			if set.ModeShown(sess.Terminal().Text()) == p.Mode {
-				return
-			}
-			s.sessions.Input(sess, []byte(set.ModeKey))
-			time.Sleep(modeStep)
-		}
-	}()
-	return nil
-}
-
 // rewind takes session id's agent back to before one of the user's
 // messages, watching its screen as it goes.
 func (s *Server) rewind(p proto.SessionRewindParams) error {
@@ -293,9 +264,6 @@ func (s *Server) rewind(p proto.SessionRewindParams) error {
 		Keys: func(keys string) { s.sessions.Input(sess, []byte(keys)) },
 	})
 }
-
-// modeStep is how long the agent gets to redraw its mode after a key.
-const modeStep = 350 * time.Millisecond
 
 // transcriptPath is the file of session id's agent's conversation, as the
 // chat finds it; "" when there is none it knows.

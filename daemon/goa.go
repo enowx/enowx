@@ -6,6 +6,7 @@ import (
 	"os"
 	"path/filepath"
 	"slices"
+	"strings"
 	"sync"
 	"time"
 
@@ -94,7 +95,8 @@ func (s *Server) goaSession() (proto.SessionInfo, bool) {
 }
 
 // goaCreate makes p and meta GOA's: its folder, no project or branch,
-// every feature, its permissions asked (enowX's tools need none). One GOA
+// every feature, its permissions asked (enowX's tools need none) unless its agent
+// always skips them, as Claude Code does: there its hook's refusals hold GOA. One GOA
 // runs on a host at a time.
 func (s *Server) goaCreate(p *proto.SessionCreateParams, meta *session.Meta) (string, error) {
 	if g, ok := s.goaSession(); ok && !g.Exited {
@@ -172,8 +174,12 @@ func (s *Server) goaHook(info proto.SessionInfo, ev proto.HookEvent) (d proto.Ho
 			s.logger().Info("goa: a tool refused", "session", info.ID, "tool", ev.Tool)
 			return proto.HookDecision{Block: true, Reason: why}, true
 		}
-		// Reading needs no asking, unless of a secret; an edit stays the
-		// user's, as its agent asks.
+		// Reading needs no asking, unless of a secret, which stays the user's even in a mode
+		// that asks nothing, as Claude Code's always is here; an edit, in its folder alone,
+		// goes by the mode.
+		if why := goa.Urgent(ev.Tool, ev.Command, ev.Paths); why != "" && agent.AlwaysSkips(info.Agent) && !strings.HasPrefix(ev.Tool, "mcp__") {
+			return proto.HookDecision{Ask: true, Reason: "GOD of Agents asks: " + why}, false
+		}
 		d.Approve = goa.ReadOnly(ev.Tool, ev.Command) && goa.Urgent(ev.Tool, ev.Command, ev.Paths) == ""
 		return d, false
 	}
@@ -193,6 +199,12 @@ func mergeWorker(d, w proto.HookDecision) proto.HookDecision {
 		return w
 	}
 	d.Approve = d.Approve || w.Approve
+	if w.Ask {
+		d.Ask, d.Reason = true, w.Reason
+	}
+	if d.Ask {
+		d.Approve = false
+	}
 	return d
 }
 

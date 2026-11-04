@@ -25,7 +25,8 @@ Leaving the mode asks first, whichever way: the title bar's **Sessions**, **Leav
 
 - **A folder of its own**, outside every project (`<enowX's folder>/goa`), with no branch.
 - **Every feature on**, its guide `agent.GOAGuide` first: delegate, don't work; don't poll; who answers which permission; keep the board and its collection.
-- **Its permissions asked**: enowX's own tools are allowed (Claude Code's `--allowedTools mcp__enowx`, Codex's MCP server approved) and reading is allowed by its hook, unless the path looks like a secret; an edit goes by the session's permission mode: Claude Code asks unless it is in auto mode or the like; Codex writes in GOA's folder and the system's temporary folders unasked, its sandbox stopping the rest.
+- **On Claude Code, in bypass**, as all its sessions are ([agents.md](agents.md#claude-code-always-runs-in-bypass)). What holds GOA there doesn't depend on the mode: `--tools` gives it no Bash, and its hook's refusals are denies, which bypass doesn't pass. It edits in its own folder unasked. Reading what looks like a secret is its hook's ask, which Claude Code still prompts for, and enowX leaves that prompt to the user. As it is in bypass, what can't be undone runs without the app's card ([goa-tools.md](goa-tools.md#when-the-user-is-asked)).
+- **On other agents, its permissions asked**: enowX's own tools are allowed (Codex's MCP server approved) and reading is allowed by its hook, unless the path looks like a secret; an edit goes by the session's permission mode: Codex writes in GOA's folder and the system's temporary folders unasked, its sandbox stopping the rest.
 
 ### Only on agents proven to hold it
 
@@ -52,7 +53,7 @@ The app shows each agent's level when picking GOA's; `enowx goa agents` lists th
 
 No enowX command that runs a program of GOA's choosing works in its session, or in its MCP server: `creds use … -- COMMAND`, `decide trim -- COMMAND`, and `run` of a project command (listing them still works). Those would be a way around the tools it lacks.
 
-Checked with Codex itself, started as GOA: enowX's tools reached it over MCP as `mcp__enowx__…`, as its hooks name them; it read a project's file and wrote one in its own folder, and handed over a write outside it and a `go version`. Checked with Claude Code itself, started as GOA: it read a project's file and wrote one (in auto mode, unasked), and handed `go version` to a session, having no Bash.
+Checked with Codex itself, started as GOA: enowX's tools reached it over MCP as `mcp__enowx__…`, as its hooks name them; it read a project's file and wrote one in its own folder, and handed over a write outside it and a `go version`. Checked with Claude Code itself, started as GOA: it read a project's file and wrote one (in auto mode, unasked), and handed `go version` to a session, having no Bash. In bypass (2.1.318, its answers stood in for by a local server): a Write outside its folder came back refused by its hook and wrote nothing, and a Read of a `.env` stopped at Claude Code's prompt.
 
 ### Changing what it runs on
 
@@ -85,7 +86,7 @@ There is no limit on workers; rate limits fall to accounts' fallback ([accounts.
 
 **A task's to-dos.** `goa delegate --note NOTE --items "one\nper line"` shows the worker the to-dos its task finishes, with the rule to tick each in the same turn as its commit. Settling the task done doesn't tick them: it says which aren't ticked (`Open` on the board), as a to-do done but not committed is the worker's to say. GOA never tells a worker to leave a to-do open.
 
-**Which session a project's task goes to** (`goa.PickSession`): an agent's session of its own in the project's folder, not in a worktree, whose branch is another task's; the user's, not a teammate's; of `--agent` when given, with the same `--yolo`, and the same `--config` when given. Not one working, asking the user, or with an open task on the board, and not a running one of an agent without hooks, as it may be working unseen. Of those, a running one first, then a hibernated one, then one that ended; among equals, the newest. With none, a new session. A running session keeps its own config when the judge's route names another provider's. An agent that quit to the shell in its terminal counts as running, as the daemon can't tell it from one at rest.
+**Which session a project's task goes to** (`goa.PickSession`): an agent's session of its own in the project's folder, not in a worktree, whose branch is another task's; the user's, not a teammate's; of `--agent` when given, and the same `--config` when given. Not one working, asking the user, or with an open task on the board, and not a running one of an agent without hooks, as it may be working unseen. Of those, a running one first, then a hibernated one, then one that ended; among equals, the newest. With none, a new session. A running session keeps its own config when the judge's route names another provider's. An agent that quit to the shell in its terminal counts as running, as the daemon can't tell it from one at rest.
 
 ## Every session reports to GOA
 

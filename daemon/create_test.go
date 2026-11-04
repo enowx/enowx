@@ -242,7 +242,7 @@ while dd bs=3 count=1 >/dev/null 2>&1; do i=$((i + 1)); show; done
 		t.Fatal(err)
 	}
 	s.waitFor(t, "plan mode on")
-	time.Sleep(4 * modeStep)
+	time.Sleep(modeRedraw / 5)
 	sess, _ := srv.sessions.Get(info.ID)
 	if text := sess.Terminal().Text(); strings.Contains(text, "bypass permissions on") {
 		t.Fatalf("cycled past plan:\n%s", text)

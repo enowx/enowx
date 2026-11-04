@@ -47,7 +47,7 @@ func (a *App) agentStartCard(c *ui.Context) {
 		}
 		row("Model", set.Models, cur.Model, func(s *proto.AgentStart, v string) { s.Model = v })
 		row("Effort", set.Efforts, cur.Effort, func(s *proto.AgentStart, v string) { s.Effort = v })
-		if len(set.ModeFlag) > 0 {
+		if len(set.ModeFlag) > 0 && !agent.AlwaysSkips(id) {
 			row("Permission mode", set.Modes, cur.Mode, func(s *proto.AgentStart, v string) { s.Mode = v })
 		}
 		ui.Text(c, "Set here, a new session isn't changed by what another saved as its agent's default. The agent's own takes whatever its settings say by then.").

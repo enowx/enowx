@@ -149,10 +149,14 @@ type Launch struct {
 	SessionDir string
 	// Hooks report the agent's state to enowX (HookArgs).
 	Hooks []string
+	// Mode starts an agent that AlwaysSkips in this mode, this once and with bypass still
+	// one to switch to; "" is bypass, what it always comes back in.
+	Mode string
 }
 
 // Argv returns the command line that starts the agent as l says.
 func (p Preset) Argv(l Launch) []string {
+	l = p.holdBypass(l)
 	argv := append([]string{p.Program()}, p.Args...)
 	switch {
 	case l.Resume != "" && l.Fork && len(p.Fork) > 0:
@@ -256,7 +260,7 @@ func List() []proto.AgentInfo {
 	for _, p := range Presets {
 		out = append(out, proto.AgentInfo{
 			ID: p.ID, Name: p.Name, Command: p.Program(), Installed: p.Installed(),
-			CanSkipPermissions: len(p.SkipPermissions)+len(p.SkipEnv) > 0, Install: p.Install, Homepage: p.Homepage,
+			CanSkipPermissions: len(p.SkipPermissions)+len(p.SkipEnv) > 0, AlwaysSkips: AlwaysSkips(p.ID), Install: p.Install, Homepage: p.Homepage,
 			SignIn: strings.Join(append(slices.Clone(p.SignInEnv), p.SignIn...), " "),
 		})
 	}

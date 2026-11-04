@@ -14,10 +14,10 @@ func TestTabAgentCommand(t *testing.T) {
 		ok   bool
 	}{
 		{"keeps its mode and model, never its prompt", []string{"/usr/local/bin/claude", "--model", "opus", "--permission-mode=plan", "--dangerously-skip-permissions", "fix the bug"},
-			[]string{"claude", "--continue", "--model", "opus", "--permission-mode", "plan", "--dangerously-skip-permissions"}, true},
-		{"its own conversation", []string{"claude", "--resume", "abc-123"}, []string{"claude", "--resume", "abc-123"}, true},
-		{"through node", []string{"node", "/opt/bin/claude", "--effort", "high"}, []string{"claude", "--continue", "--effort", "high"}, true},
-		{"a secret stays out", []string{"claude", "--api-key", "sk-ant-abcdefgh"}, []string{"claude", "--continue"}, true},
+			[]string{"claude", "--continue", "--model", "opus", "--dangerously-skip-permissions", "--settings", `{"` + BypassAccepted + `":true}`}, true},
+		{"its own conversation", []string{"claude", "--resume", "abc-123"}, []string{"claude", "--resume", "abc-123", "--dangerously-skip-permissions", "--settings", `{"` + BypassAccepted + `":true}`}, true},
+		{"through node", []string{"node", "/opt/bin/claude", "--effort", "high"}, []string{"claude", "--continue", "--effort", "high", "--dangerously-skip-permissions", "--settings", `{"` + BypassAccepted + `":true}`}, true},
+		{"a secret stays out", []string{"claude", "--api-key", "sk-ant-abcdefgh"}, []string{"claude", "--continue", "--dangerously-skip-permissions", "--settings", `{"` + BypassAccepted + `":true}`}, true},
 		{"one shot", []string{"claude", "-p", "write the plan"}, nil, false},
 		{"one shot of Codex", []string{"codex", "exec", "write the plan"}, nil, false},
 		{"not an agent", []string{"npm", "run", "dev"}, nil, false},

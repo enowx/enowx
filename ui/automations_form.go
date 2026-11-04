@@ -40,7 +40,7 @@ func (a *App) automationForm(c *ui.Context, st *automationsState) {
 				Placeholder("Triage the issues opened since yesterday and summarize them")
 		})
 		switchRow(c, &e.Branch, "Own branch", "In a worktree of its own, so runs don't touch each other or your work; otherwise in the project folder.")
-		switchRow(c, &e.SkipPermissions, "Skip permission prompts", "Nobody may be there to answer them.")
+		switchRow(c, &e.SkipPermissions, "Skip permission prompts", "Nobody may be there to answer them. Claude Code always skips them.")
 	}, func() {
 		ok := strings.TrimSpace(e.Name) != "" && strings.TrimSpace(e.Prompt) != "" && !st.busy
 		if widget.PrimaryButton(c, icon.Check, "Save", "").Disabled(!ok).Clicked() && ok {

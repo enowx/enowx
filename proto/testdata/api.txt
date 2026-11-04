@@ -179,6 +179,7 @@ field AgentCommand.kind string
 field AgentCommand.name string
 field AgentCommands.commands []AgentCommand
 field AgentCommands.loading bool
+field AgentInfo.alwaysSkips bool
 field AgentInfo.canSkipPermissions bool
 field AgentInfo.command string
 field AgentInfo.homepage string
@@ -1331,6 +1332,7 @@ field Hook.url string
 field HookDecideParams.allow bool
 field HookDecideParams.id string
 field HookDecision.approve bool
+field HookDecision.ask bool
 field HookDecision.block bool
 field HookDecision.command string
 field HookDecision.context string

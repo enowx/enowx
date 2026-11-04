@@ -1,6 +1,9 @@
 package agent
 
-import "strings"
+import (
+	"slices"
+	"strings"
+)
 
 // Choice is one value of a setting an agent can change while it runs: a
 // model, a permission mode, an effort level.
@@ -74,7 +77,7 @@ func LaunchArgs(id, model, effort string) []string {
 // claudeSettings are Claude Code's, as of version 2.1.308 (claude --help;
 // its /model menu, whose first ten entries these are; and its screen while
 // Shift+Tab cycles: auto, manual, accept edits, plan, bypass when allowed,
-// then auto again). The model IDs are the names its transcript records.
+// then auto again, the same on 2.1.318). The model IDs are the names its transcript records.
 var claudeSettings = Settings{
 	Models: []Choice{
 		{ID: "default", Label: "Default", Note: "recommended: Opus 5.5 today"},
@@ -185,6 +188,25 @@ func (s Settings) ModeShown(screen string) string {
 		}
 	}
 	return ""
+}
+
+// ModeReachable says the mode key takes the agent from mode from to mode to without going
+// through plan mode by the way: Claude Code's cycle has it between accept edits and bypass,
+// and no other way to change mode as it runs (2.1.318).
+func (s Settings) ModeReachable(from, to string) bool {
+	at := slices.IndexFunc(s.Modes, func(c Choice) bool { return c.ID == from })
+	if at < 0 {
+		return false
+	}
+	for n := 1; n < len(s.Modes); n++ {
+		switch s.Modes[(at+n)%len(s.Modes)].ID {
+		case to:
+			return true
+		case modePlan:
+			return false
+		}
+	}
+	return false
 }
 
 // FindChoice returns the choice with the given ID, or one whose ID the given

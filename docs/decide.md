@@ -29,7 +29,7 @@ Every use is **on** until the user turns it off (Settings → Decisions → Uses
 | Claude Code, Claude Agent Teams | Its `PermissionRequest` hook. The prompt can show for an instant first, for as long as the judge takes | Run on 2.1.318: a hook's ask, a rewritten command, a deny, and bypass prompting without it |
 | Codex | Its `PermissionRequest` hook, the same way | **Not run:** not installed here |
 | Others that report no mode | The screen: enowX presses allow if the session started in bypass and it knows the agent's keys | **Not run.** A prompt it can't read or has no keys for stays the user's |
-| An agent run by hand in a shell tab | Nothing new: it isn't known to be in bypass | |
+| An agent run by hand in a shell tab | Nothing new: it isn't known to be in bypass, and starts in what its own settings say. Brought back by a daemon's restart, a Claude Code is in bypass ([agents.md](agents.md#claude-code-always-runs-in-bypass)) | |
 
 Claude Code's built-in plugin `cc-plugin-privacy` is one such asker: it asks when a command that reaches out holds the account's email. It isn't in `claude plugin list`, which shows installed plugins only. The policy answers it (run on 2.1.318), unless the command is the owner's by the rules above, as one with `git push` is, whatever made it ask.
 

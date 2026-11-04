@@ -1,6 +1,7 @@
 package daemon
 
 import (
+	"slices"
 	"strings"
 	"testing"
 
@@ -32,7 +33,7 @@ func TestStartCommandsKeepASessionsSettings(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !has(l.restart, "--model", "claude-fable-5-1") || !has(l.restart, "--effort", "max") || !has(l.restart, "--permission-mode", "acceptEdits") {
+	if !has(l.restart, "--model", "claude-fable-5-1") || !has(l.restart, "--effort", "max") || slices.Contains(l.restart, "--permission-mode") {
 		t.Errorf("restart: %v", l.restart)
 	}
 }

@@ -6,6 +6,7 @@ import (
 
 	"github.com/egoist/mygo/ui"
 
+	"github.com/enowx/enowx/core/agent"
 	"github.com/enowx/enowx/proto"
 	"github.com/enowx/enowx/ui/icon"
 	"github.com/enowx/enowx/ui/theme"
@@ -195,8 +196,13 @@ func (a *App) openTabWith(s proto.SessionInfo, id, shell, account string) {
 	if p := a.panes[s.ID]; p != nil {
 		cols, rows = p.term.Size()
 	}
+	// A Claude Code session always skips: that says nothing of the agent in this tab.
+	skip := s.SkipPermissions
+	if agent.AlwaysSkips(s.Agent) {
+		skip = a.skipPermissions
+	}
 	params := proto.SessionCreateParams{Parent: s.ID, Project: s.Project, Agent: id, BranchMode: proto.BranchNone,
-		SkipPermissions: s.SkipPermissions, Shell: shell, Account: account, Cols: cols, Rows: rows}
+		SkipPermissions: skip, Shell: shell, Account: account, Cols: cols, Rows: rows}
 	go func() {
 		info, err := cl.CreateSession(params)
 		a.onMain(func() {

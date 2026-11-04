@@ -146,6 +146,11 @@ func (s *Server) bringBack(id string, l *wakeLine) {
 // wakeSession brings session id back as asked to, not waiting for its agent, while
 // what others send meanwhile waits for it; one already coming back is left to.
 func (s *Server) wakeSession(id string) (*session.Session, error) {
+	return s.wakeSessionIn(id, "")
+}
+
+// wakeSessionIn is wakeSession in mode, this once (agent.Launch.Mode).
+func (s *Server) wakeSessionIn(id, mode string) (*session.Session, error) {
 	w := &s.wakes
 	w.mu.Lock()
 	sess, err := s.sessions.Get(id)
@@ -159,7 +164,7 @@ func (s *Server) wakeSession(id string) (*session.Session, error) {
 	}
 	l := w.open(id, true)
 	w.mu.Unlock()
-	next, err := s.continueSession(id)
+	next, err := s.resumeSessionIn(id, "", mode)
 	if err != nil {
 		w.finish(id, l, err)
 		return nil, err

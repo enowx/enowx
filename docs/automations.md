@@ -15,6 +15,6 @@ enowx-app automation run "Weekday triage"
 | Schedule | `hourly` (or `hourly :15`), `daily 09:00`, `weekdays 18:30`, `weekly mon 08:00`, in the host's time. |
 | Project, agent, prompt | What runs, where. |
 | Own branch | `automation/<name>-<date>-<time>`, in a worktree of its own, so runs don't touch each other or the user's work; otherwise the project folder. |
-| Skip permission prompts | Nobody may be there to answer them. |
+| Skip permission prompts | Nobody may be there to answer them. Claude Code always skips them. |
 
 The daemon keeps them in `~/.enowx-app/automations.json` and looks for those due every 20 seconds; one it was down for runs once when it is back. Each records its last run, its session or why it failed, and its next run.

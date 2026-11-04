@@ -67,7 +67,7 @@ func (a *App) newSessionDialog(c *ui.Context) {
 		if ag.SignIn != "" {
 			a.signInCard(c, ag)
 		}
-		if ag.CanSkipPermissions {
+		if ag.CanSkipPermissions && !ag.AlwaysSkips {
 			a.skipPermissionsField(c)
 		}
 		if f.project.IsGit {
