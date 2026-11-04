@@ -176,7 +176,9 @@ type SessionInfo struct {
 	// Report is what its agent last reported of a turn (goa report), Outcome one of
 	// GOAOutcomes; ReportAt, in Unix milliseconds, tells one from the next. On the
 	// session, it reaches GOA by the road its changes take, on any host.
-	Report        string `json:"report,omitempty"`
+	Report string `json:"report,omitempty"`
+	// TurnText is the message its last turn ended on, when its agent's hook says.
+	TurnText      string `json:"turnText,omitempty"`
 	ReportOutcome string `json:"reportOutcome,omitempty"`
 	ReportAt      int64  `json:"reportAt,omitempty"`
 	// Group is the fan-out the session is part of: sessions given one

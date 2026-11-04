@@ -190,6 +190,8 @@ type HookEvent struct {
 	// PermissionMode is the permission mode the agent's hook reports it in
 	// (permission_mode: Claude Code's, Codex's), "" when it says none.
 	PermissionMode string `json:"permissionMode,omitempty"`
+	// LastMessage is the turn's last message, from an agent whose turn-end hook says it.
+	LastMessage string `json:"lastMessage,omitempty"`
 	// Via is how it was seen (HookInAgent, HookOutside).
 	Via  string    `json:"via,omitempty"`
 	Time time.Time `json:"time"`

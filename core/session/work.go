@@ -104,6 +104,21 @@ func (m *Manager) SetNote(s *Session, note string) {
 	m.notify(s)
 }
 
+// turnTextMost bounds what a session keeps of its turn's last message: what GOA's line
+// holds, as it goes with every update of the session.
+const turnTextMost = 2000
+
+// NoteTurnText keeps the message s's turn ended on, or "" as a turn starts. It says
+// nothing by itself: a change of state follows.
+func (m *Manager) NoteTurnText(s *Session, text string) {
+	if r := []rune(text); len(r) > turnTextMost {
+		text = string(r[:turnTextMost]) + "…"
+	}
+	s.mu.Lock()
+	s.meta.TurnText = text
+	s.mu.Unlock()
+}
+
 // SetReport keeps its agent's report of a turn.
 func (m *Manager) SetReport(s *Session, outcome, text string) {
 	s.mu.Lock()
