@@ -197,6 +197,9 @@ type HookEvent struct {
 	Scratchpad string `json:"scratchpad,omitempty"`
 	// LastMessage is the turn's last message, from an agent whose turn-end hook says it.
 	LastMessage string `json:"lastMessage,omitempty"`
+	// Background is how many tasks of its own still run at a turn-end hook, for an
+	// agent that says: they bring it back.
+	Background int `json:"background,omitempty"`
 	// Via is how it was seen (HookInAgent, HookOutside).
 	Via  string    `json:"via,omitempty"`
 	Time time.Time `json:"time"`

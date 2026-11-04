@@ -39,6 +39,33 @@ var hookHandlers = map[string]handler{
 // user's hooks and what they decided; a Git commit, push or merge the
 // agent is about to run goes by the hooks before Git too.
 func (s *Server) sessionHook(p proto.SessionHookParams) (proto.HookDecision, error) {
+	// A Stop isn't a turn's end until it is known nothing keeps the agent going, so
+	// done doesn't show, to wait or to GOA's lines, while it is still at work.
+	stopping := p.Event.Event == proto.HookTurnDone && p.State == proto.StateDone
+	if stopping {
+		p.State = ""
+	}
+	d, err := s.sessionEvent(p)
+	if stopping && err == nil {
+		if sess, gerr := s.sessions.Get(p.ID); gerr == nil {
+			state := proto.StateDone
+			if goesOn(p.Event, d) {
+				state = proto.StateWorking
+			}
+			err = s.sessions.SetState(sess, state)
+		}
+	}
+	return d, err
+}
+
+// goesOn says the agent's turn doesn't end at this Stop: it was given more to do, or
+// tasks of its own still run in the background and will bring it back.
+func goesOn(ev proto.HookEvent, d proto.HookDecision) bool {
+	return d.Continue != "" || ev.Background > 0
+}
+
+// sessionEvent is sessionHook but for the state a Stop means.
+func (s *Server) sessionEvent(p proto.SessionHookParams) (proto.HookDecision, error) {
 	sess, err := s.sessions.Get(p.ID)
 	if err != nil {
 		return proto.HookDecision{}, err
@@ -119,7 +146,7 @@ func (s *Server) sessionHook(p proto.SessionHookParams) (proto.HookDecision, err
 			}
 		}
 	case proto.HookTurnDone:
-		if continuing {
+		if continuing || goesOn(ev, d) {
 			break // it goes on, to take what it was given
 		}
 		go s.turnEnded(info)

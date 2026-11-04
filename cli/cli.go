@@ -595,6 +595,13 @@ func (r runner) read(args []string) error {
 // new to count as done.
 const quietFor = 3 * time.Second
 
+// doneSettles is how long done must hold, with the screen still, to count.
+const doneSettles = 3 * time.Second
+
+// hookedQuietFor is quietFor for an agent whose hooks report its turns: quiet then only
+// means it hasn't started one, or that its hook is slow on a busy host.
+const hookedQuietFor = 20 * time.Second
+
 func (r runner) wait(args []string) error {
 	fs := flag.NewFlagSet("wait", flag.ContinueOnError)
 	timeout := fs.Duration("timeout", 30*time.Minute, "")
@@ -611,22 +618,12 @@ func (r runner) wait(args []string) error {
 		return err
 	}
 	deadline := time.Now().Add(*timeout)
-	var quietSince time.Time
+	var w turnWait
 	for {
 		state := State(s)
-		switch {
-		case s.Exited, state == proto.StateDone, state == proto.StateWaiting:
+		if w.over(s, time.Now()) {
 			fmt.Fprintln(r.out, state)
 			return nil
-		case state == "idle":
-			if quietSince.IsZero() {
-				quietSince = time.Now()
-			} else if time.Since(quietSince) >= quietFor {
-				fmt.Fprintln(r.out, state)
-				return nil
-			}
-		default:
-			quietSince = time.Time{}
 		}
 		if time.Now().After(deadline) {
 			return fmt.Errorf("wait: %s is still %s after %s", s.ID, state, *timeout)
@@ -636,6 +633,39 @@ func (r runner) wait(args []string) error {
 			return err
 		}
 	}
+}
+
+// turnWait follows a session until its agent has truly ended its turn or is asking.
+type turnWait struct {
+	calm  time.Time // since when what would end the wait has held
+	state string    // that state
+}
+
+// over says the wait ends on session s, as seen now. Exited or asking ends it at once.
+// Done must hold with the screen still, as a Stop can be followed by more: a hook, a
+// reminder or a tool's next step. A state gone stale is an agent long at one step, which
+// isn't an end at all; an agent whose hooks report its turns isn't done by being quiet.
+func (w *turnWait) over(s proto.SessionInfo, now time.Time) bool {
+	state := State(s)
+	var need time.Duration
+	switch {
+	case s.Exited, state == proto.StateWaiting:
+		return true
+	case state == proto.StateDone && !s.Active:
+		need = doneSettles
+	case state == "idle" && !s.StateStale:
+		need = quietFor
+		if agent.HookSupport(s.Agent)[proto.HookTurnDone] == proto.HookInAgent {
+			need = hookedQuietFor
+		}
+	default:
+		w.calm = time.Time{}
+		return false
+	}
+	if w.calm.IsZero() || w.state != state {
+		w.calm, w.state = now, state
+	}
+	return now.Sub(w.calm) >= need
 }
 
 func (r runner) note(args []string) error {

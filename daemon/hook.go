@@ -140,9 +140,11 @@ func agentEvent(event string, data []byte) proto.HookEvent {
 		Scratch  string          `json:"scratchpad_dir"`
 		Last     string          `json:"last_assistant_message"`
 		Source   string          `json:"source"`
+		Tasks    json.RawMessage `json:"background_tasks"`
 	}
 	_ = json.Unmarshal(data, &in)
 	ev := proto.HookEvent{Event: event, Prompt: in.Prompt, Tool: in.Tool, PermissionMode: in.Mode, Scratchpad: in.Scratch, LastMessage: in.Last, Source: in.Source, Failed: in.Event == "PostToolUseFailure" || in.Error != ""}
+	ev.Background = countOf(in.Tasks)
 	var input map[string]any
 	if json.Unmarshal(in.Input, &input) == nil {
 		for _, k := range []string{"command", "cmd"} {
@@ -161,6 +163,19 @@ func agentEvent(event string, data []byte) proto.HookEvent {
 		}
 	}
 	return ev
+}
+
+// countOf is how many items a JSON list or object has, 0 for anything else.
+func countOf(raw json.RawMessage) int {
+	var list []json.RawMessage
+	if json.Unmarshal(raw, &list) == nil {
+		return len(list)
+	}
+	var object map[string]json.RawMessage
+	if json.Unmarshal(raw, &object) == nil {
+		return len(object)
+	}
+	return 0
 }
 
 // relTo is path p from folder dir, with slashes, when it is inside it.
