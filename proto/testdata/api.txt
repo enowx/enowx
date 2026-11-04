@@ -1419,6 +1419,66 @@ field LeftProcess.name string
 field LeftProcess.pid int
 field LeftProcess.session string
 field LeftProcess.start string
+field LibraryDesign.canvas string
+field LibraryDesign.draftId string
+field LibraryDesign.findings []LibraryFinding
+field LibraryDesign.frame string
+field LibraryDesign.itemId string
+field LibraryDesign.rejectReason string
+field LibraryDesign.status string
+field LibraryDesign.title string
+field LibraryDesign.updated time.Time
+field LibraryDesign.url string
+field LibraryDesign.version int
+field LibraryDraftParams.draftId string
+field LibraryDraftParams.form LibraryForm
+field LibraryFinding.kind string
+field LibraryFinding.severity string
+field LibraryFinding.where string
+field LibraryForm.category string
+field LibraryForm.description string
+field LibraryForm.kind string
+field LibraryForm.license string
+field LibraryForm.prompt string
+field LibraryForm.promptApproved bool
+field LibraryForm.rights bool
+field LibraryForm.sourceUrl string
+field LibraryForm.tags []string
+field LibraryForm.title string
+field LibraryItemRef.itemId string
+field LibraryPrepareParams.canvas string
+field LibraryPrepareParams.frame string
+field LibraryPrepareParams.noPhone bool
+field LibraryPrepared.canvas string
+field LibraryPrepared.draftId string
+field LibraryPrepared.files int
+field LibraryPrepared.findings []LibraryFinding
+field LibraryPrepared.form LibraryForm
+field LibraryPrepared.frame string
+field LibraryPrepared.frameName string
+field LibraryPrepared.hasMotion bool
+field LibraryPrepared.height int
+field LibraryPrepared.itemId string
+field LibraryPrepared.madeWith string
+field LibraryPrepared.otherDesigns int
+field LibraryPrepared.phone string
+field LibraryPrepared.phoneHeight int
+field LibraryPrepared.phoneName string
+field LibraryPrepared.phoneOffered bool
+field LibraryPrepared.phoneWidth int
+field LibraryPrepared.siteUrl string
+field LibraryPrepared.size int64
+field LibraryPrepared.trust string
+field LibraryPrepared.width int
+field LibraryPublishParams.acceptWarnings bool
+field LibraryPublishParams.draftId string
+field LibraryPublishParams.form LibraryForm
+field LibraryState.designs []LibraryDesign
+field LibraryState.limit int64
+field LibraryState.on bool
+field LibraryState.signedIn bool
+field LibraryState.siteUrl string
+field LibraryState.used int64
 field MCPTest.error string
 field MCPTest.ok bool
 field MCPTest.protocol string
@@ -2903,6 +2963,12 @@ method host.keysToVault
 method host.share
 method host.share.set
 method host.visitors
+method library.deleteDraft
+method library.prepare
+method library.publish
+method library.saveDraft
+method library.status
+method library.withdraw
 method note.accept
 method note.asset
 method note.attach
@@ -3397,6 +3463,7 @@ value KitPipeline=pipeline
 value KitTemplate=template
 value LargeSkip=skip
 value LargeSource=source
+value LibraryStatusDraft=draft
 value MentionCanvas=canvas
 value MentionFile=file
 value MentionNote=note

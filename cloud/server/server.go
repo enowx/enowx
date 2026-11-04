@@ -157,6 +157,7 @@ func (s *Server) info(w http.ResponseWriter, r *http.Request) {
 	}
 	if s.library != nil {
 		in.Features = append(in.Features, api.FeatureLibrary)
+		in.LibraryURL = s.cfg.Library.PublicURL
 	}
 	s.reply(w, in)
 }
