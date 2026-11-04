@@ -188,9 +188,9 @@ func (a *App) answerAgent(s proto.SessionInfo, keys string) {
 
 // typeIntoSession types raw keys into the session.
 func (a *App) typeIntoSession(id, keys string) {
-	if p := a.panes[id]; p != nil {
+	a.withPane(id, func(p *pane) {
 		go func() { _, _ = p.stream.Write([]byte(keys)) }()
-	}
+	}, func() {})
 }
 
 // editMessage sends text in place of one of the user's messages: the
@@ -231,11 +231,6 @@ func (a *App) sendWithFiles(id, text string, files []string) {
 
 // deliverToSession is sendWithFiles saying on the main thread how it went.
 func (a *App) deliverToSession(id, text string, files []string, done func(error)) {
-	p := a.panes[id]
-	if p == nil {
-		done(errors.New("the session isn't attached yet"))
-		return
-	}
 	msg := text
 	if len(files) > 0 {
 		msg = strings.Join(files, " ")
@@ -246,43 +241,37 @@ func (a *App) deliverToSession(id, text string, files []string, done func(error)
 	if len(files) > 0 || strings.Contains(msg, "\n") {
 		msg = "\x1b[200~" + msg + "\x1b[201~"
 	}
-	go func() {
-		_, err := p.stream.Write([]byte(msg))
-		if err == nil {
-			time.Sleep(50 * time.Millisecond) // as writeThenEnter
-			_, err = p.stream.Write([]byte("\r"))
-		}
-		if err != nil {
-			err = fmt.Errorf("couldn't reach the session: %s", client.Explain(err))
-		}
-		a.onMain(func() { done(err) })
-	}()
+	a.withPane(id, func(p *pane) {
+		go func() {
+			_, err := p.stream.Write([]byte(msg))
+			if err == nil {
+				time.Sleep(50 * time.Millisecond) // as writeThenEnter
+				_, err = p.stream.Write([]byte("\r"))
+			}
+			if err != nil {
+				err = fmt.Errorf("couldn't reach the session: %s", client.Explain(err))
+			}
+			a.onMain(func() { done(err) })
+		}()
+	}, func() { done(errNotAttached) })
 }
 
 // sendToSession types text into the session, then Enter. Text of several
 // lines goes as a paste, so its line breaks don't send it early.
 func (a *App) sendToSession(id, text string) {
-	p := a.panes[id]
-	if p == nil {
-		a.status = "The session isn't attached yet; try again in a moment."
-		return
-	}
 	if strings.Contains(text, "\n") {
 		a.pasteToSession(id, text)
 		return
 	}
-	a.writeThenEnter(p, text)
+	a.withPane(id, func(p *pane) { a.writeThenEnter(p, text) }, a.notAttached)
 }
 
 // pasteToSession sends text as a paste (bracketed), then Enter.
 func (a *App) pasteToSession(id, text string) {
-	p := a.panes[id]
-	if p == nil {
-		a.status = "The session isn't attached yet; try again in a moment."
-		return
-	}
-	a.writeThenEnter(p, "\x1b[200~"+text+"\x1b[201~")
+	a.withPane(id, func(p *pane) { a.writeThenEnter(p, "\x1b[200~"+text+"\x1b[201~") }, a.notAttached)
 }
+
+func (a *App) notAttached() { a.status = "The session isn't attached yet; try again in a moment." }
 
 // writeThenEnter writes text to p's session, then Enter, off the main
 // thread.

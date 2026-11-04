@@ -49,7 +49,7 @@ func (a *App) canvasRegionView(c *ui.Context, cv proto.Canvas, hc *hostCanvasCha
 	shown := func() bool {
 		return a.page == pageCanvas && a.canvases.AssistantOpen() && a.canvases.Selected() == cv.ID && hc.viewing == s.ID
 	}
-	switch p := a.panes[s.ID]; {
+	switch p := a.wantPane(s.ID); {
 	case chatview.Supported(s):
 		ui.Column(c).Grow(1).FillWidth().MinHeight(0).Children(func() {
 			a.chatViewSending(c.Key("chat:"+s.ID), s, shown, chatTweaks{showUser: canvasRegionPrompt})

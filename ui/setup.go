@@ -334,9 +334,11 @@ func (a *App) setupSide(c *ui.Context, p *setupPage) {
 			}
 		})
 		ui.Column(c.Key("ground")).Grow(1).FillWidth().MinHeight(0).Radius(theme.RadiusCard).Clip().Background(theme.CodeGround).Children(func() {
-			if pane := a.panes[p.session]; p.session != "" && pane != nil {
-				terminal.View(c.Key("term"), pane.term).Grow(1).FillWidth().Background(theme.TermGround).Padding(theme.S2, theme.S3)
-				return
+			if p.session != "" {
+				if pane := a.wantPane(p.session); pane != nil {
+					terminal.View(c.Key("term"), pane.term).Grow(1).FillWidth().Background(theme.TermGround).Padding(theme.S2, theme.S3)
+					return
+				}
 			}
 			widget.Scroll(c.Key("what")).Grow(1).FillWidth().MinHeight(0).Children(func() {
 				ui.Text(c, a.setupIntro(p)).Font(theme.MonoFont).FontSize(theme.TextUI).TextColor(widget.CodeText).Padding(theme.S3, theme.S4).FillWidth().MinWidth(0)
