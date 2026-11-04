@@ -34,8 +34,12 @@ func (a *App) toggleChat(s proto.SessionInfo) {
 	if a.state.Chats == nil {
 		a.state.Chats = map[string]bool{}
 	}
-	if a.state.Chats[s.ID] {
-		delete(a.state.Chats, s.ID)
+	if a.showsChat(s.ID) {
+		if chatview.OwnChat(s.Agent) {
+			a.state.Chats[s.ID] = false // opening on its chat, it remembers leaving it
+		} else {
+			delete(a.state.Chats, s.ID)
+		}
 		return
 	}
 	a.state.Chats[s.ID] = true
@@ -44,7 +48,15 @@ func (a *App) toggleChat(s proto.SessionInfo) {
 	ch.FocusComposer()
 }
 
-func (a *App) showsChat(id string) bool { return a.state.Chats[id] }
+// showsChat says session id shows as a chat: as the user last chose, and an agent whose
+// chat is its main face from the start.
+func (a *App) showsChat(id string) bool {
+	if on, chose := a.state.Chats[id]; chose {
+		return on
+	}
+	s, ok := a.sessionByID(id)
+	return ok && chatview.OwnChat(s.Agent)
+}
 
 // chatView draws the chat in place of the terminal.
 func (a *App) chatView(c *ui.Context, s proto.SessionInfo) {
@@ -91,7 +103,7 @@ func (a *App) chatViewSending(c *ui.Context, s proto.SessionInfo, shown func() b
 	if goa, ok := a.goaSession(); ok && a.goaOn() && goa.ID == s.ID {
 		column = 2000 // GOA's chat runs the frame's width, its list taking the side
 	}
-	ch.View(c, chatview.Options{
+	opts := chatview.Options{
 		ColumnWidth: column,
 		Agent:       s.Agent,
 		Dir:         s.Dir,
@@ -128,7 +140,11 @@ func (a *App) chatViewSending(c *ui.Context, s proto.SessionInfo, shown func() b
 		OpenChanges: func(file string) {
 			a.openCenter(s, centerDiff+a.diffOf(s.ID).PathOf(file))
 		},
-	})
+	}
+	if chatview.OwnChat(s.Agent) {
+		a.platformChat(&opts, s, ch)
+	}
+	ch.View(c, opts)
 }
 
 // setAgentSetting asks session s's agent for a setting, as its preset
@@ -231,11 +247,6 @@ func (a *App) sendWithFiles(id, text string, files []string) {
 
 // deliverToSession is sendWithFiles saying on the main thread how it went.
 func (a *App) deliverToSession(id, text string, files []string, done func(error)) {
-	p := a.panes[id]
-	if p == nil {
-		done(errors.New("the session isn't attached yet"))
-		return
-	}
 	msg := text
 	if len(files) > 0 {
 		msg = strings.Join(files, " ")
@@ -243,7 +254,13 @@ func (a *App) deliverToSession(id, text string, files []string, done func(error)
 			msg = text + " " + msg
 		}
 	}
-	if len(files) > 0 || strings.Contains(msg, "\n") {
+	paste := len(files) > 0 || strings.Contains(msg, "\n")
+	p := a.panes[id]
+	if p == nil {
+		a.inputThroughDaemon(id, msg, paste, done)
+		return
+	}
+	if paste {
 		msg = "\x1b[200~" + msg + "\x1b[201~"
 	}
 	go func() {
@@ -259,12 +276,37 @@ func (a *App) deliverToSession(id, text string, files []string, done func(error)
 	}()
 }
 
+// inputThroughDaemon types msg into session id, then Enter, for a session whose
+// terminal isn't attached (yet): the chat doesn't wait for it. done runs on the main
+// thread; nil puts a failure in the status line.
+func (a *App) inputThroughDaemon(id, msg string, paste bool, done func(error)) {
+	if done == nil {
+		done = func(err error) {
+			if err != nil {
+				a.status = err.Error()
+			}
+		}
+	}
+	cl := a.client
+	if cl == nil {
+		done(errors.New("not connected to the host"))
+		return
+	}
+	go func() {
+		err := cl.Input(id, msg, paste, true)
+		if err != nil {
+			err = fmt.Errorf("couldn't reach the session: %s", client.Explain(err))
+		}
+		a.onMain(func() { done(err) })
+	}()
+}
+
 // sendToSession types text into the session, then Enter. Text of several
 // lines goes as a paste, so its line breaks don't send it early.
 func (a *App) sendToSession(id, text string) {
 	p := a.panes[id]
 	if p == nil {
-		a.status = "The session isn't attached yet; try again in a moment."
+		a.inputThroughDaemon(id, text, strings.Contains(text, "\n"), nil)
 		return
 	}
 	if strings.Contains(text, "\n") {
@@ -278,7 +320,7 @@ func (a *App) sendToSession(id, text string) {
 func (a *App) pasteToSession(id, text string) {
 	p := a.panes[id]
 	if p == nil {
-		a.status = "The session isn't attached yet; try again in a moment."
+		a.inputThroughDaemon(id, text, true, nil)
 		return
 	}
 	a.writeThenEnter(p, "\x1b[200~"+text+"\x1b[201~")
