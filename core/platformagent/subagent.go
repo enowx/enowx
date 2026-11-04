@@ -25,7 +25,7 @@ func (*taskTool) Description() string {
 }
 
 func (*taskTool) Schema() json.RawMessage {
-	return json.RawMessage(`{"type":"object","properties":{"description":{"type":"string","description":"What the task is, in a few words, for the user."},"prompt":{"type":"string","description":"The task in full: everything the subagent needs to know, and what to report back."}},"required":["description","prompt"]}`)
+	return json.RawMessage(`{"type":"object","properties":{"description":{"type":"string","description":"What the task is, in a few words, for the user."},"prompt":{"type":"string","description":"The task in full: everything the subagent needs to know, and what to report back."}},"required":["description","prompt"],"additionalProperties":false}`)
 }
 
 func (*taskTool) ReadOnly() bool { return true }
