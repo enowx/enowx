@@ -47,7 +47,7 @@ type Server struct {
 	hooks        *hookEngine // the user's hooks (hooks.go)
 	control      controlLog  // requests made through host.call (hostcontrol.go)
 	agentModes   agentModes  // what agents' hooks last said of their permission mode (agentmode.go)
-	modeSwitches sync.Map    // session ID → *atomic.Uint64, the latest mode switch (switchMode)
+	modeSwitches sync.Map    // session ID → *sync.Mutex: one mode switch at a time, as two pressing the key at once could end on a mode neither asked for (switchMode)
 	// WorktreeRoot is where worktrees are created.
 	WorktreeRoot string
 	// Hash is the SHA-256 of the executable the daemon started from

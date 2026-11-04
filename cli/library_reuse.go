@@ -41,7 +41,7 @@ func (r runner) libraryUseCmd(args []string) error {
 	case "skill":
 		return r.librarySkillCmd(args[1:])
 	}
-	return errors.New(libraryUseUsage)
+	return errors.New(strings.TrimSpace(libraryUseUsage))
 }
 
 // libraryArgs is a command's item and the flags its fs reads.
@@ -49,7 +49,7 @@ func libraryArgs(fs *flag.FlagSet, args []string) (string, error) {
 	fs.SetOutput(io.Discard)
 	pos, err := parseAll(fs, args)
 	if err != nil || len(pos) != 1 {
-		return "", errors.New(libraryUseUsage)
+		return "", errors.New(strings.TrimSpace(libraryUseUsage))
 	}
 	return designshare.ItemFromRef(pos[0])
 }
@@ -80,7 +80,7 @@ func (r runner) libraryRefCmd(args []string) error {
 		return err
 	}
 	if *canvasRef == "" {
-		return errors.New(libraryUseUsage)
+		return errors.New(strings.TrimSpace(libraryUseUsage))
 	}
 	c, err := r.findCanvas(*canvasRef)
 	if err != nil {

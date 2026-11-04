@@ -44,7 +44,6 @@ type libraryState struct {
 type libraryForm struct {
 	open    bool
 	busy    bool
-	saved   bool
 	err     string
 	canvas  string
 	frame   string

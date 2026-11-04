@@ -168,7 +168,9 @@ func TestLibraryVideoIsMadeWithTheDraft(t *testing.T) {
 			var req proto.CanvasVideoRequest
 			if json.Unmarshal(ev.Data, &req) == nil {
 				asked.Add(1)
-				go func() { _ = app.CanvasVideoReply(proto.CanvasVideoReply{ID: req.ID, Result: proto.CanvasVideoResult{Data: video}}) }()
+				go func() {
+					_ = app.CanvasVideoReply(proto.CanvasVideoReply{ID: req.ID, Result: proto.CanvasVideoResult{Data: video}})
+				}()
 			}
 		case proto.EventCanvasRender:
 			var req proto.CanvasRenderRequest

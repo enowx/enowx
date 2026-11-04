@@ -239,8 +239,8 @@ func TestPlatformIsRegistered(t *testing.T) {
 	if id := ConversationID(record.AgentID, mine); id != "c2" {
 		t.Fatalf("id = %q", id)
 	}
-	if model, effort, mode := LastSettings(record.AgentID, mine); model != "claude-opus-5-5" || effort != "high" || mode != "default" {
-		t.Fatalf("settings: %s %s %s", model, effort, mode)
+	if got := LastSettings(record.AgentID, mine); got.Model != "claude-opus-5-5" || got.Effort != "high" || got.Mode != "default" {
+		t.Fatalf("settings: %+v", got)
 	}
 	if Compacted(record.AgentID, mine) {
 		t.Fatal("not compacted yet")

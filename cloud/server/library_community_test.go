@@ -86,7 +86,7 @@ func TestLibraryCommentsArePlainTextAndLabelled(t *testing.T) {
 	if code, _ := e.comment(reader.token, id, " \n "); code != http.StatusBadRequest {
 		t.Fatalf("empty: %d", code)
 	}
-	if code, msg := e.comment(e.webSession(reader.acc), id, hostileComment+"\x00‮"); code != http.StatusNoContent {
+	if code, msg := e.comment(e.webSession(reader.acc), id, hostileComment+"\x00\u202e"); code != http.StatusNoContent {
 		t.Fatalf("comment: %d %s", code, msg)
 	}
 	got := e.comments("", id)

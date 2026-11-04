@@ -101,7 +101,7 @@ func TestLibraryProfileRules(t *testing.T) {
 		}
 	}
 	// Nothing of those was kept, and text comes back clean.
-	e.mustProfile(ada.token, api.LibraryProfileParams{Handle: "Ada-Dev", Bio: " Makes‮ cards ", Links: []string{"https://a.example/x", "https://a.example/x"}, TimeZone: "gmt+7", Skills: []string{"Landing Pages", "landing pages", ""}})
+	e.mustProfile(ada.token, api.LibraryProfileParams{Handle: "Ada-Dev", Bio: " Makes\u202e cards ", Links: []string{"https://a.example/x", "https://a.example/x"}, TimeZone: "gmt+7", Skills: []string{"Landing Pages", "landing pages", ""}})
 	code, me := e.profile("ada-dev", ada.token)
 	if code != http.StatusOK || me.Bio != "Makes cards" || len(me.Links) != 1 || me.Settings == nil || me.Settings.TimeZone != "UTC+7" || !slices.Equal(me.Settings.Skills, []string{"landing pages"}) {
 		t.Fatalf("%d %+v %+v", code, me, me.Settings)

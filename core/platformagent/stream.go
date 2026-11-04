@@ -28,7 +28,6 @@ type answer struct {
 	raw   json.RawMessage
 	calls []toolCall
 	text  string
-	cost  float64
 }
 
 // toolCall is a tool_use block. BadJSON holds the input when it isn't valid JSON, which

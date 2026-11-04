@@ -3,6 +3,7 @@ package daemon
 import (
 	"errors"
 	"fmt"
+	"sync"
 	"time"
 
 	"github.com/enowx/enowx/core/agent"
@@ -39,6 +40,10 @@ func (s *Server) switchMode(p proto.SessionModeParams) error {
 	if info.Exited || info.Queued {
 		return fmt.Errorf("session %s isn't running, so its mode stays as it comes back", p.ID)
 	}
+	v, _ := s.modeSwitches.LoadOrStore(p.ID, new(sync.Mutex))
+	turn := v.(*sync.Mutex)
+	turn.Lock()
+	defer turn.Unlock()
 	shown := s.waitMode(sess, set, func(m string) bool { return m != "" }, modeRedraw)
 	for range len(set.Modes) + 1 {
 		switch {

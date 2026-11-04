@@ -16,7 +16,7 @@ import (
 
 // hidden is text with what a person doesn't see and an agent reads: tag characters
 // spelling a sentence, a zero-width joiner, a mark turning the text around.
-const hidden = "Trail\U000E0049\U000E0067\U000E006E\U000E006F\U000E0072\U000E0065‍‮ page\U000E0100"
+const hidden = "Trail\U000E0049\U000E0067\U000E006E\U000E006F\U000E0072\U000E0065\u200d\u202e page\U000E0100"
 
 func holdsHidden(s string) bool {
 	return strings.IndexFunc(s, func(r rune) bool {

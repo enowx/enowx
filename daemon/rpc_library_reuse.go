@@ -17,5 +17,5 @@ var libraryReuseHandlers = map[string]handler{
 	proto.MethodLibraryAskSkill: with(func(c *conn, p proto.LibraryAskSkillParams) (any, error) {
 		return c.srv.libraryAskSkill(p)
 	}),
-	proto.MethodLibraryNewer:     with(func(c *conn, p proto.CanvasRef) (any, error) { return c.srv.libraryNewer(p) }),
+	proto.MethodLibraryNewer: with(func(c *conn, p proto.CanvasRef) (any, error) { return c.srv.libraryNewer(p) }),
 }
