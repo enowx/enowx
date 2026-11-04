@@ -257,6 +257,9 @@ func (a *App) sessionFactsLine(s proto.SessionInfo) string {
 	if t, ok := a.sessionTokens(s.ID); ok {
 		parts = append(parts, tokenview.Spent(t))
 	}
+	if rules := textfmt.SessionRules(s.Rules); rules != "" {
+		parts = append(parts, rules)
+	}
 	return strings.Join(parts, " · ")
 }
 
