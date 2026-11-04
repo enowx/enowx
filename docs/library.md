@@ -77,14 +77,39 @@ The admin team's owner and admins moderate, and so do moderators the owner appoi
 
 Every decision needs a reason and goes in `library_log`, which the store can only add to: approving, rejecting (the reason reaches the app), taking down, picks, reports, blocks, unblocks, appointing and removing moderators. An upheld report takes the item down and makes its owner new again. Blocking takes down what an account shows and stops it publishing. Who reported is for moderators alone. Accounts' emails are never in an answer.
 
+## Creators
+
+A profile is made as an account first uses the library. Its name and picture are the account's; what else shows is the creator's choice, and off until chosen: GitHub is hidden unless turned on, numbers show unless turned off. A handle is 3 to 30 small letters, digits and single hyphens, changes once in 30 days, and can't be a reserved word or another account's GitHub login. Links and the contact are `http(s)` only, with no name, password or email in them, and a bio or skill holding an email is refused. An account's email is in no answer, an export included.
+
+**Open for work** is a flag, kinds of work, skills, a time zone and a contact link: a link and nothing else, as the site has no messages or forms. It needs that link, and the list (`GET creators?open=1`, by `kind`, `skill`, `zone`) also needs a live design, so an account made only to post a link has nothing to list it by. Turning it off, like hiding, goes through even past the rate limit.
+
+**Hiding.** A hidden or blocked profile answers just as one that doesn't exist, to all but its creator and moderators, and so do its items list and public collections. Its designs leave every list (browse, feed, others' public collections, the open for work list) but **stay at their addresses, with their credit**, as links and copies may need it under their license: the item says `unlisted`, and the website then keeps search engines off and links to no profile. Unpublishing is how a design goes away. Those who follow get it all back when the creator shows again. A collection's owner, and someone who liked a design, still see it in their own lists.
+
+**The contributor badge** isn't the creator's to set. `github_contributors` holds GitHub IDs the Cloud found to have contributed: a merged pull request in the Contributor role's repository (its signed webhook or its sign-in, see `docs/cloud.md`) or GitHub's list for the default team's repository, when the Cloud reads that anyway. No new call goes to GitHub or Discord for it. Someone who contributed earlier gets it at their next merge, Connect, or reading of the list.
+
+**Likes, collections, follows.** A like is `library_saves`, and `items.saves` counts them; one's own design can't be liked, nor oneself followed. What someone likes, who they follow, and a private collection answer their owner alone, moderators not excepted; others get only counts, and a private collection answers 404. All take a device or a web session, and a blocked account can only remove. The store's functions are plain to call, among them `LibraryFollowers` and `LibrarySavers`.
+
+| Limit | Number |
+|---|---|
+| Per account, a minute | 60 likes, 30 follows, 60 collection changes, 20 profile changes, 2 exports, 240 reads of one's own lists (in memory: a restart forgets them) |
+| Per account, in all | 100 collections, 500 designs in one, 2000 follows, 5000 likes |
+
+## Taking data out, and deleting it
+
+`GET me/export` answers a file of what the library keeps of the asker: profile with its settings, designs with their versions and prompts, likes, collections, follows, reports they made, and decisions about them without who decided. A design's files aren't in it: the app that published them has them.
+
+`DELETE me` takes the handle, typed, and deletes the profile, likes, collections, follows both ways and web sessions. Each design is unpublished and emptied, its address answering 410 for good, and its objects go by the sweep's purge, made due at once and run then, the rest on the next hourly sweep; that includes a design a moderator took down. **It touches no Cloud account, device, team or team file**, and signing in again starts an empty profile.
+
+Kept on purpose: `library_log`'s rows with the account's ID, as it's append-only, plus an `account.deleted` row; reports they made, for moderators, no longer naming them (those about them close); a blocked account's row, emptied, so that deleting isn't a way out of a block. Those who moderate give that up first. A new table holding an account's data has to join `DeleteLibraryAccount` and `LibraryExport` in `cloud/store/library_erase.go`.
+
 ## API
 
 | Access | Endpoints under `/v1/library` |
 |---|---|
-| Anyone, limited per address | `GET items`, `GET items/{id}`, `GET items/{id}/versions`, `GET items/{id}/prompt` (403 when view only) |
+| Anyone, limited per address | `GET items`, `GET items/{id}`, `GET items/{id}/versions`, `GET items/{id}/prompt` (403 when view only), `GET creators?open=1`, `GET creators/{handle}`, `GET creators/{handle}/items`, `GET creators/{handle}/collections`, `GET collections/{id}` |
 | The website's secret | `GET items/{id}/versions/{v}/{doc,doc-phone,thumb,thumb-phone}` (a live version's), `POST items/{id}/escaped`, `POST auth/exchange` |
 | A device | `POST items`, `PUT items/{id}/versions/{v}/{source,thumb,thumb-phone}`, `POST items/{id}/versions/{v}/submit`, `GET mine` |
-| A device or a web session | `DELETE items/{id}`, `GET me`, `POST reports`, `POST auth/signout` |
+| A device or a web session | `DELETE items/{id}`, `GET me`, `PUT me`, `DELETE me`, `GET me/export`, `POST reports`, `POST auth/signout`, `GET saves`, `GET/PUT/DELETE saves/{id}`, `PUT/DELETE creators/{handle}/follow`, `GET following`, `GET feed`, `GET/POST collections`, `PUT/DELETE collections/{id}`, `PUT/DELETE collections/{id}/items/{item}` |
 | Moderators | `GET admin/queue`, `GET admin/items/{id}/versions/{v}/{doc,doc-phone,thumb,thumb-phone}`, `POST admin/items/{id}/decisions`, `POST admin/reports/{id}/decisions`, `POST admin/accounts/{id}/block`, `.../unblock`, `GET admin/log`, `GET admin/usage` |
 | The owner | `GET admin/accounts?q=`, `GET admin/moderators`, `POST admin/moderators`, `DELETE admin/moderators/{id}` |
 
@@ -92,4 +117,4 @@ Objects are in the store as `<prefix>/items/<id>/v<n>/{source,doc,doc-phone,thum
 
 ## What this phase leaves out
 
-Copying a component's code, Open in enowX, references and skills (`code`, `source` and `skill` have no endpoints yet, though an item's `actions` already say what its license allows), full-text and meaning search, profiles, saves, and exporting or deleting a profile.
+Copying a component's code, Open in enowX, references and skills (`code`, `source` and `skill` have no endpoints yet, though an item's `actions` already say what its license allows), and full-text and meaning search.
