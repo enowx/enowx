@@ -6,6 +6,7 @@
 package designshare
 
 import (
+	"bytes"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -37,6 +38,40 @@ type Frame struct {
 	Background string                `json:"background,omitempty"`
 	HTML       string                `json:"html,omitempty"`
 	Elements   []proto.CanvasElement `json:"elements,omitempty"`
+}
+
+// mostElements is the most shapes a design has. A shape takes 3 bytes of a bundle
+// and over 200 of memory once read, so it's counted before it's read.
+const mostElements = 20000
+
+// UnmarshalJSON reads a frame, refusing more shapes than a design has.
+func (f *Frame) UnmarshalJSON(data []byte) error {
+	type plain Frame
+	var raw struct {
+		plain
+		Elements json.RawMessage `json:"elements"`
+	}
+	if err := json.Unmarshal(data, &raw); err != nil {
+		return err
+	}
+	*f = Frame(raw.plain)
+	if len(raw.Elements) == 0 {
+		return nil
+	}
+	dec := json.NewDecoder(bytes.NewReader(raw.Elements))
+	if t, err := dec.Token(); err != nil || t != json.Delim('[') {
+		return json.Unmarshal(raw.Elements, &f.Elements) // says what's wrong with it
+	}
+	for n := 0; dec.More(); n++ {
+		var skip json.RawMessage
+		if err := dec.Decode(&skip); err != nil {
+			return err
+		}
+		if n == mostElements {
+			return errors.New("designshare: a design has too many shapes")
+		}
+	}
+	return json.Unmarshal(raw.Elements, &f.Elements)
 }
 
 // Canvas is f as a canvas's frame, for the code that draws one.
@@ -109,7 +144,26 @@ func Parse(data []byte) (Bundle, error) {
 			return b, errors.New("designshare: a design's size is out of bounds")
 		}
 	}
+	b.Frame.clean()
+	if b.Phone != nil {
+		b.Phone.clean()
+	}
 	return b, nil
+}
+
+// What a design's name and a shape's text may hold: an agent reads both.
+const (
+	mostName      = 120
+	mostShapeText = 8000
+)
+
+// clean takes out of f's words what can't be seen, at a length. It's read this way
+// by the cloud and by every host, so a bundle kept before stays no different.
+func (f *Frame) clean() {
+	f.Name = CleanName(f.Name, mostName)
+	for i := range f.Elements {
+		f.Elements[i].Text = CleanText(f.Elements[i].Text, mostShapeText)
+	}
 }
 
 func (b Bundle) frames() []Frame {

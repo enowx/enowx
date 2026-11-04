@@ -292,3 +292,32 @@ func TestLibrarySkillInstalls(t *testing.T) {
 		t.Errorf("a component's skill: %v", err)
 	}
 }
+
+// A skill is kept by the user's click alone: an agent's connection only reads it,
+// and asking only shows the user a card.
+func TestLibrarySkillIsKeptFromTheApp(t *testing.T) {
+	home := t.TempDir()
+	t.Setenv("HOME", home)
+	e := newLibraryEnv(t, true)
+	id := publishForReuse(t, e, "", api.LicenseMIT, api.LibraryPage, reusePage)
+	file := filepath.Join(home, ".claude", "skills", "enowx-ui-trail-page", "SKILL.md")
+
+	agent := connect(t, e.srv, nil)
+	if _, err := agent.LibrarySkill(proto.LibrarySkillParams{ItemID: id, Install: true, Agent: "claude"}); err == nil {
+		t.Fatal("an agent's connection kept a skill")
+	}
+	if _, err := os.Stat(file); err == nil {
+		t.Fatal("it's on disk")
+	}
+	if got, err := agent.LibrarySkill(proto.LibrarySkillParams{ItemID: id}); err != nil || !strings.Contains(got.Text, designshare.OthersData) {
+		t.Fatalf("reading it: %v", err)
+	}
+
+	app := connectApp(t, e.srv, nil)
+	if _, err := app.LibrarySkill(proto.LibrarySkillParams{ItemID: id, Install: true, Agent: "claude"}); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := os.Stat(file); err != nil {
+		t.Fatal(err)
+	}
+}

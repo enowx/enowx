@@ -29,6 +29,9 @@ type LookColor struct {
 	Share int
 }
 
+// mostResolved is the most text a page's CSS variables may expand to.
+const mostResolved = 4 << 20
+
 // phoneWidest is the widest design counted as made for a phone.
 const phoneWidest = 600
 
@@ -89,9 +92,22 @@ func LookOf(f Frame) Look {
 			vars[m[1]] = m[2]
 		}
 	}
+	// Variables naming variables multiply: what they may add up to is shared by the
+	// whole page, and past it the look is read from what's left.
+	left := mostResolved
 	resolve := func(v string) string {
 		for range 3 {
-			v = varUse.ReplaceAllStringFunc(v, func(use string) string { return vars[varUse.FindStringSubmatch(use)[1]] })
+			if !strings.Contains(v, "var(") {
+				break
+			}
+			v = varUse.ReplaceAllStringFunc(v, func(use string) string {
+				value := vars[varUse.FindStringSubmatch(use)[1]]
+				if len(value) > left {
+					return ""
+				}
+				left -= len(value)
+				return value
+			})
 		}
 		return v
 	}

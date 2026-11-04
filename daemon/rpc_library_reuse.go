@@ -8,6 +8,14 @@ var libraryReuseHandlers = map[string]handler{
 	proto.MethodLibraryUseInfo:   with(func(c *conn, p proto.LibraryUseRef) (any, error) { return c.srv.libraryUseInfo(p) }),
 	proto.MethodLibraryOpen:      with(func(c *conn, p proto.LibraryOpenParams) (any, error) { return c.srv.libraryOpen(p) }),
 	proto.MethodLibraryReference: with(func(c *conn, p proto.LibraryReferenceParams) (any, error) { return c.srv.libraryReference(p) }),
-	proto.MethodLibrarySkill:     with(func(c *conn, p proto.LibrarySkillParams) (any, error) { return c.srv.librarySkill(p) }),
+	proto.MethodLibrarySkill: with(func(c *conn, p proto.LibrarySkillParams) (any, error) {
+		if p.Install && (c.self || c.remote || c.kind != "app") {
+			return nil, errSkillFromDialog
+		}
+		return c.srv.librarySkill(p)
+	}),
+	proto.MethodLibraryAskSkill: with(func(c *conn, p proto.LibraryAskSkillParams) (any, error) {
+		return c.srv.libraryAskSkill(p)
+	}),
 	proto.MethodLibraryNewer:     with(func(c *conn, p proto.CanvasRef) (any, error) { return c.srv.libraryNewer(p) }),
 }

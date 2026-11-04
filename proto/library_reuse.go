@@ -12,7 +12,8 @@ const (
 	// MethodLibraryReference keeps a design's picture in a canvas's files and
 	// one credit line in its brief.
 	MethodLibraryReference = "library.reference" // LibraryReferenceParams → LibraryReferenced
-	// MethodLibrarySkill reads a design's skill, and installs it when asked.
+	// MethodLibrarySkill reads a design's skill; only the app's dialog installs it,
+	// the user having said so.
 	MethodLibrarySkill = "library.skill" // LibrarySkillParams → LibrarySkillAnswer
 	// MethodLibraryNewer says whether a canvas copied from the library has a
 	// newer version there. The copy never changes by itself.

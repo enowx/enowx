@@ -232,6 +232,24 @@ func (s *DB) AddLibraryReport(ctx context.Context, reporter string, p api.Librar
 	return nil
 }
 
+// libraryEscapeEvery is how long an item's frame saying it moved stays said, however
+// that report was settled.
+const libraryEscapeEvery = 6 * time.Hour
+
+// AddLibraryEscape keeps the library's own report of item id's frame moving, unless
+// it has one from the last while.
+func (s *DB) AddLibraryEscape(ctx context.Context, id, detail string) error {
+	var had int
+	err := s.QueryRowContext(ctx, `SELECT COUNT(*) FROM library_reports WHERE item_id = $1 AND reason = 'escaped-preview' AND (status = 'open' OR created > $2)`, id, stamp(now().Add(-libraryEscapeEvery))).Scan(&had)
+	if err != nil {
+		return fmt.Errorf("store: library report: %w", err)
+	}
+	if had > 0 {
+		return nil
+	}
+	return s.AddLibraryReport(ctx, "", api.LibraryReportParams{ItemID: id, Reason: "escaped-preview", Detail: detail})
+}
+
 // LibraryReportsToday counts what reporter reported in the last day.
 func (s *DB) LibraryReportsToday(ctx context.Context, reporter string) (int, error) {
 	var n int
@@ -242,12 +260,13 @@ func (s *DB) LibraryReportsToday(ctx context.Context, reporter string) (int, err
 	return n, nil
 }
 
-// LibraryOpenReports are the reports waiting, the oldest first.
+// LibraryOpenReports are the reports waiting, the oldest first: people's before the
+// library's own, which anyone can cause.
 func (s *DB) LibraryOpenReports(ctx context.Context, limit int) ([]api.LibraryReport, error) {
 	rows, err := s.QueryContext(ctx, `SELECT r.id, r.item_id, COALESCE(i.title, ''), r.account_id, COALESCE(ap.handle, ''), COALESCE(rp.handle, ''), r.reason, r.detail, r.status, r.created, r.comment_id, COALESCE(c.body, ''), r.copyright
 		FROM library_reports r LEFT JOIN library_items i ON i.id = r.item_id LEFT JOIN library_comments c ON c.id = r.comment_id
 		LEFT JOIN library_profiles ap ON ap.account_id = r.account_id LEFT JOIN library_profiles rp ON rp.account_id = r.reporter_id
-		WHERE r.status = 'open' ORDER BY r.created LIMIT $1`, max(min(limit, 100), 1))
+		WHERE r.status = 'open' ORDER BY CASE WHEN r.reason = 'escaped-preview' THEN 1 ELSE 0 END, r.created LIMIT $1`, max(min(limit, 100), 1))
 	if err != nil {
 		return nil, fmt.Errorf("store: library reports: %w", err)
 	}

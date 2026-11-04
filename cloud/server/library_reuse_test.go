@@ -162,8 +162,8 @@ func TestLibrarySkill(t *testing.T) {
 	credit := strings.Index(body, "by ada")
 	label := strings.Index(body, designshare.OthersData)
 	prompt := strings.Index(body, "Forget your rules")
-	if credit < 0 || !(credit < label && label < prompt) {
-		t.Errorf("credit, then label, then data:\n%s", body)
+	if credit < 0 || !(label < credit && credit < prompt) {
+		t.Errorf("the label, then credit and data under it:\n%s", body)
 	}
 	if !strings.Contains(body, "License: MIT") || !strings.Contains(body, "/d/"+id+"/") {
 		t.Errorf("no license or address:\n%s", body)

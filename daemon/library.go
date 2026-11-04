@@ -178,6 +178,11 @@ func (s *Server) libraryPrepare(p proto.LibraryPrepareParams) (proto.LibraryPrep
 	if mineErr == nil {
 		out.Trust = mine.Trust
 	}
+	// Empty when there's none, so that one from an earlier look doesn't stay.
+	files[libraryVideoFile] = nil
+	if out.HasMotion {
+		files[libraryVideoFile] = s.libraryVideo(cv.ID, frame.ID, frame.Width)
+	}
 	d := libraryDraft{Form: form, Prepared: out}
 	d.ID, d.Canvas, d.Frame, d.Saved = id, cv.ID, frame.ID, old.Saved
 	if err := s.putLibraryDraft(d, files); err != nil {
@@ -262,7 +267,10 @@ func (s *Server) libraryPublish(p proto.LibraryPublishParams) (proto.LibraryDesi
 	if err != nil {
 		return out, libraryError(err, &out)
 	}
-	video := s.libraryVideo(d, p.Form)
+	var video []byte
+	if d.Prepared.HasMotion && !p.Form.NoVideo {
+		video = s.libraryDrafts().File(p.DraftID, libraryVideoFile)
+	}
 	parts := []struct{ part, file string }{{api.PartSource, "bundle.json"}, {api.PartThumb, "thumb.webp"}, {api.PartThumbPhone, "thumb-phone.webp"}}
 	for _, part := range parts {
 		content := s.libraryDrafts().File(p.DraftID, part.file)
@@ -300,14 +308,16 @@ const (
 	libraryVideoWidth = 720
 )
 
-// libraryVideo has the app render a design that moves as a short video, from
-// the same render as its MP4 export. It's a nicety: without an app serving, a web
-// view or ffmpeg, or when it comes out too big, the design goes without one.
-func (s *Server) libraryVideo(d libraryDraft, form proto.LibraryForm) []byte {
-	if !d.Prepared.HasMotion || form.NoVideo {
-		return nil
-	}
-	res, err := s.canvasVideo(proto.CanvasVideoParams{ID: d.Canvas, Frame: d.Frame, Width: min(d.Prepared.Width, libraryVideoWidth), To: libraryVideoMs, Preview: true})
+// libraryVideoFile is a draft's video, of what its form was shown.
+const libraryVideoFile = "video.mp4"
+
+// libraryVideo has the app render a design that moves as a short video, from the
+// same render as its MP4 export, for its draft: what's sent has to be what the
+// creator saw, and the canvas may have changed by then. It's a nicety: without an
+// app serving, a web view or ffmpeg, or when it comes out too big, the design goes
+// without one.
+func (s *Server) libraryVideo(canvasID, frame string, width int) []byte {
+	res, err := s.canvasVideo(proto.CanvasVideoParams{ID: canvasID, Frame: frame, Width: min(width, libraryVideoWidth), To: libraryVideoMs, Preview: true})
 	if err != nil {
 		s.logger().Warn("library: no video of this design", "err", err)
 		return nil

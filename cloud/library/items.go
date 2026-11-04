@@ -8,10 +8,10 @@ import (
 	"strconv"
 	"strings"
 	"time"
-	"unicode"
 
 	"github.com/enowx/enowx/cloud/api"
 	"github.com/enowx/enowx/cloud/blobstore"
+	"github.com/enowx/enowx/core/designshare"
 )
 
 // What anyone can read, and what an owner can do with their own.
@@ -83,6 +83,8 @@ func (s *Service) publicItem(w http.ResponseWriter, r *http.Request) (api.Librar
 		fail(w, http.StatusGone, "this design was taken down or unpublished")
 	case it.Status != api.LibraryLive && !s.mayPeek(r, it):
 		fail(w, http.StatusNotFound, "not found")
+	case it.RejectReason != "" && s.mayPeek(r, it):
+		return forWhoMayPeek(it), true
 	default:
 		return shown(it), true
 	}
@@ -140,12 +142,12 @@ func (s *Service) getPrompt(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	s.countReuse(it.ID)
-	reply(w, api.LibraryPrompt{Prompt: v.Prompt + "\n\n" + s.credit(it)})
+	reply(w, api.LibraryPrompt{Prompt: cleanText(v.Prompt, 8000) + "\n\n" + s.credit(it)})
 }
 
 // credit says where a copy comes from, who made it and under which license.
 func (s *Service) credit(it api.LibraryItem) string {
-	return "Design: " + it.Title + " by " + it.Creator.Handle + "\n" + s.address(it) + "\nLicense: " + it.License
+	return "Design: " + designshare.Credit(it.Title, it.Creator.Handle) + "\n" + s.address(it) + "\nLicense: " + it.License
 }
 
 // object is a shown version's document or picture, for the website alone: nobody's
@@ -257,7 +259,7 @@ func (s *Service) mine(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	for i := range items {
-		items[i].LibraryItem = shown(items[i].LibraryItem)
+		items[i].LibraryItem = forWhoMayPeek(items[i].LibraryItem)
 	}
 	reply(w, api.LibraryMine{Items: items, Used: c.Used, Limit: api.MaxLibraryAccount, Trust: me.Trust})
 }
@@ -360,33 +362,25 @@ func cleanCopyright(w http.ResponseWriter, p *api.LibraryReportParams) bool {
 	return false
 }
 
-// escaped is the website saying a preview tried to leave its frame: the item
-// goes to moderators, once while the report is open.
+// escaped is the website saying a preview tried to leave its frame: a live item
+// goes to moderators, once while the report is open and once in a while after it.
+// Anyone can say this of any design, so it adds no more than that, and moderators
+// read it after what people reported (LibraryOpenReports).
 func (s *Service) escaped(w http.ResponseWriter, r *http.Request) {
 	id := r.PathValue("id")
-	if _, err := s.db.LibraryItem(r.Context(), id); err != nil {
+	it, err := s.db.LibraryItem(r.Context(), id)
+	if err != nil {
 		s.answer(w, nil, err)
 		return
 	}
-	s.answer(w, nil, s.db.AddLibraryReport(r.Context(), "", api.LibraryReportParams{ItemID: id, Reason: "escaped-preview", Detail: "A preview tried to leave its frame."}))
+	if it.Status != api.LibraryLive {
+		w.WriteHeader(http.StatusNoContent)
+		return
+	}
+	s.answer(w, nil, s.db.AddLibraryEscape(r.Context(), id, "A preview tried to leave its frame."))
 }
 
-// cleanText is s as text the library keeps and shows: control and
-// direction-changing characters out, at most max characters.
-func cleanText(s string, max int) string {
-	var b strings.Builder
-	n := 0
-	for _, r := range strings.TrimSpace(s) {
-		if n == max {
-			break
-		}
-		if (unicode.IsControl(r) && r != '\n') || unicode.Is(unicode.Bidi_Control, r) || r == '​' {
-			continue
-		}
-		b.WriteRune(r)
-		n++
-	}
-	return strings.TrimSpace(b.String())
-}
+// cleanText is s as text the library keeps and shows.
+func cleanText(s string, max int) string { return designshare.CleanText(s, max) }
 
 var errRefused = errors.New("library: refused")

@@ -532,6 +532,10 @@ func (a *App) handleEvent(gen int, ev proto.Event) {
 		if apply = a.libraryAsked(ev.Data); apply == nil {
 			return
 		}
+	case proto.EventLibrarySkillAsked:
+		if apply = a.librarySkillAsked(ev.Data); apply == nil {
+			return
+		}
 	case proto.EventTeamChat:
 		if apply = a.teamChatEvent(ev.Data); apply == nil {
 			return

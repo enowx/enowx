@@ -48,6 +48,9 @@ type Config struct {
 	Announce Announce
 	// Embedder turns on searching by meaning; nil leaves it off.
 	Embedder Embedder
+	// AccountWrittenDay is what an account may write to the bucket in a day;
+	// DefaultAccountWrittenDay when 0.
+	AccountWrittenDay int64
 }
 
 // DefaultPrefix is where the library's objects are in the store it shares.
@@ -87,6 +90,10 @@ type Service struct {
 	// only read. embeds holds a place per search's call to the embedder.
 	vectors *store.LibraryVectors
 	embeds  chan struct{}
+	// sends is what accounts have on its way in (uploads.go); heavySends holds a
+	// place per request holding a bundle in memory.
+	sends      sending
+	heavySends chan struct{}
 }
 
 // publicReads is the most public reads at work at once.
@@ -105,7 +112,7 @@ func New(cfg Config, host Host, db *store.DB, log *slog.Logger) (*Service, error
 	if err != nil {
 		return nil, fmt.Errorf("library: %w", err)
 	}
-	s := &Service{cfg: cfg, host: host, db: db, log: log, reads: make(chan struct{}, publicReads), objects: objects, objectReads: make(chan struct{}, objectsAtOnce), mails: make(chan struct{}, mailsAtOnce), embeds: make(chan struct{}, embedsAtOnce)}
+	s := &Service{cfg: cfg, host: host, db: db, log: log, reads: make(chan struct{}, publicReads), objects: objects, objectReads: make(chan struct{}, objectsAtOnce), mails: make(chan struct{}, mailsAtOnce), embeds: make(chan struct{}, embedsAtOnce), heavySends: make(chan struct{}, sendsAtOnce)}
 	s.openMeaning()
 	return s, nil
 }
@@ -122,8 +129,8 @@ func (s *Service) Mount(mux *http.ServeMux) {
 	handle("GET "+api.PathLibraryPart, s.webOnly(s.object))
 
 	handle("POST "+api.PathLibraryItems, s.deviceOnly(s.createItem))
-	handle("PUT "+api.PathLibraryPart, s.deviceOnly(s.putPart))
-	handle("POST "+api.PathLibrarySubmit, s.deviceOnly(s.submit))
+	handle("PUT "+api.PathLibraryPart, s.sender("put", putsPerMinute, s.putPart))
+	handle("POST "+api.PathLibrarySubmit, s.sender("submit", submitsPerMinute, s.submit))
 	handle("GET "+api.PathLibraryMine, s.deviceOnly(s.mine))
 
 	handle("DELETE "+api.PathLibraryItem, s.signedIn(s.withdraw))
@@ -261,6 +268,8 @@ func (s *Service) answer(w http.ResponseWriter, v any, err error) {
 		reply(w, v)
 	case errors.Is(err, store.ErrNotFound):
 		fail(w, http.StatusNotFound, "not found")
+	case errors.Is(err, store.ErrLibraryGone):
+		fail(w, http.StatusGone, "this design was taken down or unpublished: publish it as a new one")
 	case errors.Is(err, store.ErrLibraryQuota):
 		fail(w, http.StatusInsufficientStorage, "your library storage is full: 200 MB. Unpublish something first")
 	case errors.Unwrap(err) == nil && strings.HasPrefix(err.Error(), "store: "):
@@ -469,6 +478,15 @@ func actionsFor(kind, license string) api.LibraryActions {
 
 func shown(it api.LibraryItem) api.LibraryItem {
 	it.Actions = actionsOf(it)
+	it.RejectReason = "" // its creator's and moderators' alone: see forWhoMayPeek
+	return it
+}
+
+// forWhoMayPeek is it as its owner and moderators see it.
+func forWhoMayPeek(it api.LibraryItem) api.LibraryItem {
+	reason := it.RejectReason
+	it = shown(it)
+	it.RejectReason = reason
 	return it
 }
 

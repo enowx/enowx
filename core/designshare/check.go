@@ -43,7 +43,7 @@ var (
 	phoneRe    = regexp.MustCompile(`(^|[^0-9A-Za-z.#-])\+?[0-9][0-9 ()-]{8,16}[0-9]($|[^0-9A-Za-z.-])`)
 	internalRe = regexp.MustCompile(`(?i)\b(localhost|127\.0\.0\.1|0\.0\.0\.0|10\.\d{1,3}\.\d{1,3}\.\d{1,3}|192\.168\.\d{1,3}\.\d{1,3}|172\.(1[6-9]|2\d|3[01])\.\d{1,3}\.\d{1,3}|[a-z0-9.-]+\.(local|test|internal|ts\.net)|staging\.[a-z0-9.-]+)\b`)
 	outgoingRe = regexp.MustCompile(`\b(fetch|XMLHttpRequest|WebSocket|EventSource|sendBeacon|importScripts)\b`)
-	navigateRe = regexp.MustCompile(`\b(location\s*(\.\s*href\s*)?=[^=]|location\.(assign|replace)\s*\()`)
+	navigateRe = regexp.MustCompile(`\b(location\s*(\.\s*href\s*|\[\s*["'\x60]href["'\x60]\s*\]\s*)?=[^=]|location\s*(\.\s*(assign|replace)|\[\s*["'\x60](assign|replace)["'\x60]\s*\])\s*\()`)
 )
 
 // Check is what's wrong with sharing b with the text t. Anything Refuse, a
@@ -80,6 +80,7 @@ func Check(b Bundle, t Text) []Finding {
 			where = "the phone design"
 		}
 		secrets(where, []byte(f.HTML))
+		secrets(where+"'s name", []byte(f.Name))
 		for _, e := range f.Elements {
 			secrets(where+", a shape", []byte(e.Text))
 			if strings.HasPrefix(e.Src, "http://") || strings.HasPrefix(e.Src, "https://") {

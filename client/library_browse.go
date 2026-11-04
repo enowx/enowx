@@ -36,3 +36,10 @@ func (c *Client) LibraryAskPublish(p proto.LibraryAskPublishParams) (proto.Libra
 	err := c.Call(proto.MethodLibraryAskPublish, p, &out)
 	return out, err
 }
+
+// LibraryAskSkill asks the app to show the user a card for keeping a design as a skill.
+func (c *Client) LibraryAskSkill(p proto.LibraryAskSkillParams) (proto.LibrarySkillAsked, error) {
+	var out proto.LibrarySkillAsked
+	err := c.Call(proto.MethodLibraryAskSkill, p, &out)
+	return out, err
+}

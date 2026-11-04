@@ -7,29 +7,100 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"net/url"
 	"regexp"
 	"strings"
 	"time"
+	"unicode"
+
+	"golang.org/x/net/html"
 )
 
 // MaxComponent is the most HTML and CSS a component holds (the owner's limit).
 const MaxComponent = 64 << 10
 
-var scriptTag = regexp.MustCompile(`(?i)<script[\s>/]`)
-var eventAttr = regexp.MustCompile(`(?i)<[a-z][^>]*\son[a-z]+\s*=`)
-
 // CheckComponent says why b can't be a component, a small piece people copy as
-// HTML and CSS; nil when it can.
+// HTML and CSS; nil when it can. People paste these into their own pages, so it's
+// walked as a browser reads it, and refused for anything that runs.
 func CheckComponent(b Bundle) error {
 	for _, f := range b.frames() {
-		if scriptTag.MatchString(f.HTML) || eventAttr.MatchString(f.HTML) {
-			return errors.New("a component has no scripts: publish this as a full page")
-		}
 		if len(f.HTML) > MaxComponent {
 			return fmt.Errorf("a component's HTML and CSS are %d KiB at most: publish this as a full page", MaxComponent>>10)
 		}
+		if runs(f.HTML) {
+			return errors.New("a component has no scripts: publish this as a full page")
+		}
 	}
 	return nil
+}
+
+// eventInTag finds an event attribute in a tag as text: a parser moves what doesn't
+// belong where it stands, and not every browser moves the same things.
+var eventInTag = regexp.MustCompile(`(?i)<[a-z][^>]*[\s/"']on[a-z]+\s*=`)
+
+// runs says whether page holds anything that runs or brings in another page.
+func runs(page string) bool {
+	if eventInTag.MatchString(page) {
+		return true
+	}
+	doc, err := html.Parse(strings.NewReader(page))
+	if err != nil {
+		return true
+	}
+	var walk func(n *html.Node) bool
+	walk = func(n *html.Node) bool {
+		if n.Type == html.ElementNode && elementRuns(n) {
+			return true
+		}
+		for c := n.FirstChild; c != nil; c = c.NextSibling {
+			if walk(c) {
+				return true
+			}
+		}
+		return false
+	}
+	return walk(doc)
+}
+
+func elementRuns(n *html.Node) bool {
+	switch strings.ToLower(n.Data) {
+	case "script", "embed", "object", "iframe", "frame", "frameset", "applet", "base", "noscript":
+		return true
+	case "meta":
+		if attr(n, "http-equiv") != "" {
+			return true
+		}
+	}
+	for _, a := range n.Attr {
+		key := strings.ToLower(a.Key)
+		if strings.HasPrefix(key, "on") || key == "srcdoc" || runningAddress(a.Val) {
+			return true
+		}
+	}
+	return false
+}
+
+// runningAddress says whether an attribute's value is an address that runs. The
+// parser has undone its entities; browsers also drop tabs, newlines and leading
+// controls from a scheme, and a copy may be read again after being percent-decoded.
+func runningAddress(val string) bool {
+	for range 3 {
+		bare := strings.ToLower(strings.Map(func(r rune) rune {
+			if r <= ' ' || r == 0x7f || unicode.Is(unicode.Cf, r) {
+				return -1
+			}
+			return r
+		}, val))
+		if strings.HasPrefix(bare, "javascript:") || strings.HasPrefix(bare, "vbscript:") || strings.HasPrefix(bare, "data:text/html") || strings.HasPrefix(bare, "data:image/svg") || strings.HasPrefix(bare, "data:application/xhtml") {
+			return true
+		}
+		decoded, err := url.PathUnescape(val)
+		if err != nil || decoded == val {
+			return false
+		}
+		val = decoded
+	}
+	return false
 }
 
 // cdnScript is a script from a CDN, at an exact version. What it names is

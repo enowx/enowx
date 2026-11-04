@@ -21,6 +21,13 @@ const (
 	// form. It sends nothing: only the form does.
 	MethodLibraryAskPublish = "library.askPublish" // LibraryAskPublishParams → LibraryPublishAsked
 
+	// MethodLibraryAskSkill asks the app to show the user a card for keeping a
+	// design as a skill. It keeps nothing: only the user's click does.
+	MethodLibraryAskSkill = "library.askSkill" // LibraryAskSkillParams → LibrarySkillAsked
+
+	// EventLibrarySkillAsked says someone asked to keep a design as a skill: the
+	// app shows it as a card the user may follow.
+	EventLibrarySkillAsked = "library.skillAsked" // LibrarySkillAsked
 	// EventLibraryPublishAsked says someone asked for a design's publish form:
 	// the app shows it as a card the user may follow.
 	EventLibraryPublishAsked = "library.publishAsked" // LibraryPublishAsked
@@ -116,6 +123,24 @@ type LibraryPublishAsked struct {
 	CanvasTitle string `json:"canvasTitle,omitempty"`
 	FrameName   string `json:"frameName,omitempty"`
 	From        string `json:"from,omitempty"`
+	// AppOpen says an app is connected to this host to show it.
+	AppOpen bool `json:"appOpen,omitempty"`
+}
+
+// LibraryAskSkillParams names the design to offer as a skill.
+type LibraryAskSkillParams struct {
+	ItemID  string `json:"itemId"`
+	Version int    `json:"version,omitempty"`
+	// From is the session asking, "" for someone at a terminal.
+	From string `json:"from,omitempty"`
+}
+
+// LibrarySkillAsked is what's asked, and whether an app is there to show it. It
+// holds no word of the design's: the dialog reads those from the cloud.
+type LibrarySkillAsked struct {
+	ItemID  string `json:"itemId"`
+	Version int    `json:"version,omitempty"`
+	From    string `json:"from,omitempty"`
 	// AppOpen says an app is connected to this host to show it.
 	AppOpen bool `json:"appOpen,omitempty"`
 }

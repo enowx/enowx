@@ -186,7 +186,7 @@ func (s *Service) dropOldest(r *http.Request, versions []store.LibraryVersionRow
 		if v.Status != api.LibrarySuperseded && v.Status != api.LibraryRejected {
 			continue
 		}
-		for _, part := range []string{api.PartSource, api.PartDoc, api.PartDocPhone, api.PartThumb, api.PartThumbPhone} {
+		for _, part := range []string{api.PartSource, api.PartDoc, api.PartDocPhone, api.PartThumb, api.PartThumbPhone, api.PartVideo} {
 			if err := s.objects.Delete(r.Context(), objectKey(v.ItemID, v.Version, part)); err != nil && !errors.Is(err, blobstore.ErrNotFound) {
 				s.log.Warn("library: drop a version", "item", v.ItemID, "err", err)
 				return false
@@ -231,7 +231,12 @@ func (s *Service) uploading(w http.ResponseWriter, r *http.Request) (store.Libra
 		fail(w, http.StatusBadRequest, "a version is a number")
 		return store.LibraryVersionRow{}, false
 	}
-	if _, err := s.ownItem(w, r, r.PathValue("id")); err != nil {
+	it, err := s.ownItem(w, r, r.PathValue("id"))
+	if err != nil {
+		return store.LibraryVersionRow{}, false
+	}
+	if gone(it.Status) {
+		fail(w, http.StatusGone, "this design was taken down or unpublished: publish it as a new one")
 		return store.LibraryVersionRow{}, false
 	}
 	v, err := s.db.LibraryVersion(r.Context(), r.PathValue("id"), n)
@@ -270,9 +275,24 @@ func (s *Service) putPart(w http.ResponseWriter, r *http.Request) {
 		fail(w, http.StatusRequestEntityTooLarge, "that's bigger than the library takes: a design is 10 MB at most, a picture 300 KB, a video 4 MB")
 		return
 	}
+	release, ok := s.holdingMemory(w, r)
+	if !ok {
+		return
+	}
+	defer release()
 	if part == api.PartSource {
-		if _, err := designshare.Parse(data); err != nil {
+		b, err := designshare.Parse(data)
+		if err != nil {
 			fail(w, http.StatusBadRequest, "this isn't a design's bundle")
+			return
+		}
+		// What's kept is what was read: its words clean, nothing it didn't need.
+		if data, err = b.Marshal(); err != nil {
+			s.answer(w, nil, err)
+			return
+		}
+		if len(data) > api.MaxLibraryBundle {
+			fail(w, http.StatusRequestEntityTooLarge, "that's bigger than the library takes: a design is 10 MB at most, a picture 300 KB, a video 4 MB")
 			return
 		}
 		if data, err = gzipped(data); err != nil {
@@ -312,21 +332,48 @@ func (s *Service) putPart(w http.ResponseWriter, r *http.Request) {
 // keep puts an object in the bucket, counted against its owner's account
 // first: what doesn't fit is never written.
 func (s *Service) keep(w http.ResponseWriter, r *http.Request, v store.LibraryVersionRow, part string, data []byte) bool {
-	owner := asker(r).account.ID
-	if err := s.db.SetLibraryPartSize(r.Context(), owner, v.ItemID, v.Version, part, int64(len(data)), api.MaxLibraryAccount); err != nil {
+	owner, size := asker(r).account.ID, int64(len(data))
+	if !s.sends.reserve(owner, size, s.accountWrittenDay()) {
+		w.Header().Set("Retry-After", "3600")
+		fail(w, http.StatusTooManyRequests, "that's a lot written for one day: try again tomorrow")
+		return false
+	}
+	if err := s.db.SetLibraryPartSize(r.Context(), owner, v.ItemID, v.Version, part, size, api.MaxLibraryAccount); err != nil {
+		s.sends.giveBack(owner, size)
 		s.answer(w, nil, err)
 		return false
 	}
 	if err := s.objects.Put(r.Context(), objectKey(v.ItemID, v.Version, part), data); err != nil {
 		s.log.Error("library: put", "item", v.ItemID, "err", err)
+		s.sends.giveBack(owner, size)
 		_ = s.db.SetLibraryPartSize(r.Context(), owner, v.ItemID, v.Version, part, 0, api.MaxLibraryAccount)
 		fail(w, http.StatusBadGateway, "the library's storage didn't answer: try again")
 		return false
 	}
-	if err := s.db.AddLibraryUsage(r.Context(), int64(len(data))); err != nil {
+	if err := s.db.AddLibraryUsage(r.Context(), size); err != nil {
 		s.log.Warn("library: usage", "err", err)
 	}
 	return true
+}
+
+// documentOf is f's document zipped as it's kept, or answers: what would come to
+// too much is never made.
+func (s *Service) documentOf(w http.ResponseWriter, f designshare.Frame, assets canvas.Assets) ([]byte, bool) {
+	page, err := canvas.FrameDocumentWithin(f.Canvas(), assets, api.MaxLibraryDocument)
+	if errors.Is(err, canvas.ErrDocumentTooBig) {
+		fail(w, http.StatusUnprocessableEntity, "this design comes to more than 32 MB with its files in place: show each file fewer times")
+		return nil, false
+	}
+	if err != nil {
+		s.answer(w, nil, err)
+		return nil, false
+	}
+	doc, err := gzipped([]byte(page))
+	if err != nil {
+		s.answer(w, nil, err)
+		return nil, false
+	}
+	return doc, true
 }
 
 // submit settles a version whose objects are there: checked again, its
@@ -336,6 +383,11 @@ func (s *Service) submit(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
+	release, ok := s.holdingMemory(w, r)
+	if !ok {
+		return
+	}
+	defer release()
 	if v.SourceSize == 0 || v.ThumbSize == 0 {
 		fail(w, http.StatusConflict, "this version misses its design or its picture")
 		return
@@ -383,23 +435,21 @@ func (s *Service) submit(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 	assets := b.AssetReader()
-	doc, err := gzipped([]byte(canvas.FrameDocument(b.Frame.Canvas(), assets)))
-	if err != nil {
-		s.answer(w, nil, err)
+	doc, ok := s.documentOf(w, b.Frame, assets)
+	if !ok {
 		return
+	}
+	var phone []byte
+	if b.Phone != nil {
+		if phone, ok = s.documentOf(w, *b.Phone, assets); !ok {
+			return
+		}
 	}
 	if !s.keep(w, r, v, api.PartDoc, doc) {
 		return
 	}
-	if b.Phone != nil {
-		phone, err := gzipped([]byte(canvas.FrameDocument(b.Phone.Canvas(), assets)))
-		if err != nil {
-			s.answer(w, nil, err)
-			return
-		}
-		if !s.keep(w, r, v, api.PartDocPhone, phone) {
-			return
-		}
+	if phone != nil && !s.keep(w, r, v, api.PartDocPhone, phone) {
+		return
 	}
 	status := api.LibraryReview
 	if me.Trust == api.TrustTrusted && (it.LiveVersion == 0 || it.Kind == v.Kind) {

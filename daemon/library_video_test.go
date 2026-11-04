@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/binary"
 	"encoding/json"
+	"sync/atomic"
 	"testing"
 
 	"github.com/enowx/enowx/client"
@@ -71,7 +72,8 @@ func libraryVideoEnv(t *testing.T, answer func(proto.CanvasVideoRequest) proto.C
 	d := libraryDraft{Form: proto.LibraryForm{Title: "Moving"}}
 	d.ID, d.Canvas, d.Frame = id, cv.ID, frame.ID
 	d.Prepared = proto.LibraryPrepared{Width: 1440, Height: 900, MadeWith: "hand", HasMotion: true}
-	if err := e.srv.putLibraryDraft(d, map[string][]byte{"bundle.json": data, "thumb.webp": libraryThumb(t)}); err != nil {
+	files := map[string][]byte{"bundle.json": data, "thumb.webp": libraryThumb(t), libraryVideoFile: e.srv.libraryVideo(cv.ID, frame.ID, 1440)}
+	if err := e.srv.putLibraryDraft(d, files); err != nil {
 		t.Fatal(err)
 	}
 	return e, id, asked
@@ -81,8 +83,8 @@ func movingForm() proto.LibraryForm {
 	return proto.LibraryForm{Kind: api.LibraryPage, License: api.LicenseMIT, Title: "Moving", Description: "It moves", Category: "motion", Prompt: "Build it", PromptApproved: true, Rights: true}
 }
 
-// Publishing a design that moves has the app make its short video, small and left
-// in no folder, and that reaches the cloud.
+// A design that moves has the app make its short video, small and left in no folder,
+// with its draft, and that reaches the cloud.
 func TestLibraryPublishCarriesAVideo(t *testing.T) {
 	video := silentMP4()
 	e, id, asked := libraryVideoEnv(t, func(proto.CanvasVideoRequest) proto.CanvasVideoReply {
@@ -126,9 +128,7 @@ func TestLibraryPublishGoesOnWithoutAVideo(t *testing.T) {
 			if got.Status != api.LibraryReview {
 				t.Fatalf("published: %+v", got)
 			}
-			if c.noVideo && len(asked) != 0 {
-				t.Fatal("the app was asked anyway")
-			}
+			_ = asked // the draft asks in any case: what the form says is known at send
 			if _, err := e.blobs.Get(context.Background(), "library/items/"+got.ItemID+"/v1/video"); err == nil {
 				t.Fatal("a video went")
 			}
@@ -152,5 +152,62 @@ func TestLibraryPublishWithNoAppForAVideo(t *testing.T) {
 	}
 	if _, err := e.srv.libraryPublish(proto.LibraryPublishParams{DraftID: id, Form: movingForm()}); err != nil {
 		t.Fatal(err)
+	}
+}
+
+// The video is of what the creator saw in the form: it's made with the draft, not
+// when it's sent, by which time the canvas may show something else.
+func TestLibraryVideoIsMadeWithTheDraft(t *testing.T) {
+	e := newLibraryEnv(t, true)
+	video := silentMP4()
+	var asked atomic.Int32
+	var app *client.Client
+	app = connectApp(t, e.srv, func(ev proto.Event) {
+		switch ev.Name {
+		case proto.EventCanvasVideo:
+			var req proto.CanvasVideoRequest
+			if json.Unmarshal(ev.Data, &req) == nil {
+				asked.Add(1)
+				go func() { _ = app.CanvasVideoReply(proto.CanvasVideoReply{ID: req.ID, Result: proto.CanvasVideoResult{Data: video}}) }()
+			}
+		case proto.EventCanvasRender:
+			var req proto.CanvasRenderRequest
+			if json.Unmarshal(ev.Data, &req) == nil {
+				go func() { _ = app.CanvasRenderReply(proto.CanvasRenderReply{ID: req.ID, Data: onePixelPNG}) }()
+			}
+		}
+	})
+	if err := app.ServeBrowsers(); err != nil {
+		t.Fatal(err)
+	}
+	cv, err := app.CreateCanvas(proto.CanvasCreateParams{Title: "Moving", Kind: proto.CanvasBoard})
+	if err != nil {
+		t.Fatal(err)
+	}
+	frame := cv.Frames[0]
+	const moving = `<style>@keyframes a{to{opacity:0}}h1{animation:a 1s infinite}</style><h1>Hi</h1>`
+	if _, err := app.EditCanvas(proto.CanvasEdit{ID: cv.ID, Op: proto.CanvasOpHTMLSet, Frame: frame.ID, HTML: moving}); err != nil {
+		t.Fatal(err)
+	}
+	prepared, err := app.LibraryPrepare(proto.LibraryPrepareParams{Canvas: cv.ID, Frame: frame.ID})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := asked.Load(); got != 1 {
+		t.Fatalf("made %d videos with the draft", got)
+	}
+	if _, err := app.EditCanvas(proto.CanvasEdit{ID: cv.ID, Op: proto.CanvasOpHTMLSet, Frame: frame.ID, HTML: "<h1>Something private since</h1>"}); err != nil {
+		t.Fatal(err)
+	}
+	got, err := app.LibraryPublish(proto.LibraryPublishParams{DraftID: prepared.DraftID, Form: movingForm(), AcceptWarnings: true})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if n := asked.Load(); n != 1 {
+		t.Fatalf("the canvas was recorded again at send: %d", n)
+	}
+	kept, err := e.blobs.Get(context.Background(), "library/items/"+got.ItemID+"/v1/video")
+	if err != nil || string(kept) != string(video) {
+		t.Fatalf("the video in the bucket: %d bytes, %v", len(kept), err)
 	}
 }

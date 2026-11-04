@@ -9,6 +9,7 @@ import (
 	"github.com/egoist/mygo/ui"
 
 	"github.com/enowx/enowx/client"
+	"github.com/enowx/enowx/core/designshare"
 	"github.com/enowx/enowx/proto"
 	"github.com/enowx/enowx/ui/communityview"
 )
@@ -84,6 +85,26 @@ func (a *App) libraryAsked(data json.RawMessage) func() {
 			hc := a.canvasesOf()
 			a.page, hc.open, hc.frame, hc.compare = pageCanvas, ask.Canvas, ask.Frame, nil
 			a.canvases.ShareDesign(a.canvasOptions(), ask.Canvas, ask.Frame)
+		})
+	}
+}
+
+// librarySkillAsked is an agent or a command asking to keep a design as a skill
+// (library skill --install). A card says so; only a click on it opens the dialog a
+// link opens, which shows what the cloud says of the design and asks. Nothing of
+// the design's is in the card, and nothing in the ask decides what the dialog says.
+func (a *App) librarySkillAsked(data json.RawMessage) func() {
+	var ask proto.LibrarySkillAsked
+	if json.Unmarshal(data, &ask) != nil || !designshare.ValidItem(ask.ItemID) {
+		return nil
+	}
+	return func() {
+		text := "Asked to keep a design of the Community Library as a skill"
+		if ask.From != "" {
+			text = "An agent asks you to keep a design of the Community Library as a skill"
+		}
+		a.toastAction("library-skill:"+ask.ItemID, "Community Library", text+". Nothing is kept until you say so.", func() {
+			a.libLink = &libraryLink{open: true, link: designshare.AppLink{Action: designshare.LinkSkill, Item: ask.ItemID, Version: ask.Version}}
 		})
 	}
 }

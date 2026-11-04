@@ -20,7 +20,7 @@ func (s *Service) queue(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	for i := range items {
-		items[i].LibraryItem = shown(items[i].LibraryItem)
+		items[i].LibraryItem = forWhoMayPeek(items[i].LibraryItem)
 	}
 	if err := s.fillSimilar(r.Context(), items); err != nil {
 		s.answer(w, nil, err)
@@ -54,6 +54,17 @@ func (s *Service) decideItem(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	id, actor := r.PathValue("id"), asker(r).account.ID
+	if d.Action == api.DecisionApprove {
+		owner, err := s.db.LibraryOwner(r.Context(), id)
+		if err != nil {
+			s.answer(w, nil, err)
+			return
+		}
+		if owner == actor {
+			fail(w, http.StatusForbidden, "another moderator decides on your own design")
+			return
+		}
+	}
 	switch d.Action {
 	case api.DecisionApprove, api.DecisionReject:
 		kind := api.NotifyRejected
@@ -99,6 +110,10 @@ func (s *Service) decideReport(w http.ResponseWriter, r *http.Request) {
 	target, err := s.db.LibraryReportTarget(r.Context(), id)
 	if err != nil {
 		s.answer(w, nil, err)
+		return
+	}
+	if d.Action == api.DecisionDismiss && target.Account == asker(r).account.ID {
+		fail(w, http.StatusForbidden, "another moderator decides on a report about you")
 		return
 	}
 	if err := s.db.DecideLibraryReport(r.Context(), asker(r).account.ID, id, d.Action == api.DecisionUphold, reason); err != nil {

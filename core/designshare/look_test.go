@@ -1,7 +1,9 @@
 package designshare
 
 import (
+	"runtime"
 	"slices"
+	"strings"
 	"testing"
 
 	"github.com/enowx/enowx/proto"
@@ -89,5 +91,23 @@ func TestParseColorForms(t *testing.T) {
 		if _, ok := parseColor(s); ok {
 			t.Errorf("%q read", s)
 		}
+	}
+}
+
+// Variables naming variables can't make a page's few bytes into gigabytes: its look
+// is read within a budget, and comes out all the same.
+func TestLookOfKeepsVariablesWithinABudget(t *testing.T) {
+	uses := func(name string) string { return strings.Repeat("var(--"+name+")", 120) }
+	page := `<style>:root{--a:` + uses("b") + `;--b:` + uses("c") + `;--c:` + uses("d") + `;--d:#112233;--g:#000000}
+		body{background:var(--g)} p{color:var(--a)} h1{color:var(--a)}</style><p>x</p>`
+	var before, after runtime.MemStats
+	runtime.ReadMemStats(&before)
+	look := LookOf(Frame{Width: 800, HTML: page})
+	runtime.ReadMemStats(&after)
+	if got := after.TotalAlloc - before.TotalAlloc; got > 64<<20 {
+		t.Errorf("it took %d MiB to read", got>>20)
+	}
+	if look.Theme != "dark" {
+		t.Errorf("look: %+v", look)
 	}
 }

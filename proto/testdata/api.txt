@@ -42,6 +42,7 @@ event goa.flagged
 event hooks.changed
 event host.visitors
 event library.publishAsked
+event library.skillAsked
 event note.chat
 event notes.changed
 event notes.groups
@@ -1439,6 +1440,9 @@ field LibraryActions.useReference bool
 field LibraryAskPublishParams.canvas string
 field LibraryAskPublishParams.frame string
 field LibraryAskPublishParams.from string
+field LibraryAskSkillParams.from string
+field LibraryAskSkillParams.itemId string
+field LibraryAskSkillParams.version int
 field LibraryDesign.canvas string
 field LibraryDesign.draftId string
 field LibraryDesign.findings []LibraryFinding
@@ -1555,6 +1559,10 @@ field LibrarySearchParams.sort string
 field LibrarySkillAnswer.installed string
 field LibrarySkillAnswer.name string
 field LibrarySkillAnswer.text string
+field LibrarySkillAsked.appOpen bool
+field LibrarySkillAsked.from string
+field LibrarySkillAsked.itemId string
+field LibrarySkillAsked.version int
 field LibrarySkillParams.agent string
 field LibrarySkillParams.install bool
 field LibrarySkillParams.itemId string
@@ -3066,6 +3074,7 @@ method host.share
 method host.share.set
 method host.visitors
 method library.askPublish
+method library.askSkill
 method library.deleteDraft
 method library.item
 method library.newer

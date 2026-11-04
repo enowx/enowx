@@ -147,21 +147,17 @@ func FrameDocument(f proto.CanvasFrame, assets Assets) string {
 // inlineAssets puts a canvas's files a mockup shows ("assets/<name>") in
 // it, so it shows them anywhere.
 func inlineAssets(page string, assets Assets) string {
-	if assets == nil || !strings.Contains(page, "assets/") {
+	if assets == nil || !strings.Contains(page, assetPrefix) {
 		return page
 	}
 	var b strings.Builder
 	for {
-		i := strings.Index(page, "assets/")
+		i, end := nextAsset(page)
 		if i < 0 {
 			b.WriteString(page)
 			return b.String()
 		}
-		end := i + len("assets/")
-		for end < len(page) && !strings.ContainsRune("\"' )>", rune(page[end])) {
-			end++
-		}
-		name := page[i+len("assets/") : end]
+		name := page[i+len(assetPrefix) : end]
 		b.WriteString(page[:i])
 		if src := imageSrc(name, assets); src != name {
 			b.WriteString(src)
@@ -170,6 +166,21 @@ func inlineAssets(page string, assets Assets) string {
 		}
 		page = page[end:]
 	}
+}
+
+const assetPrefix = "assets/"
+
+// nextAsset is where page's next "assets/<name>" starts and ends, -1 for none.
+func nextAsset(page string) (start, end int) {
+	start = strings.Index(page, assetPrefix)
+	if start < 0 {
+		return -1, -1
+	}
+	end = start + len(assetPrefix)
+	for end < len(page) && !strings.ContainsRune("\"' )>", rune(page[end])) {
+		end++
+	}
+	return start, end
 }
 
 // Standalone is the whole canvas as one read-only page to share: each
