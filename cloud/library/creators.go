@@ -28,6 +28,7 @@ func (s *Service) mountCreators(mux *http.ServeMux) {
 	handle("GET "+api.PathLibraryCreatorCollections, s.public(s.creatorCollections))
 	handle("PUT "+api.PathLibraryMe, s.signedIn(s.setProfile))
 	s.mountSocial(handle)
+	s.mountErase(handle)
 }
 
 // member is for what any signed-in account does, up to limit a minute each.
