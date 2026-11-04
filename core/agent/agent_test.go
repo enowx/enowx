@@ -1,6 +1,9 @@
 package agent
 
 import (
+	"os"
+	"path/filepath"
+	"runtime"
 	"slices"
 	"testing"
 )
@@ -63,5 +66,42 @@ func TestEnvironSkipsThroughTheEnvironment(t *testing.T) {
 	}
 	if env := goose.Environ(false); len(env) != 0 {
 		t.Fatalf("not skipping: %q", env)
+	}
+}
+
+// The migration tool installed as goose isn't taken for the agent, whatever its version
+// prints, and the agent is found even with that tool first on the PATH.
+func TestNamesakeIsNotTheAgent(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("needs a shell script")
+	}
+	write := func(dir, help string) {
+		t.Helper()
+		script := "#!/bin/sh\nprintf '%s\\n' '" + help + "'\n"
+		if err := os.WriteFile(filepath.Join(dir, "goose"), []byte(script), 0o755); err != nil {
+			t.Fatal(err)
+		}
+	}
+	tool, real := t.TempDir(), t.TempDir()
+	write(tool, "Usage: goose DRIVER DBSTRING [OPTIONS] COMMAND\nDrivers:\n  postgres\nCommands:\n  up\n  down")
+	write(real, "An AI agent\nCommands:\n  session  Start or resume interactive chat sessions")
+	goose, _ := Find("goose")
+
+	t.Setenv("PATH", tool)
+	if goose.Installed() {
+		t.Error("the migration tool counted as installed")
+	}
+	if got := goose.NamesakeHere(); got != filepath.Join(tool, "goose") {
+		t.Errorf("namesake: %q", got)
+	}
+
+	t.Setenv("PATH", tool+string(os.PathListSeparator)+real)
+	if !goose.Installed() || goose.NamesakeHere() != "" || goose.Program() != filepath.Join(real, "goose") {
+		t.Errorf("the agent behind it wasn't found: %q", goose.Program())
+	}
+
+	t.Setenv("PATH", real)
+	if !goose.Installed() || goose.Program() != "goose" {
+		t.Error("the agent wasn't confirmed")
 	}
 }

@@ -362,6 +362,9 @@ func launchFor(p proto.SessionCreateParams, chat chatFor) (launch, error) {
 	if !ok {
 		return launch{}, fmt.Errorf("unknown agent %q", p.Agent)
 	}
+	if other := preset.NamesakeHere(); other != "" {
+		return launch{}, fmt.Errorf("%s at %s isn't the agent, but another program with its name: install the agent to start it", preset.Name, other)
+	}
 	skip := p.SkipPermissions && len(preset.SkipPermissions)+len(preset.SkipEnv) > 0
 	if skip && preset.RefusesRootSkip && os.Geteuid() == 0 {
 		return launch{}, fmt.Errorf("%s refuses to skip permission prompts as root; reconnect and let enowX run as a regular user (Manage hosts → Ask user again), or turn off Skip permission prompts", preset.Name)

@@ -185,8 +185,8 @@ var Presets = []Preset{
 	},
 	{
 		ID: "goose", Name: "Goose", Command: "goose",
-		// The database migration tool installs as goose too.
-		Namesake:   &Namesake{Args: []string{"--version"}, Says: "goose version: v"},
+		// The database migration tool installs as goose too, and its help has no sessions.
+		Namesake:   &Namesake{Args: []string{"--help"}, AgentSays: "session"},
 		TypePrompt: true,
 		SkipEnv:    []string{"GOOSE_MODE=auto"},
 		Install:    "curl -fsSL https://github.com/block/goose/releases/download/stable/download_cli.sh | CONFIGURE=false bash",
