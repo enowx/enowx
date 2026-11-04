@@ -22,6 +22,7 @@ func (v *View) page(c *ui.Context, o Options) {
 	// start over each time.
 	ui.Row(c.Key("canvas-body")).Grow(1).FillWidth().MinHeight(0).Children(func() {
 		ui.Column(c.Key("canvas-main")).Grow(1).MinWidth(0).FillHeight().Padding(theme.S3).Gap(theme.S2).Children(func() {
+			v.sourceNote(c, o, *cv)
 			v.agentBar(c, o, *cv)
 			v.errorBar(c)
 			v.toolbar(c, o, *cv)

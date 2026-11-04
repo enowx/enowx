@@ -83,6 +83,8 @@ Go 1.27+ is required (MyGo needs it). With an older `go`, set `GOTOOLCHAIN=go1.2
 | `core/selfprofile` | What the process it runs in holds and uses, by the system's count and the Go runtime's, for `enowx-app profile` (see `docs/performance.md`) | **No** |
 | `core/memtune` | How long-running programs give memory back: the limit on the Go heap, returning what a burst leaves (see `docs/performance.md`) | **No** |
 | `cloud/` | The team cloud's server (`cloud/server`), its database (`cloud/store`), API types (`cloud/api`) and the sealing of a team's keys and items (`cloud/seal`) (see `docs/cloud.md`) | **No** |
+| `cloud/library` | enowX UI's server, under `/v1/library`: the community library's API, its web sign-in, moderation (see `docs/library.md`) | **No** |
+| `core/designshare` | A canvas's design made into what the community library keeps: its bundle and checks, the host's drafts, the code, skills and `enowx://` links people take from it; `core/designshare/thumb` its picture (see `docs/library.md`) | **No** |
 | `cmd/enowx-cloud` | The cloud server's entry point and its image (`Dockerfile`) | **No** |
 | `hostconn/` | Connects to a host's daemon: starts or replaces it locally, installs or upgrades it over SSH | **No** |
 | `docs/` | The docs, and package `docs` shipping them in the program for `goa doc` (all top-level `*.md` but `PLAN.md`) | **No** |
@@ -99,7 +101,7 @@ Go 1.27+ is required (MyGo needs it). With an older `go`, set `GOTOOLCHAIN=go1.2
 | `ui/widget` | Controls every view shares: buttons, dialogs, menus, chips, Markdown | Yes |
 | `ui/textfmt` | How values read in the UI: sizes, plurals, paths | **No** |
 | `ui/localpicker` | Picks files and folders of this device, for adding them to a session's folder | Yes |
-| `ui/chatview`, `ui/activityview`, `ui/appwindow`, `ui/libraryview`, `ui/browserview`, `ui/checkview`, `ui/diffview`, `ui/fileview`, `ui/portview`, `ui/trafficview`, `ui/androidview`, `ui/notesview`, `ui/canvasview`, `ui/vaultview`, `ui/usageview`, `ui/folderpicker`, `ui/syncview` | Self-contained views; they get what they need from `ui` through options and callbacks, never import it | Yes |
+| `ui/chatview`, `ui/activityview`, `ui/appwindow`, `ui/libraryview`, `ui/communityview`, `ui/browserview`, `ui/checkview`, `ui/diffview`, `ui/fileview`, `ui/portview`, `ui/trafficview`, `ui/androidview`, `ui/notesview`, `ui/canvasview`, `ui/vaultview`, `ui/usageview`, `ui/folderpicker`, `ui/syncview` | Self-contained views; they get what they need from `ui` through options and callbacks, never import it | Yes |
 | `ui/onboardview` | The first run: the app assembling itself, a clock driving the opening, frames, wires and the change of style, the seven steps in a panel; its links in `links.go` (see `docs/onboarding.md`); self-contained like the views above | Yes |
 | `ui/platformview` | Claude Platform's sheet (API keys, from the vault; its system prompt) and the words its chat says of them; self-contained like the views above | Yes |
 | `ui/projectdocsview` | Project Docs on the Notes page: making a project, its summary, a document's strip; self-contained like the views above, drawn through a hook of `ui/notesview` | Yes |

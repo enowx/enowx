@@ -143,6 +143,10 @@ The daemon draws a frame of shapes itself (PNG, PDF and SVG). Agents on a server
 
 A frame with HTML needs a web engine. The daemon asks an app connected to the host (`canvas.render` event): the latest showing this host, which serves Browsers, else the latest only watching it, which registers with `canvas.serve` and renders on the device the app runs on. It loads the page in a web view behind its window, captures it, and answers (`canvas.renderReply`). An older app or daemon doesn't do the watching part, so it needs the app to show the host. Exporting a motion as a video still needs the app showing the host. Without such an app, rendering a mockup says to open it.
 
+## Sharing a design
+
+A design's right-click menu shares it to the community library when the host's cloud has one, through a form that says what becomes public and what stays private: only that design, never the canvas's comments, brief, versions or chats. See [library.md](library.md).
+
 ## Where they are kept
 
 On the host, in `~/.enowx-app/canvas/<id>/`:

@@ -27,6 +27,8 @@ var limits = map[string]int{
 	"GET " + pathContributorPage:     30,
 	"GET " + pathContributorStart:    20,
 	"GET " + pathContributorCallback: 20,
+	"GET /library/authorize":         30,
+	"POST /v1/library/auth/exchange": 60,
 }
 
 // limiter counts requests per door and address, a minute at a time.

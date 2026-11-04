@@ -60,7 +60,7 @@ func (s *Server) canvasVideo(p proto.CanvasVideoParams) (proto.CanvasVideoResult
 	b.mu.Unlock()
 	assets := func(name string) ([]byte, error) { return s.canvasFor(c.ID).Asset(c.ID, name) }
 	req := proto.CanvasVideoRequest{ID: newRenderID(), HTML: canvas.FrameDocument(f, assets), Name: c.Title + " " + f.Name,
-		Width: f.Width, Height: f.Height, OutWidth: p.Width, FPS: fps, From: p.From, To: p.To, Warning: canvas.VideoWarning(f)}
+		Width: f.Width, Height: f.Height, OutWidth: p.Width, FPS: fps, From: p.From, To: p.To, Warning: canvas.VideoWarning(f), Preview: p.Preview}
 	done, word := make(chan proto.CanvasVideoReply, 1), make(chan struct{}, 1)
 	w := &s.videos
 	w.mu.Lock()

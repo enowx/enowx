@@ -41,6 +41,8 @@ event goa.changed
 event goa.flagged
 event hooks.changed
 event host.visitors
+event library.publishAsked
+event library.skillAsked
 event note.chat
 event notes.changed
 event notes.groups
@@ -377,6 +379,7 @@ field CacheReport.kinds []CacheKind
 field CacheReport.total int64
 field Canvas.brief *DesignBrief
 field Canvas.frames []CanvasFrame
+field Canvas.references []string
 field CanvasAsset.data []byte
 field CanvasAsset.id string
 field CanvasAsset.name string
@@ -456,6 +459,7 @@ field CanvasCreateParams.frames []CanvasFrame
 field CanvasCreateParams.group string
 field CanvasCreateParams.kind string
 field CanvasCreateParams.projects []string
+field CanvasCreateParams.source *CanvasSource
 field CanvasCreateParams.team string
 field CanvasCreateParams.title string
 field CanvasEdit.before string
@@ -476,6 +480,7 @@ field CanvasEdit.name *string
 field CanvasEdit.op string
 field CanvasEdit.page *string
 field CanvasEdit.projects *[]string
+field CanvasEdit.reference string
 field CanvasEdit.session string
 field CanvasEdit.target string
 field CanvasEdit.title *string
@@ -528,6 +533,7 @@ field CanvasInfo.id string
 field CanvasInfo.kind string
 field CanvasInfo.paused bool
 field CanvasInfo.projects []string
+field CanvasInfo.source *CanvasSource
 field CanvasInfo.team string
 field CanvasInfo.title string
 field CanvasInfo.updated time.Time
@@ -577,6 +583,12 @@ field CanvasShare.token string
 field CanvasShare.urls []string
 field CanvasShareParams.id string
 field CanvasShareParams.stop bool
+field CanvasSource.address string
+field CanvasSource.creator string
+field CanvasSource.itemId string
+field CanvasSource.license string
+field CanvasSource.title string
+field CanvasSource.version int
 field CanvasUnslop.ask string
 field CanvasUnslop.findings []UnslopFinding
 field CanvasUnslop.frame string
@@ -627,6 +639,7 @@ field CanvasVideoParams.fps int
 field CanvasVideoParams.frame string
 field CanvasVideoParams.from float64
 field CanvasVideoParams.id string
+field CanvasVideoParams.preview bool
 field CanvasVideoParams.to float64
 field CanvasVideoParams.width int
 field CanvasVideoProgress.done int
@@ -642,6 +655,7 @@ field CanvasVideoRequest.html string
 field CanvasVideoRequest.id string
 field CanvasVideoRequest.name string
 field CanvasVideoRequest.outWidth int
+field CanvasVideoRequest.preview bool
 field CanvasVideoRequest.to float64
 field CanvasVideoRequest.warning string
 field CanvasVideoRequest.width int
@@ -1457,6 +1471,162 @@ field LeftProcess.name string
 field LeftProcess.pid int
 field LeftProcess.session string
 field LeftProcess.start string
+field LibraryActions.copyPrompt bool
+field LibraryActions.openInEnowX bool
+field LibraryActions.useComponent bool
+field LibraryActions.useReference bool
+field LibraryAskPublishParams.canvas string
+field LibraryAskPublishParams.frame string
+field LibraryAskPublishParams.from string
+field LibraryAskSkillParams.from string
+field LibraryAskSkillParams.itemId string
+field LibraryAskSkillParams.version int
+field LibraryDesign.canvas string
+field LibraryDesign.draftId string
+field LibraryDesign.findings []LibraryFinding
+field LibraryDesign.frame string
+field LibraryDesign.itemId string
+field LibraryDesign.rejectReason string
+field LibraryDesign.status string
+field LibraryDesign.title string
+field LibraryDesign.updated time.Time
+field LibraryDesign.url string
+field LibraryDesign.version int
+field LibraryDraftParams.draftId string
+field LibraryDraftParams.form LibraryForm
+field LibraryFinding.kind string
+field LibraryFinding.severity string
+field LibraryFinding.where string
+field LibraryForm.category string
+field LibraryForm.description string
+field LibraryForm.kind string
+field LibraryForm.license string
+field LibraryForm.noVideo bool
+field LibraryForm.prompt string
+field LibraryForm.promptApproved bool
+field LibraryForm.rights bool
+field LibraryForm.sourceUrl string
+field LibraryForm.style string
+field LibraryForm.tags []string
+field LibraryForm.title string
+field LibraryItemRef.itemId string
+field LibraryListing.actions LibraryActions
+field LibraryListing.category string
+field LibraryListing.creator string
+field LibraryListing.description string
+field LibraryListing.featured bool
+field LibraryListing.handle string
+field LibraryListing.hasMotion bool
+field LibraryListing.hasPhone bool
+field LibraryListing.height int
+field LibraryListing.itemId string
+field LibraryListing.kind string
+field LibraryListing.license string
+field LibraryListing.madeWith string
+field LibraryListing.tags []string
+field LibraryListing.title string
+field LibraryListing.updated time.Time
+field LibraryListing.url string
+field LibraryListing.version int
+field LibraryListing.width int
+field LibraryNewer.gone bool
+field LibraryNewer.latest int
+field LibraryNewer.source *CanvasSource
+field LibraryNewer.url string
+field LibraryOpenParams.itemId string
+field LibraryOpenParams.projects []string
+field LibraryOpenParams.version int
+field LibraryOpened.canvas CanvasInfo
+field LibraryOpened.files int
+field LibraryPicture.data []byte
+field LibraryPictureParams.itemId string
+field LibraryPictureParams.phone bool
+field LibraryPictureParams.version int
+field LibraryPrepareParams.canvas string
+field LibraryPrepareParams.frame string
+field LibraryPrepareParams.noPhone bool
+field LibraryPrepared.canvas string
+field LibraryPrepared.draftId string
+field LibraryPrepared.files int
+field LibraryPrepared.findings []LibraryFinding
+field LibraryPrepared.form LibraryForm
+field LibraryPrepared.frame string
+field LibraryPrepared.frameName string
+field LibraryPrepared.hasMotion bool
+field LibraryPrepared.height int
+field LibraryPrepared.itemId string
+field LibraryPrepared.madeWith string
+field LibraryPrepared.otherDesigns int
+field LibraryPrepared.phone string
+field LibraryPrepared.phoneHeight int
+field LibraryPrepared.phoneName string
+field LibraryPrepared.phoneOffered bool
+field LibraryPrepared.phoneWidth int
+field LibraryPrepared.siteUrl string
+field LibraryPrepared.size int64
+field LibraryPrepared.trust string
+field LibraryPrepared.width int
+field LibraryPromptAnswer.item LibraryListing
+field LibraryPromptAnswer.prompt string
+field LibraryPublishAsked.appOpen bool
+field LibraryPublishAsked.canvas string
+field LibraryPublishAsked.canvasTitle string
+field LibraryPublishAsked.frame string
+field LibraryPublishAsked.frameName string
+field LibraryPublishAsked.from string
+field LibraryPublishParams.acceptWarnings bool
+field LibraryPublishParams.draftId string
+field LibraryPublishParams.form LibraryForm
+field LibraryReferenceParams.canvas string
+field LibraryReferenceParams.itemId string
+field LibraryReferenceParams.version int
+field LibraryReferenced.canvas string
+field LibraryReferenced.credit string
+field LibraryReferenced.file string
+field LibraryResults.items []LibraryListing
+field LibraryResults.next string
+field LibraryResults.on bool
+field LibraryResults.siteUrl string
+field LibrarySearchParams.category string
+field LibrarySearchParams.cursor string
+field LibrarySearchParams.kind string
+field LibrarySearchParams.license string
+field LibrarySearchParams.limit int
+field LibrarySearchParams.query string
+field LibrarySearchParams.sort string
+field LibrarySkillAnswer.installed string
+field LibrarySkillAnswer.name string
+field LibrarySkillAnswer.text string
+field LibrarySkillAsked.appOpen bool
+field LibrarySkillAsked.from string
+field LibrarySkillAsked.itemId string
+field LibrarySkillAsked.version int
+field LibrarySkillParams.agent string
+field LibrarySkillParams.install bool
+field LibrarySkillParams.itemId string
+field LibrarySkillParams.project string
+field LibrarySkillParams.version int
+field LibraryState.designs []LibraryDesign
+field LibraryState.limit int64
+field LibraryState.on bool
+field LibraryState.signedIn bool
+field LibraryState.siteUrl string
+field LibraryState.used int64
+field LibraryUseInfo.canOpen bool
+field LibraryUseInfo.canReference bool
+field LibraryUseInfo.creator string
+field LibraryUseInfo.itemId string
+field LibraryUseInfo.kind string
+field LibraryUseInfo.license string
+field LibraryUseInfo.on bool
+field LibraryUseInfo.refused string
+field LibraryUseInfo.signedIn bool
+field LibraryUseInfo.skillAgents []string
+field LibraryUseInfo.title string
+field LibraryUseInfo.url string
+field LibraryUseInfo.version int
+field LibraryUseRef.itemId string
+field LibraryUseRef.version int
 field MCPTest.error string
 field MCPTest.ok bool
 field MCPTest.protocol string
@@ -3052,6 +3222,23 @@ method host.keysToVault
 method host.share
 method host.share.set
 method host.visitors
+method library.askPublish
+method library.askSkill
+method library.deleteDraft
+method library.item
+method library.newer
+method library.open
+method library.picture
+method library.prepare
+method library.prompt
+method library.publish
+method library.reference
+method library.saveDraft
+method library.search
+method library.skill
+method library.status
+method library.useInfo
+method library.withdraw
 method note.accept
 method note.asset
 method note.attach
@@ -3391,6 +3578,7 @@ value CanvasOpHTMLSet=html.set
 value CanvasOpHTMLText=html.text
 value CanvasOpMeta=meta
 value CanvasOpPick=pick
+value CanvasOpReference=reference
 value CanvasOpen=open
 value CanvasPause=pause
 value CanvasResume=resume
@@ -3557,6 +3745,7 @@ value KitPipeline=pipeline
 value KitTemplate=template
 value LargeSkip=skip
 value LargeSource=source
+value LibraryStatusDraft=draft
 value MentionCanvas=canvas
 value MentionFile=file
 value MentionNote=note

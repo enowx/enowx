@@ -73,6 +73,22 @@ type Options struct {
 	// Share makes canvas id's read-only link, or stops it (nil: no
 	// sharing).
 	Share func(id string, stop bool, done func(proto.CanvasShare, error))
+	// The community library (library.go): nil, or a cloud without one, offers nothing.
+	LibraryStatus      func(done func(proto.LibraryState, error))
+	LibraryPrepare     func(p proto.LibraryPrepareParams, done func(proto.LibraryPrepared, error))
+	LibrarySaveDraft   func(p proto.LibraryDraftParams, done func(error))
+	LibraryPublish     func(p proto.LibraryPublishParams, done func(proto.LibraryDesign, error))
+	LibraryWithdraw    func(id string, done func(error))
+	LibraryDeleteDraft func(id string, done func(error))
+	// LibraryNewer says how a copied canvas stands against its original.
+	LibraryNewer func(id string, done func(proto.LibraryNewer, error))
+	// CloudSignIn goes to where the host signs in to its cloud; OpenURL opens an
+	// address in the user's browser.
+	CloudSignIn func()
+	OpenURL     func(url string)
+	// OpenCommunity goes to the community library's page, offered from the list
+	// when the host's cloud has one.
+	OpenCommunity func()
 	// Confirm does do once the user agrees (title, what is lost, the
 	// action); nil does it at once.
 	Confirm func(title, msg, action string, do func())
@@ -141,7 +157,8 @@ const (
 
 // View is the Canvas page's state. It belongs to the main thread.
 type View struct {
-	outlinePage string // the page outline was worked out for
+	source      sourceState // the open canvas's original, when it's a copy
+	outlinePage string      // the page outline was worked out for
 	outline     []canvas.HTMLElement
 	outlineDone bool
 	htmlWork    htmlWork
@@ -183,6 +200,7 @@ type View struct {
 	renaming    *string
 	sharing     *shareState // the Share link dialog, open
 	menu        widget.ContextMenu
+	library     libraryState
 	filter      string
 	htmlEdit    *htmlEdit
 	web         *Web
@@ -474,6 +492,8 @@ func (v *View) Draw(c *ui.Context, o Options) {
 	v.deleteDialog(c, o)
 	v.renameDialog(c, o)
 	v.shareDialog(c, o)
+	v.loadLibrary(o)
+	v.libraryDialogs(c, o)
 	v.describeDialog(c, o)
 }
 

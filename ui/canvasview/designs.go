@@ -195,6 +195,7 @@ func (v *View) designItems(c *ui.Context, o Options, f proto.CanvasFrame, done f
 		c.WriteClipboard(canvas.Link(cv.ID, i+1))
 		done()
 	}
+	v.libraryItem(c, o, cv.ID, f, done)
 	if len(cv.Frames) > 1 {
 		widget.MenuSeparator(c)
 		if widget.MenuItem(c.Key("rm"), icon.Trash, "Delete design", true) {

@@ -71,6 +71,7 @@ func (v *View) briefDialog(c *ui.Context, o Options) {
 				})
 			}
 		})
+		briefReferences(c, v.canvas)
 	}, func() {
 		if widget.PrimaryButton(c, nil, "Save", "").Clicked() {
 			var b proto.DesignBrief

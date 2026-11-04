@@ -22,6 +22,9 @@ type CanvasVideoParams struct {
 	Width int     `json:"width,omitempty"`
 	From  float64 `json:"from,omitempty"` // ms
 	To    float64 `json:"to,omitempty"`   // ms, 0 for its end
+	// Preview is for a design's short video in the community library: small, and
+	// left in no folder of the user's. Its Data is all there is of it.
+	Preview bool `json:"preview,omitempty"`
 }
 
 // CanvasVideoRequest is CanvasVideoParams made ready for the app.
@@ -36,6 +39,7 @@ type CanvasVideoRequest struct {
 	From     float64 `json:"from,omitempty"`
 	To       float64 `json:"to,omitempty"`
 	Warning  string  `json:"warning,omitempty"`
+	Preview  bool    `json:"preview,omitempty"`
 }
 
 // CanvasVideoProgress says how many of a video's frames are done.

@@ -65,6 +65,10 @@ func main() {
 		return
 	}
 
+	if !takeLinks() {
+		return // the app already running got this launch's link
+	}
+
 	memtune.Start(nil) // for the app; a daemon of this program starts its own in Run
 	remote := flag.String("remote", "", "open the server at `user@host[:port]` over SSH")
 	project := flag.String("project", "", "open `DIR` (a path on that host) as a project")
@@ -100,6 +104,8 @@ func main() {
 		ResumeHost:    *remote == "",
 		Onboarding:    true,
 	})
+	// Before Run, for the link a launch brings.
+	mygo.App.OnOpenURL(app.OpenLink)
 	mygo.App.WhenReady(func() { app.Open() })
 	if err := mygo.App.Run(); err != nil {
 		log.Fatal(err)

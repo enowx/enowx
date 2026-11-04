@@ -78,6 +78,9 @@ type CanvasInfo struct {
 	Winner string `json:"winner,omitempty"`
 	// Team is the team whose space it is in, "" for the user's own.
 	Team string `json:"team,omitempty"`
+	// Source is where it was copied from in the community library, nil when it
+	// wasn't. It stays, whatever happens to the original.
+	Source *CanvasSource `json:"source,omitempty"`
 }
 
 // Canvas is a canvas with its frames: pages, or the same page at a
@@ -87,6 +90,10 @@ type Canvas struct {
 	Frames []CanvasFrame `json:"frames"`
 	// Brief is what its designs are for (CanvasOpBrief sets it).
 	Brief *DesignBrief `json:"brief,omitempty"`
+	// References are other people's designs from the community library kept
+	// with it, a credit line each, shown with its brief. Apart from Brief, which
+	// a build asks for by its being there.
+	References []string `json:"references,omitempty"`
 }
 
 // CanvasFrame is a design of a canvas, Width×Height: a page, a variant of
@@ -166,6 +173,8 @@ type CanvasCreateParams struct {
 	Frames   []CanvasFrame `json:"frames,omitempty"`
 	// Team makes it in that team's space, "" in the user's own.
 	Team string `json:"team,omitempty"`
+	// Source is where a copy comes from in the community library.
+	Source *CanvasSource `json:"source,omitempty"`
 }
 
 // Edits of a canvas (CanvasEdit.Op).
@@ -183,6 +192,7 @@ const (
 	CanvasOpFrameCopy = "frame.copy"
 	CanvasOpPick      = "pick"            // Frame the winner ("" none)
 	CanvasOpBrief     = "brief"           // Brief: what the canvas's designs are for (nil takes it away)
+	CanvasOpReference = "reference"       // Reference: a credit line of another's design kept with the canvas
 	CanvasOpDirection = "frame.direction" // Direction: Frame's direction card (nil takes it away)
 	CanvasOpFrameGrid = "frame.grid"      // Grid: Frame's layout grid (nil takes it away)
 	CanvasOpHTMLSet   = "html.set"        // HTML: Frame's whole
@@ -199,6 +209,8 @@ const (
 // CanvasEdit is a change to canvas ID's frame Frame (its ID or name, ""
 // for the first), made by the agent of Session, or by the user ("").
 type CanvasEdit struct {
+	// Reference is the credit line CanvasOpReference keeps.
+	Reference string         `json:"reference,omitempty"`
 	ID        string         `json:"id"`
 	Op        string         `json:"op"`
 	Frame     string         `json:"frame,omitempty"`

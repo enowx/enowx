@@ -1,0 +1,386 @@
+package library
+
+import (
+	"context"
+	"encoding/base64"
+	"errors"
+	"net/http"
+	"strconv"
+	"strings"
+	"time"
+
+	"github.com/enowx/enowx/cloud/api"
+	"github.com/enowx/enowx/cloud/blobstore"
+	"github.com/enowx/enowx/core/designshare"
+)
+
+// What anyone can read, and what an owner can do with their own.
+
+func (s *Service) listItems(w http.ResponseWriter, r *http.Request) {
+	q := r.URL.Query()
+	limit, _ := strconv.Atoi(q.Get("limit"))
+	if limit == 0 {
+		limit = 24
+	}
+	offset := 0
+	if c := q.Get("cursor"); c != "" {
+		raw, err := base64.RawURLEncoding.DecodeString(c)
+		if err != nil {
+			fail(w, http.StatusBadRequest, "this cursor doesn't read")
+			return
+		}
+		if offset, err = strconv.Atoi(string(raw)); err != nil || offset < 0 || offset > 100000 {
+			fail(w, http.StatusBadRequest, "this cursor doesn't read")
+			return
+		}
+	}
+	query := queryOf(q)
+	query.Limit, query.Offset = limit, offset
+	ctx := r.Context()
+	if strings.TrimSpace(query.Q) != "" {
+		if !s.limits.allow("search "+s.addressOf(r), searchesPerMinute) {
+			tooMany(w, "that's many searches from here: wait a minute")
+			return
+		}
+		var cancel context.CancelFunc
+		ctx, cancel = context.WithTimeout(ctx, searchTime)
+		defer cancel()
+	}
+	items, more, err := s.db.LibraryItems(ctx, query)
+	if err != nil {
+		s.answer(w, nil, err)
+		return
+	}
+	for i := range items {
+		items[i] = shown(items[i])
+	}
+	out := api.LibraryItems{Items: items}
+	if more {
+		out.Next = base64.RawURLEncoding.EncodeToString([]byte(strconv.Itoa(offset + len(items))))
+	}
+	reply(w, out)
+}
+
+// gone says an item taken back or down answers 410 forever.
+func gone(status string) bool {
+	return status == api.LibraryWithdrawn || status == api.LibraryUnpublished || status == api.LibraryRemoved
+}
+
+// mayPeek says an optional token in the request belongs to its owner or a
+// moderator, who see what isn't public yet.
+func (s *Service) mayPeek(r *http.Request, it api.LibraryItem) bool {
+	accID, role := s.viewer(r)
+	return accID != "" && (accID == it.Creator.ID || role != "")
+}
+
+// publicItem is item id when the request may see it, or answers.
+func (s *Service) publicItem(w http.ResponseWriter, r *http.Request) (api.LibraryItem, bool) {
+	it, err := s.db.LibraryItem(r.Context(), r.PathValue("id"))
+	switch {
+	case err != nil:
+		s.answer(w, nil, err)
+	case gone(it.Status):
+		fail(w, http.StatusGone, "this design was taken down or unpublished")
+	case it.Status != api.LibraryLive && !s.mayPeek(r, it):
+		fail(w, http.StatusNotFound, "not found")
+	case it.RejectReason != "" && s.mayPeek(r, it):
+		return forWhoMayPeek(it), true
+	default:
+		return shown(it), true
+	}
+	return it, false
+}
+
+func (s *Service) getItem(w http.ResponseWriter, r *http.Request) {
+	it, ok := s.publicItem(w, r)
+	if !ok {
+		return
+	}
+	unlisted, err := s.db.LibraryOwnerUnlisted(r.Context(), it.Creator.ID)
+	if err != nil {
+		s.answer(w, nil, err)
+		return
+	}
+	it.Unlisted = unlisted
+	reply(w, it)
+}
+
+// listVersions are the versions anyone may look at: what shows now, and what
+// showed before it. Nothing under review, nor anyone's prompt or scan.
+func (s *Service) listVersions(w http.ResponseWriter, r *http.Request) {
+	it, ok := s.publicItem(w, r)
+	if !ok {
+		return
+	}
+	rows, err := s.db.LibraryVersions(r.Context(), it.ID)
+	if err != nil {
+		s.answer(w, nil, err)
+		return
+	}
+	out := []api.LibraryVersion{}
+	for _, v := range rows {
+		if v.Status == api.LibraryLive || v.Status == api.LibrarySuperseded {
+			a := v.API()
+			a.Scan, a.Prompt = nil, ""
+			actions := actionsFor(v.Kind, v.License)
+			a.Actions = &actions
+			out = append(out, a)
+		}
+	}
+	reply(w, out)
+}
+
+// getPrompt is what Copy prompt copies. A view-only item answers 403 here, not
+// only by having no button.
+func (s *Service) getPrompt(w http.ResponseWriter, r *http.Request) {
+	it, v, ok := s.usable(w, r, func(a api.LibraryActions) bool { return a.CopyPrompt })
+	if !ok {
+		return
+	}
+	if v.Prompt == "" || v.PromptApproved == "" {
+		fail(w, http.StatusNotFound, "this design has no prompt")
+		return
+	}
+	s.countReuse(it.ID)
+	reply(w, api.LibraryPrompt{Prompt: cleanText(v.Prompt, 8000) + "\n\n" + s.credit(it)})
+}
+
+// credit says where a copy comes from, who made it and under which license.
+func (s *Service) credit(it api.LibraryItem) string {
+	return "Design: " + designshare.Credit(it.Title, it.Creator.Handle) + "\n" + s.address(it) + "\nLicense: " + it.License
+}
+
+// object is a shown version's document or picture, for the website alone: nobody's
+// browser gets other people's HTML from this server's address, and the bucket's
+// token, which reads teams' files too, stays here. The bytes come as they're
+// kept (a document gzipped), and never change for a version, so the website keeps
+// them; whether they may still show is what it asks about the item.
+func (s *Service) object(w http.ResponseWriter, r *http.Request) {
+	part := r.PathValue("part")
+	if part != api.PartDoc && part != api.PartDocPhone && part != api.PartThumb && part != api.PartThumbPhone && part != api.PartVideo {
+		fail(w, http.StatusNotFound, "not found")
+		return
+	}
+	n, err := strconv.Atoi(r.PathValue("version"))
+	if err != nil {
+		fail(w, http.StatusBadRequest, "a version is a number")
+		return
+	}
+	it, err := s.db.LibraryItem(r.Context(), r.PathValue("id"))
+	switch {
+	case err != nil:
+		s.answer(w, nil, err)
+		return
+	case gone(it.Status):
+		fail(w, http.StatusGone, "this design was taken down or unpublished")
+		return
+	case it.Status != api.LibraryLive:
+		fail(w, http.StatusNotFound, "not found")
+		return
+	}
+	if it.LiveVersion != n {
+		// A version a later one replaced can still be looked at.
+		if v, err := s.db.LibraryVersion(r.Context(), it.ID, n); err != nil || v.Status != api.LibrarySuperseded {
+			fail(w, http.StatusNotFound, "not found")
+			return
+		}
+	}
+	select {
+	case s.objectReads <- struct{}{}:
+		defer func() { <-s.objectReads }()
+	case <-time.After(5 * time.Second):
+		w.Header().Set("Retry-After", "5")
+		fail(w, http.StatusServiceUnavailable, "the library is busy: try again")
+		return
+	case <-r.Context().Done():
+		return
+	}
+	data, err := s.objects.Get(r.Context(), objectKey(it.ID, n, part))
+	if errors.Is(err, blobstore.ErrNotFound) {
+		fail(w, http.StatusNotFound, "not found")
+		return
+	}
+	if err != nil {
+		s.log.Error("library: get", "item", it.ID, "err", err)
+		fail(w, http.StatusBadGateway, "the library's storage didn't answer: try again")
+		return
+	}
+	h := w.Header()
+	h.Set("Content-Type", "application/octet-stream")
+	h.Set("Content-Security-Policy", "sandbox; default-src 'none'")
+	w.Write(data)
+}
+
+// withdraw is an owner taking their item back, from the app or the website.
+func (s *Service) withdraw(w http.ResponseWriter, r *http.Request) {
+	id, a := r.PathValue("id"), asker(r)
+	owner, err := s.db.LibraryOwner(r.Context(), id)
+	if err != nil {
+		s.answer(w, nil, err)
+		return
+	}
+	if owner != a.account.ID {
+		fail(w, http.StatusForbidden, "only its creator can unpublish a design")
+		return
+	}
+	s.answer(w, nil, s.db.WithdrawLibraryItem(r.Context(), a.account.ID, id, "by its creator"))
+}
+
+func (s *Service) me(w http.ResponseWriter, r *http.Request) {
+	a := asker(r)
+	me, err := s.db.LibraryProfile(r.Context(), a.account.ID)
+	if err != nil {
+		s.answer(w, nil, err)
+		return
+	}
+	me.Role = a.role
+	if me.Unread, err = s.db.LibraryUnread(r.Context(), a.account.ID); err != nil {
+		s.answer(w, nil, err)
+		return
+	}
+	reply(w, me)
+}
+
+func (s *Service) mine(w http.ResponseWriter, r *http.Request) {
+	accID := asker(r).account.ID
+	me, err := s.db.LibraryProfile(r.Context(), accID)
+	if err != nil {
+		s.answer(w, nil, err)
+		return
+	}
+	items, err := s.db.LibraryMine(r.Context(), accID)
+	if err != nil {
+		s.answer(w, nil, err)
+		return
+	}
+	c, err := s.db.LibraryCounts(r.Context(), accID)
+	if err != nil {
+		s.answer(w, nil, err)
+		return
+	}
+	for i := range items {
+		items[i].LibraryItem = forWhoMayPeek(items[i].LibraryItem)
+	}
+	reply(w, api.LibraryMine{Items: items, Used: c.Used, Limit: api.MaxLibraryAccount, Trust: me.Trust})
+}
+
+// reportsPerDay is how many reports an account may make.
+const reportsPerDay = 20
+
+// report keeps a report: who made it is for moderators only.
+func (s *Service) report(w http.ResponseWriter, r *http.Request) {
+	var p api.LibraryReportParams
+	if !readJSON(w, r, &p) {
+		return
+	}
+	accID := asker(r).account.ID
+	// A device's first act may be this: moderators read who by the handle.
+	if _, err := s.db.LibraryProfile(r.Context(), accID); err != nil {
+		s.answer(w, nil, err)
+		return
+	}
+	p.Detail = cleanText(p.Detail, 2000)
+	switch {
+	case p.CommentID != "" && (p.ItemID != "" || p.AccountID != ""):
+		fail(w, http.StatusBadRequest, "report one thing at a time")
+		return
+	case p.CommentID == "" && (p.ItemID == "") == (p.AccountID == ""):
+		fail(w, http.StatusBadRequest, "report a design, an account or a comment")
+		return
+	case !oneOf(api.LibraryReasons, p.Reason):
+		fail(w, http.StatusBadRequest, "pick a reason")
+		return
+	case p.Reason == "copyright" && p.Detail == "":
+		fail(w, http.StatusBadRequest, "a copyright report says what is yours, and where it is")
+		return
+	}
+	if !cleanCopyright(w, &p) {
+		return
+	}
+	if p.CommentID != "" {
+		c, err := s.db.LibraryCommentByID(r.Context(), p.CommentID)
+		if err != nil {
+			s.answer(w, nil, err)
+			return
+		}
+		if c.Status != "live" {
+			fail(w, http.StatusNotFound, "not found")
+			return
+		}
+		// Which design, and whose words: for the moderators' queue and its block.
+		p.ItemID, p.AccountID = c.ItemID, c.AuthorID
+	} else if p.ItemID != "" {
+		it, err := s.db.LibraryItem(r.Context(), p.ItemID)
+		if err != nil {
+			s.answer(w, nil, err)
+			return
+		}
+		if it.Status != api.LibraryLive {
+			fail(w, http.StatusNotFound, "not found")
+			return
+		}
+	} else if _, err := s.db.Account(r.Context(), p.AccountID); err != nil {
+		s.answer(w, nil, err)
+		return
+	}
+	n, err := s.db.LibraryReportsToday(r.Context(), accID)
+	if err != nil {
+		s.answer(w, nil, err)
+		return
+	}
+	if n >= reportsPerDay {
+		w.Header().Set("Retry-After", "3600")
+		fail(w, http.StatusTooManyRequests, "that's many reports for one day: try again tomorrow")
+		return
+	}
+	s.answer(w, nil, s.db.AddLibraryReport(r.Context(), accID, p))
+}
+
+// cleanCopyright reads what a copyright report says beyond its detail, or answers.
+// A website not yet sending it still reports with its detail alone, for moderators
+// to see that the rest wasn't given.
+func cleanCopyright(w http.ResponseWriter, p *api.LibraryReportParams) bool {
+	c := p.Copyright
+	if p.Reason != "copyright" {
+		p.Copyright = nil
+		return true
+	}
+	if c == nil {
+		return true
+	}
+	c.Original, c.Claimant = strings.TrimSpace(c.Original), cleanText(c.Claimant, 200)
+	switch {
+	case !webURL(c.Original) || len(c.Original) > 2000:
+		fail(w, http.StatusBadRequest, "say where the original is, as a web address")
+	case c.Claimant == "":
+		fail(w, http.StatusBadRequest, "say who claims this: you, or who you act for")
+	case !c.Statement:
+		fail(w, http.StatusBadRequest, "say that you own this work or act for its owner, and that this is true")
+	default:
+		return true
+	}
+	return false
+}
+
+// escaped is the website saying a preview tried to leave its frame: a live item
+// goes to moderators, once while the report is open and once in a while after it.
+// Anyone can say this of any design, so it adds no more than that, and moderators
+// read it after what people reported (LibraryOpenReports).
+func (s *Service) escaped(w http.ResponseWriter, r *http.Request) {
+	id := r.PathValue("id")
+	it, err := s.db.LibraryItem(r.Context(), id)
+	if err != nil {
+		s.answer(w, nil, err)
+		return
+	}
+	if it.Status != api.LibraryLive {
+		w.WriteHeader(http.StatusNoContent)
+		return
+	}
+	s.answer(w, nil, s.db.AddLibraryEscape(r.Context(), id, "A preview tried to leave its frame."))
+}
+
+// cleanText is s as text the library keeps and shows.
+func cleanText(s string, max int) string { return designshare.CleanText(s, max) }
+
+var errRefused = errors.New("library: refused")

@@ -29,6 +29,7 @@ func (r runner) canvasBrief(args []string) error {
 		return err
 	}
 	if *set == "" {
+		defer r.canvasReferences(c)
 		if c.Brief == nil {
 			fmt.Fprintf(r.out, "No brief yet. Write one: enowx-app canvas brief %s --set -, with these sections:\n\n%s", c.ID, designbrief.Template())
 			return nil
