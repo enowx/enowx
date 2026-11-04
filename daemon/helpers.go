@@ -75,7 +75,7 @@ func helperEnds(info proto.SessionInfo, finished bool, quiet time.Duration) bool
 	if info.Exited {
 		return true
 	}
-	if info.State == proto.StateWorking || info.State == proto.StateWaiting || info.StateStale || info.Queued {
+	if info.State == proto.StateWorking || info.State == proto.StateWaiting || info.StateStale || info.Queued || len(info.Background) > 0 {
 		return false
 	}
 	if finished {

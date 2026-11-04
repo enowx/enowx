@@ -165,9 +165,10 @@ type Session struct {
 	lastInput  time.Time
 	streamed   time.Time // when an attached stream last checked the screen
 	active     bool
-	state      string    // what the agent's hooks last said (proto.State*)
-	stateAt    time.Time // when they said it
-	shown      string    // the state last reported to OnUpdate
+	state      string                  // what the agent's hooks last said (proto.State*)
+	background []proto.BackgroundAgent // agents in its process tree but its own: Manager.SetBackground
+	stateAt    time.Time               // when they said it
+	shown      string                  // the state last reported to OnUpdate
 	prompt     string
 	typed      []rune // the line being typed, until the first prompt is known
 	inEscape   bool
@@ -246,6 +247,7 @@ func (s *Session) Info() proto.SessionInfo {
 		Effort:          s.meta.Effort,
 		ModelLast:       s.meta.Model != "" && (s.exited || s.meta.Hibernated),
 		ModelStarted:    s.movedFromLocked(),
+		Background:      s.background,
 		Restored:        s.meta.Restored,
 		Exited:          s.exited,
 		ExitCode:        s.code,

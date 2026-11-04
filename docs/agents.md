@@ -276,6 +276,24 @@ One at work or waiting on the user is never ended, nor one whose hooks have gone
 
 An unslop's regions' agents end with the run: when the Canvas page's Stop is pressed (its redesign's agent is only interrupted), when the redesign's agent is closed or hibernated by hand, when it reports the run done, and when a new run starts. The redesign's agent itself doesn't end by being left idle while they work. The panel's bar over a region's agent has **End**, for one at a time. Not helpers, and never ended by this: sessions the user starts, GOD of Agents and its workers, anything on its board, a teammate's session, a fan-out (its results wait to be compared), pipelines and automations (the session is their result), and tabs, which end with their session. Those left from before this are cleaned up the same way, at the first look after the daemon starts.
 
+## Agents in a session's background
+
+A session's row and `enowx-app ls` say which agents its agent has running besides itself (`SessionInfo.Background`): `background(N)` as its state in `ls` and `status`, their names in the row, each one's command, time and memory on hover. `wait` goes on while they run, and a helper isn't ended under them. Hibernate and updates don't name them yet, GOA's board doesn't show them, and only a process left from a session can be stopped alone, under Left running in Resource usage.
+
+**How they're found: the session's process tree, for any agent.** Every 15 seconds the daemon follows what each session started (`daemon/procs.go`); a process of it counts when its arguments name a preset's program (`agent.ProgramOf`), through an interpreter too (`node`, `bun`, `python`, `sh`), and it runs under another agent or left the tree. Its own agent doesn't count, nor a wrapper starting a binary of the same name, a server or a command, nor an agent's own MCP server. One that runs for under a look doesn't count, so a one-shot call isn't an alarm.
+
+**What it can't see, said plainly:**
+
+| What | Why |
+|---|---|
+| A subagent inside the agent's own process (Claude Code's Task tool, Codex's, OpenCode's, ...) | No process of its own. Only the agent's hook or transcript can say, and only Claude Code's is read (below). |
+| An agent that only runs at an API, on someone's cloud | Nothing runs here. |
+| An agent started by a CLI's own background service, as OpenCode's server | It isn't a child of the session. |
+| An agent named nothing a preset names, or run by an interpreter not listed | Its arguments name no agent. |
+| One that starts and leaves its tree between two looks | The tree never showed it. |
+
+**Per agent, on top of that:** Claude Code's Stop hook gives `background_tasks` (its background shells and subagents, checked on 2.1.318): a turn that ends with any running leaves the session working, and the turn it takes when they end makes it done. No other agent's hook is read for this.
+
 ## The model a session runs on
 
 The session list, `sessions` and `ls` show each agent session's project, path and model. The model is what the agent writes in its transcript with each answer, looked at every few seconds, so `/model`, a switch, a fallback and a config all show, Claude Code's `/model` at once and others with their next answer. An agent enowX reads no transcript of, or one that hasn't answered yet, reads "unknown model"; a stopped session shows the last it said, marked "(last)". A program started by hand in a shell tab is listed as the shell, with no model.

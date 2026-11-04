@@ -105,3 +105,25 @@ func TestNamesakeIsNotTheAgent(t *testing.T) {
 		t.Error("the agent wasn't confirmed")
 	}
 }
+
+func TestProgramOf(t *testing.T) {
+	for _, c := range []struct {
+		args []string
+		want string
+	}{
+		{[]string{"/usr/local/bin/codex", "--yolo"}, "codex"},
+		{[]string{"node", "--no-warnings", "/x/node_modules/.bin/opencode"}, "opencode"},
+		{[]string{"bun", "/x/.bin/omp", "--session-dir", "/s"}, "omp"},
+		{[]string{`C:\\bin\\claude.exe`}, "claude"},
+		{[]string{"claude", "mcp", "serve"}, ""},
+		{[]string{"codex", "mcp-server"}, ""},
+		{[]string{"node", "server.js"}, ""},
+		{[]string{"vite"}, ""},
+		{[]string{"node"}, ""},
+		{nil, ""},
+	} {
+		if got := ProgramOf(c.args); got != c.want {
+			t.Errorf("%v: %q", c.args, got)
+		}
+	}
+}

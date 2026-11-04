@@ -317,6 +317,14 @@ field AutopushStatus.lastRun time.Time
 field AutopushStatus.next time.Time
 field AutopushStatus.prURL string
 field AutopushStatus.visibility string
+field BackgroundAgent.command string
+field BackgroundAgent.cpu float64
+field BackgroundAgent.left bool
+field BackgroundAgent.memory uint64
+field BackgroundAgent.name string
+field BackgroundAgent.pid int
+field BackgroundAgent.since time.Time
+field BackgroundAgent.start string
 field BrowserAction.action string
 field BrowserAction.ref string
 field BrowserAction.session string
@@ -1983,6 +1991,7 @@ field SessionHooks.session string
 field SessionInfo.account string
 field SessionInfo.active bool
 field SessionInfo.agent string
+field SessionInfo.background []BackgroundAgent
 field SessionInfo.branch string
 field SessionInfo.budget int64
 field SessionInfo.canvasFor string

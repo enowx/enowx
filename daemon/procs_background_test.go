@@ -1,0 +1,82 @@
+package daemon
+
+import (
+	"os"
+	"path/filepath"
+	"runtime"
+	"slices"
+	"testing"
+	"time"
+
+	"github.com/enowx/enowx/proto"
+)
+
+// A session's agent that starts agents, one of which leaves its tree, shows them; its own
+// wrapper, a plain server and its MCP server don't count.
+func TestSessionShowsItsBackgroundAgents(t *testing.T) {
+	if runtime.GOOS != "linux" {
+		t.Skip("reads a process's arguments as Linux shows them")
+	}
+	bin := t.TempDir()
+	dir := t.TempDir()
+	// The agent, behind a wrapper of its own name, as npm's script starts a binary. Its children:
+	// an agent under a shell, one whose parent ends, a server, its MCP server.
+	write := func(name, body string) {
+		t.Helper()
+		if err := os.WriteFile(filepath.Join(bin, name), []byte("#!/bin/sh\n"+body), 0o755); err != nil {
+			t.Fatal(err)
+		}
+	}
+	write("server", "sleep 300; true\n")
+	write("codex", `case "$1" in
+mcp-server) sleep 300 ;;
+inner) sh -c 'kilo; true' & sh -c 'gemini & sleep 2' & server & codex mcp-server & wait ;;
+*) sh -c "exec codex inner"; true ;;
+esac
+`)
+	write("kilo", "sleep 300; true\n")
+	write("gemini", "sleep 300; true\n")
+	t.Setenv("PATH", bin+string(os.PathListSeparator)+os.Getenv("PATH"))
+
+	srv := startServer(t)
+	srv.procs.load(filepath.Join(dir, "procs.json")) // a server under test follows nothing by itself
+	c := connect(t, srv, nil)
+	created, err := c.CreateSession(proto.SessionCreateParams{Command: []string{"codex"}, Dir: dir})
+	if err != nil {
+		t.Fatal(err)
+	}
+	sess, err := srv.sessions.Get(created.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var names []string
+	for deadline := time.Now().Add(20 * time.Second); ; time.Sleep(200 * time.Millisecond) {
+		srv.procsLook()
+		names = names[:0]
+		for _, b := range sess.Info().Background {
+			names = append(names, b.Name)
+		}
+		slices.Sort(names)
+		left := slices.ContainsFunc(sess.Info().Background, func(b proto.BackgroundAgent) bool { return b.Name == "gemini" && b.Left })
+		if slices.Equal(names, []string{"gemini", "kilo"}) && left {
+			break
+		}
+		if time.Now().After(deadline) {
+			t.Fatalf("background agents: %v", sess.Info().Background)
+		}
+	}
+	for _, b := range sess.Info().Background {
+		if b.PID == 0 || b.Start == "" || b.Since.IsZero() || b.Memory == 0 {
+			t.Fatalf("what it says of %s: %+v", b.Name, b)
+		}
+	}
+	// A helper isn't ended under them.
+	info := sess.Info()
+	info.CanvasFor, info.State = "c", proto.StateDone
+	if helperEnds(info, true, time.Hour) {
+		t.Fatal("ended with a background agent at work")
+	}
+	if err := c.KillSession(created.ID); err != nil {
+		t.Fatal(err)
+	}
+}
