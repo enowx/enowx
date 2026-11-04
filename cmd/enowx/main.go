@@ -20,6 +20,7 @@ import (
 
 	"github.com/enowx/enowx/cli"
 	"github.com/enowx/enowx/core/hosts"
+	"github.com/enowx/enowx/core/memtune"
 	"github.com/enowx/enowx/daemon"
 	"github.com/enowx/enowx/transport"
 	enowxui "github.com/enowx/enowx/ui"
@@ -64,6 +65,7 @@ func main() {
 		return
 	}
 
+	memtune.Start(nil) // for the app; a daemon of this program starts its own in Run
 	remote := flag.String("remote", "", "open the server at `user@host[:port]` over SSH")
 	project := flag.String("project", "", "open `DIR` (a path on that host) as a project")
 	flag.Parse()
