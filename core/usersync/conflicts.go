@@ -32,7 +32,7 @@ type conflictHead struct {
 }
 
 // Conflicts lists the conflicts waiting for the user, the oldest first, without their
-// versions' data, which ConflictVersion reads. A file is
+// versions' data, which ConflictVersion reads. Those on logs merge away here. A file is
 // read once: asked often and holding whole versions, they ran to 340 MB allocated a call.
 func (f *Folder) Conflicts() ([]proto.SyncConflict, error) {
 	dir := filepath.Join(f.dir, filepath.FromSlash(ConflictsDir))
@@ -69,6 +69,7 @@ func (f *Folder) Conflicts() ([]proto.SyncConflict, error) {
 	f.mu.Lock()
 	f.heads = keep
 	f.mu.Unlock()
+	out = f.settleLogs(out)
 	slices.SortFunc(out, func(a, b proto.SyncConflict) int { return a.Created.Compare(b.Created) })
 	return out, nil
 }

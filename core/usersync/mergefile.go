@@ -17,6 +17,9 @@ func MergeFile(p string, base, a, b []byte) ([]byte, bool) { return mergeFile(p,
 // mergeFile merges the changes a and b made to base, file p's contents,
 // by the kind of file it is; ok is false when they don't merge.
 func mergeFile(p string, base, a, b []byte) ([]byte, bool) {
+	if AppendOnly(p) {
+		return mergeLog(a, b), true
+	}
 	if !utf8.Valid(a) || !utf8.Valid(b) || !utf8.Valid(base) {
 		return nil, false
 	}

@@ -30,6 +30,8 @@ type Folder struct {
 	cache map[string]cached // hashes, by path, while size and time stay
 	// heads are the conflicts without their data, by file name, while size and time stay.
 	heads map[string]conflictHead
+	// guards are held around replacing a file something else appends to.
+	guards map[string]sync.Locker
 }
 
 type cached struct {
@@ -40,8 +42,12 @@ type cached struct {
 
 // OpenFolder is daemon folder dir's synced files.
 func OpenFolder(dir string) *Folder {
-	return &Folder{dir: dir, cache: map[string]cached{}, heads: map[string]conflictHead{}}
+	return &Folder{dir: dir, cache: map[string]cached{}, heads: map[string]conflictHead{}, guards: map[string]sync.Locker{}}
 }
+
+// Guard has writes replacing synced file p hold l: what appends to p holds it too, or
+// a line it adds as the file is replaced goes with the old file. Call it before syncing.
+func (f *Folder) Guard(p string, l sync.Locker) { f.guards[p] = l }
 
 // ID is the folder's identity for syncs, made the first time: the
 // daemon's own (daemon-id, proto.DaemonInfo.ID).
@@ -155,6 +161,12 @@ func (f *Folder) Write(changes []proto.SyncChange) (applied, stale []string, err
 	f.mu.Lock()
 	defer f.mu.Unlock()
 	for _, ch := range changes {
+		if g := f.guards[ch.Path]; g != nil {
+			g.Lock()
+			defer g.Unlock()
+		}
+	}
+	for _, ch := range changes {
 		if !Synced(ch.Path) {
 			return applied, stale, fmt.Errorf("usersync: %q is not synced", ch.Path)
 		}
@@ -235,6 +247,9 @@ func cleanRel(p string) string {
 func (f *Folder) Manifest() (proto.SyncManifest, error) {
 	id, err := f.ID()
 	if err != nil {
+		return proto.SyncManifest{}, err
+	}
+	if _, err := f.Conflicts(); err != nil { // those on logs settle, by themselves
 		return proto.SyncManifest{}, err
 	}
 	files, err := f.Files()
