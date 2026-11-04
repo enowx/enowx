@@ -181,3 +181,18 @@ func TestHistoryListsConversationsAndResumesOne(t *testing.T) {
 		return strings.Contains(text, "--resume 3f2a")
 	})
 }
+
+// A conversation lets go of memory with no chat left to ask for another.
+func TestTranscriptDroppedWithNoChatAsking(t *testing.T) {
+	var ts transcripts
+	ts.follower("a").used = time.Now().Add(-dropAfter - time.Second)
+	ts.follower("b")
+	ts.mu.Lock()
+	ts.dropLocked(time.Now())
+	_, a := ts.byID["a"]
+	_, b := ts.byID["b"]
+	ts.mu.Unlock()
+	if a || !b {
+		t.Fatalf("a kept %v, b kept %v", a, b)
+	}
+}

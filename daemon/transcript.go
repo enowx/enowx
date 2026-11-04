@@ -33,7 +33,7 @@ type follower struct {
 
 // dropAfter is how long a conversation no chat shows stays in memory; a
 // chat shown polls every second or so, and one shown again reads it anew.
-const dropAfter = 5 * time.Minute
+const dropAfter = 2 * time.Minute
 
 // lookEvery is how often a session's folder is searched for a newer
 // transcript: an agent starts a new file on /clear, for example.
@@ -46,11 +46,7 @@ func (t *transcripts) follower(id string) *follower {
 		t.byID, t.files = map[string]*follower{}, map[string]string{}
 	}
 	now := time.Now()
-	for other, g := range t.byID {
-		if now.Sub(g.used) > dropAfter {
-			delete(t.byID, other) // its file stays claimed
-		}
-	}
+	t.dropLocked(now)
 	f := t.byID[id]
 	if f == nil {
 		f = &follower{}
@@ -58,6 +54,32 @@ func (t *transcripts) follower(id string) *follower {
 	}
 	f.used = now
 	return f
+}
+
+// dropLocked lets go of the conversations no chat asked for lately; their files stay claimed.
+func (t *transcripts) dropLocked(now time.Time) {
+	for other, g := range t.byID {
+		if now.Sub(g.used) > dropAfter {
+			delete(t.byID, other)
+		}
+	}
+}
+
+// keepDropping lets go of them with no chat left to ask, until done closes: only a chat
+// asking used to, so the last ones shown stayed in memory for good.
+func (t *transcripts) keepDropping(done <-chan struct{}) {
+	tick := time.NewTicker(dropAfter / 2)
+	defer tick.Stop()
+	for {
+		select {
+		case <-done:
+			return
+		case now := <-tick.C:
+			t.mu.Lock()
+			t.dropLocked(now)
+			t.mu.Unlock()
+		}
+	}
 }
 
 // claim gives path to session id unless another session follows it.
