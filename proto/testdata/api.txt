@@ -1853,6 +1853,13 @@ field ResizeParams.stream uint32
 field Response.error string
 field Response.id uint64
 field Response.result json.RawMessage
+field RestartItem.name string
+field RestartItem.session string
+field RestartItem.what string
+field RestartPlan.agents []RestartItem
+field RestartPlan.commands []RestartItem
+field RestartPlan.lost []RestartItem
+field RestartPlan.unknown bool
 field ReviewRef.base string
 field ReviewRef.session string
 field ReviewStatus.ahead int
@@ -2824,6 +2831,7 @@ method daemon.diagnostics
 method daemon.info
 method daemon.log
 method daemon.restart
+method daemon.restartPlan
 method daemon.setSettings
 method daemon.settings
 method daemon.stats

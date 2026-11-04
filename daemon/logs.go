@@ -14,6 +14,7 @@ const logsSweepEvery = 6 * time.Hour
 
 func init() {
 	slowMethods[proto.MethodDaemonDiagnostics] = true // it reads files
+	slowMethods[proto.MethodDaemonRestartPlan] = true // it samples processes
 }
 
 // daemonLogWriter is where the daemon's logger writes: its log, and its output too

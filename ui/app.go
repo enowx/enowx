@@ -72,6 +72,8 @@ type App struct {
 	watchdog        *watchdog.Watch // the main thread's, once the window is open
 	diag            *diag.Log       // what happened, for later (diagnostics.go); nil in tests
 	diagPage        string          // the page last logged
+	daemonBehind    *daemonBehind   // a daemon left at another version, to replace (daemon_behind.go)
+	replaceDaemon   string          // the host whose daemon the next connection replaces, asked for
 	sessionToasts   []*sessionToast // what notifications are about (sessiontoast.go)
 	sessionToastKey int
 	trust           *trustPrompt

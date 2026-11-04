@@ -77,6 +77,7 @@ func (a *App) connect(h hosts.Host) {
 	}
 	opts := a.hostOptions(gen)
 	opts.OnEvent = func(ev proto.Event) { a.handleEvent(gen, ev) }
+	a.daemonBehindOptions(&opts, h, gen)
 	opts.Progress = func(s string) {
 		a.onMain(func() {
 			if gen == a.gen && a.connecting != "" {
@@ -140,6 +141,7 @@ func (a *App) connect(h hosts.Host) {
 			go func() { _ = c.ServeBrowsers() }() // an older daemon has no enowx browser
 			go func() { _ = c.ServeApp() }()
 			a.vaultConnected(c)
+			go a.followDaemonBehind(c, h, gen)
 		})
 	}()
 }
