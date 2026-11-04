@@ -14,6 +14,7 @@ import (
 	"path/filepath"
 	"slices"
 	"strings"
+	"sync/atomic"
 	"text/tabwriter"
 	"time"
 
@@ -596,10 +597,47 @@ func (r runner) wait(args []string) error {
 	if err := fs.Parse(args); err != nil || fs.NArg() != 1 {
 		return errors.New("usage: enowx-app wait SESSION [--timeout 30m]")
 	}
+	// By the session's events: read by the list twice a second, one agent waiting on
+	// another took a whole list of sessions 120 times a minute. The list stays for an
+	// event missed and for a session on another host, whose events don't come here.
+	every := waitListEvery
+	if r.host != "" {
+		every = waitListEveryHost
+	}
+	var latest atomic.Pointer[proto.SessionInfo]
+	var target atomic.Pointer[string]
+	changed := make(chan struct{}, 1)
+	r.c.Listen(func(ev proto.Event) {
+		id := target.Load()
+		if id == nil {
+			return
+		}
+		switch ev.Name {
+		case proto.EventSessionUpdated:
+			var info proto.SessionInfo
+			if json.Unmarshal(ev.Data, &info) != nil || info.ID != *id {
+				return
+			}
+			latest.Store(&info)
+		case proto.EventSessionRemoved:
+			var ref proto.SessionRef
+			if json.Unmarshal(ev.Data, &ref) != nil || ref.ID != *id {
+				return
+			}
+		default:
+			return
+		}
+		select {
+		case changed <- struct{}{}:
+		default:
+		}
+	})
 	s, err := r.session(fs.Arg(0))
 	if err != nil {
 		return err
 	}
+	target.Store(&s.ID)
+	listed := time.Now()
 	deadline := time.Now().Add(*timeout)
 	var quietSince time.Time
 	for {
@@ -621,12 +659,40 @@ func (r runner) wait(args []string) error {
 		if time.Now().After(deadline) {
 			return fmt.Errorf("wait: %s is still %s after %s", s.ID, state, *timeout)
 		}
-		time.Sleep(500 * time.Millisecond)
-		if s, err = r.session(s.ID); err != nil {
-			return err
+		wait := min(time.Until(listed.Add(every)), time.Until(deadline))
+		if !quietSince.IsZero() {
+			wait = min(wait, time.Until(quietSince.Add(quietFor)))
+		}
+		list := false
+		timer := time.NewTimer(max(wait, time.Millisecond))
+		select {
+		case <-changed:
+			if info := latest.Swap(nil); info != nil {
+				s = *info
+			} else {
+				list = true // removed: the list says so
+			}
+		case <-timer.C:
+			list = time.Since(listed) >= every
+		case <-r.c.Done():
+			timer.Stop()
+			return fmt.Errorf("wait: the connection to enowX ended: %w", r.c.Err())
+		}
+		timer.Stop()
+		if list {
+			if s, err = r.session(s.ID); err != nil {
+				return err
+			}
+			listed = time.Now()
 		}
 	}
 }
+
+// How often wait reads the list of sessions, events telling it sooner.
+const (
+	waitListEvery     = 15 * time.Second
+	waitListEveryHost = 3 * time.Second
+)
 
 func (r runner) note(args []string) error {
 	if len(args) == 0 {
