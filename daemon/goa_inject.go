@@ -164,7 +164,8 @@ func (s *Server) goaTakeOf(lines []goaLine) (string, int) {
 // goaHookLines gives GOA's agent what waits for it in the hook it is in, and says a
 // turn's end goes on to take it.
 func (s *Server) goaHookLines(sess *session.Session, info proto.SessionInfo, ev proto.HookEvent, d *proto.HookDecision) bool {
-	if !info.GOA || d.Block {
+	// One whose hook calls take no text back has them typed in, when idle.
+	if !info.GOA || d.Block || agent.IsBuiltin(info.Agent) {
 		return false
 	}
 	switch ev.Event {

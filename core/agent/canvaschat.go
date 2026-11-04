@@ -43,6 +43,8 @@ func CanvasArgs(id, exe, cv string, dirs []string) []string {
 			"--allowedTools", strings.Join([]string{"mcp__enowx", "Read", "Glob", "Grep", "WebSearch", "WebFetch"}, ","),
 			"--disallowedTools", strings.Join([]string{"Bash", "Edit", "Write", "NotebookEdit", "Task"}, ","),
 			"--strict-mcp-config")
+	case PlatformID:
+		args = append(args, platformMCP(exe, map[string]string{"ENOWX_CANVAS_CHAT": "1"})...)
 	}
 	return args
 }

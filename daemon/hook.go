@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"io"
 	"os"
-	"path/filepath"
 	"strings"
 	"time"
 
@@ -141,35 +140,9 @@ func agentEvent(event string, data []byte) proto.HookEvent {
 		Last     string          `json:"last_assistant_message"`
 	}
 	_ = json.Unmarshal(data, &in)
-	ev := proto.HookEvent{Event: event, Prompt: in.Prompt, Tool: in.Tool, PermissionMode: in.Mode, Scratchpad: in.Scratch, LastMessage: in.Last, Failed: in.Event == "PostToolUseFailure" || in.Error != ""}
-	var input map[string]any
-	if json.Unmarshal(in.Input, &input) == nil {
-		for _, k := range []string{"command", "cmd"} {
-			if v, ok := input[k].(string); ok {
-				ev.Command = v
-				break
-			}
-		}
-		for _, k := range []string{"file_path", "path", "notebook_path"} {
-			if v, ok := input[k].(string); ok && v != "" {
-				ev.Paths = append(ev.Paths, relTo(in.Cwd, v))
-			}
-		}
-		if ev.Command == "" && len(ev.Paths) == 0 {
-			ev.Command = strings.TrimSpace(string(in.Input))
-		}
-	}
+	ev := hooks.ToolEvent(event, in.Tool, in.Input, in.Cwd)
+	ev.Prompt, ev.PermissionMode, ev.Scratchpad, ev.LastMessage, ev.Failed = in.Prompt, in.Mode, in.Scratch, in.Last, in.Event == "PostToolUseFailure" || in.Error != ""
 	return ev
-}
-
-// relTo is path p from folder dir, with slashes, when it is inside it.
-func relTo(dir, p string) string {
-	if dir != "" && filepath.IsAbs(p) {
-		if rel, err := filepath.Rel(dir, p); err == nil && !strings.HasPrefix(rel, "..") {
-			p = rel
-		}
-	}
-	return filepath.ToSlash(p)
 }
 
 // Display gives this process's session a virtual display and prints the

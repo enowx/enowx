@@ -14,6 +14,7 @@ import (
 	"path/filepath"
 	"syscall"
 
+	"github.com/enowx/enowx/core/agent"
 	"github.com/enowx/enowx/core/diag"
 	"github.com/enowx/enowx/internal/watchdog"
 	"github.com/enowx/enowx/transport"
@@ -48,7 +49,10 @@ func Run() error {
 	log := slog.New(slog.NewTextHandler(daemonLogWriter(logFile), nil))
 	useLoginPath(log)
 	exe, _ := os.Executable()
-	srv, err := newServer(dir, useLauncher(dir, exe, log.Warn))
+	program := useLauncher(dir, exe, log.Warn)
+	// What a built-in agent runs as (agent.Preset.Program), not an outer session's.
+	_ = os.Setenv(agent.EnvBin, program)
+	srv, err := newServer(dir, program)
 	if err != nil {
 		l.Close()
 		return err

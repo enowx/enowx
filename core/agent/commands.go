@@ -25,6 +25,8 @@ func Commands(ctx context.Context, id, dir string) ([]proto.AgentCommand, error)
 		return claudeCommands(ctx, dir)
 	case "codex":
 		return codexCommands(), nil
+	case PlatformID:
+		return platformCommands(), nil
 	}
 	return nil, nil
 }

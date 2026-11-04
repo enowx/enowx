@@ -68,6 +68,9 @@ func GOAArgs(id, exe, guide string) []string {
 		// after the lists isn't read as one of their values.
 		args = append(args, "--tools", GOAClaudeTools, "--mcp-config", string(cfg),
 			"--allowedTools", "mcp__enowx", "--strict-mcp-config")
+	case PlatformID:
+		// It has no flag limiting its tools: enowX's hooks hold it, on every call.
+		args = append(args, platformMCP(exe, map[string]string{proto.EnvGOA: "1"})...)
 	case "codex":
 		args = append(args, "--sandbox", "workspace-write",
 			"-c", "mcp_servers.enowx.command="+marshal(exe),

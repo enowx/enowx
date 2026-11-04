@@ -10,7 +10,7 @@ import (
 // model and permissions. Anything else may be a prompt, already sent, or a secret.
 var (
 	tabValueFlags = []string{"--model", "-m", "--permission-mode", "--effort", "--settings", "--mcp-config",
-		"--append-system-prompt-file", "--add-dir", "--resume", "-r", "--sandbox", "-s", "--ask-for-approval", "-a"}
+		"--append-system-prompt-file", "--system-prompt-file", "--session-dir", "--max-budget", "--add-dir", "--resume", "-r", "--sandbox", "-s", "--ask-for-approval", "-a"}
 	tabBareFlags = []string{"--dangerously-skip-permissions", "--allow-dangerously-skip-permissions",
 		"--dangerously-bypass-approvals-and-sandbox", "--yolo", "--full-auto"}
 	// tabOneShot marks a run that does its work and ends: nothing to bring back.
@@ -26,7 +26,9 @@ func TabAgentCommand(args []string) ([]string, bool) {
 	}
 	rest := args[1:]
 	preset, ok := findByProgram(args[0])
-	if !ok && len(args) > 1 && slices.Contains([]string{"node", "bun", "deno", "sh", "bash", "python3"}, strings.TrimSuffix(filepath.Base(args[0]), ".exe")) {
+	if p, builtin := findBuiltin(args); builtin {
+		preset, ok, rest = p, true, args[2:]
+	} else if !ok && len(args) > 1 && slices.Contains([]string{"node", "bun", "deno", "sh", "bash", "python3"}, strings.TrimSuffix(filepath.Base(args[0]), ".exe")) {
 		preset, ok = findByProgram(args[1])
 		rest = args[2:]
 	}
@@ -53,10 +55,26 @@ func TabAgentCommand(args []string) ([]string, bool) {
 		}
 	}
 	out := []string{preset.Command}
+	if preset.Builtin {
+		out = append([]string{preset.Program()}, preset.Args...)
+	}
 	if !resumes {
 		out = append(out, preset.Continue...) // first: some are subcommands
 	}
 	return append(out, kept...), true
+}
+
+// findBuiltin is the agent args run of enowX's own program.
+func findBuiltin(args []string) (Preset, bool) {
+	if len(args) < 2 || !strings.HasPrefix(filepath.Base(args[0]), "enowx") {
+		return Preset{}, false
+	}
+	for _, p := range Presets {
+		if p.Builtin && slices.Equal(p.Args, args[1:2]) {
+			return p, true
+		}
+	}
+	return Preset{}, false
 }
 
 // findByProgram is the preset whose command program runs.
