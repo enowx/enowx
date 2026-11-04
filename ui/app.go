@@ -35,8 +35,8 @@ import (
 	"github.com/enowx/enowx/ui/libraryview"
 	"github.com/enowx/enowx/ui/localpicker"
 	"github.com/enowx/enowx/ui/notesview"
-	"github.com/enowx/enowx/ui/projectdocsview"
 	"github.com/enowx/enowx/ui/portview"
+	"github.com/enowx/enowx/ui/projectdocsview"
 	"github.com/enowx/enowx/ui/syncview"
 	"github.com/enowx/enowx/ui/theme"
 	"github.com/enowx/enowx/ui/trafficview"
@@ -120,7 +120,7 @@ type App struct {
 	attaching         *noteAttachForm // the dialog attaching a note to projects
 	// saveAs asks where to save a file named name, "" for nowhere; nil
 	// asks with the system's dialog (tests answer themselves).
-	saveAs     func(name string) (string, error)
+	saveAs func(name string) (string, error)
 
 	projectDocs projectdocsview.View // Project Docs on the Notes page
 
