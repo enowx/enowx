@@ -23,9 +23,15 @@ func (ch chatFor) agentGuide(id, guide string) string {
 	if ch.files == "" || ch.notes != "" || ch.canvas != "" {
 		return guide
 	}
-	path, err := agent.PlaceSessionGuide(ch.dataDir(), ch.files, guide)
+	var path string
+	var err error
 	if ch.goa {
 		path, err = agent.PlaceGOAGuide(filepath.Join(ch.dataDir(), "goa"), id, guide)
+	} else {
+		path, err = agent.PlaceSessionGuide(ch.files, guide)
+		if err == nil && agent.TakesGuideFile(id) {
+			err = agent.PlaceSessionFileGuide(ch.files, guideInjected(id, guide))
+		}
 	}
 	if err != nil {
 		slog.Warn("could not write the agent's guide", "agent", id, "err", err)
@@ -39,6 +45,27 @@ func (ch chatFor) agentGuide(id, guide string) string {
 	return in.Text()
 }
 
+// ownGuideFile is the file of the session's that agent id reads by name, "" when it has
+// none (agent.TakesGuideFile).
+func (ch chatFor) ownGuideFile(id string) string {
+	if ch.files == "" || ch.goa || ch.notes != "" || ch.canvas != "" || !agent.TakesGuideFile(id) {
+		return ""
+	}
+	return agent.SessionFileGuide(ch.files)
+}
+
+// ownGuideEnv is what brings back a session's agent's environment naming its own guide
+// file, in place of the host's its restored environment names; a later value wins.
+func (ch chatFor) ownGuideEnv(id string) []string {
+	if ch.member {
+		return nil
+	}
+	if file := ch.ownGuideFile(id); file != "" {
+		return agent.ToolEnvGuide(id, programPath(), file)
+	}
+	return nil
+}
+
 // guideInjected is what goes in the files of its home an agent loads by itself, whichever
 // session it runs in: the rules that must hold, then the guide.
 func guideInjected(id, guide string) string {
@@ -47,7 +74,7 @@ func guideInjected(id, guide string) string {
 
 // writeHostGuide writes this host's guide, what most sessions read.
 func (s *Server) writeHostGuide() {
-	if err := agent.WriteEnowxGuide(s.dataDir, guideWithoutSecrets(s.guideFor(session.Meta{}))); err != nil {
+	if err := agent.WriteEnowxGuide(s.dataDir, guideWithoutSecrets(agent.SharedGuide(s.guideFor(session.Meta{})))); err != nil {
 		s.logger().Warn("could not write the guide", "err", err)
 	}
 }

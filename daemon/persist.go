@@ -74,6 +74,8 @@ type record struct {
 	HibernatedByHand bool      `json:"hibernatedByHand,omitempty"`
 	HibernatedAt     time.Time `json:"hibernatedAt,omitzero"`
 	NoAutoHibernate  bool      `json:"noAutoHibernate,omitempty"`
+	// Rules is what its agent last got of its rules (rules_given.go).
+	Rules *proto.SessionRules `json:"rules,omitempty"`
 }
 
 // persistence saves the daemon's sessions. Its methods are safe from any
@@ -145,6 +147,7 @@ func (p *persistence) update(s *session.Session, command []string) {
 		Group: meta.Group, Account: meta.Account, Config: meta.Config, Member: meta.Member, Private: meta.Private, NotesFor: meta.NotesFor, Canvas: meta.CanvasFor, GOA: meta.GOA, GOAWorker: meta.GOAWorker, Features: meta.Features, Creds: meta.Creds,
 		Hibernated: meta.Hibernated && info.Exited, HibernatedByHand: meta.HibernatedByHand, HibernatedAt: meta.HibernatedAt,
 		NoAutoHibernate: meta.NoAutoHibernate,
+		Rules:           meta.Rules,
 	}
 	if command != nil {
 		r.Command = command
@@ -267,7 +270,7 @@ func (s *Server) restore() {
 				Name:       r.Name, Prompt: r.Prompt, Project: r.Project, Agent: r.Agent, Branch: r.Branch,
 				Worktree: r.Worktree, SkipPermissions: r.Skip, SkipUnheard: r.Unheard, Model: r.Model, Effort: r.Effort, Mode: r.Mode, Conversation: r.Convo, Relaunch: r.Relaunch, Restart: r.Restart, Restored: true,
 				Budget: time.Duration(r.Budget) * time.Second, Parent: r.Parent, Note: r.Note, Group: r.Group, Account: r.Account, Config: r.Config, Member: r.Member, Private: r.Private, NotesFor: r.NotesFor, CanvasFor: r.Canvas, GOA: r.GOA, GOAWorker: r.GOAWorker, Features: r.Features, Creds: r.Creds,
-				Hibernated: r.Hibernated, HibernatedByHand: r.HibernatedByHand, HibernatedAt: r.HibernatedAt, NoAutoHibernate: r.NoAutoHibernate,
+				Hibernated: r.Hibernated, HibernatedByHand: r.HibernatedByHand, HibernatedAt: r.HibernatedAt, NoAutoHibernate: r.NoAutoHibernate, Rules: r.Rules,
 			},
 		}
 		for _, what := range r.Lost {
@@ -301,7 +304,7 @@ func (s *Server) restore() {
 			if preset, ok := agent.Find(r.Agent); ok && len(r.Restart) > 0 && len(preset.Continue) > 0 {
 				// The command saved has the hooks and guide of the daemon
 				// that saved it.
-				chat := s.goaChat(s.chatOf(r.NotesFor, r.Canvas, s.guideFor(spec.Meta)), spec.Meta)
+				chat := s.goaChat(s.chatOf(r.NotesFor, r.Canvas, s.guideIn(spec.Meta, spec.Dir)), spec.Meta)
 				chat.member = r.Member != nil
 				chat.store = s.agentStore(r.Agent, r.ID, true)
 				chat.files = s.agentFilesDir(r.ID)
@@ -311,6 +314,8 @@ func (s *Server) restore() {
 				l.Hooks = append(l.Hooks, keptArgs(spec.Meta)...)
 				spec.Command = thenShell(preset.Argv(l))
 				spec.Meta.Restart = spec.Command
+				spec.Meta.Rules = s.rulesAtStart(spec.Meta, spec.Dir, true)
+				spec.Env = append(spec.Env, chat.ownGuideEnv(r.Agent)...)
 			}
 			if len(r.TabAgent) > 0 {
 				spec.Command = thenShell(r.TabAgent) // not a bare shell, which what is sent to it would run
@@ -410,6 +415,7 @@ func (s *Server) resumeSession(id, convo string) (*session.Session, error) {
 		return nil, err
 	}
 	meta.Config = run.sessionInfo()
+	var ownGuide []string
 	if preset, ok := agent.Find(meta.Agent); ok && len(preset.Continue) > 0 {
 		// The one asked for, else the one it was on: the folder's latest
 		// may be another session's.
@@ -419,7 +425,7 @@ func (s *Server) resumeSession(id, convo string) (*session.Session, error) {
 		if convo == "" {
 			convo = meta.Conversation
 		}
-		chat := s.goaChat(s.chatOf(meta.NotesFor, meta.CanvasFor, s.guideFor(meta)), meta)
+		chat := s.goaChat(s.chatOf(meta.NotesFor, meta.CanvasFor, s.guideIn(meta, info.Dir)), meta)
 		chat.member = meta.Member != nil
 		chat.store = s.agentStore(meta.Agent, id, true)
 		chat.files = s.agentFilesDir(id)
@@ -431,13 +437,15 @@ func (s *Server) resumeSession(id, convo string) (*session.Session, error) {
 		if len(preset.Resume) > 0 {
 			meta.Conversation = convo
 		}
+		meta.Rules = s.rulesAtStart(meta, info.Dir, true)
+		ownGuide = chat.ownGuideEnv(meta.Agent)
 	}
 	meta.Restart, meta.Restored, meta.Hibernated, meta.HibernatedByHand, meta.HibernatedAt = command, false, false, false, time.Time{}
 	env, err := s.agentEnv(meta)
 	if err != nil {
 		return nil, err
 	}
-	env = append(env, run.environ()...)
+	env = append(append(env, ownGuide...), run.environ()...)
 	spec := session.Spec{ID: id, Dir: info.Dir, Created: info.Created, History: sess.History(),
 		Env: append(append(s.hostEnvFor(meta.Member), env...), s.trafficEnvFor(meta.Parent, id)...), Command: command, Meta: meta}
 	if meta.Member == nil {

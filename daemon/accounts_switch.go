@@ -52,7 +52,7 @@ func (s *Server) switchAgent(p proto.AccountSwitchParams) (proto.SessionInfo, er
 			acc = a.ID
 		}
 	}
-	chat := s.chatOf("", "", s.guideFor(meta))
+	chat := s.chatOf("", "", s.guideIn(meta, info.Dir))
 	chat.store = s.agentStore(preset.ID, info.ID, true)
 	chat.files = s.agentFilesDir(info.ID)
 	next := meta
@@ -79,6 +79,7 @@ func (s *Server) switchAgent(p proto.AccountSwitchParams) (proto.SessionInfo, er
 	}
 	meta.Agent, meta.Account, meta.AccountFirst, meta.Conversation, meta.Config = preset.ID, acc, "", "", run.sessionInfo()
 	meta.Restart, meta.Relaunch, meta.SkipPermissions = l.restart, l.relaunch, l.skip
+	meta.Rules = s.rulesAtStart(meta, info.Dir, true)
 	env, err := s.agentEnv(meta)
 	if err != nil {
 		return proto.SessionInfo{}, err

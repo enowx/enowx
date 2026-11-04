@@ -14,6 +14,7 @@ import (
 	"strings"
 
 	"github.com/enowx/enowx/cloud/api"
+	"github.com/enowx/enowx/core/agent"
 	"github.com/enowx/enowx/core/envsync"
 	"github.com/enowx/enowx/proto"
 )
@@ -346,5 +347,9 @@ func (s *Server) projectGuide(project string) string {
 	if project == "" {
 		return ""
 	}
-	return s.teamGuide(project) + s.rulesGuide(project)
+	part := s.teamGuide(project) + s.rulesGuide(project)
+	if part == "" {
+		return ""
+	}
+	return agent.ProjectPartMark + part
 }

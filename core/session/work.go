@@ -72,6 +72,26 @@ func (m *Manager) SetFeatures(s *Session, on map[string]bool) {
 	m.notify(s)
 }
 
+// UpdateRules changes what session s's agent has of its rules by f, which
+// runs locked, so what it reads and changes goes together: it only computes.
+func (m *Manager) UpdateRules(s *Session, f func(*proto.SessionRules)) {
+	s.mu.Lock()
+	var r proto.SessionRules
+	if s.meta.Rules != nil {
+		r = *s.meta.Rules
+	}
+	before := r
+	f(&r)
+	changed := r != before
+	if changed {
+		s.meta.Rules = &r
+	}
+	s.mu.Unlock()
+	if changed {
+		m.notify(s)
+	}
+}
+
 // SetNoAutoHibernate keeps session s from hibernating on its own, or
 // lets it again.
 func (m *Manager) SetNoAutoHibernate(s *Session, never bool) {

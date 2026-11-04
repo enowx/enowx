@@ -696,7 +696,7 @@ func sessionGuide(all bool) string {
 		return agent.Guide
 	}
 	defer c.Close()
-	g, err := c.FeaturesGuide(proto.FeaturesParams{Session: os.Getenv(EnvSession)})
+	g, err := c.FeaturesGuide(proto.FeaturesParams{Session: os.Getenv(EnvSession), Reading: true})
 	if err != nil || g.Guide == "" {
 		return agent.Guide
 	}

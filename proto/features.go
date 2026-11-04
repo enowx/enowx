@@ -26,6 +26,9 @@ const (
 type FeaturesParams struct {
 	Project string `json:"project,omitempty"`
 	Session string `json:"session,omitempty"`
+	// Reading (MethodFeaturesGuide): the session's agent ran the guide, to read
+	// it, rather than a program asking for its text.
+	Reading bool `json:"reading,omitempty"`
 }
 
 // FeatureInfo is a feature and whether it is on, From the scope that

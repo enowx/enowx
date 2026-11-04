@@ -157,5 +157,5 @@ func GuideNote(id string) string {
 	if len(GuideArgs(id)) > 0 || len(guidePlaces[Base(id)]) > 0 {
 		return ""
 	}
-	return `(This runs in an enowX session: "$ENOWX_BIN" guide lists the tools it gives you.)`
+	return `(This runs in an enowX session: "$ENOWX_BIN" guide lists the tools it gives you and this project's rules: run it first.)`
 }

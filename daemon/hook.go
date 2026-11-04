@@ -139,9 +139,10 @@ func agentEvent(event string, data []byte) proto.HookEvent {
 		Mode     string          `json:"permission_mode"`
 		Scratch  string          `json:"scratchpad_dir"`
 		Last     string          `json:"last_assistant_message"`
+		Source   string          `json:"source"`
 	}
 	_ = json.Unmarshal(data, &in)
-	ev := proto.HookEvent{Event: event, Prompt: in.Prompt, Tool: in.Tool, PermissionMode: in.Mode, Scratchpad: in.Scratch, LastMessage: in.Last, Failed: in.Event == "PostToolUseFailure" || in.Error != ""}
+	ev := proto.HookEvent{Event: event, Prompt: in.Prompt, Tool: in.Tool, PermissionMode: in.Mode, Scratchpad: in.Scratch, LastMessage: in.Last, Source: in.Source, Failed: in.Event == "PostToolUseFailure" || in.Error != ""}
 	var input map[string]any
 	if json.Unmarshal(in.Input, &input) == nil {
 		for _, k := range []string{"command", "cmd"} {

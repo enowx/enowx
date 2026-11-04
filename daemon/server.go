@@ -274,6 +274,7 @@ func newServer(dir, hookBin string) (*Server, error) {
 	go s.teamSyncLoop(s.done)
 	go s.startSharing() // a host shared before: its listener again
 	go s.watchPorts(s.done)
+	go s.watchRules(s.done)
 	go s.runScheduler(s.done)
 	go s.runAutomations(s.done)
 	go s.watchGit(s.done)

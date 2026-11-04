@@ -92,10 +92,14 @@ func (s *Server) createSessionFor(p proto.SessionCreateParams, member *proto.Ses
 	}
 	// Settle what to run before creating a worktree it would leave behind.
 	id := session.NewID()
-	guide := s.guideFor(meta)
-	if meta.Project == "" && p.NotesFor == "" && p.CanvasFor == "" && !p.GOA {
-		guide += s.projectGuide(dir) // a folder of no project's, a team's maybe
+	guideMeta, guideDir := meta, dir
+	if p.Parent != "" {
+		// A tab: its session's project and folder, settled below.
+		if parent, err := s.sessions.Get(p.Parent); err == nil {
+			guideMeta.Project, guideDir = parent.Meta().Project, parent.Info().Dir
+		}
 	}
+	guide := s.guideIn(guideMeta, guideDir)
 	chat := s.goaChat(s.chatOf(p.NotesFor, p.CanvasFor, guide), meta)
 	chat.member = member != nil
 	if !p.SignIn {
@@ -197,6 +201,9 @@ func (s *Server) createSessionFor(p proto.SessionCreateParams, member *proto.Ses
 
 	meta.Restart, meta.Relaunch, meta.SkipPermissions = launch.restart, launch.relaunch, launch.skip
 	meta.Budget = time.Duration(p.Budget) * time.Second
+	if !p.SignIn {
+		meta.Rules = s.rulesAtStart(meta, dir, false)
+	}
 	spec := session.Spec{
 		ID:      id,
 		Command: launch.command, Dir: dir, Env: append(append(slices.Clone(p.Env), launch.env...), s.hostEnvFor(member)...), Cols: p.Cols, Rows: p.Rows, Meta: meta,
@@ -476,6 +483,9 @@ func (ch chatFor) toolEnv(id string) []string {
 		}
 		return agent.ToolEnvGuide(id, programPath(), filepath.Join(ch.dataDir(), "goa", agent.GOAGuideName))
 	}
+	if file := ch.ownGuideFile(id); file != "" {
+		return agent.ToolEnvGuide(id, programPath(), file)
+	}
 	return toolEnv(id)
 }
 
@@ -534,7 +544,7 @@ func agentLaunch(preset agent.Preset, skip bool, prompt string, cont bool, chat 
 	if home, err := os.UserHomeDir(); err == nil && !chat.goa {
 		// Agents whose command line takes no guide read it from their home
 		// (GOA's own is a file its first prompt names: agent.GOANote).
-		if err := agent.PlaceGuideText(preset.ID, home, guideInjected(preset.ID, guide)); err != nil {
+		if err := agent.PlaceGuideText(preset.ID, home, guideInjected(preset.ID, agent.SharedGuide(guide))); err != nil {
 			slog.Warn("could not give the agent its guide", "agent", preset.ID, "err", err)
 		}
 	}
@@ -542,7 +552,11 @@ func agentLaunch(preset agent.Preset, skip bool, prompt string, cont bool, chat 
 	if !chat.member {
 		tools = agent.ToolArgs(preset.ID, programPath())
 	}
-	hooks := append(append(agent.HookArgs(preset.ID), tools...), agent.GuideArgsText(preset.ID, given)...)
+	guideArgs := agent.GuideArgsText(preset.ID, given)
+	if file := chat.ownGuideFile(preset.ID); file != "" {
+		guideArgs = agent.GuideArgsIn(preset.ID, given, file)
+	}
+	hooks := append(append(agent.HookArgs(preset.ID), tools...), guideArgs...)
 	if agent.Base(preset.ID) == "codex" && len(hooks) > 0 {
 		// Codex runs only hooks it trusts: enowX's own are trusted here.
 		if err := agent.TrustCodexHooks(""); err != nil {

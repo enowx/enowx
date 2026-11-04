@@ -31,7 +31,11 @@ var cloudHandlers = map[string]handler{
 	proto.MethodRulesHistory: with(func(c *conn, p proto.RulesDraftParams) (any, error) { return c.srv.rulesHistory(p), nil }),
 	proto.MethodRulesDraft:   with(func(c *conn, p proto.RulesDraftParams) (any, error) { return c.srv.draftRules(p) }),
 	proto.MethodProjectRulesSave: with(func(c *conn, p proto.ProjectRules) (any, error) {
-		return c.srv.saveProjectRules(p)
+		r, err := c.srv.saveProjectRules(p)
+		if err == nil {
+			c.srv.refreshRules()
+		}
+		return r, err
 	}),
 	proto.MethodTeamProjects: bare(func(c *conn) (any, error) { return c.srv.teamProjects(), nil }),
 	proto.MethodTeamProjectAdd: with(func(c *conn, p proto.TeamProjectAddParams) (any, error) {

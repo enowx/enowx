@@ -208,6 +208,9 @@ type SessionInfo struct {
 	HibernatedHow *HibernateState `json:"hibernatedHow,omitempty"`
 	// NoAutoHibernate keeps the daemon from hibernating it on its own.
 	NoAutoHibernate bool `json:"noAutoHibernate,omitempty"`
+	// Rules is what its agent has of the rules that hold for it, nil for a
+	// session they don't concern.
+	Rules *SessionRules `json:"rules,omitempty"`
 }
 
 // MethodSessionPrivate keeps a session from the host's teams, or shows it

@@ -1047,6 +1047,7 @@ field FeaturesGuide.guide string
 field FeaturesGuide.on map[string]bool
 field FeaturesLazyParams.lazy bool
 field FeaturesParams.project string
+field FeaturesParams.reading bool
 field FeaturesParams.session string
 field FeaturesPresetParams.name string
 field FeaturesPresetParams.project string
@@ -1326,6 +1327,7 @@ field HookEvent.project string
 field HookEvent.prompt string
 field HookEvent.scratchpad string
 field HookEvent.session string
+field HookEvent.source string
 field HookEvent.text string
 field HookEvent.time time.Time
 field HookEvent.tool string
@@ -2020,6 +2022,7 @@ field SessionInfo.report string
 field SessionInfo.reportAt int64
 field SessionInfo.reportOutcome string
 field SessionInfo.restored bool
+field SessionInfo.rules *SessionRules
 field SessionInfo.run int64
 field SessionInfo.skipPermissions bool
 field SessionInfo.skipUnheard bool
@@ -2063,6 +2066,13 @@ field SessionRenameParams.name string
 field SessionRewindParams.back int
 field SessionRewindParams.id string
 field SessionRewindParams.text string
+field SessionRules.again bool
+field SessionRules.at time.Time
+field SessionRules.current string
+field SessionRules.for string
+field SessionRules.hook bool
+field SessionRules.version string
+field SessionRules.via string
 field SessionScreen.text string
 field SessionStateParams.id string
 field SessionStateParams.state string
@@ -3465,6 +3475,10 @@ value RulesByAdmins=admins
 value RulesByMembers=members
 value RulesForGOA=goa
 value RulesForProject=project
+value RulesViaAsked=asked
+value RulesViaFile=file
+value RulesViaHook=hook
+value RulesViaStart=start
 value ShapeArrow=arrow
 value ShapeDiamond=diamond
 value ShapeEllipse=ellipse

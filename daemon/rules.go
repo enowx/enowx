@@ -283,5 +283,6 @@ func (s *Server) rulesGuide(project string) string {
 	if r.Team != "" {
 		whose = "the team's"
 	}
-	return "\n\n## This project's rules\n\nThese are " + whose + " rules for this project: follow them in all you do here.\n\n" + strings.TrimSpace(r.Rules) + "\n"
+	rules := strings.TrimSpace(r.Rules)
+	return "\n\n## This project's rules\n\nThese are " + whose + " rules for this project: follow them in all you do here.\n\n" + rulesVersionLine(rules) + "\n\n" + rules + "\n"
 }

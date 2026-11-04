@@ -166,6 +166,9 @@ type HookEvent struct {
 	Project string `json:"project,omitempty"`
 	Branch  string `json:"branch,omitempty"`
 	Prompt  string `json:"prompt,omitempty"`
+	// Source is why its agent's session started (HookSessionStart): startup,
+	// resume, clear or compact, as its agent says.
+	Source string `json:"source,omitempty"`
 	// Tool is the tool's name, Command its command line or what it was
 	// given, Failed that it failed.
 	Tool    string `json:"tool,omitempty"`

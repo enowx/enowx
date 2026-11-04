@@ -58,23 +58,21 @@ func TestGuideLoadedOnlyWhereAFileGoesToTheSystemPrompt(t *testing.T) {
 
 // A session whose guide is the host's reads the host's file; one that differs its own.
 func TestSessionGuideFile(t *testing.T) {
-	data, sess := t.TempDir(), filepath.Join(t.TempDir(), "s1")
-	if err := WriteEnowxGuide(data, "the guide"); err != nil {
-		t.Fatal(err)
-	}
-	got, err := PlaceSessionGuide(data, sess, "the guide")
-	if err != nil || got != filepath.Join(data, EnowxGuideName) {
-		t.Fatalf("%s, %v", got, err)
-	}
-	if exists(filepath.Join(sess, EnowxGuideName)) {
-		t.Fatal("a copy of the same")
-	}
-	got, err = PlaceSessionGuide(data, sess, "with this project's rules")
+	sess := filepath.Join(t.TempDir(), "s1")
+	got, err := PlaceSessionGuide(sess, "with this project's rules")
 	if err != nil || got != filepath.Join(sess, EnowxGuideName) {
 		t.Fatalf("%s, %v", got, err)
 	}
 	if text, _ := os.ReadFile(got); string(text) != "with this project's rules\n" {
 		t.Fatalf("%q", text)
+	}
+}
+
+// What every session of a host reads says no one project's rules.
+func TestSharedGuideHoldsNoProjectsRules(t *testing.T) {
+	got := SharedGuide("the guide" + ProjectPartMark + "\n\nUse tabs.")
+	if strings.Contains(got, "Use tabs.") || !strings.HasPrefix(got, "the guide") || !strings.Contains(got, "guide` prints them") {
+		t.Fatalf("%q", got)
 	}
 }
 
