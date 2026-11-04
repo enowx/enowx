@@ -401,16 +401,21 @@ func (s *Server) goaReportSeen(info proto.SessionInfo) {
 	if info.ReportAt == 0 {
 		return
 	}
+	notify := map[string]bool{}
 	changed := s.goa.board.Of(info.ID, func(t *proto.GOATask) bool {
 		// A report belongs to the task under way when it was sent: not to one only
 		// queued, nor to one given after it.
 		if t.Status == proto.GOATaskQueued || t.ReportAt >= info.ReportAt {
 			return false
 		}
+		notify[t.ID] = t.Outcome != info.ReportOutcome || t.Said != info.Report
 		t.Outcome, t.ReportAt, t.Said = info.ReportOutcome, info.ReportAt, info.Report
 		return true
 	})
 	for _, t := range changed {
+		if !notify[t.ID] {
+			continue
+		}
 		where, hostFlag := goaTaskPlace(t)
 		s.goaTellLine(goaLine{Task: t.ID, Session: t.Session, Text: fmt.Sprintf("[enowX GOA] Task %s %q (%s) reports %s: %s Check it (chat %s%s), then settle it: goa task %s --status done|failed --result \"…\".", t.ID, t.Title, where, t.Outcome, clip(oneLine(t.Said), goaResultMax), t.Session, hostFlag, t.ID)})
 	}

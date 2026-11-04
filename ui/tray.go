@@ -33,7 +33,7 @@ func (a *App) setUpTray() {
 	if runtime.GOOS == "darwin" {
 		ink = color.NRGBA{A: 255} // a template, which macOS tints
 	}
-	t, err := mygo.NewTray(mygo.TrayOptions{ID: "enowx", Icon: icon.LogoPNG(36, ink), IconIsTemplate: runtime.GOOS == "darwin", ToolTip: "enowX"})
+	t, err := mygo.NewTray(mygo.TrayOptions{ID: "enowx", Icon: a.trayIcon(icon.LogoPNG(36, ink)), IconIsTemplate: runtime.GOOS == "darwin", ToolTip: "enowX"})
 	if err != nil {
 		log.Print("no tray icon: ", err)
 		return

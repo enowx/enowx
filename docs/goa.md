@@ -37,6 +37,13 @@ Leaving the mode asks first, whichever way: the title bar's **Sessions**, **Leav
 
 The app shows each agent's level when picking GOA's; `enowx goa agents` lists them.
 
+On Windows, the POSIX hook commands are disabled: Claude Code is **limited**
+by its tool restrictions and Codex is **watched**. The enforced levels above
+apply where those hooks are available. The Windows watcher recognizes known
+Codex helpers and their console hosts by executable path and same-session
+ancestry; unrelated or unproven processes still raise flags. Identical flags
+remain on the audit list but notify again only after a quiet minute.
+
 No enowX command that runs a program of GOA's choosing works in its session, or in its MCP server: `creds use … -- COMMAND`, `decide trim -- COMMAND`, and `run` of a project command (listing them still works). Those would be a way around the tools it lacks.
 
 Checked with Codex itself, started as GOA: enowX's tools reached it over MCP as `mcp__enowx__…`, as its hooks name them; it read a project's file and wrote one in its own folder, and handed over a write outside it and a `go version`. Checked with Claude Code itself, started as GOA: it read a project's file and wrote one (in auto mode, unasked), and handed `go version` to a session, having no Bash.
@@ -49,7 +56,7 @@ Checked with Codex itself, started as GOA: enowX's tools reached it over MCP as 
 2. **Its model and effort**: the judge's `decide route` ([decide.md](decide.md)) for the prompt: easy to a cheap model on low effort, hard to the strongest on high, and a step cheaper when a token budget is at 80% or more ([tokens.md](tokens.md)). A new session starts on them (`SessionCreateParams.Model`, `Effort`); a running one gets its `/model` and `/effort` typed first. `--model`, `--effort`, `--config` (another provider, [configs.md](configs.md)) choose by hand; `--no-route` keeps the agent's own. The choice and why are printed, kept on the board, and shown in Tasks, where the user can change them.
 3. **The board** (`goa.board`, kept in `goa-board.json` beside the daemon's settings, the last 500): the task, its session and host, routing, status, result.
 
-**GOA is told, never polls.** The board follows each worker: this host's through its session updates (its agent's `turn.done` hook, or its screen going quiet), other hosts' through the app. A turn's end sets a task `turn-ended`, with what its agent said in `said`: it may be mid-work, so it is no result, and only `goa task --status done|failed` settles it, or its agent ending. When a task's session finishes a turn, asks something, fails or ends, the board changes and a line starting `[enowX GOA]` is typed into GOA's conversation once it is idle: the result (the worker's last message, else its screen's end), what it asks and whose it is to answer. GOA then checks the work (`chat`, `changes`) and settles the task (`goa task ID --status done --result …`).
+**GOA is told, never polls.** The board follows each worker: this host's through its session updates (its agent's `turn.done` hook, or its screen going quiet), other hosts' through the app. A turn's end sets a task `turn-ended`, with what its agent said in `said`: it may be mid-work, so it is no result, and only `goa task --status done|failed` settles it, or its agent ending. When a task's session finishes a turn, asks something, fails or ends, the board changes and a line starting `[enowX GOA]` reaches GOA through its hook when supported, or waits in Tasks: the result (the worker's last message, else its screen's end), what it asks and whose it is to answer. GOA then checks the work (`chat`, `changes`) and settles the task (`goa task ID --status done --result …`).
 
 There is no limit on workers; rate limits fall to accounts' fallback ([accounts.md](accounts.md)) and budgets.
 
@@ -69,7 +76,7 @@ Routes, in order:
 
 What the session doesn't say, enowX says for it: its process exiting or crashing, with the exit code and its last words, marked `NoReport` on the board and never shown as at work; a turn interrupted; a limit its agent showed; a lost sign-in, as what it asks; going silent, as a stall line; a host that can't be reached, once, after the idle limit.
 
-A line stays until it has gone in: kept in `goa-tell.json` while GOA is busy, hibernated or stopped and over a daemon's restart, put back if typing it fails, the newest 200 kept. Only a stall line of a task since settled is dropped, as moot; a report isn't. With no GOA on the host at all there is no one to tell.
+A line stays until it has gone in: kept in `goa-tell.json` while GOA is busy, hibernated or stopped and over a daemon's restart, put back if a hook disconnects before taking it, the newest 200 kept. Only a stall line of a task since settled is dropped, as moot; a report isn't. With no GOA on the host at all there is no one to tell.
 
 Sent something again, a task whose turn had ended is at work again, so a screen with no hook can report the next turn too.
 
@@ -92,7 +99,9 @@ Workers' reports never go through GOA's input box while anything of the user's c
 | At a turn's end | Its `Stop` hook's `additionalContext` keeps the turn going | `decision: "block"` with the lines as the reason | None |
 | Idle | A background hook (`asyncRewake`, 24 hours at most, armed at each start and turn's end) wakes it on exit code 2, the lines as a system reminder | No way in documented: below | Below |
 
-Idle with no such route, or that hook gone: the line waits, and is typed only into a composer sure to be empty, with no key pressed for 5 seconds and nothing at work or asked. A prompt the screen can't be sure of counts as a draft, so the line goes on waiting, shown in GOA's Tasks panel under Waiting for GOA. It never sends with a draft in the prompt. A line waiting goes with the next turn, however that starts. Claude Code's channels also push into an idle session, but they are a research preview, a custom one needs a development flag at each start, and they need Anthropic sign-in, so they aren't used.
+Without a documented hook channel, reports stay in GOA's Tasks panel under Waiting for GOA. enowX never pastes them or presses Enter in the terminal composer, even if the screen looks empty and no key was pressed for five seconds: those observations cannot reserve the draft against concurrent typing. This applies especially to watched Codex on Windows, whose hooks are disabled. Reading Tasks does not submit or erase the user's draft. Supported hooks can take waiting reports on a later turn. Claude Code's channels also push into an idle session, but they are a research preview, a custom one needs a development flag at each start, and they need Anthropic sign-in, so they aren't used.
+
+Identical queued lines are collapsed without merging different tasks or sessions. Repeated reports with the same outcome and text update the task's report timestamp without delivering the same report again. Queue checkout and hook handoff are serialized; a disconnected wake hook returns the original task/session metadata.
 ## Workers' permission prompts
 
 On the worker's host, before each tool call of a GOA worker (its agent's hooks):
@@ -148,7 +157,7 @@ The limits are each host's, for its own GOA, from a second to a day: **Stall lim
 
 Tasks on other hosts are watched the same, through the app, which is what reaches them: every few seconds GOA's host reads their sessions, screens and CPU. With no app connected, or the host out of reach, their tasks stay as they are until it can look. Those reads aren't in `control log`, as no session made them. The hook runs on GOA's host, not the worker's.
 
-Across a daemon restart, a stalled task stays stalled and GOA, whose waiting lines went with the daemon, hears again; the hook doesn't fire again for the same stall. A session that ended while the daemon was down settles its task as failed or stopped.
+Across a daemon restart, a stalled task stays stalled and its waiting lines survive in Tasks until a supported hook takes them. Further reminders follow through the same safe channels; the worker's stalled hook doesn't fire again for the same stall. A session that ended while the daemon was down settles its task as failed or stopped.
 
 GOA's prompt is 5.2 KB, and goes into every turn; `goa skill setup` (4 KB), `goa skill features` (4 KB) and the docs (`goa doc`: a 10 KB list, each doc when asked for) are read when needed. With the prompt and those, a small model named a real command for each of the 29 features, and said who it is from the prompt alone.
 

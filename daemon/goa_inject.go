@@ -6,7 +6,6 @@ import (
 	"time"
 
 	"github.com/enowx/enowx/client"
-	"github.com/enowx/enowx/core/agent"
 	"github.com/enowx/enowx/core/hooks"
 	"github.com/enowx/enowx/core/session"
 	"github.com/enowx/enowx/proto"
@@ -21,15 +20,12 @@ import (
 //  2. At a turn's end: its Stop hook keeps the turn going to take them (both).
 //  3. Idle: Claude Code's background hook, which wakes it on exit code 2. Codex
 //     documents no way in to an idle thread.
-//  4. Idle, with none of those (Codex, an agent with no hooks, a hook gone): typed in,
-//     but only into a composer sure to be empty, with no keystroke for a few seconds.
-//     Otherwise the line waits, shown in the app, for the next turn or that moment.
+//  4. Without one of those channels, reports stay in Tasks. A screen snapshot
+//     cannot reserve a composer's input against concurrent user typing.
 //
 // Nothing here changes what the user is typing, has sent or is editing.
 
 const (
-	// goaTypedQuiet is how long since a keystroke before a line may be typed in.
-	goaTypedQuiet = 5 * time.Second
 	// goaContextMost is how much goes at once in an agent's context, under what agents
 	// take (Claude Code 10,000 characters, Codex about 2,500 tokens); the rest follows.
 	goaContextMost = 8000
@@ -38,7 +34,10 @@ const (
 func init() { slowMethods[proto.MethodGOAWake] = true } // it waits, on a connection of its own
 
 // goaWaker is a hook waiting to wake GOA's idle agent.
-type goaWaker struct{ text chan string }
+type goaWaker struct {
+	text  chan string
+	lines []goaLine // original metadata, guarded by delivery; returned on cancellation
+}
 
 // goaWake waits for lines for session id, for its agent's background hook, and takes
 // over from any hook before it: until lines come, a later hook comes, the connection
@@ -49,6 +48,7 @@ func (s *Server) goaWake(id string, gone <-chan struct{}) proto.GOAWakeReply {
 		return proto.GOAWakeReply{}
 	}
 	w := &goaWaker{text: make(chan string, 1)}
+	s.goa.delivery.Lock()
 	s.goa.mu.Lock()
 	old := s.goa.waker
 	s.goa.waker = w
@@ -56,6 +56,7 @@ func (s *Server) goaWake(id string, gone <-chan struct{}) proto.GOAWakeReply {
 	if old != nil {
 		old.text <- ""
 	}
+	s.goa.delivery.Unlock()
 	s.goaFlushIdle() // what waited for just this
 	select {
 	case text := <-w.text:
@@ -63,8 +64,15 @@ func (s *Server) goaWake(id string, gone <-chan struct{}) proto.GOAWakeReply {
 	case <-gone:
 	case <-s.done:
 	}
+	s.goaReturnWake(w)
+	return proto.GOAWakeReply{}
+}
+
+// goaReturnWake puts back a handoff the disconnected hook did not consume.
+func (s *Server) goaReturnWake(w *goaWaker) {
+	s.goa.delivery.Lock()
+	defer s.goa.delivery.Unlock()
 	s.goa.mu.Lock()
-	defer s.goa.mu.Unlock()
 	if s.goa.waker == w {
 		s.goa.waker = nil
 	}
@@ -72,19 +80,28 @@ func (s *Server) goaWake(id string, gone <-chan struct{}) proto.GOAWakeReply {
 	case text := <-w.text:
 		// It was given lines as it went: they go back, not lost.
 		if text != "" {
-			s.goa.tell = append([]goaLine{{Text: text}}, s.goa.tell...)
+			s.goa.tell = uniqueGOALines(append(w.lines, s.goa.tell...))
 		}
 	default:
 	}
-	return proto.GOAWakeReply{}
+	s.goa.mu.Unlock()
+	s.saveGOATell()
 }
 
 // goaFlush gives what waits for GOA (session id) to its idle agent: through the hook
-// waiting to wake it, or typed only where that can't take anything of the user's.
+// waiting to wake it. Without a safe channel, the queue stays visible in Tasks.
 func (s *Server) goaFlush(id string) {
-	sess, err := s.sessions.Get(id)
+	s.goa.delivery.Lock()
+	defer s.goa.delivery.Unlock()
+	_, err := s.sessions.Get(id)
 	if err != nil {
 		return
+	}
+	s.goa.mu.Lock()
+	w := s.goa.waker
+	s.goa.mu.Unlock()
+	if w == nil {
+		return // never paste or press Enter in the user's composer
 	}
 	lines := s.goaLinesToSay()
 	if len(lines) == 0 {
@@ -92,27 +109,10 @@ func (s *Server) goaFlush(id string) {
 		return
 	}
 	s.goa.mu.Lock()
-	w := s.goa.waker
-	if w != nil {
-		s.goa.waker = nil
-	}
+	s.goa.waker = nil
+	w.lines = lines
 	s.goa.mu.Unlock()
-	switch {
-	case w != nil:
-		w.text <- joinLines(lines)
-		lines = nil
-	case goaCanType(sess, time.Now()):
-		if err := s.input(proto.SessionInputParams{ID: id, Text: joinLines(lines), Paste: true, Enter: true}); err != nil {
-			s.logger().Warn("goa: could not tell GOA", "session", id, "err", err)
-		} else {
-			lines = nil
-		}
-	}
-	if len(lines) > 0 {
-		s.goa.mu.Lock()
-		s.goa.tell = append(lines, s.goa.tell...)
-		s.goa.mu.Unlock()
-	}
+	w.text <- joinLines(lines)
 	s.saveGOATell()
 }
 
@@ -124,16 +124,10 @@ func joinLines(lines []goaLine) string {
 	return strings.Join(texts, "\n")
 }
 
-// goaCanType says typing into GOA's session can't touch anything of the user's: no
-// key pressed for a few seconds, nothing at work or asked, a composer sure to be empty.
-func goaCanType(sess *session.Session, now time.Time) bool {
-	info := sess.Info()
-	return !info.Exited && info.State != proto.StateWorking && info.State != proto.StateWaiting &&
-		sess.TypedFor(now) >= goaTypedQuiet && agent.PromptEmpty(sess.Terminal().Text())
-}
-
 // goaTake takes what fits an agent's context of what waits for GOA, the rest staying.
 func (s *Server) goaTake() string {
+	s.goa.delivery.Lock()
+	defer s.goa.delivery.Unlock()
 	text, _ := s.goaTakeOf(s.goaLinesToSay())
 	return text
 }
@@ -147,7 +141,7 @@ func (s *Server) goaTakeOf(lines []goaLine) (string, int) {
 	}
 	if n < len(lines) {
 		s.goa.mu.Lock()
-		s.goa.tell = append(append([]goaLine{}, lines[n:]...), s.goa.tell...)
+		s.goa.tell = uniqueGOALines(append(append([]goaLine{}, lines[n:]...), s.goa.tell...))
 		s.goa.mu.Unlock()
 	}
 	s.saveGOATell()

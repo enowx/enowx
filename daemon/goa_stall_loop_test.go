@@ -15,9 +15,9 @@ import (
 
 // The stand-in agent: what it does depends on words in its first prompt. It
 // doesn't echo what's typed, so a screen stays blank until it means otherwise,
-// and writes down what it's sent, a line of GOA's wrapping on no screen. Started on
-// none of those prompts, it's GOD of Agents, showing a composer with nothing in it: lines
-// are typed only into one. Its loops of work end on their own, should anything outlive a test.
+// and echoes a worker's input. Started on none of those prompts, it's GOD of Agents,
+// showing a composer with nothing in it and recording any input as a safety failure.
+// Its loops of work end on their own, should anything outlive a test.
 const stallAgent = `#!/bin/sh
 stty -echo 2>/dev/null
 work() { i=0; while [ $i -lt 300000000 ]; do i=$((i+1)); done; }
@@ -31,14 +31,14 @@ case "$*" in
 esac
 while read -r line; do
 	echo "heard: $line"
-	echo "$line" >>"$STALL_HEARD"
+	[ -z "$composer" ] || echo "$line" >>"$STALL_HEARD"
 	[ -z "$composer" ] || echo ">"
 done
 `
 
-// stallStandIn puts the stand-in agent first on PATH, as claude, and says the
-// file it writes what it hears in.
-func stallStandIn(t *testing.T) string {
+// stallStandIn puts the stand-in agent first on PATH, as claude, and checks that
+// background reports never enter GOA's composer.
+func stallStandIn(t *testing.T) {
 	t.Helper()
 	bin := t.TempDir()
 	if err := os.WriteFile(filepath.Join(bin, "claude"), []byte(stallAgent), 0o755); err != nil {
@@ -47,14 +47,20 @@ func stallStandIn(t *testing.T) string {
 	t.Setenv("PATH", bin+string(os.PathListSeparator)+os.Getenv("PATH"))
 	heard := filepath.Join(t.TempDir(), "heard")
 	t.Setenv("STALL_HEARD", heard)
-	return heard
+	t.Cleanup(func() {
+		if data, err := os.ReadFile(heard); err == nil && len(data) != 0 {
+			t.Errorf("background reports entered GOA's composer: %q", data)
+		} else if err != nil && !os.IsNotExist(err) {
+			t.Error(err)
+		}
+	})
 }
 
-// stallLinesOf are the lines of GOA's heard so far about task id.
-func stallLinesOf(heard, id string) []string {
-	data, _ := os.ReadFile(heard)
+// stallWaitingOf reads the safe fallback for a GOA without a documented hook.
+func stallWaitingOf(t *testing.T, c *client.Client, id string) []string {
+	t.Helper()
 	var out []string
-	for _, line := range strings.Split(string(data), "\n") {
+	for _, line := range goaBoardOf(t, c).Waiting {
 		if strings.Contains(line, "[enowX GOA] Task "+id) {
 			out = append(out, line)
 		}
@@ -113,7 +119,7 @@ func stallStatus(t *testing.T, c *client.Client, id string) string {
 }
 
 // Each way of not moving, end to end with the daemon's own loop: the task shows
-// as stalled, GOA hears one line naming the case, how long and the screen, the
+// as stalled, Tasks keeps a line naming the case, how long and the screen, the
 // hook fires once, a further line comes only after three times the limit, and
 // the task goes back to working when its screen moves. A process at work, screen
 // blank or still, is left alone.
@@ -121,7 +127,7 @@ func TestGOAStalledTasksEndToEnd(t *testing.T) {
 	if runtime.GOOS == "windows" {
 		t.Skip("uses sh")
 	}
-	heard := stallStandIn(t)
+	stallStandIn(t)
 	srv := startServer(t)
 	c := connect(t, srv, nil)
 	fired := stallHookFile(t, srv)
@@ -164,7 +170,7 @@ func TestGOAStalledTasksEndToEnd(t *testing.T) {
 		done := true
 		now := time.Now()
 		for _, sc := range cases {
-			lines := stallLinesOf(heard, sc.task.ID)
+			lines := stallWaitingOf(t, c, sc.task.ID)
 			if len(lines) >= 1 && sc.first.IsZero() {
 				sc.first = now
 				if st := stallStatus(t, c, sc.task.ID); st != proto.GOATaskStalled {
@@ -198,14 +204,14 @@ func TestGOAStalledTasksEndToEnd(t *testing.T) {
 		}
 		for _, task := range working {
 			if st := stallStatus(t, c, task.ID); st != proto.GOATaskWorking {
-				t.Fatalf("%q was taken for stalled: %s: %q", task.Title, st, stallLinesOf(heard, task.ID))
+				t.Fatalf("%q was taken for stalled: %s: %q", task.Title, st, stallWaitingOf(t, c, task.ID))
 			}
 		}
 		if done {
 			break
 		}
 		if now.After(waitFor2) {
-			t.Fatalf("no further line in time: %q", mustRead(heard))
+			t.Fatalf("no further line in Tasks in time: %q", goaBoardOf(t, c).Waiting)
 		}
 		time.Sleep(100 * time.Millisecond)
 	}
@@ -240,11 +246,6 @@ func srvInfo(t *testing.T, c *client.Client, id string) proto.SessionInfo {
 	return proto.SessionInfo{}
 }
 
-func mustRead(path string) string {
-	data, _ := os.ReadFile(path)
-	return string(data)
-}
-
 // A task on another host is watched the same, through the app: stalled on GOA's
 // board, GOA told where and the hook fired on GOA's host, back to working when the
 // screen there moves, a process at work there left alone. Those looks stay out of
@@ -253,7 +254,7 @@ func TestGOAStalledTaskOnAnotherHost(t *testing.T) {
 	if runtime.GOOS == "windows" {
 		t.Skip("uses sh")
 	}
-	heard := stallStandIn(t)
+	stallStandIn(t)
 	a, b := startServer(t), startServer(t)
 	ca, cb := connect(t, a, nil), connect(t, b, nil)
 	standInApp(t, a, map[string]*client.Client{b.daemonID: cb}, func(proto.HostCallParams) bool { return true })
@@ -274,8 +275,8 @@ func TestGOAStalledTaskOnAnotherHost(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	waitFor(t, "told", func() bool { return len(stallLinesOf(heard, blank.ID)) == 1 })
-	line := stallLinesOf(heard, blank.ID)[0]
+	waitFor(t, "told", func() bool { return len(stallWaitingOf(t, ca, blank.ID)) == 1 })
+	line := stallWaitingOf(t, ca, blank.ID)[0]
 	for _, want := range []string{"on " + b.daemonID, "never started", "Its screen is blank.", "--host " + b.daemonID} {
 		if !strings.Contains(line, want) {
 			t.Errorf("no %q in: %s", want, line)
@@ -290,8 +291,8 @@ func TestGOAStalledTaskOnAnotherHost(t *testing.T) {
 	}
 	// A host out of reach says nothing of its session: what GOA is told says that, once the
 	// limit has passed, and nothing calls it not moving.
-	waitFor(t, "told of the host out of reach", func() bool { return len(stallLinesOf(heard, unreached.ID)) == 1 })
-	if line := stallLinesOf(heard, unreached.ID)[0]; !strings.Contains(line, "can't be reached") || strings.Contains(line, "never started") {
+	waitFor(t, "told of the host out of reach", func() bool { return len(stallWaitingOf(t, ca, unreached.ID)) == 1 })
+	if line := stallWaitingOf(t, ca, unreached.ID)[0]; !strings.Contains(line, "can't be reached") || strings.Contains(line, "never started") {
 		t.Errorf("a host out of reach read as a stalled task: %s", line)
 	}
 	log, err := ca.ControlLog()
@@ -315,7 +316,7 @@ func TestGOAStalledSessionHibernatedOrGone(t *testing.T) {
 	if runtime.GOOS == "windows" {
 		t.Skip("uses sh")
 	}
-	heard := stallStandIn(t)
+	stallStandIn(t)
 	srv := startServer(t)
 	c := connect(t, srv, nil)
 	fired := stallHookFile(t, srv)
@@ -336,15 +337,15 @@ func TestGOAStalledSessionHibernatedOrGone(t *testing.T) {
 	if err := srv.deleteSession(gone.Session); err != nil {
 		t.Fatal(err)
 	}
-	for _, c := range []struct {
+	for _, tc := range []struct {
 		task proto.GOATask
 		says string
 	}{{asleep, "idle: its session is hibernated"}, {gone, "idle: its session is gone"}} {
-		waitFor(t, c.says, func() bool { return len(stallLinesOf(heard, c.task.ID)) == 1 })
-		if line := stallLinesOf(heard, c.task.ID)[0]; !strings.Contains(line, c.says) {
+		waitFor(t, tc.says, func() bool { return len(stallWaitingOf(t, c, tc.task.ID)) == 1 })
+		if line := stallWaitingOf(t, c, tc.task.ID)[0]; !strings.Contains(line, tc.says) {
 			t.Errorf("its line: %s", line)
 		}
-		waitFor(t, c.says+": the hook", func() bool { return len(stallFired(t, fired, c.task.Session)) == 1 })
+		waitFor(t, tc.says+": the hook", func() bool { return len(stallFired(t, fired, tc.task.Session)) == 1 })
 	}
 }
 
@@ -353,7 +354,7 @@ func TestGOASettlingAStalledTask(t *testing.T) {
 	if runtime.GOOS == "windows" {
 		t.Skip("uses sh")
 	}
-	heard := stallStandIn(t)
+	stallStandIn(t)
 	srv := startServer(t)
 	c := connect(t, srv, nil)
 	if err := c.Call(proto.MethodGOAStallSave, proto.GOAStall{Blank: 1, Idle: 1, Stuck: 1}, nil); err != nil {
@@ -363,7 +364,7 @@ func TestGOASettlingAStalledTask(t *testing.T) {
 		t.Fatal(err)
 	}
 	task := stallDelegate(t, c, proto.GOADelegateParams{Prompt: "STANDIN-SILENT"})
-	waitFor(t, "told", func() bool { return len(stallLinesOf(heard, task.ID)) == 1 })
+	waitFor(t, "told", func() bool { return len(stallWaitingOf(t, c, task.ID)) == 1 })
 	if err := c.Call(proto.MethodGOATask, proto.GOATaskParams{ID: task.ID, Status: proto.GOATaskFailed, Result: "gave up"}, nil); err != nil {
 		t.Fatal(err)
 	}
@@ -371,7 +372,7 @@ func TestGOASettlingAStalledTask(t *testing.T) {
 	if st := stallStatus(t, c, task.ID); st != proto.GOATaskFailed {
 		t.Fatalf("settled, then %s", st)
 	}
-	if lines := stallLinesOf(heard, task.ID); len(lines) != 1 {
+	if lines := stallWaitingOf(t, c, task.ID); len(lines) != 1 {
 		t.Fatalf("still told of it: %q", lines)
 	}
 }
@@ -382,7 +383,7 @@ func TestGOASettledTaskRaisesNoStallLine(t *testing.T) {
 	if runtime.GOOS == "windows" {
 		t.Skip("uses sh")
 	}
-	heard := stallStandIn(t)
+	stallStandIn(t)
 	srv := startServer(t)
 	c := connect(t, srv, nil)
 	if _, err := c.CreateSession(proto.SessionCreateParams{Agent: "claude", GOA: true, Cols: 200, Rows: 40}); err != nil {
@@ -405,19 +406,19 @@ func TestGOASettledTaskRaisesNoStallLine(t *testing.T) {
 		t.Fatalf("to say: %+v", got)
 	}
 	time.Sleep(2 * time.Second)
-	if lines := stallLinesOf(heard, snapshot.ID); len(lines) != 0 {
+	if lines := stallWaitingOf(t, c, snapshot.ID); len(lines) != 0 {
 		t.Fatalf("told of a settled task: %q", lines)
 	}
 }
 
-// Over a restart, a stalled task still shows so; GOA, whose queue went with the
-// daemon, hears again, and the hook isn't fired a second time for the same stall.
+// Over a restart, a stalled task and its queued report persist; a further
+// reminder follows, but the worker hook does not fire again for the same stall.
 // A session that ended meanwhile settles its task.
 func TestGOAStallAcrossARestart(t *testing.T) {
 	if runtime.GOOS == "windows" {
 		t.Skip("uses sh")
 	}
-	heard := stallStandIn(t)
+	stallStandIn(t)
 	dir := t.TempDir()
 	srv, err := NewServer(dir)
 	if err != nil {
@@ -432,8 +433,9 @@ func TestGOAStallAcrossARestart(t *testing.T) {
 		t.Fatal(err)
 	}
 	task := stallDelegate(t, c, proto.GOADelegateParams{Prompt: "STANDIN-SILENT"})
-	waitFor(t, "told", func() bool { return len(stallLinesOf(heard, task.ID)) == 1 })
+	waitFor(t, "told", func() bool { return len(stallWaitingOf(t, c, task.ID)) == 1 })
 	waitFor(t, "the hook", func() bool { return len(stallFired(t, fired, task.Session)) == 1 })
+	queued := stallWaitingOf(t, c, task.ID)[0]
 	srv.Close()
 
 	again, err := NewServer(dir)
@@ -442,13 +444,17 @@ func TestGOAStallAcrossARestart(t *testing.T) {
 	}
 	defer again.Close()
 	c2 := connect(t, again, nil)
+	lines := stallWaitingOf(t, c2, task.ID)
+	if len(lines) == 0 || lines[0] != queued {
+		t.Fatalf("queued report lost across restart: %q", lines)
+	}
 	deadline := time.Now().Add(30 * time.Second)
-	for len(stallLinesOf(heard, task.ID)) < 2 {
+	for len(stallWaitingOf(t, c2, task.ID)) < 2 {
 		if st := stallStatus(t, c2, task.ID); st != proto.GOATaskStalled {
 			t.Fatalf("after a restart the board says %s", st)
 		}
 		if time.Now().After(deadline) {
-			t.Fatalf("GOA wasn't told again: %q", mustRead(heard))
+			t.Fatalf("no further line in Tasks after restart: %q", goaBoardOf(t, c2).Waiting)
 		}
 		time.Sleep(100 * time.Millisecond)
 	}

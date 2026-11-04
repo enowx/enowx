@@ -108,10 +108,11 @@ func baseOf(dir string) (projectBase, bool) {
 // goaLook flags what GOA session info did since the last look.
 func (s *Server) goaLook(info proto.SessionInfo, w *goaWatch) {
 	preset, _ := agent.Find(info.Agent)
+	infrastructure := goaPlatformProcesses(info)
 	for _, pid := range procstat.Tagged(session.EnvSession, info.ID) {
-		key := fmt.Sprint("pid:", pid)
+		key := fmt.Sprint("pid:", pid, ":", infrastructure.starts[pid])
 		args := procstat.Args(pid)
-		if w.flagged[key] || len(args) == 0 || s.goaOwnProcess(args, preset.Command) {
+		if w.flagged[key] || len(args) == 0 || infrastructure.known[pid] || s.goaOwnProcess(args, preset.Command) {
 			continue
 		}
 		w.flagged[key] = true
@@ -145,22 +146,6 @@ func (s *Server) goaLook(info proto.SessionInfo, w *goaWatch) {
 	}
 }
 
-// goaOwnProcess says whether a process (args) is GOA's agent itself (cmd,
-// and the shell wrapping it), enowX's program, or the shell a session
-// keeps once its agent ends.
-func (s *Server) goaOwnProcess(args []string, cmd string) bool {
-	line := strings.Join(args, " ")
-	if cmd != "" && strings.Contains(line, cmd) || s.HookBin != "" && strings.Contains(line, s.HookBin) {
-		return true
-	}
-	exe, _ := os.Executable()
-	if exe != "" && strings.Contains(line, exe) {
-		return true
-	}
-	name := strings.TrimPrefix(filepath.Base(args[0]), "-")
-	return len(args) == 1 && slices.Contains([]string{"sh", "bash", "zsh", "fish", "dash"}, name)
-}
-
 // othersWorkIn says whether a session other than GOA works in folder dir.
 func (s *Server) othersWorkIn(dir string) bool {
 	for _, sess := range s.sessions.List() {
@@ -178,6 +163,15 @@ func (s *Server) goaFlag(f proto.GOAFlag) {
 	_, _ = rand.Read(id)
 	f.ID, f.Time = "f"+hex.EncodeToString(id), time.Now()
 	s.goa.mu.Lock()
+	// Keep every flag for inspection, but don't make identical processes
+	// with new PIDs sound like new kinds of activity every five seconds.
+	notify := true
+	for _, before := range s.goa.flags {
+		if before.Session == f.Session && before.Command == f.Command && before.Project == f.Project &&
+			before.File == f.File && before.Change == f.Change && f.Time.Sub(before.Time) < time.Minute {
+			notify = false
+		}
+	}
 	s.goa.flags = append(s.goa.flags, f)
 	if n := len(s.goa.flags); n > 200 {
 		s.goa.flags = slices.Clone(s.goa.flags[n-200:])
@@ -188,6 +182,9 @@ func (s *Server) goaFlag(f proto.GOAFlag) {
 		what = f.Change + " " + f.File + " in " + filepath.Base(f.Project)
 	}
 	s.broadcast(proto.EventGOAFlag, f)
+	if !notify {
+		return
+	}
 	s.broadcast(proto.EventNotifySound, proto.NotifySoundParams{Kind: proto.NotifyInput, Session: f.Session,
 		Text: "GOD of Agents " + what + " itself, not through a session. See its Sessions panel."})
 }

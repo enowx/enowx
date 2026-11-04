@@ -90,6 +90,7 @@ func main() {
 		}
 	}
 	app := enowxui.New(enowxui.Options{
+		TrayIcon:      applicationIcon,
 		Hosts:         store,
 		Start:         start,
 		DaemonCommand: []string{daemonExe(exe, dir), "daemon"},

@@ -24,6 +24,8 @@ func (s *Server) goaTellAbout(id, line string) {
 
 // goaTakeAtStop takes what may keep GOA's turn going, the rest staying for its next way in.
 func (s *Server) goaTakeAtStop() string {
+	s.goa.delivery.Lock()
+	defer s.goa.delivery.Unlock()
 	lines := s.goaLinesToSay()
 	var may, wait []goaLine
 	s.goa.mu.Lock()
@@ -34,7 +36,7 @@ func (s *Server) goaTakeAtStop() string {
 			may = append(may, l)
 		}
 	}
-	s.goa.tell = append(wait, s.goa.tell...)
+	s.goa.tell = uniqueGOALines(append(wait, s.goa.tell...))
 	s.goa.mu.Unlock()
 	text, n := s.goaTakeOf(may)
 	s.goa.mu.Lock()
