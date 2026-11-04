@@ -8,6 +8,11 @@ type Hello struct {
 	Agent    string `json:"agent"` // "enowx/0.0.1" or "enowxd/0.0.1"
 	// Parts: this side reads a frame over MaxPayload sent as parts (parts.go).
 	Parts bool `json:"parts,omitempty"`
+	// Conn names the connection in both sides' logs, the client's to choose.
+	Conn string `json:"conn,omitempty"`
+	// Kind is what connects: "app", or "cli" for a command, whose ordinary
+	// connections aren't logged.
+	Kind string `json:"kind,omitempty"`
 }
 
 // Request is a client call. ID is unique per connection.

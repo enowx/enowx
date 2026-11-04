@@ -24,8 +24,9 @@ var modKey = func() string {
 func (a *App) view(c *ui.Context) {
 	if a.watchdog != nil {
 		a.watchdog.FrameStart()
-		defer a.watchdog.FrameEnd()
+		defer a.frameEnded()
 	}
+	a.logPage()
 	c.SetTheme(a.theme)
 	a.winW, _ = c.Size()
 	if !a.onboardingShows() {

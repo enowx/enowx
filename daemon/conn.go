@@ -37,6 +37,12 @@ type conn struct {
 	// numbers those sent.
 	parts    atomic.Bool
 	lastPart atomic.Uint32
+	// id names the connection in both sides' logs, kind says what connected;
+	// opened is since when; closer why this side ended it, "" when it didn't.
+	id, kind string
+	opened   time.Time
+	closer   atomic.Pointer[string]
+	finished atomic.Bool
 	// remote: it came through the team listener, a visitor's, served once
 	// visitor is set (visitors.go).
 	remote  bool
@@ -48,7 +54,10 @@ func newConn(s *Server, nc net.Conn) *conn {
 }
 
 func (c *conn) serve() error {
-	defer c.close()
+	defer func() {
+		c.finished.Store(true) // this close is the end of serving: not a reason of its own
+		c.close()
+	}()
 	if c.remote {
 		// A visitor has this long to say hello and hand their ticket.
 		_ = c.nc.SetReadDeadline(time.Now().Add(visitorSignInWait))
@@ -91,14 +100,10 @@ func (c *conn) serve() error {
 			// after an attach always finds its stream; slow ones, which
 			// no other request depends on, run beside it.
 			if slowMethods[req.Method] {
-				go func() {
-					value, err := c.handle(req)
-					c.reply(req.ID, value, err)
-				}()
+				go c.answer(req)
 				continue
 			}
-			value, err := c.handle(req)
-			c.reply(req.ID, value, err)
+			c.answer(req)
 		case proto.TypeInput:
 			// A visitor watching types nothing in, until they take over.
 			if st := c.stream(f.Channel); st != nil && c.mayType(st.sess.ID()) {
@@ -138,7 +143,7 @@ func (c *conn) signIn(f proto.Frame) error {
 		return errSignInFirst
 	}
 	value, err := c.handle(req)
-	c.reply(req.ID, value, err)
+	_ = c.reply(req.ID, value, err)
 	return err
 }
 
@@ -166,6 +171,13 @@ func (c *conn) handshake() error {
 		return fmt.Errorf("protocol %d not supported (daemon speaks %d to %d)", h.Protocol, proto.MinVersion, proto.Version)
 	}
 	c.parts.Store(h.Parts)
+	c.id, c.kind, c.opened = h.Conn, h.Kind, time.Now()
+	if c.id == "" {
+		c.id = "old-" + newRenderID()[:8] // a client from before they had names
+	}
+	if c.logged() {
+		c.srv.Diag.Event("conn.open", "conn", c.id, "kind", c.kind, "client", h.Agent, "remote", c.remote)
+	}
 	payload, _ := json.Marshal(proto.Hello{Protocol: v, Agent: "enowxd/" + Version, Parts: !c.remote})
 	// Greeted before the answer goes, under the lock events write with:
 	// an event finding it set waits for the answer, and none raised once
@@ -232,6 +244,7 @@ func (c *conn) write(f proto.Frame) error {
 	defer c.wmu.Unlock()
 	err := proto.WriteFrame(c.nc, f)
 	if err != nil {
+		c.closedBecause("daemon: write failed")
 		_ = c.nc.Close()
 	}
 	return err
@@ -242,8 +255,10 @@ func (c *conn) write(f proto.Frame) error {
 func (c *conn) sendLarge(f proto.Frame) error {
 	if !c.parts.Load() || !proto.FitsParts(len(f.Payload)) {
 		c.srv.logger().Warn("frame too large, refused", "frame", frameName(f), "bytes", len(f.Payload), "parts", c.parts.Load())
+		c.srv.Diag.Event("proto.too_large", "conn", c.id, "frame", frameName(f), "bytes", len(f.Payload), "takesParts", c.parts.Load())
 		return fmt.Errorf("%w: %s of %d bytes", proto.ErrTooLarge, frameName(f), len(f.Payload))
 	}
+	c.srv.Diag.Every("parts:"+frameName(f), 10*time.Second, "proto.parts", "conn", c.id, "frame", frameName(f), "bytes", len(f.Payload))
 	id := c.lastPart.Add(1)
 	for part := range proto.Parts(f, id) {
 		if err := c.write(part); err != nil {
@@ -267,6 +282,9 @@ func frameName(f proto.Frame) string {
 }
 
 func (c *conn) close() {
+	if !c.finished.Load() {
+		c.closedBecause("daemon: ended it")
+	}
 	c.mu.Lock()
 	if !c.closed && c.gone != nil {
 		close(c.gone)

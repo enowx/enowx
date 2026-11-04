@@ -14,8 +14,10 @@ import (
 	"path/filepath"
 	"syscall"
 
+	"github.com/enowx/enowx/core/diag"
 	"github.com/enowx/enowx/internal/watchdog"
 	"github.com/enowx/enowx/transport"
+	"github.com/enowx/enowx/version"
 )
 
 // Run serves the per-user daemon socket until interrupted. Both `enowx
@@ -40,7 +42,10 @@ func Run() error {
 	if err != nil {
 		return err
 	}
-	log := slog.New(slog.NewTextHandler(os.Stderr, nil))
+	logFile := diag.Open(dir, diag.DaemonLog)
+	defer logFile.End("daemon")
+	logFile.Start("daemon", Version, version.Build())
+	log := slog.New(slog.NewTextHandler(daemonLogWriter(logFile), nil))
 	useLoginPath(log)
 	exe, _ := os.Executable()
 	srv, err := newServer(dir, useLauncher(dir, exe, log.Warn))
@@ -48,9 +53,11 @@ func Run() error {
 		l.Close()
 		return err
 	}
-	srv.Log = log
+	srv.Log, srv.Diag = log, logFile
+	go keepLogsSwept(dir, srv.done, logFile)
 	go srv.watchProgram(exe)
 	dog := watchdog.Start(filepath.Join(dir, "watchdog"), "daemon", nil, nil) // its memory: it has no one thread to stall
+	dog.SetDoing(logFile.Doing)
 	defer dog.Stop()
 	go srv.convertCanvasHistories()
 	srv.procs.load(procsFile(dir))

@@ -62,6 +62,7 @@ Go 1.27+ is required (MyGo needs it). With an older `go`, set `GOTOOLCHAIN=go1.2
 | `core/hostkeys` | Keys typed in the app for one host's own use (a judge's, RAG's embedder's, a database URL), in a file of that host alone, never synced or sent back to an app | **No** |
 | `core/rag` | RAG: a project's files cut into chunks, embedded (Voyage, OpenAI-compatible, TEI) and kept in SQLite or PostgreSQL with pgvector, searched by meaning and words; the host's settings and consent per project, memories (see `docs/rag.md`) | **No** |
 | `core/tokens` | Token usage: the agents' records read by an adapter each, model APIs' answers metered, a call a record kept a file a day, prices, budgets, rollups (see `docs/tokens.md`) | **No** |
+| `core/diag` | The logs of the app and the daemon: events written off the caller's thread, secrets masked, rotation, old logs removed by their exact names, the bundle for a bug report (see `docs/diagnostics.md`) | **No** |
 | `core/goa` | GOD of Agents: how far each agent holds it to delegating, which of its tool calls are enowX's, which of its workers' calls are the user's (urgent), its task board on disk (see `docs/goa.md`) | **No** |
 | `core/hooks` | The user's hooks: kept (the host's, synced; a project's `.enowx/hooks.json` once allowed), which match an event, and running them (see `docs/hooks.md`) | **No** |
 | `core/automation` | When automations (an agent's prompt on a schedule) run (see `docs/automations.md`) | **No** |

@@ -8,6 +8,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/enowx/enowx/core/diag"
 	"github.com/enowx/enowx/proto"
 )
 
@@ -137,19 +138,42 @@ func TestPerItemKinds(t *testing.T) {
 	}
 }
 
-// A log keeps its last part, in place.
-func TestTrimLog(t *testing.T) {
-	p := filepath.Join(t.TempDir(), "enowxd.log")
-	data := strings.Repeat("a", logKept) + "the end"
-	if err := os.WriteFile(p, []byte(data), 0o600); err != nil {
+// The current log and the most recent rotated stay; older ones are offered, and go.
+func TestLogsKeepTheCurrentAndTheLatest(t *testing.T) {
+	dir := t.TempDir()
+	t.Setenv("TMPDIR", t.TempDir())
+	for _, name := range []string{"enowxd.log", "enowxd.log.1", "enowxd.log.2", "app.log", "app.log.1", "app.log.3"} {
+		if err := os.WriteFile(filepath.Join(dir, name), []byte("0123456789"), 0o600); err != nil {
+			t.Fatal(err)
+		}
+	}
+	e := Env{Dir: dir, Now: time.Now()}
+	kind := logs(e)
+	var offered []string
+	for _, it := range kind.Items {
+		offered = append(offered, it.Path)
+	}
+	slices.Sort(offered)
+	if !slices.Equal(offered, []string{"app.log.3", "enowxd.log.2"}) {
+		t.Fatalf("offered %v", offered)
+	}
+	res := Clean(e, proto.CacheCleanParams{Kinds: []string{"logs"}})
+	if res.Done != 2 || res.Freed != 20 || len(res.Failed) != 0 {
+		t.Fatalf("%+v", res)
+	}
+	for _, name := range []string{"enowxd.log", "enowxd.log.1", "app.log", "app.log.1"} {
+		if _, err := os.Stat(filepath.Join(dir, name)); err != nil {
+			t.Errorf("%s went", name)
+		}
+	}
+	// While a bundle reads them, nothing goes.
+	if err := os.WriteFile(filepath.Join(dir, "enowxd.log.3"), []byte("x"), 0o600); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := trimLog(p); err != nil {
-		t.Fatal(err)
-	}
-	got, _ := os.ReadFile(p)
-	if len(got) != logKept || !strings.HasSuffix(string(got), "the end") {
-		t.Fatalf("%d bytes", len(got))
+	release := diag.Hold(dir)
+	defer release()
+	if res := Clean(e, proto.CacheCleanParams{Kinds: []string{"logs"}}); res.Done != 0 || len(res.Failed) != 1 {
+		t.Fatalf("during a hold: %+v", res)
 	}
 }
 

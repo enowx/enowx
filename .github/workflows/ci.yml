@@ -72,4 +72,5 @@ jobs:
       # Agents' commands fit Windows' command line, run through real PowerShell and
       # cmd.exe (docs/agents.md).
       - run: go test ./core/agent -run 'TestMoveToFiles|TestShortenGuide'
+      - run: go test ./core/diag
       - run: go test ./daemon -run 'TestPsQuote|TestPsThenShell|TestCommandsFit|TestLongPrompt|TestAgentThroughCmdShim'

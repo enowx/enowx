@@ -15,6 +15,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/enowx/enowx/core/diag"
 	"github.com/enowx/enowx/core/hooks"
 	"github.com/enowx/enowx/internal/quietcmd"
 	"github.com/enowx/enowx/proto"
@@ -301,7 +302,7 @@ func trim(args []string, out io.Writer) error {
 		io.WriteString(out, output)
 		return done()
 	}
-	full := filepath.Join(os.TempDir(), "enowx-trim", time.Now().Format("20060102-150405")+fmt.Sprintf("-%d.log", os.Getpid()))
+	full := filepath.Join(diag.TrimDir(), time.Now().Format("20060102-150405")+fmt.Sprintf("-%d.log", os.Getpid()))
 	saved := ""
 	if os.MkdirAll(filepath.Dir(full), 0o700) == nil && os.WriteFile(full, buf.Bytes(), 0o600) == nil {
 		saved = " The whole output: " + full

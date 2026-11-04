@@ -9,6 +9,7 @@ import (
 	"github.com/egoist/mygo/ui"
 
 	"github.com/enowx/enowx/core/canvas"
+	"github.com/enowx/enowx/core/diag"
 	"github.com/enowx/enowx/proto"
 	"github.com/enowx/enowx/ui/canvasview"
 )
@@ -18,13 +19,19 @@ import (
 // an agent (canvas screenshot) or an export.
 
 // canvasPage is a web view as canvasview uses it.
-type canvasPage struct{ wv *mygo.WebView }
+type canvasPage struct {
+	wv   *mygo.WebView
+	diag *diag.Log
+}
 
 func (p canvasPage) Show(c *ui.Context) ui.Element { return ui.WebView(c, p.wv) }
 func (p canvasPage) LoadHTML(html string)          { p.wv.Page().LoadHTML(html, designOrigin()) }
 func (p canvasPage) Eval(code string) (any, error) { return p.wv.Page().Eval(code) }
 func (p canvasPage) SetZoom(f float64)             { p.wv.Page().SetZoomFactor(f) }
-func (p canvasPage) Close()                        { p.wv.Destroy() }
+func (p canvasPage) Close() {
+	p.diag.Event("webview.destroyed", "use", "canvas")
+	p.wv.Destroy()
+}
 
 // canvasWeb makes the Canvas page's web view of mockups; nil without one.
 func (a *App) canvasWeb() *canvasview.Web {
@@ -41,7 +48,8 @@ func (a *App) canvasWeb() *canvasview.Web {
 						done(nil, err)
 						return
 					}
-					done(canvasPage{wv}, nil)
+					a.diag.Event("webview.created", "use", "canvas")
+					done(canvasPage{wv, a.diag}, nil)
 				})
 			}()
 		},
@@ -95,6 +103,7 @@ func (a *App) renderCanvas(req proto.CanvasRenderRequest) {
 		// A hidden window of its own at the page's size: a web view in the
 		// main window flashed over its content, and wasn't laid out while
 		// the window was behind others.
+		a.diag.Every("webview.render", webViewLogEvery, "webview.render", "width", req.Width, "height", req.Height, "pageBytes", len(req.HTML))
 		hidden := mygo.NewWindow(mygo.WindowOptions{Hidden: true, Width: req.Width, Height: req.Height, UseContentSize: true,
 			Frameless: true, SkipTaskbar: true, BackgroundColor: "#ffffff"})
 		r := renderIn(hidden.Page(), hidden.CapturePage, req)

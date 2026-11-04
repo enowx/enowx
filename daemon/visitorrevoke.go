@@ -68,6 +68,7 @@ func (s *Server) recheckVisitors(team string) {
 	if err != nil || !st.SignedIn() {
 		for c, v := range snap {
 			if teams[v.Team] {
+				c.closedBecause("daemon: visitors signed out")
 				c.close() // signed out, the host lets nobody in
 			}
 		}

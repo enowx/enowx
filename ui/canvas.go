@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"slices"
 	"strings"
+	"time"
 
 	"github.com/egoist/mygo/ui"
 
@@ -198,7 +199,12 @@ func (a *App) canvasOptions() canvasview.Options {
 		Loaded:       hc.loaded,
 		Err:          hc.err,
 		Load: func(id string, done func(proto.Canvas, error)) {
-			canvasCall(func() (proto.Canvas, error) { return cl.Canvas(id) }, done)
+			began := time.Now()
+			canvasCall(func() (proto.Canvas, error) {
+				cv, err := cl.Canvas(id)
+				a.logCanvasLoad(cv, id, time.Since(began), err)
+				return cv, err
+			}, done)
 		},
 		Create: func(p proto.CanvasCreateParams, done func(proto.Canvas, error)) {
 			p.Team = a.space() // made in the space shown
@@ -365,4 +371,13 @@ func (a *App) openCanvasLink(link string) bool {
 	hc := a.canvasesOf()
 	a.page, hc.open, hc.frame, hc.compare = pageCanvas, id, design, nil
 	return true
+}
+
+// logCanvasLoad notes a canvas opened, by how much it holds.
+func (a *App) logCanvasLoad(cv proto.Canvas, id string, took time.Duration, err error) {
+	bytes := 0
+	for _, f := range cv.Frames {
+		bytes += len(f.HTML)
+	}
+	a.diag.Event("canvas.load", "canvas", id, "designs", len(cv.Frames), "htmlBytes", bytes, "took", took, "err", err)
 }
