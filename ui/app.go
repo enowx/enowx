@@ -36,6 +36,7 @@ import (
 	"github.com/enowx/enowx/ui/localpicker"
 	"github.com/enowx/enowx/ui/notesview"
 	"github.com/enowx/enowx/ui/portview"
+	"github.com/enowx/enowx/ui/projectdocsview"
 	"github.com/enowx/enowx/ui/syncview"
 	"github.com/enowx/enowx/ui/theme"
 	"github.com/enowx/enowx/ui/trafficview"
@@ -104,15 +105,16 @@ type App struct {
 	unslopComparing   *unslopCompare
 	renaming          *renameForm // a session being renamed (session_rename.go)
 	browserUnslops    map[string]proto.CanvasUnslopRun
-	teamChats         *hostChats      // the teams' chats (teamchat.go)
-	discord           discordState    // Discord Rich Presence (discord.go)
-	fonts             []ui.FontFamily // this device's monospaced fonts, for Settings' Terminal section
-	fontsLoading      bool            // the fonts are being read
-	fontsLoaded       bool            // they were read, even when this device has none
-	fontQuery         string          // the font search, in Settings' Terminal section
-	notes             notesview.View  // the Notes page
-	noteList          *hostNotes      // the connected host's notes
-	clone             *cloneForm      // the Clone from Git dialog
+	teamChats         *hostChats           // the teams' chats (teamchat.go)
+	discord           discordState         // Discord Rich Presence (discord.go)
+	fonts             []ui.FontFamily      // this device's monospaced fonts, for Settings' Terminal section
+	fontsLoading      bool                 // the fonts are being read
+	fontsLoaded       bool                 // they were read, even when this device has none
+	fontQuery         string               // the font search, in Settings' Terminal section
+	notes             notesview.View       // the Notes page
+	noteList          *hostNotes           // the connected host's notes
+	projectDocs       projectdocsview.View // Project Docs on the Notes page
+	clone             *cloneForm           // the Clone from Git dialog
 	noteImport        *noteImportForm
 	noteExport        *noteExportForm
 	catalogs          noteCatalogs    // every host's projects, for notes attached to them
