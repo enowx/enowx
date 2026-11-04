@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/enowx/enowx/client"
+	"github.com/enowx/enowx/core/session"
 	"github.com/enowx/enowx/proto"
 )
 
@@ -105,18 +106,25 @@ func TestUnslopRegionsEndWithTheRun(t *testing.T) {
 	})
 	t.Run("reported done but never settling", func(t *testing.T) {
 		r := start(t)
-		regions := r.srv.unslopRegionSessions(r.canvas)
-		if sess, err := r.srv.sessions.Get(regions[0].ID); err != nil {
-			t.Fatal(err)
-		} else if err := r.srv.sessions.SetState(sess, proto.StateWorking); err != nil {
-			t.Fatal(err)
+		make := func() *session.Session {
+			t.Helper()
+			sess, err := r.srv.sessions.Create(session.Spec{Command: []string{"cat"}, Dir: t.TempDir(), Cols: 80, Rows: 24,
+				Meta: session.Meta{Agent: "omp", Group: proto.UnslopGroup + "f", CanvasFor: "other"}})
+			if err != nil {
+				t.Fatal(err)
+			}
+			if err := r.srv.sessions.SetState(sess, proto.StateWorking); err != nil {
+				t.Fatal(err)
+			}
+			return sess
 		}
-		r.srv.helperFinished(regions[0].ID)
+		done, atWork := make(), make()
+		r.srv.helperFinished(done.ID())
 		r.srv.helpersPass(time.Now().Add(regionFinishedMax + time.Minute))
-		if _, err := r.srv.sessions.Get(regions[0].ID); err == nil {
+		if _, err := r.srv.sessions.Get(done.ID()); err == nil {
 			t.Fatal("still here after reporting done")
 		}
-		if _, err := r.srv.sessions.Get(regions[1].ID); err != nil {
+		if _, err := r.srv.sessions.Get(atWork.ID()); err != nil {
 			t.Fatal("the other, still at work, went too")
 		}
 	})
