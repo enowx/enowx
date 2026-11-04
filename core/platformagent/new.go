@@ -111,9 +111,14 @@ func New(o Options) (*Agent, error) {
 	a.model = first(o.Model, saved.model, record.DefaultModel)
 	a.effort = first(o.Effort, saved.effort, record.DefaultEffort)
 	a.mode = startMode(o, saved)
-	a.budget = saved.budget
-	if o.Budget > 0 {
+	switch {
+	case o.NoBudget:
+	case o.Budget > 0:
 		a.budget = o.Budget
+	case saved.found:
+		a.budget = saved.budget
+	default:
+		a.budget = o.NewBudget
 	}
 	a.limit = a.budget
 	a.total = saved.total

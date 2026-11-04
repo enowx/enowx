@@ -57,7 +57,7 @@ The key lives only in the vault, as a credential of platform `anthropic` (`Prese
 
 ## Defaults
 
-A new conversation starts on `claude-opus-5-5`, effort `high`, and a budget of $10 per session: past that it asks before going on (`record.Default*`; `/budget` or `--max-budget` to change it).
+A new conversation starts on `claude-opus-5-5`, effort `high`, and a budget of $10 per session: past that it asks before going on (`record.Default*`; `/budget` or `--max-budget` to change it, 0 for no limit). A conversation continued or resumed keeps its own, unless `--max-budget` says, and one with nothing to continue gets the default. Spending counts what a failed, cut or interrupted stream said so far, and compactions; compacting comes after the check, so a refused budget spends nothing more. A compaction that fails is tried once in a turn, and not again until the context has grown by a tenth.
 
 | Model | Window |
 |---|---|

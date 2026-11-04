@@ -3,6 +3,7 @@ package platformagent
 import (
 	"context"
 	"encoding/json"
+	"math"
 	"strings"
 	"testing"
 
@@ -165,5 +166,63 @@ func TestSubagentCallsPassHooks(t *testing.T) {
 	}
 	if text, isError := resultOf(t, r.srv.Requests()[2], "sub1"); !isError || !strings.Contains(text, "no shell") {
 		t.Errorf("sub result: %q %v", text, isError)
+	}
+}
+
+// A context this full would compact; over budget and refused, it must spend nothing more.
+func TestARefusedBudgetAtATurnsStartCompactsNothing(t *testing.T) {
+	r := newRig(t, func(o *Options) { o.Budget = 1 },
+		standinapi.Reply{Blocks: []standinapi.Block{standinapi.TextBlock("big")}, Usage: standinapi.Usage{Input: 900_000}})
+	r.mustTurn("first")
+	before := r.agent.Cost()
+	r.mustTurn("second")
+	if len(r.srv.Requests()) != 1 {
+		t.Fatalf("requests: %d", len(r.srv.Requests()))
+	}
+	if r.agent.Cost() != before || r.front.turnStop(t) != "budget" || r.front.budgetAsks != 1 {
+		t.Errorf("cost %v of %v, stop %s, asks %d", r.agent.Cost(), before, r.front.turnStop(t), r.front.budgetAsks)
+	}
+	// The message wasn't lost: it goes with the next once the budget allows.
+	r.agent.SetBudget(1000)
+	r.srv.Enqueue(standinapi.Text("<summary>s</summary>"), standinapi.Text("answer"))
+	r.mustTurn("third")
+	all := r.srv.Requests()
+	assertValidHistory(t, all[len(all)-1])
+	if !strings.Contains(string(all[len(all)-1].Raw("messages")), "second") {
+		t.Errorf("the refused message is gone: %s", all[len(all)-1].Raw("messages"))
+	}
+}
+
+func TestABudgetGoesToAContinueWithNothingToContinue(t *testing.T) {
+	r := newRig(t, func(o *Options) { o.Continue, o.NewBudget = true, 10 })
+	if _, _, _, got := r.agent.Settings(); got != 10 {
+		t.Fatalf("budget: %v", got)
+	}
+}
+
+func TestAnExplicitNoBudgetHoldsOverAKeptOne(t *testing.T) {
+	r := newRig(t, func(o *Options) { o.Budget = 3 })
+	id := r.agent.Conversation()
+	_ = r.agent.Close()
+	r.opts.Budget, r.opts.NoBudget, r.opts.NewBudget, r.opts.Resume = 0, true, 10, id
+	r.start()
+	if _, _, _, got := r.agent.Settings(); got != 0 {
+		t.Fatalf("budget: %v", got)
+	}
+	_ = r.agent.Close()
+	r.opts.NoBudget = false
+	r.start()
+	if _, _, _, got := r.agent.Settings(); got != 0 { // /budget 0 is a kept choice too
+		t.Fatalf("budget: %v", got)
+	}
+}
+
+func TestSetBudgetIgnoresWhatJSONCantHold(t *testing.T) {
+	r := newRig(t, func(o *Options) { o.Budget = 3 })
+	for _, bad := range []float64{math.NaN(), math.Inf(1), math.Inf(-1), -1} {
+		r.agent.SetBudget(bad) // it used to panic marshaling the Meta
+	}
+	if _, _, _, got := r.agent.Settings(); got != 3 {
+		t.Fatalf("budget: %v", got)
 	}
 }

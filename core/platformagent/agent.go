@@ -93,7 +93,10 @@ type Options struct {
 	// SkipPermissions starts a new conversation in bypass; it and AllowBypass, which only
 	// offers it, let a conversation that was in bypass come back to it.
 	SkipPermissions, AllowBypass bool
-	Budget                       float64
+	// Budget, or with NoBudget none at all, holds over what a conversation kept;
+	// NewBudget is for one that kept nothing, however it was asked for.
+	Budget, NewBudget float64
+	NoBudget          bool
 
 	// SystemPrompt, when not empty, replaces the built-in prompt whole; Append goes
 	// after it (enowX's inject and guide).

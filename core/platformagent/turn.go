@@ -34,6 +34,12 @@ const cutoffNudge = "Your last answer was cut off by the output limit. Continue 
 // cutoffCallError answers calls the output limit cut off: their input may be partial.
 const cutoffCallError = "This call was cut off by the output limit before it was complete, so it did not run. Send it again in smaller pieces."
 
+// budgetSpentText tells that the user said no to spending more.
+const budgetSpentText = "The budget is spent; the turn ends here."
+
+// pausedCallError answers calls of an answer the loop won't go on from.
+const pausedCallError = "The server kept pausing this turn, so this call did not run."
+
 var errNoKey = errors.New("no API key: add one in enowX (Settings, vault, platform anthropic)")
 
 // thread is a conversation with the model: the session's main one, or a subagent's. It
@@ -53,6 +59,10 @@ type thread struct {
 	stripBefore int
 	used        int64 // tokens of the last answer, input and output
 	lastPrompt  string
+	// compactFailed says a compaction failed this turn, compactFailedAt the context then:
+	// neither a tool round nor a new turn pays for another until it has grown.
+	compactFailed   bool
+	compactFailedAt int64
 }
 
 // Turn runs one user message to its end. It returns the error a Notice has already
@@ -97,7 +107,16 @@ func (a *Agent) turnOnce(ctx context.Context, text, own string, attachments []st
 		return errNoKey
 	}
 	t := a.main
-	t.compactIfFull(ctx)
+	t.compactFailed = false
+	// Before compacting, which costs: a refused budget must spend nothing more.
+	mayGoOn, err := a.mayGoOn(ctx)
+	if err != nil {
+		end(stopInterrupted)
+		return nil
+	}
+	if mayGoOn {
+		t.compactIfFull(ctx)
+	}
 
 	msg, files := t.userMessage(withContext(text, asked.Context), own, attachments)
 	if msg == nil {
@@ -105,6 +124,11 @@ func (a *Agent) turnOnce(ctx context.Context, text, own string, attachments []st
 		return nil
 	}
 	t.appendUser(msg, text, files)
+	if !mayGoOn {
+		a.notice("warning", budgetSpentText)
+		end(stopBudget)
+		return nil
+	}
 
 	stop, _, err := t.run(ctx)
 	if err != nil {
@@ -148,7 +172,7 @@ func (t *thread) run(ctx context.Context) (string, string, error) {
 		if ok, err := a.mayGoOn(ctx); err != nil {
 			return stopInterrupted, "", nil
 		} else if !ok {
-			a.notice("warning", "The budget is spent; the turn ends here.")
+			a.notice("warning", budgetSpentText)
 			return stopBudget, "", nil
 		}
 		// Between tool rounds is the only place inside a turn a summary can replace the
@@ -191,6 +215,9 @@ func (t *thread) run(ctx context.Context) (string, string, error) {
 			continue
 		case "pause_turn":
 			if pauses++; pauses > maxPauses {
+				if len(ans.calls) > 0 {
+					t.answerWith(ans.calls, pausedCallError) // the next request would be refused
+				}
 				return stopError, ans.text, errors.New("the server kept pausing the turn")
 			}
 			if len(ans.calls) == 0 {

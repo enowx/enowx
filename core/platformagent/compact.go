@@ -14,6 +14,10 @@ import (
 // The context passing this share of the window starts a compaction.
 const compactAt = 0.75
 
+// compactRegrow is how much the context must have grown since a compaction failed before
+// another is tried: with less, another would likely fail too, and each one costs.
+const compactRegrow = 1.1
+
 // Compact summarises the conversation now.
 func (a *Agent) Compact(ctx context.Context) error {
 	a.turnMu.Lock()
@@ -24,6 +28,12 @@ func (a *Agent) Compact(ctx context.Context) error {
 	}
 	if len(a.main.history) == 0 {
 		a.notice("info", "There is nothing to compact yet.")
+		return nil
+	}
+	if ok, err := a.mayGoOn(ctx); err != nil {
+		return err
+	} else if !ok {
+		a.notice("warning", "The budget is spent; the conversation wasn't compacted.")
 		return nil
 	}
 	return a.main.compact(ctx)
@@ -46,7 +56,11 @@ func (t *thread) compactIfFull(ctx context.Context) {
 	if len(t.history) == 0 || float64(used) < compactAt*float64(window) {
 		return
 	}
+	if t.compactFailed || float64(used) < float64(t.compactFailedAt)*compactRegrow {
+		return
+	}
 	if err := t.compact(ctx); err != nil && ctx.Err() == nil {
+		t.compactFailed, t.compactFailedAt = true, used
 		a.notice("warning", "Compaction failed: "+err.Error())
 	}
 }
@@ -74,27 +88,29 @@ func (t *thread) compact(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
-	cost, total := a.account(ans)
 	if summaryOf(ans) == "" {
+		t.recordSpend(ans)
 		ask.noTools = true
 		ans, err = t.call(ctx, ask)
 		if err != nil {
 			return err
 		}
-		more, sum := a.account(ans)
-		cost, total = cost+more, sum
 	}
 	summary := summaryOf(ans)
 	if summary == "" {
+		t.recordSpend(ans)
 		return errors.New("the model gave no summary")
 	}
 
+	cost, total := a.account(ans)
 	msg := t.summaryMessage(summary)
 	usage := ans.usage
 	a.emit(record.Record{
 		Type:      record.Compact,
 		Messages:  []json.RawMessage{msg},
 		Before:    before,
+		Msg:       ans.id,
+		Model:     ans.model,
 		Usage:     &usage,
 		Cost:      cost,
 		TotalCost: total,
@@ -102,6 +118,7 @@ func (t *thread) compact(ctx context.Context) error {
 	})
 	t.history = []message{{role: "user", raw: msg}}
 	t.stripBefore = 0
+	t.compactFailed, t.compactFailedAt = false, 0
 	t.setUsed(0)
 	a.notice("info", fmt.Sprintf("The conversation was compacted: about %d tokens became a summary.", before))
 	return nil

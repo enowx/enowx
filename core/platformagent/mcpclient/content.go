@@ -1,6 +1,7 @@
 package mcpclient
 
 import (
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"strings"
@@ -10,6 +11,13 @@ import (
 
 // maxResultText bounds a result's text: all of it goes to the model on every later turn.
 const maxResultText = 256 << 10
+
+// A picture over the API's limit, or too many, stays in the history and fails every later
+// request until /clear. Their sum is kept well under the API's limit on a whole request.
+const (
+	maxResultImages = 8
+	maxImagesBase64 = 20 << 20
+)
 
 // modelImageTypes are the images the Messages API takes: another would fail every
 // request from then on, the result being in the history.
@@ -28,6 +36,25 @@ type contentBlock struct {
 	} `json:"resource"`
 }
 
+// refusedImage says why b can't go to the model, count pictures of size bytes being there
+// already; "" when it can.
+func refusedImage(b contentBlock, count, size int) string {
+	switch {
+	case !modelImageTypes[b.MimeType] || b.Data == "":
+		return fmt.Sprintf("an image of type %q, which can't be shown to the model", b.MimeType)
+	case len(b.Data) > tools.ImageBase64Most:
+		return fmt.Sprintf("an image of %d MB, over the limit of %d MB", len(b.Data)>>20, tools.ImageBase64Most>>20)
+	case count >= maxResultImages:
+		return fmt.Sprintf("an image left out: at most %d go with a result", maxResultImages)
+	case size+len(b.Data) > maxImagesBase64:
+		return "an image left out: the result's images are too large together"
+	}
+	if _, err := base64.StdEncoding.DecodeString(b.Data); err != nil {
+		return "an image whose data isn't valid base64"
+	}
+	return ""
+}
+
 // resultOf turns a tools/call answer into a tool's result.
 func resultOf(raw json.RawMessage) tools.Result {
 	var answer struct {
@@ -40,16 +67,18 @@ func resultOf(raw json.RawMessage) tools.Result {
 	}
 	res := tools.Result{Failed: answer.IsError}
 	var texts []string
+	imagesSize := 0
 	for _, b := range answer.Content {
 		switch b.Type {
 		case "text":
 			texts = append(texts, b.Text)
 		case "image":
-			if modelImageTypes[b.MimeType] && b.Data != "" {
-				res.Images = append(res.Images, tools.Image{MediaType: b.MimeType, Base64: b.Data})
-			} else {
-				texts = append(texts, fmt.Sprintf("[an image of type %q, which can't be shown to the model]", b.MimeType))
+			if why := refusedImage(b, len(res.Images), imagesSize); why != "" {
+				texts = append(texts, "["+why+"]")
+				continue
 			}
+			res.Images = append(res.Images, tools.Image{MediaType: b.MimeType, Base64: b.Data})
+			imagesSize += len(b.Data)
 		case "resource":
 			if b.Resource.Text != "" {
 				texts = append(texts, b.Resource.Text)

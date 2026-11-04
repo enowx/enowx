@@ -74,7 +74,7 @@ func TestClaudePlatformOptions(t *testing.T) {
 	if want := filepath.Join(home, ".enowx-app", "claude-platform", "sessions", "-work-my-project"); o.SessionDir != want {
 		t.Fatalf("session dir %q", o.SessionDir)
 	}
-	if o.SystemPrompt != "" || o.Append != "a\n\nb" || o.Model != "m" || o.Budget != record.DefaultBudget || o.Dir != "/work/my project" {
+	if o.SystemPrompt != "" || o.Append != "a\n\nb" || o.Model != "m" || o.NewBudget != record.DefaultBudget || o.Dir != "/work/my project" {
 		t.Fatalf("%+v", o)
 	}
 
@@ -310,5 +310,35 @@ func TestClaudePlatformTakesItsKeyFromTheDaemon(t *testing.T) {
 	takeKey(context.Background(), bridge)
 	if got := os.Getenv("ANTHROPIC_API_KEY"); got != "a-configs" {
 		t.Fatalf("a config's key was replaced: %q", got)
+	}
+}
+
+func TestClaudePlatformBudgetFlag(t *testing.T) {
+	for _, bad := range []string{"nan", "NaN", "inf", "+Inf", "-Inf", "Infinity", "-1", "x"} {
+		if _, err := parseClaudePlatformFlags([]string{"--max-budget", bad}); err == nil || !strings.Contains(err.Error(), "isn't a number of dollars") {
+			t.Errorf("%s: %v", bad, err)
+		}
+	}
+	options := func(args ...string) platformagent.Options {
+		t.Helper()
+		f, err := parseClaudePlatformFlags(args)
+		if err != nil {
+			t.Fatal(err)
+		}
+		o, err := f.options("/work", t.TempDir())
+		if err != nil {
+			t.Fatal(err)
+		}
+		return o
+	}
+	if o := options("--max-budget", "0"); !o.NoBudget || o.Budget != 0 {
+		t.Errorf("0 is no limit: %+v", o)
+	}
+	if o := options("--max-budget", "$2.5"); o.NoBudget || o.Budget != 2.5 {
+		t.Errorf("2.5: %+v", o)
+	}
+	// Unset: the default for a conversation with none kept, a --continue finding none too.
+	if o := options("--continue"); o.NoBudget || o.Budget != 0 || o.NewBudget != record.DefaultBudget {
+		t.Errorf("--continue: %+v", o)
 	}
 }

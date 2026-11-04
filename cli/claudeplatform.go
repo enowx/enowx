@@ -9,7 +9,6 @@ import (
 	"os"
 	"os/signal"
 	"path/filepath"
-	"strconv"
 	"strings"
 	"syscall"
 	"unicode"
@@ -123,9 +122,8 @@ func parseClaudePlatformFlags(args []string) (claudePlatformFlags, error) {
 		case "--max-budget":
 			var v string
 			if v, err = needValue(); err == nil {
-				f.budget, err = strconv.ParseFloat(strings.TrimPrefix(v, "$"), 64)
-				if err != nil || f.budget < 0 {
-					err = fmt.Errorf("claude-platform: --max-budget: %q isn't a number of dollars", v)
+				if f.budget, err = record.ParseBudget(v); err != nil {
+					err = fmt.Errorf("claude-platform: --max-budget: %w", err)
 				}
 				f.budgetSet = true
 			}
@@ -170,11 +168,9 @@ func (f claudePlatformFlags) options(dir, home string) (platformagent.Options, e
 	if o.SessionDir == "" {
 		o.SessionDir = filepath.Join(record.SessionsDir(home), sanitizeSessionDir(dir))
 	}
-	switch {
-	case f.budgetSet:
-		o.Budget = f.budget
-	case f.resume == "" && !f.continueLast:
-		o.Budget = record.DefaultBudget // a conversation resumed keeps its own
+	o.NewBudget = record.DefaultBudget // a conversation resumed keeps its own
+	if f.budgetSet {
+		o.Budget, o.NoBudget = f.budget, f.budget == 0
 	}
 	switch {
 	case f.systemPromptFile != "":

@@ -12,6 +12,10 @@ import (
 // maxTries is how many times one request is tried in all.
 const maxTries = 6
 
+// maxRetryWait is the longest a retry-after is waited out: a turn that sits silent for
+// longer reads as hung, and a proxy can say anything.
+const maxRetryWait = 10 * time.Minute
+
 // message is one of the API's messages as kept: its bytes, replayed unchanged.
 type message struct {
 	role string
@@ -75,6 +79,9 @@ func (t *thread) call(ctx context.Context, o callOptions) (*answer, error) {
 			return nil, fmt.Errorf("%s: gave up after %d tries", a.scrub(failure.describe), maxTries)
 		}
 		wait := failure.retryAfter
+		if wait > maxRetryWait {
+			return nil, fmt.Errorf("%s: the API asks to wait %s, longer than this waits (%s): try again later", a.scrub(failure.describe), roundWait(wait), maxRetryWait)
+		}
 		if wait <= 0 {
 			wait = a.backoffFor(try)
 		}

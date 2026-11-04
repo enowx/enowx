@@ -719,3 +719,40 @@ func TestNarrowLineKeepsTheCursorOnIt(t *testing.T) {
 	s.press("a")
 	waitFor(t, "text at the start", func() bool { return strings.Contains(screen(), "❯ ax") }, screen)
 }
+
+// /clear's yes can come when a message sent in the same burst has started a turn: clearing
+// would wait for that turn on the very goroutine it needs, and wipe the message.
+func TestClearAnsweredDuringATurnIsRefusedAndNothingBlocks(t *testing.T) {
+	release := make(chan struct{})
+	defer close(release)
+	s := start(t, func(_ *Config, r *fakeRunner) {
+		r.onTurn = func(ctx context.Context, text string) error {
+			select {
+			case <-release:
+			case <-ctx.Done():
+			}
+			return nil
+		}
+	})
+	s.press("/clear\rhello there\r")
+	s.waitOut("hello there")
+	s.settle()
+	s.press("y")
+	s.waitOut("/clear: not done")
+	s.r.mu.Lock()
+	cleared := s.r.cleared
+	s.r.mu.Unlock()
+	if cleared != 0 {
+		t.Fatal("cleared with a turn running")
+	}
+	s.press("\x1b") // the loop still answers
+	s.waitOut("Interrupted")
+}
+
+func TestBudgetRefusesWhatIsNoAmount(t *testing.T) {
+	s := start(t, nil)
+	for _, bad := range []string{"NaN", "Inf", "-Inf", "+Inf", "Infinity", "-1"} {
+		s.press("/budget " + bad + "\r")
+		s.waitOut("/budget: \"" + bad + "\" isn't a number of dollars")
+	}
+}
