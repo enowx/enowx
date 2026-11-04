@@ -13,6 +13,7 @@ import (
 	"github.com/enowx/enowx/core/iconlib"
 	"github.com/enowx/enowx/proto"
 	"github.com/enowx/enowx/ui/notesview"
+	"github.com/enowx/enowx/ui/projectdocsview"
 	"github.com/enowx/enowx/ui/theme"
 	"github.com/enowx/enowx/ui/widget"
 )
@@ -36,6 +37,7 @@ func (a *App) notesOf() *hostNotes {
 	if a.noteList == nil || a.noteList.host != a.host.ID {
 		a.noteList = &hostNotes{host: a.host.ID}
 		a.notes = notesview.View{}
+		a.projectDocs = projectdocsview.View{}
 		hn, cl := a.noteList, a.client
 		if cl != nil {
 			go func() {
@@ -70,6 +72,7 @@ func (a *App) notesEvent(data json.RawMessage) func() {
 func (a *App) notesPage(c *ui.Context) {
 	a.loadCatalogs()
 	defer a.attachDialog(c) // the Notes page alone attaches notes
+	defer func() { a.projectDocs.Dialogs(c, a.projectDocsOptions()) }()
 	a.notes.Draw(c, a.notesOptions())
 }
 
@@ -187,6 +190,8 @@ func (a *App) notesOptions() notesview.Options {
 		Import:    func() { a.openNoteImport(nil) },
 		Export:    a.openNoteExport,
 		Drop:      a.openNoteImport,
+		DocsPanel: a.projectDocsPanel,
+		NewDocs:   a.projectDocs.OpenNew,
 	}
 }
 

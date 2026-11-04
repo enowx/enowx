@@ -90,6 +90,7 @@ Go 1.27+ is required (MyGo needs it). With an older `go`, set `GOTOOLCHAIN=go1.2
 | `ui/textfmt` | How values read in the UI: sizes, plurals, paths | **No** |
 | `ui/localpicker` | Picks files and folders of this device, for adding them to a session's folder | Yes |
 | `ui/chatview`, `ui/activityview`, `ui/appwindow`, `ui/libraryview`, `ui/browserview`, `ui/checkview`, `ui/diffview`, `ui/fileview`, `ui/portview`, `ui/trafficview`, `ui/androidview`, `ui/notesview`, `ui/canvasview`, `ui/vaultview`, `ui/usageview`, `ui/folderpicker`, `ui/syncview` | Self-contained views; they get what they need from `ui` through options and callbacks, never import it | Yes |
+| `ui/projectdocsview` | Project Docs on the Notes page: making a project, its summary, a document's strip; self-contained like the views above, drawn through a hook of `ui/notesview` | Yes |
 | `ui/tokenview` | The Tokens tab of Resource usage: every host's token use, budgets, prices, coverage; self-contained like the views above | Yes |
 
 Keep MyGo out of packages marked **No**. If MyGo ever has to be replaced, only `ui/`, `cmd/enowx` and the terminal emulation in `core/session` should change.

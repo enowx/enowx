@@ -94,6 +94,10 @@ type Options struct {
 	// MoveSpace opens moving page n, with those under it, to another
 	// space (the user's own or a team's); nil while there is none.
 	MoveSpace func(n proto.NoteInfo)
+	// DocsPanel draws what Project Docs shows above a page of theirs, and
+	// NewDocs opens making a project; nil leaves the page without them.
+	DocsPanel func(c *ui.Context, p DocsPage)
+	NewDocs   func()
 }
 
 // ExportPick is the notes an export takes: a page with those under it, a
@@ -349,6 +353,9 @@ func (v *View) empty(c *ui.Context, o Options) {
 		}
 		if o.Loaded && widget.PrimaryButton(c, icon.Plus, "New page", "").Clicked() {
 			v.newPage(o, "", "")
+		}
+		if o.Loaded && o.NewDocs != nil && widget.GhostButton(c, "New project docs…").Clicked() {
+			o.NewDocs()
 		}
 	})
 }
