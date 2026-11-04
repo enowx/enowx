@@ -51,7 +51,7 @@ A new conversation starts on `claude-opus-5-5`, effort `high`, and a budget of $
 | Opus 5.5 (the default), Fable 5.1, Sonnet 5.5, Haiku 5.5, Opus 5, Sonnet 5 | 1M |
 | Haiku 4.5 | 200K |
 
-**Modes** go by Shift+Tab, and its status line names the one on: `default` "ask first mode on", `acceptEdits` "accept edits on", `plan` "plan mode on", `bypassPermissions` "bypass permissions on". **Effort** is low, medium, high, xhigh or max (`/effort`), **model** `/model`.
+**While it works** its status line counts the seconds, so a long command or a slow answer doesn't read as a stopped session. **Modes** go by Shift+Tab, and its status line names the one on: `default` "ask first mode on", `acceptEdits` "accept edits on", `plan` "plan mode on", `bypassPermissions` "bypass permissions on". **Effort** is low, medium, high, xhigh or max (`/effort`), **model** `/model`.
 
 **The system prompt** is, first found: `--system-prompt-file` for one session; `~/.enowx-app/claude-platform/system-prompt.md` for every session on the host; the built-in one. enowX's inject and guide go after whichever it is. A config's `args` can carry `--system-prompt-file`, so a config can have its own.
 

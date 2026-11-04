@@ -7,6 +7,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"time"
 )
 
 // job is one thing at a time the agent does: a turn, or compacting.
@@ -14,6 +15,7 @@ type job struct {
 	text    string // a turn's message, as typed
 	compact bool
 	cancel  context.CancelFunc
+	started time.Time
 }
 
 // submit takes a line sent: a command of the terminal's, or a message.
@@ -46,6 +48,7 @@ func (t *Terminal) enqueue(j job) {
 func (t *Terminal) start(j job) {
 	ctx, cancel := context.WithCancel(t.ctx)
 	j.cancel = cancel
+	j.started = t.cfg.Now()
 	t.job = &j
 	t.stopped, t.saidStop = false, false
 	r := t.r
@@ -183,14 +186,17 @@ func (t *Terminal) statusLine() string {
 
 // footerText is the status line that stays under the conversation. "esc to interrupt"
 // is what enowX reads as an agent at work (agent.PromptShown), so it goes away while
-// the agent waits on an answer.
+// the agent waits on an answer. The seconds counting are what keeps a session's screen
+// moving through a long command or a slow answer: a screen still for long reads as
+// stopped (session.staleWorking).
 func (t *Terminal) footerText() string {
 	if !t.cfg.Interactive {
 		return ""
 	}
 	s := t.statusLine()
 	if t.job != nil && t.currentAsk() == nil {
-		s = modeShown(t.view.mode) + " · esc to interrupt" + strings.TrimPrefix(s, modeShown(t.view.mode))
+		elapsed := int(t.cfg.Now().Sub(t.job.started).Seconds())
+		s = fmt.Sprintf("%s · esc to interrupt · %ds%s", modeShown(t.view.mode), elapsed, strings.TrimPrefix(s, modeShown(t.view.mode)))
 	}
 	if n := len(t.queue); n > 0 {
 		s += fmt.Sprintf(" · %d queued", n)
