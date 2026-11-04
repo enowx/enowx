@@ -329,6 +329,26 @@ func (s *Service) keep(w http.ResponseWriter, r *http.Request, v store.LibraryVe
 	return true
 }
 
+// documentOf is f's document zipped as it's kept, or answers: what would come to
+// too much is never made.
+func (s *Service) documentOf(w http.ResponseWriter, f designshare.Frame, assets canvas.Assets) ([]byte, bool) {
+	page, err := canvas.FrameDocumentWithin(f.Canvas(), assets, api.MaxLibraryDocument)
+	if errors.Is(err, canvas.ErrDocumentTooBig) {
+		fail(w, http.StatusUnprocessableEntity, "this design comes to more than 32 MB with its files in place: show each file fewer times")
+		return nil, false
+	}
+	if err != nil {
+		s.answer(w, nil, err)
+		return nil, false
+	}
+	doc, err := gzipped([]byte(page))
+	if err != nil {
+		s.answer(w, nil, err)
+		return nil, false
+	}
+	return doc, true
+}
+
 // submit settles a version whose objects are there: checked again, its
 // documents made, then in review or live by its owner's standing.
 func (s *Service) submit(w http.ResponseWriter, r *http.Request) {
@@ -383,23 +403,21 @@ func (s *Service) submit(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 	assets := b.AssetReader()
-	doc, err := gzipped([]byte(canvas.FrameDocument(b.Frame.Canvas(), assets)))
-	if err != nil {
-		s.answer(w, nil, err)
+	doc, ok := s.documentOf(w, b.Frame, assets)
+	if !ok {
 		return
+	}
+	var phone []byte
+	if b.Phone != nil {
+		if phone, ok = s.documentOf(w, *b.Phone, assets); !ok {
+			return
+		}
 	}
 	if !s.keep(w, r, v, api.PartDoc, doc) {
 		return
 	}
-	if b.Phone != nil {
-		phone, err := gzipped([]byte(canvas.FrameDocument(b.Phone.Canvas(), assets)))
-		if err != nil {
-			s.answer(w, nil, err)
-			return
-		}
-		if !s.keep(w, r, v, api.PartDocPhone, phone) {
-			return
-		}
+	if phone != nil && !s.keep(w, r, v, api.PartDocPhone, phone) {
+		return
 	}
 	status := api.LibraryReview
 	if me.Trust == api.TrustTrusted && (it.LiveVersion == 0 || it.Kind == v.Kind) {

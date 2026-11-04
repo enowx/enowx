@@ -82,6 +82,9 @@ const (
 	MaxLibraryThumb      = 300 << 10
 	MaxLibraryThumbWidth = 1200
 	MaxLibraryComponent  = 64 << 10
+	// MaxLibraryDocument is the most a document the server makes from a bundle
+	// comes to, before it's zipped: a bundle naming a file many times is refused.
+	MaxLibraryDocument   = 32 << 20
 	MaxLibraryAccount    = 200 << 20
 	MaxLibraryLiveItems  = 50
 	MaxLibraryVersions   = 5

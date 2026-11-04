@@ -6,6 +6,7 @@
 package designshare
 
 import (
+	"bytes"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -37,6 +38,40 @@ type Frame struct {
 	Background string                `json:"background,omitempty"`
 	HTML       string                `json:"html,omitempty"`
 	Elements   []proto.CanvasElement `json:"elements,omitempty"`
+}
+
+// mostElements is the most shapes a design has. A shape takes 3 bytes of a bundle
+// and over 200 of memory once read, so it's counted before it's read.
+const mostElements = 20000
+
+// UnmarshalJSON reads a frame, refusing more shapes than a design has.
+func (f *Frame) UnmarshalJSON(data []byte) error {
+	type plain Frame
+	var raw struct {
+		plain
+		Elements json.RawMessage `json:"elements"`
+	}
+	if err := json.Unmarshal(data, &raw); err != nil {
+		return err
+	}
+	*f = Frame(raw.plain)
+	if len(raw.Elements) == 0 {
+		return nil
+	}
+	dec := json.NewDecoder(bytes.NewReader(raw.Elements))
+	if t, err := dec.Token(); err != nil || t != json.Delim('[') {
+		return json.Unmarshal(raw.Elements, &f.Elements) // says what's wrong with it
+	}
+	for n := 0; dec.More(); n++ {
+		var skip json.RawMessage
+		if err := dec.Decode(&skip); err != nil {
+			return err
+		}
+		if n == mostElements {
+			return errors.New("designshare: a design has too many shapes")
+		}
+	}
+	return json.Unmarshal(raw.Elements, &f.Elements)
 }
 
 // Canvas is f as a canvas's frame, for the code that draws one.

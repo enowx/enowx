@@ -161,3 +161,19 @@ func TestSlug(t *testing.T) {
 		}
 	}
 }
+
+// A shape takes 3 bytes of a bundle and far more once read: the count stops first.
+func TestParseRefusesTooManyShapes(t *testing.T) {
+	bundleOf := func(n int) []byte {
+		return []byte(`{"format":"` + Format + `","frame":{"name":"x","width":10,"height":10,"elements":[{}` + strings.Repeat(",{}", n-1) + `]}}`)
+	}
+	if _, err := Parse(bundleOf(mostElements)); err != nil {
+		t.Fatalf("as many as a design has: %v", err)
+	}
+	if _, err := Parse(bundleOf(mostElements + 1)); err == nil {
+		t.Fatal("one more was read")
+	}
+	if _, err := Parse([]byte(`{"format":"` + Format + `","frame":{"width":10,"height":10,"elements":"no"}}`)); err == nil {
+		t.Fatal("shapes that aren't a list")
+	}
+}
