@@ -130,6 +130,10 @@ var canvasHandlers = map[string]handler{
 		c.srv.videos.reply(p)
 		return ok, nil
 	}),
+	proto.MethodCanvasServe: bare(func(c *conn) (any, error) {
+		c.srv.canvasState.serveRenders(c)
+		return ok, nil
+	}),
 	proto.MethodCanvasRenderReply: with(func(c *conn, p proto.CanvasRenderReply) (any, error) {
 		c.srv.canvasState.reply(p)
 		return ok, nil

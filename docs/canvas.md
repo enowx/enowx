@@ -141,7 +141,7 @@ Agents learn how to design from the canvas guide (`enowx-app canvas guide`), whi
 
 The daemon draws a frame of shapes itself (PNG, PDF and SVG). Agents on a server see what they made without a screen or an app.
 
-A frame with HTML needs a web engine. The daemon asks the app connected to the host and serving Browsers (`canvas.render` event), which loads the page in a web view behind its window, captures it, and answers (`canvas.renderReply`). Without such an app, rendering a mockup says to open it.
+A frame with HTML needs a web engine. The daemon asks an app connected to the host (`canvas.render` event): the latest showing this host, which serves Browsers, else the latest only watching it, which registers with `canvas.serve` and renders on the device the app runs on. It loads the page in a web view behind its window, captures it, and answers (`canvas.renderReply`). An older app or daemon doesn't do the watching part, so it needs the app to show the host. Exporting a motion as a video still needs the app showing the host. Without such an app, rendering a mockup says to open it.
 
 ## Where they are kept
 

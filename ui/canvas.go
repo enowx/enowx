@@ -97,7 +97,7 @@ func (a *App) canvasEvent(ev proto.Event) func() {
 		if json.Unmarshal(ev.Data, &req) != nil {
 			return nil
 		}
-		return func() { a.renderCanvas(req) }
+		return func() { a.renderCanvas(a.client, req) }
 	}
 	return nil
 }

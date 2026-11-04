@@ -314,6 +314,7 @@ func (s *Server) serveConn(nc net.Conn, remote bool) {
 		delete(s.conns, c)
 		s.mu.Unlock()
 		s.browsers.drop(c)
+		s.canvasState.dropRenderer(c)
 		s.projWatches.drop(c)
 		s.appReqs.drop(c)
 		s.vault.drop(c)

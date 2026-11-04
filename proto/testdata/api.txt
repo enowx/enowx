@@ -2793,6 +2793,7 @@ method canvas.redo
 method canvas.render
 method canvas.renderReply
 method canvas.restore
+method canvas.serve
 method canvas.share
 method canvas.shares
 method canvas.undo

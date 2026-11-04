@@ -119,6 +119,10 @@ func (c *Client) RenderCanvas(p proto.CanvasRenderParams) (proto.CanvasRendered,
 	return out, err
 }
 
+// ServeCanvasRenders has this connection render frames for the daemon, serving no
+// Browsers. An older daemon answers an unknown method, and asks nothing of it.
+func (c *Client) ServeCanvasRenders() error { return c.Call(proto.MethodCanvasServe, nil, nil) }
+
 // CanvasRenderReply answers the daemon's request to render.
 func (c *Client) CanvasRenderReply(r proto.CanvasRenderReply) error {
 	return c.Call(proto.MethodCanvasRenderReply, r, nil)
