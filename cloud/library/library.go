@@ -46,6 +46,8 @@ type Config struct {
 	Mailer Mailer
 	// Announce is where an admin's picks are said; unset, nowhere.
 	Announce Announce
+	// Embedder turns on searching by meaning; nil leaves it off.
+	Embedder Embedder
 }
 
 // DefaultPrefix is where the library's objects are in the store it shares.
@@ -81,6 +83,10 @@ type Service struct {
 	// per email on its way.
 	counts tally
 	mails  chan struct{}
+	// vectors is meaning search's store, nil while that's off; set in New, then
+	// only read. embeds holds a place per search's call to the embedder.
+	vectors *store.LibraryVectors
+	embeds  chan struct{}
 }
 
 // publicReads is the most public reads at work at once.
@@ -99,7 +105,9 @@ func New(cfg Config, host Host, db *store.DB, log *slog.Logger) (*Service, error
 	if err != nil {
 		return nil, fmt.Errorf("library: %w", err)
 	}
-	return &Service{cfg: cfg, host: host, db: db, log: log, reads: make(chan struct{}, publicReads), objects: objects, objectReads: make(chan struct{}, objectsAtOnce), mails: make(chan struct{}, mailsAtOnce)}, nil
+	s := &Service{cfg: cfg, host: host, db: db, log: log, reads: make(chan struct{}, publicReads), objects: objects, objectReads: make(chan struct{}, objectsAtOnce), mails: make(chan struct{}, mailsAtOnce), embeds: make(chan struct{}, embedsAtOnce)}
+	s.openMeaning()
+	return s, nil
 }
 
 // Mount adds the library's routes to mux.
@@ -149,6 +157,7 @@ func (s *Service) Mount(mux *http.ServeMux) {
 	handle("POST "+api.PathLibraryViews, s.webOnly(s.addViews))
 	handle("GET "+api.PathLibraryPicks, s.moderator(s.picks))
 	s.mountReuse(handle)
+	s.mountSearch(mux)
 
 	handle("GET "+api.PathLibraryAuthorize, s.authorize)
 	handle("POST "+api.PathLibraryExchange, s.webOnly(s.exchange))
@@ -160,6 +169,9 @@ func (s *Service) Mount(mux *http.ServeMux) {
 // its limits is said in the log.
 func (s *Service) Sweep(ctx context.Context) {
 	go s.keepWritingCounts(ctx)
+	if s.MeaningOn() {
+		go s.embedLoop(ctx)
+	}
 	tick := time.NewTicker(time.Hour)
 	defer tick.Stop()
 	for {

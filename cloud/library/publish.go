@@ -147,12 +147,11 @@ func (s *Service) createItem(w http.ResponseWriter, r *http.Request) {
 	if s.bucketFull(w, r) {
 		return
 	}
-	meta, _ := json.Marshal(store.LibraryMeta{Title: p.Title, Description: p.Description, Category: p.Category, Style: cleanText(p.Style, 40), Theme: cleanText(p.Theme, 20),
-		Device: cleanText(p.Device, 20), MadeWith: madeWith(p.MadeWith), SourceURL: p.SourceURL, Tags: cleanTags(p.Tags), HasMotion: p.HasMotion})
+	meta, _ := json.Marshal(store.LibraryMeta{Title: p.Title, Description: p.Description, Category: p.Category, Style: styleOf(p.Style), MadeWith: madeWith(p.MadeWith), SourceURL: p.SourceURL, Tags: cleanTags(p.Tags), HasMotion: p.HasMotion})
 	version := store.LibraryVersionRow{Kind: p.Kind, License: p.License, Format: p.Format, Prompt: p.Prompt, Width: p.Width, Height: p.Height, Meta: string(meta)}
 	if p.ItemID == "" {
 		id, err := s.db.AddLibraryItem(r.Context(), store.LibraryNewItem{Owner: accID, Slug: designshare.Slug(p.Title), Kind: p.Kind, License: p.License, Title: p.Title, Description: p.Description,
-			Category: p.Category, Style: cleanText(p.Style, 40), Theme: cleanText(p.Theme, 20), Device: cleanText(p.Device, 20), MadeWith: madeWith(p.MadeWith), SourceURL: p.SourceURL,
+			Category: p.Category, Style: styleOf(p.Style), MadeWith: madeWith(p.MadeWith), SourceURL: p.SourceURL,
 			Tags: cleanTags(p.Tags), HasMotion: p.HasMotion, Version: version})
 		s.answer(w, api.LibraryPublished{ID: id, Version: 1}, err)
 		return
@@ -405,6 +404,10 @@ func (s *Service) submit(w http.ResponseWriter, r *http.Request) {
 	status := api.LibraryReview
 	if me.Trust == api.TrustTrusted && (it.LiveVersion == 0 || it.Kind == v.Kind) {
 		status = api.LibraryLive
+	}
+	if err := s.readTraits(r.Context(), v, b); err != nil {
+		s.answer(w, nil, err)
+		return
 	}
 	scan, _ := json.Marshal(findingsOf(found))
 	if err := s.db.SubmitLibraryVersion(r.Context(), accID, v.ItemID, v.Version, status, string(scan)); err != nil {

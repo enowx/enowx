@@ -1,6 +1,7 @@
 package library
 
 import (
+	"context"
 	"encoding/base64"
 	"errors"
 	"net/http"
@@ -11,7 +12,6 @@ import (
 
 	"github.com/enowx/enowx/cloud/api"
 	"github.com/enowx/enowx/cloud/blobstore"
-	"github.com/enowx/enowx/cloud/store"
 )
 
 // What anyone can read, and what an owner can do with their own.
@@ -34,8 +34,19 @@ func (s *Service) listItems(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 	}
-	items, more, err := s.db.LibraryItems(r.Context(), store.LibraryQuery{Q: q.Get("q"), Category: q.Get("category"), Kind: q.Get("kind"),
-		License: q.Get("license"), Tag: q.Get("tag"), Sort: q.Get("sort"), Limit: limit, Offset: offset})
+	query := queryOf(q)
+	query.Limit, query.Offset = limit, offset
+	ctx := r.Context()
+	if strings.TrimSpace(query.Q) != "" {
+		if !s.limits.allow("search "+s.addressOf(r), searchesPerMinute) {
+			tooMany(w, "that's many searches from here: wait a minute")
+			return
+		}
+		var cancel context.CancelFunc
+		ctx, cancel = context.WithTimeout(ctx, searchTime)
+		defer cancel()
+	}
+	items, more, err := s.db.LibraryItems(ctx, query)
 	if err != nil {
 		s.answer(w, nil, err)
 		return

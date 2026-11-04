@@ -299,6 +299,10 @@ type LibraryQueueItem struct {
 	LibraryItem
 	Version LibraryVersion `json:"version"`
 	Trust   string         `json:"trust"`
+	// Similar are designs whose pictures look close, for a moderator to check;
+	// SimilarChecked says its picture could be compared at all.
+	Similar        []LibrarySimilar `json:"similar,omitempty"`
+	SimilarChecked bool             `json:"similarChecked"`
 }
 
 // LibraryQueue is the moderators' work: new accounts' designs, then reports.

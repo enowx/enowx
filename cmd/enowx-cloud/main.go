@@ -82,6 +82,10 @@ func run(log *slog.Logger) error {
 			ReturnURL: env("ENOWX_CLOUD_LIBRARY_RETURN_URL", ""), WebSecret: env("ENOWX_CLOUD_LIBRARY_WEB_SECRET", ""), AdminTeam: env("ENOWX_CLOUD_LIBRARY_ADMIN_TEAM", ""),
 			// The Contributor role's bot; off until a channel is named.
 			Announce: library.Announce{BotToken: env("ENOWX_CLOUD_DISCORD_BOT_TOKEN", ""), ChannelID: env("ENOWX_CLOUD_LIBRARY_DISCORD_CHANNEL", "")}}
+		// Searching by meaning: off unless the owner names an embedder.
+		if base := env("ENOWX_CLOUD_LIBRARY_EMBED_URL", ""); base != "" {
+			cfg.Library.Embedder = library.NewHTTPEmbedder(base, env("ENOWX_CLOUD_LIBRARY_EMBED_MODEL", ""), os.Getenv("ENOWX_CLOUD_LIBRARY_EMBED_KEY"))
+		}
 	}
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()

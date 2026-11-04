@@ -31,6 +31,7 @@ The library is off unless the cloud has `ENOWX_CLOUD_LIBRARY=on`. `GET /v1/info`
 | `ENOWX_CLOUD_LIBRARY_WEB_SECRET` | What the website's server proves itself with. Without it the website can't sign anyone in |
 | `ENOWX_CLOUD_LIBRARY_ADMIN_TEAM` | The team whose owner and admins moderate |
 | `ENOWX_CLOUD_LIBRARY_DISCORD_CHANNEL` | The channel picks are said in, with `ENOWX_CLOUD_DISCORD_BOT_TOKEN`. Unset, nothing is sent to Discord |
+| `ENOWX_CLOUD_LIBRARY_EMBED_URL`, `_EMBED_MODEL`, `_EMBED_KEY` | Searching by meaning: an OpenAI-compatible endpoint (`…/v1`), its model, its key if any. Off while the address is unset |
 
 The cloud now imports `core/autopush`, `core/canvas` and `core/designshare`: a deploy that watches paths has to watch those and `proto/` too.
 
@@ -109,6 +110,18 @@ The library at its limit stops publishing, with a message; reading goes on. Publ
 The website sends the browser to `/library/authorize` with a `state` and a PKCE challenge. The cloud signs them in with GitHub, or knows them already, and sends them back to the configured address with a code good once, for a minute. The website's server trades it, with its secret and the verifier, for a token (`enxl_…`) kept in its cookie.
 
 That token opens `/v1/library` and nothing else, and can't publish. This path never joins the default team and starts no session of the cloud's own pages.
+
+## Searching and filtering
+
+`GET items` takes `q`, `category`, `kind`, `license`, `tag`, `style`, `color`, `theme`, `device`, `motion=1` and `sort` (`relevant`, `new`, `popular`, `featured`). Every value reaches the database as a parameter; one that isn't known finds nothing. A search ranks by how well it matches unless another sort is asked for.
+
+**Words.** On Postgres, a `tsvector` the database keeps itself (title first, then tags, then description, English stemming) with a GIN index; all words have to match, the last as a prefix. It needs Postgres 12 or later. SQLite, for tests and small clouds, uses LIKE with the same meaning and order.
+
+**What the server reads at submit, from the bundle and not from the host** (`designshare.LookOf`): the theme by the page's ground, the device by its width (600 or less is a phone; a phone version counts too), and up to three dominant colors, kept per version in `library_version_colors`. Nothing is drawn: a page's ground counts most, then backgrounds, then the rest, following CSS variables and utility classes. Scripts aren't read, so a design that paints itself from a script reads as what its page says. Style is the creator's pick in the form.
+
+**Load.** Searches share the few places of public reads, so teams' sync keeps its connections, hold a connection 3 seconds at most, and are limited to 60 a minute per address. Behind the website the browser's address is counted, which its secret vouches for.
+
+**By meaning.** Off unless an embedder is set, and on Postgres only with pgvector: found at the start, turned on if the database role may, and otherwise the library runs without it and says so in the log. `GET /v1/info` adds `library-meaning` only when it works, and the website shows **By meaning** only then. Vectors are kept in `library_embeddings`, every 5 minutes for what's new or changed, and dropped when a design stops showing. SQLite compares them in the server. What leaves for the embedder is a live design's title, description and tags and what people search for: never a prompt, a page, a picture or who asks. `GET search/meaning` is limited to 20 a minute per address, 2 calls to the embedder at once, 8 seconds each, holding no database connection meanwhile.
 
 ## Moderating
 
@@ -190,19 +203,19 @@ A profile is made as an account first uses the library. Its name and picture are
 
 Kept on purpose: `library_log`'s rows with the account's ID, as it's append-only, plus an `account.deleted` row; reports they made, for moderators, no longer naming them (those about them close); a blocked account's row, emptied, so that deleting isn't a way out of a block. Those who moderate give that up first. A new table holding an account's data has to join `DeleteLibraryAccount` and `LibraryExport` in `cloud/store/library_erase.go`.
 
+**Similar designs.** At submit the server hashes the picture (a 64-bit perceptual hash, pure Go). The queue lists, with the design under review, up to 5 other designs within 10 bits, taken-down ones too. This is advice to check by hand: it refuses, holds and logs nothing, and a trusted account's lookalike still goes live without passing the queue. A near-blank picture has no hash, and the queue says it couldn't be compared.
+
 ## API
 
 | Access | Endpoints under `/v1/library` |
 |---|---|
-| Anyone, limited per address | `GET items`, `GET items/{id}`, `GET items/{id}/versions`, `GET items/{id}/prompt` (403 when view only), `GET items/{id}/comments`, `GET items/{id}/versions/{v}/pictures/{thumb,thumb-phone}` (a live version's) |
+| Anyone, limited per address | `GET items`, `GET items/{id}`, `GET items/{id}/versions`, `GET items/{id}/prompt` (403 when view only), `GET items/{id}/comments`, `GET items/{id}/versions/{v}/pictures/{thumb,thumb-phone}` (a live version's), `GET creators?open=1`, `GET creators/{handle}`, `GET creators/{handle}/items`, `GET creators/{handle}/collections`, `GET collections/{id}`, `GET search/meaning` |
 | The website's secret | `GET items/{id}/versions/{v}/{doc,doc-phone,thumb,thumb-phone,video}` (a live version's), `POST items/{id}/escaped`, `POST views`, `POST auth/exchange` |
 | A device | `POST items`, `PUT items/{id}/versions/{v}/{source,thumb,thumb-phone,video}`, `POST items/{id}/versions/{v}/submit`, `GET mine` |
 | A device or a web session | `DELETE items/{id}`, `GET me`, `POST reports`, `POST auth/signout`, `POST items/{id}/comments`, `DELETE items/{id}/comments/{comment}`, `PUT items/{id}/comments-off`, `GET notifications`, `POST notifications/read`, `GET`/`PUT notifications/settings`, `GET stats` |
 | Moderators | `POST admin/comments/{id}/remove`, `GET admin/picks`, `GET admin/queue`, `GET admin/items/{id}/versions/{v}/{doc,doc-phone,thumb,thumb-phone,video}`, `POST admin/items/{id}/decisions`, `POST admin/reports/{id}/decisions`, `POST admin/accounts/{id}/block`, `.../unblock`, `GET admin/log`, `GET admin/usage` |
 | Anyone, by license and kind, limited per address | `GET items/{id}/code`, `GET items/{id}/skill` |
 | A device, by license and kind | `GET items/{id}/source`, `GET items/{id}/reference` |
-
-| Anyone, limited per address | `GET items`, `GET items/{id}`, `GET items/{id}/versions`, `GET items/{id}/prompt` (403 when view only), `GET creators?open=1`, `GET creators/{handle}`, `GET creators/{handle}/items`, `GET creators/{handle}/collections`, `GET collections/{id}` |
 | The website's secret | `GET items/{id}/versions/{v}/{doc,doc-phone,thumb,thumb-phone}` (a live version's), `POST items/{id}/escaped`, `POST auth/exchange` |
 | A device | `POST items`, `PUT items/{id}/versions/{v}/{source,thumb,thumb-phone}`, `POST items/{id}/versions/{v}/submit`, `GET mine` |
 | A device or a web session | `DELETE items/{id}`, `GET me`, `PUT me`, `DELETE me`, `GET me/export`, `POST reports`, `POST auth/signout`, `GET saves`, `GET/PUT/DELETE saves/{id}`, `PUT/DELETE creators/{handle}/follow`, `GET following`, `GET feed`, `GET/POST collections`, `PUT/DELETE collections/{id}`, `PUT/DELETE collections/{id}/items/{item}` |
@@ -238,6 +251,4 @@ The website opens `enowx://library/{open,reference,skill}?item=ID&version=N`, an
 
 ## What this phase leaves out
 
-Copying one component out of a design, remixes, full-text and meaning search, profiles, saves, and exporting or deleting a profile.
-
-Copying a component's code, Open in enowX, references and skills (`code`, `source` and `skill` have no endpoints yet, though an item's `actions` already say what its license allows), and full-text and meaning search.
+Remixes, copying one component out of a page, and the pgvector path of meaning search, which has never run: the test database lacks the extension.

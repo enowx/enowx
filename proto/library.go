@@ -49,6 +49,7 @@ type LibraryForm struct {
 	Description    string   `json:"description"`
 	Category       string   `json:"category"`
 	Tags           []string `json:"tags,omitempty"`
+	Style          string   `json:"style,omitempty"`
 	SourceURL      string   `json:"sourceUrl,omitempty"`
 	Prompt         string   `json:"prompt"`
 	PromptApproved bool     `json:"promptApproved,omitempty"`

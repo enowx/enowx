@@ -144,6 +144,18 @@ func (v *View) prepareLibrary(o Options, form *libraryForm) {
 	})
 }
 
+// libraryStyles are the cloud's api.LibraryStyles, as the form says them.
+var libraryStyles = [][2]string{{"", "No particular style"}, {"minimal", "Minimal"}, {"editorial", "Editorial"}, {"dense", "Dense, for work"}, {"playful", "Playful"}}
+
+func libraryStyleName(value string) string {
+	for _, s := range libraryStyles {
+		if s[0] == value {
+			return s[1]
+		}
+	}
+	return libraryStyles[0][1]
+}
+
 func libraryCategoryName(value string) string {
 	for _, c := range libraryCategories {
 		if c[0] == value {
@@ -245,6 +257,19 @@ func (v *View) libraryFields(c *ui.Context, o Options, form *libraryForm) {
 			for _, cat := range libraryCategories {
 				if widget.MenuItem(c.Key("cat:"+cat[0]), nil, cat[1], false) {
 					f.Category = cat[0]
+					done()
+				}
+			}
+		})
+	})
+	widget.Field(c, "Style", func() {
+		b := widget.MenuButton(c, widget.Secondary, libraryStyleName(f.Style)).FillWidth()
+		m := &v.library.menu
+		m.OpenBelow(b, "library-style", theme.ControlHeight)
+		m.Show(c, b, "library-style", func(done func()) {
+			for _, st := range libraryStyles {
+				if widget.MenuItem(c.Key("style:"+st[0]), nil, st[1], false) {
+					f.Style = st[0]
 					done()
 				}
 			}

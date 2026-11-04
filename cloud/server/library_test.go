@@ -803,7 +803,8 @@ func TestLibraryQuota(t *testing.T) {
 	}
 }
 
-// Filters and search find what they say; a %, in a search, is a %.
+// Filters and search find what they say; a %, in a search, is no wildcard: it's
+// punctuation, as words are what's searched.
 func TestLibraryBrowse(t *testing.T) {
 	e := newLibEnv(t, Config{})
 	ada := e.signIn(1, "ada", "")
@@ -813,7 +814,7 @@ func TestLibraryBrowse(t *testing.T) {
 	c := publishParams("Beta 100% card")
 	c.Kind, c.Category, c.License = api.LibraryComponent, "component", api.LicenseViewOnly
 	e.publish(ada, c, `<p>x</p>`)
-	for query, want := range map[string]int{"": 2, "?kind=component": 1, "?category=dashboard": 1, "?q=alpha": 1, "?q=100%25": 1, "?q=%25": 1, "?q=nothing": 0, "?license=view-only": 1, "?tag=dark-mode": 2, "?sort=featured": 0, "?limit=1": 1} {
+	for query, want := range map[string]int{"": 2, "?kind=component": 1, "?category=dashboard": 1, "?q=alpha": 1, "?q=100%25": 1, "?q=%25": 0, "?q=nothing": 0, "?license=view-only": 1, "?tag=dark-mode": 2, "?sort=featured": 0, "?limit=1": 1} {
 		var got api.LibraryItems
 		if code, msg := send(t, "GET", e.url+api.PathLibraryItems+query, "", nil, &got); code != http.StatusOK {
 			t.Fatalf("%q: %d %s", query, code, msg)

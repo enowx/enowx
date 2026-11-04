@@ -1464,6 +1464,7 @@ field LibraryForm.prompt string
 field LibraryForm.promptApproved bool
 field LibraryForm.rights bool
 field LibraryForm.sourceUrl string
+field LibraryForm.style string
 field LibraryForm.tags []string
 field LibraryForm.title string
 field LibraryItemRef.itemId string
