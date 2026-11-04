@@ -42,6 +42,10 @@ type Config struct {
 	WebSecret string
 	// AdminTeam is the team whose owner and admins moderate.
 	AdminTeam string
+	// Mailer emails notifications; nil, there is no email.
+	Mailer Mailer
+	// Announce is where an admin's picks are said; unset, nowhere.
+	Announce Announce
 }
 
 // DefaultPrefix is where the library's objects are in the store it shares.
@@ -73,6 +77,10 @@ type Service struct {
 	// burst of them can't take the memory of the server teams use.
 	objects     blobstore.Store
 	objectReads chan struct{}
+	// counts holds what's counted until written (stats.go); mails holds a place
+	// per email on its way.
+	counts tally
+	mails  chan struct{}
 }
 
 // publicReads is the most public reads at work at once.
@@ -91,7 +99,7 @@ func New(cfg Config, host Host, db *store.DB, log *slog.Logger) (*Service, error
 	if err != nil {
 		return nil, fmt.Errorf("library: %w", err)
 	}
-	return &Service{cfg: cfg, host: host, db: db, log: log, reads: make(chan struct{}, publicReads), objects: objects, objectReads: make(chan struct{}, objectsAtOnce)}, nil
+	return &Service{cfg: cfg, host: host, db: db, log: log, reads: make(chan struct{}, publicReads), objects: objects, objectReads: make(chan struct{}, objectsAtOnce), mails: make(chan struct{}, mailsAtOnce)}, nil
 }
 
 // Mount adds the library's routes to mux.
@@ -127,6 +135,19 @@ func (s *Service) Mount(mux *http.ServeMux) {
 	handle("POST "+api.PathLibraryModerators, s.owner(s.appoint))
 	handle("DELETE "+api.PathLibraryModerator, s.owner(s.dismiss))
 
+	handle("GET "+api.PathLibraryComments, s.public(s.listComments))
+	handle("POST "+api.PathLibraryComments, s.signedIn(s.addComment))
+	handle("DELETE "+api.PathLibraryComment, s.signedIn(s.deleteComment))
+	handle("PUT "+api.PathLibraryCommentsOff, s.signedIn(s.setCommentsOff))
+	handle("POST "+api.PathLibraryCommentRemove, s.moderator(s.removeComment))
+	handle("GET "+api.PathLibraryNotifications, s.signedIn(s.listNotifications))
+	handle("POST "+api.PathLibraryNotifyRead, s.signedIn(s.readNotifications))
+	handle("GET "+api.PathLibraryNotifySet, s.signedIn(s.notifySettings))
+	handle("PUT "+api.PathLibraryNotifySet, s.signedIn(s.setNotifySettings))
+	handle("GET "+api.PathLibraryStats, s.signedIn(s.stats))
+	handle("POST "+api.PathLibraryViews, s.webOnly(s.addViews))
+	handle("GET "+api.PathLibraryPicks, s.moderator(s.picks))
+
 	handle("GET "+api.PathLibraryAuthorize, s.authorize)
 	handle("POST "+api.PathLibraryExchange, s.webOnly(s.exchange))
 	handle("POST "+api.PathLibrarySignOut, s.signOut)
@@ -135,6 +156,7 @@ func (s *Service) Mount(mux *http.ServeMux) {
 // Sweep goes until ctx ends: objects past their time go, and a bucket nearing
 // its limits is said in the log.
 func (s *Service) Sweep(ctx context.Context) {
+	go s.keepWritingCounts(ctx)
 	tick := time.NewTicker(time.Hour)
 	defer tick.Stop()
 	for {
@@ -155,7 +177,7 @@ func (s *Service) SweepOnce(ctx context.Context) {
 	}
 	for _, p := range due {
 		failed := false
-		for _, part := range []string{api.PartSource, api.PartDoc, api.PartDocPhone, api.PartThumb, api.PartThumbPhone} {
+		for _, part := range []string{api.PartSource, api.PartDoc, api.PartDocPhone, api.PartThumb, api.PartThumbPhone, api.PartVideo} {
 			if err := s.objects.Delete(ctx, objectKey(p.ItemID, p.Version, part)); err != nil && !errors.Is(err, blobstore.ErrNotFound) {
 				s.log.Warn("library: purge", "item", p.ItemID, "err", err)
 				failed = true
@@ -167,6 +189,10 @@ func (s *Service) SweepOnce(ctx context.Context) {
 		if err := s.db.ForgetLibraryVersion(ctx, p); err != nil {
 			s.log.Warn("library: purge", "item", p.ItemID, "err", err)
 		}
+	}
+	s.writeCounts(ctx)
+	if err := s.db.ForgetOldLibraryNotifications(ctx); err != nil {
+		s.log.Warn("library: notifications", "err", err)
 	}
 	if u, err := s.db.LibraryUsage(ctx); err == nil && u.Warn {
 		s.log.Warn("library: the bucket is past 70% of a limit", "stored", u.BytesStored, "written", u.BytesWritten)

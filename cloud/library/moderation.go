@@ -52,14 +52,30 @@ func (s *Service) decideItem(w http.ResponseWriter, r *http.Request) {
 	id, actor := r.PathValue("id"), asker(r).account.ID
 	switch d.Action {
 	case api.DecisionApprove, api.DecisionReject:
-		s.answer(w, nil, s.db.DecideLibraryVersion(r.Context(), actor, id, d.Version, d.Action == api.DecisionApprove, reason))
+		kind := api.NotifyRejected
+		if d.Action == api.DecisionApprove {
+			kind = api.NotifyApproved
+		}
+		s.decided(w, r, id, kind, reason, s.db.DecideLibraryVersion(r.Context(), actor, id, d.Version, d.Action == api.DecisionApprove, reason))
 	case api.DecisionRemove:
-		s.answer(w, nil, s.db.RemoveLibraryItem(r.Context(), actor, id, reason))
+		s.decided(w, r, id, api.NotifyRemoved, reason, s.db.RemoveLibraryItem(r.Context(), actor, id, reason))
+	case api.DecisionAnnounce:
+		s.announce(w, r, id, reason)
 	case api.DecisionFeature, api.DecisionUnfeature:
 		s.answer(w, nil, s.db.FeatureLibraryItem(r.Context(), actor, id, d.Action == api.DecisionFeature, reason))
 	default:
 		fail(w, http.StatusBadRequest, "no such decision")
 	}
+}
+
+// decided answers a decision on item id, telling its owner once it's made.
+func (s *Service) decided(w http.ResponseWriter, r *http.Request, id, kind, reason string, err error) {
+	if err == nil {
+		if owner, e := s.db.LibraryOwner(r.Context(), id); e == nil {
+			s.notify(r.Context(), owner, kind, id, "", reason)
+		}
+	}
+	s.answer(w, nil, err)
 }
 
 func (s *Service) decideReport(w http.ResponseWriter, r *http.Request) {
@@ -75,7 +91,20 @@ func (s *Service) decideReport(w http.ResponseWriter, r *http.Request) {
 		fail(w, http.StatusBadRequest, "no such decision")
 		return
 	}
-	s.answer(w, nil, s.db.DecideLibraryReport(r.Context(), asker(r).account.ID, r.PathValue("id"), d.Action == api.DecisionUphold, reason))
+	id := r.PathValue("id")
+	target, err := s.db.LibraryReportTarget(r.Context(), id)
+	if err != nil {
+		s.answer(w, nil, err)
+		return
+	}
+	if err := s.db.DecideLibraryReport(r.Context(), asker(r).account.ID, id, d.Action == api.DecisionUphold, reason); err != nil {
+		s.answer(w, nil, err)
+		return
+	}
+	if d.Action == api.DecisionUphold && target.Account != "" {
+		s.notify(r.Context(), target.Account, api.NotifyReportUpheld, target.ItemID, "", reason)
+	}
+	w.WriteHeader(http.StatusNoContent)
 }
 
 // block stops an account publishing and takes what it shows down. Those who
@@ -128,6 +157,8 @@ func (s *Service) adminPart(w http.ResponseWriter, r *http.Request) {
 		h.Set("Content-Encoding", "gzip")
 	case api.PartThumb, api.PartThumbPhone:
 		h.Set("Content-Type", "image/webp")
+	case api.PartVideo:
+		h.Set("Content-Type", "video/mp4")
 	default:
 		fail(w, http.StatusNotFound, "not found")
 		return

@@ -230,6 +230,8 @@ func (s *Service) putPart(w http.ResponseWriter, r *http.Request) {
 	case api.PartSource:
 		limit = api.MaxLibraryBundle
 	case api.PartThumb, api.PartThumbPhone:
+	case api.PartVideo:
+		limit = api.MaxLibraryVideo
 	default:
 		fail(w, http.StatusNotFound, "not found")
 		return
@@ -240,7 +242,7 @@ func (s *Service) putPart(w http.ResponseWriter, r *http.Request) {
 	}
 	data, err := io.ReadAll(http.MaxBytesReader(w, r.Body, limit))
 	if err != nil {
-		fail(w, http.StatusRequestEntityTooLarge, "that's bigger than the library takes: a design is 10 MB at most, a picture 300 KB")
+		fail(w, http.StatusRequestEntityTooLarge, "that's bigger than the library takes: a design is 10 MB at most, a picture 300 KB, a video 4 MB")
 		return
 	}
 	if part == api.PartSource {
@@ -250,6 +252,16 @@ func (s *Service) putPart(w http.ResponseWriter, r *http.Request) {
 		}
 		if data, err = gzipped(data); err != nil {
 			s.answer(w, nil, err)
+			return
+		}
+	} else if part == api.PartVideo {
+		var meta store.LibraryMeta
+		if json.Unmarshal([]byte(v.Meta), &meta) != nil || !meta.HasMotion {
+			fail(w, http.StatusBadRequest, "only a design that moves has a video")
+			return
+		}
+		if err := designshare.CheckVideo(data, api.MaxLibraryVideoSeconds); err != nil {
+			fail(w, http.StatusBadRequest, strings.TrimPrefix(err.Error(), "designshare: "))
 			return
 		}
 	} else {

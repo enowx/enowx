@@ -7,6 +7,7 @@ import (
 	"database/sql"
 	"encoding/base64"
 	"encoding/hex"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"strings"
@@ -207,16 +208,24 @@ func (s *DB) FeatureLibraryItem(ctx context.Context, actor, id string, on bool, 
 // while it's open adds nothing. reporter is empty for the library's own.
 func (s *DB) AddLibraryReport(ctx context.Context, reporter string, p api.LibraryReportParams) error {
 	var had int
-	err := s.QueryRowContext(ctx, `SELECT COUNT(*) FROM library_reports WHERE reporter_id = $1 AND item_id = $2 AND account_id = $3 AND reason = $4 AND status = 'open'`,
-		reporter, p.ItemID, p.AccountID, p.Reason).Scan(&had)
+	err := s.QueryRowContext(ctx, `SELECT COUNT(*) FROM library_reports WHERE reporter_id = $1 AND item_id = $2 AND account_id = $3 AND reason = $4 AND comment_id = $5 AND status = 'open'`,
+		reporter, p.ItemID, p.AccountID, p.Reason, p.CommentID).Scan(&had)
 	if err != nil {
 		return fmt.Errorf("store: library report: %w", err)
 	}
 	if had > 0 {
 		return nil
 	}
-	_, err = s.ExecContext(ctx, `INSERT INTO library_reports (id, item_id, account_id, reporter_id, reason, detail, created) VALUES ($1, $2, $3, $4, $5, $6, $7)`,
-		newID(), p.ItemID, p.AccountID, reporter, p.Reason, p.Detail, stamp(now()))
+	copyright := ""
+	if p.Copyright != nil {
+		data, err := json.Marshal(p.Copyright)
+		if err != nil {
+			return fmt.Errorf("store: library report: %w", err)
+		}
+		copyright = string(data)
+	}
+	_, err = s.ExecContext(ctx, `INSERT INTO library_reports (id, item_id, account_id, reporter_id, reason, detail, created, comment_id, copyright) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`,
+		newID(), p.ItemID, p.AccountID, reporter, p.Reason, p.Detail, stamp(now()), p.CommentID, copyright)
 	if err != nil {
 		return fmt.Errorf("store: library report: %w", err)
 	}
@@ -235,8 +244,8 @@ func (s *DB) LibraryReportsToday(ctx context.Context, reporter string) (int, err
 
 // LibraryOpenReports are the reports waiting, the oldest first.
 func (s *DB) LibraryOpenReports(ctx context.Context, limit int) ([]api.LibraryReport, error) {
-	rows, err := s.QueryContext(ctx, `SELECT r.id, r.item_id, COALESCE(i.title, ''), r.account_id, COALESCE(ap.handle, ''), COALESCE(rp.handle, ''), r.reason, r.detail, r.status, r.created
-		FROM library_reports r LEFT JOIN library_items i ON i.id = r.item_id
+	rows, err := s.QueryContext(ctx, `SELECT r.id, r.item_id, COALESCE(i.title, ''), r.account_id, COALESCE(ap.handle, ''), COALESCE(rp.handle, ''), r.reason, r.detail, r.status, r.created, r.comment_id, COALESCE(c.body, ''), r.copyright
+		FROM library_reports r LEFT JOIN library_items i ON i.id = r.item_id LEFT JOIN library_comments c ON c.id = r.comment_id
 		LEFT JOIN library_profiles ap ON ap.account_id = r.account_id LEFT JOIN library_profiles rp ON rp.account_id = r.reporter_id
 		WHERE r.status = 'open' ORDER BY r.created LIMIT $1`, max(min(limit, 100), 1))
 	if err != nil {
@@ -246,26 +255,55 @@ func (s *DB) LibraryOpenReports(ctx context.Context, limit int) ([]api.LibraryRe
 	out := []api.LibraryReport{}
 	for rows.Next() {
 		var r api.LibraryReport
-		var created string
-		if err := rows.Scan(&r.ID, &r.ItemID, &r.Item, &r.AccountID, &r.Account, &r.Reporter, &r.Reason, &r.Detail, &r.Status, &created); err != nil {
+		var created, copyright string
+		if err := rows.Scan(&r.ID, &r.ItemID, &r.Item, &r.AccountID, &r.Account, &r.Reporter, &r.Reason, &r.Detail, &r.Status, &created, &r.CommentID, &r.Comment, &copyright); err != nil {
 			return nil, err
 		}
 		r.Created = parseStamp(created)
+		if copyright != "" {
+			r.Copyright = &api.LibraryCopyright{}
+			if err := json.Unmarshal([]byte(copyright), r.Copyright); err != nil {
+				return nil, fmt.Errorf("store: library reports: %w", err)
+			}
+		}
 		out = append(out, r)
 	}
 	return out, rows.Err()
 }
 
+// LibraryReportParty is who an open report's decision falls on.
+type LibraryReportParty struct {
+	ItemID string
+	// Account is who's told when it's upheld: the item's owner, or whose comment.
+	Account string
+}
+
+// LibraryReportTarget is open report id's target.
+func (s *DB) LibraryReportTarget(ctx context.Context, id string) (LibraryReportParty, error) {
+	var t LibraryReportParty
+	var comment string
+	err := s.QueryRowContext(ctx, `SELECT r.item_id, r.comment_id, CASE WHEN r.comment_id <> '' THEN r.account_id ELSE COALESCE(i.owner_id, r.account_id) END
+		FROM library_reports r LEFT JOIN library_items i ON i.id = r.item_id WHERE r.id = $1 AND r.status = 'open'`, id).Scan(&t.ItemID, &comment, &t.Account)
+	if errors.Is(err, sql.ErrNoRows) {
+		return t, ErrNotFound
+	}
+	if err != nil {
+		return t, fmt.Errorf("store: library report: %w", err)
+	}
+	return t, nil
+}
+
 // DecideLibraryReport settles an open report. Upheld, the item reported is
-// taken down and its owner is new again, so what they send is reviewed.
+// taken down and its owner is new again, so what they send is reviewed; a
+// comment reported goes alone, and the design it's on stays.
 func (s *DB) DecideLibraryReport(ctx context.Context, actor, id string, uphold bool, reason string) error {
 	tx, err := s.BeginTx(ctx, nil)
 	if err != nil {
 		return err
 	}
 	defer tx.Rollback()
-	var item, account string
-	err = tx.QueryRowContext(ctx, `SELECT item_id, account_id FROM library_reports WHERE id = $1 AND status = 'open'`, id).Scan(&item, &account)
+	var item, account, comment, why string
+	err = tx.QueryRowContext(ctx, `SELECT item_id, account_id, comment_id, reason FROM library_reports WHERE id = $1 AND status = 'open'`, id).Scan(&item, &account, &comment, &why)
 	if errors.Is(err, sql.ErrNoRows) {
 		return ErrNotFound
 	}
@@ -273,8 +311,16 @@ func (s *DB) DecideLibraryReport(ctx context.Context, actor, id string, uphold b
 		return fmt.Errorf("store: library report: %w", err)
 	}
 	action, status := "report.dismissed", "dismissed"
-	if uphold {
+	if uphold && comment != "" {
+		action, status = "comment.report-upheld", "upheld"
+		if err := removeLibraryComment(ctx, tx, comment); err != nil && !errors.Is(err, ErrNotFound) {
+			return err
+		}
+	} else if uphold {
 		action, status = "report.upheld", "upheld"
+		if why == "copyright" {
+			action = "report.upheld.copyright"
+		}
 		if item != "" {
 			var owner string
 			if err := tx.QueryRowContext(ctx, `SELECT owner_id FROM library_items WHERE id = $1`, item).Scan(&owner); err == nil {
