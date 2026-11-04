@@ -166,7 +166,7 @@ func (s *Server) transcript(p proto.TranscriptParams) (proto.Transcript, error) 
 	}
 	out := proto.Transcript{Supported: true, Entries: entries, Rev: rev, Reset: reset,
 		Model: f.reader.Model, Mode: f.reader.Mode, Effort: f.reader.Effort,
-		ContextTokens: f.reader.Context}
+		ContextTokens: f.reader.Context, CostUSD: f.reader.CostUSD, BudgetUSD: f.reader.BudgetUSD}
 	if out.ContextTokens > 0 {
 		out.ContextWindow = f.reader.Window
 		if out.ContextWindow == 0 {
