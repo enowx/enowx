@@ -82,6 +82,12 @@ func WriteProcess(w io.Writer, p proto.ProcessProfile) {
 			fmt.Fprintf(w, "  %9s %9d  %s\n", mb(c.Bytes), c.Count, c.Name)
 		}
 	}
+	if len(p.AllocBy) > 0 {
+		fmt.Fprintln(w, "allocated by code since it started (sampled), what makes it collect:")
+		for _, c := range p.AllocBy[:min(len(p.AllocBy), 15)] {
+			fmt.Fprintf(w, "  %9s %9d  %s\n", mb(c.Bytes), c.Count, c.Name)
+		}
+	}
 	if len(p.GoroutinesBy) > 0 {
 		fmt.Fprintln(w, "goroutines by code:")
 		for _, c := range p.GoroutinesBy[:min(len(p.GoroutinesBy), 12)] {

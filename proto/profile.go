@@ -59,8 +59,8 @@ type ProfileGo struct {
 	GCCPUPercent float64 `json:"gcCpuPercent"` // of the time since it started
 }
 
-// ProfileCost is what one thing costs: the live bytes of the heap's sampled allocations
-// by the code that made them, or the goroutines of the code running them.
+// ProfileCost is what one thing costs: the bytes of the heap's sampled allocations (live,
+// or ever made) by the code that made them, or the goroutines of the code running them.
 type ProfileCost struct {
 	Name  string `json:"name"`
 	Bytes uint64 `json:"bytes,omitempty"`
@@ -95,6 +95,7 @@ type ProcessProfile struct {
 	Memory        ProfileMemory `json:"memory"`
 	Go            ProfileGo     `json:"go"`
 	HeapBy        []ProfileCost `json:"heapBy,omitempty"`
+	AllocBy       []ProfileCost `json:"allocBy,omitempty"` // allocated since it started, by code: what makes it collect
 	GoroutinesBy  []ProfileCost `json:"goroutinesBy,omitempty"`
 	Areas         []ProfileArea `json:"areas,omitempty"`
 	Raw           *ProfileRaw   `json:"raw,omitempty"`

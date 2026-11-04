@@ -52,7 +52,7 @@ func Take(o Options) proto.ProcessProfile {
 	}
 	out.Memory = pages()
 	out.Go = goMemory()
-	out.HeapBy = heapCosts()
+	out.HeapBy, out.AllocBy = heapCosts()
 	out.GoroutinesBy = goroutineCosts()
 	if o.Areas != nil {
 		out.Areas = o.Areas()
@@ -86,7 +86,7 @@ func goMemory() proto.ProfileGo {
 
 // heapCosts sums the heap's live sampled allocations by the code of ours that made them.
 // The runtime samples them from the process's start, about one per 512 KiB.
-func heapCosts() []proto.ProfileCost {
+func heapCosts() (live, ever []proto.ProfileCost) {
 	records := make([]runtime.MemProfileRecord, 4096)
 	n, ok := runtime.MemProfile(records, false)
 	if !ok {
@@ -94,29 +94,35 @@ func heapCosts() []proto.ProfileCost {
 		n, _ = runtime.MemProfile(records, false)
 	}
 	rate := uint64(max(runtime.MemProfileRate, 1))
-	sums := map[string]*proto.ProfileCost{}
+	lives, evers := map[string]*proto.ProfileCost{}, map[string]*proto.ProfileCost{}
 	for _, r := range records[:min(n, len(records))] {
-		live := r.InUseBytes()
-		if live <= 0 {
+		if r.AllocObjects <= 0 {
 			continue
 		}
-		objects := r.InUseObjects()
-		size := uint64(live) / uint64(objects)
+		size := uint64(r.AllocBytes) / uint64(r.AllocObjects)
 		// The same scaling pprof applies: a small object is less likely to be sampled.
 		scale := 1.0
 		if size < rate {
 			scale = 1 / (1 - expNeg(float64(size)/float64(rate)))
 		}
 		name := owner(r.Stack())
-		c := sums[name]
-		if c == nil {
-			c = &proto.ProfileCost{Name: name}
-			sums[name] = c
+		addCost(evers, name, r.AllocBytes, r.AllocObjects, scale)
+		if r.InUseBytes() > 0 {
+			addCost(lives, name, r.InUseBytes(), r.InUseObjects(), scale)
 		}
-		c.Bytes += uint64(float64(live) * scale)
-		c.Count += int64(float64(objects) * scale)
 	}
-	return sorted(sums, func(c *proto.ProfileCost) uint64 { return c.Bytes })
+	by := func(c *proto.ProfileCost) uint64 { return c.Bytes }
+	return sorted(lives, by), sorted(evers, by)
+}
+
+func addCost(sums map[string]*proto.ProfileCost, name string, bytes, count int64, scale float64) {
+	c := sums[name]
+	if c == nil {
+		c = &proto.ProfileCost{Name: name}
+		sums[name] = c
+	}
+	c.Bytes += uint64(float64(bytes) * scale)
+	c.Count += int64(float64(count) * scale)
 }
 
 // expNeg is e^-x, accurate enough for scaling a sample.

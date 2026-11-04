@@ -1630,6 +1630,7 @@ field Port.process string
 field PortsChange.opened []Port
 field PortsChange.ports []Port
 field PortsChange.session string
+field ProcessProfile.allocBy []ProfileCost
 field ProcessProfile.arch string
 field ProcessProfile.areas []ProfileArea
 field ProcessProfile.cpuPercent float64
