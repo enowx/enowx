@@ -76,6 +76,8 @@ Go 1.27+ is required (MyGo needs it). With an older `go`, set `GOTOOLCHAIN=go1.2
 | `core/discordrpc` | Discord Rich Presence over the Discord app's local IPC socket (named pipe on Windows) | **No** |
 | `core/cacheclean` | Clean cache: what a host's enowX folder takes, what can go of it, and removing that, never anything outside the few folders it names (see `docs/daemon.md`) | **No** |
 | `core/procstat` | Memory and CPU of process trees and of the machine, for the resource usage view | **No** |
+| `core/selfprofile` | What the process it runs in holds and uses, by the system's count and the Go runtime's, for `enowx-app profile` (see `docs/performance.md`) | **No** |
+| `core/memtune` | How long-running programs give memory back: the limit on the Go heap, returning what a burst leaves (see `docs/performance.md`) | **No** |
 | `cloud/` | The team cloud's server (`cloud/server`), its database (`cloud/store`), API types (`cloud/api`) and the sealing of a team's keys and items (`cloud/seal`) (see `docs/cloud.md`) | **No** |
 | `cmd/enowx-cloud` | The cloud server's entry point and its image (`Dockerfile`) | **No** |
 | `hostconn/` | Connects to a host's daemon: starts or replaces it locally, installs or upgrades it over SSH | **No** |
