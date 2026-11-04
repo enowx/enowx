@@ -129,19 +129,21 @@ func withDaemon(timeout time.Duration, f func(c *client.Client)) {
 // command or the file it touches, and whether it failed.
 func agentEvent(event string, data []byte) proto.HookEvent {
 	var in struct {
-		Event    string          `json:"hook_event_name"`
-		Prompt   string          `json:"prompt"`
-		Tool     string          `json:"tool_name"`
-		Input    json.RawMessage `json:"tool_input"`
-		Response json.RawMessage `json:"tool_response"`
-		Error    string          `json:"error"`
-		Cwd      string          `json:"cwd"`
-		Mode     string          `json:"permission_mode"`
-		Scratch  string          `json:"scratchpad_dir"`
-		Last     string          `json:"last_assistant_message"`
+		Event    string            `json:"hook_event_name"`
+		Prompt   string            `json:"prompt"`
+		Tool     string            `json:"tool_name"`
+		Input    json.RawMessage   `json:"tool_input"`
+		Response json.RawMessage   `json:"tool_response"`
+		Error    string            `json:"error"`
+		Cwd      string            `json:"cwd"`
+		Mode     string            `json:"permission_mode"`
+		Scratch  string            `json:"scratchpad_dir"`
+		Last     string            `json:"last_assistant_message"`
+		Tasks    []json.RawMessage `json:"background_tasks"`
 	}
 	_ = json.Unmarshal(data, &in)
 	ev := proto.HookEvent{Event: event, Prompt: in.Prompt, Tool: in.Tool, PermissionMode: in.Mode, Scratchpad: in.Scratch, LastMessage: in.Last, Failed: in.Event == "PostToolUseFailure" || in.Error != ""}
+	ev.BackgroundTasks = len(in.Tasks)
 	var input map[string]any
 	if json.Unmarshal(in.Input, &input) == nil {
 		for _, k := range []string{"command", "cmd"} {

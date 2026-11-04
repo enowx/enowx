@@ -1307,6 +1307,7 @@ field HookDecision.continue string
 field HookDecision.reason string
 field HookEvent.agent string
 field HookEvent.allowed bool
+field HookEvent.backgroundTasks int
 field HookEvent.branch string
 field HookEvent.command string
 field HookEvent.commit string

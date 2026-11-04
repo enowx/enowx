@@ -56,6 +56,10 @@ func (s *Server) sessionHook(p proto.SessionHookParams) (proto.HookDecision, err
 	case proto.HookPromptStart:
 		s.sessions.NoteTurnText(sess, "")
 	}
+	// Its turn ended, not its work: the agent goes on when they do, and says so by a turn of its own.
+	if p.Event.Event == proto.HookTurnDone && p.Event.BackgroundTasks > 0 {
+		p.State = proto.StateWorking
+	}
 	if p.State != "" {
 		if err := s.sessions.SetState(sess, p.State); err != nil {
 			return proto.HookDecision{}, err
