@@ -92,7 +92,7 @@ func (v *View) buildHUD(c *ui.Context, o Options, cv proto.Canvas) {
 			}
 		})
 		buildStepper(c, run.Stage)
-		ui.Scroll(c.Key("body")).FillWidth().Shrink(1).MinHeight(0).Children(func() {
+		widget.Scroll(c.Key("body")).FillWidth().Shrink(1).MinHeight(0).Children(func() {
 			ui.Column(c).FillWidth().Gap(theme.S2).Children(func() {
 				if len(run.Directions) > 0 {
 					v.buildDirections(c, o, cv, *run)
