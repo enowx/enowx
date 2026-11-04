@@ -70,6 +70,16 @@ A new conversation starts on `claude-opus-5-5`, effort `high`, and a budget of $
 
 **Remaining credit isn't shown:** an ordinary API key can't read it. The Console shows it, and the Admin API's cost report needs an admin key. The session's cost in dollars, at list prices, shows beside its budget.
 
+## Limits
+
+Known and left as they are:
+
+- **Any session can type into another.** `send` (enowX's `session.input`, the same for every agent) can put digits into this agent's terminal, so one session can answer another's permission prompt, or its own through a program it runs.
+- **A program of the same user can replace the system prompt file** in `agent-files/<session>/`, or the host's `system-prompt.md`, which the next start reads. Nothing here defends against the user's own programs.
+- **A link swapped at the last moment.** An edit is judged on where its path leads, again after hooks have run, and then written: a program racing to swap a link in the moments between that check and the write can still land the write through it. The files are not opened by a handle the check verified, which would need a different write path per platform.
+- **Reads of a command.** The path checks are of `Read`, `Glob`, `Grep`, `Write` and `Edit`: an allowed `Bash` command reads and writes whatever the user can, and a kept prefix like `make` runs what the project's files say.
+- **A process left over.** On Linux the agent's environment can't be read even by its daemon, so the reaping that finds a session's leftover processes by their environment doesn't find the agent itself; it ends with its terminal.
+
 ## Files
 
 | Where | What |

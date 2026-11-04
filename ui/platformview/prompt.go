@@ -73,7 +73,7 @@ func (v *View) promptBody(c *ui.Context, o Options) {
 		ui.Row(c.Key("reading")).FillWidth().Justify(ui.Center).Padding(theme.S4).Children(func() { widget.Spinner(c, 14) })
 		return
 	}
-	quiet(c, "Replaces Claude Platform's built-in prompt whole, for sessions started from now on on "+o.Host+". enowX's guide still goes after it.")
+	quiet(c, "Replaces Claude Platform's built-in prompt whole, for sessions started from now on on "+widget.LongWords(o.Host)+". enowX's guide still goes after it.")
 	if p.saved.Path != "" {
 		ui.Row(c.Key("path")).FillWidth().MinWidth(0).Children(func() {
 			widget.Running(c, p.saved.Path, widget.RunStyle{Size: theme.TextLabel, Color: theme.TextSoft, Mono: true})
@@ -84,6 +84,8 @@ func (v *View) promptBody(c *ui.Context, o Options) {
 	widget.TextBox(c.Key("editor"), &p.draft, "Empty: sessions use the built-in prompt. Write your own to replace it.", height).
 		FillWidth().Shrink(0).Font(theme.MonoFont).Label("System prompt")
 	switch {
+	case p.saved.TooLong && p.draft == "":
+		quiet(c, "The file holds a prompt too long to edit here, over 128 KB. Reset it, or save another over it.")
 	case p.err != "":
 		ui.Text(c, widget.LongWords(p.err)).FontSize(theme.TextLabel).TextColor(theme.Error)
 	case p.draft != p.saved.Text:
@@ -102,8 +104,10 @@ func (v *View) promptButtons(c *ui.Context, o Options) {
 	}
 	if p.saved.Custom && widget.Button(c.Key("reset"), widget.Secondary, nil, "Reset to built-in", "").Disabled(p.busy).Clicked() && !p.busy {
 		o.Confirm("Reset the system prompt?",
-			"Your prompt on "+o.Host+" is deleted, and what you typed since with it. Sessions started from now on use the built-in prompt.", "Reset", func() {
-				v.resetPrompt(o)
+			"Your prompt on "+widget.LongWords(o.Host)+" is deleted, and what you typed since with it. Sessions started from now on use the built-in prompt.", "Reset", func() {
+				if v.prompt.host == o.Host { // the call goes to the host connected by now
+					v.resetPrompt(o)
+				}
 			})
 	}
 	can := !p.busy && p.draft != p.saved.Text && strings.TrimSpace(p.draft) != ""
@@ -113,7 +117,11 @@ func (v *View) promptButtons(c *ui.Context, o Options) {
 	}
 	if b.Clicked() && can {
 		p.busy, p.err, p.note = true, "", ""
+		host := o.Host
 		o.SavePrompt(p.draft, func(got proto.PlatformPrompt, err error) {
+			if p.host != host {
+				return // it answers for a host the state isn't of any more
+			}
 			p.busy = false
 			if err != nil {
 				p.err = err.Error()
@@ -128,7 +136,11 @@ func (v *View) promptButtons(c *ui.Context, o Options) {
 func (v *View) resetPrompt(o Options) {
 	p := &v.prompt
 	p.busy, p.err, p.note = true, "", ""
+	host := o.Host
 	o.ResetPrompt(func(got proto.PlatformPrompt, err error) {
+		if p.host != host {
+			return
+		}
 		p.busy = false
 		if err != nil {
 			p.err = err.Error()

@@ -16,6 +16,9 @@ type PlatformPrompt struct {
 	Custom bool `json:"custom,omitempty"`
 	// Path is the file that keeps it on the host, as it answers.
 	Path string `json:"path,omitempty"`
+	// TooLong says the file is over what can be edited here: no Text, but it can be reset
+	// or written over.
+	TooLong bool `json:"tooLong,omitempty"`
 	// Reset, saving, removes it.
 	Reset bool `json:"reset,omitempty"`
 }

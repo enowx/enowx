@@ -1623,6 +1623,7 @@ field PlatformPrompt.custom bool
 field PlatformPrompt.path string
 field PlatformPrompt.reset bool
 field PlatformPrompt.text string
+field PlatformPrompt.tooLong bool
 field PluginRun.ok bool
 field PluginRun.output string
 field PluginRunParams.action string
