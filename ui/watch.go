@@ -136,7 +136,7 @@ func (a *App) watch(w *hostWatch) {
 		a.onMain(func() {
 			w.cl = cl
 			a.syncSoon()
-			a.vaultConnected(cl) // the vault answers its requests too
+			a.vaultConnected(cl)                        // the vault answers its requests too
 			go func() { _ = cl.ServeCanvasRenders() }() // an agent there sees its canvases too
 		})
 		go func() { _ = cl.ServeApp() }() // what agents there ask across hosts comes here
