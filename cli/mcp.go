@@ -455,6 +455,7 @@ func mcpGroups() []mcpGroup {
 		{credsTools, runner.creds},
 		{controlTools, runner.command},
 		{goaTools, runner.goaCmd},
+		{docsSkillTools, runner.docs},
 	}
 }
 
@@ -511,6 +512,7 @@ func (r runner) mcp(in io.Reader, out io.Writer) error {
 			{slices.DeleteFunc(slices.Clone(attachTools), func(t mcpTool) bool { return t.name != "notes_projects" }), runner.notes},
 			{contextTools, runner.projectCmd},
 		}
+		groups = append(groups, notesDocsGroups(mcpGroups())...)
 	}
 	for _, g := range groups {
 		for _, t := range g.tools {
