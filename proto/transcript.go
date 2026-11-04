@@ -50,7 +50,7 @@ type Transcript struct {
 
 // MethodSessionMode switches a session's agent to another permission mode
 // the way its user would, as the agent's preset says: SessionModeParams.
-// It returns at once; the next Transcript says the mode it reached.
+// It returns once the agent's screen says the mode, or with why it didn't.
 const MethodSessionMode = "session.mode"
 
 // SessionModeParams names the mode, by the agent's own name for it.

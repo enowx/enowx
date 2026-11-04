@@ -404,6 +404,12 @@ func (s *Server) continueSession(id string) (*session.Session, error) {
 // resumeSession is continueSession on conversation convo of its agent's,
 // where the agent can name one: its last otherwise.
 func (s *Server) resumeSession(id, convo string) (*session.Session, error) {
+	return s.resumeSessionIn(id, convo, "")
+}
+
+// resumeSessionIn is resumeSession in mode, this once: what it comes back in after is what
+// it always does (agent.Launch.Mode).
+func (s *Server) resumeSessionIn(id, convo, mode string) (*session.Session, error) {
 	sess, err := s.sessions.Get(id)
 	if err != nil {
 		return nil, err
@@ -419,7 +425,7 @@ func (s *Server) resumeSession(id, convo string) (*session.Session, error) {
 	if !meta.Relaunch {
 		return nil, errors.New("this session's command can't be continued: start it again in a new session")
 	}
-	command := meta.Restart
+	command, restart := meta.Restart, meta.Restart
 	run, err := s.configRunFor(id, meta) // its config, as it starts again
 	if err != nil {
 		return nil, err
@@ -443,14 +449,20 @@ func (s *Server) resumeSession(id, convo string) (*session.Session, error) {
 		l := agentLaunch(preset, meta.SkipPermissions, "", hasConversation(preset, convo), chat)
 		l.Resume = convo
 		l.Hooks = append(l.Hooks, keptArgs(meta)...)
-		command = thenShell(preset.Argv(l))
+		restart = thenShell(preset.Argv(l))
+		command = restart
+		if mode != "" {
+			l.Mode = mode
+			command = thenShell(preset.Argv(l))
+			meta.Mode, meta.SkipPermissions = mode, false
+		}
 		if len(preset.Resume) > 0 {
 			meta.Conversation = convo
 		}
 		meta.Rules = s.rulesAtStart(meta, info.Dir, true)
 		ownGuide = chat.ownGuideEnv(meta.Agent)
 	}
-	meta.Restart, meta.Restored, meta.Hibernated, meta.HibernatedByHand, meta.HibernatedAt = command, false, false, false, time.Time{}
+	meta.Restart, meta.Restored, meta.Hibernated, meta.HibernatedByHand, meta.HibernatedAt = restart, false, false, false, time.Time{}
 	env, err := s.agentEnv(meta)
 	if err != nil {
 		return nil, err

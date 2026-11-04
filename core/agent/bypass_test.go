@@ -113,3 +113,27 @@ func TestTabAgentBypass(t *testing.T) {
 		}
 	}
 }
+
+// The mode key goes round; plan mode is never on the way to anything but itself.
+func TestModeReachable(t *testing.T) {
+	claude := SettingsOf("claude")
+	for _, c := range []struct {
+		from, to string
+		want     bool
+	}{
+		{ModeBypass, "auto", true}, {ModeBypass, "default", true}, {ModeBypass, "acceptEdits", true}, {ModeBypass, "plan", true},
+		{"plan", ModeBypass, true}, {"plan", "auto", true}, {"plan", "acceptEdits", true},
+		{"auto", "default", true}, {"auto", "acceptEdits", true}, {"auto", "plan", true}, {"default", "plan", true},
+		{"auto", ModeBypass, false}, {"default", ModeBypass, false}, {"acceptEdits", ModeBypass, false},
+		{"acceptEdits", "auto", false}, {"default", "auto", false}, {"acceptEdits", "default", false},
+		{"", "auto", false}, {"auto", "nonsense", false},
+	} {
+		if got := claude.ModeReachable(c.from, c.to); got != c.want {
+			t.Errorf("%s to %s: %v", c.from, c.to, got)
+		}
+	}
+	codex := SettingsOf("codex")
+	if !codex.ModeReachable("default", "plan") || !codex.ModeReachable("plan", "default") {
+		t.Error("Codex's two modes")
+	}
+}
