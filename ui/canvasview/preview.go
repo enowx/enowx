@@ -3,6 +3,7 @@ package canvasview
 import (
 	"hash/fnv"
 	"math"
+	"slices"
 	"strconv"
 	"strings"
 	"time"
@@ -25,6 +26,8 @@ import (
 type thumb struct {
 	key    string
 	img    ui.ImageSource
+	size   int       // what img holds in memory, its pixels
+	drawn  time.Time // when it last showed
 	seen   string
 	seenAt time.Time
 	asked  string
@@ -88,6 +91,7 @@ func (v *View) pictureIf(c *ui.Context, o Options, f proto.CanvasFrame, width in
 		v.thumbs[id] = t
 	}
 	key := v.keyOf(f) + "@" + strconv.Itoa(width)
+	t.drawn = time.Now()
 	if t.key == key {
 		return t.img
 	}
@@ -126,7 +130,9 @@ func (v *View) pictureIf(c *ui.Context, o Options, f proto.CanvasFrame, width in
 		work := func() { bmp, err = decodePicture(data) }
 		then := func() {
 			if err == nil && t.asked == key {
-				t.img, t.key = bmp, key
+				w, h := bmp.Size()
+				t.img, t.key, t.size = bmp, key, w*h*4
+				v.trimThumbs(time.Now())
 			}
 			done(err)
 		}
@@ -184,6 +190,37 @@ func (v *View) pictureIf(c *ui.Context, o Options, f proto.CanvasFrame, width in
 		})
 	})
 	return t.img
+}
+
+// Pictures in memory are bounded by what they hold, the longest out of sight going first:
+// one may hold 16 MB, and a canvas a hundred designs. The disk keeps them, so one going
+// costs only reading it again if it comes back into sight.
+const (
+	thumbsKeep    = 64 << 20
+	thumbsInSight = 2 * time.Second // drawn this lately, it may be on screen
+)
+
+// trimThumbs lets go of pictures past thumbsKeep.
+func (v *View) trimThumbs(now time.Time) {
+	total := 0
+	var held []*thumb
+	for _, t := range v.thumbs {
+		if t.img != nil {
+			total += t.size
+			held = append(held, t)
+		}
+	}
+	if total <= thumbsKeep {
+		return
+	}
+	slices.SortFunc(held, func(a, b *thumb) int { return a.drawn.Compare(b.drawn) })
+	for _, t := range held {
+		if total <= thumbsKeep || now.Sub(t.drawn) < thumbsInSight {
+			return
+		}
+		total -= t.size
+		t.img, t.key, t.asked, t.size = nil, "", "", 0
+	}
 }
 
 // thumbFailure is why design f's own picture couldn't be made, "" if it wasn't.
