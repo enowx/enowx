@@ -324,7 +324,7 @@ func (v *View) navigate(o Options) {
 }
 
 // HomePage is what the Browser shows before the session runs a dev server.
-const HomePage = "https://enowx.ai"
+const HomePage = "https://enowx.id"
 
 // openHome shows HomePage, once, while the session has no dev server.
 func (v *View) openHome(o Options) {
