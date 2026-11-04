@@ -46,11 +46,14 @@ func TestTakeNamesTheCodeHoldingTheHeap(t *testing.T) {
 func TestCPUWindowCountsWork(t *testing.T) {
 	done := make(chan struct{})
 	go func() {
-		for {
-			select {
-			case <-done:
-				return
-			default:
+		// Work for the window to count: spins on purpose, until told to stop.
+		for n := 0; ; n++ {
+			if n%1024 == 0 {
+				select {
+				case <-done:
+					return
+				default:
+				}
 			}
 		}
 	}()

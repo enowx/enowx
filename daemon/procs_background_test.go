@@ -163,9 +163,6 @@ func TestBackgroundAgentsLiveCPU(t *testing.T) {
 
 // GOA's board shows a worker's background agents; GOA is told when one gets stuck and when it ends.
 func TestGOAIsToldOfAWorkersBackgroundAgent(t *testing.T) {
-	if runtime.GOOS == "windows" {
-		t.Skip("uses sh")
-	}
 	fakeAgent(t)
 	srv := startServer(t)
 	c := connect(t, srv, nil)

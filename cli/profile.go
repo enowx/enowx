@@ -20,7 +20,7 @@ const profileUsage = `usage: enowx-app profile [--cpu SECONDS] [--json] [--out D
   --cpu SECONDS  also measure their CPU over that window (at most 60)
   --json         the numbers as JSON
   --out DIR      also write pprof files there, for go tool pprof, and profile.txt
-It changes nothing and restarts nothing.`
+It changes nothing and restarts nothing`
 
 // profile prints what the running daemon and app hold and use (docs/performance.md).
 func (r runner) profile(args []string) error {
