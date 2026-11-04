@@ -89,6 +89,9 @@ func (b Block) start() map[string]any {
 	case "tool_use":
 		return map[string]any{"type": "tool_use", "id": b.ID, "name": b.Name, "input": map[string]any{}}
 	}
+	if b.Raw != nil {
+		return b.rawFields()
+	}
 	return map[string]any{"type": "text", "text": ""}
 }
 

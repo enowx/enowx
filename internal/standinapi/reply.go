@@ -70,13 +70,14 @@ func (u Usage) fields(output int64) map[string]any {
 
 // Block is a content block of a reply: "text" (Text), "thinking" (Text, Signature),
 // "redacted_thinking" (Text is its data), "tool_use" (ID, Name, Input, raw JSON sent as
-// it stands, broken if a test wants it broken).
+// it stands, broken if a test wants it broken). Another Type is sent as Raw, whole.
 type Block struct {
 	Type      string
 	Text      string
 	Signature string
 	ID, Name  string
 	Input     string
+	Raw       json.RawMessage
 }
 
 // Text is a reply of one text block.
@@ -127,5 +128,24 @@ func (b Block) final() map[string]any {
 		}
 		return map[string]any{"type": "tool_use", "id": b.ID, "name": b.Name, "input": input}
 	}
+	if b.Raw != nil {
+		return b.rawFields()
+	}
 	return map[string]any{"type": "text", "text": b.Text}
+}
+
+func (b Block) rawFields() map[string]any {
+	fields := map[string]any{}
+	_ = json.Unmarshal(b.Raw, &fields)
+	return fields
+}
+
+// Fallback is the block marking a switch to another model.
+func Fallback(from, to string) Block {
+	raw, _ := json.Marshal(map[string]any{
+		"type": "fallback",
+		"from": map[string]string{"model": from},
+		"to":   map[string]string{"model": to},
+	})
+	return Block{Type: "fallback", Raw: raw}
 }
