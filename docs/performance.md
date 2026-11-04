@@ -174,5 +174,5 @@ The profile lists what sessions' programs take, so the owner can see what these 
 
 - **Footprint on the Mac**: run `enowx-app profile --cpu 30` before and after updating, at the same kind of use, and again after hours. Check that `vmmap` answers there, as that path has never run (`pages_darwin.go`), and how much of `__TEXT` is resident.
 - **GPU memory and frames' real cost.** No GPU was involved here.
-- **Hours of use.** The longest run here was about 15 minutes. The Mac's growth over 6 hours and its 5,509 MB spike weren't reproduced.
+- **Hours of use.** The longest run here was 34 minutes, the app's private dirty staying between 117 and 124 and the daemon's between 101 and 103 over the last 24 of them, at rest with no agents at work: no growth shows in that time. The Mac's growth over 6 hours and its 5,509 MB spike weren't reproduced.
 - **Real agents at work.** Here they were stand-ins.
