@@ -26,6 +26,8 @@ const goaUsage = `usage: enowx-app goa COMMAND
       --model M --effort E --config C
                        chosen by hand, over the judge's route; --no-route keeps the agent's own
       --title T        the task's title on the board; --yolo skips the worker's permission prompts
+      --doc NOTE[#SECTION]
+                       a Project Docs document: refused while its project's gate is closed, its words prepended to the prompt
   task ID [--status working|waiting|done|failed|stopped] [--result TEXT]
                                    settle a task, or say where it stands
   remember [--kind task|delegation|outcome|decision|preference] TEXT
@@ -127,12 +129,18 @@ func (r runner) goaDelegate(args []string) error {
 	fs.StringVar(&p.Title, "title", "", "")
 	fs.BoolVar(&p.NoRoute, "no-route", false, "")
 	fs.BoolVar(&p.SkipPermissions, "yolo", false, "")
+	doc := fs.String("doc", "", "")
 	asJSON := fs.Bool("json", false, "")
 	words, err := parseAll(fs, args)
 	if err != nil || len(words) == 0 {
 		return errors.New(goaUsage)
 	}
 	p.Prompt = strings.Join(words, " ")
+	if *doc != "" {
+		if err := r.withDocContext(&p, *doc); err != nil {
+			return err
+		}
+	}
 	if p.Project != "" && p.Host == "" {
 		if abs, err := filepath.Abs(expandTilde(p.Project)); err == nil {
 			p.Project = abs
