@@ -24,6 +24,7 @@ The library is off unless the cloud has `ENOWX_CLOUD_LIBRARY=on`. `GET /v1/info`
 | `ENOWX_CLOUD_LIBRARY_RETURN_URL` | Where a sign-in sends its code (`https://ui.enowx.ai/auth/callback`). Only from here, never from a request |
 | `ENOWX_CLOUD_LIBRARY_WEB_SECRET` | What the website's server proves itself with. Without it the website can't sign anyone in |
 | `ENOWX_CLOUD_LIBRARY_ADMIN_TEAM` | The team whose owner and admins moderate |
+| `ENOWX_CLOUD_LIBRARY_EMBED_URL`, `_EMBED_MODEL`, `_EMBED_KEY` | Searching by meaning: an OpenAI-compatible endpoint (`…/v1`), its model, its key if any. Off while the address is unset |
 
 The cloud now imports `core/autopush`, `core/canvas` and `core/designshare`: a deploy that watches paths has to watch those and `proto/` too.
 
@@ -71,17 +72,31 @@ The website sends the browser to `/library/authorize` with a `state` and a PKCE 
 
 That token opens `/v1/library` and nothing else, and can't publish. This path never joins the default team and starts no session of the cloud's own pages.
 
+## Searching and filtering
+
+`GET items` takes `q`, `category`, `kind`, `license`, `tag`, `style`, `color`, `theme`, `device`, `motion=1` and `sort` (`relevant`, `new`, `popular`, `featured`). Every value reaches the database as a parameter; one that isn't known finds nothing. A search ranks by how well it matches unless another sort is asked for.
+
+**Words.** On Postgres, a `tsvector` the database keeps itself (title first, then tags, then description, English stemming) with a GIN index; all words have to match, the last as a prefix. It needs Postgres 12 or later. SQLite, for tests and small clouds, uses LIKE with the same meaning and order.
+
+**What the server reads at submit, from the bundle and not from the host** (`designshare.LookOf`): the theme by the page's ground, the device by its width (600 or less is a phone; a phone version counts too), and up to three dominant colors, kept per version in `library_version_colors`. Nothing is drawn: a page's ground counts most, then backgrounds, then the rest, following CSS variables and utility classes. Scripts aren't read, so a design that paints itself from a script reads as what its page says. Style is the creator's pick in the form.
+
+**Load.** Searches share the few places of public reads, so teams' sync keeps its connections, hold a connection 3 seconds at most, and are limited to 60 a minute per address. Behind the website the browser's address is counted, which its secret vouches for.
+
+**By meaning.** Off unless an embedder is set, and on Postgres only with pgvector: found at the start, turned on if the database role may, and otherwise the library runs without it and says so in the log. `GET /v1/info` adds `library-meaning` only when it works, and the website shows **By meaning** only then. Vectors are kept in `library_embeddings`, every 5 minutes for what's new or changed, and dropped when a design stops showing. SQLite compares them in the server. What leaves for the embedder is a live design's title, description and tags and what people search for: never a prompt, a page, a picture or who asks. `GET search/meaning` is limited to 20 a minute per address, 2 calls to the embedder at once, 8 seconds each, holding no database connection meanwhile.
+
 ## Moderating
 
 The admin team's owner and admins moderate, and so do moderators the owner appoints from the website's admin page: only the owner can appoint or remove them. Moderators can't be blocked until the owner removes that role.
 
 Every decision needs a reason and goes in `library_log`, which the store can only add to: approving, rejecting (the reason reaches the app), taking down, picks, reports, blocks, unblocks, appointing and removing moderators. An upheld report takes the item down and makes its owner new again. Blocking takes down what an account shows and stops it publishing. Who reported is for moderators alone. Accounts' emails are never in an answer.
 
+**Similar designs.** At submit the server hashes the picture (a 64-bit perceptual hash, pure Go). The queue lists, with the design under review, up to 5 other designs within 10 bits, taken-down ones too. This is advice to check by hand: it refuses, holds and logs nothing, and a trusted account's lookalike still goes live without passing the queue. A near-blank picture has no hash, and the queue says it couldn't be compared.
+
 ## API
 
 | Access | Endpoints under `/v1/library` |
 |---|---|
-| Anyone, limited per address | `GET items`, `GET items/{id}`, `GET items/{id}/versions`, `GET items/{id}/prompt` (403 when view only) |
+| Anyone, limited per address | `GET items`, `GET search/meaning`, `GET items/{id}`, `GET items/{id}/versions`, `GET items/{id}/prompt` (403 when view only) |
 | The website's secret | `GET items/{id}/versions/{v}/{doc,doc-phone,thumb,thumb-phone}` (a live version's), `POST items/{id}/escaped`, `POST auth/exchange` |
 | A device | `POST items`, `PUT items/{id}/versions/{v}/{source,thumb,thumb-phone}`, `POST items/{id}/versions/{v}/submit`, `GET mine` |
 | A device or a web session | `DELETE items/{id}`, `GET me`, `POST reports`, `POST auth/signout` |
@@ -92,4 +107,4 @@ Objects are in the store as `<prefix>/items/<id>/v<n>/{source,doc,doc-phone,thum
 
 ## What this phase leaves out
 
-Copying a component's code, Open in enowX, references and skills (`code`, `source` and `skill` have no endpoints yet, though an item's `actions` already say what its license allows), full-text and meaning search, profiles, saves, and exporting or deleting a profile.
+Copying a component's code, Open in enowX, references and skills (`code`, `source` and `skill` have no endpoints yet, though an item's `actions` already say what its license allows), profiles, saves, and exporting or deleting a profile.
