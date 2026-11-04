@@ -275,6 +275,11 @@ func (s *Service) putPart(w http.ResponseWriter, r *http.Request) {
 		fail(w, http.StatusRequestEntityTooLarge, "that's bigger than the library takes: a design is 10 MB at most, a picture 300 KB, a video 4 MB")
 		return
 	}
+	release, ok := s.holdingMemory(w, r)
+	if !ok {
+		return
+	}
+	defer release()
 	if part == api.PartSource {
 		if _, err := designshare.Parse(data); err != nil {
 			fail(w, http.StatusBadRequest, "this isn't a design's bundle")
@@ -317,18 +322,25 @@ func (s *Service) putPart(w http.ResponseWriter, r *http.Request) {
 // keep puts an object in the bucket, counted against its owner's account
 // first: what doesn't fit is never written.
 func (s *Service) keep(w http.ResponseWriter, r *http.Request, v store.LibraryVersionRow, part string, data []byte) bool {
-	owner := asker(r).account.ID
-	if err := s.db.SetLibraryPartSize(r.Context(), owner, v.ItemID, v.Version, part, int64(len(data)), api.MaxLibraryAccount); err != nil {
+	owner, size := asker(r).account.ID, int64(len(data))
+	if !s.sends.reserve(owner, size, s.accountWrittenDay()) {
+		w.Header().Set("Retry-After", "3600")
+		fail(w, http.StatusTooManyRequests, "that's a lot written for one day: try again tomorrow")
+		return false
+	}
+	if err := s.db.SetLibraryPartSize(r.Context(), owner, v.ItemID, v.Version, part, size, api.MaxLibraryAccount); err != nil {
+		s.sends.giveBack(owner, size)
 		s.answer(w, nil, err)
 		return false
 	}
 	if err := s.objects.Put(r.Context(), objectKey(v.ItemID, v.Version, part), data); err != nil {
 		s.log.Error("library: put", "item", v.ItemID, "err", err)
+		s.sends.giveBack(owner, size)
 		_ = s.db.SetLibraryPartSize(r.Context(), owner, v.ItemID, v.Version, part, 0, api.MaxLibraryAccount)
 		fail(w, http.StatusBadGateway, "the library's storage didn't answer: try again")
 		return false
 	}
-	if err := s.db.AddLibraryUsage(r.Context(), int64(len(data))); err != nil {
+	if err := s.db.AddLibraryUsage(r.Context(), size); err != nil {
 		s.log.Warn("library: usage", "err", err)
 	}
 	return true
@@ -361,6 +373,11 @@ func (s *Service) submit(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
+	release, ok := s.holdingMemory(w, r)
+	if !ok {
+		return
+	}
+	defer release()
 	if v.SourceSize == 0 || v.ThumbSize == 0 {
 		fail(w, http.StatusConflict, "this version misses its design or its picture")
 		return
