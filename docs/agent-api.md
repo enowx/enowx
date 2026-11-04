@@ -1,6 +1,6 @@
 # Model APIs
 
-A model API of the user's (a company gateway, OpenRouter, LiteLLM, a local server) is a **config** of an agent for the agents that can take one per session: Claude Code, Codex, OpenCode, Gemini CLI, Antigravity, GitHub Copilot, OpenClaude, Aider, Kilo Code, Qwen Code, Goose, Kimi, Continue, Crush. Their own settings are never written; a session started on the config gets the API through its environment and command line ([configs.md](configs.md)). `agentapi.set` refuses them, and a model API set in their files before becomes a config.
+A model API of the user's (a company gateway, OpenRouter, LiteLLM, a local server) is a **config** of an agent for the agents that can take one per session: Claude Code, Codex, OpenCode, Gemini CLI, Antigravity, GitHub Copilot, OpenClaude, Aider, Kilo Code, Qwen Code, Goose, Kimi, Continue, Crush, OMP. Their own settings are never written; a session started on the config gets the API through its environment and command line ([configs.md](configs.md)). `agentapi.set` refuses them, and a model API set in their files before becomes a config.
 
 The other agents below take one only in their own settings. For them, their page in **Settings → Agents** writes the API's address, key and model into the agent's own settings, the way that agent takes them (`core/agentapi`), so its sessions use it, and keeps the files as they were first, to put them back. Agents do the same from the command line (`enowx-app api`) and over MCP (`agent_api_*`). What follows is how each agent takes an API in its files, which is also what a config gives it per session where it can; for the agents marked *moved*, enowX no longer writes those files: they are where it finds an API set before, to make it a config. [configs.md](configs.md#applied-per-session) has what each gets per session.
 
@@ -26,6 +26,7 @@ What enowX adds is named `enowx`, so it finds it again and leaves the user's own
 | Continue (*moved*) | OpenAI chat, Anthropic, Gemini | a config of enowX's, `~/.enowx-app/agentapi/continue.yaml`, given to its sessions (`--config`); the user's own untouched. A session's own holds `${{ secrets.ENOWX_CONTINUE_API_KEY }}`, not the key | docs.continue.dev/cli/configuration |
 | Crush | OpenAI chat, Anthropic | its sessions' `CRUSH_GLOBAL_CONFIG` and `CRUSH_GLOBAL_DATA`, folders of the session's own: `crush.json` with `providers.enowx` (`type`, `base_url`, `api_key: $ENOWX_CRUSH_API_KEY`, `models`), `models.large`, `models.small` | github.com/charmbracelet/crush (README, `schema.json`, `internal/config/load.go`) |
 | Pi | OpenAI chat, OpenAI Responses, Anthropic, Gemini | `~/.pi/agent/models.json` `providers.enowx`, `defaultProvider`/`defaultModel` of `~/.pi/agent/settings.json` | pi-mono's models docs |
+| OMP | OpenAI chat, OpenAI Responses, Anthropic | `models.yml` in its agent folder (`PI_CODING_AGENT_DIR`): `providers.enowx` (`baseUrl`, `api`, `apiKey`, `models`), the model by `--model enowx/<model>` | github.com/can1357/oh-my-pi (`pi-utils/src/dirs.ts`, `pi-coding-agent/src/config/model-registry.ts`, `resolve-config-value.ts`) |
 
 The others take no model API from enowX for the reason [configs.md](configs.md#every-agent) gives each; Settings → Agents says it on their page.
 
@@ -46,6 +47,7 @@ An API can carry several models, the first the default, and for each what the ag
 | Kimi | — | `KIMI_MODEL_CAPABILITIES` `image_in` | `KIMI_MODEL_MAX_CONTEXT_SIZE` | — | — |
 | Mistral Vibe | `[[models]]` | `supports_images` | `max_context_length` | `max_output_tokens` | per model, `thinking`: off, low, medium, high, max |
 | Pi | provider `models` | `input` | `contextWindow` | `maxTokens` | per model, `modelThinkingLevels`: off, minimal, low, medium, high, xhigh, max |
+| OMP | `models` | `input` | `contextWindow` | `maxTokens` | — |
 | Continue | `models` by role | `capabilities` `image_input` | `contextLength` | `maxTokens` | — |
 | GitHub Copilot | — | — | `COPILOT_PROVIDER_MAX_PROMPT_TOKENS` | `COPILOT_PROVIDER_MAX_OUTPUT_TOKENS` | — |
 | Gemini CLI, Antigravity, OpenClaude | — | — | — | — | — |

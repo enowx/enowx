@@ -71,7 +71,7 @@ var agentWays = map[string]Way{
 	"qoder-cn":           {Key: true, Why: "A model is added only in its /model screen: its docs say not to edit the settings by hand. No other account: QODERCN_CONFIG_DIR moves its folder, but its docs name no file for the sign-in.", Checked: "docs"},
 	"zcode":              {Why: "Its docs describe a desktop app, with no command line to give a config to.", Checked: "docs"},
 	"pi":                 {Key: true, Why: "Another account is read from its docs, not signed in: auth.json in PI_CODING_AGENT_DIR is the account's. It has no sign-in command: use /login in a session on the config.", Checked: "docs"},
-	"omp":                {Key: true, Why: "It takes a provider's address, but only for models named in models.yml, which enowX doesn't write yet: a model of your own wasn't found when run.", Checked: "run"},
+	"omp":                {Key: true, Why: "A config's sessions read only the config's models, not your own ~/.omp settings, skills and sign-in: a folder of the session's own is the only way to give one another models.yml.", Checked: "run"},
 	"prime-agent":        {Key: true, Why: "Only a models.json takes a model API, at a place its docs don't name.", Checked: "docs"},
 	"antigravity":        {Key: true, Why: "No separate account is documented.", Checked: "help"},
 	"aider":              {Key: true, Why: "No account: it has no sign-in to separate, only API keys.", Checked: "docs"},

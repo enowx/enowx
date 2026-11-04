@@ -65,6 +65,8 @@ func TestSessionRoutes(t *testing.T) {
 			"GOOSE_PROVIDER__HOST=" + url, "GOOSE_PROVIDER__API_KEY=" + routeKey, "ANTHROPIC_HOST=" + url, "ANTHROPIC_API_KEY=" + routeKey}},
 		"crush": {id: "crush", api: one(""), env: []string{"CRUSH_GLOBAL_CONFIG={dir}/crush", "CRUSH_GLOBAL_DATA={dir}/crush-data", crushKeyVar + "=" + routeKey},
 			file: "crush/crush.json", ref: "$" + crushKeyVar},
+		"omp": {id: "omp", api: one(""), env: []string{"PI_CODING_AGENT_DIR={dir}/agent", "OMP_SKIP_SETUP=1", ompKeyVar + "=" + routeKey},
+			args: []string{"--model", "enowx/m"}, file: "agent/models.yml", ref: ompKeyVar},
 	} {
 		t.Run(name, func(t *testing.T) {
 			if !PerSession(tc.id) {
@@ -137,6 +139,8 @@ func TestSessionRoutesRefuse(t *testing.T) {
 		"goose without a model": {"goose", API{BaseURL: url, APIKey: routeKey}},
 		"kilo without a model":  {"kilo", API{BaseURL: url, APIKey: routeKey}},
 		"continue, no model":    {"continue", API{BaseURL: url, APIKey: routeKey}},
+		"omp without a model":   {"omp", API{BaseURL: url, APIKey: routeKey}},
+		"omp's Gemini API":      {"omp", API{BaseURL: url, APIKey: routeKey, Model: "m", Protocol: Gemini}},
 	} {
 		if _, err := SessionLaunch(tc.id, tc.api, t.TempDir()); err == nil {
 			t.Errorf("%s: started", name)
@@ -154,6 +158,39 @@ func TestSessionConfigWithoutAKey(t *testing.T) {
 	data, _ := os.ReadFile(filepath.Join(dir, "crush", "crush.json"))
 	if strings.Contains(string(data), crushKeyVar) || slices.ContainsFunc(l.Env, func(e string) bool { return strings.HasPrefix(e, crushKeyVar) }) {
 		t.Fatalf("env %q, config %s", l.Env, data)
+	}
+}
+
+// OMP reads its models from models.yml in the agent folder its sessions get, which
+// is the session's own: the user's ~/.omp/agent is never read, nor written.
+func TestOMPSessionWritesItsOwnModelsFile(t *testing.T) {
+	dir := t.TempDir()
+	api := API{BaseURL: "https://gw.example.com/v1", APIKey: routeKey, Model: "cb/m1", Protocol: OpenAI,
+		Models: []Model{{ID: "cb/m1", Vision: true, Context: 1_000_000, Output: 384_000}, {ID: "cb/m2", Context: 64_000}}}
+	l, err := SessionLaunch("omp", api, dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	data, err := os.ReadFile(filepath.Join(dir, "agent", "models.yml"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, want := range []string{`baseUrl: "https://gw.example.com/v1"`, `api: "openai-completions"`, `apiKey: "ENOWX_OMP_API_KEY"`,
+		`- id: "cb/m1"`, `contextWindow: 1000000`, `maxTokens: 384000`, `input: ["text", "image"]`, `- id: "cb/m2"`, `contextWindow: 64000`} {
+		if !strings.Contains(string(data), want) {
+			t.Errorf("models.yml is missing %q:\n%s", want, data)
+		}
+	}
+	if strings.Contains(string(data), routeKey) || strings.Contains(strings.Join(l.Args, " "), routeKey) {
+		t.Fatalf("the key is in the file or the command line: %s %q", data, l.Args)
+	}
+	// A server that asks for no key: nothing names a variable that isn't set.
+	l, err = SessionLaunch("omp", API{BaseURL: "http://localhost:8080/v1", Model: "m"}, t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if slices.ContainsFunc(l.Env, func(e string) bool { return strings.HasPrefix(e, ompKeyVar) }) {
+		t.Fatalf("env %q", l.Env)
 	}
 }
 
