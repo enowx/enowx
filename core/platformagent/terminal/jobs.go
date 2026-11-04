@@ -96,9 +96,10 @@ func (t *Terminal) jobEnded(err error) {
 		}
 	case err != nil && j.compact:
 		t.sc.Line(t.sc.paint(styleRed, "! compaction failed: "+oneLine(err.Error())))
-	case err != nil:
+	case err != nil && err.Error() != t.lastError:
 		t.sc.Line(t.sc.paint(styleRed, "! "+oneLine(err.Error())))
 	}
+	t.lastError = ""
 	t.refresh()
 	if !j.compact {
 		t.sc.Line(t.sc.paint(styleDim, "─ "+t.statusLine()))
