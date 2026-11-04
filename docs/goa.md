@@ -157,7 +157,7 @@ The limits are each host's, for its own GOA, from a second to a day: **Stall lim
 
 Tasks on other hosts are watched the same, through the app, which is what reaches them: every few seconds GOA's host reads their sessions, screens and CPU. With no app connected, or the host out of reach, their tasks stay as they are until it can look. Those reads aren't in `control log`, as no session made them. The hook runs on GOA's host, not the worker's.
 
-Across a daemon restart, a stalled task stays stalled and GOA, whose waiting lines went with the daemon, hears again; the hook doesn't fire again for the same stall. A session that ended while the daemon was down settles its task as failed or stopped.
+Across a daemon restart, a stalled task stays stalled and its waiting lines survive in Tasks until a supported hook takes them. Further reminders follow through the same safe channels; the worker's stalled hook doesn't fire again for the same stall. A session that ended while the daemon was down settles its task as failed or stopped.
 
 GOA's prompt is 5.2 KB, and goes into every turn; `goa skill setup` (4 KB), `goa skill features` (4 KB) and the docs (`goa doc`: a 10 KB list, each doc when asked for) are read when needed. With the prompt and those, a small model named a real command for each of the 29 features, and said who it is from the prompt alone.
 
