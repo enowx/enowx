@@ -34,7 +34,7 @@ More agents, started the same way; their flags are those their documentation giv
 | Aider | `aider` | typed in once it shows its input | `--yes-always` | — | [docs](https://aider.chat/docs/) |
 | Goose | `goose --version` | typed in once it shows its input | `GOOSE_MODE=auto` in its environment · always `GOOSE_MODE=auto` | — | [docs](https://block.github.io/goose/docs/quickstart/) |
 | Amp | `amp` | typed in once it shows its input | `--dangerously-allow-all` | — | [docs](https://ampcode.com/manual#install) |
-| Kilo Code | `kilo` | typed in once it shows its input | — | — | [docs](https://kilo.ai/docs/cli) |
+| Kilo Code | `kilo` | `--prompt` | — | — | [docs](https://kilo.ai/docs/cli) |
 | Crush | `crush` | typed in once it shows its input | `--yolo` | — | [docs](https://github.com/charmbracelet/crush) |
 | Auggie | `auggie` | typed in once it shows its input | — | — | [docs](https://docs.augmentcode.com/cli/overview) |
 | Autohand Code | `autohand` | typed in once it shows its input | `--unrestricted` | — | [docs](https://github.com/autohandai/code-cli) |
