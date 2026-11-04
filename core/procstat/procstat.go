@@ -76,6 +76,17 @@ func (s *Sampler) Sample() error {
 	return nil
 }
 
+// List is the processes of the last sample, in no order.
+func (s *Sampler) List() []Proc {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	out := make([]Proc, 0, len(s.procs))
+	for _, p := range s.procs {
+		out = append(out, p)
+	}
+	return out
+}
+
 // Tree sums what pid and its descendants use, as of the last sample.
 func (s *Sampler) Tree(pid int) Usage {
 	s.mu.Lock()

@@ -92,6 +92,27 @@ func (s *Server) stats() proto.DaemonStats {
 	return out
 }
 
+// recentProcAge is how old a list of processes may be for what only follows them.
+const recentProcAge = 10 * time.Second
+
+// recentProcesses lists the processes from the stats' last look when that was recent:
+// a look costs a ps on macOS, and those who ask needn't each pay for one.
+func (s *Server) recentProcesses() ([]procstat.Proc, error) {
+	st := &s.statsState
+	st.mu.Lock()
+	fresh := time.Since(st.last) < recentProcAge
+	st.mu.Unlock()
+	if !fresh {
+		s.stats()
+	}
+	st.mu.Lock()
+	defer st.mu.Unlock()
+	if list := st.sampler.List(); len(list) > 0 {
+		return list, nil
+	}
+	return procstat.Snapshot()
+}
+
 // sessionOf is the session a child of the daemon runs: as its arguments
 // name it, else its environment (sessions of daemons before the name).
 func sessionOf(pid int) string {
