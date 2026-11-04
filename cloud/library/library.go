@@ -91,7 +91,8 @@ func New(cfg Config, host Host, db *store.DB, log *slog.Logger) (*Service, error
 	if err != nil {
 		return nil, fmt.Errorf("library: %w", err)
 	}
-	return &Service{cfg: cfg, host: host, db: db, log: log, reads: make(chan struct{}, publicReads), objects: objects, objectReads: make(chan struct{}, objectsAtOnce)}, nil
+	s := &Service{cfg: cfg, host: host, db: db, log: log, reads: make(chan struct{}, publicReads), objects: objects, objectReads: make(chan struct{}, objectsAtOnce)}
+	return s, nil
 }
 
 // Mount adds the library's routes to mux.

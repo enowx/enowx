@@ -157,7 +157,7 @@ func (s *Server) libraryPrepare(p proto.LibraryPrepareParams) (proto.LibraryPrep
 		// An update starts from what shows; approval and rights are said again.
 		for _, it := range mine.Items {
 			if it.ID == item {
-				form = proto.LibraryForm{Kind: it.Kind, License: it.License, Title: it.Title, Description: it.Description, Category: it.Category, Tags: it.Tags, SourceURL: it.SourceURL, Prompt: it.Latest.Prompt}
+				form = proto.LibraryForm{Kind: it.Kind, License: it.License, Title: it.Title, Description: it.Description, Category: it.Category, Tags: it.Tags, Style: it.Style, SourceURL: it.SourceURL, Prompt: it.Latest.Prompt}
 			}
 		}
 	}
@@ -257,7 +257,7 @@ func (s *Server) libraryPublish(p proto.LibraryPublishParams) (proto.LibraryDesi
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Minute)
 	defer cancel()
 	made, err := c.LibraryCreate(ctx, api.LibraryPublishParams{ItemID: d.Prepared.ItemID, Kind: p.Form.Kind, License: p.Form.License, Title: p.Form.Title, Description: p.Form.Description,
-		Category: p.Form.Category, Tags: p.Form.Tags, HasMotion: d.Prepared.HasMotion, MadeWith: d.Prepared.MadeWith, SourceURL: p.Form.SourceURL, Prompt: p.Form.Prompt,
+		Category: p.Form.Category, Tags: p.Form.Tags, Style: p.Form.Style, HasMotion: d.Prepared.HasMotion, MadeWith: d.Prepared.MadeWith, SourceURL: p.Form.SourceURL, Prompt: p.Form.Prompt,
 		PromptApproved: p.Form.PromptApproved, Rights: p.Form.Rights, Format: bundle.Format, Width: d.Prepared.Width, Height: d.Prepared.Height})
 	if err != nil {
 		return out, libraryError(err, &out)

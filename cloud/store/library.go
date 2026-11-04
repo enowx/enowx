@@ -99,33 +99,21 @@ func (s *DB) libraryTags(ctx context.Context, items []api.LibraryItem) error {
 // LibraryQuery is what a browse asks for.
 type LibraryQuery struct {
 	Q, Category, Kind, License, Tag, Sort string
+	Style, Color, Theme, Device           string
+	Motion                                bool
 	Limit, Offset                         int
 }
 
-// LibraryItems are live items, as q asks; more says there are others after.
+// LibraryItems are live items, as q asks; more says there are others after. A
+// search ranks by how well it matches unless q asks for another order.
 func (s *DB) LibraryItems(ctx context.Context, q LibraryQuery) (items []api.LibraryItem, more bool, err error) {
-	where := []string{`i.status = 'live'`, `(p.trust IS NULL OR p.trust <> 'blocked')`, `(p.hidden IS NULL OR p.hidden = 0)`}
-	var args []any
-	arg := func(v any) string {
-		args = append(args, v)
-		return "$" + strconv.Itoa(len(args))
-	}
-	if q.Category != "" {
-		where = append(where, `i.category = `+arg(q.Category))
-	}
-	if q.Kind != "" {
-		where = append(where, `i.kind = `+arg(q.Kind))
-	}
-	if q.License != "" {
-		where = append(where, `i.license = `+arg(q.License))
-	}
-	if q.Tag != "" {
-		where = append(where, `EXISTS (SELECT 1 FROM library_tags t WHERE t.item_id = i.id AND t.tag = `+arg(q.Tag)+`)`)
-	}
+	a := &queryArgs{}
+	where := libraryFilters(q, a)
+	rank := ""
 	if text := strings.TrimSpace(q.Q); text != "" {
-		like := "%" + strings.NewReplacer(`\`, `\\`, `%`, `\%`, `_`, `\_`).Replace(strings.ToLower(text)) + "%"
-		m := arg(like)
-		where = append(where, `(LOWER(i.title) LIKE `+m+` ESCAPE '\' OR LOWER(i.description) LIKE `+m+` ESCAPE '\')`)
+		var match string
+		match, rank = s.librarySearch(text, a)
+		where = append(where, match)
 	}
 	order := `i.created DESC, i.id DESC`
 	switch q.Sort {
@@ -134,30 +122,25 @@ func (s *DB) LibraryItems(ctx context.Context, q LibraryQuery) (items []api.Libr
 	case "featured":
 		where = append(where, `i.featured_at <> ''`)
 		order = `i.featured_at DESC, i.id DESC`
+	case "new":
+	default:
+		if rank != "" {
+			order = rank + ` DESC, ` + order
+		}
 	}
 	limit := max(min(q.Limit, 60), 1)
 	rows, err := s.QueryContext(ctx, `SELECT `+libraryItemCols+libraryItemFrom+` WHERE `+strings.Join(where, " AND ")+
-		` ORDER BY `+order+` LIMIT `+strconv.Itoa(limit+1)+` OFFSET `+strconv.Itoa(max(q.Offset, 0)), args...)
+		` ORDER BY `+order+` LIMIT `+strconv.Itoa(limit+1)+` OFFSET `+strconv.Itoa(max(q.Offset, 0)), a.list...)
 	if err != nil {
 		return nil, false, fmt.Errorf("store: library items: %w", err)
 	}
-	defer rows.Close()
-	items = []api.LibraryItem{}
-	for rows.Next() {
-		it, err := scanLibraryItem(rows)
-		if err != nil {
-			return nil, false, fmt.Errorf("store: library items: %w", err)
-		}
-		items = append(items, it)
-	}
-	if err := rows.Err(); err != nil {
+	if items, err = s.readLibraryItems(ctx, rows); err != nil {
 		return nil, false, err
 	}
-	rows.Close()
 	if len(items) > limit {
 		items, more = items[:limit], true
 	}
-	return items, more, s.libraryTags(ctx, items)
+	return items, more, nil
 }
 
 // LibraryItem is item id, whatever its status.
@@ -323,6 +306,10 @@ func setLibraryTags(ctx context.Context, tx *sql.Tx, id string, tags []string) e
 		if _, err := tx.ExecContext(ctx, `INSERT INTO library_tags (item_id, tag) VALUES ($1, $2)`, id, tag); err != nil {
 			return fmt.Errorf("store: library tags: %w", err)
 		}
+	}
+	// Search reads them from the item.
+	if _, err := tx.ExecContext(ctx, `UPDATE library_items SET tags_text = $1 WHERE id = $2`, strings.Join(tags, " "), id); err != nil {
+		return fmt.Errorf("store: library tags: %w", err)
 	}
 	return nil
 }
