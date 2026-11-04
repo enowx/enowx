@@ -8,13 +8,16 @@ import "time"
 // had at their last sync (core/usersync). A daemon lists, reads and
 // writes the files; the app decides what goes where.
 const (
-	MethodSyncManifest  = "sync.manifest"  // SyncManifestParams → SyncManifest
-	MethodSyncRead      = "sync.read"      // SyncReadParams → SyncReadResult
-	MethodSyncWrite     = "sync.write"     // SyncWriteParams → SyncWriteResult
-	MethodSyncReport    = "sync.report"    // SyncPeerStatus: how a sync with a peer went
-	MethodSyncStatus    = "sync.status"    // → SyncStatus
-	MethodSyncRequest   = "sync.request"   // asks the app to sync now (EventSyncRequested)
+	MethodSyncManifest = "sync.manifest" // SyncManifestParams → SyncManifest
+	MethodSyncRead     = "sync.read"     // SyncReadParams → SyncReadResult
+	MethodSyncWrite    = "sync.write"    // SyncWriteParams → SyncWriteResult
+	MethodSyncReport   = "sync.report"   // SyncPeerStatus: how a sync with a peer went
+	MethodSyncStatus   = "sync.status"   // → SyncStatus
+	MethodSyncRequest  = "sync.request"  // asks the app to sync now (EventSyncRequested)
+	// MethodSyncConflicts lists them without their versions' data: an older daemon
+	// sends it, but no app ever read it from here. MethodSyncConflict reads one version's.
 	MethodSyncConflicts = "sync.conflicts" // → []SyncConflict
+	MethodSyncConflict  = "sync.conflict"  // SyncConflictParams → SyncVersion
 	MethodSyncResolve   = "sync.resolve"   // SyncResolveParams
 	MethodSyncTrash     = "sync.trash"     // → []SyncTrashItem
 	MethodSyncRestore   = "sync.restore"   // SyncTrashItem (its ID)
@@ -124,6 +127,14 @@ type SyncVersion struct {
 	Host    string `json:"host"`
 	Data    []byte `json:"data,omitempty"`
 	Deleted bool   `json:"deleted,omitempty"`
+	// Size is Data's, said where Data is left out.
+	Size int64 `json:"size,omitempty"`
+}
+
+// SyncConflictParams names a version of a conflict, from 1.
+type SyncConflictParams struct {
+	ID      string `json:"id"`
+	Version int    `json:"version"`
 }
 
 // SyncResolveParams keeps conflict ID's version of host Keep (or its

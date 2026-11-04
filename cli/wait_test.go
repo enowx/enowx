@@ -1,70 +1,71 @@
 package cli
 
 import (
+	"bytes"
+	"net"
+	"strings"
 	"testing"
 	"time"
 
+	"github.com/enowx/enowx/client"
+	"github.com/enowx/enowx/daemon"
+	"github.com/enowx/enowx/internal/rpccount"
 	"github.com/enowx/enowx/proto"
 )
 
-// A wait ends only when the agent truly ended its turn or asks: not at a Stop followed by
-// more, not on an agent long at one step with its screen still.
-func TestWaitOnlyAtTheTurnsEnd(t *testing.T) {
-	start := time.Now()
-	at := func(d time.Duration) time.Time { return start.Add(d) }
-	done := proto.SessionInfo{Agent: "claude", State: proto.StateDone}
-	busy := proto.SessionInfo{Agent: "claude", State: proto.StateWorking, Active: true}
+// A wait follows the session's events: it hears the end at once, and the list of
+// sessions, which an agent waiting on another read twice a second, isn't asked again.
+func TestWaitFollowsEventsNotTheList(t *testing.T) {
+	srv, err := daemon.NewServer(t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer srv.Close()
+	a, b := net.Pipe()
+	go srv.ServeConn(a)
+	counted := rpccount.Wrap(b)
+	c, err := client.New(counted, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer c.Close()
+	s, err := c.CreateSession(proto.SessionCreateParams{Command: []string{"sh"}, Dir: t.TempDir(), Cols: 80, Rows: 10})
+	if err != nil {
+		t.Fatal(err)
+	}
+	setState := func(state string) {
+		t.Helper()
+		if err := c.Call(proto.MethodSessionState, proto.SessionStateParams{ID: s.ID, State: state}, nil); err != nil {
+			t.Fatal(err)
+		}
+	}
+	setState(proto.StateWorking)
+	var out bytes.Buffer
+	done := make(chan error, 1)
+	began := time.Now()
+	go func() { done <- runner{c: c, out: &out}.wait([]string{s.ID, "--timeout", "1m"}) }()
+	time.Sleep(4 * time.Second)
+	said := time.Now()
+	setState(proto.StateDone)
+	select {
+	case err := <-done:
+		if err != nil {
+			t.Fatal(err)
+		}
+	case <-time.After(10 * time.Second):
+		t.Fatal("wait didn't hear the session end")
+	}
+	took, heard := time.Since(began), time.Since(said)
+	if !strings.Contains(out.String(), proto.StateDone) {
+		t.Fatalf("said %q", out.String())
+	}
+	lists := counted.Calls(proto.MethodSessionList)
+	t.Logf("wait: %d session.list in %s, %.0f a minute; heard the end after %s", lists, took.Round(time.Millisecond), float64(lists)/took.Minutes(), heard.Round(time.Millisecond))
+	if lists > 1 {
+		t.Fatalf("session.list called %d times", lists)
+	}
+	if heard > doneSettles+2*time.Second { // done must hold before it counts
 
-	var w turnWait
-	if w.over(done, at(0)) || w.over(done, at(doneSettles-time.Second)) {
-		t.Error("done ended it at once")
-	}
-	if w.over(busy, at(doneSettles-time.Millisecond)) {
-		t.Error("working ended it")
-	}
-	if w.over(done, at(doneSettles)) {
-		t.Error("the first done counted, across a step at work")
-	}
-	if !w.over(done, at(2*doneSettles)) {
-		t.Error("done that held didn't end it")
-	}
-
-	// Done with the screen moving: more is coming.
-	w = turnWait{}
-	moving := done
-	moving.Active = true
-	if w.over(moving, at(0)) || w.over(moving, at(time.Hour)) {
-		t.Error("done with its screen moving ended it")
-	}
-
-	// A long quiet step: its state went stale, and it never ends the wait.
-	w = turnWait{}
-	stale := proto.SessionInfo{Agent: "claude", StateStale: true}
-	if w.over(stale, at(0)) || w.over(stale, at(time.Hour)) {
-		t.Error("a long step ended it")
-	}
-
-	// Quiet with hooks takes longer than quiet without.
-	w = turnWait{}
-	hooked := proto.SessionInfo{Agent: "claude"}
-	if w.over(hooked, at(0)) || w.over(hooked, at(quietFor)) {
-		t.Error("an agent with hooks was done by a moment's quiet")
-	}
-	if !w.over(hooked, at(hookedQuietFor)) {
-		t.Error("it never ended")
-	}
-	w = turnWait{}
-	plain := proto.SessionInfo{Agent: "aider"}
-	if w.over(plain, at(0)) || !w.over(plain, at(quietFor)) {
-		t.Error("an agent without hooks goes by its screen")
-	}
-
-	// Asking or gone ends it at once.
-	w = turnWait{}
-	if !w.over(proto.SessionInfo{Agent: "claude", State: proto.StateWaiting}, at(0)) {
-		t.Error("asking")
-	}
-	if !w.over(proto.SessionInfo{Agent: "claude", Exited: true}, at(0)) {
-		t.Error("exited")
+		t.Fatalf("heard the end only after %s", heard)
 	}
 }

@@ -43,6 +43,8 @@ type Client struct {
 	// processed yet: the daemon may send frames before the caller registers.
 	early   map[uint32][]proto.Frame
 	onEvent func(proto.Event)
+	// listener, as Listen set it, hears events too.
+	listener atomic.Pointer[func(proto.Event)]
 	// parts: the daemon reads a frame too large for one as parts; lastPart
 	// numbers those sent.
 	parts    bool
@@ -120,6 +122,10 @@ func New(rw io.ReadWriteCloser, onEvent func(proto.Event)) (*Client, error) {
 	go c.read()
 	return c, nil
 }
+
+// Listen has fn called for each event from now on, on the read goroutine: it must not
+// block. For what connects before knowing it will want them, as a command does.
+func (c *Client) Listen(fn func(proto.Event)) { c.listener.Store(&fn) }
 
 // Done is closed when the connection ends.
 func (c *Client) Done() <-chan struct{} { return c.done }
@@ -470,8 +476,13 @@ func (c *Client) read() {
 			case json.Unmarshal(f.Payload, &ev) != nil:
 			case ev.Name == proto.EventAndroidADBAccepted:
 				c.adbAccepted(ev)
-			case c.onEvent != nil:
-				c.onEvent(ev)
+			default:
+				if fn := c.listener.Load(); fn != nil {
+					(*fn)(ev)
+				}
+				if c.onEvent != nil {
+					c.onEvent(ev)
+				}
 			}
 		case proto.TypeTunnelData, proto.TypeTunnelAck, proto.TypeTunnelClose:
 			c.mu.Lock()

@@ -2135,6 +2135,8 @@ field SyncConflict.id string
 field SyncConflict.path string
 field SyncConflict.title string
 field SyncConflict.versions []SyncVersion
+field SyncConflictParams.id string
+field SyncConflictParams.version int
 field SyncEntry.hash string
 field SyncEntry.mod time.Time
 field SyncEntry.path string
@@ -2188,6 +2190,7 @@ field SyncTrashItem.title string
 field SyncVersion.data []byte
 field SyncVersion.deleted bool
 field SyncVersion.host string
+field SyncVersion.size int64
 field SyncWriteParams.changes []SyncChange
 field SyncWriteParams.from string
 field SyncWriteResult.applied []string
@@ -3084,6 +3087,7 @@ method space.gone
 method space.gone.seen
 method space.list
 method space.sync
+method sync.conflict
 method sync.conflicts
 method sync.forget
 method sync.manifest

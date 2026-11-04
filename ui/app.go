@@ -244,6 +244,11 @@ type App struct {
 	// connection dropped; 0 when not retrying.
 	retrying  int
 	retryHost string
+	// connectedAt is when the shown connection came up, triedBefore the tries it took.
+	connectedAt time.Time
+	triedBefore int
+	// watchDial, when set, connects watches: tests.
+	watchDial func(hosts.Host) (*client.Client, error)
 	credits   creditview.Tracker
 	updates   updater
 	hostList  []hosts.Host

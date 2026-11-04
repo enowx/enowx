@@ -1,6 +1,9 @@
 package client
 
 import (
+	"fmt"
+	"strings"
+
 	"github.com/enowx/enowx/proto"
 )
 
@@ -88,11 +91,40 @@ func (c *Client) SyncStatus() (proto.SyncStatus, error) {
 // SyncRequest asks the apps attached to sync the host now.
 func (c *Client) SyncRequest() error { return c.Call(proto.MethodSyncRequest, nil, nil) }
 
-// SyncConflicts lists the conflicts waiting for the user.
+// SyncConflicts lists the conflicts waiting for the user, without their versions' data,
+// which an older daemon sends and isn't kept: SyncConflictVersion reads it.
 func (c *Client) SyncConflicts() ([]proto.SyncConflict, error) {
 	var list []proto.SyncConflict
 	err := c.Call(proto.MethodSyncConflicts, nil, &list)
+	for _, cf := range list {
+		for i := range cf.Versions {
+			v := &cf.Versions[i]
+			if v.Data != nil {
+				v.Size, v.Data = int64(len(v.Data)), nil
+			}
+		}
+	}
 	return list, err
+}
+
+// SyncConflictVersion reads version n, from 1, of conflict id, data and all. An older
+// daemon has no such call: its list has the data.
+func (c *Client) SyncConflictVersion(id string, n int) (proto.SyncVersion, error) {
+	var v proto.SyncVersion
+	err := c.Call(proto.MethodSyncConflict, proto.SyncConflictParams{ID: id, Version: n}, &v)
+	if err == nil || !strings.Contains(err.Error(), "unknown method") {
+		return v, err
+	}
+	var list []proto.SyncConflict
+	if err := c.Call(proto.MethodSyncConflicts, nil, &list); err != nil {
+		return v, err
+	}
+	for _, cf := range list {
+		if cf.ID == id && n >= 1 && n <= len(cf.Versions) {
+			return cf.Versions[n-1], nil
+		}
+	}
+	return v, fmt.Errorf("sync: conflict %s has no version %d", id, n)
 }
 
 // SyncResolve settles a conflict, keeping a host's version or "both".

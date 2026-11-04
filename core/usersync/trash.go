@@ -57,6 +57,9 @@ func (f *Folder) Trash() ([]proto.SyncTrashItem, error) {
 		if _, err := fmt.Sscan(stamp, &nanos); err != nil {
 			return nil
 		}
+		if strings.HasPrefix(path, ConflictsDir) {
+			return nil // settled: nothing the user would bring back
+		}
 		item := proto.SyncTrashItem{ID: filepath.ToSlash(rel), Path: path, Deleted: time.Unix(0, nanos).UTC()}
 		if strings.HasSuffix(path, ".md") {
 			if data, err := os.ReadFile(p); err == nil {

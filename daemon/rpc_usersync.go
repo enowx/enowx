@@ -59,6 +59,9 @@ var syncHandlers = map[string]handler{
 		return ok, nil
 	}),
 	proto.MethodSyncConflicts: bare(func(c *conn) (any, error) { return c.srv.userdata.Conflicts() }),
+	proto.MethodSyncConflict: with(func(c *conn, p proto.SyncConflictParams) (any, error) {
+		return c.srv.userdata.ConflictVersion(p.ID, p.Version)
+	}),
 	proto.MethodSyncResolve: with(func(c *conn, p proto.SyncResolveParams) (any, error) {
 		if err := c.srv.userdata.Resolve(p.ID, p.Keep); err != nil {
 			return nil, err

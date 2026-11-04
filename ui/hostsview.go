@@ -317,6 +317,9 @@ func (a *App) hostActions(c *ui.Context, h hosts.Host, current bool, face hostFa
 			a.page = ""
 			a.connect(h)
 		}
+		if w := a.watches[h.ID]; w != nil && widget.GhostButton(c, "Check now").Tooltip("Tries it in the background now, not when its wait ends").Clicked() {
+			w.retryNow()
+		}
 		if saved && widget.GhostButton(c, "Edit host…").Clicked() {
 			a.openEditHost(h)
 		}

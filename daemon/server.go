@@ -214,6 +214,7 @@ func newServer(dir, hookBin string) (*Server, error) {
 	s.userdata.EmptyTrash(time.Now())
 	s.publishSoon(s.projects.List())
 	s.vault.audit = vault.OpenAudit(filepath.Join(dir, "vault", "audit.jsonl"))
+	s.userdata.Guard("vault/audit.jsonl", s.vault.audit.Locker())
 	intercept.KnownSecrets(s.lentSecrets)
 	s.loadShell()
 	s.newRAG(dir)
