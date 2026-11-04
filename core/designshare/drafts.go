@@ -18,9 +18,11 @@ import (
 // stays on the host: only its owner sees it, as nothing sends it until they do.
 type Drafts struct {
 	dir string
-	// mu keeps links.json whole: handlers run on connections' goroutines.
-	mu sync.Mutex
 }
+
+// linksMu keeps links.json whole: handlers run on connections' goroutines, each
+// with a Drafts of its own.
+var linksMu sync.Mutex
 
 // OpenDrafts is the drafts kept in dir.
 func OpenDrafts(dir string) *Drafts { return &Drafts{dir: dir} }
@@ -143,8 +145,8 @@ func (d *Drafts) readLinks() []Link {
 
 // Links are the designs that became items.
 func (d *Drafts) Links() []Link {
-	d.mu.Lock()
-	defer d.mu.Unlock()
+	linksMu.Lock()
+	defer linksMu.Unlock()
 	return d.readLinks()
 }
 
@@ -160,8 +162,8 @@ func (d *Drafts) ItemOf(canvas, frame string) string {
 
 // SetLink records that design frame of canvas is item; "" forgets it.
 func (d *Drafts) SetLink(canvas, frame, item string) error {
-	d.mu.Lock()
-	defer d.mu.Unlock()
+	linksMu.Lock()
+	defer linksMu.Unlock()
 	links := []Link{}
 	for _, l := range d.readLinks() {
 		if l.Canvas != canvas || l.Frame != frame {
@@ -182,4 +184,18 @@ func (d *Drafts) SetLink(canvas, frame, item string) error {
 		return fmt.Errorf("designshare: links: %w", err)
 	}
 	return nil
+}
+
+// Prune deletes drafts nobody asked to keep, untouched for longer than age: each
+// is a whole design, packed for a form that was closed.
+func (d *Drafts) Prune(age time.Duration) {
+	for _, id := range d.IDs() {
+		var dr struct {
+			Saved   bool      `json:"saved"`
+			Updated time.Time `json:"updated"`
+		}
+		if d.Get(id, &dr) == nil && !dr.Saved && time.Since(dr.Updated) > age {
+			d.Delete(id)
+		}
+	}
 }

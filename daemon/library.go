@@ -23,6 +23,9 @@ import (
 // so in the form. The cloud is the one the user set; nothing goes elsewhere.
 // The canvas's comments, brief, history and chats aren't read here.
 
+// libraryDraftLife is how long a draft nobody saved stays on the host.
+const libraryDraftLife = 7 * 24 * time.Hour
+
 // libraryTimeout bounds a call to the cloud that isn't a file's.
 const libraryTimeout = 20 * time.Second
 
@@ -78,6 +81,7 @@ func phoneFor(cv proto.Canvas, f proto.CanvasFrame) *proto.CanvasFrame {
 
 // libraryPrepare checks and packs a design as a draft, for the form.
 func (s *Server) libraryPrepare(p proto.LibraryPrepareParams) (proto.LibraryPrepared, error) {
+	s.libraryDrafts().Prune(libraryDraftLife)
 	var out proto.LibraryPrepared
 	c, st, err := s.libraryClient()
 	if err != nil {

@@ -2,8 +2,11 @@ package designshare
 
 import (
 	"context"
+	"fmt"
 	"strings"
+	"sync"
 	"testing"
+	"time"
 
 	"github.com/enowx/enowx/proto"
 )
@@ -151,6 +154,44 @@ func TestDraftPrompt(t *testing.T) {
 		if !strings.Contains(p, want) {
 			t.Errorf("no %q in:\n%s", want, p)
 		}
+	}
+}
+
+// A form closed without saving doesn't leave a packed design on the disk for good.
+func TestPruneKeepsWhatWasSaved(t *testing.T) {
+	d := OpenDrafts(t.TempDir())
+	if err := d.Put(Draft{ID: DraftID("c", "open")}, map[string][]byte{"bundle.json": []byte("x")}); err != nil {
+		t.Fatal(err)
+	}
+	if err := d.Put(Draft{ID: DraftID("c", "kept"), Saved: true}, nil); err != nil {
+		t.Fatal(err)
+	}
+	d.Prune(time.Hour)
+	if len(d.IDs()) != 2 {
+		t.Fatalf("pruned what's new: %v", d.IDs())
+	}
+	d.Prune(-time.Hour)
+	if ids := d.IDs(); len(ids) != 1 || ids[0] != DraftID("c", "kept") {
+		t.Fatalf("left: %v", ids)
+	}
+}
+
+// Links stay whole with many Drafts at once, as handlers each open their own.
+func TestLinksAcrossDrafts(t *testing.T) {
+	dir := t.TempDir()
+	var wg sync.WaitGroup
+	for i := range 40 {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			if err := OpenDrafts(dir).SetLink("c", fmt.Sprint("f", i), "item"); err != nil {
+				t.Error(err)
+			}
+		}()
+	}
+	wg.Wait()
+	if got := len(OpenDrafts(dir).Links()); got != 40 {
+		t.Fatalf("%d links of 40", got)
 	}
 }
 
