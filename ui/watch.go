@@ -31,6 +31,7 @@ import (
 var watchEvery = 15 * time.Second
 
 const (
+	watchUnseen   = time.Minute // while the window isn't focused: events still tell of sessions
 	watchRetryMax = 5 * time.Minute
 	// watchListsEvery is how often a connected host's sessions and projects are
 	// read whole: events keep them current between, this only catches what one missed.
@@ -82,6 +83,7 @@ type hostWatch struct {
 	// between hosts sync over it (autosync.go).
 	cl   *client.Client
 	info proto.DaemonInfo
+	poke chan struct{} // the window came back into focus: ask now
 }
 
 // errNeedsYou stops a watch's connecting where the user would be asked.
@@ -110,7 +112,7 @@ func (a *App) syncWatches() {
 	}
 	for id, h := range want {
 		if _, ok := a.watches[id]; !ok {
-			w := &hostWatch{host: h, status: hostStatus{state: hostConnecting}, stop: make(chan struct{}), wake: make(chan struct{}, 1)}
+			w := &hostWatch{host: h, status: hostStatus{state: hostConnecting}, stop: make(chan struct{}), wake: make(chan struct{}, 1), poke: make(chan struct{}, 1)}
 			a.watches[id] = w
 			go a.watch(w)
 		}
@@ -198,8 +200,6 @@ func (w *hostWatch) retryNow() {
 // poll asks cl how its host is every watchEvery, until the connection
 // drops or w stops.
 func (a *App) poll(w *hostWatch, cl *client.Client) {
-	t := time.NewTicker(watchEvery)
-	defer t.Stop()
 	var listed time.Time
 	for {
 		start := time.Now()
@@ -208,7 +208,13 @@ func (a *App) poll(w *hostWatch, cl *client.Client) {
 		if err != nil {
 			return
 		}
-		stats, _ := cl.Stats()
+		// What a host uses shows on screen only, and asking has it look at all its
+		// processes; events tell of its sessions meanwhile.
+		unseen := a.unfocused.Load()
+		var stats proto.DaemonStats
+		if !unseen {
+			stats, _ = cl.Stats()
+		}
 		var sessions []proto.SessionInfo
 		var projects []proto.ProjectInfo
 		read := time.Since(listed) >= watchListsEvery
@@ -220,7 +226,11 @@ func (a *App) poll(w *hostWatch, cl *client.Client) {
 			listed = time.Now()
 		}
 		a.onMain(func() {
-			st := hostStatus{state: hostOnline, latency: latency, usage: stats.Host, sessions: w.status.sessions, projects: w.status.projects, checked: time.Now()}
+			usage := stats.Host
+			if unseen {
+				usage = w.status.usage
+			}
+			st := hostStatus{state: hostOnline, latency: latency, usage: usage, sessions: w.status.sessions, projects: w.status.projects, checked: time.Now()}
 			if read {
 				st.sessions, st.projects = sessions, projects
 			}
@@ -229,12 +239,27 @@ func (a *App) poll(w *hostWatch, cl *client.Client) {
 			// Every poll, from what's known: a turn's end in a task's first seconds doesn't count yet.
 			a.goaCatchUp(w.host.Name, st.sessions)
 		})
+		wait := watchEvery
+		if unseen {
+			wait = watchUnseen
+		}
 		select {
 		case <-w.stop:
 			return
 		case <-cl.Done():
 			return
-		case <-t.C:
+		case <-w.poke:
+		case <-time.After(wait):
+		}
+	}
+}
+
+// pokeWatches has every watch ask now: the window is back in sight. It runs on the main thread.
+func (a *App) pokeWatches() {
+	for _, w := range a.watches {
+		select {
+		case w.poke <- struct{}{}:
+		default:
 		}
 	}
 }

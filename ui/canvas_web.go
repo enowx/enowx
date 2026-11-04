@@ -61,7 +61,9 @@ func (a *App) canvasWeb() *canvasview.Web {
 			}
 			return cl.CanvasAsset(id, name)
 		},
-		Update: a.onMain,
+		Update:  a.onMain,
+		Quiet:   a.quietly,
+		Showing: func() bool { return a.page == pageCanvas },
 	}
 }
 

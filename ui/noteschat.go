@@ -153,7 +153,7 @@ func (a *App) notesAssistant(c *ui.Context, n proto.NoteInfo) {
 		return
 	}
 	shown := func() bool { return a.page == pageNotes && a.notes.AssistantOpen() && a.notes.SelectedNote() == n.ID }
-	switch p := a.panes[s.ID]; {
+	switch p := a.wantPane(s.ID); {
 	case chatview.Supported(s):
 		ui.Column(c).Grow(1).FillWidth().MinHeight(0).Children(func() { a.chatViewWhile(c.Key("chat:"+s.ID), s, shown) })
 	case p != nil:

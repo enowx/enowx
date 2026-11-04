@@ -15,6 +15,7 @@ import (
 	"syscall"
 
 	"github.com/enowx/enowx/core/diag"
+	"github.com/enowx/enowx/core/memtune"
 	"github.com/enowx/enowx/internal/watchdog"
 	"github.com/enowx/enowx/transport"
 	"github.com/enowx/enowx/version"
@@ -54,6 +55,7 @@ func Run() error {
 		return err
 	}
 	srv.Log, srv.Diag = log, logFile
+	memtune.Start(srv.done)
 	go keepLogsSwept(dir, srv.done, logFile)
 	go srv.watchProgram(exe)
 	dog := watchdog.Start(filepath.Join(dir, "watchdog"), "daemon", nil, nil) // its memory: it has no one thread to stall

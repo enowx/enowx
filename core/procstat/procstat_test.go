@@ -63,3 +63,27 @@ func TestDisk(t *testing.T) {
 		t.Fatalf("disk %d used of %d", used, total)
 	}
 }
+
+// Asking about one process gives what a look at them all says of it, CPU included.
+func TestSampleOneReadsAProcessAlone(t *testing.T) {
+	if runtime.GOOS != "linux" && runtime.GOOS != "darwin" {
+		t.Skip("not measured on " + runtime.GOOS)
+	}
+	var s Sampler
+	self := os.Getpid()
+	if err := s.SampleOne(self); err != nil {
+		t.Fatal(err)
+	}
+	for end := time.Now().Add(300 * time.Millisecond); time.Now().Before(end); {
+	}
+	if err := s.SampleOne(self); err != nil {
+		t.Fatal(err)
+	}
+	u := s.One(self)
+	if u.RSS == 0 || u.CPU <= 0 || u.Procs != 1 || len(s.List()) != 1 {
+		t.Fatalf("%+v, %d listed", u, len(s.List()))
+	}
+	if err := s.SampleOne(1 << 30); err == nil {
+		t.Fatal("no such process, no error")
+	}
+}

@@ -57,6 +57,12 @@ func (a *App) chatViewWhile(c *ui.Context, s proto.SessionInfo, shown func() boo
 	a.chatViewSending(c, s, shown, chatTweaks{})
 }
 
+// chatOnScreen says a chat last drawn at drawn is still in sight. The session in chat mode
+// isn't enough: a session left selected-away stays in that mode, and went on polling every
+// 700 ms, which kept all its conversation in the daemon. A chat following asks about every
+// 5 s, each asking draws a frame, so one on screen has always been drawn lately.
+func chatOnScreen(drawn, now time.Time) bool { return now.Sub(drawn) < 15*time.Second }
+
 // chatTweaks change a chat for a page's agent: where the composer's
 // messages go, pastes, and how the user's messages read. Nil ones are a
 // session's own.
@@ -81,10 +87,14 @@ func (a *App) chatViewSending(c *ui.Context, s proto.SessionInfo, shown func() b
 		spent, spentTip = tokenview.Spent(t), tokenview.SpentTip(t)
 	}
 	ch := a.chatOf(s.ID)
+	if a.chatDrawn == nil {
+		a.chatDrawn = map[string]time.Time{}
+	}
+	a.chatDrawn[s.ID] = time.Now()
 	if cl := a.client; cl != nil {
 		gen := a.gen
 		ch.Follow(cl, s.ID, a.onMain, func() bool {
-			return gen == a.gen && shown() && a.chats[s.ID] == ch
+			return gen == a.gen && shown() && a.chats[s.ID] == ch && chatOnScreen(a.chatDrawn[s.ID], time.Now())
 		})
 	}
 	column := float32(0)
@@ -188,9 +198,9 @@ func (a *App) answerAgent(s proto.SessionInfo, keys string) {
 
 // typeIntoSession types raw keys into the session.
 func (a *App) typeIntoSession(id, keys string) {
-	if p := a.panes[id]; p != nil {
+	a.withPane(id, func(p *pane) {
 		go func() { _, _ = p.stream.Write([]byte(keys)) }()
-	}
+	}, func() {})
 }
 
 // editMessage sends text in place of one of the user's messages: the
@@ -231,11 +241,6 @@ func (a *App) sendWithFiles(id, text string, files []string) {
 
 // deliverToSession is sendWithFiles saying on the main thread how it went.
 func (a *App) deliverToSession(id, text string, files []string, done func(error)) {
-	p := a.panes[id]
-	if p == nil {
-		done(errors.New("the session isn't attached yet"))
-		return
-	}
 	msg := text
 	if len(files) > 0 {
 		msg = strings.Join(files, " ")
@@ -246,43 +251,37 @@ func (a *App) deliverToSession(id, text string, files []string, done func(error)
 	if len(files) > 0 || strings.Contains(msg, "\n") {
 		msg = "\x1b[200~" + msg + "\x1b[201~"
 	}
-	go func() {
-		_, err := p.stream.Write([]byte(msg))
-		if err == nil {
-			time.Sleep(50 * time.Millisecond) // as writeThenEnter
-			_, err = p.stream.Write([]byte("\r"))
-		}
-		if err != nil {
-			err = fmt.Errorf("couldn't reach the session: %s", client.Explain(err))
-		}
-		a.onMain(func() { done(err) })
-	}()
+	a.withPane(id, func(p *pane) {
+		go func() {
+			_, err := p.stream.Write([]byte(msg))
+			if err == nil {
+				time.Sleep(50 * time.Millisecond) // as writeThenEnter
+				_, err = p.stream.Write([]byte("\r"))
+			}
+			if err != nil {
+				err = fmt.Errorf("couldn't reach the session: %s", client.Explain(err))
+			}
+			a.onMain(func() { done(err) })
+		}()
+	}, func() { done(errNotAttached) })
 }
 
 // sendToSession types text into the session, then Enter. Text of several
 // lines goes as a paste, so its line breaks don't send it early.
 func (a *App) sendToSession(id, text string) {
-	p := a.panes[id]
-	if p == nil {
-		a.status = "The session isn't attached yet; try again in a moment."
-		return
-	}
 	if strings.Contains(text, "\n") {
 		a.pasteToSession(id, text)
 		return
 	}
-	a.writeThenEnter(p, text)
+	a.withPane(id, func(p *pane) { a.writeThenEnter(p, text) }, a.notAttached)
 }
 
 // pasteToSession sends text as a paste (bracketed), then Enter.
 func (a *App) pasteToSession(id, text string) {
-	p := a.panes[id]
-	if p == nil {
-		a.status = "The session isn't attached yet; try again in a moment."
-		return
-	}
-	a.writeThenEnter(p, "\x1b[200~"+text+"\x1b[201~")
+	a.withPane(id, func(p *pane) { a.writeThenEnter(p, "\x1b[200~"+text+"\x1b[201~") }, a.notAttached)
 }
+
+func (a *App) notAttached() { a.status = "The session isn't attached yet; try again in a moment." }
 
 // writeThenEnter writes text to p's session, then Enter, off the main
 // thread.

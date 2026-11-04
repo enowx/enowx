@@ -345,7 +345,7 @@ func canChat(s proto.SessionInfo) bool { return chatview.Supported(s) }
 
 // sessionBody is a session's chat or terminal, filling what is left.
 func (a *App) sessionBody(c *ui.Context, s proto.SessionInfo) {
-	switch p := a.panes[s.ID]; {
+	switch p := a.wantPane(s.ID); {
 	case a.state.BrowserViews[s.ID]:
 		a.browserTab(c.Key("browser-view"), s)
 	case a.state.TrafficViews[s.ID]:

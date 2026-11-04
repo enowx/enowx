@@ -25,6 +25,7 @@ const restartWhatMost = 200
 // restartPlan says what a restart would stop now, and what the last one ended.
 func (s *Server) restartPlan() proto.RestartPlan {
 	plan := proto.RestartPlan{Lost: s.restartLostNow()}
+	s.sampleNow()
 	for _, sess := range s.sessions.List() {
 		info := sess.Info()
 		if info.Exited || info.Queued {
@@ -36,7 +37,7 @@ func (s *Server) restartPlan() proto.RestartPlan {
 			}
 			continue
 		}
-		for _, args := range s.sessionCommands(info.ID) {
+		for _, args := range s.commandsUnder(s.sampledProgram(info.ID)) {
 			plan.Commands = append(plan.Commands, proto.RestartItem{Session: info.ID, Name: info.Name, What: commandWords(args)})
 		}
 	}
@@ -51,8 +52,10 @@ func atWork(info proto.SessionInfo) bool {
 }
 
 // sessionCommands are the programs a terminal's shell is running now.
-func (s *Server) sessionCommands(id string) [][]string {
-	own := s.sessionProgram(id)
+func (s *Server) sessionCommands(id string) [][]string { return s.commandsUnder(s.sessionProgram(id)) }
+
+// commandsUnder are the programs own, a session's own processes, started.
+func (s *Server) commandsUnder(own map[int]bool) [][]string {
 	st := &s.statsState
 	var out [][]string
 	seen := map[int]bool{}

@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/enowx/enowx/core/diag"
+	"github.com/enowx/enowx/core/selfprofile"
 	"github.com/enowx/enowx/proto"
 )
 
@@ -51,5 +52,8 @@ func keepLogsSwept(dir string, done <-chan struct{}, l *diag.Log) {
 
 // diagnostics reads this host's logs for a bug report.
 func (s *Server) diagnostics() proto.Diagnostics {
-	return proto.Diagnostics{Version: Version, Files: diag.Collect(s.dataDir)}
+	files := diag.Collect(s.dataDir)
+	me := selfprofile.Take(selfprofile.Options{Kind: "daemon", Version: Version, Areas: s.profileAreas})
+	files = append(files, proto.DiagFile{Name: diag.ProfileFile, Text: diag.Scrub(selfprofile.TextOf(me))})
+	return proto.Diagnostics{Version: Version, Files: files}
 }

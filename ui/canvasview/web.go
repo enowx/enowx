@@ -39,6 +39,11 @@ type Web struct {
 	Asset func(canvas, name string) ([]byte, error)
 	// Update runs a function on the main thread.
 	Update func(func())
+	// Quiet runs one there without drawing a frame, and Showing says the page shows: with
+	// both, what only asks the page goes on without waking the window, which an open
+	// canvas otherwise did five times a second. Without them it asks from frames.
+	Quiet   func(func())
+	Showing func() bool
 
 	page    Page
 	making  bool
@@ -55,6 +60,8 @@ type Web struct {
 	loads   int // documents composed, so an old page's answer isn't taken for this one's
 	polled  time.Time
 	design  bool // the page shows whole on the board: no scrolling of its own
+
+	widthLoop, gotoLoop bool // asking runs them
 	motionControl
 	// wider is how far the page reaches past its frame's width, in CSS
 	// pixels: a horizontal scroll the design mustn't have.
@@ -73,10 +80,61 @@ type Web struct {
 // width, in CSS pixels: what a horizontal scroll scrolls.
 const WiderScript = "(function(){var d=document.documentElement,b=document.body;return Math.max(d.scrollWidth,b?b.scrollWidth:0)-d.clientWidth})()"
 
+// asking keeps work running every so often without frames, while the page shows; it says
+// false when frames are what must do it. *on is true while it runs, and belongs to the
+// main thread.
+func (w *Web) asking(on *bool, every time.Duration, work func()) bool {
+	if w.Quiet == nil || w.Showing == nil {
+		return false
+	}
+	if *on {
+		return true
+	}
+	*on = true
+	go func() {
+		for {
+			time.Sleep(every)
+			goOn := make(chan bool, 1)
+			w.Quiet(func() {
+				if w.page == nil || !w.Showing() {
+					*on = false
+					goOn <- false
+					return
+				}
+				work()
+				goOn <- true
+			})
+			if !<-goOn {
+				return
+			}
+		}
+	}()
+	return true
+}
+
+// news runs fn on the main thread, drawing a frame if it says something changed.
+func (w *Web) news(fn func() bool) {
+	if w.Quiet == nil {
+		w.Update(func() { fn() })
+		return
+	}
+	w.Quiet(func() {
+		if fn() {
+			w.Update(func() {})
+		}
+	})
+}
+
 // measureWidth asks the page, now and then, how far it reaches past its
 // width (wider).
 func (w *Web) measureWidth(c *ui.Context) {
-	c.After(time.Second)
+	if !w.asking(&w.widthLoop, time.Second, w.measureNow) {
+		c.After(time.Second)
+		w.measureNow()
+	}
+}
+
+func (w *Web) measureNow() {
 	if w.page == nil || w.measuring || time.Since(w.measured) < 900*time.Millisecond {
 		return
 	}
@@ -85,11 +143,13 @@ func (w *Web) measureWidth(c *ui.Context) {
 	go func() {
 		v, err := page.Eval(WiderScript)
 		n, _ := v.(float64)
-		w.Update(func() {
+		w.news(func() bool {
 			w.measuring = false
-			if err == nil {
-				w.wider = int(n)
+			if err != nil || w.wider == int(n) {
+				return false
 			}
+			w.wider = int(n)
+			return true
 		})
 	}()
 }
@@ -187,7 +247,14 @@ func (w *Web) ResetState() {
 // pollGoto asks the page for a design a link went to, now and then, while
 // asked; done gets it on the main thread.
 func (w *Web) pollGoto(c *ui.Context, done func(target string)) {
-	c.After(400 * time.Millisecond)
+	now := func() { w.pollNow(done) }
+	if !w.asking(&w.gotoLoop, 400*time.Millisecond, now) {
+		c.After(400 * time.Millisecond)
+		now()
+	}
+}
+
+func (w *Web) pollNow(done func(target string)) {
 	if w.page == nil || w.polling || time.Since(w.polled) < 350*time.Millisecond {
 		return
 	}
@@ -195,18 +262,20 @@ func (w *Web) pollGoto(c *ui.Context, done func(target string)) {
 	page := w.page
 	go func() {
 		got := takeGoto(page)
-		w.Update(func() {
+		w.news(func() bool {
 			w.polling = false
 			if got.L != w.loads {
-				return
+				return false
 			}
-			if got.S != "" {
-				w.state = got.S
+			changed := got.T != "" || got.M != nil || w.motion != nil
+			if got.S != "" && got.S != w.state {
+				w.state, changed = got.S, true
 			}
 			w.setMotion(got.M)
 			if got.T != "" {
 				done(got.T)
 			}
+			return changed
 		})
 	}()
 }

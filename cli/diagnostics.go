@@ -37,6 +37,9 @@ func (r runner) diagnostics(args []string) error {
 	}
 	files := diag.Collect(dir)
 	if *bundle != "" {
+		if f, ok := bundleProfile(); ok {
+			files = append(files, f)
+		}
 		f, err := os.OpenFile(*bundle, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0o600)
 		if err != nil {
 			return err

@@ -9,6 +9,7 @@ import (
 	"slices"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/egoist/mygo/ui"
 
@@ -110,5 +111,38 @@ func TestPreviewSaysItFailed(t *testing.T) {
 	}
 	if !slices.Contains(tt.Texts(), "Preview failed") || v.thumbFailure(frames[0]) != "no web view" {
 		t.Fatalf("%q", tt.Texts())
+	}
+}
+
+// Pictures in memory stay under their bound, the longest out of sight going first, and
+// never one that may be on screen.
+func TestTrimThumbsBoundsPicturesHeld(t *testing.T) {
+	now := time.Now()
+	const each = 16 << 20
+	v := &View{thumbs: map[string]*thumb{}}
+	bmp := ui.NewBitmap(image.NewRGBA(image.Rect(0, 0, 1, 1)))
+	for i := range 20 {
+		v.thumbs[fmt.Sprint(i)] = &thumb{img: bmp, key: "k", asked: "k", size: each, drawn: now.Add(-time.Duration(20-i) * time.Minute)}
+	}
+	v.thumbs["shown"] = &thumb{img: bmp, key: "k", size: each, drawn: now}
+	v.trimThumbs(now)
+	total, oldestKept := 0, 0
+	for name, th := range v.thumbs {
+		if th.img != nil {
+			total += th.size
+			if name != "shown" {
+				var i int
+				fmt.Sscan(name, &i)
+				if oldestKept == 0 || i < oldestKept {
+					oldestKept = i
+				}
+			}
+		}
+	}
+	if total > thumbsKeep || v.thumbs["shown"].img == nil {
+		t.Fatalf("held %d, shown kept %v", total, v.thumbs["shown"].img != nil)
+	}
+	if oldestKept < 17 || v.thumbs["0"].asked != "" {
+		t.Fatalf("kept from %d, the oldest asked %q", oldestKept, v.thumbs["0"].asked)
 	}
 }

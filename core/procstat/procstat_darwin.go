@@ -3,6 +3,7 @@ package procstat
 import (
 	"bytes"
 	"encoding/binary"
+	"errors"
 	"os/exec"
 	"path/filepath"
 	"strconv"
@@ -18,6 +19,18 @@ func processes() ([]Proc, error) {
 		return nil, err
 	}
 	return parsePS(string(out)), nil
+}
+
+func process(pid int) (Proc, error) {
+	out, err := exec.Command("ps", "-o", "pid=,ppid=,rss=,time=,lstart=,comm=", "-p", strconv.Itoa(pid)).Output()
+	if err != nil {
+		return Proc{}, err
+	}
+	list := parsePS(string(out))
+	if len(list) == 0 {
+		return Proc{}, errors.New("procstat: no such process")
+	}
+	return list[0], nil
 }
 
 // parsePS reads ps's lines: pid, ppid, rss, time, a start of five words (Tue Nov  3

@@ -208,6 +208,7 @@ type View struct {
 	listInSidebar, listOutside bool
 	thumbs                     map[string]*thumb
 	thumbsBusy                 int        // pictures asked for, not back yet
+	layersAll                  bool       // the panel lists all layers (layersAtOnce)
 	video                      *videoForm // Export's MP4 dialog (video.go)
 	descr                      *describeForm
 	// pendingFrame is a design to show once the canvas opening loaded.
@@ -229,6 +230,15 @@ func (v *View) WebOf(make func() *Web) *Web {
 		v.web = make()
 	}
 	return v.web
+}
+
+// Unload lets go of what only showing the canvas needs: its web view, whose page is a
+// process of its own, and its pictures, which the disk keeps. Drawing again brings them back.
+func (v *View) Unload() {
+	if v.web != nil {
+		v.web.Close()
+	}
+	v.thumbs, v.htmlKeys = nil, nil
 }
 
 // Web is the view's web view of mockups, nil before WebOf made one.

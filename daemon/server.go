@@ -273,6 +273,7 @@ func newServer(dir, hookBin string) (*Server, error) {
 	s.sweepTransfers()
 	s.sweepFetches()
 	go s.saveHistories(s.done)
+	go s.transcripts.keepDropping(s.done)
 	go s.teamSyncLoop(s.done)
 	go s.startSharing() // a host shared before: its listener again
 	go s.watchPorts(s.done)

@@ -85,6 +85,20 @@ func (s *Server) allPorts() (map[string][]proto.Port, error) {
 	return out, nil
 }
 
+// portsQuietFactor is how much less often ports are looked at with every session at rest.
+const portsQuietFactor = 4
+
+// anySessionAtWork says a session's program is producing output, or was left working.
+func (s *Server) anySessionAtWork() bool {
+	for _, sess := range s.sessions.List() {
+		info := sess.Info()
+		if !info.Exited && (info.Active || info.State == proto.StateWorking) {
+			return true
+		}
+	}
+	return false
+}
+
 // watchPorts tells clients when a session opens or closes a port
 // (proto.EventPortsChanged), looking every portsEvery while one is
 // connected. Its first look only learns what is open: ports open before
@@ -96,6 +110,7 @@ func (s *Server) watchPorts(done <-chan struct{}) {
 	t := time.NewTicker(portsEvery)
 	defer t.Stop()
 	var last map[string][]proto.Port
+	var looked time.Time
 	for {
 		select {
 		case <-done:
@@ -109,6 +124,12 @@ func (s *Server) watchPorts(done <-chan struct{}) {
 		if !watched && !hooked {
 			continue
 		}
+		// A look runs lsof on macOS and reads all sockets on Linux. Ports open as programs
+		// start, which is when a session is at work; one at rest is looked at less.
+		if time.Since(looked) < portsQuietFactor*portsEvery && !s.anySessionAtWork() {
+			continue
+		}
+		looked = time.Now()
 		now, err := s.allPorts()
 		if err != nil {
 			continue

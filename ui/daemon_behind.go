@@ -67,6 +67,18 @@ func (a *App) followDaemonBehind(c *client.Client, h hosts.Host, gen int) {
 			return
 		case <-time.After(daemonBehindLook):
 		}
+		// Only a daemon left behind has a plan to keep current: with none, asking every
+		// half minute looked at every process, for nothing.
+		behind := make(chan bool, 1)
+		a.quietly(func() { behind <- gen == a.gen && a.daemonBehind != nil && a.daemonBehind.host == h.ID })
+		select {
+		case <-c.Done():
+			return
+		case yes := <-behind:
+			if !yes {
+				continue
+			}
+		}
 		plan, err := c.RestartPlan()
 		if err != nil {
 			continue

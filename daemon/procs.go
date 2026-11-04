@@ -140,7 +140,7 @@ func (s *Server) procsLook() {
 	if !followed {
 		return
 	}
-	list, err := procstat.Snapshot()
+	list, err := s.recentProcesses()
 	if err != nil {
 		return
 	}

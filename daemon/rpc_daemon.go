@@ -6,8 +6,11 @@ import (
 )
 
 var daemonHandlers = map[string]handler{
-	proto.MethodDaemonInfo:    bare(func(c *conn) (any, error) { return c.srv.info(), nil }),
-	proto.MethodDaemonStats:   bare(func(c *conn) (any, error) { return c.srv.stats(), nil }),
+	proto.MethodDaemonInfo:  bare(func(c *conn) (any, error) { return c.srv.info(), nil }),
+	proto.MethodDaemonStats: bare(func(c *conn) (any, error) { return c.srv.stats(), nil }),
+	proto.MethodDaemonProfile: with(func(c *conn, p proto.ProfileParams) (any, error) {
+		return c.srv.profile(p), nil
+	}),
 	proto.MethodOnboardingGet: bare(func(c *conn) (any, error) { return c.srv.onboarding(), nil }),
 	proto.MethodOnboardingSet: with(func(c *conn, p proto.OnboardingState) (any, error) {
 		return c.srv.setOnboarding(p)
