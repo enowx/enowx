@@ -57,6 +57,14 @@ func (grepTool) Detail(input json.RawMessage) string {
 	return oneLine(in.Pattern, 200)
 }
 
+func (grepTool) ReadPaths(input json.RawMessage, dir string) []string {
+	in, err := decode[grepInput](input)
+	if err != nil {
+		return nil
+	}
+	return []string{ResolvePath(dir, cmpOr(in.Path, "."))}
+}
+
 func (grepTool) Run(ctx context.Context, input json.RawMessage, env Env) Result {
 	in, err := decode[grepInput](input)
 	if err != nil {

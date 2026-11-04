@@ -26,7 +26,9 @@ type mcpTool struct {
 	remote      string
 	description string
 	schema      json.RawMessage
-	readOnly    bool
+	// hintReadOnly is what the server says of it: no ground for allowing anything, since
+	// a server would be granting itself no prompts, but enough to run its calls together.
+	hintReadOnly bool
 }
 
 // buildTools names listed's tools and sorts them. The same tools give the same bytes,
@@ -51,9 +53,9 @@ func buildTools(listed []listedTool) []tools.Tool {
 		taken[name] = true
 		out = append(out, &mcpTool{
 			conn: l.conn, name: name, remote: l.Name,
-			description: strings.TrimSpace(l.Description),
-			schema:      canonicalSchema(l.InputSchema),
-			readOnly:    l.Annotations.ReadOnlyHint,
+			description:  strings.TrimSpace(l.Description),
+			schema:       canonicalSchema(l.InputSchema),
+			hintReadOnly: l.Annotations.ReadOnlyHint,
 		})
 	}
 	slices.SortFunc(out, func(a, b tools.Tool) int { return strings.Compare(a.Name(), b.Name()) })
@@ -133,7 +135,12 @@ func canonicalSchema(raw json.RawMessage) json.RawMessage {
 func (t *mcpTool) Name() string            { return t.name }
 func (t *mcpTool) Description() string     { return t.description }
 func (t *mcpTool) Schema() json.RawMessage { return t.schema }
-func (t *mcpTool) ReadOnly() bool          { return t.readOnly }
+
+// ReadOnly is false whatever the server says: see hintReadOnly.
+func (t *mcpTool) ReadOnly() bool { return false }
+
+// SideBySide says a server calls it read-only.
+func (t *mcpTool) SideBySide() bool { return t.hintReadOnly }
 
 // Edits is false: nothing says what a server's tool touches.
 func (t *mcpTool) Edits() bool { return false }

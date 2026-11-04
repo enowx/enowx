@@ -62,8 +62,9 @@ func (a *Agent) Turn(ctx context.Context, text string, attachments []string) err
 	defer a.turnMu.Unlock()
 	defer a.state(proto.StateDone)
 
+	own := text // what follows comes from hooks, not the user
 	for follows := 0; ; follows++ {
-		err := a.turnOnce(ctx, text, attachments)
+		err := a.turnOnce(ctx, text, own, attachments)
 		more := ""
 		if a.hooks != nil {
 			more = a.hooks.TurnDone(ctx)
@@ -71,12 +72,12 @@ func (a *Agent) Turn(ctx context.Context, text string, attachments []string) err
 		if err != nil || more == "" || ctx.Err() != nil || follows >= maxFollows {
 			return err
 		}
-		text, attachments = more, nil
+		text, own, attachments = more, "", nil
 	}
 }
 
 // turnOnce runs one message to its end.
-func (a *Agent) turnOnce(ctx context.Context, text string, attachments []string) error {
+func (a *Agent) turnOnce(ctx context.Context, text, own string, attachments []string) error {
 	a.state(proto.StateWorking)
 	end := func(stop string) { a.emit(record.Record{Type: record.TurnEnd, Stop: stop}) }
 
@@ -98,7 +99,7 @@ func (a *Agent) turnOnce(ctx context.Context, text string, attachments []string)
 	t := a.main
 	t.compactIfFull(ctx)
 
-	msg, files := t.userMessage(withContext(text, asked.Context), attachments)
+	msg, files := t.userMessage(withContext(text, asked.Context), own, attachments)
 	if msg == nil {
 		end(stopDone)
 		return nil

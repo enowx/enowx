@@ -53,6 +53,14 @@ func (readTool) Detail(input json.RawMessage) string {
 	return oneLine(in.FilePath, 200)
 }
 
+func (readTool) ReadPaths(input json.RawMessage, dir string) []string {
+	in, err := decode[readInput](input)
+	if err != nil || in.FilePath == "" {
+		return nil
+	}
+	return []string{ResolvePath(dir, in.FilePath)}
+}
+
 func (readTool) Run(ctx context.Context, input json.RawMessage, env Env) Result {
 	in, err := decode[readInput](input)
 	if err != nil {

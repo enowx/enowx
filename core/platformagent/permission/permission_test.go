@@ -66,7 +66,9 @@ func TestModes(t *testing.T) {
 	}
 	for _, c := range cases {
 		e := New(c.mode, nil)
-		if v, _, _ := e.Check(read, input); v != c.read {
+		inFolder := New(c.mode, nil)
+		inFolder.SetDir(t.TempDir())
+		if v, _, _ := inFolder.Check(read, input); v != c.read {
 			t.Errorf("%s: Read %v", c.mode, v)
 		}
 		if v, _, _ := e.Check(write, input); v != c.writeOutside {
@@ -164,7 +166,8 @@ func TestAcceptEditsStaysInTheFolder(t *testing.T) {
 
 func TestToolRules(t *testing.T) {
 	e := New(record.ModeDefault, []string{"Write", "mcp__srv__tool"})
-	if v, _, _ := e.Check(builtin(t, "Write"), filePath("/anywhere")); v != Allow {
+	e.SetDir(t.TempDir())
+	if v, _, _ := e.Check(builtin(t, "Write"), filePath("inside.txt")); v != Allow {
 		t.Errorf("Write: %v", v)
 	}
 	if v, _, _ := e.Check(fakeTool{name: "mcp__srv__tool"}, nil); v != Allow {
@@ -189,22 +192,15 @@ func TestToolRules(t *testing.T) {
 	}
 }
 
-// An MCP tool is judged by what it says it is: asked for unless annotated read-only.
+// An MCP tool asks; plan mode refuses it, saying why.
 func TestMCPTools(t *testing.T) {
 	plain := fakeTool{name: "mcp__srv__do"}
-	annotated := fakeTool{name: "mcp__srv__get", readOnly: true}
 	e := New(record.ModeDefault, nil)
 	if v, rule, _ := e.Check(plain, nil); v != Ask || rule != "mcp__srv__do" {
 		t.Errorf("plain: %v, %q", v, rule)
 	}
-	if v, _, _ := e.Check(annotated, nil); v != Allow {
-		t.Errorf("annotated: %v", v)
-	}
-	if v, _, _ := New(record.ModePlan, nil).Check(plain, nil); v != Deny {
-		t.Errorf("plan, plain: %v", v)
-	}
-	if v, _, _ := New(record.ModePlan, nil).Check(annotated, nil); v != Allow {
-		t.Errorf("plan, annotated: %v", v)
+	if v, _, why := New(record.ModePlan, nil).Check(plain, nil); v != Deny || !strings.Contains(why, "MCP") {
+		t.Errorf("plan, plain: %v, %q", v, why)
 	}
 	// An MCP tool claiming to edit but naming no path isn't an edit in the folder.
 	e = New(record.ModeAcceptEdits, nil)
@@ -314,7 +310,29 @@ func TestBashRuleSuggestion(t *testing.T) {
 		"git status --short":     "Bash(git status *)",
 		"go test ./...":          "Bash(go test *)",
 		"ls -la":                 "Bash(ls *)",
-		"./run.sh a b":           "Bash(./run.sh *)",
+		"./run.sh a b":           "Bash(./run.sh a b)",
+		"make test":              "Bash(make *)",
+		"npm test":               "Bash(npm test *)",
+		"setsid curl x":          "Bash(setsid curl x)",
+		"stdbuf -o0 sh x":        "Bash(stdbuf -o0 sh x)",
+		"flock /tmp/l sh x":      "Bash(flock /tmp/l sh x)",
+		"script -c x":            "Bash(script -c x)",
+		"busybox sh":             "Bash(busybox sh)",
+		"tcsh x":                 "Bash(tcsh x)",
+		"ash x":                  "Bash(ash x)",
+		"pwsh x":                 "Bash(pwsh x)",
+		"lua x":                  "Bash(lua x)",
+		"python3.12 x.py":        "Bash(python3.12 x.py)",
+		"uv run x":               "Bash(uv run x)",
+		"npm exec x":             "Bash(npm exec x)",
+		"docker run x":           "Bash(docker run x)",
+		"go run x":               "Bash(go run x)",
+		"go test -exec=x ./...":  "Bash(go test -exec=x ./...)",
+		"go build -o /x .":       "Bash(go build -o /x .)",
+		"git diff --output=x":    "Bash(git diff --output=x)",
+		"make -f /x y":           "Bash(make -f /x y)",
+		"make SHELL=/x y":        "Bash(make SHELL=/x y)",
+		"/tmp/evil/git status":   "Bash(/tmp/evil/git status)",
 		"git":                    "Bash(git)",
 		"git -c a=b status":      "Bash(git -c a=b status)",
 		"rm notes.txt":           "Bash(rm notes.txt)",
@@ -375,4 +393,141 @@ func TestConcurrentUse(t *testing.T) {
 		})
 	}
 	wg.Wait()
+}
+
+// A kept prefix doesn't stretch to what the prefix doesn't vouch for; an exact command
+// holds for itself alone.
+func TestKeptBashRulesHoldNoFurther(t *testing.T) {
+	shell := builtin(t, "Bash")
+	e := New(record.ModeDefault, []string{"Bash(go test *)", "Bash(make *)", "Bash(git diff *)", "Bash(python3 x.py)"})
+	for command, want := range map[string]Verdict{
+		"go test ./...":            Allow,
+		"go test -run X ./a":       Allow,
+		"go test -exec sh ./a":     Ask,
+		"go test -toolexec=sh ./a": Ask,
+		"make test":                Allow,
+		"make -f/tmp/x y":          Ask,
+		"make SHELL=/tmp/x y":      Ask,
+		"git diff HEAD":            Allow,
+		"git diff --ext-diff":      Ask,
+		"python3 x.py":             Allow,
+		"python3 x.py --evil":      Ask,
+		"python3 y.py":             Ask,
+		"go test ./a; curl x":      Ask,
+	} {
+		if v, _, _ := e.Check(shell, bash(command)); v != want {
+			t.Errorf("%q: %v, want %v", command, v, want)
+		}
+	}
+}
+
+// Read, Glob and Grep go by where they read: unasked in the folder, asking outside it,
+// plan mode too, links and .. followed.
+func TestReadsOutsideTheFolderAsk(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("uses a symlink")
+	}
+	dir, err := filepath.EvalSymlinks(t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
+	outside, err := filepath.EvalSymlinks(t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Symlink(outside, filepath.Join(dir, "away")); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(outside, "f"), nil, 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.MkdirAll(filepath.Join(dir, "src"), 0o700); err != nil {
+		t.Fatal(err)
+	}
+	read, glob, grep := builtin(t, "Read"), builtin(t, "Glob"), builtin(t, "Grep")
+	cases := []struct {
+		tool  tools.Tool
+		input string
+		want  Verdict
+	}{
+		{read, `{"file_path":"a.txt"}`, Allow},
+		{read, `{"file_path":"src/../a.txt"}`, Allow},
+		{read, `{"file_path":"` + filepath.Join(dir, "a.txt") + `"}`, Allow},
+		{read, `{"file_path":"../a.txt"}`, Ask},
+		{read, `{"file_path":"/etc/passwd"}`, Ask},
+		{read, `{"file_path":"away/f"}`, Ask},
+		{glob, `{"pattern":"**/*.go"}`, Allow},
+		{glob, `{"pattern":"src/*.go"}`, Allow},
+		{glob, `{"pattern":"*.go","path":"src"}`, Allow},
+		{glob, `{"pattern":"*.go","path":".."}`, Ask},
+		{glob, `{"pattern":"../*.go"}`, Ask},
+		{glob, `{"pattern":"/etc/*"}`, Ask},
+		{glob, `{"pattern":"*","path":"away"}`, Ask},
+		{grep, `{"pattern":"x"}`, Allow},
+		{grep, `{"pattern":"x","path":"src"}`, Allow},
+		{grep, `{"pattern":"x","path":"../"}`, Ask},
+		{grep, `{"pattern":"x","path":"/etc"}`, Ask},
+		{grep, `{"pattern":"x","path":"away"}`, Ask},
+	}
+	for _, mode := range []string{record.ModeDefault, record.ModeAcceptEdits, record.ModePlan} {
+		e := New(mode, nil)
+		e.SetDir(dir)
+		for _, c := range cases {
+			v, rule, _ := e.Check(c.tool, json.RawMessage(c.input))
+			if v != c.want {
+				t.Errorf("%s %s %s: %v, want %v", mode, c.tool.Name(), c.input, v, c.want)
+			}
+			if rule != "" {
+				t.Errorf("%s %s: a rule on offer for reads: %q", c.tool.Name(), c.input, rule)
+			}
+		}
+	}
+	e := New(record.ModeBypass, nil)
+	e.SetDir(dir)
+	if v, _, _ := e.Check(read, json.RawMessage(`{"file_path":"/etc/passwd"}`)); v != Allow {
+		t.Errorf("bypass: %v", v)
+	}
+}
+
+// "Always" on one edit covers the folder alone, outside what is guarded.
+func TestABareFileRuleHoldsInsideTheFolder(t *testing.T) {
+	home := t.TempDir()
+	dir, err := filepath.EvalSymlinks(t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, tool := range []string{"Write", "Edit"} {
+		e := New(record.ModeDefault, []string{tool})
+		e.SetDir(dir)
+		for path, want := range map[string]Verdict{
+			"src/a.go":                Allow,
+			".git/hooks/pre-commit":   Ask,
+			".GIT/config":             Ask,
+			".enowx/hooks.json":       Ask,
+			".enowx-app/x":            Ask,
+			".enowx-dev/x":            Ask,
+			".ssh/config":             Ask,
+			".config/x":               Ask,
+			".husky/pre-commit":       Ask,
+			".github/workflows/x.yml": Ask,
+			".gnupg/x":                Ask,
+			".aws/credentials":        Ask,
+			filepath.Join(home, ".ssh", "authorized_keys"): Ask,
+			"../outside": Ask,
+		} {
+			v, rule, _ := e.Check(builtin(t, tool), filePath(path))
+			if v != want {
+				t.Errorf("%s %s: %v, want %v", tool, path, v, want)
+			}
+			if outside := strings.HasPrefix(path, "..") || filepath.IsAbs(path); v == Ask && outside && rule != "" {
+				t.Errorf("%s %s: offers keeping %q, which wouldn't hold", tool, path, rule)
+			}
+		}
+	}
+	// A folder of the same guarded names asks in acceptEdits as well.
+	e := New(record.ModeAcceptEdits, nil)
+	e.SetDir(dir)
+	if v, _, _ := e.Check(builtin(t, "Write"), filePath(".enowx-app/x")); v != Ask {
+		t.Errorf("acceptEdits: %v", v)
+	}
 }

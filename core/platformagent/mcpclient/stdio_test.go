@@ -85,7 +85,8 @@ func TestListsToolsAcrossPages(t *testing.T) {
 		t.Fatalf("tools: %s", got)
 	}
 	echo := find(t, s, "mcp__fake__echo")
-	if !echo.ReadOnly() || echo.Edits() || echo.Description() != "Echoes." {
+	// Its readOnlyHint lets it run side by side, not skip a prompt.
+	if echo.ReadOnly() || !tools.RunsSideBySide(echo) || echo.Edits() || echo.Description() != "Echoes." {
 		t.Errorf("echo: readOnly %v edits %v description %q", echo.ReadOnly(), echo.Edits(), echo.Description())
 	}
 	if find(t, s, "mcp__fake__fail").ReadOnly() {
