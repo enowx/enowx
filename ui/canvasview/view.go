@@ -80,6 +80,8 @@ type Options struct {
 	LibraryPublish     func(p proto.LibraryPublishParams, done func(proto.LibraryDesign, error))
 	LibraryWithdraw    func(id string, done func(error))
 	LibraryDeleteDraft func(id string, done func(error))
+	// LibraryNewer says how a copied canvas stands against its original.
+	LibraryNewer func(id string, done func(proto.LibraryNewer, error))
 	// CloudSignIn goes to where the host signs in to its cloud; OpenURL opens an
 	// address in the user's browser.
 	CloudSignIn func()
@@ -152,7 +154,8 @@ const (
 
 // View is the Canvas page's state. It belongs to the main thread.
 type View struct {
-	outlinePage string // the page outline was worked out for
+	source      sourceState // the open canvas's original, when it's a copy
+	outlinePage string      // the page outline was worked out for
 	outline     []canvas.HTMLElement
 	outlineDone bool
 	htmlWork    htmlWork
