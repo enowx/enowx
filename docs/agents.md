@@ -79,6 +79,8 @@ Agents with no install command enowX knows link to their documentation instead.
 
 Agents run inside a small `/bin/sh` wrapper (PowerShell on Windows) that starts the login shell once the agent exits, so quitting it with Ctrl+C, or a failed sign-in, leaves a prompt in the same folder. The New session dialog's **Sign in** runs the command below in the project folder, which prints a link and a code to open on any device; this is what works on a server without a browser.
 
+What enowX types is for the agent, never for that shell, where its words would run as commands: a first prompt, a message, GOD of Agents' lines. Each is looked at just before it's written, and while the agent has ended nothing is typed: a first prompt's session says so in its note, and a message sent gets an error. An agent ending in the instant between the look and the write is the one case left. The user's own keys in the terminal always go through.
+
 | Agent | Sign-in command | Source |
 |---|---|---|
 | Claude Code | `claude auth login` | Claude Code docs (`claude auth status`), error guides; prints a URL and asks for the code |
