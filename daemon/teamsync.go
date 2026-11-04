@@ -217,6 +217,10 @@ type teamSyncState struct {
 	// RetrySince for a while (teamtrust.go); 0 for none.
 	Retry      int64     `json:"retry,omitempty"`
 	RetrySince time.Time `json:"retrySince,omitzero"`
+	// RetryAt is when it last asked, past teamRetryFor.
+	RetryAt time.Time `json:"retryAt,omitzero"`
+	// Recheck is the last teamRecheck done.
+	Recheck int `json:"recheck,omitempty"`
 }
 
 type syncedFile struct {
@@ -326,11 +330,21 @@ func hashOf(data []byte) string {
 
 // pull takes what changed in the cloud since the last sync, what the
 // team's keys open and judge lets in (teamtrust.go).
-func (ts *teamSync) pull(ctx context.Context) error {
+func (ts *teamSync) pull(ctx context.Context) (err error) {
 	byID := map[string]string{}
 	for p, f := range ts.state.Files {
 		byID[f.ID] = p
 	}
+	// What waited still waits if this pull fails: it is saved, and its place is past it.
+	retry, since := ts.state.Retry, ts.state.RetrySince
+	defer func() {
+		if err != nil && retry != 0 {
+			if ts.state.Retry == 0 || retry < ts.state.Retry {
+				ts.state.Retry = retry
+			}
+			ts.state.RetrySince = since
+		}
+	}()
 	after := ts.pullFrom()
 	for {
 		page, err := ts.c.Items(ctx, ts.team, after)
@@ -395,6 +409,7 @@ func (ts *teamSync) pull(ctx context.Context) error {
 			if ts.state.Retry == 0 {
 				ts.state.RetrySince = time.Time{}
 			}
+			ts.state.Recheck = teamRecheck
 			return nil
 		}
 	}
