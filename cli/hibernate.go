@@ -15,8 +15,8 @@ const hibernateUsage = `usage: enowx-app hibernate SESSION... [--idle] [--when-d
        enowx-app wake SESSION
   Hibernating stops a session's agent, freeing the memory and CPU it held;
   waking brings it back on its conversation. A session that would lose
-  work (its agent working, a dev server, an app shown, a program left in
-  the background) is only planned, unless --force stops it anyway or
+  work (its agent working, a task under way, a dev server, an app shown, a
+  program left in the background) is only planned, unless --force stops it anyway or
   --when-done waits for its agent to finish. --idle: every session with
   nothing to lose. --dry-run only says what it would stop and free.
   --auto off keeps a session from hibernating on its own; --auto-default
@@ -112,6 +112,9 @@ func (r runner) hibernate(args []string) error {
 		if pl.Working {
 			fmt.Fprintln(r.out, "  its agent is working")
 		}
+		if pl.Task != "" {
+			fmt.Fprintf(r.out, "  GOD of Agents' task %s is under way\n", pl.Task)
+		}
 		for _, port := range pl.Ports {
 			fmt.Fprintf(r.out, "  serves port %d\n", port)
 		}
@@ -147,7 +150,7 @@ func (r runner) wake(args []string) error {
 
 // hibernateTools are hibernating and waking sessions as MCP tools.
 var hibernateTools = []mcpTool{
-	{name: "session_hibernate", description: "Hibernate sessions (or all idle ones) to free the host's memory and CPU: their agents stop and wake later on their conversation. One that would lose work (its agent working, a dev server, an app shown) is only planned, unless force or when_done. Hibernating sessions you spawned, once done with them, frees the user's host; the user confirms in the app.",
+	{name: "session_hibernate", description: "Hibernate sessions (or all idle ones) to free the host's memory and CPU: their agents stop and wake later on their conversation. One that would lose work (its agent working, a task under way, a dev server, an app shown) is only planned, unless force or when_done. Hibernating sessions you spawned, once done with them, frees the user's host; the user confirms in the app.",
 		props: map[string]mcpProp{"ids": {"array", "The sessions"}, "idle": {"boolean", "Every session with nothing to lose"},
 			"when_done": {"boolean", "Hibernate a working one once its agent is done"}, "force": {"boolean", "Stop them even if that loses work"},
 			"dry_run": {"boolean", "Only say what it would stop and free"}},

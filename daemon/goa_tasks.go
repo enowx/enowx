@@ -155,6 +155,17 @@ func (s *Server) goaOpenTask(id string) bool {
 	})
 }
 
+// goaTaskUnderWay is the task session id has at hand or queued, "" for none. One whose
+// turn ended is GOA's to settle, with nothing for the session to go on with.
+func (s *Server) goaTaskUnderWay(id string) string {
+	for _, t := range s.goa.board.List() {
+		if t.Session == id && (t.Status == proto.GOATaskWorking || t.Status == proto.GOATaskWaiting || t.Status == proto.GOATaskStalled || t.Status == proto.GOATaskQueued) {
+			return t.ID
+		}
+	}
+	return ""
+}
+
 // goaSkipOn switches a session started asking to skipping prompts, when the
 // task asks that and its agent can change mode as it runs. One that can't goes
 // on as it is: its prompts reach GOA.

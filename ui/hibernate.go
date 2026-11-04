@@ -334,6 +334,9 @@ func hibernatePlanCard(c *ui.Context, pl proto.HibernatePlan) {
 		if pl.Working {
 			line("Its agent is working: it stops mid-task", theme.Warning)
 		}
+		if pl.Task != "" {
+			line("A task of GOD of Agents' is under way there, and stops with it", theme.Warning)
+		}
 		for _, port := range pl.Ports {
 			line(fmt.Sprintf("Serves port %d, which stops", port), theme.Warning)
 		}
