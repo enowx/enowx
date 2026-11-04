@@ -168,15 +168,15 @@ func (m *Manager) SetModel(s *Session, model, effort, started string, moved bool
 	m.notify(s)
 }
 
-// SetBackground records the agents session s's agent has in the background, said only when
-// which they are changes: memory and CPU alone don't call for a word to every window.
+// SetBackground records the agents session s's agent has in the background; changed: which they are.
 func (m *Manager) SetBackground(s *Session, agents []proto.BackgroundAgent) (changed bool) {
 	s.mu.Lock()
 	changed = !slices.EqualFunc(s.background, agents, func(a, b proto.BackgroundAgent) bool { return a.PID == b.PID && a.Start == b.Start && a.Left == b.Left })
+	any := len(agents) > 0 || changed
 	s.background = agents
 	s.mu.Unlock()
-	if changed {
-		m.notify(s)
+	if any {
+		m.notify(s) // their CPU and memory are live, each look
 	}
 	return changed
 }

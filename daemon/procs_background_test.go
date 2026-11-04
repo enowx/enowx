@@ -99,3 +99,34 @@ func TestAdoptDetached(t *testing.T) {
 		t.Fatalf("%+v", known)
 	}
 }
+
+// CPU is how much of a core between two looks, and one that has used next to none for long is stuck.
+func TestBackgroundAgentsLiveCPU(t *testing.T) {
+	list := func(cpu time.Duration) []procstat.Proc {
+		return []procstat.Proc{{PID: 1, Start: "r"}, {PID: 2, PPID: 1, Start: "m"}, {PID: 3, PPID: 2, Start: "b", CPUTime: cpu, RSS: 7}}
+	}
+	known := map[int]startedProc{1: {PID: 1, Start: "r", Session: "s"}, 2: {PID: 2, Start: "m", Session: "s"}, 3: {PID: 3, Start: "b", Session: "s"}}
+	args := func(pid int) []string {
+		return map[int][]string{1: {"sh"}, 2: {"claude"}, 3: {"codex"}}[pid]
+	}
+	tr := &procTracker{known: known}
+	at := time.Now()
+	look := func(after time.Duration, cpu time.Duration) proto.BackgroundAgent {
+		t.Helper()
+		out := tr.backgroundLocked(list(cpu), known, args, at.Add(after))["s"]
+		if len(out) != 1 || out[0].Name != "codex" {
+			t.Fatalf("%+v", out)
+		}
+		return out[0]
+	}
+	look(0, time.Second)
+	if b := look(10*time.Second, 6*time.Second); b.CPUPercent != 50 || b.Memory != 7 || b.Stuck || b.Since != at {
+		t.Fatalf("%+v", b)
+	}
+	if b := look(10*time.Second+backgroundStuckAfter, 6*time.Second); !b.Stuck || b.CPUPercent != 0 {
+		t.Fatalf("idle for long: %+v", b)
+	}
+	if b := look(20*time.Second+backgroundStuckAfter, 8*time.Second); b.Stuck {
+		t.Fatalf("at work again: %+v", b)
+	}
+}

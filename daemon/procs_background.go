@@ -16,6 +16,20 @@ import (
 // way. A process counts from its second look, so that a one-shot call of an agent (a judge, a
 // title) isn't one; a server or a command doesn't count, as no preset names it.
 
+const (
+	// backgroundStuckAfter is how long an agent uses next to no CPU before it reads as stuck: a
+	// model's slow answer takes minutes, not this.
+	backgroundStuckAfter = 15 * time.Minute
+	// backgroundBusyPercent is what counts as using CPU: a waiting agent's timers stay under it.
+	backgroundBusyPercent = 0.5
+)
+
+// agentLook is what the last look saw of a background agent.
+type agentLook struct {
+	since, at, busy time.Time
+	cpu             time.Duration
+}
+
 // backgroundLocked says, by session, the agents each has in its background. was is the list
 // before this look. The caller holds t.mu.
 func (t *procTracker) backgroundLocked(list []procstat.Proc, was map[int]startedProc, args func(int) []string, now time.Time) map[string][]proto.BackgroundAgent {
@@ -32,7 +46,7 @@ func (t *procTracker) backgroundLocked(list []procstat.Proc, was map[int]started
 		}
 		return name
 	}
-	seen := map[startedProc]time.Time{}
+	seen := map[startedProc]agentLook{}
 	out := map[string][]proto.BackgroundAgent{}
 	for pid, p := range t.known {
 		before, ok := was[pid]
@@ -44,13 +58,21 @@ func (t *procTracker) backgroundLocked(list []procstat.Proc, was map[int]started
 			continue
 		}
 		key := startedProc{PID: pid, Start: p.Start}
-		since := t.agentSeen[key]
-		if since.IsZero() {
-			since = now
+		look, again := t.agentSeen[key]
+		percent := 0.0
+		if !again {
+			look = agentLook{since: now, busy: now}
+		} else if took := now.Sub(look.at); took > 0 {
+			percent = 100 * (byPID[pid].CPUTime - look.cpu).Seconds() / took.Seconds()
 		}
-		seen[key] = since
+		if percent >= backgroundBusyPercent {
+			look.busy = now
+		}
+		look.at, look.cpu = now, byPID[pid].CPUTime
+		seen[key] = look
 		out[p.Session] = append(out[p.Session], proto.BackgroundAgent{PID: pid, Start: p.Start, Name: name,
-			Command: commandLine(args(pid)), Since: since, Left: p.Left, Memory: byPID[pid].RSS, CPU: byPID[pid].CPUTime.Seconds()})
+			Command: commandLine(args(pid)), Since: look.since, Left: p.Left, Memory: byPID[pid].RSS, CPU: byPID[pid].CPUTime.Seconds(),
+			CPUPercent: percent, Stuck: now.Sub(look.busy) >= backgroundStuckAfter})
 	}
 	t.agentSeen = seen
 	for _, agents := range out {

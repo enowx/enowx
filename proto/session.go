@@ -410,4 +410,8 @@ type BackgroundAgent struct {
 	// Memory is its resident memory in bytes, and CPU the CPU time it used in seconds, when last looked at.
 	Memory uint64  `json:"memory,omitempty"`
 	CPU    float64 `json:"cpu,omitempty"`
+	// CPUPercent is how much of a core it used between the last two looks.
+	CPUPercent float64 `json:"cpuPercent,omitempty"`
+	// Stuck: it has used next to no CPU for a good while (procs_background.go).
+	Stuck bool `json:"stuck,omitempty"`
 }

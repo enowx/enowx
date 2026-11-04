@@ -45,7 +45,7 @@ type procTracker struct {
 	path  string
 	known map[int]startedProc
 	// agentSeen is when each background agent was first seen: backgroundLocked.
-	agentSeen map[startedProc]time.Time
+	agentSeen map[startedProc]agentLook
 }
 
 func (t *procTracker) load(path string) {
