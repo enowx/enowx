@@ -95,6 +95,7 @@ var methods = map[string]Level{
 	proto.MethodFeaturesPreset:        Change,
 	proto.MethodAppSettings:           Change,
 	proto.MethodSessionKill:           Confirm,
+	proto.MethodGOASwitch:             Confirm,
 	proto.MethodSessionStopBackground: Confirm,
 	proto.MethodReviewPush:            Confirm,
 	proto.MethodReviewPR:              Confirm,

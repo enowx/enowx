@@ -68,6 +68,17 @@ func FindIn(agent, home, dir, store string) []Found {
 	return Find(agent, home, dir)
 }
 
+// HomeOf is where agent keeps its files under home, "" for an agent with none known here.
+func HomeOf(agent, home string) string {
+	switch agent {
+	case "claude", "claude-agent-teams":
+		return ClaudeHome(home)
+	case "codex":
+		return codexHome(home)
+	}
+	return ""
+}
+
 // Find lists the conversations agent had in dir, newest change first.
 func Find(agent, home, dir string) []Found {
 	if r, ok := readers[agent]; ok {

@@ -70,11 +70,14 @@ type Meta struct {
 	// Conversation is its agent's conversation, by the id the agent
 	// resumes it with: it goes on with its own, not the folder's latest.
 	Conversation string
-	Restored     bool
-	Project      string
-	Agent        string
-	Branch       string
-	Worktree     bool
+	// ConvoSince: conversations of its folder older than this aren't its own, as its agent
+	// changed then; zero, its creation.
+	ConvoSince time.Time
+	Restored   bool
+	Project    string
+	Agent      string
+	Branch     string
+	Worktree   bool
 	// Queued: the session waits for the daemon to start its agent
 	// (it shows a note and runs nothing meanwhile).
 	Queued bool

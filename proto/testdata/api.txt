@@ -1208,6 +1208,22 @@ field GOARules.rules string
 field GOAStall.blank int
 field GOAStall.idle int
 field GOAStall.stuck int
+field GOASwitchParams.agent string
+field GOASwitchParams.check bool
+field GOASwitchParams.config string
+field GOASwitchParams.force bool
+field GOASwitchParams.from string
+field GOASwitchParams.newConversation bool
+field GOASwitchResult.agent string
+field GOASwitchResult.atWork bool
+field GOASwitchResult.config string
+field GOASwitchResult.conversation string
+field GOASwitchResult.level string
+field GOASwitchResult.mode string
+field GOASwitchResult.note string
+field GOASwitchResult.restarted bool
+field GOASwitchResult.same bool
+field GOASwitchResult.session SessionInfo
 field GOATask.agent string
 field GOATask.asks string
 field GOATask.asleep bool
@@ -3001,6 +3017,7 @@ method goa.rules
 method goa.rules.save
 method goa.stall
 method goa.stall.save
+method goa.switch
 method goa.task
 method goa.wake
 method goa.worker
@@ -3436,6 +3453,10 @@ value FileNewFile=newFile
 value FileNewFolder=newFolder
 value FileRename=rename
 value FileRenamed=renamed
+value GOAConfigOfficial=official
+value GOAConversationNew=new
+value GOAConversationNone=none
+value GOAConversationSame=same
 value GOAEnforced=enforced
 value GOAKindDecision=decision
 value GOAKindDelegation=delegation

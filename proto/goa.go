@@ -173,6 +173,59 @@ type GOABoard struct {
 	Waiting []string `json:"waiting,omitempty"`
 }
 
+// MethodGOASwitch changes the agent or config this host's GOA runs on, restarting it:
+// GOASwitchParams → GOASwitchResult (docs/goa.md). An older daemon answers it as an
+// unknown method, and GOA stays as it is.
+const MethodGOASwitch = "goa.switch"
+
+// How a change of GOA's leaves its conversation.
+const (
+	GOAConversationSame = "same" // the one it was on goes on
+	GOAConversationNone = "none" // it hasn't any yet, so there's nothing to go on with
+	GOAConversationNew  = "new"  // a new agent: the one it was on doesn't carry over
+)
+
+// GOAConfigOfficial names an agent's official config in GOASwitchParams.Config.
+const GOAConfigOfficial = "official"
+
+// GOASwitchParams is what GOA should run on.
+type GOASwitchParams struct {
+	// Agent is the agent to run on, "" the one it runs on.
+	Agent string `json:"agent,omitempty"`
+	// Config is a config of that agent (its ID or name), or GOAConfigOfficial. "": the one
+	// it runs on for the same agent, the preferred one for another.
+	Config string `json:"config,omitempty"`
+	// Check only says what the change would do, and an error if it can't be done.
+	Check bool `json:"check,omitempty"`
+	// NewConversation is the yes to a new agent's conversation not carrying over.
+	NewConversation bool `json:"newConversation,omitempty"`
+	// Force is the yes to restarting GOA at work.
+	Force bool `json:"force,omitempty"`
+	// From is the session asking, "" for the user's: GOA can't change itself.
+	From string `json:"from,omitempty"`
+}
+
+// GOASwitchResult is what a change did or, not Restarted, would do. Not Restarted and not
+// asked to Check: a yes it needs is missing (AtWork, Conversation GOAConversationNew).
+type GOASwitchResult struct {
+	Session   SessionInfo `json:"session"`
+	Restarted bool        `json:"restarted,omitempty"`
+	// Same: it already runs on them, so nothing would change.
+	Same bool `json:"same,omitempty"`
+	// AtWork: it is working, or asking something, and a restart would cut that off.
+	AtWork bool `json:"atWork,omitempty"`
+	// Agent, Level and Config are what it runs on or would, Config a name, "" the official.
+	Agent  string `json:"agent,omitempty"`
+	Level  string `json:"level,omitempty"`
+	Config string `json:"config,omitempty"`
+	// Conversation is a GOAConversation*.
+	Conversation string `json:"conversation,omitempty"`
+	// Mode is the permission mode it starts in, "" its agent's own default.
+	Mode string `json:"mode,omitempty"`
+	// Note is what the user should know of the config: what GOA doesn't take of it.
+	Note string `json:"note,omitempty"`
+}
+
 // MethodGOAWake waits for lines for GOD of Agents, for its idle agent's background hook:
 // GOAWakeParams → GOAWakeReply, Text "" when a later hook took over or the session ended.
 const MethodGOAWake = "goa.wake"
