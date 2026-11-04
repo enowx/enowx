@@ -29,6 +29,7 @@ type follower struct {
 	reader  *transcript.Reader
 	checked time.Time // when we last looked for a newer file
 	used    time.Time // when the app last asked
+	opened  bool      // reader is new and no chat was told: the next to ask starts over
 }
 
 // dropAfter is how long a conversation no chat shows stays in memory; a
@@ -53,6 +54,21 @@ func (t *transcripts) follower(id string) *follower {
 		t.byID[id] = f
 	}
 	f.used = now
+	return f
+}
+
+// quietFollower is session id's follower, not counted as a chat asking.
+func (t *transcripts) quietFollower(id string) *follower {
+	t.mu.Lock()
+	defer t.mu.Unlock()
+	if t.byID == nil {
+		t.byID, t.files = map[string]*follower{}, map[string]string{}
+	}
+	f := t.byID[id]
+	if f == nil {
+		f = &follower{used: time.Now()}
+		t.byID[id] = f
+	}
 	return f
 }
 
@@ -141,28 +157,8 @@ func (s *Server) transcript(p proto.TranscriptParams) (proto.Transcript, error) 
 	f := s.transcripts.follower(p.ID)
 	f.mu.Lock()
 	defer f.mu.Unlock()
-	reset := false
-	if f.reader == nil || time.Since(f.checked) > lookEvery {
-		f.checked = time.Now()
-		for _, found := range transcript.FindIn(info.Agent, home, info.Dir, s.agentStore(info.Agent, p.ID, false)) {
-			// Conversations older than the session belong to earlier ones;
-			// a restored session's changes once its agent continues.
-			if found.Changed.Before(info.Created.Add(-time.Second)) {
-				break
-			}
-			if f.reader != nil && f.reader.Path() == found.Path {
-				break
-			}
-			old := ""
-			if f.reader != nil {
-				old = f.reader.Path()
-			}
-			if s.transcripts.claim(p.ID, found.Path, old) {
-				f.reader, reset = transcript.Open(info.Agent, found.Path), true
-				break
-			}
-		}
-	}
+	reset := s.findTranscript(p.ID, info, home, f) || f.opened
+	f.opened = false
 	if f.reader == nil {
 		return proto.Transcript{Supported: true, Reason: "Nothing yet: the conversation shows here once " + name + " records it."}, nil
 	}
@@ -201,6 +197,35 @@ func (s *Server) transcript(p proto.TranscriptParams) (proto.Transcript, error) 
 		out.Mode = m
 	}
 	return out, nil
+}
+
+// findTranscript has f follow the newest file of the conversation of session id, looking
+// every lookEvery, and says when that is another file than it followed. f.mu is held.
+// Finding reads nothing of the file: what only wants its name stays cheap.
+func (s *Server) findTranscript(id string, info proto.SessionInfo, home string, f *follower) (reset bool) {
+	if f.reader != nil && time.Since(f.checked) <= lookEvery {
+		return false
+	}
+	f.checked = time.Now()
+	for _, found := range transcript.FindIn(info.Agent, home, info.Dir, s.agentStore(info.Agent, id, false)) {
+		// Conversations older than the session belong to earlier ones;
+		// a restored session's changes once its agent continues.
+		if found.Changed.Before(info.Created.Add(-time.Second)) {
+			break
+		}
+		if f.reader != nil && f.reader.Path() == found.Path {
+			break
+		}
+		old := ""
+		if f.reader != nil {
+			old = f.reader.Path()
+		}
+		if s.transcripts.claim(id, found.Path, old) {
+			f.reader, reset = transcript.Open(info.Agent, found.Path), true
+			break
+		}
+	}
+	return reset
 }
 
 // switchMode cycles session id's agent to mode, watching its screen, on a
@@ -252,16 +277,31 @@ const modeStep = 350 * time.Millisecond
 // transcriptPath is the file of session id's agent's conversation, as the
 // chat finds it; "" when there is none it knows.
 func (s *Server) transcriptPath(id string) string {
-	if _, err := s.transcript(proto.TranscriptParams{ID: id, Tail: 1}); err != nil {
+	sess, err := s.sessions.Get(id)
+	if err != nil {
 		return ""
 	}
-	f := s.transcripts.follower(id)
+	info := sess.Info()
+	home, err := os.UserHomeDir()
+	if err != nil || !transcript.Supports(info.Agent) {
+		return ""
+	}
+	// Not a chat's asking: it must neither read the conversation in nor keep it from
+	// being let go, or each agent at work holds its whole conversation in memory.
+	f := s.transcripts.quietFollower(id)
 	f.mu.Lock()
 	defer f.mu.Unlock()
+	if s.findTranscript(id, info, home, f) {
+		f.opened = true
+	}
 	if f.reader == nil {
 		return ""
 	}
-	return f.reader.Path()
+	path := f.reader.Path()
+	if _, err := os.Stat(path); err != nil {
+		return ""
+	}
+	return path
 }
 
 // history lists the conversations agents had in project p's folder and

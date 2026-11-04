@@ -196,3 +196,55 @@ func TestTranscriptDroppedWithNoChatAsking(t *testing.T) {
 		t.Fatalf("a kept %v, b kept %v", a, b)
 	}
 }
+
+// Asking for the file of an agent's conversation, as saving a session does every 20 s,
+// reads none of it, and doesn't keep a chat's copy from being let go.
+func TestTranscriptPathReadsNothing(t *testing.T) {
+	srv := startServer(t)
+	t.Setenv("HOME", t.TempDir())
+	home, _ := os.UserHomeDir()
+	dir := t.TempDir()
+	sess, err := srv.sessions.Create(session.Spec{Command: []string{"sleep", "30"}, Dir: dir, Meta: session.Meta{Agent: "claude"}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	folder := filepath.Join(home, ".claude", "projects", transcript.ClaudeFolder(dir))
+	if err := os.MkdirAll(folder, 0o700); err != nil {
+		t.Fatal(err)
+	}
+	file := filepath.Join(folder, "11111111-1111-4111-8111-111111111111.jsonl")
+	line := `{"type":"user","timestamp":"2026-10-22T06:00:00Z","message":{"role":"user","content":"hello"}}` + "\n"
+	if err := os.WriteFile(file, []byte(line), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if got := srv.transcriptPath(sess.ID()); got != file {
+		t.Fatalf("path %q, want %q", got, file)
+	}
+	srv.transcripts.mu.Lock()
+	f := srv.transcripts.byID[sess.ID()]
+	srv.transcripts.mu.Unlock()
+	f.mu.Lock()
+	entries := f.reader.Len()
+	f.mu.Unlock()
+	if entries != 0 {
+		t.Fatalf("%d entries read in", entries)
+	}
+	// A chat that had read the conversation before it was let go is told to start over.
+	back, err := srv.transcript(proto.TranscriptParams{ID: sess.ID(), Since: 5})
+	if err != nil || !back.Reset || len(back.Entries) != 1 {
+		t.Fatalf("%+v, %v", back, err)
+	}
+	srv.transcripts.mu.Lock()
+	f.used = time.Now().Add(-dropAfter - time.Second)
+	srv.transcripts.mu.Unlock()
+	if got := srv.transcriptPath(sess.ID()); got != file {
+		t.Fatalf("path %q the second time", got)
+	}
+	srv.transcripts.mu.Lock()
+	srv.transcripts.dropLocked(time.Now())
+	_, kept := srv.transcripts.byID[sess.ID()]
+	srv.transcripts.mu.Unlock()
+	if kept {
+		t.Fatal("asking for the path kept it from being let go")
+	}
+}
