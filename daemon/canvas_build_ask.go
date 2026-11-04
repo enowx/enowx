@@ -86,6 +86,9 @@ func directionAsk(cv proto.Canvas, f proto.CanvasFrame, n int, letter, source st
 	if cv.Brief != nil {
 		brief = designbrief.Markdown(*cv.Brief)
 	}
+	if len(cv.References) > 0 {
+		brief += "\n## References\n" + strings.Join(cv.References, "\n") + "\n"
+	}
 	kind, steps := "Direction", fmt.Sprintf(`2. Build its structure in grays first (the first screen's focal point, main action and states), then the real design, on your design only (canvas_write or canvas_patch, frame %q). %s One memorable moment, the rest quiet. Pictures made for it in its own style, kept with the canvas (canvas_image: an SVG you draw, or one chosen from the web), never gray boxes; content that reads real.
 3. Look at it at desktop and phone width (canvas_screenshot, frame %q) and fix what reads wrong.
 4. Then canvas_build (%s, done). If you're told it is too close to another direction, change what you're told and say done again.`, f.ID, skeletons, f.ID, at)

@@ -16,6 +16,7 @@ import (
 	"github.com/enowx/enowx/cloud/hostauth"
 	"github.com/enowx/enowx/cloud/seal"
 	"github.com/enowx/enowx/cloud/server"
+	"github.com/enowx/enowx/cloud/store"
 	"github.com/enowx/enowx/cloud/store/storetest"
 	"github.com/enowx/enowx/core/designshare"
 	"github.com/enowx/enowx/core/designshare/thumb"
@@ -29,6 +30,7 @@ type libraryEnv struct {
 	srv   *Server
 	blobs blobstore.Dir
 	cloud string
+	db    *store.DB
 }
 
 // newLibraryEnv is a daemon signed in to a cloud that has a library. An app
@@ -57,7 +59,7 @@ func newLibraryEnv(t *testing.T, library bool) *libraryEnv {
 	if err := srv.cloud.store.Put(hostauth.State{URL: web.URL, Token: token}); err != nil {
 		t.Fatal(err)
 	}
-	return &libraryEnv{srv: srv, blobs: blobs, cloud: web.URL}
+	return &libraryEnv{srv: srv, blobs: blobs, cloud: web.URL, db: db}
 }
 
 // The whole way from a draft to the cloud, the bundle holding only the design:
