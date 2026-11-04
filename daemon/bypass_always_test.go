@@ -21,7 +21,7 @@ type agentStarts struct {
 	seen int
 }
 
-func startsOf(home string) *agentStarts { return &agentStarts{file: filepath.Join(home, "args")} }
+func agentStartsOf(home string) *agentStarts { return &agentStarts{file: filepath.Join(home, "args")} }
 
 // next waits for a start since the last and is its arguments.
 func (a *agentStarts) next(t *testing.T) string {
@@ -52,7 +52,7 @@ func TestClaudeCodeAlwaysComesUpInBypass(t *testing.T) {
 		t.Skip("uses sh")
 	}
 	srv, c, home, dir := forkHarness(t)
-	starts := startsOf(home)
+	starts := agentStartsOf(home)
 	last := ""
 	check := func(what, id string) {
 		t.Helper()
@@ -157,7 +157,7 @@ func TestForkOfClaudeCodeIsInBypass(t *testing.T) {
 		t.Skip("uses sh")
 	}
 	srv, c, home, dir := forkHarness(t)
-	starts := startsOf(home)
+	starts := agentStartsOf(home)
 	s, err := c.CreateSession(proto.SessionCreateParams{Agent: "claude", Project: dir, Name: "Long work", Cols: 80, Rows: 24})
 	if err != nil {
 		t.Fatal(err)
@@ -187,7 +187,7 @@ func TestBypassWarningIsAnsweredInItsSettings(t *testing.T) {
 	if _, err := c.CreateSession(proto.SessionCreateParams{Agent: "claude", Project: dir, Cols: 80, Rows: 24}); err != nil {
 		t.Fatal(err)
 	}
-	line := startsOf(home).next(t)
+	line := agentStartsOf(home).next(t)
 	if strings.Count(line, "--settings") != 1 {
 		t.Fatalf("settings: %s", clip(line, 300))
 	}
@@ -217,7 +217,7 @@ func TestAgentStartModeDoesNotTurnBypassOff(t *testing.T) {
 	if _, err := c.CreateSession(proto.SessionCreateParams{Agent: "claude", Project: dir, Cols: 80, Rows: 24}); err != nil {
 		t.Fatal(err)
 	}
-	wantBypassLine(t, "with a mode for new sessions", startsOf(home).next(t))
+	wantBypassLine(t, "with a mode for new sessions", agentStartsOf(home).next(t))
 }
 
 // An agent taking over from Claude Code doesn't inherit what only Claude Code always does.
@@ -345,7 +345,7 @@ func TestClaudeAsRootStartsAskingAndSaysSo(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	line := startsOf(home).next(t)
+	line := agentStartsOf(home).next(t)
 	if strings.Contains(line, "--dangerously-skip-permissions") || strings.Contains(line, "--allow-dangerously") {
 		t.Errorf("would be refused: %s", clip(line, 300))
 	}

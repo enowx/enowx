@@ -27,6 +27,7 @@ Write Markdown the page shows well: # ## ### headings, - lists, 1. numbered list
 
 ` + BlocksGuide + `
 ` + notesProjectsGuide + `
+` + ProjectDocsNotesGuide + `
 When asked to make a note easier to get around ("rapikan jadi tab / toggle / kartu"): tabs for parallel views of one thing (Summary · Details · Tests), toggles for detail most readers skip, cards for a list of features or items with a status each ({{Done}}, {{High}}), columns for short side-by-side comparisons, a callout for the one warning or decision that matters, ::toc on top of a long note. Keep every fact; only the layout changes.
 A note's icon (notes_create and notes_write take one) is an SVG icon, never an emoji: lib:name like lucide:rocket, which icons_search finds by a word; give a new note one that fits it. Don't start titles with emoji. In the text, :icon[lucide:check] draws an icon in a line, sparingly.
 
@@ -55,7 +56,7 @@ func NotesArgs(id, exe, note string) []string {
 		// Their lists take several values: the flag of none last, so the
 		// prompt after it isn't read as one.
 		args = append(args, "--mcp-config", string(cfg),
-			"--allowedTools", strings.Join([]string{"mcp__enowx__notes_list", "mcp__enowx__notes_read", "mcp__enowx__notes_create", "mcp__enowx__notes_write", "mcp__enowx__notes_outline", "mcp__enowx__notes_check", "mcp__enowx__icons_search", "mcp__enowx__notes_projects", "mcp__enowx__project_context", "mcp__enowx__project_read", "WebSearch", "WebFetch"}, ","),
+			"--allowedTools", strings.Join(append(notesDocsAllowed(), "mcp__enowx__notes_list", "mcp__enowx__notes_read", "mcp__enowx__notes_create", "mcp__enowx__notes_write", "mcp__enowx__notes_outline", "mcp__enowx__notes_check", "mcp__enowx__icons_search", "mcp__enowx__notes_projects", "mcp__enowx__project_context", "mcp__enowx__project_read", "WebSearch", "WebFetch"), ","),
 			"--disallowedTools", strings.Join([]string{"Bash", "Edit", "Write", "NotebookEdit", "Read", "Glob", "Grep", "Task"}, ","),
 			"--strict-mcp-config")
 	case PlatformID:

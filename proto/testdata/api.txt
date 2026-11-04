@@ -1493,10 +1493,13 @@ field NoteDetachParams.refs []string
 field NoteExportBytesParams.offset int64
 field NoteExportBytesParams.path string
 field NoteExportParams.all bool
+field NoteExportParams.dryRun bool
+field NoteExportParams.force bool
 field NoteExportParams.format string
 field NoteExportParams.group string
 field NoteExportParams.ids []string
 field NoteExportParams.out string
+field NoteExported.files []string
 field NoteExported.name string
 field NoteExported.notes int
 field NoteExported.path string
@@ -3454,6 +3457,7 @@ value ExportHTML=html
 value ExportJSON=json
 value ExportMarkdown=md
 value ExportPDF=pdf
+value ExportRepo=repo
 value ExportZip=zip
 value FallbackAsk=ask
 value FallbackAuto=auto

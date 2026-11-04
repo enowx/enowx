@@ -130,6 +130,17 @@ Workers' reports never go through GOA's input box while anything of the user's c
 | Idle | A background hook (`asyncRewake`, 24 hours at most, armed at each start and turn's end) wakes it on exit code 2, the lines as a system reminder | No way in documented: below | Below |
 
 Idle with no such route, or that hook gone: the line waits, and is typed only into a composer sure to be empty, with no key pressed for 5 seconds and nothing at work or asked. A prompt the screen can't be sure of counts as a draft, so the line goes on waiting, shown in GOA's Tasks panel under Waiting for GOA. It never sends with a draft in the prompt. A line waiting goes with the next turn, however that starts. Claude Code's channels also push into an idle session, but they are a research preview, a custom one needs a development flag at each start, and they need Anthropic sign-in, so they aren't used.
+
+## Tasks from Project Docs
+
+`goa delegate --doc NOTE[#SECTION]` (`doc` on `goa_delegate`) hands over a task of a [Project Docs](project-docs.md) project. It reads the project first and refuses while its gate is closed, naming each document in the way; the owner approves in the Notes page. Otherwise it prepends to the prompt what the task needs of the documents, up to 8000 bytes, saying what was cut and how to read it: the section, the PRD's and Technical Spec's sections it is based on, the acceptance criteria not met yet; without such links, the document's outline. A line of that context, `Project Docs: <project ID> <doc ID>#<section>`, ties the task to its project: the board and the protocol don't change, so a daemon of before serves all of it.
+
+The gate holds only with `--doc`: `goa delegate` without it hands over whatever it is given, and the guide tells GOA to stop while the gate is closed.
+
+- `docs plan PROJECT` (`docs_plan`): the Work Breakdown's tasks, written `- [ ] T-1: verb phrase (stage, depends on T-0)`, their dependencies, the board tasks whose title names them, what is ready and the exact command for each. It delegates nothing.
+- `docs progress PROJECT` (`docs_progress`): documents by status, the gate, tasks planned and done, the project's tasks on the board, acceptance criteria done.
+- `docs verify PROJECT --task ID` (`docs_verify`): the task's result beside the criteria that apply to it, the document's or section's own, else User Stories and Acceptance Criteria. It ticks nothing: the checker ticks with `notes check`, only with evidence, and names what remains.
+
 ## Workers' permission prompts
 
 On the worker's host, before each tool call of a GOA worker (its agent's hooks):
@@ -151,9 +162,13 @@ GOA's collection is its folder's (`rag.ProjectID` of GOA's folder), apart from e
 
 **Write with AI**, there and in a project's rules, takes what the user wants in their own words and has an AI write it as clear rules, added after those there, which it sees but never gets to change (`rules.draft`): the app does the adding, exactly as they are, and a new rule that goes against one is shown to the user, not settled. Changing or removing a rule is by hand. It's refused past 32 KB, cutting nothing. Rules that couldn't be read can't be edited or saved over; saving them empty asks first. **Earlier versions** brings back the last 20 before a save (`rules.history`), kept on that host. The first of the host's judges that writes is asked: agents' one-shot commands, then model APIs, then local models, never a decision model, which only picks; the policy *local only* keeps it on the host. The result lands in the editor, to read and undo; nothing is saved until the user saves. Text that looks like it holds a secret isn't sent.
 
+## Project Docs
+
+A project documented as notes hands GOA its tasks, with the approval gate before them: [project-docs.md](project-docs.md#god-of-agents).
+
 ## Commands and tools
 
-`enowx goa board|delegate|task|remember|recall|rules|agents|flags|start|switch` ([cli.md](cli.md#god-of-agents)); MCP `goa_board`, `goa_delegate`, `goa_task`, `goa_remember`, `goa_recall`, `goa_agents`, `goa_switch`, not offered to GOA itself (feature `goa`, always on in GOA's session). Everything else GOA reaches is the rest of enowX's tools, on any host: [goa-tools.md](goa-tools.md).
+`enowx goa board|delegate|task|remember|recall|rules|agents|flags|start|switch` ([cli.md](cli.md#god-of-agents)); MCP `goa_board`, `goa_delegate`, `goa_task`, `goa_remember`, `goa_recall`, `goa_agents`, `docs_plan`, `docs_progress`, `docs_verify`, and `goa_switch`, not offered to GOA itself (feature `goa`, always on in GOA's session). Everything else GOA reaches is the rest of enowX's tools, on any host: [goa-tools.md](goa-tools.md).
 
 ## Protocol
 

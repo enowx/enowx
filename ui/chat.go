@@ -328,7 +328,6 @@ func (a *App) pasteToSession(id, text string) {
 	a.withPane(id, func(p *pane) { a.writeThenEnter(p, "\x1b[200~"+text+"\x1b[201~") }, func() { a.inputThroughDaemon(id, text, true, nil) })
 }
 
-
 // writeThenEnter writes text to p's session, then Enter, off the main
 // thread.
 func (a *App) writeThenEnter(p *pane, text string) {

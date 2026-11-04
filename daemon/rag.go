@@ -10,6 +10,7 @@ import (
 
 	"github.com/enowx/enowx/core/git"
 	"github.com/enowx/enowx/core/notes"
+	"github.com/enowx/enowx/core/projectdocs"
 	"github.com/enowx/enowx/core/rag"
 	"github.com/enowx/enowx/proto"
 )
@@ -181,7 +182,7 @@ func (s *Server) ragExtra(dir, id string) []rag.Doc {
 		if err != nil {
 			continue
 		}
-		out = append(out, rag.Doc{ID: "note:" + n.ID, Title: n.Title, Text: note.Body, Source: proto.RAGNotes})
+		out = append(out, rag.Doc{ID: "note:" + n.ID, Title: n.Title, Text: projectdocs.IndexText(note.Body), Source: proto.RAGNotes})
 	}
 	return out
 }

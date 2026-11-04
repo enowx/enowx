@@ -167,8 +167,10 @@ Agents that can't take an API per session (enowx-app api lists them) still take 
     "$ENOWX_BIN" goa delegate --agent claude --project P "…"   # a task to the project's idle or stopped session, else a new one, its model and effort routed; --session S for one that runs
     "$ENOWX_BIN" goa board                                      # the tasks, their sessions, status and results
     "$ENOWX_BIN" goa task ID --status done --result "…"         # settle one
-    "$ENOWX_BIN" goa remember --kind decision "…" | goa recall "…" [--project P --host H]`,
-		Tools: []string{"goa_"}},
+    "$ENOWX_BIN" goa remember --kind decision "…" | goa recall "…" [--project P --host H]
+    "$ENOWX_BIN" goa delegate --doc NOTE[#SECTION] …            # a Project Docs task, its documents' words in its prompt; while docs progress shows the gate closed, stop and tell the user
+    "$ENOWX_BIN" docs plan|progress PROJECT | docs verify PROJECT --task ID   # what's ready and its command; where it stands; a result beside its criteria`,
+		Tools: []string{"goa_", "docs_plan", "docs_progress", "docs_verify"}},
 	{ID: "notes", Name: "Notes", Group: GroupNotes, Default: true, Core: true,
 		About: "The user's notes, which agents read and write.",
 		Guide: `The user's notes: their Notes page in enowX, pages of Markdown on this host. Read or write them when the user asks (a plan to keep, a checklist, what you found):
@@ -202,6 +204,11 @@ Agents that can't take an API per session (enowx-app api lists them) still take 
 		Summary: "Notes import/export: \"$ENOWX_BIN\" notes import FILE --dry-run, notes export --all --format zip.",
 		Guide:   "Notes from and to other apps:\n" + NotesIOGuide,
 		Tools:   []string{"notes_import", "notes_import_status", "notes_export"}},
+	{ID: "projectdocs", Name: "Project Docs", Group: GroupNotes, Default: true, Requires: []string{"notes"},
+		About:   "A whole project documented as notes (PRD, Technical Spec, ERD...), which agents fill in, keep up to date and build from once the owner approves.",
+		Summary: "Project Docs: a project documented as notes; \"$ENOWX_BIN\" docs list, docs summary, docs gate, docs skill.",
+		Guide:   ProjectDocsGuide,
+		Tools:   []string{"docs_"}},
 	{ID: "canvas", Name: "Canvas", Group: GroupDesign, Requires: []string{"browser"},
 		About: "Mockups, wireframes and diagrams agents design live.",
 		Guide: `Canvas: when the user asks for a mockup, a wireframe or a diagram, design it on a canvas they watch build up live in enowX: "$ENOWX_BIN" canvas guide tells how (read it first); "$ENOWX_BIN" canvas list lists them.`,

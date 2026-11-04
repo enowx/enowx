@@ -129,6 +129,10 @@ What can't be undone (closing a session, pushing, opening a pull request, mergin
 
 MCP: `session_interrupt`, `session_stop`, `session_continue`, `session_rename`, `session_close`, `session_chat`, `session_ask`, `session_answer`, `session_switch`, `session_changes`, `session_commit`, `session_push`, `session_pr`, `session_merge`, `session_discard`, `host_settings`, `host_env`, `app_settings`, `project_settings`, `control_log` (Settings → Features, Control), each with `host`; `sessions_list`, `session_spawn` (with `project`, `name`, `model`, `effort`), `session_wait`, `session_read`, `session_send`, `session_hibernate`, `session_wake`, `projects_list`, `project_add`, `project_clone`, `project_clone_status`, `project_rules` and `project_rules_set` take `host` too.
 
+## Project Docs
+
+`docs new|list|summary|catalog|add|skip|status|link|gaps|topics|gate|attach|diagram|export|templates|template|skill|skills|plan|progress|verify`: a project documented as notes ([project-docs.md](project-docs.md)).
+
 ## GOD of Agents
 
 GOA's commands ([goa.md](goa.md)): a session handing tasks to others, on any host, with the model and effort the judge picks.
