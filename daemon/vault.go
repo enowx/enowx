@@ -35,6 +35,8 @@ type vaultState struct {
 	pending map[string]chan proto.VaultReply
 	leases  map[string]*vaultLease // by session
 	audit   *vault.Audit
+	// keyWait are the sessions to continue once an app serves (agentkey.go).
+	keyWait map[string]bool
 }
 
 // vaultLease is what a session was lent: its variables, the folder of its

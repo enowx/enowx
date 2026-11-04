@@ -32,6 +32,7 @@ type sessionFunc func(api API, dir string) (Launch, error)
 var sessionAdapters = map[string]sessionFunc{
 	"claude":      claudeSession,
 	"codex":       codexSession,
+	platformID:    platformSession,
 	"opencode":    openCodeSession,
 	"opencode2":   openCodeSession,
 	"copilot":     copilotSession,
@@ -56,7 +57,7 @@ func PerSession(id string) bool {
 // Prepare checks api for agent id and makes it what the agent takes: its
 // models normalized, its protocol the agent's default when unset.
 func Prepare(id string, api API) (API, error) {
-	a, ok := adapters[Base(id)]
+	a, ok := adapterOf(Base(id))
 	if !ok {
 		return API{}, fmt.Errorf("agentapi: %s takes no API of the user's", id)
 	}
@@ -174,6 +175,19 @@ func claudeSession(api API, _ string) (Launch, error) {
 		settings["modelSettings"] = ms
 	}
 	return Launch{Env: kv(append(vars, [2]string{"ANTHROPIC_AUTH_TOKEN", api.APIKey})...), Settings: settings}, nil
+}
+
+// platformID is Claude Platform, enowX's own agent (agent.PlatformID).
+const platformID = "claude-platform"
+
+// platformSession: the address and key in its session's environment, and nothing else
+// anywhere; the model on its command line.
+func platformSession(api API, _ string) (Launch, error) {
+	l := Launch{Env: kv([2]string{"ANTHROPIC_BASE_URL", api.BaseURL}, [2]string{"ANTHROPIC_API_KEY", api.APIKey})}
+	if api.Model != "" {
+		l.Args = []string{"--model", api.Model}
+	}
+	return l, nil
 }
 
 // codexSession: its config overridden on the command line (-c), the key

@@ -326,3 +326,16 @@ func TestRecentKeepsConnectionLines(t *testing.T) {
 		t.Fatalf("%q", got)
 	}
 }
+
+// What goes to the daemon's output, a service's journal, is masked as its log is.
+func TestScrubbedMasksAKey(t *testing.T) {
+	var b strings.Builder
+	line := "level=WARN msg=x ANTHROPIC_API_KEY=sk-ant-api03-abcdefghijklmnopqrstuvwx other=sk-ant-api03-abcdefghijklmnopqrstuvwx\n"
+	n, err := Scrubbed(&b).Write([]byte(line))
+	if err != nil || n != len(line) {
+		t.Fatalf("wrote %d, %v", n, err)
+	}
+	if strings.Contains(b.String(), "abcdefghijklmnopqrstuvwx") || !strings.Contains(b.String(), "level=WARN") {
+		t.Fatalf("%q", b.String())
+	}
+}

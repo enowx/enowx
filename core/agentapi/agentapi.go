@@ -89,6 +89,21 @@ type adapter struct {
 // adapters are the agents enowX can point at an API, by preset ID.
 var adapters = map[string]adapter{}
 
+// sessionOnly are agents that take an API per session alone: they have no settings of
+// theirs to write one in, as a key there would be a key in a file.
+var sessionOnly = map[string]adapter{
+	platformID: {protocols: []string{Anthropic}, note: "Per session alone: its key comes from the vault, into the session's environment."},
+}
+
+// adapterOf is agent id's way of taking an API, either kind.
+func adapterOf(id string) (adapter, bool) {
+	if a, ok := adapters[id]; ok {
+		return a, true
+	}
+	a, ok := sessionOnly[id]
+	return a, ok
+}
+
 // Agent is what enowX knows of an agent's API.
 type Agent struct {
 	ID        string
@@ -114,11 +129,14 @@ func Supported() []string {
 
 // Of is agent id's API under home.
 func Of(home, id string) (Agent, error) {
-	a, ok := adapters[id]
+	a, ok := adapterOf(id)
 	if !ok {
 		return Agent{}, fmt.Errorf("agentapi: %s takes no API of the user's", id)
 	}
 	out := Agent{ID: id, Protocols: a.protocols, Files: a.files, Note: a.note, Small: a.small, NoModel: a.noModel, Caps: a.caps}
+	if a.read == nil {
+		return out, nil
+	}
 	api, set, err := a.read(home)
 	if err != nil {
 		return out, fmt.Errorf("agentapi: %s's settings: %w", id, err)
