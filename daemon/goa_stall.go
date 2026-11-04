@@ -109,14 +109,28 @@ func stallCase(l stallLook, lim proto.GOAStall) (string, time.Duration) {
 // before a task queued for it goes in although its turn was never seen to end.
 const queuedQuiet = 20 * time.Second
 
-// queuedCanGo says a task queued for a session can go in now, its turn's end
-// unheard: an interrupt ends a turn with no hook, and a command typed at the
-// prompt (/model) says nothing either, so its state stays the working it last
-// was, gone stale. Only such a session counts: one with no state may be a plain
-// shell, in a command that reads what it is typed.
+// queuedCanGo says a task queued for a session can go in now, though no turn's end
+// gave it: its session says it is done, as one does whose turn ended before the task
+// was queued; or its turn's end went unheard, as an interrupt's, or a command typed at
+// the prompt (/model), which leave the working it last was, gone stale, or as after a
+// daemon's restart, which leaves an agent no state. No state and no agent may be a
+// plain shell, in a command that reads what it is typed.
 func queuedCanGo(l stallLook, screen string) bool {
-	return l.Info.StateStale && !l.Info.Exited && !l.Info.Queued && !l.Gone &&
-		l.Still >= queuedQuiet && (l.NoCPU || l.CPU < stallCPUIdle) && agent.PromptFree(screen)
+	if l.Info.Exited || l.Info.Queued || l.Gone || l.Still < queuedQuiet {
+		return false
+	}
+	switch {
+	case l.Info.State == proto.StateDone:
+		return l.NoCPU || l.CPU < turnOverCPU // an agent at rest isn't at 0
+	case l.Info.StateStale:
+	case l.Info.State == "":
+		if _, isAgent := agent.Find(l.Info.Agent); !isAgent {
+			return false
+		}
+	default:
+		return false
+	}
+	return (l.NoCPU || l.CPU < stallCPUIdle) && agent.PromptFree(screen)
 }
 
 const (
@@ -143,6 +157,7 @@ type stallFollow struct {
 	since  time.Time
 	told   time.Time // its last line
 	fired  bool      // the hook ran for this stall
+	waking bool      // its queued task's session is being brought back
 }
 
 // stallHost is what a host says of its sessions, for one look.
@@ -275,12 +290,37 @@ func (s *Server) stallHostLost(w *stallWatch, key string, t proto.GOATask, lim p
 		return
 	}
 	limit := stallSeconds(lim.Idle)
-	if limit <= 0 || time.Since(since) < limit || t.Status != proto.GOATaskWorking {
+	if limit <= 0 || time.Since(since) < limit {
+		return
+	}
+	if t.Status == proto.GOATaskQueued {
+		s.queuedHostLost(w, t)
+		return
+	}
+	if t.Status != proto.GOATaskWorking {
 		return
 	}
 	if s.stallMark(t.ID, proto.GOATaskWorking, proto.GOATaskStalled) {
 		s.goaTellLine(goaLine{Task: t.ID, Session: t.Session, Text: fmt.Sprintf("[enowX GOA] Task %s %q on %s: its host can't be reached (the app is closed there, or the connection dropped), so what its session does isn't known. It stays open: look again once the host is back.", t.ID, t.Title, nonEmpty(t.Host, "this host"))})
 	}
+}
+
+// queuedHostLost says once, on the board and to GOA, that queued task t waits for its
+// host. It stays queued, and goes in when the host is back.
+func (s *Server) queuedHostLost(w *stallWatch, t proto.GOATask) {
+	f := w.follows[t.ID]
+	if f == nil {
+		f = &stallFollow{since: time.Now()}
+		w.follows[t.ID] = f
+	}
+	if !f.told.IsZero() {
+		return
+	}
+	f.told = time.Now()
+	const why = "Its host can't be reached (the app that reaches it is closed, or the connection dropped): it goes in when the host is back."
+	_, _ = s.goa.board.Update(t.ID, func(t *proto.GOATask) { t.Why = strings.TrimSpace(t.Why + " " + why) })
+	s.goaChanged()
+	s.goaTellLine(goaLine{Task: t.ID, Session: t.Session, Text: fmt.Sprintf("[enowX GOA] Task %s %q is still queued. %s", t.ID, t.Title, why)})
 }
 
 // queuedCheck gives task t's session its oldest queued task if its prompt is
@@ -293,8 +333,23 @@ func (s *Server) queuedCheck(w *stallWatch, t proto.GOATask, h stallHost) bool {
 		w.follows[t.ID] = f
 	}
 	info, there := h.infos[t.Session]
-	if !there {
+	switch {
+	case !there:
+		// Its host answers and has no such session, for longer than a restart takes.
+		if now.Sub(f.since) >= queuedQuiet {
+			s.goaQueuedFailed(t, "its session is gone")
+			return true
+		}
 		return false
+	case info.Exited && info.Hibernated:
+		if !f.waking { // once: waking it takes a while, and each pass comes back here
+			f.waking = true
+			go s.queuedWake(t, info)
+		}
+		return false
+	case info.Exited:
+		s.goaDeliver(info) // says it can't go
+		return true
 	}
 	text, err := h.screen(t.Session)
 	if err != nil {
@@ -310,6 +365,20 @@ func (s *Server) queuedCheck(w *stallWatch, t proto.GOATask, h stallHost) bool {
 	s.logger().Info("goa: a queued task goes in, its session's prompt being free", "session", t.Session, "task", t.ID)
 	s.goaDeliver(info)
 	return true
+}
+
+// queuedWake brings back the hibernated session of queued task t and gives it its task.
+func (s *Server) queuedWake(t proto.GOATask, info proto.SessionInfo) {
+	from := ""
+	if g, ok := s.goaSession(); ok {
+		from = g.ID
+	}
+	if _, err := s.goaReady(proto.GOADelegateParams{From: from, Host: t.Host}, info); err != nil {
+		s.goaQueuedFailed(t, "its session couldn't be brought back: "+err.Error())
+		return
+	}
+	info.Exited, info.Hibernated = false, false
+	s.goaDeliver(info)
 }
 
 // stallCheck tells what's new of task t, on host h.

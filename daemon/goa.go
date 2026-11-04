@@ -25,6 +25,8 @@ import (
 // mu guards the rest.
 type goaState struct {
 	board *goa.Board
+	// delivering holds a queued task's delivery, from its claim until it is typed.
+	delivering sync.Mutex
 
 	mu     sync.Mutex
 	tell   []goaLine         // lines for GOA until it takes them, kept in tellFile
@@ -197,16 +199,21 @@ func (s *Server) goaSeen(info proto.SessionInfo) {
 	}
 	if s.goa.board.Has(info.ID) {
 		s.goaRanOn(info)
-		go func() {
-			s.goaReportSeen(info)
-			s.goaWorkerChanged(info)
-			if info.State == proto.StateDone || info.Exited && !info.Hibernated {
-				s.goaDeliver(info)
-			}
-		}()
+		go s.goaWorkerSeen(info)
 		return
 	}
 	go s.goaToldChanged(info)
+}
+
+// goaWorkerSeen follows a change of worker info, heard from this host's sessions or
+// from the app for another host's: the board, then its next queued task if it can
+// take one.
+func (s *Server) goaWorkerSeen(info proto.SessionInfo) {
+	s.goaReportSeen(info)
+	s.goaWorkerChanged(info)
+	if info.State == proto.StateDone || info.Exited && !info.Hibernated {
+		s.goaDeliver(info)
+	}
 }
 
 // goaRanOn records the model a task's session says it runs on, each change, on

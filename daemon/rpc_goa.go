@@ -17,10 +17,7 @@ var goaHandlers = map[string]handler{
 	}),
 	proto.MethodGOAWorker: with(func(c *conn, p proto.GOAWorkerParams) (any, error) {
 		if c.srv.goa.board.Has(p.Session.ID) {
-			go func() {
-				c.srv.goaReportSeen(p.Session)
-				c.srv.goaWorkerChanged(p.Session)
-			}()
+			go c.srv.goaWorkerSeen(p.Session)
 		} else {
 			go c.srv.goaToldChanged(p.Session)
 		}

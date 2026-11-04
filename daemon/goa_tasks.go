@@ -171,15 +171,47 @@ func (s *Server) goaSkipOn(p proto.GOADelegateParams, info proto.SessionInfo) {
 // goaDeliver gives a session that ended its turn its oldest queued task, or,
 // when it ended for good, says those tasks can't go.
 func (s *Server) goaDeliver(info proto.SessionInfo) {
+	// One at a time, from claiming a task until it has been typed: a turn's end, an
+	// app's word and the stall watch may all come at once, and each change of a session
+	// still done from its last turn says so again.
+	s.goa.delivering.Lock()
+	defer s.goa.delivering.Unlock()
+	for s.goaDeliverNext(info) {
+	}
+}
+
+// goaDeliverNext gives or fails session info's oldest queued task, and says whether
+// the next one is to be looked at too: all of them fail with a session that ended.
+func (s *Server) goaDeliverNext(info proto.SessionInfo) bool {
 	var next *proto.GOATask
+	running := false
 	tasks := s.goa.board.List()
 	for i := range tasks {
-		if t := &tasks[i]; t.Session == info.ID && t.Status == proto.GOATaskQueued && (next == nil || t.Created.Before(next.Created)) {
-			next = t
+		t := &tasks[i]
+		if t.Session != info.ID {
+			continue
+		}
+		switch t.Status {
+		case proto.GOATaskQueued:
+			if next == nil || t.Created.Before(next.Created) {
+				next = t
+			}
+		case proto.GOATaskWorking, proto.GOATaskWaiting, proto.GOATaskStalled:
+			running = true
 		}
 	}
 	if next == nil {
-		return
+		return false
+	}
+	if !info.Exited {
+		if running {
+			return false // the task before has its turn: this one follows it
+		}
+		if sess, err := s.sessions.Get(info.ID); err == nil {
+			if now := sess.Info(); now.State == proto.StateWorking && !now.StateStale {
+				return false // at work again since this change was heard
+			}
+		}
 	}
 	if info.Exited {
 		t, _ := s.goa.board.Update(next.ID, func(t *proto.GOATask) {
@@ -187,8 +219,7 @@ func (s *Server) goaDeliver(info proto.SessionInfo) {
 		})
 		s.goaChanged()
 		s.goaTell(fmt.Sprintf("[enowX GOA] Task %s %q failed: its session %s ended before it could take it. Delegate it again.", t.ID, t.Title, t.Session))
-		s.goaDeliver(info)
-		return
+		return true
 	}
 	from := ""
 	if g, ok := s.goaSession(); ok {
@@ -203,15 +234,25 @@ func (s *Server) goaDeliver(info proto.SessionInfo) {
 		}
 	})
 	if !claimed {
-		return
+		return false
 	}
 	err := s.goaCall(from, next.Host, proto.MethodSessionInput, proto.SessionInputParams{ID: next.Session, Text: next.Prompt, Paste: true, Enter: true}, nil)
 	if err != nil {
-		_, _ = s.goa.board.Update(next.ID, func(t *proto.GOATask) {
-			t.Status, t.Result = proto.GOATaskFailed, "it couldn't be delivered: "+err.Error()
-		})
+		// Not tried again: it may have gone in, and a task must not go in twice.
+		s.goaQueuedFailed(*next, "it couldn't be delivered, and may not have reached its session: "+err.Error())
+		return false
 	}
+	s.logger().Info("goa: a queued task went in", "session", next.Session, "task", next.ID, "host", next.Host)
 	s.goaChanged()
+	return false
+}
+
+// goaQueuedFailed says on the board and to GOA that queued task t won't go in.
+func (s *Server) goaQueuedFailed(t proto.GOATask, why string) {
+	s.logger().Warn("goa: a queued task can't go in", "session", t.Session, "task", t.ID, "host", t.Host, "why", why)
+	_, _ = s.goa.board.Update(t.ID, func(t *proto.GOATask) { t.Status, t.Result = proto.GOATaskFailed, why })
+	s.goaChanged()
+	s.goaTell(fmt.Sprintf("[enowX GOA] Task %s %q failed: %s. Check session %s, then delegate it again.", t.ID, t.Title, why, t.Session))
 }
 
 // goaSpawn starts a new session for task t on p's host, as GOA's worker.
