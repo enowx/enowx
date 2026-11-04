@@ -309,8 +309,16 @@ func (r runner) answer(args []string) error {
 		return err
 	}
 	if len(args) == 2 {
-		_, err := r.c.AnswerSession(s.ID, args[1])
-		return err
+		res, err := r.c.AnswerSession(s.ID, args[1])
+		switch {
+		case err != nil:
+			return err
+		case res.Woken && res.Told:
+			fmt.Fprintf(r.out, "%s was %s: brought back on its conversation; what it asked was gone, so it has your answer as a message.\n", s.ID, State(s))
+		case res.Woken:
+			fmt.Fprintf(r.out, "%s was %s: brought back on its conversation, and answered.\n", s.ID, State(s))
+		}
+		return nil
 	}
 	ask, err := r.c.SessionAsk(s.ID)
 	if err != nil {

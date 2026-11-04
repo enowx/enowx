@@ -54,7 +54,9 @@ func (s *Server) noteChat(p proto.NoteChatParams) (proto.NoteChatLog, error) {
 	session := ""
 	if info, ok := s.notesSessionOf(n.ID, agent); ok && !p.New {
 		session = info.ID
-		if err := s.input(proto.SessionInputParams{ID: info.ID, Text: p.Prompt, Paste: true, Enter: true}); err != nil {
+		if _, err := s.wakeThen(info.ID, func() error {
+			return s.input(proto.SessionInputParams{ID: info.ID, Text: p.Prompt, Paste: true, Enter: true})
+		}); err != nil {
 			return proto.NoteChatLog{}, err
 		}
 	} else {

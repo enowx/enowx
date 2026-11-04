@@ -280,6 +280,9 @@ func (s *Server) input(p proto.SessionInputParams) error {
 	if err != nil {
 		return err
 	}
+	if sess.Info().Exited {
+		return fmt.Errorf("session %s isn't running, so nothing was sent", p.ID) // wakeThen brings it back
+	}
 	text := p.Text
 	if p.Paste {
 		text = pasteStart + text + pasteEnd

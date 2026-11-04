@@ -207,9 +207,7 @@ func (s *Server) designReview(p proto.DesignReviewParams) (proto.DesignReview, e
 		}
 		s.broadcast(how.event, run)
 		if how.lead != "" {
-			if err := s.input(proto.SessionInputParams{ID: how.lead, Text: designreview.Told(rv, how.again), Paste: true, Enter: true}); err != nil {
-				s.logger().Warn("design review: tell the agent", "session", how.lead, "err", err)
-			}
+			s.tellSession(proto.SessionInputParams{ID: how.lead, Text: designreview.Told(rv, how.again), Paste: true, Enter: true}, "design review: tell the agent")
 		}
 		s.helperFinished(p.Session) // its verdict is its work: it stays on the run
 		return rv, nil
@@ -222,9 +220,7 @@ func (s *Server) designReview(p proto.DesignReviewParams) (proto.DesignReview, e
 			if json.Unmarshal(data, &m) == nil && m.ID != "" {
 				r.Round, r.Session = m.Round, p.Session
 				if m.Lead != "" {
-					if err := s.input(proto.SessionInputParams{ID: m.Lead, Text: designreview.Told(r, m.Again), Paste: true, Enter: true}); err != nil {
-						s.logger().Warn("design review: tell the agent", "session", m.Lead, "err", err)
-					}
+					s.tellSession(proto.SessionInputParams{ID: m.Lead, Text: designreview.Told(r, m.Again), Paste: true, Enter: true}, "design review: tell the agent")
 				}
 				s.helperFinished(p.Session)
 				return r, nil

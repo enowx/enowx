@@ -138,7 +138,8 @@ type Server struct {
 	traf         traffic            // the HTTP interceptor (traffic.go)
 	android      androidState       // Android devices (android.go)
 	hibernates   hibernations       // sessions to hibernate once done (hibernate.go)
-	daemonID     string             // DaemonInfo.ID
+	wakes        sessionWakes
+	daemonID     string // DaemonInfo.ID
 	links        *projectlinks.Store
 	cloud        *cloudLink     // the host's sign-in to a team cloud
 	pushes       autopushes     // auto pushes running (autopush.go)

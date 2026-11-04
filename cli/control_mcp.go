@@ -52,7 +52,7 @@ var controlTools = []mcpTool{
 	{name: "session_ask", description: "What a session's agent waits for: the tool it asks to use (and what it would do) or its questions, and the answers it takes.",
 		props: idProps(nil), required: []string{"id"},
 		args: func(a map[string]any) []string { return sessionArgs("answer", a) }},
-	{name: "session_answer", description: "Answer what a session's agent asks (session_ask first): allow (once), always, deny, or a question's option number.",
+	{name: "session_answer", description: "Answer what a session's agent asks (session_ask first): allow (once), always, deny, or a question's option number. A session asleep is brought back first; if what it asked went with it, it gets the answer as a message.",
 		props: idProps(map[string]mcpProp{"answer": {"string", "allow, always, deny, or an option's number"}}), required: []string{"id", "answer"},
 		args: func(a map[string]any) []string { return append(sessionArgs("answer", a), str(a, "answer")) }},
 	{name: "session_switch", description: "Change a running session's model, reasoning effort, permission mode or account, as its user would in the agent.",

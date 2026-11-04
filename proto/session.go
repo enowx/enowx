@@ -106,6 +106,14 @@ type SessionInputParams struct {
 	From string `json:"from,omitempty"`
 }
 
+// SessionInputResult is what came of MethodSessionInput. Sent: it went in, which a
+// daemon from before this result doesn't say, typing or not. Woken: its agent had
+// stopped, and was brought back on its conversation for it.
+type SessionInputResult struct {
+	Sent  bool `json:"sent"`
+	Woken bool `json:"woken,omitempty"`
+}
+
 // SessionInfo describes a session.
 type SessionInfo struct {
 	// Member is the team's member who started it from their device, nil

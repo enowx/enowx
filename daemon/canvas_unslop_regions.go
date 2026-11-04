@@ -174,9 +174,7 @@ func (s *Server) tellLead(run proto.CanvasUnslopRun, cv proto.Canvas) {
 	at := fmt.Sprintf(`canvas %q, frame %q`, cv.ID, run.Frame)
 	text := fmt.Sprintf(`All %d region agents are done; design %d scores %d/100. Go on: passes 11 (access) and 12 (mobile) on the whole design, each begun with canvas_unslop (%s, pass N); then canvas_unslop (%s, pass "done"), and show the original and design %d side by side (canvas_compare).`,
 		len(run.Regions), n, run.Score, at, at, n)
-	if err := s.input(proto.SessionInputParams{ID: run.Lead, Text: text, Paste: true, Enter: true}); err != nil {
-		s.logger().Warn("canvas: tell the unslop's agent its regions are done", "session", run.Lead, "err", err)
-	}
+	s.tellSession(proto.SessionInputParams{ID: run.Lead, Text: text, Paste: true, Enter: true}, "canvas: tell the unslop's agent its regions are done")
 }
 
 // lease is the region session may change on canvas id, when it is a
