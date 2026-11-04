@@ -226,9 +226,8 @@ func (a *App) poll(w *hostWatch, cl *client.Client) {
 			}
 			w.status = st
 			w.cl, w.info = cl, info
-			if read {
-				a.goaCatchUp(w.host.Name, sessions)
-			}
+			// Every poll, from what's known: a turn's end in a task's first seconds doesn't count yet.
+			a.goaCatchUp(w.host.Name, st.sessions)
 		})
 		select {
 		case <-w.stop:
