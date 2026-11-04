@@ -53,6 +53,8 @@ type LibraryForm struct {
 	Prompt         string   `json:"prompt"`
 	PromptApproved bool     `json:"promptApproved,omitempty"`
 	Rights         bool     `json:"rights,omitempty"`
+	// NoVideo leaves out the short video made of a design that moves.
+	NoVideo bool `json:"noVideo,omitempty"`
 }
 
 // LibraryPrepared is a design packed as a draft, and what the form says of it.

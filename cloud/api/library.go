@@ -139,6 +139,7 @@ type LibraryItem struct {
 	Width        int            `json:"width,omitempty"`
 	Height       int            `json:"height,omitempty"`
 	HasPhone     bool           `json:"hasPhone"`
+	HasVideo     bool           `json:"hasVideo,omitempty"`
 	Creator      LibraryCreator `json:"creator"`
 	Actions      LibraryActions `json:"actions"`
 	Created      time.Time      `json:"created"`
@@ -160,6 +161,7 @@ type LibraryVersion struct {
 	Width    int              `json:"width"`
 	Height   int              `json:"height"`
 	HasPhone bool             `json:"hasPhone"`
+	HasVideo bool             `json:"hasVideo,omitempty"`
 	Size     int64            `json:"size"`
 	Created  time.Time        `json:"created"`
 	Scan     []LibraryFinding `json:"scan,omitempty"`
@@ -238,6 +240,8 @@ type LibraryMe struct {
 	Trust   string         `json:"trust"`
 	// Role is the asker's moderating role, empty for none.
 	Role string `json:"role,omitempty"`
+	// Unread is how many of its notifications it hasn't read.
+	Unread int `json:"unread,omitempty"`
 }
 
 // LibraryExchange trades a sign-in's code for a session.
@@ -253,12 +257,15 @@ type LibrarySession struct {
 	Me      LibraryMe `json:"me"`
 }
 
-// LibraryReportParams reports an item or an account.
+// LibraryReportParams reports an item, an account or a comment.
 type LibraryReportParams struct {
 	ItemID    string `json:"itemId,omitempty"`
 	AccountID string `json:"accountId,omitempty"`
+	CommentID string `json:"commentId,omitempty"`
 	Reason    string `json:"reason"`
 	Detail    string `json:"detail"`
+	// Copyright is what a copyright report says beyond Detail.
+	Copyright *LibraryCopyright `json:"copyright,omitempty"`
 }
 
 // LibraryReport is a report as a moderator sees it. Who reported is for
@@ -274,6 +281,11 @@ type LibraryReport struct {
 	Detail    string    `json:"detail,omitempty"`
 	Status    string    `json:"status"`
 	Created   time.Time `json:"created"`
+	// CommentID and Comment are the comment reported, its text other people's data.
+	CommentID string `json:"commentId,omitempty"`
+	Comment   string `json:"comment,omitempty"`
+	// Copyright is what a copyright report says beyond Detail.
+	Copyright *LibraryCopyright `json:"copyright,omitempty"`
 }
 
 // LibraryQueueItem is an item waiting for a decision.

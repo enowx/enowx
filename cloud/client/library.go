@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"net/url"
 	"strconv"
 	"strings"
 
@@ -98,4 +99,50 @@ func (c *Client) LibraryMine(ctx context.Context) (api.LibraryMine, error) {
 func (c *Client) LibraryWithdraw(ctx context.Context, id string) error {
 	status, body, err := c.Raw(ctx, "DELETE", strings.ReplaceAll(api.PathLibraryItem, "{id}", id), nil)
 	return answerLibrary(status, body, err, nil)
+}
+
+// LibraryNotifications is a page of what happened to the account. What it holds
+// of other people's is data, as its Notice says.
+func (c *Client) LibraryNotifications(ctx context.Context, cursor string) (api.LibraryNotifications, error) {
+	path := api.PathLibraryNotifications
+	if cursor != "" {
+		path += "?cursor=" + url.QueryEscape(cursor)
+	}
+	var out api.LibraryNotifications
+	status, body, err := c.Raw(ctx, "GET", path, nil)
+	return out, answerLibrary(status, body, err, &out)
+}
+
+// LibraryNotificationsRead marks ids read, all of them with none.
+func (c *Client) LibraryNotificationsRead(ctx context.Context, ids []string) error {
+	data, err := json.Marshal(api.LibraryNotifyRead{IDs: ids})
+	if err != nil {
+		return fmt.Errorf("cloud: %w", err)
+	}
+	status, body, err := c.Raw(ctx, "POST", api.PathLibraryNotifyRead, data)
+	return answerLibrary(status, body, err, nil)
+}
+
+// LibraryNotifySettings are the account's: the kinds off, and email.
+func (c *Client) LibraryNotifySettings(ctx context.Context) (api.LibraryNotifySettings, error) {
+	var out api.LibraryNotifySettings
+	status, body, err := c.Raw(ctx, "GET", api.PathLibraryNotifySet, nil)
+	return out, answerLibrary(status, body, err, &out)
+}
+
+// SetLibraryNotifySettings keeps them.
+func (c *Client) SetLibraryNotifySettings(ctx context.Context, set api.LibraryNotifySettings) error {
+	data, err := json.Marshal(set)
+	if err != nil {
+		return fmt.Errorf("cloud: %w", err)
+	}
+	status, body, err := c.Raw(ctx, "PUT", api.PathLibraryNotifySet, data)
+	return answerLibrary(status, body, err, nil)
+}
+
+// LibraryStats are the numbers of the account's own designs.
+func (c *Client) LibraryStats(ctx context.Context) (api.LibraryStats, error) {
+	var out api.LibraryStats
+	status, body, err := c.Raw(ctx, "GET", api.PathLibraryStats, nil)
+	return out, answerLibrary(status, body, err, &out)
 }

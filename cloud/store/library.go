@@ -24,6 +24,7 @@ type LibraryVersionRow struct {
 	Version                                                      int
 	Status, Kind, License, Format, Prompt                        string
 	SourceSize, DocSize, DocPhoneSize, ThumbSize, ThumbPhoneSize int64
+	VideoSize                                                    int64
 	Width, Height                                                int
 	PromptApproved, Rights                                       string
 	Scan                                                         string
@@ -35,13 +36,13 @@ type LibraryVersionRow struct {
 
 // Size is all the version keeps in the bucket.
 func (v LibraryVersionRow) Size() int64 {
-	return v.SourceSize + v.DocSize + v.DocPhoneSize + v.ThumbSize + v.ThumbPhoneSize
+	return v.SourceSize + v.DocSize + v.DocPhoneSize + v.ThumbSize + v.ThumbPhoneSize + v.VideoSize
 }
 
 // API is v as the API shows it.
 func (v LibraryVersionRow) API() api.LibraryVersion {
 	out := api.LibraryVersion{Version: v.Version, Status: v.Status, Kind: v.Kind, License: v.License, Width: v.Width, Height: v.Height,
-		HasPhone: v.DocPhoneSize > 0, Size: v.Size(), Created: v.Created, Prompt: v.Prompt}
+		HasPhone: v.DocPhoneSize > 0, HasVideo: v.VideoSize > 0, Size: v.Size(), Created: v.Created, Prompt: v.Prompt}
 	json.Unmarshal([]byte(v.Scan), &out.Scan)
 	return out
 }
@@ -49,7 +50,7 @@ func (v LibraryVersionRow) API() api.LibraryVersion {
 const libraryItemCols = `i.id, i.slug, i.kind, i.license, i.title, i.description, i.category, i.style, i.theme, i.device, i.has_motion,
 	i.made_with, i.source_url, i.status, i.live_version, i.reject_reason, i.saves, i.featured_at, i.created, i.updated,
 	a.id, COALESCE(p.handle, ''), a.name, a.avatar,
-	COALESCE(v.width, 0), COALESCE(v.height, 0), COALESCE(v.doc_phone_size, 0)`
+	COALESCE(v.width, 0), COALESCE(v.height, 0), COALESCE(v.doc_phone_size, 0), COALESCE(v.video_size, 0)`
 
 const libraryItemFrom = ` FROM library_items i JOIN accounts a ON a.id = i.owner_id LEFT JOIN library_profiles p ON p.account_id = i.owner_id
 	LEFT JOIN library_versions v ON v.item_id = i.id AND v.version = i.live_version`
@@ -60,11 +61,11 @@ func scanLibraryItem(r scanner) (api.LibraryItem, error) {
 	var it api.LibraryItem
 	var motion int
 	var featured, created, updated string
-	var phone int64
+	var phone, video int64
 	err := r.Scan(&it.ID, &it.Slug, &it.Kind, &it.License, &it.Title, &it.Description, &it.Category, &it.Style, &it.Theme, &it.Device, &motion,
 		&it.MadeWith, &it.SourceURL, &it.Status, &it.LiveVersion, &it.RejectReason, &it.Saves, &featured, &created, &updated,
-		&it.Creator.ID, &it.Creator.Handle, &it.Creator.Name, &it.Creator.Avatar, &it.Width, &it.Height, &phone)
-	it.HasMotion, it.Featured, it.HasPhone = motion != 0, featured != "", phone > 0
+		&it.Creator.ID, &it.Creator.Handle, &it.Creator.Name, &it.Creator.Avatar, &it.Width, &it.Height, &phone, &video)
+	it.HasMotion, it.Featured, it.HasPhone, it.HasVideo = motion != 0, featured != "", phone > 0, video > 0
 	it.Created, it.Updated = parseStamp(created), parseStamp(updated)
 	it.Tags = []string{}
 	return it, err
@@ -175,13 +176,13 @@ func (s *DB) LibraryItem(ctx context.Context, id string) (api.LibraryItem, error
 }
 
 const libraryVersionCols = `item_id, version, status, kind, license, format, prompt_text, source_size, doc_size, doc_phone_size, thumb_size, thumb_phone_size,
-	width, height, prompt_approved_at, rights_at, scan, meta, created`
+	width, height, prompt_approved_at, rights_at, scan, meta, created, video_size`
 
 func scanLibraryVersion(r scanner) (LibraryVersionRow, error) {
 	var v LibraryVersionRow
 	var created string
 	err := r.Scan(&v.ItemID, &v.Version, &v.Status, &v.Kind, &v.License, &v.Format, &v.Prompt, &v.SourceSize, &v.DocSize, &v.DocPhoneSize, &v.ThumbSize, &v.ThumbPhoneSize,
-		&v.Width, &v.Height, &v.PromptApproved, &v.Rights, &v.Scan, &v.Meta, &created)
+		&v.Width, &v.Height, &v.PromptApproved, &v.Rights, &v.Scan, &v.Meta, &created, &v.VideoSize)
 	v.Created = parseStamp(created)
 	return v, err
 }
@@ -369,7 +370,7 @@ func (s *DB) AddLibraryVersion(ctx context.Context, id string, v LibraryVersionR
 // owner's account keeps changing with it, in one step: a quota can't be
 // raced past by uploads at once.
 func (s *DB) SetLibraryPartSize(ctx context.Context, owner, id string, n int, part string, size, accountLimit int64) error {
-	col, ok := map[string]string{api.PartSource: "source_size", api.PartDoc: "doc_size", api.PartDocPhone: "doc_phone_size", api.PartThumb: "thumb_size", api.PartThumbPhone: "thumb_phone_size"}[part]
+	col, ok := map[string]string{api.PartSource: "source_size", api.PartDoc: "doc_size", api.PartDocPhone: "doc_phone_size", api.PartThumb: "thumb_size", api.PartThumbPhone: "thumb_phone_size", api.PartVideo: "video_size"}[part]
 	if !ok {
 		return errors.New("store: no such part")
 	}
@@ -546,7 +547,7 @@ func (s *DB) ForgetLibraryVersion(ctx context.Context, p LibraryPurge) error {
 	defer tx.Rollback()
 	var size int64
 	var owner string
-	err = tx.QueryRowContext(ctx, `SELECT v.source_size + v.doc_size + v.doc_phone_size + v.thumb_size + v.thumb_phone_size, i.owner_id
+	err = tx.QueryRowContext(ctx, `SELECT v.source_size + v.doc_size + v.doc_phone_size + v.thumb_size + v.thumb_phone_size + v.video_size, i.owner_id
 		FROM library_versions v JOIN library_items i ON i.id = v.item_id WHERE v.item_id = $1 AND v.version = $2`, p.ItemID, p.Version).Scan(&size, &owner)
 	if errors.Is(err, sql.ErrNoRows) {
 		return nil

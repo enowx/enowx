@@ -148,6 +148,7 @@ func (s *Service) getPrompt(w http.ResponseWriter, r *http.Request) {
 		fail(w, http.StatusNotFound, "this design has no prompt")
 		return
 	}
+	s.countReuse(it.ID)
 	reply(w, api.LibraryPrompt{Prompt: v.Prompt + "\n\n" + s.credit(it)})
 }
 
@@ -164,7 +165,7 @@ func (s *Service) credit(it api.LibraryItem) string {
 // them; whether they may still show is what it asks about the item.
 func (s *Service) object(w http.ResponseWriter, r *http.Request) {
 	part := r.PathValue("part")
-	if part != api.PartDoc && part != api.PartDocPhone && part != api.PartThumb && part != api.PartThumbPhone {
+	if part != api.PartDoc && part != api.PartDocPhone && part != api.PartThumb && part != api.PartThumbPhone && part != api.PartVideo {
 		fail(w, http.StatusNotFound, "not found")
 		return
 	}
@@ -234,6 +235,10 @@ func (s *Service) me(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	me.Role = a.role
+	if me.Unread, err = s.db.LibraryUnread(r.Context(), a.account.ID); err != nil {
+		s.answer(w, nil, err)
+		return
+	}
 	reply(w, me)
 }
 
@@ -270,10 +275,18 @@ func (s *Service) report(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	accID := asker(r).account.ID
+	// A device's first act may be this: moderators read who by the handle.
+	if _, err := s.db.LibraryProfile(r.Context(), accID); err != nil {
+		s.answer(w, nil, err)
+		return
+	}
 	p.Detail = cleanText(p.Detail, 2000)
 	switch {
-	case (p.ItemID == "") == (p.AccountID == ""):
-		fail(w, http.StatusBadRequest, "report a design or an account")
+	case p.CommentID != "" && (p.ItemID != "" || p.AccountID != ""):
+		fail(w, http.StatusBadRequest, "report one thing at a time")
+		return
+	case p.CommentID == "" && (p.ItemID == "") == (p.AccountID == ""):
+		fail(w, http.StatusBadRequest, "report a design, an account or a comment")
 		return
 	case !oneOf(api.LibraryReasons, p.Reason):
 		fail(w, http.StatusBadRequest, "pick a reason")
@@ -282,7 +295,22 @@ func (s *Service) report(w http.ResponseWriter, r *http.Request) {
 		fail(w, http.StatusBadRequest, "a copyright report says what is yours, and where it is")
 		return
 	}
-	if p.ItemID != "" {
+	if !cleanCopyright(w, &p) {
+		return
+	}
+	if p.CommentID != "" {
+		c, err := s.db.LibraryCommentByID(r.Context(), p.CommentID)
+		if err != nil {
+			s.answer(w, nil, err)
+			return
+		}
+		if c.Status != "live" {
+			fail(w, http.StatusNotFound, "not found")
+			return
+		}
+		// Which design, and whose words: for the moderators' queue and its block.
+		p.ItemID, p.AccountID = c.ItemID, c.AuthorID
+	} else if p.ItemID != "" {
 		it, err := s.db.LibraryItem(r.Context(), p.ItemID)
 		if err != nil {
 			s.answer(w, nil, err)
@@ -307,6 +335,32 @@ func (s *Service) report(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	s.answer(w, nil, s.db.AddLibraryReport(r.Context(), accID, p))
+}
+
+// cleanCopyright reads what a copyright report says beyond its detail, or answers.
+// A website not yet sending it still reports with its detail alone, for moderators
+// to see that the rest wasn't given.
+func cleanCopyright(w http.ResponseWriter, p *api.LibraryReportParams) bool {
+	c := p.Copyright
+	if p.Reason != "copyright" {
+		p.Copyright = nil
+		return true
+	}
+	if c == nil {
+		return true
+	}
+	c.Original, c.Claimant = strings.TrimSpace(c.Original), cleanText(c.Claimant, 200)
+	switch {
+	case !webURL(c.Original) || len(c.Original) > 2000:
+		fail(w, http.StatusBadRequest, "say where the original is, as a web address")
+	case c.Claimant == "":
+		fail(w, http.StatusBadRequest, "say who claims this: you, or who you act for")
+	case !c.Statement:
+		fail(w, http.StatusBadRequest, "say that you own this work or act for its owner, and that this is true")
+	default:
+		return true
+	}
+	return false
 }
 
 // escaped is the website saying a preview tried to leave its frame: the item
