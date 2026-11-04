@@ -26,11 +26,19 @@ func (r runner) background(args []string) error {
 	if err != nil {
 		return err
 	}
+	only := ""
+	if len(args) == 1 {
+		s, err := r.session(args[0])
+		if err != nil {
+			return err
+		}
+		only = s.ID
+	}
 	w := tabwriter.NewWriter(r.out, 0, 0, 2, ' ', 0)
 	fmt.Fprintln(w, "SESSION\tPID\tAGENT\tFOR\tCPU\tMEMORY\tNOTE")
 	now := time.Now()
 	for _, s := range list {
-		if len(args) == 1 && s.ID != args[0] {
+		if only != "" && s.ID != only {
 			continue
 		}
 		for _, b := range s.Background {

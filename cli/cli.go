@@ -84,6 +84,7 @@ const usage = `usage: enowx-app <command> [arguments]
                                    move a group's projects before project P, or last
   projects rename-group FROM TO    rename a group ("" ungroups its projects)
   notify [sound|set|status]        sounds the user's enowX app plays ("notify help")
+  background [SESSION]             agents in sessions' backgrounds; background stop SESSION PID --yes stops one
   cache [clean]                    what this host's enowX folder takes, and cleaning what can go ("cache --help")
   diagnostics [--all] [--bundle F] recent connection events from the logs, or all the logs as a zip for a bug report
   cloud [login|logout|devices|approve|url]
@@ -219,7 +220,7 @@ func (r runner) command(args []string) error {
 	case "wait":
 		return r.wait(rest)
 	case "background":
-		return r.background(args)
+		return r.background(rest)
 	case "kill":
 		return r.closeSession(rest)
 	case "hibernate":

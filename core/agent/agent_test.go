@@ -116,6 +116,7 @@ func TestProgramOf(t *testing.T) {
 		{[]string{"bun", "/x/.bin/omp", "--session-dir", "/s"}, "omp"},
 		{[]string{`C:\\bin\\claude.exe`}, "claude"},
 		{[]string{"claude", "mcp", "serve"}, ""},
+		{[]string{"codex", "-c", "mcp_servers.enowx.command=x"}, "codex"},
 		{[]string{"codex", "mcp-server"}, ""},
 		{[]string{"node", "server.js"}, ""},
 		{[]string{"vite"}, ""},
