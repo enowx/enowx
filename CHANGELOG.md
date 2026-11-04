@@ -2,6 +2,35 @@
 
 Each version's section is also what the app's update dialog shows.
 
+## 0.6.2
+
+Fixes the app dropping its connection when you move to Canvas with large designs, and adds logs that say why a connection ended, so a problem like this can be read afterwards.
+
+- **Canvas no longer drops the connection.** Showing a design's picture sends its whole page to the app, and a page over 16 MB closed the connection. Large messages now go in parts, up to 256 MB, with everything else carrying on between them. What can't be sent fails on its own with a clear error, and the connection stays up. Older apps and daemons connected to a new one get that error too.
+- **Large canvases and pictures** that used to fail now go through, for the same reason.
+- **Less memory for design pictures:** each is held at 4 megapixels at most while the disk keeps it whole. A canvas with many tall designs could take a gigabyte or more before.
+- **Logs:** the app now has its own, `app.log`, beside the daemon's `enowxd.log`. They record starts and exits, crashes with their stack, every connection with an ID shared by both sides, who closed it and why, slow or large calls, page changes, canvas loads with their size, web views and slow frames. The watchdog marks memory jumps. Logs hold names, IDs, sizes and errors, never your prompts or designs, and what looks like a secret is masked.
+- **A bundle for bug reports:** **Save diagnostics for a bug report** in the command palette, or `enowx-app diagnostics` for the recent connection events and `--bundle FILE` for a zip. It works with the daemon down.
+- **Old logs clean themselves up:**
+  - The app's and the daemon's logs rotate at 5 MB and keep 3 older copies: up to 30 days and 24 MB together.
+  - Freeze reports: 30 files, 30 days, 64 MB.
+  - Commands' saved whole outputs: 7 days, 100 MB.
+  - The current logs and the most recent older copy always stay, and nothing goes while a bundle is reading. **Clean cache** offers the rest. [All the limits](https://github.com/enowdev/enowx/blob/main/docs/diagnostics.md).
+- **A daemon running as a service now writes `enowxd.log`.** It only wrote to the service manager's journal, so that log went stale.
+
+### What has been tested
+
+- **The cause of the disconnect was reproduced by a test and has not been confirmed on a real Mac.** The canvases that trigger it on a Mac weren't measured. If it still happens, the new logs will say why: please send the bundle.
+- **The app's log, the palette action and the memory limit haven't run in a real app.** Tests cover the connection logging, the masking and the cleanup, and a real daemon and command line ran them on Linux. Windows and macOS have only the automated tests.
+- **Some automated tests are unreliable on macOS:** this release's merge had that job failing, with different tests each run, and it was accepted as it is.
+
+### When you update
+
+- **A log over 5 MB is cut on first start:** its last 5 MB is kept as `.1` and the rest is deleted.
+- **Clean cache no longer trims the current `enowxd.log`.** It now takes older copies and saved outputs.
+- **The first start after updating may say `lastRun=unclean` in the log.** Older logs have no exit mark, so it means nothing that once.
+- **The first start restarts the daemon,** as with any update: agents at work stop and continue their conversation when it's back, and commands running in terminal tabs end. So finish what's running first.
+
 ## 0.6.1
 
 Fixes sessions that wouldn't start on Windows, and keeps long content fast in more of the app. **On Windows, read "When you update" below.**

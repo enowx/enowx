@@ -1,7 +1,7 @@
 {
   "name": "enowX",
   "identifier": "ai.enowx.app",
-  "version": "0.6.1",
+  "version": "0.6.2",
   "copyright": "© 2026 enowX contributors",
   "out": "../../build",
   "macos": {
