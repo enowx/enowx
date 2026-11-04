@@ -362,15 +362,22 @@ func cleanCopyright(w http.ResponseWriter, p *api.LibraryReportParams) bool {
 	return false
 }
 
-// escaped is the website saying a preview tried to leave its frame: the item
-// goes to moderators, once while the report is open.
+// escaped is the website saying a preview tried to leave its frame: a live item
+// goes to moderators, once while the report is open and once in a while after it.
+// Anyone can say this of any design, so it adds no more than that, and moderators
+// read it after what people reported (LibraryOpenReports).
 func (s *Service) escaped(w http.ResponseWriter, r *http.Request) {
 	id := r.PathValue("id")
-	if _, err := s.db.LibraryItem(r.Context(), id); err != nil {
+	it, err := s.db.LibraryItem(r.Context(), id)
+	if err != nil {
 		s.answer(w, nil, err)
 		return
 	}
-	s.answer(w, nil, s.db.AddLibraryReport(r.Context(), "", api.LibraryReportParams{ItemID: id, Reason: "escaped-preview", Detail: "A preview tried to leave its frame."}))
+	if it.Status != api.LibraryLive {
+		w.WriteHeader(http.StatusNoContent)
+		return
+	}
+	s.answer(w, nil, s.db.AddLibraryEscape(r.Context(), id, "A preview tried to leave its frame."))
 }
 
 // cleanText is s as text the library keeps and shows: control and
