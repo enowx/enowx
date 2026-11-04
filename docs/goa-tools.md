@@ -135,6 +135,7 @@ This follows the agent's mode; it isn't a boundary against the agent. A command 
 | Import and export | `notes import-status` | `notes import\|export` | this host | ✅ |
 | Canvases, designs, comments, versions, exports | `canvas list\|show\|comments\|history\|screenshot` (`canvas_*`) | `canvas new\|write\|patch\|shape\|…` | synced | ✅ |
 | Design brief, unslop, review, build | `canvas brief`, `browser unslop` | `canvas build`, `review` | this host | ✅ |
+| Community library (opt-in) | `library search\|show\|prompt` (`library_*`), other people's data, labelled | `library publish` only shows the user a card to the form; sending is the user's, in the app | the host's cloud | ✅ |
 | Icons | `icons search` (`icons_search`) | | needs no host | ✅ |
 | Team chat | `team chat` (`team_chat_read`) | `team chat --send` (`team_chat_send`) | cloud | ✅ |
 | Your data's sync | `sync status\|conflicts\|trash` (`sync_*`) | `sync now\|resolve\|restore` | all hosts | ✅ |

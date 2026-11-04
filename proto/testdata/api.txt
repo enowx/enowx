@@ -41,6 +41,7 @@ event goa.changed
 event goa.flagged
 event hooks.changed
 event host.visitors
+event library.publishAsked
 event note.chat
 event notes.changed
 event notes.groups
@@ -1421,6 +1422,13 @@ field LeftProcess.name string
 field LeftProcess.pid int
 field LeftProcess.session string
 field LeftProcess.start string
+field LibraryActions.copyPrompt bool
+field LibraryActions.openInEnowX bool
+field LibraryActions.useComponent bool
+field LibraryActions.useReference bool
+field LibraryAskPublishParams.canvas string
+field LibraryAskPublishParams.frame string
+field LibraryAskPublishParams.from string
 field LibraryDesign.canvas string
 field LibraryDesign.draftId string
 field LibraryDesign.findings []LibraryFinding
@@ -1449,6 +1457,29 @@ field LibraryForm.sourceUrl string
 field LibraryForm.tags []string
 field LibraryForm.title string
 field LibraryItemRef.itemId string
+field LibraryListing.actions LibraryActions
+field LibraryListing.category string
+field LibraryListing.creator string
+field LibraryListing.description string
+field LibraryListing.featured bool
+field LibraryListing.handle string
+field LibraryListing.hasMotion bool
+field LibraryListing.hasPhone bool
+field LibraryListing.height int
+field LibraryListing.itemId string
+field LibraryListing.kind string
+field LibraryListing.license string
+field LibraryListing.madeWith string
+field LibraryListing.tags []string
+field LibraryListing.title string
+field LibraryListing.updated time.Time
+field LibraryListing.url string
+field LibraryListing.version int
+field LibraryListing.width int
+field LibraryPicture.data []byte
+field LibraryPictureParams.itemId string
+field LibraryPictureParams.phone bool
+field LibraryPictureParams.version int
 field LibraryPrepareParams.canvas string
 field LibraryPrepareParams.frame string
 field LibraryPrepareParams.noPhone bool
@@ -1473,9 +1504,28 @@ field LibraryPrepared.siteUrl string
 field LibraryPrepared.size int64
 field LibraryPrepared.trust string
 field LibraryPrepared.width int
+field LibraryPromptAnswer.item LibraryListing
+field LibraryPromptAnswer.prompt string
+field LibraryPublishAsked.appOpen bool
+field LibraryPublishAsked.canvas string
+field LibraryPublishAsked.canvasTitle string
+field LibraryPublishAsked.frame string
+field LibraryPublishAsked.frameName string
+field LibraryPublishAsked.from string
 field LibraryPublishParams.acceptWarnings bool
 field LibraryPublishParams.draftId string
 field LibraryPublishParams.form LibraryForm
+field LibraryResults.items []LibraryListing
+field LibraryResults.next string
+field LibraryResults.on bool
+field LibraryResults.siteUrl string
+field LibrarySearchParams.category string
+field LibrarySearchParams.cursor string
+field LibrarySearchParams.kind string
+field LibrarySearchParams.license string
+field LibrarySearchParams.limit int
+field LibrarySearchParams.query string
+field LibrarySearchParams.sort string
 field LibraryState.designs []LibraryDesign
 field LibraryState.limit int64
 field LibraryState.on bool
@@ -2966,10 +3016,15 @@ method host.keysToVault
 method host.share
 method host.share.set
 method host.visitors
+method library.askPublish
 method library.deleteDraft
+method library.item
+method library.picture
 method library.prepare
+method library.prompt
 method library.publish
 method library.saveDraft
+method library.search
 method library.status
 method library.withdraw
 method note.accept

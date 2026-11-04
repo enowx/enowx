@@ -109,6 +109,7 @@ func (s *Service) Mount(mux *http.ServeMux) {
 	handle("GET "+api.PathLibraryItem, s.public(s.getItem))
 	handle("GET "+api.PathLibraryVersions, s.public(s.listVersions))
 	handle("GET "+api.PathLibraryPrompt, s.public(s.getPrompt))
+	handle("GET "+api.PathLibraryPicture, s.public(s.picture))
 	handle("POST "+api.PathLibraryEscaped, s.webOnly(s.escaped))
 	handle("GET "+api.PathLibraryPart, s.webOnly(s.object))
 

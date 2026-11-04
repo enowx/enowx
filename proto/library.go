@@ -3,8 +3,8 @@ package proto
 import "time"
 
 // enowX UI, the community library: sharing a canvas's design, from the host
-// (daemon/library.go). Publishing goes from the app's form only: an agent or
-// the command line can read how a design stands, not publish one.
+// (daemon/library.go). Publishing goes from the app's form only: the daemon
+// refuses MethodLibraryPublish from anything else that says what it is.
 const (
 	// MethodLibraryPrepare checks a design and packs it as a draft on the host:
 	// what the form shows before anything leaves it.
