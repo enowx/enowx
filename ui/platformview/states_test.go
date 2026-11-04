@@ -223,7 +223,9 @@ func TestPromptTab(t *testing.T) {
 	// A failed read says so and offers to try again.
 	bad := &View{}
 	bad.Open(TabPrompt)
-	o.LoadPrompt = func(done func(proto.PlatformPrompt, error)) { done(proto.PlatformPrompt{}, errors.New("unknown method")) }
+	o.LoadPrompt = func(done func(proto.PlatformPrompt, error)) {
+		done(proto.PlatformPrompt{}, errors.New("unknown method"))
+	}
 	bt := drawn(bad, &o, 900, 700)
 	frames(bt, 3)
 	if !has(bt, "unknown method") || !bt.HasText("Try again") {
