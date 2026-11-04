@@ -102,7 +102,6 @@ func (a *App) view(c *ui.Context) {
 	a.cloudSignInDialog(c)
 	a.spaceMoveDialog(c)
 	a.rulesDialog(c)
-	a.confirmDialog(c)
 	a.renameDialog(c)
 	a.goaStartDialog(c)
 	a.goaDetailDialog(c)
@@ -119,6 +118,7 @@ func (a *App) view(c *ui.Context) {
 	a.cloneDialog(c)
 	a.noteImportDialog(c)
 	a.noteExportDialog(c)
+	a.confirmDialog(c) // last: what a dialog asks shows over it
 	a.saveState()
 }
 
