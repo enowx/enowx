@@ -42,6 +42,9 @@ type Reader struct {
 
 	// The agent's settings, as the transcript last said them.
 	Model, Mode, Effort string
+	// ModelChosen is the last model the user chose in the agent itself, for an agent whose
+	// transcript tells that from one it moved to by itself (TellsModelChoice).
+	ModelChosen string
 	// Context is the tokens the conversation filled at the agent's last
 	// answer; Window how much the model holds, when the agent says.
 	Context, Window int64

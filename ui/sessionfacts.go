@@ -48,6 +48,10 @@ func modelLine(s proto.SessionInfo) (short, full string) {
 		short += " (last)"
 		full += ", the last it said: it isn't running"
 	}
+	if s.ModelStarted != "" {
+		short += " (started on " + textfmt.ShortModel(s.ModelStarted) + ")"
+		full += "\nStarted on " + s.ModelStarted + ": its agent moved to this one, by a fallback or a change in the agent"
+	}
 	return short, full
 }
 

@@ -2006,6 +2006,7 @@ field SessionInfo.id string
 field SessionInfo.member *SessionMember
 field SessionInfo.model string
 field SessionInfo.modelLast bool
+field SessionInfo.modelStarted string
 field SessionInfo.name string
 field SessionInfo.noAutoHibernate bool
 field SessionInfo.note string

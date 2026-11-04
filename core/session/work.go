@@ -141,11 +141,19 @@ func (s *Session) QuickExits() int {
 }
 
 // SetModel records what session s's agent last said it runs on.
-func (m *Manager) SetModel(s *Session, model, effort string) {
+func (m *Manager) SetModel(s *Session, model, effort, started string, moved bool) {
 	s.mu.Lock()
-	s.meta.Model, s.meta.Effort = model, effort
+	s.meta.Model, s.meta.Effort, s.meta.ModelStarted, s.meta.ModelMoved = model, effort, started, moved
 	s.mu.Unlock()
 	m.notify(s)
+}
+
+// movedFromLocked is SessionInfo.ModelStarted. The caller holds s.mu.
+func (s *Session) movedFromLocked() string {
+	if s.meta.ModelMoved {
+		return s.meta.ModelStarted
+	}
+	return ""
 }
 
 // SetMode records the permission mode session s's agent is in.

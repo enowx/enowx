@@ -146,6 +146,9 @@ type SessionInfo struct {
 	Model     string `json:"model,omitempty"`
 	Effort    string `json:"effort,omitempty"`
 	ModelLast bool   `json:"modelLast,omitempty"`
+	// ModelStarted is what it was started on, or the user last chose in its agent, when its
+	// agent says it now runs on another, a fallback say; "" when it doesn't.
+	ModelStarted string `json:"modelStarted,omitempty"`
 	// SkipUnheard is SessionCreateParams.SkipUnheard: for GOD of Agents,
 	// what its workers follow.
 	SkipUnheard bool `json:"skipUnheard,omitempty"`

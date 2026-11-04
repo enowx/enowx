@@ -63,6 +63,10 @@ type Meta struct {
 	// Model and Effort: what its agent last said it runs on. Mode: its permission mode, the
 	// same way. All three go on its command line whenever it starts again.
 	Model, Effort, Mode string
+	// ModelStarted is what it was started on, or the user last chose in its agent; ModelMoved:
+	// its agent no longer says that one.
+	ModelStarted string
+	ModelMoved   bool
 	// Conversation is its agent's conversation, by the id the agent
 	// resumes it with: it goes on with its own, not the folder's latest.
 	Conversation string
@@ -241,6 +245,7 @@ func (s *Session) Info() proto.SessionInfo {
 		Model:           s.meta.Model,
 		Effort:          s.meta.Effort,
 		ModelLast:       s.meta.Model != "" && (s.exited || s.meta.Hibernated),
+		ModelStarted:    s.movedFromLocked(),
 		Restored:        s.meta.Restored,
 		Exited:          s.exited,
 		ExitCode:        s.code,
