@@ -126,6 +126,7 @@ func (v *View) pageBody(c *ui.Context, o Options, p *page) {
 	for _, pr := range v.proposalsFor(o, p.id) {
 		v.proposalCard(c.Key(pr.ID), o, pr, p.ed.markdown())
 	}
+	v.docsPanel(c, o, p)
 	v.iconButton(c, o, p)
 	if p.mode == modeRead {
 		ui.Text(c, titleOf(proto.NoteInfo{Title: p.title})).FillWidth().PaddingX(6).FontSize(32).FontWeight(750).TextColor(theme.TextStrong)
@@ -139,7 +140,7 @@ func (v *View) pageBody(c *ui.Context, o Options, p *page) {
 			if k.Key != ui.KeyEnter && k.Key != ui.KeyDown || p.mode != modeEdit {
 				return false
 			}
-			p.ed.openAt(0, 0) // the body goes on from the title
+			p.ed.openAt(p.ed.firstShown(), 0) // the body goes on from the title
 			return true
 		})
 		if title.Changed() {

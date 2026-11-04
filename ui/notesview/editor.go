@@ -100,6 +100,9 @@ func (e *editor) draw(c *ui.Context) {
 	numbers := e.numbers()
 	ui.Column(c).FillWidth().Gap(2).Children(func() {
 		for i := range e.blocks {
+			if i == 0 && e.open != 0 && e.firstShown() == 1 {
+				continue // a Project Docs line: its strip above the page says it
+			}
 			if _, ok := imageBlockParts(e.blocks[i]); ok {
 				e.imageBlock(c.Key(i), i)
 				continue

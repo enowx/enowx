@@ -74,6 +74,10 @@ func (v *View) sidebar(c *ui.Context, o Options) {
 				more := widget.IconButton(c, icon.More, "Import and export", false)
 				v.menu.OpenBelow(more, "notes-io", 28)
 				v.menu.Show(c, more, "notes-io", func(done func()) {
+					if o.NewDocs != nil && widget.MenuItem(c, icon.Notebook, "New project docs…", false) {
+						o.NewDocs()
+						done()
+					}
 					if o.Import != nil && widget.MenuItem(c, icon.ArrowDown, "Import…", false) {
 						o.Import()
 						done()
