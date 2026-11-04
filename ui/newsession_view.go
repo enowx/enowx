@@ -7,6 +7,7 @@ import (
 	"github.com/enowx/enowx/core/agent"
 	"github.com/enowx/enowx/core/hosts"
 	"github.com/enowx/enowx/proto"
+	"github.com/enowx/enowx/ui/chatview"
 	"github.com/enowx/enowx/ui/icon"
 	"github.com/enowx/enowx/ui/theme"
 	"github.com/enowx/enowx/ui/widget"
@@ -44,6 +45,9 @@ func (a *App) newSessionDialog(c *ui.Context) {
 		ui.Column(c.Key("agent-project")).FillWidth().Shrink(0).Children(func() {
 			widget.FieldCols(c, func() { a.agentPicker(c) }, func() { a.projectPicker(c) })
 		})
+		if chatview.OwnChat(f.agent) {
+			a.platformNewSessionNote(c)
+		}
 		if install {
 			a.installCard(c, ag)
 			a.formError(c)

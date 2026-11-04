@@ -1654,6 +1654,11 @@ field PipelineStartParams.project string
 field PipelineStartParams.skipPermissions bool
 field PipelineStartParams.stages []PipelineStage
 field PipelineStartParams.task string
+field PlatformPrompt.custom bool
+field PlatformPrompt.path string
+field PlatformPrompt.reset bool
+field PlatformPrompt.text string
+field PlatformPrompt.tooLong bool
 field PluginRun.ok bool
 field PluginRun.output string
 field PluginRunParams.action string
@@ -2660,8 +2665,10 @@ field TrafficTransform.replace []TrafficReplace
 field TrafficTransform.setHeaders []Header
 field TrafficTransform.status int
 field TrafficTransform.url string
+field Transcript.budgetUsd float64
 field Transcript.contextTokens int64
 field Transcript.contextWindow int64
+field Transcript.costUsd float64
 field Transcript.effort string
 field Transcript.entries []TranscriptEntry
 field Transcript.mode string
@@ -2778,6 +2785,8 @@ field UnslopWalkState.steps []string
 field Usage.cpu float64
 field Usage.procs int
 field Usage.rss uint64
+field VaultAgentKey.env map[string]string
+field VaultAgentKeyParams.session string
 field VaultAsk.account string
 field VaultAsk.action string
 field VaultAsk.command string
@@ -3087,6 +3096,8 @@ method pipeline.cancel
 method pipeline.list
 method pipeline.remove
 method pipeline.start
+method platform.prompt
+method platform.prompt.save
 method project.add
 method project.arrange
 method project.clone
@@ -3265,6 +3276,7 @@ method transfer.read
 method transfer.unpack
 method transfer.write
 method tunnel.open
+method vault.agentKey
 method vault.ask
 method vault.attach
 method vault.audit

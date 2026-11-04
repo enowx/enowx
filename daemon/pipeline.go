@@ -267,7 +267,7 @@ func (s *Server) runStage(pl proto.Pipeline, i int, stop <-chan struct{}) (strin
 			p.Stages[i].Session, p.Stages[i].Started, p.Stages[i].Status = sess.ID(), time.Now(), proto.PipelineRunning
 		})
 	}
-	hooks := len(agent.HookArgs(st.Agent)) > 0
+	hooks := agent.ReportsItself(st.Agent)
 	started := time.Now()
 	quietSince := time.Time{}
 	tick := time.NewTicker(pipelinePoll)

@@ -151,6 +151,7 @@ var (
 		"shell":       Terminal,
 		// Claude Code with its teams of agents.
 		"claude-agent-teams": load("claude"),
+		"claude-platform":    load("claude"),
 		"custom":             Plus,
 	}
 )

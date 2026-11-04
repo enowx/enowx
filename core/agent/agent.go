@@ -93,6 +93,11 @@ type Preset struct {
 	Homepage string
 	// Namesake tells the agent from another program that installs under its name.
 	Namesake *Namesake
+	// Builtin: the agent is enowX's own program, always there, running as Args say.
+	Builtin bool
+	// VaultPlatform is the vault's platform whose credential the agent's official form
+	// runs on (daemon/agentkey.go): lent to its own process alone, never its tabs.
+	VaultPlatform string
 }
 
 // Namesake is another program with an agent's name. The agent is confirmed, not the
@@ -189,6 +194,9 @@ func (p Preset) Argv(l Launch) []string {
 // Program is the name the agent runs as on this host: the first of Command and Aliases
 // on the PATH that is the agent, else Command.
 func (p Preset) Program() string {
+	if p.Builtin {
+		return runningProgram()
+	}
 	if name := p.found(); name != "" {
 		return name
 	}
@@ -197,7 +205,17 @@ func (p Preset) Program() string {
 
 // Installed reports whether the agent's program is on this host's PATH, and is the
 // agent rather than a namesake.
-func (p Preset) Installed() bool { return p.found() != "" }
+func (p Preset) Installed() bool { return p.Builtin || p.found() != "" }
+
+// runningProgram is enowX's program as sessions reach it: the daemon sets EnvBin to the
+// path that outlives an update (daemon.useLauncher), under whichever name it runs.
+func runningProgram() string {
+	if bin := os.Getenv(EnvBin); bin != "" {
+		return bin
+	}
+	exe, _ := os.Executable()
+	return exe
+}
 
 // NamesakeHere is the path of another program with the agent's name on this host, the
 // reason a session can't start it, when it is all there is of the agent.

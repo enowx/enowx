@@ -31,7 +31,7 @@ const EnvSession = "ENOWX_SESSION"
 // Commands are the command line's commands, for the programs that also
 // do other things with their arguments to tell them apart.
 var Commands = []string{"ls", "list", "sessions", "peek", "status", "spawn", "send", "read", "wait", "kill", "hibernate", "wake", "agents", "projects", "project", "shells", "notes", "features", "creds", "canvas", "review", "sync", "cache", "diagnostics", "icons", "attach", "pipeline", "pipelines", "note", "automation", "automations", "hooks", "accounts", "configs", "rag", "decide", "usage", "browser", "traffic", "android", "mcp", "guide", "ports", "run", "api", "notify", "cloud", "team", "help",
-	"background", "profile", "interrupt", "stop", "continue", "fork", "rename", "close", "chat", "answer", "switch", "changes", "settings", "control", "goa"}
+	"background", "profile", "interrupt", "stop", "continue", "fork", "rename", "close", "chat", "answer", "switch", "changes", "settings", "control", "goa", "claude-platform"}
 
 // Is reports whether args start with one of Commands.
 func Is(args []string) bool { return len(args) > 0 && slices.Contains(Commands, args[0]) }
@@ -169,6 +169,8 @@ func Run(args []string, out io.Writer) error {
 		return nil
 	}
 	switch args[0] {
+	case "claude-platform":
+		return claudePlatform(args[1:], out) // an agent, not a command of the daemon's
 	case "diagnostics":
 		return runner{out: out}.diagnostics(args[1:]) // the daemon may be what is down
 	case "android":

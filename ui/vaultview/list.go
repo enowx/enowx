@@ -202,6 +202,12 @@ func mainValue(cr vault.Credential) string {
 	return ""
 }
 
+// Status is a credential's state as its card says it, its value left out.
+func Status(cr vault.Credential, now time.Time) (string, ui.Color) {
+	st := cr.State(now)
+	return statusLabel(st), statusColor(st)
+}
+
 func statusLabel(st string) string {
 	switch st {
 	case proto.CredValid:

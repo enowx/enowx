@@ -28,7 +28,7 @@ func keptArgs(m session.Meta) []string {
 	if m.ModelMoved && transcript.TellsModelChoice(m.Agent) {
 		model = m.ModelStarted
 	}
-	return agent.StartArgs(m.Agent, model, m.Effort, m.Mode, m.SkipPermissions)
+	return agent.KeptArgs(m.Agent, model, m.Effort, m.Mode, m.SkipPermissions)
 }
 
 // keepBypass has meta say what agent.Preset.Argv does to its agent's command line: a saved

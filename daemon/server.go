@@ -41,12 +41,13 @@ var Version = version.String
 
 // Server serves connections. One Server runs per user per machine.
 type Server struct {
-	exitsLogged sync.Map // session IDs whose end is in the log
-	pipes       pipelines
-	autos       automations
-	hooks       *hookEngine // the user's hooks (hooks.go)
-	control     controlLog  // requests made through host.call (hostcontrol.go)
-	agentModes  agentModes  // what agents' hooks last said of their permission mode (agentmode.go)
+	exitsLogged  sync.Map // session IDs whose end is in the log
+	pipes        pipelines
+	autos        automations
+	hooks        *hookEngine // the user's hooks (hooks.go)
+	control      controlLog  // requests made through host.call (hostcontrol.go)
+	agentModes   agentModes  // what agents' hooks last said of their permission mode (agentmode.go)
+	modeSwitches sync.Map    // session ID → *atomic.Uint64, the latest mode switch (switchMode)
 	// WorktreeRoot is where worktrees are created.
 	WorktreeRoot string
 	// Hash is the SHA-256 of the executable the daemon started from

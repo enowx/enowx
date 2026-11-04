@@ -44,6 +44,9 @@ Go 1.27+ is required (MyGo needs it). With an older `go`, set `GOTOOLCHAIN=go1.2
 | `core/vault` | The user's credential vault: sealed with a key that stays on the device, its platforms, what a session gets of a credential, hosts' imports, the SSH agent and the record of uses (see `docs/vault.md`) | **No** |
 | `core/accounts` | Agents' configs (synced): other accounts, each a home of its own sharing the agent's settings, and model APIs; team members' accounts per host (see `docs/configs.md`, `docs/accounts.md`) | **No** |
 | `core/agent` | Agent presets (Claude Code, Codex, …) and how they take a first prompt | **No** |
+| `core/platformagent` | Claude Platform, enowX's own agent (see `docs/claude-platform.md`): the loop over Anthropic's Messages API | **No** |
+| `core/platformagent/record` | Its conversation's file format, read by `core/transcript` and `core/tokens` | **No** |
+| `core/platformagent/terminal`, `tools`, `permission`, `mcpclient` | Its screen in a session's terminal, its tools, permission rules and MCP client | **No** |
 | `core/agentapi` | How each agent takes a model API: per session by its environment and flags (a config's), or in its own settings, backed up first, for those that can't (see `docs/configs.md`, `docs/agent-api.md`) | **No** |
 | `core/hosts` | The device's server list (`~/.enowx-app/hosts.json`); passwords live in the keychain, never here | **No** |
 | `core/tailnet` | Devices on the user's tailnet, via the `tailscale` CLI | **No** |
@@ -97,6 +100,7 @@ Go 1.27+ is required (MyGo needs it). With an older `go`, set `GOTOOLCHAIN=go1.2
 | `ui/localpicker` | Picks files and folders of this device, for adding them to a session's folder | Yes |
 | `ui/chatview`, `ui/activityview`, `ui/appwindow`, `ui/libraryview`, `ui/browserview`, `ui/checkview`, `ui/diffview`, `ui/fileview`, `ui/portview`, `ui/trafficview`, `ui/androidview`, `ui/notesview`, `ui/canvasview`, `ui/vaultview`, `ui/usageview`, `ui/folderpicker`, `ui/syncview` | Self-contained views; they get what they need from `ui` through options and callbacks, never import it | Yes |
 | `ui/onboardview` | The first run: the app assembling itself, a clock driving the opening, frames, wires and the change of style, the seven steps in a panel; its links in `links.go` (see `docs/onboarding.md`); self-contained like the views above | Yes |
+| `ui/platformview` | Claude Platform's sheet (API keys, from the vault; its system prompt) and the words its chat says of them; self-contained like the views above | Yes |
 | `ui/tokenview` | The Tokens tab of Resource usage: every host's token use, budgets, prices, coverage; self-contained like the views above | Yes |
 
 Keep MyGo out of packages marked **No**. If MyGo ever has to be replaced, only `ui/`, `cmd/enowx` and the terminal emulation in `core/session` should change.

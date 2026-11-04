@@ -21,6 +21,11 @@ var routes = map[string]map[string]Route{
 		proto.VerdictMedium: {"claude-sonnet-5-5", "medium"},
 		proto.VerdictHard:   {"claude-opus-5-5", "high"},
 	},
+	agent.PlatformID: {
+		proto.VerdictEasy:   {"claude-haiku-5-5", "low"},
+		proto.VerdictMedium: {"claude-sonnet-5-5", "medium"},
+		proto.VerdictHard:   {"claude-opus-5-5", "high"},
+	},
 	"codex": {
 		proto.VerdictEasy:   {"gpt-6-luna", "low"},
 		proto.VerdictMedium: {"", "medium"},

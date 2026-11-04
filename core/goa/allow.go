@@ -7,8 +7,8 @@ import (
 )
 
 // metaTools are an agent's own tools that do no work: loading enowX's
-// tools, keeping a to-do list.
-var metaTools = map[string]bool{"ToolSearch": true, "TodoWrite": true, "ListMcpResourcesTool": true, "ReadMcpResourceTool": true}
+// tools, keeping a to-do list, asking the user.
+var metaTools = map[string]bool{"ToolSearch": true, "TodoWrite": true, "AskUserQuestion": true, "ListMcpResourcesTool": true, "ReadMcpResourceTool": true}
 
 // readTools and editTools are agents' tools for a file: GOA reads a
 // project's context and writes what is small itself, and hands the rest

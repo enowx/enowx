@@ -35,6 +35,8 @@ type vaultState struct {
 	pending map[string]chan proto.VaultReply
 	leases  map[string]*vaultLease // by session
 	audit   *vault.Audit
+	// keyWait are the sessions to continue once an app serves (agentkey.go).
+	keyWait map[string]bool
 }
 
 // vaultLease is what a session was lent: its variables, the folder of its
@@ -45,6 +47,15 @@ type vaultLease struct {
 	secrets []string
 	dir     string
 	agent   func() // stops its SSH agent; nil for none
+
+	// What the session's agent alone runs on (Preset.VaultPlatform). It isn't in env: a
+	// session's environment also reaches its wrapper shells, readable in /proc for as long
+	// as they live, the login shell after the agent, and its tabs. The agent takes it over
+	// the daemon's socket instead, once per start (agentArmed).
+	agentVars  map[string]bool // the variables that are the agent's alone
+	agentCreds map[string]bool // the credentials those are of
+	agentEnv   map[string]string
+	agentArmed bool
 }
 
 func (s *Server) vaultDir() string { return filepath.Join(filepath.Dir(s.WorktreeRoot), "vault") }

@@ -368,7 +368,7 @@ func (s *Server) goaStartOnAgent(id string, plan goaSwitchPlan) (*session.Sessio
 		return nil, err
 	}
 	spec := session.Spec{ID: id, Dir: info.Dir, Created: info.Created, History: sess.History(), Command: l.command, Meta: meta,
-		Env: append(append(append(append(append(s.hostEnvFor(nil), env...), l.env...), s.vaultEnvFor(id, "", meta.Creds)...), run.environ()...), s.tokenTrafficEnv(id, p.Agent, "", meta.Name)...)}
+		Env: append(append(append(append(append(s.hostEnvFor(nil), env...), l.env...), s.vaultEnvFor(id, "", meta.Creds, meta.Agent)...), run.environ()...), s.tokenTrafficEnv(id, p.Agent, "", meta.Name)...)}
 	next, err := s.sessions.Replace(spec)
 	if err != nil {
 		return nil, err

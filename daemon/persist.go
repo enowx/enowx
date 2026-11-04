@@ -290,6 +290,11 @@ func (s *Server) restore() {
 			if !r.Exited {
 				spec.ExitCode = -1 // stopped with the daemon, not relaunched
 			}
+		} else if s.keyAwaitsApp(r.ID, spec.Meta) {
+			// It would start with no key: stopped until an app can lend it.
+			s.logger().Info("a session waits for an app to lend its key", "id", r.ID)
+			s.waitForKey(r.ID)
+			spec.Exited, spec.ExitCode, spec.Command = true, -1, r.Command
 		} else if run, err := s.configRunFor(r.ID, spec.Meta); err != nil {
 			// Its config's key can't be read yet (no app to lend it): it
 			// waits, stopped, to be continued, rather than start as another.
@@ -300,7 +305,8 @@ func (s *Server) restore() {
 			spec.Env = append(spec.Env, run.environ()...)
 			spec.Command = r.Restart
 			if r.Member == nil {
-				spec.Env = append(spec.Env, s.vaultEnvFor(r.ID, r.Project, r.Creds)...)
+				env, names := s.restartVaultEnv(r.ID, spec.Meta)
+				spec.Env, spec.Meta.Creds = append(append(spec.Env, env...), run.environ()...), names // its config's API over any key lent
 			}
 			if env, err := s.agentEnv(spec.Meta); err == nil {
 				spec.Env = append(spec.Env, env...)
@@ -468,11 +474,17 @@ func (s *Server) resumeSessionIn(id, convo, mode string) (*session.Session, erro
 	if err != nil {
 		return nil, err
 	}
+	if s.keyAwaitsApp(id, meta) {
+		return nil, fmt.Errorf("%s runs on a key in the vault: %w", agentName(meta.Agent), errNoVaultApp)
+	}
 	env = append(append(env, ownGuide...), run.environ()...)
 	spec := session.Spec{ID: id, Dir: info.Dir, Created: info.Created, History: sess.History(),
 		Env: append(append(s.hostEnvFor(meta.Member), env...), s.trafficEnvFor(meta.Parent, id)...), Command: command, Meta: meta}
 	if meta.Member == nil {
-		spec.Env = append(spec.Env, s.vaultEnvFor(id, meta.Project, meta.Creds)...)
+		var vaultEnv []string
+		vaultEnv, meta.Creds = s.restartVaultEnv(id, meta)
+		spec.Meta.Creds = meta.Creds
+		spec.Env = append(append(spec.Env, vaultEnv...), run.environ()...) // its config's API over any key lent
 	}
 	if meta.Display > 0 {
 		// Its display went with its program, or stays: one either way.

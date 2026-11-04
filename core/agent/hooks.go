@@ -204,6 +204,15 @@ func HookSupport(id string) map[string]string {
 		out[e] = proto.HookOutside
 	}
 	var in []string
+	if IsBuiltin(id) {
+		// It calls session.hook itself, on Windows too; what it asks shows on its screen.
+		in = []string{proto.HookSessionStart, proto.HookPromptStart, proto.HookToolBefore, proto.HookToolAfter, proto.HookTurnDone, proto.HookSessionEnd}
+		for _, e := range in {
+			out[e] = proto.HookInAgent
+		}
+		out[proto.HookGitBefore] = proto.HookInAgent // told by its tool events
+		return out
+	}
 	if len(HookArgs(id)) > 0 {
 		switch Base(id) {
 		case "claude":

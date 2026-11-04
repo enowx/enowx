@@ -3,11 +3,13 @@ package daemon
 import (
 	"encoding/json"
 	"errors"
+	"maps"
 	"os"
 	"path/filepath"
 	"slices"
 	"strings"
 
+	"github.com/enowx/enowx/core/agent"
 	"github.com/enowx/enowx/core/vault"
 	"github.com/enowx/enowx/proto"
 )
@@ -15,28 +17,42 @@ import (
 // A session's credentials: the app lends their values when the session
 // starts (those asked for, and those it puts in every session), the daemon
 // keeps them for it in memory, its files in a folder only the user reads,
-// and forgets them with it. Git, docker and ssh in it get the vault's
+// and forgets them with it. What its agent itself runs on is kept apart. Git, docker and ssh in it get the vault's
 // logins through enowX's helpers, which ask the app at each use.
 
 // vaultSessionEnv is the environment new session id (of project; a tab of
-// parent) gets from the vault: the credentials of names, those the app
-// puts in every session, and its helpers.
-func (s *Server) vaultSessionEnv(id, project, parent string, names []string) ([]string, []string) {
+// parent; agentID's, to say who asks) gets from the vault: the credentials of names,
+// those the app puts in every session, and its helpers.
+func (s *Server) vaultSessionEnv(id, project, parent string, names []string, agentID string) ([]string, []string) {
 	idx := s.vaultIndex()
 	if !idx.Present {
 		return nil, nil
 	}
 	l := &vaultLease{env: map[string]string{}}
+	l.agentVars, l.agentCreds = agentKeyHeld(agentID, idx)
 	if p := s.vaultLease(parent); p != nil {
-		// A tab has its session's.
-		l.names, l.secrets = slices.Clone(p.names), slices.Clone(p.secrets)
+		// A tab has its session's, but for the key its agent alone runs on, unless the
+		// tab is such an agent itself.
+		s.vault.mu.Lock()
+		for _, n := range p.names {
+			if !p.agentCreds[n] || l.agentCreds[n] {
+				l.names = append(l.names, n)
+			}
+		}
+		l.secrets = slices.Clone(p.secrets)
 		for k, v := range p.env {
 			l.env[k] = v
 		}
+		for k, v := range p.agentEnv {
+			if l.agentVars[k] {
+				l.takeAgentVar(k, v)
+			}
+		}
+		s.vault.mu.Unlock()
 	} else if len(names) > 0 || slices.ContainsFunc(idx.Credentials, func(c proto.CredentialInfo) bool { return c.Auto }) {
 		if s.vault.served() {
 			a := proto.VaultAsk{Action: proto.VaultSession, Session: id, Names: names}
-			req := proto.VaultRequest{VaultAsk: a, Project: project}
+			req := proto.VaultRequest{VaultAsk: a, Project: project, Agent: agentID}
 			req.Hostname, _ = os.Hostname()
 			lend, err := s.vaultRequest(req)
 			s.vaultAudit(a, lend, err)
@@ -49,6 +65,7 @@ func (s *Server) vaultSessionEnv(id, project, parent string, names []string) ([]
 	}
 	s.vaultHelpers(id, l, idx)
 	s.vault.mu.Lock()
+	l.agentArmed = len(l.agentEnv) > 0
 	if s.vault.leases == nil {
 		s.vault.leases = map[string]*vaultLease{}
 	}
@@ -64,7 +81,11 @@ func (s *Server) vaultSessionEnv(id, project, parent string, names []string) ([]
 // written to the session's folder of them.
 func (s *Server) vaultTake(id string, l *vaultLease, lend proto.VaultLend) {
 	for k, v := range lend.Env {
-		l.env[k] = v
+		if l.agentVars[k] {
+			l.takeAgentVar(k, v)
+		} else {
+			l.env[k] = v
+		}
 		l.secrets = append(l.secrets, v)
 	}
 	if len(lend.Files) > 0 {
@@ -84,6 +105,51 @@ func (s *Server) vaultTake(id string, l *vaultLease, lend proto.VaultLend) {
 			l.names = append(l.names, n)
 		}
 	}
+}
+
+// takeAgentVar keeps a variable for the agent alone. Whoever shares the lease holds the
+// vault's lock.
+func (l *vaultLease) takeAgentVar(k, v string) {
+	if l.agentEnv == nil {
+		l.agentEnv = map[string]string{}
+	}
+	l.agentEnv[k] = v
+}
+
+// agentKeyHeld says which variables and credentials are agentID's alone: those of the
+// vault's platform its preset runs on. Nil for any other program.
+func agentKeyHeld(agentID string, idx proto.VaultIndex) (vars, creds map[string]bool) {
+	preset, ok := agent.Find(agentID)
+	if !ok || preset.VaultPlatform == "" {
+		return nil, nil
+	}
+	vars, creds = map[string]bool{}, map[string]bool{}
+	for k := range vault.Lookup(preset.VaultPlatform).Env {
+		vars[k] = true
+	}
+	for _, c := range idx.Credentials {
+		if c.Platform != preset.VaultPlatform {
+			continue
+		}
+		creds[c.Name] = true
+		for _, k := range c.Env {
+			vars[k] = true
+		}
+	}
+	return vars, creds
+}
+
+// takeAgentKey hands session id's agent what it runs on, once per start. A program racing
+// it for this leaves the agent with no key, which says so, rather than share it unseen.
+func (s *Server) takeAgentKey(id string) map[string]string {
+	s.vault.mu.Lock()
+	defer s.vault.mu.Unlock()
+	l := s.vault.leases[id]
+	if l == nil || !l.agentArmed {
+		return nil
+	}
+	l.agentArmed = false
+	return maps.Clone(l.agentEnv)
 }
 
 // leaseDir is session id's folder of files and helpers, made on first use.
@@ -200,14 +266,29 @@ func (s *Server) vaultLease(id string) *vaultLease {
 }
 
 // vaultEnvFor is the environment session id's program starts with again:
-// its lease's, or (after the daemon restarted) its credentials lent again
-// while an app answers.
-func (s *Server) vaultEnvFor(id, project string, names []string) []string {
-	if l := s.vaultLease(id); l != nil {
+// its lease's, or (after the daemon restarted, or when its lease lacks one of names, an
+// app being gone when it was made) its credentials lent again while an app answers.
+func (s *Server) vaultEnvFor(id, project string, names []string, agentID string) []string {
+	if l := s.vaultLease(id); l != nil && (!s.vault.served() || s.leaseHolds(l, names)) {
+		s.vault.mu.Lock()
+		l.agentArmed = len(l.agentEnv) > 0 // it starts again, and takes it again
+		s.vault.mu.Unlock()
 		return l.environ()
 	}
-	env, _ := s.vaultSessionEnv(id, project, "", names)
+	env, _ := s.vaultSessionEnv(id, project, "", names, agentID)
 	return env
+}
+
+// leaseHolds says lease l has every credential of names.
+func (s *Server) leaseHolds(l *vaultLease, names []string) bool {
+	s.vault.mu.Lock()
+	defer s.vault.mu.Unlock()
+	for _, n := range names {
+		if !slices.Contains(l.names, n) {
+			return false
+		}
+	}
+	return true
 }
 
 // vaultAttach lends credentials names to session id for the programs it
@@ -219,7 +300,7 @@ func (s *Server) vaultAttach(p proto.VaultAttach) ([]string, error) {
 	}
 	l := s.vaultLease(p.Session)
 	if l == nil {
-		s.vaultSessionEnv(p.Session, sess.Meta().Project, "", nil)
+		s.vaultSessionEnv(p.Session, sess.Meta().Project, "", nil, sess.Meta().Agent)
 		if l = s.vaultLease(p.Session); l == nil {
 			return nil, errors.New("vault: this host has no vault yet: open Credentials in the app")
 		}

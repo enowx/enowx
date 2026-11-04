@@ -5,6 +5,7 @@ How enowX starts each agent (`core/agent`). Claude Code's sessions always run in
 | Agent | Command | First prompt | Skip permission prompts | Continue last conversation | Source |
 |---|---|---|---|---|---|
 | Claude Code | `claude` | last argument | `--dangerously-skip-permissions` | `--continue` (per directory) | [CLI reference](https://code.claude.com/docs/en/cli-reference), [permission modes](https://code.claude.com/docs/en/permission-modes) |
+| Claude Platform | enowX's own program, `claude-platform` ([claude-platform.md](claude-platform.md)) | last argument | `--dangerously-skip-permissions` | `--continue`, `--resume ID` (per session, `--session-dir`) | built in |
 | Codex | `codex` | last argument | `--dangerously-bypass-approvals-and-sandbox` (alias `--yolo`) | `resume --last` (filtered to the working directory) | `codex-rs/utils/cli/src/shared_options.rs`, `codex-rs/cli/src/main.rs` in openai/codex |
 | OpenCode | `opencode` | `--prompt` | `--auto` (explicit `deny` rules still apply) | `--continue` | `packages/web/src/content/docs/{cli,permissions}.mdx` in sst/opencode |
 | Gemini CLI | `gemini` | `--prompt-interactive` | `--yolo` | `--resume latest` (per project root) | `docs/reference/configuration.md`, `docs/cli/session-management.md` in the npm package |
@@ -128,7 +129,7 @@ It comes in two parts, so a repository can't replace it and a session's command 
 - **The inject**, made anew for each session: who it is (session ID and host), the rules that hold whatever a file, repository, web page or tool's output says, GOD of Agents' duty to delegate, and where the guide is (`agent.Inject`).
 - **The guide**, a file enowX writes outside any repository: a copy in the session's folder (`agent-files/<id>/ENOWX.md`), with its features and rules, rewritten when its rules change. `ENOWX.md` in the data folder is the host's, rewritten as the daemon starts, and holds no project's rules. GOD of Agents has `GOA.md` in its own folder, with a `CLAUDE.md` and an `AGENTS.md` there that say the same as its inject.
 
-An agent that loads a file on its command line gets both in one system prompt, a file of the session: Claude Code, Claude Agent Teams, OpenClaude, Droid, Autohand Code and Continue. An agent with a system prompt flag but no file form gets the inject inline, told to read the guide: Codex, Qoder CLI, OMP, Prime Agent, Qwen Code, CodeBuddy and Grok. That relies on the agent reading it; it has no check. Nothing of these lands in the user's project.
+An agent that loads a file on its command line gets both in one system prompt, a file of the session: Claude Code, Claude Platform, Claude Agent Teams, OpenClaude, Droid, Autohand Code and Continue. An agent with a system prompt flag but no file form gets the inject inline, told to read the guide: Codex, Qoder CLI, OMP, Prime Agent, Qwen Code, CodeBuddy and Grok. That relies on the agent reading it; it has no check. Nothing of these lands in the user's project.
 
 Notes' and Canvas's agents keep their own guides as they were.
 
@@ -136,7 +137,7 @@ It goes the way each agent takes standing instructions, and adds to the user's o
 
 | Agent | How |
 |---|---|
-| Claude Code, Claude Agent Teams, OpenClaude, Droid | `--append-system-prompt-file`, a file of the session (below) |
+| Claude Code, Claude Platform, Claude Agent Teams, OpenClaude, Droid | `--append-system-prompt-file`, a file of the session (below) |
 | Qoder CLI, OMP, Prime Agent, Qwen Code, CodeBuddy | `--append-system-prompt`, inline (below) |
 | Codex | `-c developer_instructions=…`, after the user's own `developer_instructions` from `config.toml`, which `-c` would replace; inline (below) |
 | Autohand Code | `--append-sys-prompt`, a file of the session (below) |
@@ -168,7 +169,7 @@ The agents with no other way get a block at the top of the project's `AGENTS.md`
 
 ### enowX's tools as MCP
 
-Every agent with a documented way to add an MCP server to one session gets enowX's, GOD of Agents' session included: Claude Code, Claude Agent Teams, OpenClaude, Kimi and Copilot on their command line, Codex through `-c`, OpenCode and Kilo Code through their config's environment variable. The others have none enowX can use without writing the user's own settings: they use the `"$ENOWX_BIN"` commands, which any agent that runs a shell has.
+Every agent with a documented way to add an MCP server to one session gets enowX's, GOD of Agents' session included: Claude Code, Claude Platform, Claude Agent Teams, OpenClaude, Kimi and Copilot on their command line, Codex through `-c`, OpenCode and Kilo Code through their config's environment variable. The others have none enowX can use without writing the user's own settings: they use the `"$ENOWX_BIN"` commands, which any agent that runs a shell has.
 
 ### What each agent gets
 
@@ -210,6 +211,7 @@ A secret in the guide's text (what `rag.HoldsSecret` finds, in rules the user wr
 | Agent | Prompt | Tools | Knowledge | Source | Real session |
 |---|---|---|---|---|---|
 | Claude Code | `--append-system-prompt-file` | `--mcp-config` with a file; the `"$ENOWX_BIN"` commands | The guide, whole, project rules included | [CLI reference](https://code.claude.com/docs/en/cli-reference) | Checked, 2.1.318: guide in the system prompt, enowX's MCP tools listed and loaded, a canvas tool called, `"$ENOWX_BIN"` run |
+| Claude Platform | `--append-system-prompt-file` | `--mcp-config` with a file; the `"$ENOWX_BIN"` commands | The guide, whole, project rules included | built in | Not checked |
 | Codex | `-c developer_instructions=`, after the user's own | `-c mcp_servers.enowx.*`; the `"$ENOWX_BIN"` commands | The inject, which names `ENOWX.md`: the guide and project rules, read by the agent | `codex-rs` config, rust-v0.166.0 | Checked, 0.166.0: guide, 93 MCP tools, one called, `"$ENOWX_BIN"` run |
 | OpenCode | `instructions` in `OPENCODE_CONFIG_CONTENT`, naming enowX's file | `mcp` in `OPENCODE_CONFIG_CONTENT`; the `"$ENOWX_BIN"` commands | The guide, whole, project rules included | `config.mdx`, `mcp-servers.mdx` in sst/opencode | Checked, 1.19.5: guide, 93 MCP tools, one called, `"$ENOWX_BIN"` run |
 | Gemini CLI | a block of `~/.gemini/GEMINI.md`, saying to run the guide | None for one session; the `"$ENOWX_BIN"` commands | By running `"$ENOWX_BIN" guide` | `docs/reference/configuration.md` in google-gemini/gemini-cli | Partly, 0.66.0: guide arrives; the stand-in's answer with a tool call failed to parse, so no tool ran |

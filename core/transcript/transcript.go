@@ -48,6 +48,9 @@ type Reader struct {
 	// Context is the tokens the conversation filled at the agent's last
 	// answer; Window how much the model holds, when the agent says.
 	Context, Window int64
+	// CostUSD is what the conversation has cost so far at list prices, BudgetUSD what it
+	// may cost without the user's yes, for an agent that records them.
+	CostUSD, BudgetUSD float64
 }
 
 func newReader(path string, p parser) *Reader {

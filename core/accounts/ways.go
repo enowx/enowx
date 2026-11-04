@@ -3,6 +3,7 @@ package accounts
 import (
 	"strings"
 
+	"github.com/enowx/enowx/core/agent"
 	"github.com/enowx/enowx/core/agentapi"
 )
 
@@ -51,6 +52,7 @@ func (w Way) Says() string {
 // docs and never signed in (kind.docsOnly); each Why says so.
 var agentWays = map[string]Way{
 	"claude":             {Key: true, Checked: "run"},
+	agent.PlatformID:     {Key: true, Why: "No other account: it signs in with nothing but an API key from the vault, and a config's model API speaks Anthropic's protocol.", Checked: "run"},
 	"claude-agent-teams": {Base: "claude", Why: "Its sessions are Claude Code's, so they use Claude Code's configs.", Checked: "help"},
 	"codex":              {Key: true, Checked: "run"},
 	"opencode":           {Key: true, Why: "No separate account: it has no documented folder for one sign-in alone.", Checked: "run"},

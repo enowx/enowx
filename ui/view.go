@@ -102,6 +102,7 @@ func (a *App) view(c *ui.Context) {
 	a.cloudSignInDialog(c)
 	a.spaceMoveDialog(c)
 	a.rulesDialog(c)
+	a.platformSheet(c)
 	a.renameDialog(c)
 	a.goaStartDialog(c)
 	a.goaDetailDialog(c)

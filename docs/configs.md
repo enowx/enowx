@@ -27,6 +27,7 @@ A model API's key is read from the vault as the session starts (the app holding 
 
 | Agent | How it takes a model API per session |
 |---|---|
+| Claude Platform | `ANTHROPIC_BASE_URL`, `ANTHROPIC_API_KEY` (the key); `--model`. Anthropic's protocol; nothing else anywhere ([claude-platform.md](claude-platform.md)) |
 | Claude Code (and Agent Teams) | `ANTHROPIC_BASE_URL`, `ANTHROPIC_AUTH_TOKEN` (the key), `ANTHROPIC_MODEL`, `ANTHROPIC_DEFAULT_HAIKU_MODEL`, `CLAUDE_CODE_MAX_CONTEXT_TOKENS`, `CLAUDE_CODE_MAX_OUTPUT_TOKENS` in its environment; the same but the key, the model picker's options and each model's effort in the `--settings` enowX's hooks already pass (flag settings win over the user's own) |
 | Codex | `-c` overrides: `model_provider="enowx"`, `model_providers.enowx.*` (`base_url`, `env_key`, `wire_api = "responses"`), `model`, `model_reasoning_effort`, `model_context_window`, `features.shell_snapshot=false` (its snapshots hold the environment, the key among it), a profile `enowx-<model>` for each other model; the key in `ENOWX_CODEX_API_KEY` |
 | OpenCode, OpenCode 2 | `--standalone` from version 2, as its background server ignores what a session's environment says ([agents.md](agents.md#opencode-1-and-2)); `OPENCODE_CONFIG`: a config of the session's own merged over the user's, its provider `enowx` with `apiKey: {env:ENOWX_OPENCODE_API_KEY}`, the key in that variable |
@@ -72,6 +73,7 @@ What each agent's CLI or docs offered on 2026-11-01 or 02, beside what enowX dri
 | Agent | Takes | Checked | Why not more |
 |---|---|---|---|
 | Claude Code | another account, a model API per session, an API key | run |  |
+| Claude Platform | a model API per session, an API key | run | No other account: it signs in with nothing but an API key from the vault, and a config's model API speaks Anthropic's protocol. |
 | Codex | another account, a model API per session, an API key | run |  |
 | OpenCode | a model API per session, an API key | run | No separate account: it has no documented folder for one sign-in alone. |
 | Gemini CLI | a model API per session, an API key | docs | No other account: GEMINI_CLI_HOME moves its folder, but its docs name no file for the sign-in, and reports have it in the system keychain, which that doesn't move. Its API's address is https unless it's on localhost. |

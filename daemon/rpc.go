@@ -48,6 +48,7 @@ var handlers = merge(
 	notifyHandlers,
 	noteIOHandlers,
 	canvasHandlers,
+	platformHandlers,
 	projectLinkHandlers,
 	vaultHandlers,
 	hibernateHandlers,

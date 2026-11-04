@@ -27,7 +27,7 @@ func daemonLogWriter(l *diag.Log) io.Writer {
 			return l
 		}
 	}
-	return io.MultiWriter(os.Stderr, l)
+	return io.MultiWriter(diag.Scrubbed(os.Stderr), l) // a service's output lands in the journal
 }
 
 // keepLogsSwept removes what is past the logs' limits until done.

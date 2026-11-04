@@ -177,6 +177,7 @@ func (ch *Chat) box(c *ui.Context, o Options) {
 			})
 			right := ui.Row(c.Key("row-end")).Grow(1).MinWidth(0).Justify(ui.End).Gap(theme.S2).AlignItems(ui.Center)
 			room := right.LayoutBounds().W
+			laidOut := room > 0
 			right.Children(func() {
 				empty := strings.TrimSpace(ch.input) == "" && len(ch.attachments) == 0
 				stops := o.Working
@@ -185,12 +186,20 @@ func (ch *Chat) box(c *ui.Context, o Options) {
 				if stops && !empty {
 					room -= theme.S2 + roundSize
 				}
-				room -= ch.contextWidth()
+				// The meter goes first when the row is too narrow for it: the buttons stay.
+				context := !laidOut || room >= ch.contextWidth()
+				if context {
+					room -= ch.contextWidth()
+				}
 				bar := width >= diffBarWidth
 				if ch.added+ch.removed > 0 && !ch.compact {
 					room -= theme.S2 + diffWidth(bar)
 				}
-				if o.Spent != "" && !ch.compact && room >= spentRoom {
+				if ch.cost > 0 {
+					if room >= costRoomLeast {
+						ch.costChip(c, o, room)
+					}
+				} else if o.Spent != "" && !ch.compact && room >= spentRoom {
 					ui.Row(c.Key("spent")).MinWidth(0).Shrink(1).Children(func() {
 						widget.Running(c, o.Spent, widget.RunStyle{Size: theme.TextLabel, Color: theme.TextSoft}).Tooltip(o.SpentTip)
 					})
@@ -198,7 +207,9 @@ func (ch *Chat) box(c *ui.Context, o Options) {
 				if ch.added+ch.removed > 0 && !ch.compact {
 					ch.diffChip(c, bar)
 				}
-				ch.contextMeter(c)
+				if context {
+					ch.contextMeter(c)
+				}
 				if stops {
 					// With a message typed, sending is the main action and stopping steps back.
 					if roundButton(c.Key("stop"), icon.Stop, "Stop "+o.AgentName+" (Esc)", false, !empty).Clicked() && o.Interrupt != nil {
