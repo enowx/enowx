@@ -36,6 +36,7 @@ func (s *Server) deliver(p proto.DeliveryParams) (proto.DeliveryResult, error) {
 	if err != nil {
 		return proto.DeliveryResult{}, err
 	}
+	guard := sess.DeliveryGuard()
 	info := sess.Info()
 	if p.Run == 0 || p.Run != info.Run || info.Exited || info.Queued {
 		return proto.DeliveryResult{}, fmt.Errorf("the session's program changed or isn't running; check its terminal")
@@ -43,7 +44,6 @@ func (s *Server) deliver(p proto.DeliveryParams) (proto.DeliveryResult, error) {
 	if p.Key == "" || len(p.Key) > 128 || p.Text == "" {
 		return proto.DeliveryResult{}, fmt.Errorf("delivery needs a key and nonempty text")
 	}
-	seq := sess.InputSequence()
 	screen := sess.Terminal().Text()
 	ready := agent.PromptEmpty(screen) && agent.PromptFree(screen)
 	d := &s.deliveries
@@ -78,7 +78,8 @@ func (s *Server) deliver(p proto.DeliveryParams) (proto.DeliveryResult, error) {
 	r.entries[p.Key], r.sending = a, true
 	d.mu.Unlock()
 
-	if !s.sessions.InputIfUnchanged(sess, []byte(pasteStart+p.Text+pasteEnd), seq) {
+	next, pasted := s.sessions.DeliveryInput(sess, []byte(pasteStart+p.Text+pasteEnd), guard, true)
+	if !pasted {
 		a.result.Interrupted = true
 	} else {
 		timer := time.NewTimer(pasteSettle)
@@ -87,7 +88,8 @@ func (s *Server) deliver(p proto.DeliveryParams) (proto.DeliveryResult, error) {
 		case <-sess.Done():
 			a.result.Interrupted = true
 		case <-timer.C:
-			a.result.Interrupted = !s.sessions.InputIfUnchanged(sess, []byte("\r"), seq+1)
+			_, committed := s.sessions.DeliveryInput(sess, []byte("\r"), next, false)
+			a.result.Interrupted = !committed
 		}
 	}
 	d.mu.Lock()

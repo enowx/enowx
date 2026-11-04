@@ -192,6 +192,9 @@ func (s *Session) movedFromLocked() string {
 // SetMode records the permission mode session s's agent is in.
 func (m *Manager) SetMode(s *Session, mode string) {
 	s.mu.Lock()
+	if s.meta.Mode != mode {
+		s.deliveryEpoch++
+	}
 	s.meta.Mode = mode
 	s.mu.Unlock()
 	m.notify(s)
