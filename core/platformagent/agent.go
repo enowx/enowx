@@ -82,6 +82,9 @@ type Options struct {
 	// after it (enowX's inject and guide).
 	SystemPrompt, Append string
 
+	// MCPConfig is an mcp.json's path or text (mcpclient.Connect), "" for none.
+	MCPConfig string
+
 	Front Front
 	Hooks Hooks
 }

@@ -46,6 +46,10 @@ type Transcript struct {
 	// model holds. Zero when unknown.
 	ContextTokens int64 `json:"contextTokens,omitempty"`
 	ContextWindow int64 `json:"contextWindow,omitempty"`
+	// CostUSD is what the conversation has cost at list prices, BudgetUSD what it may
+	// cost without the user's yes; for agents that say (Claude Platform). Zero: unknown.
+	CostUSD   float64 `json:"costUsd,omitempty"`
+	BudgetUSD float64 `json:"budgetUsd,omitempty"`
 }
 
 // MethodSessionMode switches a session's agent to another permission mode

@@ -2539,8 +2539,10 @@ field TrafficTransform.replace []TrafficReplace
 field TrafficTransform.setHeaders []Header
 field TrafficTransform.status int
 field TrafficTransform.url string
+field Transcript.budgetUsd float64
 field Transcript.contextTokens int64
 field Transcript.contextWindow int64
+field Transcript.costUsd float64
 field Transcript.effort string
 field Transcript.entries []TranscriptEntry
 field Transcript.mode string
