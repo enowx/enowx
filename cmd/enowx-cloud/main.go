@@ -71,6 +71,21 @@ func run(log *slog.Logger) error {
 	} else {
 		cfg.Blobs = blobstore.Dir(filepath.Join(data, "blobs"))
 	}
+	// enowX UI: off unless its own bucket is set, and only over Postgres; a
+	// folder stands in for a bucket when developing.
+	if bucket := env("ENOWX_CLOUD_LIBRARY_R2_BUCKET", ""); bucket != "" || os.Getenv("ENOWX_CLOUD_LIBRARY_DIR") != "" {
+		lib := &server.LibraryConfig{PublicURL: env("ENOWX_CLOUD_LIBRARY_PUBLIC_URL", ""), ReturnURL: env("ENOWX_CLOUD_LIBRARY_RETURN_URL", ""),
+			WebSecret: env("ENOWX_CLOUD_LIBRARY_WEB_SECRET", ""), AdminTeam: env("ENOWX_CLOUD_LIBRARY_ADMIN_TEAM", "")}
+		if bucket != "" {
+			if os.Getenv("ENOWX_CLOUD_DATABASE_URL") == "" {
+				return errors.New("ENOWX_CLOUD_LIBRARY_R2_BUCKET needs ENOWX_CLOUD_DATABASE_URL: the library runs on Postgres")
+			}
+			lib.Blobs = blobstore.R2(env("ENOWX_CLOUD_LIBRARY_R2_ACCOUNT_ID", ""), bucket, env("ENOWX_CLOUD_LIBRARY_R2_ACCESS_KEY_ID", ""), env("ENOWX_CLOUD_LIBRARY_R2_SECRET_ACCESS_KEY", ""))
+		} else {
+			lib.Blobs = blobstore.Dir(os.Getenv("ENOWX_CLOUD_LIBRARY_DIR"))
+		}
+		cfg.Library = lib
+	}
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
 	conns, err := strconv.Atoi(env("ENOWX_CLOUD_DATABASE_MAX_CONNS", "0"))
@@ -85,9 +100,11 @@ func run(log *slog.Logger) error {
 	if cfg.URL == "" {
 		log.Warn("ENOWX_CLOUD_URL is unset: GitHub sign-in and invite links need it")
 	}
+	handler := server.New(cfg, db, log)
+	go handler.RunLibrary(ctx)
 	srv := &http.Server{
 		Addr:              addr,
-		Handler:           server.New(cfg, db, log),
+		Handler:           handler,
 		ReadHeaderTimeout: 10 * time.Second,
 		IdleTimeout:       2 * time.Minute,
 	}

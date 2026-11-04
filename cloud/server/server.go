@@ -3,6 +3,7 @@
 package server
 
 import (
+	"context"
 	"encoding/json"
 	"log/slog"
 	"net/http"
@@ -10,9 +11,13 @@ import (
 
 	"github.com/enowx/enowx/cloud/api"
 	"github.com/enowx/enowx/cloud/blobstore"
+	"github.com/enowx/enowx/cloud/library"
 	"github.com/enowx/enowx/cloud/store"
 	"github.com/enowx/enowx/version"
 )
+
+// LibraryConfig is how enowX UI is set up.
+type LibraryConfig = library.Config
 
 // Config is how a server is set up (cmd/enowx-cloud reads it from the
 // environment).
@@ -37,6 +42,8 @@ type Config struct {
 	Blobs blobstore.Store
 	// Contributor is the Contributor role on Discord; empty, it's off.
 	Contributor ContributorConfig
+	// Library is enowX UI's setup; nil or without its bucket, there's none.
+	Library *library.Config
 }
 
 // Server answers the cloud's API. Its handlers run on net/http's
@@ -56,6 +63,8 @@ type Server struct {
 	present presences
 	// contributor is the Contributor role on Discord, nil when off (contributorrole.go).
 	contributor *contributorRole
+	// library is enowX UI, nil when it's off.
+	library *library.Service
 }
 
 // New is a server over db.
@@ -111,6 +120,10 @@ func New(cfg Config, db *store.DB, log *slog.Logger) *Server {
 	s.mux.HandleFunc("POST /invite/accept", s.inviteAccept)
 	s.mux.HandleFunc("POST /device", s.approve)
 	s.mux.HandleFunc("POST /signout", s.webSignOut)
+	if cfg.Library != nil && cfg.Library.Blobs != nil {
+		s.library = library.New(*cfg.Library, library.Host{WebAccount: s.webAccount, SignInURL: s.signInURL, ClientAddr: clientAddr}, db, log)
+		s.library.Mount(s.mux)
+	}
 	s.contributorRoutes()
 	return s
 }
@@ -142,7 +155,17 @@ func (s *Server) info(w http.ResponseWriter, r *http.Request) {
 	if s.githubOn() {
 		in.SignIn = append(in.SignIn, api.SignInGitHub)
 	}
+	if s.library != nil {
+		in.Features = append(in.Features, api.FeatureLibrary)
+	}
 	s.reply(w, in)
+}
+
+// RunLibrary sweeps the library's objects until ctx ends; nothing when it's off.
+func (s *Server) RunLibrary(ctx context.Context) {
+	if s.library != nil {
+		s.library.Sweep(ctx)
+	}
 }
 
 func (s *Server) reply(w http.ResponseWriter, v any) {
