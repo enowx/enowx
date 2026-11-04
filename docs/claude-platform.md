@@ -20,7 +20,7 @@ It is a program in a session's terminal like any other agent, so sessions, tabs,
 - **Guide and tools.** Its inject and guide in one system prompt (`--append-system-prompt-file`, a file of the session) and enowX's MCP server (`--mcp-config`), both in `agent-files/<session>/` so no command line holds them, as for Claude Code ([agents.md](agents.md)).
 - **State and events.** It calls the daemon itself (`session.hook`), on Windows too, using Claude Code's tool names: state, `prompt.start`, `tool.before` (whose answer it acts on: refuse, or run unasked), `tool.after`, `turn.done`, and the session's start and end. It has no hooks in its command line (`HookArgs` is nil), and it counts as reporting itself everywhere that matters: it is never marked done by a quiet screen, and "skip what nobody hears" doesn't apply. A tool event's command and paths are read as every agent's are (`hooks.ToolEvent`).
 - **Permission prompts** show on its screen and are answered by keys: `1` allow, `2` always, `3` or Esc deny.
-- **A hook can't rewrite its call.** A user's hook that changes a command refuses the call instead, naming the command to run, as for Codex when it would ask.
+- **A hook can rewrite its call.** A user's hook that changes a command has the changed command run, and asked about if it asks.
 - **GOD of Agents** runs on it enforced by `tool.before` alone: it has no flag limiting its tools, and needs none, as every call goes by the daemon's answer first. GOA's lines reach it typed in when it is idle ([goa.md](goa.md)).
 - **Not offered:** rewinding from the chat and forking a session.
 
@@ -66,3 +66,4 @@ A new conversation starts on `claude-opus-5-5`, effort `high`, and a budget of $
 | `core/platformagent/terminal`, `tools`, `permission`, `mcpclient` | Its screen, tools, permission rules and MCP client |
 | `core/agent/platform.go` | The preset's settings, commands, file forms |
 | `daemon/agentkey.go` | The key at start, wake and restart |
+| `daemon/platform_e2e*_test.go` | The built program as a session of its own daemon, against the stand-in API (`internal/standinapi`) |
