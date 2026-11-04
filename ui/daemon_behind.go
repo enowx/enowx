@@ -70,7 +70,7 @@ func (a *App) followDaemonBehind(c *client.Client, h hosts.Host, gen int) {
 		// Only a daemon left behind has a plan to keep current: with none, asking every
 		// half minute looked at every process, for nothing.
 		behind := make(chan bool, 1)
-		a.onMain(func() { behind <- gen == a.gen && a.daemonBehind != nil && a.daemonBehind.host == h.ID })
+		a.quietly(func() { behind <- gen == a.gen && a.daemonBehind != nil && a.daemonBehind.host == h.ID })
 		select {
 		case <-c.Done():
 			return

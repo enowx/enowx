@@ -5,6 +5,8 @@ import (
 	"errors"
 	"slices"
 	"time"
+
+	"github.com/egoist/mygo"
 )
 
 // A session's terminal in the app holds its whole scrollback, up to about 10 MB, and
@@ -74,6 +76,17 @@ func (a *App) unloadCanvasPage(now time.Time) {
 	case now.Sub(a.canvasLeft) > canvasKeep:
 		a.canvases.Unload()
 	}
+}
+
+// quietly runs fn on the main thread without drawing a frame, for a look that usually
+// changes nothing: a window woken every few seconds by such looks is what an idle app
+// spends. If it does change something, it asks for the frame with a.onMain.
+func (a *App) quietly(fn func()) {
+	if a.win == nil {
+		a.onMain(fn) // tests
+		return
+	}
+	mygo.RunOnMain(fn)
 }
 
 // errNotAttached is what withPane's failure comes to.
