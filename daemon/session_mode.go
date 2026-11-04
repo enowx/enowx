@@ -52,7 +52,7 @@ func (s *Server) switchMode(p proto.SessionModeParams) error {
 		case shown == choice.ID:
 			s.sessions.SetMode(sess, choice.ID)
 			return nil
-		case !set.ModeReachable(shown, choice.ID):
+		case agent.AlwaysSkips(info.Agent) && !set.ModeReachable(shown, choice.ID):
 			return s.restartInMode(sess, set, choice.ID)
 		}
 		was := shown

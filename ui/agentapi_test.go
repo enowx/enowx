@@ -160,9 +160,11 @@ func TestMakeAModelAPIConfig(t *testing.T) {
 // gets one there, from its page, backed up first.
 func TestModelAPIInAnAgentsOwnSettings(t *testing.T) {
 	app, tt, _, frames := agentsTester(t, "droid")
-	frames(func() bool {
-		return app.accts.loaded && app.agentAPIs.loaded && tt.HasText("A model API in its own settings")
-	}, "Droid's page")
+	frames(func() bool { return app.accts.loaded && app.agentAPIs.loaded && tt.HasText("Droid") }, "the agents")
+	if err := tt.Click("Droid"); err != nil { // Claude Platform, built in, comes first
+		t.Fatal(err)
+	}
+	frames(func() bool { return tt.HasText("A model API in its own settings") }, "Droid's page")
 	for range 3 { // its cards take the room measured on the frame before
 		tt.Frame()
 	}

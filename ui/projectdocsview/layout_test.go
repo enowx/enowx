@@ -26,7 +26,8 @@ func inside(t *testing.T, tt *ui.Tester, label string, width int) ui.Rect {
 		t.Errorf("width %d: %s sticks out of the window: %+v", width, label, frame)
 	}
 	for _, text := range tt.Texts() {
-		if strings.HasPrefix(text, "Section ") {
+		if strings.HasPrefix(text, "Section ") || text == "On this page" || strings.HasPrefix(text, "Outline to level") ||
+			text == "1" || text == "2" || text == "3" || text == "All" {
 			continue // the page's outline, beside it
 		}
 		r, ok := tt.Find(text)

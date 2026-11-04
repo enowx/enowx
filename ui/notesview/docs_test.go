@@ -53,7 +53,7 @@ func TestDocsPanelOnlyOnProjectDocsPages(t *testing.T) {
 		t.Errorf("markdown: %q", md)
 	}
 	// Markdown mode shows it whole.
-	if err := tt.Click("Markdown mode"); err != nil {
+	if err := tt.Click("Markdown"); err != nil {
 		t.Fatal(err)
 	}
 	frames(tt, 2)
