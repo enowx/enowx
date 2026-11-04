@@ -99,9 +99,11 @@ const (
 // GOATask is a task on GOA's board: the session it went to, how it was
 // routed, where it is.
 type GOATask struct {
-	ID     string `json:"id"`
-	Title  string `json:"title"`
-	Prompt string `json:"prompt"`
+	// Background are the agents in its worker's background, for a worker on this host.
+	Background []BackgroundAgent `json:"background,omitempty"`
+	ID         string            `json:"id"`
+	Title      string            `json:"title"`
+	Prompt     string            `json:"prompt"`
 	// Host is the worker's host as the app names it, "" for GOA's own.
 	Host    string `json:"host,omitempty"`
 	Session string `json:"session,omitempty"`

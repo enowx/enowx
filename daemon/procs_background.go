@@ -160,6 +160,31 @@ func (s *Server) noteBackground(found map[string][]proto.BackgroundAgent) {
 			}
 			s.logger().Info("procs: a session's background agents", "session", info.ID, "agents", names)
 		}
+		s.goaBackgroundChanged(info, info.Background, agents)
+	}
+}
+
+// goaBackgroundChanged tells GOA of a worker's background agent that ended or got stuck, and shows
+// the board the change. A worker whose session ended is told of as that.
+func (s *Server) goaBackgroundChanged(info proto.SessionInfo, was, now []proto.BackgroundAgent) {
+	if !s.goa.board.Has(info.ID) {
+		return
+	}
+	changed := len(was) != len(now)
+	for _, b := range was {
+		i := slices.IndexFunc(now, func(n proto.BackgroundAgent) bool { return n.PID == b.PID && n.Start == b.Start })
+		switch {
+		case i < 0:
+			changed = true
+			if !info.Exited {
+				s.goaTellAbout(info.ID, fmt.Sprintf("[enowX GOA] Worker %s: its background agent %s (pid %d) ended, after %s.", info.ID, b.Name, b.PID, time.Since(b.Since).Round(time.Second)))
+			}
+		case now[i].Stuck && !b.Stuck:
+			s.goaTellAbout(info.ID, fmt.Sprintf("[enowX GOA] Worker %s: its background agent %s (pid %d) has used next to no CPU for %s and may be stuck: enowx-app background %s lists it, background stop ends it.", info.ID, b.Name, b.PID, backgroundStuckAfter, info.ID))
+		}
+	}
+	if changed {
+		s.goaChanged()
 	}
 }
 
@@ -191,7 +216,10 @@ func (s *Server) stopBackgroundAgent(p proto.StopBackgroundParams) error {
 		return fmt.Errorf("procs: process %d has already ended", p.PID)
 	}
 	s.logger().Info("procs: stopped a background agent", "session", p.Session, "pid", p.PID, "processes", len(procs))
-	s.sessions.SetBackground(sess, slices.DeleteFunc(slices.Clone(sess.Info().Background), func(b proto.BackgroundAgent) bool { return b.PID == p.PID }))
+	info := sess.Info()
+	left := slices.DeleteFunc(slices.Clone(info.Background), func(b proto.BackgroundAgent) bool { return b.PID == p.PID })
+	s.sessions.SetBackground(sess, left)
+	s.goaBackgroundChanged(info, info.Background, left)
 	go s.endProcs(procs)
 	return nil
 }

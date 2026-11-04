@@ -175,6 +175,9 @@ func (r runner) goaBoard(args []string) error {
 		if t.Asleep {
 			status = "asleep"
 		}
+		if n := len(t.Background); n > 0 {
+			status += fmt.Sprintf(" +%d background", n)
+		}
 		fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%s\t%s\n", t.ID, status, where, taskModel(t), taskPlace(t), t.Title)
 	}
 	w.Flush()

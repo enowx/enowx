@@ -1211,6 +1211,7 @@ field GOAStall.stuck int
 field GOATask.agent string
 field GOATask.asks string
 field GOATask.asleep bool
+field GOATask.background []BackgroundAgent
 field GOATask.branch string
 field GOATask.config string
 field GOATask.created time.Time

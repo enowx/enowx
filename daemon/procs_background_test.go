@@ -5,6 +5,7 @@ import (
 	"path/filepath"
 	"runtime"
 	"slices"
+	"strings"
 	"testing"
 	"time"
 
@@ -155,5 +156,64 @@ func TestBackgroundAgentsLiveCPU(t *testing.T) {
 	}
 	if b := look(20*time.Second+backgroundStuckAfter, 8*time.Second); b.Stuck {
 		t.Fatalf("at work again: %+v", b)
+	}
+}
+
+// GOA's board shows a worker's background agents; GOA is told when one gets stuck and when it ends.
+func TestGOAIsToldOfAWorkersBackgroundAgent(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("uses sh")
+	}
+	fakeAgent(t)
+	srv := startServer(t)
+	c := connect(t, srv, nil)
+	lead, err := c.CreateSession(proto.SessionCreateParams{Agent: "claude", GOA: true, Cols: 80, Rows: 24})
+	if err != nil {
+		t.Fatal(err)
+	}
+	busy, err := srv.sessions.Get(lead.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := srv.sessions.SetState(busy, proto.StateWorking); err != nil { // what it's told waits
+		t.Fatal(err)
+	}
+	worker, err := c.CreateSession(proto.SessionCreateParams{Command: []string{"cat"}, Dir: t.TempDir()})
+	if err != nil {
+		t.Fatal(err)
+	}
+	sess, err := srv.sessions.Get(worker.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	task, err := srv.goa.board.Add(proto.GOATask{Title: "x", Session: worker.ID, Status: proto.GOATaskWorking})
+	if err != nil {
+		t.Fatal(err)
+	}
+	b := proto.BackgroundAgent{PID: 4242, Start: "s", Name: "codex", Since: time.Now().Add(-time.Minute)}
+	told := func(word string) bool {
+		return slices.ContainsFunc(srv.goaWaitingLines(), func(l string) bool { return strings.Contains(l, "codex") && strings.Contains(l, word) })
+	}
+	srv.noteBackground(map[string][]proto.BackgroundAgent{worker.ID: {b}})
+	board := goaBoardOf(t, c)
+	i := slices.IndexFunc(board.Tasks, func(x proto.GOATask) bool { return x.ID == task.ID })
+	if i < 0 || len(board.Tasks[i].Background) != 1 || board.Tasks[i].Background[0].Name != "codex" {
+		t.Fatalf("the board: %+v", board.Tasks)
+	}
+	if told("stuck") || told("ended") {
+		t.Fatalf("told too soon: %v", srv.goaWaitingLines())
+	}
+	stuck := b
+	stuck.Stuck = true
+	srv.noteBackground(map[string][]proto.BackgroundAgent{worker.ID: {stuck}})
+	if !told("stuck") {
+		t.Fatalf("not told it's stuck: %v", srv.goaWaitingLines())
+	}
+	srv.noteBackground(nil)
+	if !told("ended") {
+		t.Fatalf("not told it ended: %v", srv.goaWaitingLines())
+	}
+	if len(sess.Info().Background) != 0 {
+		t.Fatalf("still shows: %+v", sess.Info().Background)
 	}
 }
