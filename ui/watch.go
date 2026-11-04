@@ -76,6 +76,8 @@ type hostWatch struct {
 	host   hosts.Host
 	status hostStatus
 	stop   chan struct{}
+	// wake cuts a wait to try the host again short, as the user asks.
+	wake chan struct{}
 	// cl is the watch's connection while it is up, info its daemon: links
 	// between hosts sync over it (autosync.go).
 	cl   *client.Client
@@ -108,7 +110,7 @@ func (a *App) syncWatches() {
 	}
 	for id, h := range want {
 		if _, ok := a.watches[id]; !ok {
-			w := &hostWatch{host: h, status: hostStatus{state: hostConnecting}, stop: make(chan struct{})}
+			w := &hostWatch{host: h, status: hostStatus{state: hostConnecting}, stop: make(chan struct{}), wake: make(chan struct{}, 1)}
 			a.watches[id] = w
 			go a.watch(w)
 		}
@@ -117,7 +119,7 @@ func (a *App) syncWatches() {
 
 // watch keeps w's connection and asks it how the host is, until w stops.
 func (a *App) watch(w *hostWatch) {
-	retry := watchEvery
+	wait := retryWait{first: watchEvery, most: watchRetryMax}
 	for {
 		cl, err := a.dialWatch(w)
 		if err != nil {
@@ -128,15 +130,12 @@ func (a *App) watch(w *hostWatch) {
 				state = hostNeedsYou
 			}
 			a.onMain(func() { w.status.state, w.status.err = state, client.Explain(err) })
-			select {
-			case <-w.stop:
+			if !w.pause(&wait) {
 				return
-			case <-time.After(retry):
 			}
-			retry = min(retry*2, watchRetryMax)
 			continue
 		}
-		retry = watchEvery
+		began := time.Now()
 		a.onMain(func() {
 			w.cl = cl
 			a.syncSoon()
@@ -156,7 +155,28 @@ func (a *App) watch(w *hostWatch) {
 			return
 		default:
 		}
+		// One that held is tried again at once. One that dropped as it came up would
+		// otherwise connect, and read everything, again and again without a pause.
+		if time.Since(began) >= connectSteady {
+			wait.held()
+		} else if !w.pause(&wait) {
+			return
+		}
 	}
+}
+
+// pause waits to try the host again, or less if the user asks; false when w stops.
+func (w *hostWatch) pause(wait *retryWait) bool {
+	timer := time.NewTimer(wait.failed())
+	defer timer.Stop()
+	select {
+	case <-w.stop:
+		return false
+	case <-w.wake:
+		wait.held()
+	case <-timer.C:
+	}
+	return true
 }
 
 // dialWatch connects w's connection.
@@ -165,6 +185,14 @@ func (a *App) dialWatch(w *hostWatch) (*client.Client, error) {
 		return a.watchDial(w.host)
 	}
 	return hostconn.Connect(w.host, a.watchOptions(w))
+}
+
+// retryNow has w try its host now, not when its wait ends.
+func (w *hostWatch) retryNow() {
+	select {
+	case w.wake <- struct{}{}:
+	default:
+	}
 }
 
 // poll asks cl how its host is every watchEvery, until the connection

@@ -4,6 +4,7 @@ package ui
 
 import (
 	"net"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -37,6 +38,56 @@ func watchedApp(t *testing.T) (*App, func(ok func() bool, what string, within ti
 	}
 }
 
+// A host whose connection drops as it comes up isn't connected to again at once: that
+// went on without a pause, its whole state read each time.
+func TestWatchBacksOffWhenConnectionsDrop(t *testing.T) {
+	srv, err := daemon.NewServer(t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer srv.Close()
+	a, run := watchedApp(t)
+	var dials atomic.Int64
+	a.watchDial = func(hosts.Host) (*client.Client, error) {
+		dials.Add(1)
+		x, y := net.Pipe()
+		go srv.ServeConn(x)
+		cl, err := client.New(y, nil)
+		if err != nil {
+			return nil, err
+		}
+		cl.Close() // gone as soon as it's there
+		return cl, nil
+	}
+	w := &hostWatch{host: hosts.Host{ID: "h", Name: "h"}, stop: make(chan struct{}), wake: make(chan struct{}, 1)}
+	go a.watch(w)
+	defer close(w.stop)
+	const window = 4 * time.Second
+	began := time.Now()
+	run(func() bool { return time.Since(began) >= window }, "the time to pass", 2*window)
+	got := dials.Load()
+	t.Logf("a connection dropping as it comes up: %d connections in %s, %.0f a minute", got, window, float64(got)/window.Minutes())
+	if got > 1 {
+		t.Fatalf("%d connections", got)
+	}
+	// The user asking doesn't wait.
+	w.retryNow()
+	run(func() bool { return dials.Load() == got+1 }, "a try when asked", 3*time.Second)
+}
+
+func TestRetryWaitGrowsUntilAConnectionHolds(t *testing.T) {
+	r := retryWait{first: 15 * time.Second, most: time.Minute}
+	for i, want := range []time.Duration{15 * time.Second, 30 * time.Second, time.Minute, time.Minute} {
+		if got := r.failed(); got != want {
+			t.Fatalf("try %d: waits %s, want %s", i, got, want)
+		}
+	}
+	r.held()
+	if got := r.failed(); got != 15*time.Second {
+		t.Fatalf("after holding: waits %s", got)
+	}
+}
+
 // A watched host's sessions follow its events: a session made and closed shows without
 // the list being asked for again each time the host is asked how it is.
 func TestWatchFollowsSessionsByEvents(t *testing.T) {
@@ -49,7 +100,7 @@ func TestWatchFollowsSessionsByEvents(t *testing.T) {
 	watchEvery = 100 * time.Millisecond
 	t.Cleanup(func() { watchEvery = every })
 	a, run := watchedApp(t)
-	w := &hostWatch{host: hosts.Host{ID: "h", Name: "h"}, stop: make(chan struct{})}
+	w := &hostWatch{host: hosts.Host{ID: "h", Name: "h"}, stop: make(chan struct{}), wake: make(chan struct{}, 1)}
 	var counted *rpccount.Conn
 	a.watchDial = func(hosts.Host) (*client.Client, error) {
 		x, y := net.Pipe()

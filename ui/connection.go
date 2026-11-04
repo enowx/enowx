@@ -127,6 +127,7 @@ func (a *App) connect(h hosts.Host) {
 				a.diag.Event("conn.reconnected", "host", h.ID, "name", h.Name, "conn", c.ID(), "afterTries", a.retrying)
 				a.notify("Reconnected to " + h.Name)
 			}
+			a.triedBefore, a.connectedAt = a.retrying, time.Now()
 			a.retrying, a.retryHost = 0, ""
 			a.client = c
 			a.spacesConnected(c)
@@ -154,7 +155,12 @@ func (a *App) watchDisconnect(c *client.Client, h hosts.Host, gen int) {
 			a.client = nil
 			// The sessions keep running there: connect again by itself,
 			// as the network comes back.
+			// Unless it dropped as it came up: then the wait goes on growing, or a
+			// daemon failing each time would be connected to every second or so.
 			a.retrying, a.retryHost = 0, a.host.ID
+			if time.Since(a.connectedAt) < connectSteady {
+				a.retrying = a.triedBefore
+			}
 			a.retryLater(a.host, nil)
 		}
 	})
@@ -165,7 +171,7 @@ func (a *App) watchDisconnect(c *client.Client, h hosts.Host, gen int) {
 // last try failed.
 func (a *App) retryLater(h hosts.Host, err error) {
 	a.retrying++
-	wait := min(time.Second<<min(a.retrying-1, 5), retryMax)
+	wait := min(time.Second<<min(a.retrying-1, 6), retryMax)
 	a.connErr = "Disconnected from " + h.Name + ". Its sessions keep running; connecting again in " + fmt.Sprint(wait.Round(time.Second)) + "…"
 	if err != nil {
 		a.connErr += " (" + client.Explain(err) + ")"
@@ -183,8 +189,9 @@ func (a *App) retryLater(h hosts.Host, err error) {
 	})
 }
 
-// retryMax is the longest wait between tries to connect again.
-const retryMax = 30 * time.Second
+// retryMax is the longest wait between tries to connect again; the page says so
+// and has Retry for sooner.
+const retryMax = time.Minute
 
 // disconnect closes the connection and forgets its state.
 func (a *App) disconnect() {
