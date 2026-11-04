@@ -1,6 +1,7 @@
 package agentapi
 
 import (
+	"encoding/json"
 	"io/fs"
 	"os"
 	"path/filepath"
@@ -214,5 +215,29 @@ func TestGeminiAddressIsHTTPSUnlessLocal(t *testing.T) {
 	}
 	if _, err := Prepare("codex", API{BaseURL: "http://gw.example.com"}); err != nil {
 		t.Errorf("the rule reached another agent: %v", err)
+	}
+}
+
+// A session's config holds the provider in both OpenCode versions' forms, its key by
+// name alone.
+func TestOpenCodeConfigFitsBothVersions(t *testing.T) {
+	dir := t.TempDir()
+	for _, id := range []string{"opencode", "opencode2"} {
+		l, err := SessionLaunch(id, API{BaseURL: "https://x.example/v1", APIKey: "k-secret", Model: "cb/m1", Models: []Model{{ID: "cb/m1"}}}, dir)
+		if err != nil {
+			t.Fatal(err)
+		}
+		var cfg struct {
+			Model     string         `json:"model"`
+			Provider  map[string]any `json:"provider"`
+			Providers map[string]any `json:"providers"`
+		}
+		data, err := os.ReadFile(strings.TrimPrefix(l.Env[0], "OPENCODE_CONFIG="))
+		if err != nil || json.Unmarshal(data, &cfg) != nil {
+			t.Fatalf("%v: %s", err, data)
+		}
+		if cfg.Model != "enowx/cb/m1" || cfg.Provider["enowx"] == nil || cfg.Providers["enowx"] == nil || strings.Contains(string(data), "k-secret") {
+			t.Fatalf("%s: %s", id, data)
+		}
 	}
 }

@@ -46,6 +46,7 @@ var guidePlaces = map[string][]guidePlace{
 	"devin":        {own(".devin/rules/enowx.md", "")},
 	"gemini":       {block(".gemini/GEMINI.md")},
 	"opencode":     {own(".enowx-app/agent-guide.md", "")}, // named by ToolEnv's config
+	"opencode2":    {own(".enowx-app/agent-guide.md", "")},
 	"kilo":         {own(".enowx-app/agent-guide.md", "")},
 	"ante":         {block(".ante/AGENTS.md", ".claude/CLAUDE.md")},
 	"mimo-code":    {block(".config/mimocode/AGENTS.md")},

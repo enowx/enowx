@@ -51,7 +51,7 @@ func ToolEnv(id, exe, home string) []string {
 
 // ToolEnvGuide is ToolEnv with the guide's file.
 func ToolEnvGuide(id, exe, guide string) []string {
-	key := map[string]string{"opencode": "OPENCODE_CONFIG_CONTENT", "kilo": "KILO_CONFIG_CONTENT"}[id]
+	key := map[string]string{"opencode": "OPENCODE_CONFIG_CONTENT", "opencode2": "OPENCODE_CONFIG_CONTENT", "kilo": "KILO_CONFIG_CONTENT"}[id]
 	if key == "" {
 		return nil
 	}

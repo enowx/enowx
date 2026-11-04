@@ -3,6 +3,7 @@ package agent
 import (
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 )
@@ -168,5 +169,28 @@ func TestProjectBlockOnlyForAgentsWithNoOtherWay(t *testing.T) {
 		if got := NeedsProjectBlock(id); got != want {
 			t.Errorf("%s: %v", id, got)
 		}
+	}
+}
+
+// OpenCode 2 gets --standalone, 1.x doesn't, as it wouldn't start; one that can't say
+// gets nothing.
+func TestOpenCodeArgsFollowItsVersion(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("uses sh")
+	}
+	fake := func(version string) string {
+		p := filepath.Join(t.TempDir(), "opencode")
+		if err := os.WriteFile(p, []byte("#!/bin/sh\necho '"+version+"'\n"), 0o755); err != nil {
+			t.Fatal(err)
+		}
+		return p
+	}
+	for version, want := range map[string]int{"1.19.5": 0, "opencode v2.2.5": 1, "3.0.0": 1, "no version": 0} {
+		if got := OpenCodeArgs(fake(version)); len(got) != want {
+			t.Errorf("%s: %v", version, got)
+		}
+	}
+	if got := OpenCodeArgs("/no/such/opencode"); got != nil {
+		t.Errorf("missing: %v", got)
 	}
 }

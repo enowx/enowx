@@ -148,13 +148,17 @@ It goes the way each agent takes standing instructions, and adds to the user's o
 | Cline | `~/.cline/rules/enowx.md` |
 | Devin | `~/.devin/rules/enowx.md` |
 | Gemini CLI | a block of `~/.gemini/GEMINI.md` |
-| OpenCode, Kilo Code | `instructions` of the config in `OPENCODE_CONFIG_CONTENT`, `KILO_CONFIG_CONTENT`, naming `~/.enowx-app/agent-guide.md`; nothing of the user's is written |
+| OpenCode, OpenCode 2, Kilo Code | `instructions` of the config in `OPENCODE_CONFIG_CONTENT`, `KILO_CONFIG_CONTENT`, naming `~/.enowx-app/agent-guide.md`; nothing of the user's is written |
 | Ante | the same with `~/.ante/AGENTS.md` |
 | MiMo Code, ZCode, Amp, Command Code, Mistral Vibe, Rovo Dev | a block of `~/.config/mimocode/AGENTS.md`, `~/.zcode/AGENTS.md`, `~/.config/amp/AGENTS.md`, `~/.commandcode/AGENTS.md`, `~/.vibe/AGENTS.md`, `~/.rovodev/AGENTS.md` |
 | Pi, Goose, Crush, Jcode | a block of `~/.pi/agent/APPEND_SYSTEM.md`, `~/.config/goose/.goosehints`, `~/.config/crush/CRUSH.md`, `~/.jcode/prompt-overlay.md` |
-| Cursor, Kimi, OpenCode 2, Trae, Muse, DeepSeek Harness, Codebuff, Freebuff, Hermes, OpenClaw | none they read outside the project: a line after the first prompt says `"$ENOWX_BIN" guide` lists the tools, and a block in the project (below) |
+| Cursor, Kimi, Trae, Muse, DeepSeek Harness, Codebuff, Freebuff, Hermes, OpenClaw | none they read outside the project: a line after the first prompt says `"$ENOWX_BIN" guide` lists the tools, and a block in the project (below) |
 
 Files are written, or brought up to date, when the daemon starts the agent. enowX's own files (`enowx.md`) hold the whole guide. In a file of the user's, enowX keeps only a short block between `<!-- enowX: … -->` lines, saying to run `"$ENOWX_BIN" guide`, and leaves the rest as it is; deleting the block is undone at the agent's next start. Both apply only when `ENOWX_SESSION` is set, since the agent reads them outside enowX too. The places are those the agents' documentation or source gives, not all checked by running them.
+
+### OpenCode 1 and 2
+
+OpenCode 2 is another program (`@opencode/cli`) that may answer to the same `opencode` command. It runs one background server per user, which owns its configuration, so what a session's environment says (a config's provider and model, enowX's guide and tools) is ignored once that server runs. So enowX starts `opencode` with `--standalone` when it reports version 2 or later, giving the session a private server and leaving the user's alone; 1.x doesn't start with that flag. A session's config holds the provider in both versions' forms. A plugin named in the user's own OpenCode config loads as it does anywhere: enowX adds none. A session started this way doesn't show in other clients of the shared server.
 
 ### The block in a project
 

@@ -33,6 +33,7 @@ var sessionAdapters = map[string]sessionFunc{
 	"claude":      claudeSession,
 	"codex":       codexSession,
 	"opencode":    openCodeSession,
+	"opencode2":   openCodeSession,
 	"copilot":     copilotSession,
 	"openclaude":  envSession(openClaude),
 	"antigravity": antigravitySession,
@@ -216,7 +217,42 @@ func openCodeSession(api API, dir string) (Launch, error) {
 	if err != nil {
 		return Launch{}, err
 	}
+	if err := addOpenCode2Provider(path, api); err != nil {
+		return Launch{}, err
+	}
 	return Launch{Env: kv([2]string{"OPENCODE_CONFIG", path}, [2]string{openCodeKeyVar, api.APIKey})}, nil
+}
+
+// addOpenCode2Provider adds to the config at path the same provider as OpenCode 2's
+// documents it (providers, settings), beside 1.x's (provider, options). 2.2.5 takes
+// either, and both versions run with both in one file.
+func addOpenCode2Provider(path string, api API) error {
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return err
+	}
+	var cfg map[string]any
+	if err := json.Unmarshal(data, &cfg); err != nil {
+		return err
+	}
+	models := map[string]any{}
+	for _, m := range api.Models {
+		models[m.ID] = map[string]any{"name": m.ID}
+	}
+	if api.Model != "" {
+		models[api.Model] = map[string]any{"name": api.Model}
+	}
+	provider := map[string]any{"name": "enowX config", "package": "@opencode/ai/providers/openai-compatible",
+		"settings": map[string]any{"baseURL": api.BaseURL}, "models": models}
+	if api.APIKey != "" {
+		provider["env"] = []string{openCodeKeyVar}
+	}
+	cfg["providers"] = map[string]any{"enowx": provider}
+	out, err := json.Marshal(cfg)
+	if err != nil {
+		return err
+	}
+	return os.WriteFile(path, out, 0o600)
 }
 
 // envSession is an agent that takes its API from the environment only.

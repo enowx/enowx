@@ -559,6 +559,9 @@ func agentLaunch(preset agent.Preset, skip bool, prompt string, cont bool, chat 
 		// --settings enowX's hooks use.
 		hooks = append(agentapi.WithSettings(hooks, run.settings), run.args...)
 	}
+	if preset.ID == "opencode" {
+		hooks = append(hooks, agent.OpenCodeArgs(preset.Command)...)
+	}
 	l := agent.Launch{Prompt: prompt, SkipPermissions: skip, AllowSkip: allow, Continue: cont, SessionDir: chat.store, Hooks: hooks}
 	l.Hooks = fitCommandLine(preset, l, chat.files)
 	return l
