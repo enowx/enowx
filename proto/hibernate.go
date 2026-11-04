@@ -47,13 +47,14 @@ type SessionHibernateResult struct {
 }
 
 // HibernatePlan is what hibernating a session would stop and free.
-// Blocked says why it can't be hibernated at all; Working, Procs, Ports
-// and Display are the work it would lose.
+// Blocked says why it can't be hibernated at all; Working, Task, Procs, Ports
+// and Display are the work it would lose. Task is GOA's task under way there.
 type HibernatePlan struct {
 	ID      string          `json:"id"`
 	Name    string          `json:"name,omitempty"`
 	Blocked string          `json:"blocked,omitempty"`
 	Working bool            `json:"working,omitempty"`
+	Task    string          `json:"task,omitempty"`
 	Procs   []HibernateProc `json:"procs,omitempty"`
 	Ports   []int           `json:"ports,omitempty"`
 	Display bool            `json:"display,omitempty"`
@@ -62,10 +63,10 @@ type HibernatePlan struct {
 }
 
 // Busy reports whether hibernating it now would stop work: its agent
-// working, something served, an app shown, or a program it left running
+// working, a task of GOA's under way, something served, an app shown, or a program it left running
 // in the background. Its agent's own helpers stopping with it are not.
 func (p HibernatePlan) Busy() bool {
-	return p.Working || len(p.Ports) > 0 || p.Display || slices.ContainsFunc(p.Procs, func(pr HibernateProc) bool { return pr.Left })
+	return p.Working || p.Task != "" || len(p.Ports) > 0 || p.Display || slices.ContainsFunc(p.Procs, func(pr HibernateProc) bool { return pr.Left })
 }
 
 // HibernateProc is a program a session started that would stop with it;

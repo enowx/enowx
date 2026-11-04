@@ -280,6 +280,9 @@ func (s *Server) input(p proto.SessionInputParams) error {
 	if err != nil {
 		return err
 	}
+	if sess.Info().Exited {
+		return fmt.Errorf("session %s isn't running, so nothing was sent", p.ID) // wakeThen brings it back
+	}
 	text := p.Text
 	if p.Paste {
 		text = pasteStart + text + pasteEnd
@@ -380,8 +383,8 @@ func (s *Server) hibernate() {
 		if !ok || len(preset.Continue) == 0 || !meta.Relaunch || meta.Parent != "" || meta.NoAutoHibernate || sess.DoneFor(now) < after {
 			continue // only what comes back on its own conversation
 		}
-		// A dev server or an app the agent started would stop with it.
-		if meta.Display > 0 {
+		// A dev server or an app the agent started would stop with it, and a task under way.
+		if meta.Display > 0 || s.goaTaskUnderWay(sess.ID()) != "" {
 			continue
 		}
 		if ports == nil {

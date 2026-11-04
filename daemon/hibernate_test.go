@@ -122,3 +122,57 @@ func TestHibernateByHandAndWake(t *testing.T) {
 		t.Fatalf("all idle: %+v, %v", res, err)
 	}
 }
+
+// A session with a task under way stays, asked to hibernate or left idle, until forced;
+// once its task's turn has ended it goes.
+func TestHibernateLeavesATaskUnderWay(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("uses sh")
+	}
+	fakeAgent(t)
+	srv := startServer(t)
+	c := connect(t, srv, nil)
+	info, err := c.CreateSession(proto.SessionCreateParams{Agent: "claude", Dir: t.TempDir(), Cols: 80, Rows: 10})
+	if err != nil {
+		t.Fatal(err)
+	}
+	task, err := srv.goa.board.Add(proto.GOATask{Title: "x", Session: info.ID, Status: proto.GOATaskWorking})
+	if err != nil {
+		t.Fatal(err)
+	}
+	res, err := c.HibernateSessions(proto.SessionHibernateParams{IDs: []string{info.ID}})
+	if err != nil || len(res.Hibernated) != 0 || len(res.Plans) != 1 || res.Plans[0].Task != task.ID {
+		t.Fatalf("asked: %+v, %v", res, err)
+	}
+	if res, err = c.HibernateSessions(proto.SessionHibernateParams{Idle: true}); err != nil || len(res.Hibernated) != 0 {
+		t.Fatalf("all idle: %+v, %v", res, err)
+	}
+	// Not on its own either, however long it has been done.
+	hibernateUnit = time.Millisecond
+	defer func() { hibernateUnit = time.Minute }()
+	if _, err := c.SetSettings(proto.DaemonSettings{HibernateAfter: 1}); err != nil {
+		t.Fatal(err)
+	}
+	sess, _ := srv.sessions.Get(info.ID)
+	if err := srv.sessions.SetState(sess, proto.StateDone); err != nil {
+		t.Fatal(err)
+	}
+	time.Sleep(20 * time.Millisecond)
+	srv.hibernate()
+	if list, _ := c.Sessions(); list[0].Hibernated {
+		t.Fatal("hibernated on its own, its task under way")
+	}
+	if _, err := srv.goa.board.Update(task.ID, func(x *proto.GOATask) { x.Status = proto.GOATaskTurnEnded }); err != nil {
+		t.Fatal(err)
+	}
+	if plan := srv.hibernatePlan(sess, nil); plan.Task != "" {
+		t.Fatalf("its turn ended: %+v", plan)
+	}
+	if _, err := srv.goa.board.Update(task.ID, func(x *proto.GOATask) { x.Status = proto.GOATaskWorking }); err != nil {
+		t.Fatal(err)
+	}
+	res, err = c.HibernateSessions(proto.SessionHibernateParams{IDs: []string{info.ID}, Force: true})
+	if err != nil || !slices.Equal(res.Hibernated, []string{info.ID}) {
+		t.Fatalf("forced: %+v, %v", res, err)
+	}
+}

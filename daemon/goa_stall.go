@@ -86,7 +86,7 @@ func stallCase(l stallLook, lim proto.GOAStall) (string, time.Duration) {
 		}
 	case l.Info.Exited && l.Info.Hibernated:
 		if l.Still >= idle {
-			return "idle: its session is hibernated", idle
+			return "idle: its session is hibernated, and takes nothing up until something is sent to it or it is woken", idle
 		}
 	case l.Info.Exited, l.Info.Queued, !quiet:
 	case l.Blank:
@@ -367,8 +367,25 @@ func (s *Server) queuedCheck(w *stallWatch, t proto.GOATask, h stallHost) bool {
 	return true
 }
 
-// queuedWake brings back the hibernated session of queued task t and gives it its task.
+// queuedWake brings back the session of queued task t, hibernated or ended, and gives
+// it its task; GOA hears when it can't. Once at a time for a session: a turn's end, the
+// app's word and the stall watch may each come here.
 func (s *Server) queuedWake(t proto.GOATask, info proto.SessionInfo) {
+	s.goa.mu.Lock()
+	if s.goa.waking[info.ID] {
+		s.goa.mu.Unlock()
+		return
+	}
+	if s.goa.waking == nil {
+		s.goa.waking = map[string]bool{}
+	}
+	s.goa.waking[info.ID] = true
+	s.goa.mu.Unlock()
+	defer func() {
+		s.goa.mu.Lock()
+		delete(s.goa.waking, info.ID)
+		s.goa.mu.Unlock()
+	}()
 	from := ""
 	if g, ok := s.goaSession(); ok {
 		from = g.ID
@@ -396,6 +413,9 @@ func (s *Server) stallCheck(w *stallWatch, t proto.GOATask, h stallHost, lim pro
 		}
 	}
 	info, there := h.infos[t.Session]
+	if there && s.goaNoteAsleep(info) {
+		s.goaChanged()
+	}
 	look := stallLook{Info: info, Gone: !there, NoCPU: !h.cpuKnown, Age: now.Sub(t.Created)}
 	text := ""
 	if there {

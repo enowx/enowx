@@ -74,10 +74,13 @@ var sessionHandlers = map[string]handler{
 		return proto.SessionScreen{Text: c.srv.maskLent(sess.Terminal().Text())}, nil
 	}),
 	proto.MethodSessionInput: with(func(c *conn, p proto.SessionInputParams) (any, error) {
-		if p.From != "" {
-			c.srv.goaMarkTold(p.From, "", p.ID)
-		}
-		return ok, c.srv.input(p)
+		woken, err := c.srv.wakeThen(p.ID, func() error {
+			if p.From != "" {
+				c.srv.goaMarkTold(p.From, "", p.ID)
+			}
+			return c.srv.input(p)
+		})
+		return proto.SessionInputResult{Sent: err == nil, Woken: woken}, err
 	}),
 	proto.MethodSessionRewind: with(func(c *conn, p proto.SessionRewindParams) (any, error) {
 		return ok, c.srv.rewind(p)
@@ -98,7 +101,7 @@ var sessionHandlers = map[string]handler{
 	}),
 	proto.MethodSessionFork: with(func(c *conn, p proto.SessionForkParams) (any, error) { return c.srv.forkSession(p) }),
 	proto.MethodSessionContinue: with(func(c *conn, p proto.SessionRef) (any, error) {
-		sess, err := c.srv.continueSession(p.ID)
+		sess, err := c.srv.wakeSession(p.ID)
 		if err != nil {
 			return nil, err
 		}

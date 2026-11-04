@@ -451,16 +451,12 @@ func (s *Server) compareDirections(id string) {
 		}
 		if run.Stage == proto.BuildDirections {
 			text := fmt.Sprintf("The concepts are in (%s), each a card written from the brief alone, their distinctness checked. Check each against the brief (fits the users and the task; its main action works; what it needs exists; it works on the devices), pick the one that fits best, and build it on its design (canvas_build stage building); keep the others as they are.", strings.Join(names, ", "))
-			if err := s.input(proto.SessionInputParams{ID: run.Lead, Text: text, Paste: true, Enter: true}); err != nil {
-				s.logger().Warn("canvas build: tell the lead", "session", run.Lead, "err", err)
-			}
+			s.tellSession(proto.SessionInputParams{ID: run.Lead, Text: text, Paste: true, Enter: true}, "canvas build: tell the lead")
 			return
 		}
 		text := fmt.Sprintf("All %d directions are built (%s), each pair checked for distinctness (the app shows the scores in Compare). Now: canvas_compare them side by side, the current design first if there is one; tell the user in a few lines what each is and which you recommend, and ask them to pick (Compare's Pick, with what to keep and change). Then refine the one picked, keeping the others.",
 			len(run.Directions), strings.Join(names, ", "))
-		if err := s.input(proto.SessionInputParams{ID: run.Lead, Text: text, Paste: true, Enter: true}); err != nil {
-			s.logger().Warn("canvas build: tell the lead", "session", run.Lead, "err", err)
-		}
+		s.tellSession(proto.SessionInputParams{ID: run.Lead, Text: text, Paste: true, Enter: true}, "canvas build: tell the lead")
 	}
 }
 
@@ -471,9 +467,7 @@ func (s *Server) tellDirection(session string, f, g proto.CanvasFrame, p proto.D
 		why = "it shares " + strings.Join(p.Shared, ", ") + " with " + g.Name + " (at most one may be shared)"
 	}
 	text := fmt.Sprintf("Your direction is too close to %s: %s. Change your skeleton (the first screen's layout and where its focal point sits), not just colors, and whatever else you share with it; update your card (canvas_direction), look again (canvas_screenshot), then canvas_build done.", g.Name, why)
-	if err := s.input(proto.SessionInputParams{ID: session, Text: text, Paste: true, Enter: true}); err != nil {
-		s.logger().Warn("canvas build: send a direction back", "session", session, "err", err)
-	}
+	s.tellSession(proto.SessionInputParams{ID: session, Text: text, Paste: true, Enter: true}, "canvas build: send a direction back")
 }
 
 // reviewBuild has the build's design f reviewed independently.

@@ -562,7 +562,17 @@ func (r runner) send(args []string) error {
 	if err != nil {
 		return err
 	}
-	return r.c.Call(proto.MethodSessionInput, proto.SessionInputParams{ID: s.ID, Text: strings.Join(fs.Args()[1:], " "), Paste: true, Enter: !*noEnter, From: os.Getenv(EnvSession)}, nil)
+	var res proto.SessionInputResult
+	if err := r.c.Call(proto.MethodSessionInput, proto.SessionInputParams{ID: s.ID, Text: strings.Join(fs.Args()[1:], " "), Paste: true, Enter: !*noEnter, From: os.Getenv(EnvSession)}, &res); err != nil {
+		return err
+	}
+	switch {
+	case res.Woken:
+		fmt.Fprintf(r.out, "%s was %s: brought back on its conversation, and it has your message.\n", s.ID, State(s))
+	case !res.Sent && s.Exited:
+		return fmt.Errorf("%s is %s and its host's daemon is too old to bring it back, so nothing arrived: wake it, then send again", s.ID, State(s))
+	}
+	return nil
 }
 
 func (r runner) read(args []string) error {

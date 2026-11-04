@@ -1199,6 +1199,7 @@ field GOAStall.idle int
 field GOAStall.stuck int
 field GOATask.agent string
 field GOATask.asks string
+field GOATask.asleep bool
 field GOATask.branch string
 field GOATask.config string
 field GOATask.created time.Time
@@ -1256,6 +1257,7 @@ field HibernatePlan.name string
 field HibernatePlan.ports []int
 field HibernatePlan.procs []HibernateProc
 field HibernatePlan.rss uint64
+field HibernatePlan.task string
 field HibernatePlan.working bool
 field HibernatePrefs.neverByDefault bool
 field HibernateProc.left bool
@@ -1910,9 +1912,11 @@ field SessionAsk.detail string
 field SessionAsk.prompt string
 field SessionAsk.questions []TranscriptQuestion
 field SessionAsk.reason string
+field SessionAsk.told bool
 field SessionAsk.tool string
 field SessionAsk.urgent string
 field SessionAsk.waiting bool
+field SessionAsk.woken bool
 field SessionAutoHibernateParams.default bool
 field SessionAutoHibernateParams.id string
 field SessionAutoHibernateParams.never bool
@@ -2034,6 +2038,8 @@ field SessionInputParams.from string
 field SessionInputParams.id string
 field SessionInputParams.paste bool
 field SessionInputParams.text string
+field SessionInputResult.sent bool
+field SessionInputResult.woken bool
 field SessionMember.account string
 field SessionMember.github string
 field SessionMember.name string

@@ -2,6 +2,7 @@ package daemon
 
 import (
 	"fmt"
+	"regexp"
 	"slices"
 	"strings"
 	"time"
@@ -51,7 +52,11 @@ func (s *Server) goaReady(p proto.GOADelegateParams, info proto.SessionInfo) (bo
 		return false, nil
 	}
 	if info.Exited {
-		if err := s.goaCall(p.From, p.Host, proto.MethodSessionContinue, proto.SessionRef{ID: info.ID}, nil); err != nil {
+		if !goa.ComesBack(info) {
+			return false, fmt.Errorf("goa: session %s ended and can't come back on a conversation (a shell, or a program enowX can't continue), so nothing was given to it: start a new one", info.ID)
+		}
+		// Running by now: what someone sent it brought it back since info was read.
+		if err := s.goaCall(p.From, p.Host, proto.MethodSessionContinue, proto.SessionRef{ID: info.ID}, nil); err != nil && !strings.Contains(err.Error(), errStillRunning) {
 			return false, fmt.Errorf("goa: session %s can't be brought back: %w", info.ID, err)
 		}
 	}
@@ -133,4 +138,74 @@ func waitReady(id string, peek func() (proto.SessionInfo, string, error)) error 
 		}
 		time.Sleep(goaWakePoll)
 	}
+}
+
+// goaNoteAsleep keeps whether session info is hibernated, and says if that changed.
+func (s *Server) goaNoteAsleep(info proto.SessionInfo) bool {
+	asleep := info.Exited && info.Hibernated
+	s.goa.mu.Lock()
+	defer s.goa.mu.Unlock()
+	if s.goa.asleep[info.ID] == asleep {
+		return false
+	}
+	if s.goa.asleep == nil {
+		s.goa.asleep = map[string]bool{}
+	}
+	if asleep {
+		s.goa.asleep[info.ID] = true
+	} else {
+		delete(s.goa.asleep, info.ID)
+	}
+	return true
+}
+
+// goaAsleep says task t's session is hibernated: as it is here, as last heard on
+// another host, which a board's read can't go and ask.
+func (s *Server) goaAsleep(t proto.GOATask) bool {
+	if t.Session == "" {
+		return false
+	}
+	if s.thisHost(t.Host) {
+		sess, err := s.sessions.Get(t.Session)
+		return err == nil && sess.Info().Hibernated
+	}
+	s.goa.mu.Lock()
+	defer s.goa.mu.Unlock()
+	return s.goa.asleep[t.Session]
+}
+
+// sessionWord is what reads as a session's ID in a report: IDs are hex, and a commit's
+// short hash, at 7, doesn't reach it.
+var sessionWord = regexp.MustCompile(`\b[0-9a-f]{8,}\b`)
+
+// goaAsleepNamed is what a report of being blocked leaves out: the sessions it names, on
+// host, that are asleep, and whether they would come back. self is the one reporting.
+func (s *Server) goaAsleepNamed(host, outcome, self, said string) string {
+	if outcome != "blocked" {
+		return ""
+	}
+	words := sessionWord.FindAllString(said, -1)
+	if len(words) == 0 {
+		return ""
+	}
+	var list []proto.SessionInfo
+	if err := s.goaCall("", host, proto.MethodSessionList, nil, &list); err != nil {
+		return ""
+	}
+	var out strings.Builder
+	for _, info := range list {
+		named := slices.ContainsFunc(words, func(w string) bool { return strings.HasPrefix(info.ID, w) })
+		if !named || info.ID == self || !info.Exited {
+			continue
+		}
+		switch {
+		case !goa.ComesBack(info):
+			fmt.Fprintf(&out, " (Session %s, which it names, has ended and can't come back: start a new one.)", info.ID)
+		case info.Hibernated:
+			fmt.Fprintf(&out, " (Session %s, which it names, is asleep, hibernated: what is sent to it brings it back.)", info.ID)
+		default:
+			fmt.Fprintf(&out, " (Session %s, which it names, has ended: what is sent to it brings it back.)", info.ID)
+		}
+	}
+	return out.String()
 }

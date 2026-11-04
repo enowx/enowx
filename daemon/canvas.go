@@ -62,6 +62,20 @@ func (s *Server) renderer() *conn {
 	return nil
 }
 
+// errOldApp is a render with an app connected that doesn't render for this host.
+var errOldApp = errors.New("canvas: the frame has HTML, which the enowX app renders, and the app connected to this host is a version that renders only for the host it shows: the user has to update the app, or show this host in it")
+
+// noRenderer says what a render with no renderer needs.
+func (s *Server) noRenderer() error {
+	r := &s.appReqs
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	if len(r.serving) > 0 {
+		return errOldApp
+	}
+	return canvas.ErrNeedsBrowser
+}
+
 func (cs *canvasState) isPaused(id string) bool {
 	cs.mu.Lock()
 	defer cs.mu.Unlock()
@@ -278,7 +292,7 @@ const canvasRenderTimeout = 40 * time.Second
 func (s *Server) appRender(req proto.CanvasRenderRequest) (proto.CanvasRenderReply, error) {
 	app := s.renderer()
 	if app == nil {
-		return proto.CanvasRenderReply{}, canvas.ErrNeedsBrowser
+		return proto.CanvasRenderReply{}, s.noRenderer()
 	}
 	req.ID = newRenderID()
 	ch := make(chan proto.CanvasRenderReply, 1)

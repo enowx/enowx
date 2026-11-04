@@ -99,7 +99,7 @@ func (c *conn) serve() error {
 			// Requests run in order on this goroutine, so a resize sent
 			// after an attach always finds its stream; slow ones, which
 			// no other request depends on, run beside it.
-			if slowMethods[req.Method] {
+			if slowMethods[req.Method] || c.srv.needsWake(req) {
 				go c.answer(req)
 				continue
 			}

@@ -352,7 +352,7 @@ var sessionTools = []mcpTool{
 	{name: "session_read", description: "What a session's or a tab's screen shows.",
 		props: map[string]mcpProp{"id": {"string", "The session or tab"}}, required: []string{"id"},
 		args: func(a map[string]any) []string { return []string{"read", str(a, "id")} }},
-	{name: "session_send", description: "Type a message into a session and send it.",
+	{name: "session_send", description: "Type a message into a session and send it. A session asleep (hibernated or ended) is brought back on its conversation first, and says so; one that can't come back (a plain shell) is an error, nothing sent.",
 		props: map[string]mcpProp{"id": {"string", "The session"}, "text": {"string", "The message"}}, required: []string{"id", "text"},
 		args: func(a map[string]any) []string { return []string{"send", str(a, "id"), str(a, "text")} }},
 	{name: "session_note", description: "Say where this session is at, in a line shown under it in enowX (at milestones).",

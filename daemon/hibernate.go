@@ -238,6 +238,7 @@ func (s *Server) hibernatePlan(sess *session.Session, ports map[string][]proto.P
 		return plan
 	}
 	plan.Working = info.State == proto.StateWorking || info.State == "" && info.Active
+	plan.Task = s.goaTaskUnderWay(info.ID)
 	plan.Display = meta.Display > 0
 	for _, port := range ports[info.ID] {
 		plan.Ports = append(plan.Ports, port.Port)

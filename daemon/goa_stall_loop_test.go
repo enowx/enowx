@@ -330,7 +330,7 @@ func TestGOAStalledSessionHibernatedOrGone(t *testing.T) {
 	waitScreen(t, c, asleep.Session, "ready for it")
 	// A program that only just printed counts as working, and isn't hibernated.
 	waitFor(t, "hibernated", func() bool {
-		res, err := c.HibernateSessions(proto.SessionHibernateParams{IDs: []string{asleep.Session}})
+		res, err := c.HibernateSessions(proto.SessionHibernateParams{IDs: []string{asleep.Session}, Force: true})
 		return err == nil && len(res.Hibernated) == 1
 	})
 	if err := srv.deleteSession(gone.Session); err != nil {

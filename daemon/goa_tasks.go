@@ -155,6 +155,17 @@ func (s *Server) goaOpenTask(id string) bool {
 	})
 }
 
+// goaTaskUnderWay is the task session id has at hand or queued, "" for none. One whose
+// turn ended is GOA's to settle, with nothing for the session to go on with.
+func (s *Server) goaTaskUnderWay(id string) string {
+	for _, t := range s.goa.board.List() {
+		if t.Session == id && (t.Status == proto.GOATaskWorking || t.Status == proto.GOATaskWaiting || t.Status == proto.GOATaskStalled || t.Status == proto.GOATaskQueued) {
+			return t.ID
+		}
+	}
+	return ""
+}
+
 // goaSkipOn switches a session started asking to skipping prompts, when the
 // task asks that and its agent can change mode as it runs. One that can't goes
 // on as it is: its prompts reach GOA.
@@ -214,11 +225,15 @@ func (s *Server) goaDeliverNext(info proto.SessionInfo) bool {
 		}
 	}
 	if info.Exited {
+		if goa.ComesBack(info) {
+			go s.queuedWake(*next, info) // it waits for the agent: this holds the others up
+			return false
+		}
 		t, _ := s.goa.board.Update(next.ID, func(t *proto.GOATask) {
-			t.Status, t.Result = proto.GOATaskFailed, "its session ended before it could take this"
+			t.Status, t.Result = proto.GOATaskFailed, "its session ended before it could take this, and can't come back on a conversation"
 		})
 		s.goaChanged()
-		s.goaTell(fmt.Sprintf("[enowX GOA] Task %s %q failed: its session %s ended before it could take it. Delegate it again.", t.ID, t.Title, t.Session))
+		s.goaTell(fmt.Sprintf("[enowX GOA] Task %s %q failed: its session %s ended before it could take it, and can't come back on a conversation (a shell, or a program enowX can't continue). Delegate it again to another session.", t.ID, t.Title, t.Session))
 		return true
 	}
 	from := ""
@@ -456,7 +471,7 @@ func (s *Server) goaReportSeen(info proto.SessionInfo) {
 	})
 	for _, t := range changed {
 		where, hostFlag := goaTaskPlace(t)
-		s.goaTellReport(info, goaLine{Task: t.ID, Session: t.Session, Text: fmt.Sprintf("[enowX GOA] Task %s %q (%s) reports %s: %s Check it (chat %s%s), then settle it: goa task %s --status done|failed --result \"…\".", t.ID, t.Title, where, t.Outcome, clip(oneLine(t.Said), goaResultMax), t.Session, hostFlag, t.ID)})
+		s.goaTellReport(info, goaLine{Task: t.ID, Session: t.Session, Text: fmt.Sprintf("[enowX GOA] Task %s %q (%s) reports %s: %s%s Check it (chat %s%s), then settle it: goa task %s --status done|failed --result \"…\".", t.ID, t.Title, where, t.Outcome, clip(oneLine(t.Said), goaResultMax), s.goaAsleepNamed(t.Host, t.Outcome, t.Session, t.Said), t.Session, hostFlag, t.ID)})
 	}
 	if len(changed) > 0 {
 		s.goaChanged()
