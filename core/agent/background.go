@@ -25,7 +25,8 @@ func ProgramOf(args []string) string {
 		}
 		name, rest = programName(rest[i]), rest[i+1:]
 	}
-	if !isAgentProgram(name) || slices.ContainsFunc(rest, func(a string) bool { return strings.HasPrefix(a, "mcp") }) {
+	// Its first word only: Codex's own session carries -c mcp_servers.enowx.* among its flags.
+	if !isAgentProgram(name) || len(rest) > 0 && strings.HasPrefix(rest[0], "mcp") {
 		return ""
 	}
 	return name

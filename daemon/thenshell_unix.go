@@ -5,6 +5,8 @@ package daemon
 import (
 	"os"
 	"runtime"
+	"slices"
+	"strings"
 )
 
 // thenShell runs argv and, once it exits, the shell terminals start with
@@ -31,7 +33,21 @@ func thenShell(argv []string) []string {
 			shell = "/bin/zsh"
 		}
 	}
-	return append([]string{"/bin/sh", "-c", `trap : INT; trap 'exit 129' HUP; "$@"; exec "$0" -l`, shell}, argv...)
+	return append([]string{"/bin/sh", "-c", thenShellScript, shell}, argv...)
+}
+
+const thenShellScript = `trap : INT; trap 'exit 129' HUP; "$@"; exec "$0" -l`
+
+// programGone says what session root's marker runs was thenShell's, and its argv has ended: the
+// wrapper has no child, about to become the shell, or already is. A session with no shell after
+// its program, a plain terminal say, never reads as gone.
+func programGone(root int, kids map[int][]int, args func(int) []string) bool {
+	if !slices.Contains(args(root), thenShellScript) || len(kids[root]) == 0 {
+		return false
+	}
+	wrapper := kids[root][0]
+	wrapped := args(wrapper)
+	return !(len(wrapped) > 2 && strings.HasPrefix(wrapped[2], "trap : INT;")) || len(kids[wrapper]) == 0
 }
 
 // scriptArgv runs a shell script: a project's worktree setup, say.

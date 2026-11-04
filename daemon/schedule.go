@@ -261,10 +261,18 @@ func (s *Server) began(sess *session.Session, command []string, typed string) {
 						continue
 					}
 				}
+				if s.agentGone(sess.ID()) {
+					s.notTyped(sess)
+					return
+				}
 				s.sessions.Input(sess, []byte(typed))
 				if strings.HasPrefix(typed, pasteStart) {
 					// A program shows a paste before it takes Enter.
 					time.Sleep(pasteSettle)
+				}
+				if s.agentGone(sess.ID()) {
+					s.notTyped(sess)
+					return
 				}
 				s.sessions.Input(sess, []byte("\r"))
 				return
@@ -283,6 +291,9 @@ func (s *Server) input(p proto.SessionInputParams) error {
 	if sess.Info().Exited {
 		return fmt.Errorf("session %s isn't running, so nothing was sent", p.ID) // wakeThen brings it back
 	}
+	if s.agentGone(p.ID) {
+		return fmt.Errorf("session %s: its agent has ended and only its shell is left, so nothing was typed", p.ID)
+	}
 	text := p.Text
 	if p.Paste {
 		text = pasteStart + text + pasteEnd
@@ -292,9 +303,18 @@ func (s *Server) input(p proto.SessionInputParams) error {
 		if text != "" {
 			time.Sleep(pasteSettle)
 		}
+		if s.agentGone(p.ID) {
+			return fmt.Errorf("session %s: its agent ended as this was typed, so it wasn't sent", p.ID)
+		}
 		s.sessions.Input(sess, []byte("\r"))
 	}
 	return nil
+}
+
+// notTyped says so where the user looks: a first prompt was for an agent that has ended.
+func (s *Server) notTyped(sess *session.Session) {
+	s.logger().Warn("a session's agent ended before its first prompt: nothing typed", "session", sess.ID())
+	s.sessions.SetNote(sess, "Its agent ended before taking its first prompt, so nothing was typed: its terminal says why")
 }
 
 // answerTrust says yes once when a new agent asks to trust its folder, the

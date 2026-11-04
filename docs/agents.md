@@ -79,6 +79,8 @@ Agents with no install command enowX knows link to their documentation instead.
 
 Agents run inside a small `/bin/sh` wrapper (PowerShell on Windows) that starts the login shell once the agent exits, so quitting it with Ctrl+C, or a failed sign-in, leaves a prompt in the same folder. The New session dialog's **Sign in** runs the command below in the project folder, which prints a link and a code to open on any device; this is what works on a server without a browser.
 
+What enowX types is for the agent, never for that shell, where its words would run as commands: a first prompt, a message, GOD of Agents' lines. Each is looked at just before it's written, and while the agent has ended nothing is typed: a first prompt's session says so in its note, and a message sent gets an error. An agent ending in the instant between the look and the write is the one case left. The user's own keys in the terminal always go through.
+
 | Agent | Sign-in command | Source |
 |---|---|---|
 | Claude Code | `claude auth login` | Claude Code docs (`claude auth status`), error guides; prints a URL and asks for the code |
@@ -299,7 +301,7 @@ An unslop's regions' agents end with the run: when the Canvas page's Stop is pre
 
 ## Agents in a session's background
 
-A session's row and `enowx-app ls` say which agents its agent has running besides itself (`SessionInfo.Background`): `background(N)` as its state in `ls` and `status`, their names in the row, each one's command, time and memory on hover. `wait` goes on while they run, and a helper isn't ended under them. Hibernate and updates don't name them yet, GOA's board doesn't show them, and only a process left from a session can be stopped alone, under Left running in Resource usage.
+A session's row and `enowx-app ls` say which agents its agent has running besides itself (`SessionInfo.Background`): `background(N)` as its state in `ls` and `status`, **background** in the app's state chip in place of done or idle, and each one's name, how long it has run, its live CPU and its memory in the row, with its command on hover. `wait` goes on while they run, and a helper isn't ended under them. The session's menu has **Stop background agent**, one at a time, asking first with what is lost, and `enowx-app background stop`. GOD of Agents' board shows a worker's, and GOA is told when one ends or has used next to no CPU for 15 minutes, which may mean it's stuck; a worker on another host's are shown on that host's board. Hibernating names them as what stops and may lose work, and doesn't happen on its own while they run; an update's dialog names them too, as its restart stops them and only their sessions come back.
 
 **How they're found: the session's process tree, for any agent.** Every 15 seconds the daemon follows what each session started (`daemon/procs.go`); a process of it counts when its arguments name a preset's program (`agent.ProgramOf`), through an interpreter too (`node`, `bun`, `python`, `sh`), and it runs under another agent or left the tree. Its own agent doesn't count, nor a wrapper starting a binary of the same name, a server or a command, nor an agent's own MCP server. One that runs for under a look doesn't count, so a one-shot call isn't an alarm.
 
@@ -309,7 +311,7 @@ A session's row and `enowx-app ls` say which agents its agent has running beside
 |---|---|
 | A subagent inside the agent's own process (Claude Code's Task tool, Codex's, OpenCode's, ...) | No process of its own. Only the agent's hook or transcript can say, and only Claude Code's is read (below). |
 | An agent that only runs at an API, on someone's cloud | Nothing runs here. |
-| An agent started by a CLI's own background service, as OpenCode's server | It isn't a child of the session. |
+| An agent started by a CLI's own background service, as OpenCode's server or OpenCode 2's without `--standalone` | The service isn't a child of the session and bears no session's tag, so nothing ties it to one: it isn't counted, whatever it runs, and stopping the session doesn't reach it. |
 | An agent named nothing a preset names, or run by an interpreter not listed | Its arguments name no agent. |
 | One that starts and leaves its tree between two looks, on macOS and Windows | The tree never showed it, and only Linux shows a process's session tag, by which it is found there. |
 

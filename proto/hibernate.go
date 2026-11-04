@@ -58,15 +58,17 @@ type HibernatePlan struct {
 	Procs   []HibernateProc `json:"procs,omitempty"`
 	Ports   []int           `json:"ports,omitempty"`
 	Display bool            `json:"display,omitempty"`
-	RSS     uint64          `json:"rss"` // bytes freed, about
-	CPU     float64         `json:"cpu"` // percent of a core freed
+	// Background are the agents in its background, by name, which stop with it and may lose work.
+	Background []string `json:"background,omitempty"`
+	RSS        uint64   `json:"rss"` // bytes freed, about
+	CPU        float64  `json:"cpu"` // percent of a core freed
 }
 
 // Busy reports whether hibernating it now would stop work: its agent
 // working, a task of GOA's under way, something served, an app shown, or a program it left running
 // in the background. Its agent's own helpers stopping with it are not.
 func (p HibernatePlan) Busy() bool {
-	return p.Working || p.Task != "" || len(p.Ports) > 0 || p.Display || slices.ContainsFunc(p.Procs, func(pr HibernateProc) bool { return pr.Left })
+	return p.Working || p.Task != "" || len(p.Ports) > 0 || p.Display || len(p.Background) > 0 || slices.ContainsFunc(p.Procs, func(pr HibernateProc) bool { return pr.Left })
 }
 
 // HibernateProc is a program a session started that would stop with it;

@@ -336,7 +336,7 @@ func (a *App) goaTaskRow(c *ui.Context, t proto.GOATask) {
 		m.Children(func() {
 			ui.Column(c).Grow(1).MinWidth(0).Children(func() {
 				widget.Running(c, t.Title, widget.RunStyle{})
-				widget.Running(c.Key("on"), name+" · "+taskRanOn(t, s, shown), widget.RunStyle{Size: theme.TextLabel, Color: theme.TextSoft})
+				widget.Running(c.Key("on"), name+" · "+taskRanOn(t, s, shown)+taskBackground(t), widget.RunStyle{Size: theme.TextLabel, Color: theme.TextSoft})
 			})
 		})
 		if m.Clicked() {
@@ -412,6 +412,9 @@ func (a *App) goaTaskBody(c *ui.Context, t proto.GOATask) {
 		model += " · " + t.Config
 	}
 	widget.KV(c, "Model", model, false)
+	if line, _ := backgroundLine(proto.SessionInfo{Background: t.Background}, time.Now()); line != "" {
+		widget.KV(c, "Background", line, false)
+	}
 	if t.Why != "" {
 		widget.KV(c, "Why", t.Why, false)
 	}
@@ -439,6 +442,21 @@ func (a *App) goaHostName(host string) string {
 		}
 	}
 	return host
+}
+
+// taskBackground says the agents in a task's worker's background.
+func taskBackground(t proto.GOATask) string {
+	if len(t.Background) == 0 {
+		return ""
+	}
+	names := make([]string, len(t.Background))
+	for i, b := range t.Background {
+		names[i] = b.Name
+		if b.Stuck {
+			names[i] += " (stuck)"
+		}
+	}
+	return fmt.Sprintf(" · %d in background: %s", len(names), strings.Join(names, ", "))
 }
 
 // taskRanOn is what a task really runs on: what its agent said, a session on

@@ -319,12 +319,14 @@ field AutopushStatus.prURL string
 field AutopushStatus.visibility string
 field BackgroundAgent.command string
 field BackgroundAgent.cpu float64
+field BackgroundAgent.cpuPercent float64
 field BackgroundAgent.left bool
 field BackgroundAgent.memory uint64
 field BackgroundAgent.name string
 field BackgroundAgent.pid int
 field BackgroundAgent.since time.Time
 field BackgroundAgent.start string
+field BackgroundAgent.stuck bool
 field BrowserAction.action string
 field BrowserAction.ref string
 field BrowserAction.session string
@@ -1209,6 +1211,7 @@ field GOAStall.stuck int
 field GOATask.agent string
 field GOATask.asks string
 field GOATask.asleep bool
+field GOATask.background []BackgroundAgent
 field GOATask.branch string
 field GOATask.config string
 field GOATask.created time.Time
@@ -1258,6 +1261,7 @@ field Hello.conn string
 field Hello.kind string
 field Hello.parts bool
 field Hello.protocol int
+field HibernatePlan.background []string
 field HibernatePlan.blocked string
 field HibernatePlan.cpu float64
 field HibernatePlan.display bool
@@ -2131,6 +2135,9 @@ field SpaceMoveParams.id string
 field SpaceMoveParams.team string
 field SpaceRef.team string
 field StopAgentsResult.stopped int
+field StopBackgroundParams.pid int
+field StopBackgroundParams.session string
+field StopBackgroundParams.start string
 field StopProcessParams.pid int
 field StopProcessParams.start string
 field StreamRef.stream uint32
@@ -3082,6 +3089,7 @@ method session.resize
 method session.rewind
 method session.screen
 method session.state
+method session.stopBackground
 method session.takeover.answer
 method session.takeover.ask
 method session.takeover.end

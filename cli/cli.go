@@ -31,7 +31,7 @@ const EnvSession = "ENOWX_SESSION"
 // Commands are the command line's commands, for the programs that also
 // do other things with their arguments to tell them apart.
 var Commands = []string{"ls", "list", "sessions", "peek", "status", "spawn", "send", "read", "wait", "kill", "hibernate", "wake", "agents", "projects", "project", "shells", "notes", "features", "creds", "canvas", "review", "sync", "cache", "diagnostics", "icons", "attach", "pipeline", "pipelines", "note", "automation", "automations", "hooks", "accounts", "configs", "rag", "decide", "usage", "browser", "traffic", "android", "mcp", "guide", "ports", "run", "api", "notify", "cloud", "team", "help",
-	"interrupt", "stop", "continue", "fork", "rename", "close", "chat", "answer", "switch", "changes", "settings", "control", "goa"}
+	"background", "interrupt", "stop", "continue", "fork", "rename", "close", "chat", "answer", "switch", "changes", "settings", "control", "goa"}
 
 // Is reports whether args start with one of Commands.
 func Is(args []string) bool { return len(args) > 0 && slices.Contains(Commands, args[0]) }
@@ -84,6 +84,7 @@ const usage = `usage: enowx-app <command> [arguments]
                                    move a group's projects before project P, or last
   projects rename-group FROM TO    rename a group ("" ungroups its projects)
   notify [sound|set|status]        sounds the user's enowX app plays ("notify help")
+  background [SESSION]             agents in sessions' backgrounds; background stop SESSION PID --yes stops one
   cache [clean]                    what this host's enowX folder takes, and cleaning what can go ("cache --help")
   diagnostics [--all] [--bundle F] recent connection events from the logs, or all the logs as a zip for a bug report
   cloud [login|logout|devices|approve|url]
@@ -218,6 +219,8 @@ func (r runner) command(args []string) error {
 		return r.read(rest)
 	case "wait":
 		return r.wait(rest)
+	case "background":
+		return r.background(rest)
 	case "kill":
 		return r.closeSession(rest)
 	case "hibernate":

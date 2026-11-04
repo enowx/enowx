@@ -73,6 +73,9 @@ var sessionHandlers = map[string]handler{
 		}
 		return proto.SessionScreen{Text: c.srv.maskLent(sess.Terminal().Text())}, nil
 	}),
+	proto.MethodSessionStopBackground: with(func(c *conn, p proto.StopBackgroundParams) (any, error) {
+		return ok, c.srv.stopBackgroundAgent(p)
+	}),
 	proto.MethodSessionInput: with(func(c *conn, p proto.SessionInputParams) (any, error) {
 		woken, err := c.srv.wakeThen(p.ID, func() error {
 			if p.From != "" {

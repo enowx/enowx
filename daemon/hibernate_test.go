@@ -176,3 +176,27 @@ func TestHibernateLeavesATaskUnderWay(t *testing.T) {
 		t.Fatalf("forced: %+v, %v", res, err)
 	}
 }
+
+// Hibernating names the agents in a session's background as work that may be lost, and doesn't
+// happen on its own while they run.
+func TestHibernateNamesBackgroundAgents(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("uses sh")
+	}
+	fakeAgent(t)
+	srv := startServer(t)
+	c := connect(t, srv, nil)
+	info, err := c.CreateSession(proto.SessionCreateParams{Agent: "claude", Dir: t.TempDir(), Cols: 80, Rows: 10})
+	if err != nil {
+		t.Fatal(err)
+	}
+	sess, err := srv.sessions.Get(info.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	srv.sessions.SetBackground(sess, []proto.BackgroundAgent{{PID: 4242, Start: "s", Name: "codex"}})
+	res, err := c.HibernateSessions(proto.SessionHibernateParams{IDs: []string{info.ID}})
+	if err != nil || len(res.Hibernated) != 0 || len(res.Plans) != 1 || !slices.Equal(res.Plans[0].Background, []string{"codex"}) || !res.Plans[0].Busy() {
+		t.Fatalf("asked: %+v, %v", res, err)
+	}
+}

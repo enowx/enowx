@@ -78,7 +78,7 @@ func (a *App) agentState(id string) string {
 		return unslopview.AgentStopped
 	case s.State == proto.StateWaiting:
 		return unslopview.AgentWaiting
-	case s.State == proto.StateWorking || s.Active:
+	case s.State == proto.StateWorking || s.Active || len(s.Background) > 0:
 		return unslopview.AgentWorking
 	}
 	return unslopview.AgentIdle

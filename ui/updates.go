@@ -244,6 +244,9 @@ func (a *App) updateDialog(c *ui.Context) {
 				ui.Column(c).FillWidth().Gap(theme.S2).Children(func() { widget.Markdown(c, v.Notes) })
 			})
 		}
+		if line := backgroundAtRisk(a.sessions); line != "" {
+			ui.Text(c, line).FontSize(theme.TextUI).TextColor(theme.Warning)
+		}
 		switch u.state {
 		case updateDownloading:
 			frac := 0.0

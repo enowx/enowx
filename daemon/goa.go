@@ -195,6 +195,9 @@ func (s *Server) goaBoard() proto.GOABoard {
 	}
 	for i, t := range b.Tasks {
 		b.Tasks[i].Asleep = !goa.Settled(t.Status) && s.goaAsleep(t)
+		if sess, err := s.sessions.Get(t.Session); t.Host == "" && err == nil {
+			b.Tasks[i].Background = sess.Info().Background
+		}
 	}
 	b.Told = s.goaToldIDs()
 	b.Waiting = s.goaWaitingLines()
