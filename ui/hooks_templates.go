@@ -48,10 +48,12 @@ func (a *App) hookTemplateMenu(c *ui.Context, st *hooksState) {
 	})
 	sel.Popup(func(panel ui.Element) {
 		widget.Popup(panel.Margin(theme.S1, 0, 0, 0).Width(300))
-		for _, t := range hookTemplates {
-			item := sel.Item(t.name)
-			widget.PopupItem(item, item.Highlighted()).Children(func() { ui.Text(c, t.name).FontSize(theme.TextUI) })
-		}
+		widget.FitScroll(c, widget.PopupRoom(c, sel.Trigger, 420), func() {
+			for _, t := range hookTemplates {
+				item := sel.Item(t.name)
+				widget.PopupItem(item, item.Highlighted()).Children(func() { ui.Text(c, t.name).FontSize(theme.TextUI) })
+			}
+		})
 	})
 	for _, t := range hookTemplates {
 		if t.name == picked && st.loaded {

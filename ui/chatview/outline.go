@@ -128,6 +128,9 @@ func (ch *Chat) outlineButton(c *ui.Context, turns []turn, more int) {
 		return
 	}
 	b := widget.IconButton(c.Key("outline-open"), icon.List, "Your messages", ch.outlineOpen)
+	if widget.AnchorNew(b) {
+		ch.outlineOpen = false
+	}
 	if b.Clicked() {
 		ch.outlineOpen = !ch.outlineOpen
 	}

@@ -50,16 +50,18 @@ func SpacePicker(c *ui.Context, current Space, detail string, size float32, spac
 	})
 	sel.Popup(func(panel ui.Element) {
 		Popup(panel.AttachTo(trig, ui.AnchorTopLeft, ui.AnchorBottomLeft).Margin(theme.S1, 0, 0, 0).Width(220))
-		for _, sp := range spaces {
-			it := sel.Item(sp.Team)
-			PopupItem(it, it.Highlighted()).TextColor(theme.TextSoft).Children(func() {
-				ui.Box(c).Size(18, 18).Center().Shrink(0).Children(func() { mark(sp, 14) })
-				ui.Text(c, sp.Name).TextColor(theme.Text).SingleLine().Grow(1).Shrink(1)
-				if sp.Team == current.Team {
-					ui.Icon(c, icon.Check).FontSize(12).TextColor(theme.Now)
-				}
-			})
-		}
+		FitScroll(c, PopupRoom(c, trig, 420), func() {
+			for _, sp := range spaces {
+				it := sel.Item(sp.Team)
+				PopupItem(it, it.Highlighted()).TextColor(theme.TextSoft).Children(func() {
+					ui.Box(c).Size(18, 18).Center().Shrink(0).Children(func() { mark(sp, 14) })
+					ui.Text(c, sp.Name).TextColor(theme.Text).SingleLine().Grow(1).Shrink(1)
+					if sp.Team == current.Team {
+						ui.Icon(c, icon.Check).FontSize(12).TextColor(theme.Now)
+					}
+				})
+			}
+		})
 	})
 	if trig.Changed() && choice != current.Team {
 		pick(choice)

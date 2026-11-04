@@ -560,7 +560,7 @@ func goaChoice(c *ui.Context, label string, value *string, choices []agent.Choic
 		ui.Icon(c, icon.ChevronDown).FontSize(12).TextColor(theme.TextSoft)
 	})
 	sel.Popup(func(panel ui.Element) {
-		widget.Popup(panel.Margin(theme.S1, 0, 0, 0).MinWidth(220).MaxHeight(280))
+		widget.Popup(panel.Margin(theme.S1, 0, 0, 0).MinWidth(220).MaxHeight(widget.PopupRoom(c, sel.Trigger, 280)))
 		widget.Scroll(c).FillWidth().Children(func() {
 			item := func(id, name string) {
 				it := sel.Item(id)

@@ -350,7 +350,7 @@ func pickOne(c *ui.Context, label string, width float32, values []string, name f
 	})
 	sel.Popup(func(panel ui.Element) {
 		widget.Popup(panel.Margin(theme.S2, 0, 0, 0).Width(width))
-		widget.Scroll(c).FillWidth().MaxHeight(300).Children(func() {
+		widget.Scroll(c).FillWidth().MaxHeight(widget.PopupRoom(c, sel.Trigger, 300)).Children(func() {
 			ui.Column(c).FillWidth().Children(func() {
 				for _, val := range values {
 					item := sel.Item(val)

@@ -36,6 +36,7 @@ func TestChatCardsAndComposerStates(t *testing.T) {
 		entries []proto.TranscriptEntry
 		o       Options
 		set     func(ch *Chat)
+		then    func(ch *Chat)
 		want    []string
 	}{
 		{name: "question", entries: waitOn(short), o: waiting, want: []string{"Which agents should I support first?", "Every agent", "Or answer in your own words", "Scope"}},
@@ -66,7 +67,7 @@ func TestChatCardsAndComposerStates(t *testing.T) {
 			ch.editing, ch.editErr = &withWork[0], "couldn't go back to that message: no such turn"
 		},
 			want: []string{"couldn't go back to that message: no such turn"}},
-		{name: "menu", entries: withWork, o: base, set: func(ch *Chat) { ch.menu = "effort"; ch.effort = "high" }, want: []string{"Low effort", "High effort"}},
+		{name: "menu", entries: withWork, o: base, set: func(ch *Chat) { ch.effort = "high" }, then: func(ch *Chat) { ch.menu = "effort" }, want: []string{"Low effort", "High effort"}},
 		{name: "search", entries: withWork, o: base, set: func(ch *Chat) { ch.finding, ch.find = true, "tambahin" }, want: []string{"1 of 1"}},
 		{name: "search-none", entries: withWork, o: base, set: func(ch *Chat) { ch.finding, ch.find = true, "zzz" }, want: []string{"No match"}},
 		{name: "context", entries: withWork, o: base, set: func(ch *Chat) {
@@ -87,6 +88,9 @@ func TestChatCardsAndComposerStates(t *testing.T) {
 				ui.Column(c).Width(float32(w)).Height(720).Background(theme.Panel).TextColor(theme.Text).Children(func() { ch.View(c, st.o) })
 			}, w, 720)
 			tt.Frame()
+			if st.then != nil { // a menu opens on a composer already there
+				st.then(ch)
+			}
 			tt.Frame()
 			tt.Frame()
 			for _, want := range st.want {

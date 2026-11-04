@@ -87,7 +87,7 @@ func (a *App) tabStrip(c *ui.Context, s proto.SessionInfo) {
 		})
 		add := widget.IconButton(c, icon.Plus, "New tab in this session's folder", false)
 		a.menu.OpenBelow(add, "tab:"+s.ID, theme.ControlHeight)
-		a.menu.ShowLong(c, add, "tab:"+s.ID, func(done func()) {
+		a.menu.Show(c, add, "tab:"+s.ID, func(done func()) {
 			a.shellTabItems(c, s, done)
 			for _, ag := range a.agents {
 				if ag.Command == "" || !ag.Installed {

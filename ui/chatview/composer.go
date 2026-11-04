@@ -402,6 +402,9 @@ func (ch *Chat) setting(c *ui.Context, o Options, key string, svg *ui.SVG, list 
 		}
 		ui.Icon(c, icon.ChevronDown).FontSize(14).Shrink(0)
 	})
+	if widget.AnchorNew(b) && ch.menu == key {
+		ch.menu = ""
+	}
 	if widget.Pressable(b).Clicked() {
 		if ch.menu == key {
 			ch.menu = ""
@@ -420,27 +423,29 @@ func (ch *Chat) setting(c *ui.Context, o Options, key string, svg *ui.SVG, list 
 			width = 250
 		}
 		widget.Popup(panel.AttachTo(b, ui.AnchorTopLeft, ui.AnchorBottomLeft).Margin(0, 0, theme.S1, 0).Width(width))
-		for _, choice := range list {
-			item := ui.ButtonBase(c.Key(choice.ID)).Label(choice.Label).Cursor(ui.CursorPointer).AlignItems(ui.Center).Justify(ui.Start)
-			widget.PopupItem(item, item.Hovered()).Children(func() {
-				ui.Column(c).Grow(1).MinWidth(0).Children(func() {
-					ui.Text(c, choice.Label+suffix).FontSize(theme.TextUI)
-					if choice.Note != "" {
-						ui.Text(c, choice.Note).FontSize(theme.TextLabel).TextColor(theme.TextSoft)
+		widget.FitScroll(c, widget.PopupRoom(c, b, 420), func() {
+			for _, choice := range list {
+				item := ui.ButtonBase(c.Key(choice.ID)).Label(choice.Label).Cursor(ui.CursorPointer).AlignItems(ui.Center).Justify(ui.Start)
+				widget.PopupItem(item, item.Hovered()).Children(func() {
+					ui.Column(c).Grow(1).MinWidth(0).Children(func() {
+						ui.Text(c, choice.Label+suffix).FontSize(theme.TextUI)
+						if choice.Note != "" {
+							ui.Text(c, choice.Note).FontSize(theme.TextLabel).TextColor(theme.TextSoft)
+						}
+					})
+					if known && choice.ID == cur.ID {
+						ui.Icon(c, icon.Check).FontSize(14).TextColor(theme.Now).Shrink(0)
 					}
 				})
-				if known && choice.ID == cur.ID {
-					ui.Icon(c, icon.Check).FontSize(14).TextColor(theme.Now).Shrink(0)
-				}
-			})
-			if item.Clicked() {
-				ch.pending[key] = pendingSet{id: choice.ID, at: time.Now()}
-				ch.menu, open, ch.focus = "", false, true
-				if o.Set != nil {
-					o.Set(key, choice.ID)
+				if item.Clicked() {
+					ch.pending[key] = pendingSet{id: choice.ID, at: time.Now()}
+					ch.menu, open, ch.focus = "", false, true
+					if o.Set != nil {
+						o.Set(key, choice.ID)
+					}
 				}
 			}
-		}
+		})
 	})
 	if !open {
 		ch.menu, ch.focus = "", true

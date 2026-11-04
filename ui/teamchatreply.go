@@ -200,6 +200,9 @@ func (a *App) react(team, id, emoji string, off bool) {
 func (a *App) reactButton(c *ui.Context, team string, m proto.ChatMessage) {
 	hc := a.chatsOf()
 	b := widget.IconButton(c, icon.SmilePlus, "React", hc.reacting == m.ID)
+	if widget.AnchorNew(b) && hc.reacting == m.ID {
+		hc.reacting = ""
+	}
 	if b.Clicked() {
 		if hc.reacting == m.ID {
 			hc.reacting = ""
