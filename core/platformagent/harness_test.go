@@ -95,6 +95,8 @@ func (f *fakeFront) turnStop(t *testing.T) string {
 type fakeHooks struct {
 	mu      sync.Mutex
 	before  func(tool string) HookAnswer
+	prompt  HookAnswer
+	follow  []string
 	states  []string
 	prompts []string
 	after   []string
@@ -120,16 +122,23 @@ func (h *fakeHooks) ToolAfter(ctx context.Context, tool string, input []byte, fa
 	h.after = append(h.after, tool)
 }
 
-func (h *fakeHooks) Prompt(ctx context.Context, text string) {
+func (h *fakeHooks) Prompt(ctx context.Context, text string) HookAnswer {
 	h.mu.Lock()
 	defer h.mu.Unlock()
 	h.prompts = append(h.prompts, text)
+	return h.prompt
 }
 
-func (h *fakeHooks) TurnDone(ctx context.Context) {
+func (h *fakeHooks) TurnDone(ctx context.Context) string {
 	h.mu.Lock()
 	defer h.mu.Unlock()
 	h.done++
+	if len(h.follow) == 0 {
+		return ""
+	}
+	more := h.follow[0]
+	h.follow = h.follow[1:]
+	return more
 }
 
 // fakeTool does what run says; a nil run says "ran <name>".

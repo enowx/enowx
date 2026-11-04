@@ -163,7 +163,7 @@ func (b *Bridge) ToolBefore(ctx context.Context, tool string, input []byte) plat
 	if d.Block {
 		return platformagent.HookAnswer{Deny: true, Why: d.Reason}
 	}
-	return platformagent.HookAnswer{Allow: d.Approve, Context: d.Context}
+	return platformagent.HookAnswer{Allow: d.Approve, Context: d.Context, Command: d.Command}
 }
 
 // ToolAfter implements platformagent.Hooks.
@@ -177,37 +177,25 @@ func (b *Bridge) ToolAfter(ctx context.Context, tool string, input []byte, faile
 }
 
 // Prompt implements platformagent.Hooks.
-func (b *Bridge) Prompt(ctx context.Context, text string) {
-	_, _ = b.PromptAnswer(ctx, text)
-}
-
-// PromptAnswer is Prompt with what the daemon said of it: a hook's refusal, and context
-// for the model (a user's hook, RAG, GOD of Agents' rules changing). Prompt has no way
-// to say them yet.
-func (b *Bridge) PromptAnswer(ctx context.Context, text string) (platformagent.HookAnswer, error) {
+func (b *Bridge) Prompt(ctx context.Context, text string) platformagent.HookAnswer {
 	if !b.inSession() {
-		return platformagent.HookAnswer{}, nil
+		return platformagent.HookAnswer{}
 	}
-	d, err := b.event(ctx, shortTimeout, proto.StateWorking, proto.HookEvent{Event: proto.HookPromptStart, Prompt: text})
-	return platformagent.HookAnswer{Deny: d.Block, Why: d.Reason, Context: d.Context}, err
+	d, _ := b.event(ctx, shortTimeout, proto.StateWorking, proto.HookEvent{Event: proto.HookPromptStart, Prompt: text})
+	return platformagent.HookAnswer{Deny: d.Block, Why: d.Reason, Context: d.Context}
 }
 
-// TurnDone implements platformagent.Hooks.
-func (b *Bridge) TurnDone(ctx context.Context) {
-	_, _ = b.TurnAnswer(ctx)
-}
-
-// TurnAnswer is TurnDone with what the daemon gave to go on with: lines for GOD of
-// Agents, which keep the turn going. TurnDone has no way to say them yet.
-func (b *Bridge) TurnAnswer(ctx context.Context) (string, error) {
+// TurnDone implements platformagent.Hooks: what it returns are GOD of Agents' lines,
+// which keep the turn going.
+func (b *Bridge) TurnDone(ctx context.Context) string {
 	if !b.inSession() {
-		return "", nil
+		return ""
 	}
 	b.mu.Lock()
 	last := b.last
 	b.mu.Unlock()
-	d, err := b.event(ctx, shortTimeout, proto.StateDone, proto.HookEvent{Event: proto.HookTurnDone, LastMessage: last})
-	return d.Continue, err
+	d, _ := b.event(ctx, shortTimeout, proto.StateDone, proto.HookEvent{Event: proto.HookTurnDone, LastMessage: last})
+	return d.Continue
 }
 
 // Start says the agent started, before it opens the conversation, and is what the

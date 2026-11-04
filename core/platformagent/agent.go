@@ -25,7 +25,10 @@ const (
 type PermissionRequest struct {
 	Tool   string
 	Detail string
-	// Rule is what AllowAlways keeps: the tool's name, or Bash(git *).
+	// Input is the call's whole input, for whatever judges it: Detail may be clipped.
+	Input []byte
+	// Rule is what AllowAlways keeps: the tool's name, or Bash(git *). "" when nothing
+	// narrow enough would cover the call: AllowAlways then allows this once.
 	Rule string
 }
 
@@ -52,6 +55,8 @@ type HookAnswer struct {
 	Allow bool
 	// Context is text for the model from a user's hook.
 	Context string
+	// Command runs in place of a Bash call's (a user's rewrite, trimming long output).
+	Command string
 }
 
 // Hooks hands enowX the agent's events; nil outside a session. The agent acts on what
@@ -63,9 +68,12 @@ type Hooks interface {
 	// ToolBefore asks about a call about to run; ToolAfter says how it went.
 	ToolBefore(ctx context.Context, tool string, input []byte) HookAnswer
 	ToolAfter(ctx context.Context, tool string, input []byte, failed bool)
-	// Prompt says a prompt reached the agent, TurnDone that a turn ended.
-	Prompt(ctx context.Context, text string)
-	TurnDone(ctx context.Context)
+	// Prompt says a prompt reached the agent: Deny stops it, with Why, and Context goes
+	// with it to the model.
+	Prompt(ctx context.Context, text string) HookAnswer
+	// TurnDone says a turn ended; what it returns keeps the agent going, as a message
+	// (GOD of Agents' lines).
+	TurnDone(ctx context.Context) string
 }
 
 // Options start an Agent. Key and BaseURL come from the environment the session was

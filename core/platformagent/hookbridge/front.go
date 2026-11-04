@@ -36,7 +36,7 @@ func (f Front) Event(r record.Record) {
 // Permission implements platformagent.Front.
 func (f Front) Permission(ctx context.Context, req platformagent.PermissionRequest) (platformagent.Decision, error) {
 	if f.Bridge.inSession() {
-		d, err := f.Bridge.event(ctx, decisionTimeout, "", proto.HookEvent{Event: proto.HookPermission, Tool: req.Tool, Command: req.Detail})
+		d, err := f.Bridge.event(ctx, decisionTimeout, "", f.Bridge.toolEvent(proto.HookPermission, req.Tool, req.Input))
 		if err == nil && d.Approve {
 			return platformagent.AllowOnce, nil
 		}

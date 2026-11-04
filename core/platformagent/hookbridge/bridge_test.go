@@ -177,15 +177,14 @@ func TestAnOlderDaemonGetsTheStateAlone(t *testing.T) {
 	}
 }
 
-func TestAnswersBeyondTheInterface(t *testing.T) {
+func TestAnswersOfPromptAndTurn(t *testing.T) {
 	d := &fakeDaemon{answer: proto.HookDecision{Block: true, Reason: "no", Context: "rag", Continue: "more lines"}}
 	b := NewOver("s1", false, "", d.dial)
-	a, err := b.PromptAnswer(context.Background(), "x")
-	if err != nil || !a.Deny || a.Why != "no" || a.Context != "rag" {
-		t.Fatalf("%+v %v", a, err)
+	if a := b.Prompt(context.Background(), "x"); !a.Deny || a.Why != "no" || a.Context != "rag" {
+		t.Fatalf("%+v", a)
 	}
-	if more, err := b.TurnAnswer(context.Background()); err != nil || more != "more lines" {
-		t.Fatalf("%q %v", more, err)
+	if more := b.TurnDone(context.Background()); more != "more lines" {
+		t.Fatalf("%q", more)
 	}
 }
 
@@ -239,11 +238,11 @@ func TestFrontTellsTheDaemonOfAsks(t *testing.T) {
 	front := &fakeFront{decision: platformagent.AllowAlways}
 	f := Front{Front: front, Bridge: NewOver("s1", false, "", d.dial)}
 	ctx := context.Background()
-	got, err := f.Permission(ctx, platformagent.PermissionRequest{Tool: "Bash", Detail: "ls"})
+	got, err := f.Permission(ctx, platformagent.PermissionRequest{Tool: "Bash", Detail: "ls", Input: []byte(`{"command":"ls; rm notes"}`)})
 	if err != nil || got != platformagent.AllowOnce || front.asked != 0 {
 		t.Fatalf("%v %v, asked %d", got, err, front.asked)
 	}
-	if c := d.seen()[0]; c.hook.Event.Event != proto.HookPermission || c.hook.Event.Tool != "Bash" || c.hook.Event.Command != "ls" {
+	if c := d.seen()[0]; c.hook.Event.Event != proto.HookPermission || c.hook.Event.Tool != "Bash" || c.hook.Event.Command != "ls; rm notes" {
 		t.Fatalf("call %+v", c)
 	}
 

@@ -125,6 +125,10 @@ func (a *permissionAsk) open(t *Terminal) {
 	if rule := oneLine(a.req.Rule); rule != "" {
 		t.sc.Line(t.sc.paint(styleDim, "Always allow keeps: "+rule))
 	}
+	if a.req.Rule == "" {
+		t.sc.Line(t.sc.paint(styleYellow, "1 allow once  3 deny"))
+		return
+	}
 	t.sc.Line(t.sc.paint(styleYellow, "1 allow  2 always allow  3 deny"))
 }
 

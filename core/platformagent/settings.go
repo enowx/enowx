@@ -129,3 +129,15 @@ func (a *Agent) Close() error {
 	}
 	return err
 }
+
+// SetSystemPrompt replaces the built-in prompt for this session, from the next request:
+// text "" goes back to it. It waits for no turn: asking during one is refused.
+func (a *Agent) SetSystemPrompt(text string) error {
+	if !a.turnMu.TryLock() {
+		return errors.New("a turn is running: wait for it to end")
+	}
+	defer a.turnMu.Unlock()
+	a.opts.SystemPrompt = text
+	a.main.systemJSON = a.systemBlocks()
+	return nil
+}

@@ -131,12 +131,15 @@ func (t *thread) execute(ctx context.Context, c toolCall, tool tools.Tool, shown
 		return tools.Result{Text: "Invalid input, the call did not run: " + problem, Failed: true}
 	}
 
-	refusal, extra, err := t.gate(ctx, tool, c, shown)
+	refusal, extra, command, err := t.gate(ctx, tool, c, shown)
 	if err != nil {
 		return tools.Result{Text: interruptedText, Failed: true}
 	}
 	if refusal != "" {
 		return tools.Result{Text: withContext(refusal, extra), Failed: true}
+	}
+	if command != "" {
+		c.Input = withCommand(c.Input, command)
 	}
 
 	res := t.runTool(ctx, tool, c)
@@ -159,8 +162,10 @@ func withContext(text, extra string) string {
 
 // gate says whether the call may run: the mode and rules first, then hooks, which can
 // refuse what any mode allows (this is what enforces GOD of Agents) or spare the asking,
-// then the user. refusal is what to tell the model; extra is a hook's text for it.
-func (t *thread) gate(ctx context.Context, tool tools.Tool, c toolCall, shown record.Tool) (refusal, extra string, err error) {
+// then the user. refusal is what to tell the model; extra is a hook's text for it;
+// command is what a hook runs in place of the call's. The call is judged as the model
+// sent it: a rewrite is the user's own hook.
+func (t *thread) gate(ctx context.Context, tool tools.Tool, c toolCall, shown record.Tool) (refusal, extra, command string, err error) {
 	a := t.a
 	verdict, rule, why := a.engine.Check(tool, c.Input)
 
@@ -168,34 +173,67 @@ func (t *thread) gate(ctx context.Context, tool tools.Tool, c toolCall, shown re
 	if a.hooks != nil {
 		hook = a.hooks.ToolBefore(ctx, c.Name, c.Input)
 	}
-	extra = hook.Context
+	extra, command = hook.Context, hook.Command
 	if hook.Deny {
-		return first(hook.Why, "A hook refused this call."), extra, nil
+		return first(hook.Why, "A hook refused this call."), extra, "", nil
 	}
 	switch verdict {
 	case permission.Deny:
-		return first(why, "This call isn't permitted."), extra, nil
+		return first(why, "This call isn't permitted."), extra, "", nil
 	case permission.Allow:
-		return "", extra, nil
+		return "", extra, command, nil
 	}
 	if hook.Allow {
-		return "", extra, nil
+		return "", extra, command, nil
 	}
 
+	// Whoever answers sees all of what they allow, not the one line a chat's summary is.
+	shown.Detail = askDetail(c.Input, shown.Detail)
 	decision, err := a.askPermission(ctx, shown, PermissionRequest{
-		Tool: c.Name, Detail: shown.Detail, Rule: first(rule, c.Name),
+		Tool: c.Name, Detail: shown.Detail, Input: c.Input, Rule: rule,
 	}, t.sidechain)
 	if err != nil {
-		return "", extra, err
+		return "", extra, "", err
 	}
 	switch decision {
 	case AllowAlways:
-		a.keepRule(first(rule, c.Name))
+		// Nothing narrow enough to keep: a chained command is allowed this once, and
+		// the tool's bare name would allow every command after it.
+		if rule != "" {
+			a.keepRule(rule)
+		}
 	case AllowOnce:
 	default:
-		return "The user denied this call.", extra, nil
+		return "The user denied this call.", extra, "", nil
 	}
-	return "", extra, nil
+	return "", extra, command, nil
+}
+
+// askDetailLimit bounds what a permission's question shows of a command.
+const askDetailLimit = 8000
+
+// askDetail is what to show of a call when asking to allow it: a command whole.
+func askDetail(input json.RawMessage, detail string) string {
+	var in struct {
+		Command string `json:"command"`
+	}
+	if json.Unmarshal(input, &in) != nil || in.Command == "" {
+		return detail
+	}
+	return clip(in.Command, askDetailLimit)
+}
+
+// withCommand is input with its command replaced.
+func withCommand(input json.RawMessage, command string) json.RawMessage {
+	var fields map[string]json.RawMessage
+	if json.Unmarshal(input, &fields) != nil {
+		return input
+	}
+	if _, ok := fields["command"]; !ok {
+		return input
+	}
+	fields["command"] = marshalStable(command)
+	return marshalStable(fields)
 }
 
 // askPermission puts the question through Front: the wait is recorded first, so the chat

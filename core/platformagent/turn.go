@@ -16,6 +16,7 @@ import (
 const (
 	maxCutoffs = 3 // answers in a row cut by the output limit
 	maxPauses  = 5 // answers in a row the server paused
+	maxFollows = 5 // messages in a row a turn's end asked for
 )
 
 // Stops of a TurnEnd.
@@ -59,19 +60,35 @@ type thread struct {
 func (a *Agent) Turn(ctx context.Context, text string, attachments []string) error {
 	a.turnMu.Lock()
 	defer a.turnMu.Unlock()
+	defer a.state(proto.StateDone)
 
-	a.state(proto.StateWorking)
-	if a.hooks != nil {
-		a.hooks.Prompt(ctx, text)
-	}
-	defer func() {
+	for follows := 0; ; follows++ {
+		err := a.turnOnce(ctx, text, attachments)
+		more := ""
 		if a.hooks != nil {
-			a.hooks.TurnDone(ctx)
+			more = a.hooks.TurnDone(ctx)
 		}
-		a.state(proto.StateDone)
-	}()
+		if err != nil || more == "" || ctx.Err() != nil || follows >= maxFollows {
+			return err
+		}
+		text, attachments = more, nil
+	}
+}
 
+// turnOnce runs one message to its end.
+func (a *Agent) turnOnce(ctx context.Context, text string, attachments []string) error {
+	a.state(proto.StateWorking)
 	end := func(stop string) { a.emit(record.Record{Type: record.TurnEnd, Stop: stop}) }
+
+	var asked HookAnswer
+	if a.hooks != nil {
+		asked = a.hooks.Prompt(ctx, text)
+	}
+	if asked.Deny {
+		a.notice("warning", first(asked.Why, "A hook refused this message."))
+		end(stopDone)
+		return nil
+	}
 
 	if a.client == nil {
 		a.notice("error", errNoKey.Error())
@@ -81,7 +98,7 @@ func (a *Agent) Turn(ctx context.Context, text string, attachments []string) err
 	t := a.main
 	t.compactIfFull(ctx)
 
-	msg, files := t.userMessage(text, attachments)
+	msg, files := t.userMessage(withContext(text, asked.Context), attachments)
 	if msg == nil {
 		end(stopDone)
 		return nil

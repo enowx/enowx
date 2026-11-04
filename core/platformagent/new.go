@@ -19,6 +19,7 @@ import (
 	"github.com/enowx/enowx/core/platformagent/record"
 	"github.com/enowx/enowx/core/platformagent/tools"
 	"github.com/enowx/enowx/core/tokens"
+	"github.com/enowx/enowx/proto"
 )
 
 // Agent is the loop; it implements Runner.
@@ -48,6 +49,8 @@ type Agent struct {
 	askSlot chan struct{}
 	// backoff is the first wait between tries; tests shorten it.
 	backoff time.Duration
+	// streamIdle is how long a stream may say nothing before it counts as lost.
+	streamIdle time.Duration
 
 	turnMu sync.Mutex
 	main   *thread
@@ -86,13 +89,14 @@ func New(o Options) (*Agent, error) {
 	}
 
 	a := &Agent{
-		opts:    o,
-		front:   o.Front,
-		hooks:   o.Hooks,
-		prices:  tokens.NewPrices(nil),
-		environ: tools.CleanEnviron(os.Environ()),
-		askSlot: make(chan struct{}, 1),
-		backoff: time.Second,
+		opts:       o,
+		front:      o.Front,
+		hooks:      o.Hooks,
+		prices:     tokens.NewPrices(nil),
+		environ:    tools.CleanEnviron(os.Environ()),
+		askSlot:    make(chan struct{}, 1),
+		backoff:    time.Second,
+		streamIdle: 3 * time.Minute,
 	}
 	if a.front == nil {
 		a.front = noFront{}
@@ -123,6 +127,15 @@ func New(o Options) (*Agent, error) {
 
 	var problems []string
 	a.all, problems = a.gatherTools()
+	if os.Getenv(proto.EnvGOA) != "" {
+		// GOD of Agents works through enowX's tools alone; asking for each would stop it.
+		// The daemon's tool.before still judges every call.
+		for _, tool := range a.all {
+			if strings.HasPrefix(tool.Name(), "mcp__enowx__") {
+				a.engine.Add(tool.Name())
+			}
+		}
+	}
 
 	a.main = &thread{a: a, history: saved.history, lastPrompt: saved.lastPrompt}
 	a.main.setup(a.all, a.systemBlocks())

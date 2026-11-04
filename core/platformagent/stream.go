@@ -38,7 +38,10 @@ type toolCall struct {
 	BadJSON  string
 }
 
-var errStreamCut = errors.New("the stream ended before the answer did")
+var (
+	errStreamCut     = errors.New("the stream ended before the answer did")
+	errStreamStalled = errors.New("the stream stopped sending")
+)
 
 // streamOnce sends one request and reads its stream to the end. Any failure comes back
 // with nothing kept but the BlockStart and Delta records the chat already got.
@@ -48,7 +51,14 @@ func (t *thread) streamOnce(ctx context.Context, body []byte, betas []string, qu
 	for _, beta := range betas {
 		params.Betas = append(params.Betas, anthropic.AnthropicBeta(beta))
 	}
-	stream := a.client.Beta.Messages.NewStreaming(ctx, params, option.WithRequestBody("application/json", body))
+	// A dead connection sends no error: without this, the turn waits until the user
+	// interrupts it. The API pings a stream that has nothing to say.
+	streamCtx, cancel := context.WithCancelCause(ctx)
+	defer cancel(nil)
+	watchdog := time.AfterFunc(a.streamIdle, func() { cancel(errStreamStalled) })
+	defer watchdog.Stop()
+
+	stream := a.client.Beta.Messages.NewStreaming(streamCtx, params, option.WithRequestBody("application/json", body))
 	defer stream.Close()
 
 	var msg anthropic.BetaMessage
@@ -61,6 +71,7 @@ func (t *thread) streamOnce(ctx context.Context, body []byte, betas []string, qu
 	}}
 	stopped := false
 	for stream.Next() {
+		watchdog.Reset(a.streamIdle)
 		ev := stream.Current()
 		if err := msg.Accumulate(ev); err != nil {
 			return nil, err
@@ -94,6 +105,9 @@ func (t *thread) streamOnce(ctx context.Context, body []byte, betas []string, qu
 		}
 	}
 	if err := stream.Err(); err != nil {
+		if errors.Is(context.Cause(streamCtx), errStreamStalled) {
+			return nil, errStreamStalled
+		}
 		return nil, err
 	}
 	if !stopped {
