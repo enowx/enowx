@@ -206,6 +206,7 @@ func (r runner) notes(args []string) error {
 			return err
 		}
 		before := full.Body
+		titled := full.Title
 		set := map[string]bool{}
 		fs.Visit(func(f *flag.Flag) { set[f.Name] = true })
 		if set["title"] {
@@ -230,7 +231,7 @@ func (r runner) notes(args []string) error {
 		if propose {
 			return r.proposeNote(full)
 		}
-		if proposed, err := r.guardNoteWrite(before, full); proposed || err != nil {
+		if proposed, err := r.guardNoteWrite(titled, before, full); proposed || err != nil {
 			return err
 		}
 		_, err = r.c.SaveNote(full)

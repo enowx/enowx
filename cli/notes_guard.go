@@ -30,11 +30,15 @@ func guardNewNote(body string) error {
 
 // guardNoteWrite proposes n instead of saving it when the guard says so; true
 // means it did, and nothing's left to save.
-func (r runner) guardNoteWrite(before string, n proto.Note) (bool, error) {
+func (r runner) guardNoteWrite(title, before string, n proto.Note) (bool, error) {
 	if !agentSession() {
 		return false, nil
 	}
 	action, body, why := projectdocs.AgentWrite(before, n.Body)
+	// Based on lines name their source by its title, so a new one breaks them.
+	if m, ok := projectdocs.Parse(before); ok && action != projectdocs.WritePropose && n.Title != title && m.Status == projectdocs.StatusApproved {
+		action, why = projectdocs.WritePropose, m.Kind+" is approved: renaming it is proposed"
+	}
 	if action != projectdocs.WritePropose {
 		return false, nil
 	}
@@ -90,7 +94,7 @@ func (r runner) guardNoteRestore(id, version string) (bool, error) {
 	}
 	before := cur.Body
 	cur.Body = v.Body
-	return r.guardNoteWrite(before, cur)
+	return r.guardNoteWrite(cur.Title, before, cur)
 }
 
 // guardNoteAccept refuses a session's accepting a proposal the guard would

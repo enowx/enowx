@@ -346,6 +346,25 @@ func TestDocsWriteGuard(t *testing.T) {
 
 // notes_write and notes_delete over MCP are the same commands, so the guard
 // holds there too, and approving isn't offered.
+// Based on lines name their source by title, so an agent's renaming an approved
+// document is the owner's to accept.
+func TestDocsGuardProposesRenamingApproved(t *testing.T) {
+	h := newDocsHarness(t)
+	_, prd, spec := h.docsSample()
+	h.run("approve", spec)
+	t.Setenv(EnvSession, "s1")
+	if got := h.run("notes", "write", spec, "--title", "Another name"); !strings.Contains(got, "renaming it is proposed") {
+		t.Fatalf("rename: %q", got)
+	}
+	if n, err := h.c.Note(spec); err != nil || n.Title == "Another name" {
+		t.Fatalf("renamed before accepting: %+v, %v", n.NoteInfo, err)
+	}
+	h.run("notes", "write", prd, "--title", "A draft's new name")
+	if n, err := h.c.Note(prd); err != nil || n.Title != "A draft's new name" {
+		t.Fatalf("a draft's rename: %+v, %v", n.NoteInfo, err)
+	}
+}
+
 func TestDocsGuardOverMCP(t *testing.T) {
 	h := newDocsHarness(t)
 	_, _, spec := h.docsSample()

@@ -104,7 +104,7 @@ func (r runner) docsSave(before string, n proto.Note) (bool, error) {
 	if os.Getenv(proto.EnvNotesPropose) != "" {
 		return false, r.proposeNote(n)
 	}
-	if proposed, err := r.guardNoteWrite(before, n); proposed || err != nil {
+	if proposed, err := r.guardNoteWrite(n.Title, before, n); proposed || err != nil {
 		return false, err
 	}
 	_, err := r.c.SaveNote(n)
