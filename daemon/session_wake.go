@@ -27,11 +27,12 @@ type sessionWakes struct {
 
 // wakeLine is one session coming back and those waiting to send to it.
 type wakeLine struct {
-	woke  bool          // its agent had stopped: false for one only queued
-	ready chan struct{} // closed once its agent is back, or can't be
-	err   error         // why it can't, set before ready closes
-	last  chan struct{} // closed once the last in line has sent
-	users int           // those in line, and the bringing back itself
+	woke   bool          // its agent had stopped: false for one only queued
+	ready  chan struct{} // closed once its agent is back, or can't be
+	undone chan struct{} // closed if the session is put to sleep again meanwhile
+	err    error         // why it can't, set before ready closes
+	last   chan struct{} // closed once the last in line has sent
+	users  int           // those in line, and the bringing back itself
 }
 
 // open starts a line for session id. The caller holds mu.
@@ -41,7 +42,7 @@ func (w *sessionWakes) open(id string, woke bool) *wakeLine {
 	}
 	nobody := make(chan struct{})
 	close(nobody)
-	l := &wakeLine{woke: woke, ready: make(chan struct{}), last: nobody, users: 1}
+	l := &wakeLine{woke: woke, ready: make(chan struct{}), undone: make(chan struct{}), last: nobody, users: 1}
 	w.lines[id] = l
 	return l
 }
@@ -51,6 +52,17 @@ func (w *sessionWakes) release(id string, l *wakeLine) {
 	defer w.mu.Unlock()
 	if l.users--; l.users == 0 && w.lines[id] == l {
 		delete(w.lines, id)
+	}
+}
+
+// undo ends session id's line, as it was put to sleep again while coming back: the wait
+// for its agent says nothing now, and what is sent from here on brings it back anew.
+func (w *sessionWakes) undo(id string) {
+	w.mu.Lock()
+	defer w.mu.Unlock()
+	if l := w.lines[id]; l != nil {
+		delete(w.lines, id)
+		close(l.undone)
 	}
 }
 
@@ -99,8 +111,20 @@ func (s *Server) wakeThen(id string, send func() error) (bool, error) {
 	w.mu.Unlock()
 	defer w.release(id, l)
 	defer close(mine)
-	<-l.ready
+	select {
+	case <-l.ready:
+	case <-l.undone:
+	}
 	<-before
+	select {
+	case <-l.undone:
+		// Mine is still closed to those behind, who stay behind.
+		if _, err := s.wakeThen(id, send); err != nil {
+			return false, err
+		}
+		return true, nil
+	default:
+	}
 	if l.err != nil {
 		return false, fmt.Errorf("session %s couldn't be brought back, so nothing was sent: %w", id, l.err)
 	}

@@ -436,6 +436,7 @@ func (s *Server) hibernateSession(sess *session.Session, byHand bool) error {
 	if err != nil {
 		return err
 	}
+	s.wakes.undo(info.ID)
 	s.reapSession(info.ID)
 	s.logger().Info("hibernated an idle agent", "id", info.ID, "agent", meta.Agent)
 	return nil
