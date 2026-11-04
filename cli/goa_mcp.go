@@ -10,11 +10,12 @@ var goaTools = []mcpTool{
 			"project": {"string", "The project of a new session (a path on its host)"}, "branch": {"string", "A new branch in a worktree of its own"},
 			"host":  {"string", "The host, as the app names it (sessions_everywhere lists them); this one when left out"},
 			"model": {"string", "A model chosen by hand"}, "effort": {"string", "An effort chosen by hand"}, "config": {"string", "A config of the agent's (another provider)"},
-			"no_route": {"boolean", "Keep the agent's own model and effort"}},
+			"no_route": {"boolean", "Keep the agent's own model and effort"},
+			"doc":      {"string", "A Project Docs document, NOTE or NOTE#SECTION: refused while its project's gate is closed, its words prepended to the prompt"}},
 		required: []string{"prompt"},
 		args: func(a map[string]any) []string {
 			args := []string{"delegate", "--json"}
-			for _, k := range []string{"title", "session", "agent", "project", "branch", "host", "model", "effort", "config"} {
+			for _, k := range []string{"title", "session", "agent", "project", "branch", "host", "model", "effort", "config", "doc"} {
 				args = withFlag(args, a, k, k)
 			}
 			return append(withFlag(args, a, "no_route", "no-route"), "--", str(a, "prompt"))

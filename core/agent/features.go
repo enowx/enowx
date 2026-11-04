@@ -165,8 +165,10 @@ Agents that can't take an API per session (enowx-app api lists them) still take 
     "$ENOWX_BIN" goa delegate --agent claude --project P "…"   # a task to a new session, its model and effort routed; --session S for one that runs
     "$ENOWX_BIN" goa board                                      # the tasks, their sessions, status and results
     "$ENOWX_BIN" goa task ID --status done --result "…"         # settle one
-    "$ENOWX_BIN" goa remember --kind decision "…" | goa recall "…" [--project P --host H]`,
-		Tools: []string{"goa_"}},
+    "$ENOWX_BIN" goa remember --kind decision "…" | goa recall "…" [--project P --host H]
+    "$ENOWX_BIN" goa delegate --doc NOTE[#SECTION] …            # a Project Docs task, its documents' words in its prompt; while docs progress shows the gate closed, stop and tell the user
+    "$ENOWX_BIN" docs plan|progress PROJECT | docs verify PROJECT --task ID   # what's ready and its command; where it stands; a result beside its criteria`,
+		Tools: []string{"goa_", "docs_plan", "docs_progress", "docs_verify"}},
 	{ID: "notes", Name: "Notes", Group: GroupNotes, Default: true, Core: true,
 		About: "The user's notes, which agents read and write.",
 		Guide: `The user's notes: their Notes page in enowX, pages of Markdown on this host. Read or write them when the user asks (a plan to keep, a checklist, what you found):
