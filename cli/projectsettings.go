@@ -13,7 +13,8 @@ import (
 
 const projectSettingsUsage = `usage: enowx-app project settings [P] [--copy A,B] [--setup SCRIPT] [--host H]
   a project's settings (.enowx.toml, committed with it): the files git ignores that new
-  worktrees get from its folder (--copy, "" none), and the script that readies one (--setup, "" none)`
+  worktrees get from its folder (--copy, "" none), and the script that readies one (--setup, "" none)
+  --guide-block on|off  enowX's block in AGENTS.md or CLAUDE.md, for agents with no other way to its guide`
 
 // projectSettings shows a project's settings, or changes them.
 func (r runner) projectSettings(args []string) error {
@@ -21,6 +22,7 @@ func (r runner) projectSettings(args []string) error {
 	fs.SetOutput(io.Discard)
 	copies := fs.String("copy", "", "")
 	setup := fs.String("setup", "", "")
+	guideBlock := fs.String("guide-block", "", "")
 	arg, err := parseWithArg(fs, args)
 	if err != nil {
 		return errors.New(projectSettingsUsage)
@@ -36,7 +38,13 @@ func (r runner) projectSettings(args []string) error {
 	if err != nil {
 		return err
 	}
-	if isSet(fs, "copy") || isSet(fs, "setup") {
+	if isSet(fs, "guide-block") {
+		if *guideBlock != "on" && *guideBlock != "off" {
+			return errors.New(projectSettingsUsage)
+		}
+		cfg.GuideBlockOff = *guideBlock == "off"
+	}
+	if isSet(fs, "copy") || isSet(fs, "setup") || isSet(fs, "guide-block") {
 		if isSet(fs, "copy") {
 			cfg.Copy = nil
 			for _, c := range strings.Split(*copies, ",") {

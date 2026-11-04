@@ -46,12 +46,17 @@ func ToolArgs(id, exe string) []string {
 // takes this session's configuration there. It also carries the guide of OpenCode
 // and Kilo Code, so that no file of the user's has to.
 func ToolEnv(id, exe, home string) []string {
+	return ToolEnvGuide(id, exe, filepath.Join(home, ".enowx-app", "agent-guide.md"))
+}
+
+// ToolEnvGuide is ToolEnv with the guide's file.
+func ToolEnvGuide(id, exe, guide string) []string {
 	key := map[string]string{"opencode": "OPENCODE_CONFIG_CONTENT", "kilo": "KILO_CONFIG_CONTENT"}[id]
 	if key == "" {
 		return nil
 	}
 	b, _ := json.Marshal(map[string]any{
-		"instructions": []string{filepath.Join(home, ".enowx-app", "agent-guide.md")},
+		"instructions": []string{guide},
 		"mcp": map[string]any{"enowx": map[string]any{
 			"type": "local", "command": []string{exe, "mcp"}, "enabled": true,
 		}},

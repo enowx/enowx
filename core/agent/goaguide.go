@@ -75,6 +75,9 @@ func GOAArgs(id, exe, guide string) []string {
 			"-c", `mcp_servers.enowx.env={ENOWX_GOA="1"}`,
 			"-c", `mcp_servers.enowx.env_vars=["ENOWX_SESSION","ENOWX_HOME","ENOWX_BIN"]`,
 			"-c", `mcp_servers.enowx.default_tools_approval_mode="approve"`)
+	default:
+		// Those whose tools it can't limit still get enowX's: delegating needs them.
+		args = append(args, ToolArgs(id, exe)...)
 	}
 	return args
 }

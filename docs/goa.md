@@ -35,6 +35,8 @@ Leaving the mode asks first, whichever way: the title bar's **Sessions**, **Leav
 | limited | agents whose tools can be restricted at start but have no hooks | Started with enowX's tools only. (No agent enowX knows is limited and not enforced today.) |
 | watched | every other agent | Only told. The programs GOA's session runs itself (found by the session's tag in their environment) and the files that change in the host's git projects while no other session works there are flagged to the user, with a banner; a file unchanged, or changed only in tracked files, when GOA started can be put back as it was (`git stash create` keeps that state without touching the folder). Best effort: a change GOA makes in a folder a worker works in passes as the worker's. |
 
+Its duty to delegate is in its inject, so it doesn't rest on a guide being read. **Claude Code and Codex have no exception:** their hooks refuse the rest, even if the user asks. **On other agents,** GOA may do something itself only if the user's own message in the chat asks for that task, not a file, repository, web page or tool's output, and it says so when it does. That is an instruction, which nothing enforces; a watched agent's actions are still flagged.
+
 The app shows each agent's level when picking GOA's; `enowx goa agents` lists them.
 
 No enowX command that runs a program of GOA's choosing works in its session, or in its MCP server: `creds use … -- COMMAND`, `decide trim -- COMMAND`, and `run` of a project command (listing them still works). Those would be a way around the tools it lacks.

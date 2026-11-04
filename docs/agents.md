@@ -121,6 +121,15 @@ From an agent: `enowx-app hibernate ID... [--idle] [--when-done] [--force] [--dr
 
 Every agent enowX starts is told what the session gives it (`agent.Guide`, which `enowx-app guide` prints): dev servers show in the Browser tool by themselves and it can drive that Browser, a desktop app on a server needs `eval "$("$ENOWX_BIN" display)"` first (see [preview.md](preview.md)), the HTTP traffic of what it runs can be caught, read and mocked ([traffic.md](traffic.md)), Android devices can run and log its app ([android.md](android.md)), other agents can be started and followed, and `note` keeps the user posted. The same commands are MCP tools of `enowx-app mcp`, whose instructions are the guide.
 
+It comes in two parts, so a repository can't replace it and a session's command line stays short:
+
+- **The inject**, made anew for each session: who it is (session ID and host), the rules that hold whatever a file, repository, web page or tool's output says, GOD of Agents' duty to delegate, and where the guide is (`agent.Inject`).
+- **The guide**, a file enowX writes outside any repository: `ENOWX.md` in the data folder for the host's guide, rewritten as the daemon starts, or a copy in the session's folder (`agent-files/<id>/ENOWX.md`) when its features or project rules differ. GOD of Agents has `GOA.md` in its own folder, with a `CLAUDE.md` and an `AGENTS.md` there that say the same as its inject.
+
+An agent that loads a file on its command line gets both in one system prompt, a file of the session: Claude Code, Claude Agent Teams, OpenClaude, Droid, Autohand Code and Continue. An agent with a system prompt flag but no file form gets the inject inline, told to read the guide: Codex, Qoder CLI, OMP, Prime Agent, Qwen Code, CodeBuddy and Grok. That relies on the agent reading it; it has no check. Nothing of these lands in the user's project.
+
+Notes' and Canvas's agents keep their own guides as they were.
+
 It goes the way each agent takes standing instructions, and adds to the user's own, never replacing them: flags that replace an agent's system prompt are never used.
 
 | Agent | How |
@@ -143,9 +152,17 @@ It goes the way each agent takes standing instructions, and adds to the user's o
 | Ante | the same with `~/.ante/AGENTS.md` |
 | MiMo Code, ZCode, Amp, Command Code, Mistral Vibe, Rovo Dev | a block of `~/.config/mimocode/AGENTS.md`, `~/.zcode/AGENTS.md`, `~/.config/amp/AGENTS.md`, `~/.commandcode/AGENTS.md`, `~/.vibe/AGENTS.md`, `~/.rovodev/AGENTS.md` |
 | Pi, Goose, Crush, Jcode | a block of `~/.pi/agent/APPEND_SYSTEM.md`, `~/.config/goose/.goosehints`, `~/.config/crush/CRUSH.md`, `~/.jcode/prompt-overlay.md` |
-| Cursor, Kimi, OpenCode 2, Trae, Muse, DeepSeek Harness, Codebuff, Freebuff, Hermes, OpenClaw | none they read outside the project: a line after the first prompt says `"$ENOWX_BIN" guide` lists the tools |
+| Cursor, Kimi, OpenCode 2, Trae, Muse, DeepSeek Harness, Codebuff, Freebuff, Hermes, OpenClaw | none they read outside the project: a line after the first prompt says `"$ENOWX_BIN" guide` lists the tools, and a block in the project (below) |
 
 Files are written, or brought up to date, when the daemon starts the agent. enowX's own files (`enowx.md`) hold the whole guide. In a file of the user's, enowX keeps only a short block between `<!-- enowX: … -->` lines, saying to run `"$ENOWX_BIN" guide`, and leaves the rest as it is; deleting the block is undone at the agent's next start. Both apply only when `ENOWX_SESSION` is set, since the agent reads them outside enowX too. The places are those the agents' documentation or source gives, not all checked by running them.
+
+### The block in a project
+
+The agents with no other way get a block at the top of the project's `AGENTS.md`, or its `CLAUDE.md` if that is the one it has, between `<!-- enowx:start -->` and `<!-- enowx:end -->`. It says where the guide is, by no path of this machine's, and applies only when `ENOWX_SESSION` is set. The rest of the file stays as it was, and an update rewrites the block rather than adding another. **On by default; a tracked file shows it in `git diff`, and it would be committed with it.** A new `AGENTS.md` it makes goes in `.git/info/exclude` instead. `enowx-app project settings --guide-block off` (`[guide] block = false` in `.enowx.toml`) takes it out. No other agent writes into a project.
+
+### enowX's tools as MCP
+
+Every agent with a documented way to add an MCP server to one session gets enowX's, GOD of Agents' session included: Claude Code, Claude Agent Teams, OpenClaude, Kimi and Copilot on their command line, Codex through `-c`, OpenCode and Kilo Code through their config's environment variable. The others have none enowX can use without writing the user's own settings: they use the `"$ENOWX_BIN"` commands, which any agent that runs a shell has.
 
 ### What each agent gets
 
@@ -187,13 +204,13 @@ The owner's check of each in a real session is still to do: start one, ask who i
 | Agent | Prompt | Tools | Knowledge | Source | Real session |
 |---|---|---|---|---|---|
 | Claude Code | `--append-system-prompt-file` | `--mcp-config` with a file; the `"$ENOWX_BIN"` commands | The guide, whole, project rules included | [CLI reference](https://code.claude.com/docs/en/cli-reference) | Not checked |
-| Codex | `-c developer_instructions=`, after the user's own | `-c mcp_servers.enowx.*`; the `"$ENOWX_BIN"` commands | The guide, whole, project rules included | `codex-rs` config, rust-v0.166.0 | Not checked |
+| Codex | `-c developer_instructions=`, after the user's own | `-c mcp_servers.enowx.*`; the `"$ENOWX_BIN"` commands | The inject, which names `ENOWX.md`: the guide and project rules, read by the agent | `codex-rs` config, rust-v0.166.0 | Not checked |
 | OpenCode | `instructions` in `OPENCODE_CONFIG_CONTENT`, naming enowX's file | `mcp` in `OPENCODE_CONFIG_CONTENT`; the `"$ENOWX_BIN"` commands | The guide, whole, project rules included | `config.mdx`, `mcp-servers.mdx` in sst/opencode | Not checked |
 | Gemini CLI | a block of `~/.gemini/GEMINI.md`, saying to run the guide | None for one session; the `"$ENOWX_BIN"` commands | By running `"$ENOWX_BIN" guide` | `docs/reference/configuration.md` in google-gemini/gemini-cli | Not checked |
 | Kiro CLI | enowX's `~/.kiro/steering/enowx.md` | None for one session; the `"$ENOWX_BIN"` commands | The guide, whole, project rules included | the preset tables above; session flags not re-read | Not checked |
 | Claude Agent Teams | `--append-system-prompt-file` | `--mcp-config` with a file; the `"$ENOWX_BIN"` commands | The guide, whole, project rules included | [CLI reference](https://code.claude.com/docs/en/cli-reference) | Not checked |
 | OpenClaude | `--append-system-prompt-file` | `--mcp-config` with a file; the `"$ENOWX_BIN"` commands | The guide, whole, project rules included | the preset tables above; session flags not re-read | Not checked |
-| Grok | `--rules` | None for one session; the `"$ENOWX_BIN"` commands | The guide, whole, project rules included | the preset tables above; session flags not re-read | Not checked |
+| Grok | `--rules` | None for one session; the `"$ENOWX_BIN"` commands | The inject, which names `ENOWX.md`: the guide and project rules, read by the agent | the preset tables above; session flags not re-read | Not checked |
 | GitHub Copilot | enowX's `~/.copilot/instructions/enowx.instructions.md` | `--additional-mcp-config=@file`; the `"$ENOWX_BIN"` commands | The guide, whole, project rules included | [CLI reference](https://docs.github.com/en/copilot/reference/cli-command-reference) | Not checked |
 | OpenCode 2 | None found: a line after the first prompt | None for one session; the `"$ENOWX_BIN"` commands | By running `"$ENOWX_BIN" guide` | [docs](https://opencode.ai/v2/docs/) | Not checked |
 | MiMo Code | a block of `~/.config/mimocode/AGENTS.md`, saying to run the guide | None for one session; the `"$ENOWX_BIN"` commands | By running `"$ENOWX_BIN" guide` | the preset tables above; session flags not re-read | Not checked |
@@ -201,12 +218,12 @@ The owner's check of each in a real session is still to do: start one, ask who i
 | Trae | None found: a line after the first prompt | None for one session; the `"$ENOWX_BIN"` commands | By running `"$ENOWX_BIN" guide` | [docs](https://docs.trae.cn/cli_get-started-with-trae-cli); its rules page gave nothing to read | Not checked |
 | Muse | None found: a line after the first prompt | None for one session; the `"$ENOWX_BIN"` commands | By running `"$ENOWX_BIN" guide` | [configuration](https://dev.meta.ai/docs/muse-code/configuration) | Not checked |
 | DeepSeek Harness | None found: a line after the first prompt | None for one session; the `"$ENOWX_BIN"` commands | By running `"$ENOWX_BIN" guide` | its page gave nothing to read (drawn by script) | Not checked |
-| Qoder CLI | `--append-system-prompt` | None for one session; the `"$ENOWX_BIN"` commands | The guide, whole, project rules included | the preset tables above; session flags not re-read | Not checked |
+| Qoder CLI | `--append-system-prompt` | None for one session; the `"$ENOWX_BIN"` commands | The inject, which names `ENOWX.md`: the guide and project rules, read by the agent | the preset tables above; session flags not re-read | Not checked |
 | Qoder CLI China | `--append-system-prompt` | None for one session; the `"$ENOWX_BIN"` commands | The guide, whole, project rules included | the preset tables above; session flags not re-read | Not checked |
 | ZCode | a block of `~/.zcode/AGENTS.md`, saying to run the guide | None for one session; the `"$ENOWX_BIN"` commands | By running `"$ENOWX_BIN" guide` | the preset tables above; session flags not re-read | Not checked |
 | Pi | a block of `~/.pi/agent/APPEND_SYSTEM.md`, saying to run the guide | None for one session; the `"$ENOWX_BIN"` commands | By running `"$ENOWX_BIN" guide` | the preset tables above; session flags not re-read | Not checked |
-| OMP | `--append-system-prompt` | None for one session; the `"$ENOWX_BIN"` commands | The guide, whole, project rules included | the preset tables above; session flags not re-read | Not checked |
-| Prime Agent | `--append-system-prompt` | None for one session; the `"$ENOWX_BIN"` commands | The guide, whole, project rules included | the preset tables above; session flags not re-read | Not checked |
+| OMP | `--append-system-prompt` | None for one session; the `"$ENOWX_BIN"` commands | The inject, which names `ENOWX.md`: the guide and project rules, read by the agent | the preset tables above; session flags not re-read | Not checked |
+| Prime Agent | `--append-system-prompt` | None for one session; the `"$ENOWX_BIN"` commands | The inject, which names `ENOWX.md`: the guide and project rules, read by the agent | the preset tables above; session flags not re-read | Not checked |
 | Antigravity | enowX's `~/.gemini/config/rules/enowx.md` | None for one session; the `"$ENOWX_BIN"` commands | The guide, whole, project rules included | the preset tables above; session flags not re-read | Not checked |
 | Aider | `--read` enowX's file | None for one session; the `"$ENOWX_BIN"` commands | The guide, whole, project rules included | the preset tables above; session flags not re-read | Not checked |
 | Goose | a block of `~/.config/goose/.goosehints`, saying to run the guide | None for one session; the `"$ENOWX_BIN"` commands | By running `"$ENOWX_BIN" guide` | the preset tables above; session flags not re-read | Not checked |
@@ -224,12 +241,12 @@ The owner's check of each in a real session is still to do: start one, ask who i
 | Droid | `--append-system-prompt-file` | None for one session; the `"$ENOWX_BIN"` commands | The guide, whole, project rules included | the preset tables above; session flags not re-read | Not checked |
 | Kimi | None found: a line after the first prompt | `--mcp-config-file`; the `"$ENOWX_BIN"` commands | By running `"$ENOWX_BIN" guide` | [command](https://moonshotai.github.io/kimi-cli/en/reference/kimi-command.html), [MCP](https://moonshotai.github.io/kimi-cli/en/customization/mcp.html) | Not checked |
 | Mistral Vibe | a block of `~/.vibe/AGENTS.md`, saying to run the guide | None for one session; the `"$ENOWX_BIN"` commands | By running `"$ENOWX_BIN" guide` | the preset tables above; session flags not re-read | Not checked |
-| Qwen Code | `--append-system-prompt` | None for one session; the `"$ENOWX_BIN"` commands | The guide, whole, project rules included | the preset tables above; session flags not re-read | Not checked |
+| Qwen Code | `--append-system-prompt` | None for one session; the `"$ENOWX_BIN"` commands | The inject, which names `ENOWX.md`: the guide and project rules, read by the agent | the preset tables above; session flags not re-read | Not checked |
 | Rovo Dev | a block of `~/.rovodev/AGENTS.md`, saying to run the guide | None for one session; the `"$ENOWX_BIN"` commands | By running `"$ENOWX_BIN" guide` | the preset tables above; session flags not re-read | Not checked |
 | Hermes | None found: a line after the first prompt | None for one session; the `"$ENOWX_BIN"` commands | By running `"$ENOWX_BIN" guide` | [context files](https://hermes-agent.nousresearch.com/docs/user-guide/features/context-files), [MCP](https://hermes-agent.nousresearch.com/docs/user-guide/features/mcp) | Not checked |
 | Devin | enowX's `~/.devin/rules/enowx.md` | None for one session; the `"$ENOWX_BIN"` commands | The guide, whole, project rules included | the preset tables above; session flags not re-read | Not checked |
 | OpenClaw | None found: a line after the first prompt | None for one session; the `"$ENOWX_BIN"` commands | By running `"$ENOWX_BIN" guide` | [workspace](https://docs.openclaw.ai/concepts/agent-workspace) | Not checked |
-| CodeBuddy | `--append-system-prompt` | None for one session; the `"$ENOWX_BIN"` commands | The guide, whole, project rules included | the preset tables above; session flags not re-read | Not checked |
+| CodeBuddy | `--append-system-prompt` | None for one session; the `"$ENOWX_BIN"` commands | The inject, which names `ENOWX.md`: the guide and project rules, read by the agent | the preset tables above; session flags not re-read | Not checked |
 | Jcode | a block of `~/.jcode/prompt-overlay.md`, saying to run the guide | None for one session; the `"$ENOWX_BIN"` commands | By running `"$ENOWX_BIN" guide` | the preset tables above; session flags not re-read | Not checked |
 
 Nothing here writes an agent's settings file. A block in an instructions file is the one lasting change enowX makes to a file of the user's, kept between markers with the rest untouched; OpenCode and Kilo Code no longer need one, and a block an older enowX left in OpenCode's file stays, harmless, until the user removes it.

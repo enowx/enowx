@@ -83,7 +83,7 @@ func TestClaudeCodeReadsItsArgumentsFromFiles(t *testing.T) {
 		t.Fatalf("inline: %.200q", l.Hooks)
 	}
 	data, err := os.ReadFile(filepath.Join(dir, "system-prompt.md"))
-	if err != nil || string(data) != guide {
+	if err != nil || !strings.HasSuffix(string(data), guide) || !strings.HasPrefix(string(data), "You are running inside an enowX session") {
 		t.Fatalf("the file holds %d bytes of %d, %v", len(data), len(guide), err)
 	}
 	cfg, err := os.ReadFile(filepath.Join(dir, "mcp.json"))
@@ -121,9 +121,9 @@ func TestLongPromptIsTyped(t *testing.T) {
 	}
 }
 
-// An agent with no file form still starts under the limit: told where its guide is,
-// which the session's note says.
-func TestAgentWithNoFileFormIsWarned(t *testing.T) {
+// An agent with no file form starts well under any limit, on every system: it is told
+// where its guide is, which holds this project's rules.
+func TestAgentWithNoFileFormIsToldToRead(t *testing.T) {
 	useWindowsLimit(t)
 	t.Setenv("HOME", t.TempDir())
 	t.Setenv("USERPROFILE", t.TempDir())
@@ -133,20 +133,15 @@ func TestAgentWithNoFileFormIsWarned(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !strings.Contains(l.warn, "read it from a file") {
-		t.Fatalf("no warning: %q", l.warn)
+	if l.warn != "" || commandLength(l.command) > 3000 {
+		t.Fatalf("warned %q, %d characters", l.warn, commandLength(l.command))
 	}
-	if data, _ := os.ReadFile(filepath.Join(dir, "system-prompt.md")); string(data) != realGuide(false) {
+	path := filepath.Join(dir, agent.EnowxGuideName)
+	if !strings.Contains(strings.Join(l.command, " "), path) {
+		t.Fatalf("not told where: %.300q", l.command)
+	}
+	if data, _ := os.ReadFile(path); !strings.Contains(string(data), "A rule of this project") {
 		t.Fatalf("the file holds %d bytes", len(data))
-	}
-	// With no limit, it keeps its guide inline.
-	commandLimit = 0
-	l, err = launchFor(proto.SessionCreateParams{Agent: "qwen-code"}, chatFor{guide: realGuide(false), files: t.TempDir()})
-	if err != nil {
-		t.Fatal(err)
-	}
-	if l.warn != "" || !strings.Contains(strings.Join(l.command, " "), "A rule of this project") {
-		t.Fatalf("shortened with no limit: %q", l.warn)
 	}
 }
 

@@ -231,6 +231,9 @@ func (s *Server) createSessionFor(p proto.SessionCreateParams, member *proto.Ses
 	if member != nil {
 		spec.Env = memberEnviron(spec.Env)
 	}
+	if p.NotesFor == "" && p.CanvasFor == "" && !p.SignIn && !p.GOA && member == nil && meta.Project != "" {
+		s.keepGuideBlock(p.Agent, spec.Dir)
+	}
 	if _, isAgent := agent.Find(p.Agent); isAgent && !p.SignIn && s.mustQueue() {
 		return s.enqueue(spec, launch.command, launch.typed)
 	}
@@ -458,8 +461,14 @@ type chatFor struct {
 // user's ordinary sessions, as the Notes, Canvas and GOA agents have tools of
 // their own and a teammate's session none of this.
 func (ch chatFor) toolEnv(id string) []string {
-	if ch.member || ch.notes != "" || ch.canvas != "" || ch.goa {
+	if ch.member || ch.notes != "" || ch.canvas != "" {
 		return nil
+	}
+	if ch.goa {
+		if ch.files == "" {
+			return nil
+		}
+		return agent.ToolEnvGuide(id, programPath(), filepath.Join(ch.dataDir(), "goa", agent.GOAGuideName))
 	}
 	return toolEnv(id)
 }
@@ -512,13 +521,14 @@ func agentLaunch(preset agent.Preset, skip bool, prompt string, cont bool, chat 
 		guide = agent.Guide
 	}
 	guide = guideWithoutSecrets(guide)
+	given := chat.agentGuide(preset.ID, guide)
 	// Skipping stays a mode to switch to from the chat, except as root,
 	// where the agent would refuse to start with it.
 	allow := !(preset.RefusesRootSkip && os.Geteuid() == 0)
 	if home, err := os.UserHomeDir(); err == nil && !chat.goa {
 		// Agents whose command line takes no guide read it from their home
 		// (GOA's own is a file its first prompt names: agent.GOANote).
-		if err := agent.PlaceGuideText(preset.ID, home, guide); err != nil {
+		if err := agent.PlaceGuideText(preset.ID, home, guideInjected(preset.ID, guide)); err != nil {
 			slog.Warn("could not give the agent its guide", "agent", preset.ID, "err", err)
 		}
 	}
@@ -526,7 +536,7 @@ func agentLaunch(preset agent.Preset, skip bool, prompt string, cont bool, chat 
 	if !chat.member {
 		tools = agent.ToolArgs(preset.ID, programPath())
 	}
-	hooks := append(append(agent.HookArgs(preset.ID), tools...), agent.GuideArgsText(preset.ID, guide)...)
+	hooks := append(append(agent.HookArgs(preset.ID), tools...), agent.GuideArgsText(preset.ID, given)...)
 	if agent.Base(preset.ID) == "codex" && len(hooks) > 0 {
 		// Codex runs only hooks it trusts: enowX's own are trusted here.
 		if err := agent.TrustCodexHooks(""); err != nil {
@@ -535,7 +545,7 @@ func agentLaunch(preset agent.Preset, skip bool, prompt string, cont bool, chat 
 	}
 	switch {
 	case chat.goa:
-		hooks = append(agent.GOAHookArgs(preset.ID), agent.GOAArgs(preset.ID, programPath(), guide)...)
+		hooks = append(agent.GOAHookArgs(preset.ID), agent.GOAArgs(preset.ID, programPath(), given)...)
 	case chat.notes != "":
 		hooks = append(agent.HookArgs(preset.ID), agent.NotesArgs(preset.ID, programPath(), chat.notes)...)
 	case chat.canvas != "":

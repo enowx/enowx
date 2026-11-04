@@ -1637,6 +1637,7 @@ field ProjectCloneParams.name string
 field ProjectCloneParams.submodules bool
 field ProjectCloneParams.url string
 field ProjectConfig.copy []string
+field ProjectConfig.guideBlockOff bool
 field ProjectConfig.path string
 field ProjectConfig.setup string
 field ProjectContext.branch string
