@@ -186,7 +186,7 @@ func (s *Service) dropOldest(r *http.Request, versions []store.LibraryVersionRow
 		if v.Status != api.LibrarySuperseded && v.Status != api.LibraryRejected {
 			continue
 		}
-		for _, part := range []string{api.PartSource, api.PartDoc, api.PartDocPhone, api.PartThumb, api.PartThumbPhone} {
+		for _, part := range []string{api.PartSource, api.PartDoc, api.PartDocPhone, api.PartThumb, api.PartThumbPhone, api.PartVideo} {
 			if err := s.objects.Delete(r.Context(), objectKey(v.ItemID, v.Version, part)); err != nil && !errors.Is(err, blobstore.ErrNotFound) {
 				s.log.Warn("library: drop a version", "item", v.ItemID, "err", err)
 				return false
