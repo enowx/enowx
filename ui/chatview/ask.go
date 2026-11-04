@@ -119,6 +119,9 @@ func permissionTitle(e proto.TranscriptEntry, who string) string {
 	return who + " asks to use " + verb
 }
 
+// maxOptionKeys is how many options a question can answer with a key each.
+const maxOptionKeys = 9
+
 // capsuleOptions says a question's options read as capsules in a line: short,
 // with nothing to say about them. Otherwise each takes a row.
 func capsuleOptions(q proto.TranscriptQuestion) bool {
@@ -158,7 +161,9 @@ func (ch *Chat) questionCard(c *ui.Context, e proto.TranscriptEntry) {
 			})
 		}
 		ui.Text(c, q.Question).FontSize(theme.TextUI).FontWeight(500).TextColor(theme.Text).Selectable()
-		if !ch.ask.canAnswer() || q.Multi {
+		// A number a key: past nine options, a program reading single keys would take
+		// 10 for 1. Several picks are answered in the terminal, which shows them.
+		if !ch.ask.canAnswer() || q.Multi || len(q.Options) > maxOptionKeys {
 			for i, o := range q.Options {
 				ui.Text(c.Key(i), "· "+o).FontSize(theme.TextUI).TextColor(theme.TextSoft)
 			}
@@ -189,6 +194,9 @@ func (ch *Chat) questionCard(c *ui.Context, e proto.TranscriptEntry) {
 					}
 				}
 			})
+		}
+		if len(q.Options) >= maxOptionKeys {
+			return // the option after the last would take two keys
 		}
 		// The user's own answer: the option after the last, then the text.
 		ui.Row(c).FillWidth().Gap(theme.S2).AlignItems(ui.Center).Children(func() {

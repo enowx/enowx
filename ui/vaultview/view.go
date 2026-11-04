@@ -114,6 +114,21 @@ func (v *View) Body(c *ui.Context, o Options) {
 	v.dialogs(c, o)
 }
 
+// Gate draws what stands before the vault's list (making it, unlocking it), for a
+// page elsewhere that needs it open. It draws nothing once open.
+func (v *View) Gate(c *ui.Context, o Options) {
+	switch o.State {
+	case StateNone:
+		v.create(c, o)
+	case StateLocked:
+		v.unlock(c, o)
+	}
+}
+
+// Dialogs draws the dialogs Body does, for a page elsewhere that opened one (OpenAdd):
+// don't draw both.
+func (v *View) Dialogs(c *ui.Context, o Options) { v.dialogs(c, o) }
+
 // centered holds a card in the middle of the frame, scrolling when the frame
 // is shorter than it.
 func (v *View) centered(c *ui.Context, card func()) {

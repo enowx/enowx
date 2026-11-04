@@ -153,6 +153,8 @@ func nowVerb(verb string) string {
 		return "Looking up"
 	case "Plan":
 		return "Planning"
+	case "Agent":
+		return "Delegating to a subagent"
 	}
 	return verb
 }

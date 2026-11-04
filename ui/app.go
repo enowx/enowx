@@ -37,6 +37,7 @@ import (
 	"github.com/enowx/enowx/ui/libraryview"
 	"github.com/enowx/enowx/ui/localpicker"
 	"github.com/enowx/enowx/ui/notesview"
+	"github.com/enowx/enowx/ui/platformview"
 	"github.com/enowx/enowx/ui/portview"
 	"github.com/enowx/enowx/ui/syncview"
 	"github.com/enowx/enowx/ui/theme"
@@ -178,6 +179,7 @@ type App struct {
 	compare            compareDialog              // a fan-out's sessions, to keep one
 	accts              accountsState              // Settings → Agent accounts
 	localPick          localpicker.Picker         // picks this device's files to add to a session
+	platformSheetView  platformview.View          // Claude Platform's API keys and system prompt
 	autos              automationsState           // Settings → Automations
 	hooks              hooksState                 // Settings → Hooks
 	ragSet             ragSettingsState           // Settings → RAG (rag.go)
