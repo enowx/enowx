@@ -62,13 +62,19 @@ func pickEncoder(list string) string {
 	return ""
 }
 
-// videoArgs are ffmpeg's arguments for PNGs on its stdin at fps, to path at out×h.
-func videoArgs(encoder string, fps, w, h int, path string) []string {
+// videoArgs are ffmpeg's arguments for PNGs on its stdin at fps, to path at out×h: a
+// preview trades quality for fitting the community library's limit on a video.
+func videoArgs(encoder string, fps, w, h int, path string, preview bool) []string {
 	args := []string{"-y", "-hide_banner", "-loglevel", "error", "-f", "image2pipe", "-framerate", fmt.Sprint(fps), "-c:v", "png", "-i", "-",
 		"-vf", fmt.Sprintf("scale=%d:%d:flags=lanczos", w, h), "-an", "-c:v", encoder, "-pix_fmt", "yuv420p", "-threads", videoThreads, "-movflags", "+faststart"}
-	if encoder == "libx264" {
+	switch {
+	case encoder == "libx264" && preview:
+		args = append(args, "-preset", "medium", "-crf", "30")
+	case encoder == "libx264":
 		args = append(args, "-preset", "medium", "-crf", "18")
-	} else {
+	case preview:
+		args = append(args, "-b:v", "3M")
+	default:
 		args = append(args, "-b:v", "12M")
 	}
 	return append(args, "-f", "mp4", path)
@@ -111,6 +117,10 @@ func (a *App) startCanvasVideo(req proto.CanvasVideoRequest) {
 			switch {
 			case err != nil && !job.cancelled.Load():
 				job.err = err.Error()
+			case err == nil && req.Preview:
+				if a.video == job {
+					a.video = nil // part of publishing: no file to speak of
+				}
 			case err == nil:
 				job.path = res.Path
 			default:
@@ -165,14 +175,14 @@ func (a *App) makeVideo(cl *client.Client, job *videoJob, req proto.CanvasVideoR
 		return proto.CanvasVideoResult{}, err
 	}
 	w, h := canvas.VideoSize(req.Width, req.Height, req.OutWidth)
-	final, err := downloadPath(videoFileName(req.Name))
+	final, err := videoDestination(req)
 	if err != nil {
 		return proto.CanvasVideoResult{}, err
 	}
 	// Beside where it ends up, renamed only when whole: a cancel leaves nothing.
 	part := final + ".part"
 	defer os.Remove(part)
-	cmd := quietcmd.Command(ff, videoArgs(encoder, req.FPS, w, h, part)...)
+	cmd := quietcmd.Command(ff, videoArgs(encoder, req.FPS, w, h, part, req.Preview)...)
 	var stderr strings.Builder
 	cmd.Stderr = &stderr
 	stdin, err := cmd.StdinPipe()
@@ -203,7 +213,26 @@ func (a *App) makeVideo(cl *client.Client, job *videoJob, req proto.CanvasVideoR
 	if info, err := os.Stat(final); err == nil && info.Size() <= videoCarried {
 		res.Data, _ = os.ReadFile(final)
 	}
+	if req.Preview {
+		_ = os.Remove(final)
+		res.Path = ""
+	}
 	return res, nil
+}
+
+// videoDestination is where a video ends up: the user's downloads, or for a preview
+// a temporary file that's gone once its bytes are read.
+func videoDestination(req proto.CanvasVideoRequest) (string, error) {
+	if !req.Preview {
+		return downloadPath(videoFileName(req.Name))
+	}
+	f, err := os.CreateTemp("", "enowx-preview-*.mp4")
+	if err != nil {
+		return "", err
+	}
+	name := f.Name()
+	_ = f.Close()
+	return name, nil
 }
 
 // videoFrames moves the page to each time, captures it and gives it to the encoder.

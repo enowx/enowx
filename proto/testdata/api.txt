@@ -616,6 +616,7 @@ field CanvasVideoParams.fps int
 field CanvasVideoParams.frame string
 field CanvasVideoParams.from float64
 field CanvasVideoParams.id string
+field CanvasVideoParams.preview bool
 field CanvasVideoParams.to float64
 field CanvasVideoParams.width int
 field CanvasVideoProgress.done int
@@ -631,6 +632,7 @@ field CanvasVideoRequest.html string
 field CanvasVideoRequest.id string
 field CanvasVideoRequest.name string
 field CanvasVideoRequest.outWidth int
+field CanvasVideoRequest.preview bool
 field CanvasVideoRequest.to float64
 field CanvasVideoRequest.warning string
 field CanvasVideoRequest.width int
@@ -1439,6 +1441,7 @@ field LibraryForm.category string
 field LibraryForm.description string
 field LibraryForm.kind string
 field LibraryForm.license string
+field LibraryForm.noVideo bool
 field LibraryForm.prompt string
 field LibraryForm.promptApproved bool
 field LibraryForm.rights bool

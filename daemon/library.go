@@ -262,6 +262,7 @@ func (s *Server) libraryPublish(p proto.LibraryPublishParams) (proto.LibraryDesi
 	if err != nil {
 		return out, libraryError(err, &out)
 	}
+	video := s.libraryVideo(d, p.Form)
 	parts := []struct{ part, file string }{{api.PartSource, "bundle.json"}, {api.PartThumb, "thumb.webp"}, {api.PartThumbPhone, "thumb-phone.webp"}}
 	for _, part := range parts {
 		content := s.libraryDrafts().File(p.DraftID, part.file)
@@ -270,6 +271,12 @@ func (s *Server) libraryPublish(p proto.LibraryPublishParams) (proto.LibraryDesi
 		}
 		if err := c.LibraryPut(ctx, made.ID, made.Version, part.part, content); err != nil {
 			return out, libraryError(err, &out)
+		}
+	}
+	// A cloud too old for a video, or one refusing it, costs the design nothing.
+	if len(video) > 0 {
+		if err := c.LibraryPut(ctx, made.ID, made.Version, api.PartVideo, video); err != nil {
+			s.logger().Warn("library: a design's video stays behind", "err", err)
 		}
 	}
 	sent, err := c.LibrarySubmit(ctx, made.ID, made.Version)
@@ -285,6 +292,35 @@ func (s *Server) libraryPublish(p proto.LibraryPublishParams) (proto.LibraryDesi
 	_, site, _ := c.LibraryHas(ctx)
 	return proto.LibraryDesign{Canvas: d.Canvas, Frame: d.Frame, ItemID: made.ID, Title: p.Form.Title, Status: sent.Status, Version: made.Version,
 		URL: libraryURL(site, made.ID, designshare.Slug(p.Form.Title)), Updated: time.Now().UTC()}, nil
+}
+
+// The short video of a moving design: enough of it to see how it moves.
+const (
+	libraryVideoMs    = 6000
+	libraryVideoWidth = 720
+)
+
+// libraryVideo has the app render a design that moves as a short video, from
+// the same render as its MP4 export. It's a nicety: without an app serving, a web
+// view or ffmpeg, or when it comes out too big, the design goes without one.
+func (s *Server) libraryVideo(d libraryDraft, form proto.LibraryForm) []byte {
+	if !d.Prepared.HasMotion || form.NoVideo {
+		return nil
+	}
+	res, err := s.canvasVideo(proto.CanvasVideoParams{ID: d.Canvas, Frame: d.Frame, Width: min(d.Prepared.Width, libraryVideoWidth), To: libraryVideoMs, Preview: true})
+	if err != nil {
+		s.logger().Warn("library: no video of this design", "err", err)
+		return nil
+	}
+	if len(res.Data) == 0 || len(res.Data) > api.MaxLibraryVideo {
+		s.logger().Warn("library: no video of this design: too big", "bytes", len(res.Data))
+		return nil
+	}
+	if err := designshare.CheckVideo(res.Data, api.MaxLibraryVideoSeconds); err != nil {
+		s.logger().Warn("library: no video of this design", "err", err)
+		return nil
+	}
+	return res.Data
 }
 
 // libraryError keeps what the cloud's check found, for the form.

@@ -306,6 +306,13 @@ func (v *View) librarySide(c *ui.Context, o Options, form *libraryForm) {
 			v.prepareLibrary(o, form)
 		}
 	}
+	if p.HasMotion {
+		on := !f.NoVideo
+		if widget.Checkbox(c.Key("video"), &on, "Also show a short video of its motion") {
+			f.NoVideo = !on
+		}
+		ui.Text(c, "Made from the design as you publish, with no sound, if this device has ffmpeg. Without it, the design goes without one.").FontSize(theme.TextLabel).TextColor(theme.TextSoft)
+	}
 	list := func(title string, lines []string) {
 		widget.Field(c.Key(title), title, func() {
 			ui.Column(c).FillWidth().Gap(theme.S1).Children(func() {
@@ -320,6 +327,9 @@ func (v *View) librarySide(c *ui.Context, o Options, form *libraryForm) {
 		public = append(public, fmt.Sprintf("The phone design: %s, %d×%d", p.PhoneName, p.PhoneWidth, p.PhoneHeight))
 	}
 	public = append(public, fmt.Sprintf("HTML, CSS and %d %s in it", p.Files, plural(p.Files, "file", "files")), "Title, description, tags, license, prompt", "Your GitHub name and picture")
+	if p.HasMotion && !f.NoVideo {
+		public = append(public, "A short video of its motion")
+	}
 	if p.MadeWith == "agent" {
 		public = append(public, "A \"made with an agent\" label")
 	}
