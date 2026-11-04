@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/anthropics/anthropic-sdk-go/v2"
@@ -69,6 +70,7 @@ func (t *thread) streamOnce(ctx context.Context, body []byte, betas []string, qu
 			a.emit(r)
 		}
 	}}
+	defer deltas.stop()
 	stopped := false
 	for stream.Next() {
 		watchdog.Reset(a.streamIdle)
@@ -116,36 +118,72 @@ func (t *thread) streamOnce(ctx context.Context, body []byte, betas []string, qu
 	return newAnswer(&msg, inputs), nil
 }
 
-// deltaBuffer holds a block's text until coalesceEvery has passed. It belongs to the
-// goroutine reading the stream.
+// deltaBuffer holds a block's text until coalesceEvery has passed, by the clock and not
+// by the next delta's coming: a model that pauses mid-answer has its text shown meanwhile.
+// mu guards it, against the goroutine reading the stream and the timer's, and is held
+// while emitting so that records stay in the order they came.
 type deltaBuffer struct {
-	emit  func(record.Record)
-	msg   string
-	block int
-	kind  string
-	text  strings.Builder
-	last  time.Time
+	emit func(record.Record)
+
+	mu      sync.Mutex
+	msg     string
+	block   int
+	kind    string
+	text    strings.Builder
+	last    time.Time
+	timer   *time.Timer
+	stopped bool
 }
 
 func (d *deltaBuffer) open(msg string, block int, kind string) {
+	d.mu.Lock()
+	defer d.mu.Unlock()
 	d.msg, d.block, d.kind = msg, block, kind
 	d.last = time.Now()
 }
 
 func (d *deltaBuffer) add(s string) {
+	d.mu.Lock()
+	defer d.mu.Unlock()
 	d.text.WriteString(s)
-	if time.Since(d.last) >= coalesceEvery {
-		d.flush()
+	wait := coalesceEvery - time.Since(d.last)
+	if wait <= 0 {
+		d.flushLocked()
+		return
+	}
+	if d.timer == nil {
+		d.timer = time.AfterFunc(wait, d.flush)
 	}
 }
 
 func (d *deltaBuffer) flush() {
-	if d.text.Len() == 0 {
+	d.mu.Lock()
+	defer d.mu.Unlock()
+	d.flushLocked()
+}
+
+func (d *deltaBuffer) flushLocked() {
+	if d.timer != nil {
+		d.timer.Stop()
+		d.timer = nil
+	}
+	if d.text.Len() == 0 || d.stopped {
 		return
 	}
 	d.emit(record.Record{Type: record.Delta, Msg: d.msg, Block: d.block, Kind: d.kind, Text: d.text.String()})
 	d.text.Reset()
 	d.last = time.Now()
+}
+
+// stop ends it with the stream: what a timer holds doesn't come after the answer.
+func (d *deltaBuffer) stop() {
+	d.mu.Lock()
+	defer d.mu.Unlock()
+	d.stopped = true
+	if d.timer != nil {
+		d.timer.Stop()
+		d.timer = nil
+	}
 }
 
 // newAnswer turns the accumulated message into what the loop keeps: each block's JSON as

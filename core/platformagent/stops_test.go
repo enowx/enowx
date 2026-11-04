@@ -4,7 +4,9 @@ import (
 	"context"
 	"encoding/json"
 	"strings"
+	"sync"
 	"testing"
+	"time"
 
 	"github.com/enowx/enowx/core/platformagent/record"
 	"github.com/enowx/enowx/core/platformagent/tools"
@@ -129,5 +131,34 @@ func TestPauseTurnGoesBackAsItIs(t *testing.T) {
 	messages := parseMessages(t, reqs[1])
 	if len(messages) != 2 || messages[1].Role != "assistant" {
 		t.Errorf("no extra user message expected: %s", reqs[1].Raw("messages"))
+	}
+}
+
+// A model pausing mid-answer has what it said so far shown meanwhile, not when it goes on.
+func TestStreamedTextShowsWhileTheModelPauses(t *testing.T) {
+	hold := make(chan struct{})
+	r := newRig(t, nil, standinapi.Reply{
+		Blocks: []standinapi.Block{standinapi.TextBlock("the first half of it, and then the second half of it")},
+		Hold:   hold,
+	})
+	shown := make(chan struct{})
+	var once sync.Once
+	r.front.mu.Lock()
+	r.front.onEvent = func(rec record.Record) {
+		if rec.Type == record.Delta && rec.Text != "" {
+			once.Do(func() { close(shown) })
+		}
+	}
+	r.front.mu.Unlock()
+	done := make(chan error, 1)
+	go func() { done <- r.turn("talk") }()
+	select {
+	case <-shown:
+	case <-time.After(5 * time.Second):
+		t.Fatal("nothing showed while the model paused")
+	}
+	close(hold)
+	if err := <-done; err != nil {
+		t.Fatal(err)
 	}
 }
