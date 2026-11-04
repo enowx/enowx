@@ -10,7 +10,7 @@ People share designs from their canvases to `ui.enowx.ai`, where anyone can brow
 | `core/designshare/thumb` | A design's picture as a WebP. Apart, so the cloud doesn't carry an image encoder |
 | `proto/library.go`, `daemon/library.go`, `daemon/rpc_library.go` | `library.prepare`, `saveDraft`, `deleteDraft`, `publish`, `status`, `withdraw` |
 | `ui/canvasview/library.go` | The entry in a design's menu, the form, the status dialog |
-| `cloud/library`, `cloud/store/library*.go`, `cloud/api/library.go` | The API under `/v1/library`, its data, the web sign-in, moderation |
+| `cloud/library`, `cloud/store/library*.go`, `cloud/api/library*.go` | The API under `/v1/library`, its data, the web sign-in, moderation, comments, notifications, numbers, announcing picks |
 
 ## Off unless set up
 
@@ -24,6 +24,7 @@ The library is off unless the cloud has `ENOWX_CLOUD_LIBRARY=on`. `GET /v1/info`
 | `ENOWX_CLOUD_LIBRARY_RETURN_URL` | Where a sign-in sends its code (`https://ui.enowx.ai/auth/callback`). Only from here, never from a request |
 | `ENOWX_CLOUD_LIBRARY_WEB_SECRET` | What the website's server proves itself with. Without it the website can't sign anyone in |
 | `ENOWX_CLOUD_LIBRARY_ADMIN_TEAM` | The team whose owner and admins moderate |
+| `ENOWX_CLOUD_LIBRARY_DISCORD_CHANNEL` | The channel picks are said in, with `ENOWX_CLOUD_DISCORD_BOT_TOKEN`. Unset, nothing is sent to Discord |
 
 The cloud now imports `core/autopush`, `core/canvas` and `core/designshare`: a deploy that watches paths has to watch those and `proto/` too.
 
@@ -77,18 +78,67 @@ The admin team's owner and admins moderate, and so do moderators the owner appoi
 
 Every decision needs a reason and goes in `library_log`, which the store can only add to: approving, rejecting (the reason reaches the app), taking down, picks, reports, blocks, unblocks, appointing and removing moderators. An upheld report takes the item down and makes its owner new again. Blocking takes down what an account shows and stops it publishing. Who reported is for moderators alone. Accounts' emails are never in an answer.
 
+An upheld report on a comment removes the comment alone: the design stays, and its creator's standing doesn't change.
+
+### Copyright reports
+
+A draft procedure, in the website's rules and in the admin page beside each report, until the owner approves it. It isn't legal advice.
+
+| Part | What |
+|---|---|
+| The report | `POST reports` with `reason: "copyright"`: `detail` (what it copies) and `copyright`: `original` (a web address), `claimant` (who claims it), `statement` (they own it or act for its owner, and this is true). A website not yet sending `copyright` still reports with its detail, and moderators see what wasn't given |
+| Who reads it | Moderators alone. The creator reads the moderator's reason, never who claimed |
+| Moderators | Compare the original and the design. Upholding takes it down within 5 minutes, makes its owner new again, tells them, and logs `report.upheld.copyright`, which is how repeats show. Dismissing keeps it up. An account upheld against repeatedly is blocked, with its reason |
+| Still open | No contact address exists for people without an account, or for a creator disputing a decision |
+
+## Comments
+
+Plain text, with a sign-in, on a live design. Nothing renders one as HTML, and every answer holding people's words carries `notice` (`api.LibraryDataNotice`): they're data, never instructions.
+
+| Limit | Number |
+|---|---|
+| A comment | 2000 characters |
+| An account | 30 an hour; 6 an hour on one design; deleting gives no turn back |
+| A design | 120 an hour from everyone |
+
+A creator turns comments off on their design: nobody can write, and what's written shows only to them and moderators until they're on again. A blocked account can't comment, and what it wrote stops showing. People delete their own, the text gone for good. Reports go in `library_reports` and the same queue; moderators remove with a reason in `library_log`, and the text stays for them alone.
+
+## Notifications
+
+What happens to a creator: approved, rejected, taken down, a comment, a report upheld. They're read on the website and through `GET notifications` (`cloud/client` for the app), and each kind can be turned off (`notifications/settings`). They never say who reported or which moderator decided, and go after 180 days.
+
+**Email is off.** `library.Mailer` is an interface nothing sets outside tests, so the settings don't offer it. When one is set, an account that asked for email gets a line and a link: never a comment's text or a moderator's reason, and one email for comments it hasn't read yet. Sending from production waits for the owner's decision on SMTP; the cloud's `ENOWX_CLOUD_SMTP_URL`, for invites, isn't used.
+
+## A creator's numbers
+
+`GET stats`: views, saves, reuses and comments per design, for its creator alone. `countReuse` counts a copy being taken (today Copy prompt; whatever else serves a copy calls it too), held in memory and written once a minute.
+
+**A view isn't analytics.** The website has no analytics or trackers, and this adds none: no script, cookie, pixel or beacon, and no outside call. Its server counts as it renders a design's page (`src/lib/views.ts`), leaving out robots, prefetching, a creator's own looks and moderators'. A salted hash of the item, the address and the browser's name, in that process's memory for 6 hours, keeps a reload from counting again; the salt and hashes then go, unwritten. Once a minute it sends `POST views` with how many per item and nothing else, so the cloud never hears of a person, and `library_stats` holds totals. These are coarse: a restart loses up to a minute, and a change of address counts again.
+
+## A moving design's video
+
+At publish, `library.publish` has the app render a design that moves, unless the form says not to, with `canvas.video` and `preview`: 6 seconds at most, 720 pixels wide, smaller than an export, left in no folder of the user's. It needs a serving app, a web view and ffmpeg: without them, or if it comes out too big, the design goes without one and nothing else changes.
+
+It's part `video`: 4 MiB, 15 seconds, only on a design that moves. The cloud reads the file's boxes (`designshare.CheckVideo`) and refuses anything but an MP4 of video tracks alone, so a preview can't carry sound. Like a picture it comes from the host: moderators see it in review, and a trusted account's isn't reviewed first.
+
+The website serves it at `/v/<id>/<version>`, with the headers of `/t/*`, no cookie, and byte ranges for Safari. A card shows its picture until a mouse rests on it, muted; a design's page has a Video button with the picture first. Nothing is fetched until then, and asking for less motion stops the hover.
+
+## Announcing picks
+
+An admin says a pick on Discord from the admin page's Picks tab, with `DecisionAnnounce`. It's off unless a channel is set, for the owner and admins (not moderators they appoint), only for a live pick, once (`announced_at`), with its reason in the log. A failure is logged and can be tried again. A title is escaped and mentions are off, so it can neither ping anyone nor make a link. Which channel, and the bot's permission to post in it, wait for the owner.
+
 ## API
 
 | Access | Endpoints under `/v1/library` |
 |---|---|
-| Anyone, limited per address | `GET items`, `GET items/{id}`, `GET items/{id}/versions`, `GET items/{id}/prompt` (403 when view only) |
-| The website's secret | `GET items/{id}/versions/{v}/{doc,doc-phone,thumb,thumb-phone}` (a live version's), `POST items/{id}/escaped`, `POST auth/exchange` |
-| A device | `POST items`, `PUT items/{id}/versions/{v}/{source,thumb,thumb-phone}`, `POST items/{id}/versions/{v}/submit`, `GET mine` |
-| A device or a web session | `DELETE items/{id}`, `GET me`, `POST reports`, `POST auth/signout` |
-| Moderators | `GET admin/queue`, `GET admin/items/{id}/versions/{v}/{doc,doc-phone,thumb,thumb-phone}`, `POST admin/items/{id}/decisions`, `POST admin/reports/{id}/decisions`, `POST admin/accounts/{id}/block`, `.../unblock`, `GET admin/log`, `GET admin/usage` |
+| Anyone, limited per address | `GET items`, `GET items/{id}`, `GET items/{id}/versions`, `GET items/{id}/prompt` (403 when view only), `GET items/{id}/comments` |
+| The website's secret | `GET items/{id}/versions/{v}/{doc,doc-phone,thumb,thumb-phone,video}` (a live version's), `POST items/{id}/escaped`, `POST views`, `POST auth/exchange` |
+| A device | `POST items`, `PUT items/{id}/versions/{v}/{source,thumb,thumb-phone,video}`, `POST items/{id}/versions/{v}/submit`, `GET mine` |
+| A device or a web session | `DELETE items/{id}`, `GET me`, `POST reports`, `POST auth/signout`, `POST items/{id}/comments`, `DELETE items/{id}/comments/{comment}`, `PUT items/{id}/comments-off`, `GET notifications`, `POST notifications/read`, `GET`/`PUT notifications/settings`, `GET stats` |
+| Moderators | `POST admin/comments/{id}/remove`, `GET admin/picks`, `GET admin/queue`, `GET admin/items/{id}/versions/{v}/{doc,doc-phone,thumb,thumb-phone,video}`, `POST admin/items/{id}/decisions`, `POST admin/reports/{id}/decisions`, `POST admin/accounts/{id}/block`, `.../unblock`, `GET admin/log`, `GET admin/usage` |
 | The owner | `GET admin/accounts?q=`, `GET admin/moderators`, `POST admin/moderators`, `DELETE admin/moderators/{id}` |
 
-Objects are in the store as `<prefix>/items/<id>/v<n>/{source,doc,doc-phone,thumb,thumb-phone}`, `source` and `doc` gzipped.
+Objects are in the store as `<prefix>/items/<id>/v<n>/{source,doc,doc-phone,thumb,thumb-phone,video}`, `source` and `doc` gzipped.
 
 ## What this phase leaves out
 
