@@ -39,7 +39,9 @@ func TestGOARules(t *testing.T) {
 		t.Fatal("in another session's guide")
 	}
 
-	g, err := srv.sessions.Create(session.Spec{Command: []string{"sh", "-c", "cat"}, Dir: srv.goaDir(), Cols: 80, Rows: 24, Meta: session.Meta{Agent: "claude", GOA: true}})
+	meta := session.Meta{Agent: "claude", GOA: true}
+	meta.Rules = srv.rulesAtStart(meta, srv.goaDir(), false)
+	g, err := srv.sessions.Create(session.Spec{Command: []string{"sh", "-c", "cat"}, Dir: srv.goaDir(), Cols: 80, Rows: 24, Meta: meta})
 	if err != nil {
 		t.Fatal(err)
 	}

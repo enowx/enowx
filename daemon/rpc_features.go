@@ -48,7 +48,7 @@ var featureHandlers = map[string]handler{
 		}
 		r, st, _ := c.srv.resolveFeatures(project, own)
 		on := features.On(r)
-		return proto.FeaturesGuide{Guide: agent.GuideFor(on, st.LazyOn()), On: on}, nil
+		return proto.FeaturesGuide{Guide: agent.GuideFor(on, st.LazyOn()) + c.srv.guideReadRules(p), On: on}, nil
 	}),
 	proto.MethodFeaturesRequest: with(func(c *conn, p proto.FeatureRequest) (any, error) {
 		return c.srv.askFeature(p, 5*time.Minute)

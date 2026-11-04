@@ -88,6 +88,7 @@ type Server struct {
 	teams             teamSpaces       // the teams' notes and canvases (spaces.go)
 	teamSync          teamSyncer       // their syncs with the cloud (teamsync.go)
 	teamProjectsState teamProjectState // the teams\' projects found here (teamprojects.go)
+	rulesPlaces       rulesPlacesCache // where each folder's rules are (rules.go)
 	visitors          visitorList      // the teams\' members connected (visitors.go)
 	share             hostSharing      // what the host shares, its team listener (hostshare.go)
 	takeover          takeovers        // sessions visitors took over (takeover.go)
@@ -274,6 +275,7 @@ func newServer(dir, hookBin string) (*Server, error) {
 	go s.teamSyncLoop(s.done)
 	go s.startSharing() // a host shared before: its listener again
 	go s.watchPorts(s.done)
+	go s.watchRules(s.done)
 	go s.runScheduler(s.done)
 	go s.runAutomations(s.done)
 	go s.watchGit(s.done)

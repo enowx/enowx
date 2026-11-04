@@ -39,9 +39,6 @@ type goaState struct {
 	pending map[string]proto.HookEvent
 	flags   []proto.GOAFlag
 	watch   map[string]*goaWatch // watched GOA sessions, by ID (goa_watch.go)
-	// rulesGiven is the hash of the rules each GOA session was last given
-	// (goa_rules.go).
-	rulesGiven map[string]string
 	// stallSet tells watchStalls the limits changed.
 	stallSet chan struct{}
 

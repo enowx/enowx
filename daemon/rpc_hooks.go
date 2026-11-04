@@ -63,7 +63,7 @@ func (s *Server) sessionHook(p proto.SessionHookParams) (proto.HookDecision, err
 	}
 	info := sess.Info()
 	if !userSession(info) {
-		return proto.HookDecision{}, nil // the app's own agents
+		return proto.HookDecision{Context: s.giveRules(sess, info, p.Event)}, nil // the app's own agents; a tab's has its session's rules
 	}
 	ev := p.Event
 	if ev.PermissionMode != "" {
@@ -101,6 +101,11 @@ func (s *Server) sessionHook(p proto.SessionHookParams) (proto.HookDecision, err
 		dir = info.Dir
 	}
 	continuing := s.goaHookLines(sess, info, ev, &d)
+	if !d.Block {
+		if rules := s.giveRules(sess, info, ev); rules != "" {
+			d.Context = strings.TrimSpace(d.Context + "\n\n" + rules)
+		}
+	}
 	switch ev.Event {
 	case proto.HookToolAfter:
 		s.toolStep(info, ev)
@@ -109,11 +114,6 @@ func (s *Server) sessionHook(p proto.SessionHookParams) (proto.HookDecision, err
 		s.todoHead(info)
 		if !d.Block {
 			go s.turnStarted(info)
-			if info.GOA {
-				if changed := s.goaRulesChanged(info.ID); changed != "" {
-					d.Context = strings.TrimSpace(d.Context + "\n\n" + changed)
-				}
-			}
 			if extra := s.ragContext(info, dir, ev.Prompt); extra != "" {
 				d.Context = strings.TrimSpace(d.Context + "\n\n" + extra)
 			}

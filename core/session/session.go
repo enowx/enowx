@@ -129,6 +129,8 @@ type Meta struct {
 	HibernatedAt     time.Time
 	// NoAutoHibernate keeps the daemon from hibernating it on its own.
 	NoAutoHibernate bool
+	// Rules: proto.SessionInfo.Rules. Replaced whole, never changed in place.
+	Rules *proto.SessionRules `json:",omitempty"`
 }
 
 // EnvSession names the environment variable holding a session's ID in
@@ -223,6 +225,7 @@ func (s *Session) Info() proto.SessionInfo {
 		Hibernated:      s.meta.Hibernated && s.exited,
 		HibernatedHow:   hibernatedHow(s.meta, s.exited),
 		NoAutoHibernate: s.meta.NoAutoHibernate,
+		Rules:           s.meta.Rules,
 		Project:         s.meta.Project,
 		Agent:           s.meta.Agent,
 		Branch:          s.meta.Branch,

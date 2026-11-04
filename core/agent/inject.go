@@ -7,6 +7,8 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+
+	"github.com/enowx/enowx/proto"
 )
 
 // What an agent is told comes in two parts. An inject, short and made anew for each
@@ -86,15 +88,69 @@ func WriteEnowxGuide(data, guide string) error {
 	return err
 }
 
-// PlaceSessionGuide is the file holding guide for a session whose folder of its own is
-// sessionDir: the host's ENOWX.md when that is what it says, else a copy of the
-// session's, whose features or project rules differ.
-func PlaceSessionGuide(data, sessionDir, guide string) (string, error) {
-	host := filepath.Join(data, EnowxGuideName)
-	if old, err := os.ReadFile(host); err == nil && string(old) == guide+"\n" {
-		return host, nil
-	}
+// PlaceSessionGuide writes guide as ENOWX.md in sessionDir, the session's folder, and is
+// where. Always its own, the host's holding no project's rules: this one is rewritten
+// when they change, so what the agent was told to read stays current.
+func PlaceSessionGuide(sessionDir, guide string) (string, error) {
 	return writeSessionFile(sessionDir, EnowxGuideName, guide+"\n")
+}
+
+// PlaceRulesFile writes rules too long for a hook to give as RULES.md in sessionDir, and
+// is where.
+func PlaceRulesFile(sessionDir, rules string) (string, error) {
+	return writeSessionFile(sessionDir, "RULES.md", rules+"\n")
+}
+
+// ProjectPartMark starts what a guide says of one project. What several projects'
+// sessions read holds no more of it, but RulesPointer.
+const ProjectPartMark = "\n\n<!-- enowX: this project's -->"
+
+// RulesPointer says, in a guide shared by a host's sessions, where a project's rules are.
+const RulesPointer = "\n\n## This project's rules\n\nThis file serves every project. If the session's project has rules, `\"$ENOWX_BIN\" guide` prints them, the current version: run it first, and again if your context was compacted or you resumed.\n"
+
+// SharedGuide is guide without what it says of one project, for a file every session of
+// the host reads.
+func SharedGuide(guide string) string {
+	before, _, _ := strings.Cut(guide, ProjectPartMark)
+	return before + RulesPointer
+}
+
+// sessionFileGuideName is the guide with its inject, in the session's folder, for an
+// agent that takes a file by name (TakesGuideFile).
+const sessionFileGuideName = "agent-guide.md"
+
+// TakesGuideFile says agent id reads a file enowX names for it, so that one session's
+// guide can be its own.
+func TakesGuideFile(id string) bool {
+	switch id {
+	case "aider", "aug", "opencode", "opencode2", "kilo":
+		return true
+	}
+	return false
+}
+
+// SessionFileGuide is where sessionDir holds the file TakesGuideFile means.
+func SessionFileGuide(sessionDir string) string {
+	return filepath.Join(sessionDir, sessionFileGuideName)
+}
+
+// PlaceSessionFileGuide writes the file TakesGuideFile means.
+func PlaceSessionFileGuide(sessionDir, text string) error {
+	_, err := writeSessionFile(sessionDir, sessionFileGuideName, guideOutside(text))
+	return err
+}
+
+// RulesDelivery is how agent id, by what it takes, gets a session's rules without its
+// hooks: as it starts (proto.RulesViaStart), told to read a file (RulesViaFile), or told
+// to run the guide (RulesViaAsked). docs/agents.md has the table.
+func RulesDelivery(id string) string {
+	switch {
+	case GuideLoaded(id), TakesGuideFile(id):
+		return proto.RulesViaStart
+	case len(GuideArgs(id)) > 0:
+		return proto.RulesViaFile
+	}
+	return proto.RulesViaAsked
 }
 
 // PlaceGOAGuide writes GOD of Agents' guide as GOA.md in its folder, with the CLAUDE.md
@@ -119,7 +175,7 @@ func PlaceGOAGuide(goaDir, agent, guide string) (string, error) {
 const (
 	projectBlockStart = "<!-- enowx:start -->"
 	projectBlockEnd   = "<!-- enowx:end -->"
-	projectBlockText  = `When the environment variable ENOWX_SESSION is set, you are running inside an enowX session, which the user watches from the enowX app. Your guide is ~/.enowx-app/ENOWX.md; "$ENOWX_BIN" guide prints it too. Read it before anything else. Otherwise ignore this block. enowX keeps it here: turn it off with enowx-app project settings --guide-block off.`
+	projectBlockText  = `When the environment variable ENOWX_SESSION is set, you are running inside an enowX session, which the user watches from the enowX app. "$ENOWX_BIN" guide prints your guide with this project's current rules: run it before anything else, and again if your context was compacted or you resumed. Otherwise ignore this block. enowX keeps it here: turn it off with enowx-app project settings --guide-block off.`
 )
 
 // NeedsProjectBlock says agent id has no other way to get its guide.
