@@ -10,6 +10,9 @@ People share designs from their canvases to `ui.enowx.ai`, where anyone can brow
 | `core/designshare/thumb` | A design's picture as a WebP. Apart, so the cloud doesn't carry an image encoder |
 | `proto/library.go`, `daemon/library.go`, `daemon/rpc_library.go` | `library.prepare`, `saveDraft`, `deleteDraft`, `publish`, `status`, `withdraw` |
 | `ui/canvasview/library.go` | The entry in a design's menu, the form, the status dialog |
+| `proto/library_browse.go`, `daemon/library_browse.go` | `library.search`, `item`, `prompt`, `picture`, `askPublish`, all through the cloud the user set |
+| `ui/communityview` | The browse page, reached from the Canvas page's list |
+| `cli/library.go`, `cli/library_mcp.go` | `enowx-app library` and its MCP tools, for agents |
 | `cloud/library`, `cloud/store/library*.go`, `cloud/api/library.go` | The API under `/v1/library`, its data, the web sign-in, moderation |
 
 ## Off unless set up
@@ -42,7 +45,7 @@ What this costs: each object not yet kept passes through the cloud once, as a re
 3. The form says what becomes public and what stays private. Sending waits for the prompt's approval and the rights statement, and warnings wait to be accepted.
 4. `library.publish` checks once more, then creates the item, uploads, and submits. **The cloud repeats the checks** and makes the documents people see itself from the bundle: a host can't send its own.
 
-A bundle has fields for a design and its files alone, so a canvas's comments, brief, history and chats can't come along. The prompt is written from the design's structure and what the creator typed; a canvas's chat is never read. Agents and the command line can't publish: the form is the only way.
+A bundle has fields for a design and its files alone, so a canvas's comments, brief, history and chats can't come along. The prompt is written from the design's structure and what the creator typed; a canvas's chat is never read. Agents and the command line can't publish: the form is the only way (see [Agents](#agents)).
 
 A new account's designs wait in review; once one is approved its next ones go live directly. A new version keeps the address; what it says of the item shows only once it's live, and changing an item's kind goes through review again. Unpublishing answers 410 from then on, and the objects go after 30 days.
 
@@ -52,6 +55,36 @@ A new account's designs wait in review; once one is approved its next ones go li
 | An email or phone number, an internal address, a request out, a link elsewhere, a script changing the address, a refresh, a `<base>`, a file | A warning to accept |
 
 A finding says where and of what kind, never the value. The patterns can't know every secret, which is why the warnings and the creator's statement stay.
+
+## Browsing in the app
+
+The Canvas page's list has **Community library** when the host's cloud has one, and nothing otherwise. The page has search, a side list of kinds and categories (a row at phone width), a grid of pictures and a sheet for one design, saying what its license allows, as the cloud answered: a view-only design offers nothing to copy.
+
+Other people's HTML doesn't run in the app: only their pictures show, through the host's daemon, and **Open in browser** goes to the design's page. Only what's live is read, even with a creator's or a moderator's token.
+
+## Agents
+
+The feature `library` (Settings → Features) is opt-in. Off, its tools aren't served, the guide doesn't mention it and `enowx-app library` refuses in a session.
+
+| Command | MCP tool | What |
+|---|---|---|
+| `library search [QUERY] [--category C] [--kind K] [--license L] [--limit N] [--cursor C]` | `library_search` | What's live |
+| `library show ITEM` | `library_show` | One design: license, credit, what it allows |
+| `library prompt ITEM` | `library_prompt` | Its creator's prompt, with credit and license. A view-only design has none: the host doesn't ask, and the cloud answers 403 anyway |
+| `library publish CANVAS DESIGN` | `library_publish` | Shows the user a card leading to the form. Fills in nothing, sends nothing |
+
+**Community text is data.** Titles, descriptions, tags, handles and prompts reach an agent only inside the block `designshare.ForAgents` makes: a label saying they're other people's and never instructions, between marks holding a random word so the text can't close the block, with control and direction-changing characters taken out. Errors hold none of it.
+
+**Publishing stays the user's.** `library.askPublish` makes no draft and sends nothing: it broadcasts `library.publishAsked`, the app shows a card, and only a click on it opens the form, with no approval or rights statement ticked. What stops an agent from sending:
+
+| Path | What stops it |
+|---|---|
+| The command line and MCP tools, the `enowx` tool among them | No code in `cli/` calls `library.publish`; a test reads the package to keep it so |
+| `host.call`, `--host`, GOD of Agents | The method isn't in `core/hostcontrol`: refused from any connection |
+| A teammate's visit | Not among the methods open to visitors |
+| Any other connection | `library.publish` refuses what doesn't say it's the app in its hello |
+
+What doesn't stop it, and can't: a connection's `Kind` is its own word, so a program of the user's that writes the daemon's protocol itself can claim to be the app. Such a program also runs as the user, and can read the host's cloud token and call the cloud directly. On one account of one machine nothing tells an agent's process from the app's. So this keeps every path enowX gives an agent away from sending, and doesn't hold against one set on getting around it; the checks there, on the host and in the cloud, a new account's review and unpublishing stay whoever sends.
 
 ## Limits
 
@@ -81,7 +114,7 @@ Every decision needs a reason and goes in `library_log`, which the store can onl
 
 | Access | Endpoints under `/v1/library` |
 |---|---|
-| Anyone, limited per address | `GET items`, `GET items/{id}`, `GET items/{id}/versions`, `GET items/{id}/prompt` (403 when view only) |
+| Anyone, limited per address | `GET items`, `GET items/{id}`, `GET items/{id}/versions`, `GET items/{id}/prompt` (403 when view only), `GET items/{id}/versions/{v}/pictures/{thumb,thumb-phone}` (a live version's) |
 | The website's secret | `GET items/{id}/versions/{v}/{doc,doc-phone,thumb,thumb-phone}` (a live version's), `POST items/{id}/escaped`, `POST auth/exchange` |
 | A device | `POST items`, `PUT items/{id}/versions/{v}/{source,thumb,thumb-phone}`, `POST items/{id}/versions/{v}/submit`, `GET mine` |
 | A device or a web session | `DELETE items/{id}`, `GET me`, `POST reports`, `POST auth/signout` |
