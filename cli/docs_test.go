@@ -169,6 +169,10 @@ func TestDocsNewCore(t *testing.T) {
 		t.Fatalf("added: %+v", n.NoteInfo)
 	}
 	h.refused("already has", "add", "Shop", "glossary")
+	// A new project asks everything, the first topic first.
+	if got := h.run("gaps", id); !strings.HasPrefix(got, "Idea\tProblem\tBrief#problem-and-audience\t") {
+		t.Fatalf("gaps: %q", got)
+	}
 }
 
 // The full pack: every document, by way of its area's page.
@@ -184,6 +188,14 @@ func TestDocsNewFull(t *testing.T) {
 		t.Fatalf("list: %q", got)
 	}
 	h.run("gate", id) // approval off stops nothing
+	// Taken out and added again, a document goes back to its area's page.
+	h.run("notes", "rm", "Glossary")
+	added := strings.TrimSpace(h.run("add", id, "glossary"))
+	n, _ := h.c.Note(added)
+	parent, _ := h.c.Note(n.Parent)
+	if parent.Title != projectdocs.AreaProduct {
+		t.Fatalf("added under %q", parent.Title)
+	}
 	// Every template is exportable: none reads as holding a secret.
 	if got := h.run("export", id, "--to", t.TempDir(), "--dry-run"); !strings.Contains(got, "business-and-product/prd.md") {
 		t.Fatalf("export: %q", got)
