@@ -152,6 +152,8 @@ func TestGOARefusesDoingTheWorkItself(t *testing.T) {
 		`{"tool_name":"Bash","tool_input":{"command":"go test ./..."}}`,
 		`{"tool_name":"Bash","tool_input":{"command":"\"$ENOWX_BIN\" ls; sed -i s/a/b/ totals.go"}}`,
 		`{"tool_name":"Task","tool_input":{"prompt":"fix it"}}`,
+		`{"tool_name":"Edit","tool_input":{"file_path":"/src/shop/totals.go","old_string":"a","new_string":"b"}}`,
+		`{"tool_name":"Write","tool_input":{"file_path":"/src/shop/plan.md","content":"# Plan"}}`,
 	}
 	for _, in := range refused {
 		code, _, reason := hookOf(in, "--event", proto.HookToolBefore)
@@ -169,10 +171,10 @@ func TestGOARefusesDoingTheWorkItself(t *testing.T) {
 		}
 	}
 	for in, unasked := range map[string]bool{
-		`{"tool_name":"Read","tool_input":{"file_path":"/src/shop/totals.go"}}`:                                   true,
-		`{"tool_name":"Read","tool_input":{"file_path":"/src/shop/.env"}}`:                                        false,
-		`{"tool_name":"Edit","tool_input":{"file_path":"/src/shop/totals.go","old_string":"a","new_string":"b"}}`: false,
-		`{"tool_name":"Write","tool_input":{"file_path":"/src/shop/plan.md","content":"# Plan"}}`:                 false,
+		`{"tool_name":"Read","tool_input":{"file_path":"/src/shop/totals.go"}}`:                         true,
+		`{"tool_name":"Read","tool_input":{"file_path":"/src/shop/.env"}}`:                              false,
+		`{"tool_name":"Edit","tool_input":{"file_path":"totals.go","old_string":"a","new_string":"b"}}`: false,
+		`{"tool_name":"Write","tool_input":{"file_path":"plan.md","content":"# Plan"}}`:                 false,
 	} {
 		code, out, reason := hookOf(in, "--event", proto.HookToolBefore)
 		if code != 0 || strings.Contains(out, `"permissionDecision":"allow"`) != unasked {

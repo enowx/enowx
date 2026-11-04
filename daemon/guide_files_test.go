@@ -144,8 +144,7 @@ func TestGOAGetsItsFilesAndTools(t *testing.T) {
 			t.Error(err)
 		}
 	}
-	if env := (chatFor{goa: true, files: filepath.Join(srv.dataDir, "agent-files", "g")}).toolEnv("opencode"); len(env) != 1 ||
-		!strings.Contains(env[0], agent.GOAGuideName) || !strings.Contains(env[0], `"mcp"`) {
+	if env := (chatFor{goa: true, files: filepath.Join(srv.dataDir, "agent-files", "g")}).toolEnv("opencode"); !strings.Contains(strings.Join(env, " "), agent.GOAGuideName) || !strings.Contains(strings.Join(env, " "), `"mcp"`) {
 		t.Fatalf("OpenCode's: %v", env)
 	}
 }

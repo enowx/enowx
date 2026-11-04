@@ -27,11 +27,22 @@ Leaving the mode asks first, whichever way: the title bar's **Sessions**, **Leav
 - **Every feature on**, its guide `agent.GOAGuide` first: delegate, don't work; don't poll; who answers which permission; keep the board and its collection.
 - **Its permissions asked**: enowX's own tools are allowed (Claude Code's `--allowedTools mcp__enowx`, Codex's MCP server approved) and reading is allowed by its hook, unless the path looks like a secret; an edit goes by the session's permission mode: Claude Code asks unless it is in auto mode or the like; Codex writes in GOA's folder and the system's temporary folders unasked, its sandbox stopping the rest.
 
+### Only on agents proven to hold it
+
+GOA is offered only on agents run for real as GOA, a model pressed to work by itself getting nowhere: Claude Code (and its teams), Codex, OpenCode. On any other agent starting it is refused, saying why, and `goa agents` lists the reason; a GOA already running there goes on. Qwen Code and Goose come next, by the same test. OpenCode from a major version not tested yet is refused too.
+
+**Edits stay in its own folder**, on every agent, and not its agent's settings there (`.claude`, `.codex`, `.opencode`, `opencode.json`), loaded at its next start. On Claude Code the hook refuses the rest, links followed; on Codex its sandbox holds, which also allows the system's temporary folder.
+
+**A link in its folder, on OpenCode 2:** its rules go by the path asked for, not where it leads, and it has no plugin to look. GOA can't make one without a shell, and starting refuses when one leads out, but a link another session makes in that folder while GOA runs is a way out until the next start.
+
+**Its tools:** its MCP server offers 11 (`goa_*`, the sessions' it needs, `enowx` for every other command), about 3,000 tokens a request against about 40,000 for all 222. **`opencode run --standalone`** may offer enowX's tools only from its second request; enowX starts the TUI, where they came with the first in these runs. Its guide tells it not to take them for missing.
+
 ### Held to delegating, as far as each agent allows
 
 | Level | Agents | How |
 |---|---|---|
 | enforced | Claude Code (and its teams), Codex | Their own hooks hand every tool call to the daemon first (`tool.before`); every tool but these is refused before it runs: enowX's MCP tools (`mcp__enowx__*`), its tools for reading and editing files, or one `"$ENOWX_BIN" …` or reading command (`cat`, `head`, `tail`, `ls`, `wc`, `grep`, `rg`, `sed -n 'Np'`, no secret named) with nothing chained, piped, redirected or substituted (`core/goa.Allowed`). Claude Code also starts with only its tools for files (`--tools Read,Grep,Glob,Edit,Write,NotebookEdit`, enowX's MCP server only, `--strict-mcp-config`, `ENABLE_TOOL_SEARCH=false` so enowX's tools load); Codex runs its commands read-only (`--sandbox read-only`). |
+| enforced | OpenCode 1 and 2 | No hooks: a config for its version offers enowX's tools, reading (not secrets) and editing its own folder, and refuses the rest. From 2, `--standalone` (or its background server ignores the config) and policies, which hold for any agent. Before 2, an agent's permissions and a plugin, kept outside GOA's folder, that hold for an agent the user switches to and through links. |
 | limited | agents whose tools can be restricted at start but have no hooks | Started with enowX's tools only. (No agent enowX knows is limited and not enforced today.) |
 | watched | every other agent | Only told. The programs GOA's session runs itself (found by the session's tag in their environment) and the files that change in the host's git projects while no other session works there are flagged to the user, with a banner; a file unchanged, or changed only in tracked files, when GOA started can be put back as it was (`git stash create` keeps that state without touching the folder). Best effort: a change GOA makes in a folder a worker works in passes as the worker's. |
 

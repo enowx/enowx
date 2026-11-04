@@ -340,7 +340,11 @@ func (r runner) goaAgents() error {
 	w := tabwriter.NewWriter(r.out, 0, 2, 2, ' ', 0)
 	fmt.Fprintln(w, "AGENT\tLEVEL\tINSTALLED\tWHY")
 	for _, a := range list {
-		fmt.Fprintf(w, "%s\t%s\t%v\t%s\n", a.Agent, a.Level, a.Installed, a.Why)
+		level, why := a.Level, a.Why
+		if a.NotYet != "" {
+			level, why = "not offered", a.NotYet
+		}
+		fmt.Fprintf(w, "%s\t%s\t%v\t%s\n", a.Agent, level, a.Installed, why)
 	}
 	return w.Flush()
 }

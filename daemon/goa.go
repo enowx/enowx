@@ -90,12 +90,21 @@ func (s *Server) goaCreate(p *proto.SessionCreateParams, meta *session.Meta) (st
 	if g, ok := s.goaSession(); ok && !g.Exited {
 		return "", fmt.Errorf("goa: GOD of Agents already runs on this host: session %s", g.ID)
 	}
-	if _, ok := agent.Find(p.Agent); !ok {
+	preset, ok := agent.Find(p.Agent)
+	if !ok {
 		return "", fmt.Errorf("goa: %q isn't an agent GOD of Agents can run on", p.Agent)
+	}
+	if why := goa.NotProven(p.Agent); why != "" {
+		return "", fmt.Errorf("goa: %s: %s", preset.Name, why)
 	}
 	dir := s.goaDir()
 	if err := os.MkdirAll(dir, 0o700); err != nil {
 		return "", fmt.Errorf("goa: %w", err)
+	}
+	if agent.IsOpenCode(p.Agent) {
+		if err := goaOpenCodeReady(preset, dir); err != nil {
+			return "", err
+		}
 	}
 	p.Project, p.Parent, p.BranchMode, p.SkipPermissions, p.GOAWorker = "", "", proto.BranchNone, false, ""
 	p.Features = agent.AllFeatures()
@@ -110,7 +119,7 @@ func (s *Server) goaCreate(p *proto.SessionCreateParams, meta *session.Meta) (st
 func (s *Server) goaChat(chat chatFor, meta session.Meta) chatFor {
 	if meta.GOA {
 		chat.goa = true
-		chat.guide = agent.GOAGuide + goaRulesGuide(s.goaRules().Rules) + chat.guide
+		chat.guide = agent.GOAGuide + agent.GOAAgentNote(meta.Agent) + goaRulesGuide(s.goaRules().Rules) + chat.guide
 	}
 	return chat
 }
@@ -132,7 +141,11 @@ func (s *Server) goaHook(info proto.SessionInfo, ev proto.HookEvent) (d proto.Ho
 		return d, false
 	}
 	if info.GOA {
-		if ok, why := goa.Allowed(ev.Tool, ev.Command, s.HookBin); !ok {
+		ok, why := goa.Allowed(ev.Tool, ev.Command, s.HookBin)
+		if ok {
+			ok, why = goa.EditInside(ev.Tool, ev.Paths, s.goaDir())
+		}
+		if !ok {
 			s.logger().Info("goa: a tool refused", "session", info.ID, "tool", ev.Tool)
 			return proto.HookDecision{Block: true, Reason: why}, true
 		}
@@ -387,10 +400,18 @@ func goaAgents() []proto.GOAAgent {
 			continue
 		}
 		level, why := goa.LevelOf(a.ID)
-		out = append(out, proto.GOAAgent{Agent: a.ID, Name: a.Name, Level: level, Why: why, Installed: a.Installed})
+		out = append(out, proto.GOAAgent{Agent: a.ID, Name: a.Name, NotYet: goa.NotProven(a.ID), Level: level, Why: why, Installed: a.Installed})
 	}
 	// The strictest first, as the user would pick.
 	rank := map[string]int{proto.GOAEnforced: 0, proto.GOALimited: 1, proto.GOAWatched: 2}
-	slices.SortStableFunc(out, func(x, y proto.GOAAgent) int { return rank[x.Level] - rank[y.Level] })
+	slices.SortStableFunc(out, func(x, y proto.GOAAgent) int {
+		if (x.NotYet == "") != (y.NotYet == "") {
+			if x.NotYet == "" {
+				return -1
+			}
+			return 1
+		}
+		return rank[x.Level] - rank[y.Level]
+	})
 	return out
 }

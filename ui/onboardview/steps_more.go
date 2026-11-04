@@ -29,7 +29,7 @@ func communityLinks() []communityLink {
 
 // goaAgents are the agents that can hold GOD of Agents here.
 func goaAgents(o Options) []proto.GOAAgent {
-	return slices.DeleteFunc(slices.Clone(o.GOAAgents), func(a proto.GOAAgent) bool { return !a.Installed })
+	return slices.DeleteFunc(slices.Clone(o.GOAAgents), func(a proto.GOAAgent) bool { return !a.Installed || a.NotYet != "" })
 }
 
 // goaName is the agent it would run on, by name.

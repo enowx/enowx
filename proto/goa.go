@@ -77,6 +77,9 @@ type GOAAgent struct {
 	Level     string `json:"level"` // GOAEnforced, GOALimited, GOAWatched
 	Why       string `json:"why"`
 	Installed bool   `json:"installed"`
+	// NotYet says why GOA isn't offered on it; "" when it is. An older daemon says
+	// nothing of it, and takes any agent.
+	NotYet string `json:"notYet,omitempty"`
 }
 
 // Statuses of a task on GOA's board.

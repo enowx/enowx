@@ -489,11 +489,15 @@ func (s *Server) agentEnv(meta session.Meta) ([]string, error) {
 	if meta.Member != nil {
 		return append(append(preset.Environ(meta.SkipPermissions), acc...), memberEnv(meta.Member, s.accounts.Home(meta.Account))...), nil
 	}
-	return append(append(append(append(append(preset.Environ(meta.SkipPermissions), apiEnv(meta.Agent)...), acc...), notesEnv(meta.NotesFor != "")...), canvasEnv(meta.CanvasFor != "")...), append(goaEnv(meta), restoredToolEnv(meta)...)...), nil
+	return append(append(append(append(append(preset.Environ(meta.SkipPermissions), apiEnv(meta.Agent)...), acc...), notesEnv(meta.NotesFor != "")...), canvasEnv(meta.CanvasFor != "")...), append(goaEnv(meta), s.restoredToolEnv(meta)...)...), nil
 }
 
 // restoredToolEnv is toolEnv for a session coming back, by what it is.
-func restoredToolEnv(meta session.Meta) []string {
+func (s *Server) restoredToolEnv(meta session.Meta) []string {
+	if meta.GOA && agent.IsOpenCode(meta.Agent) {
+		// What holds it is this: without it, it comes back with every tool of its agent's.
+		return goaOpenCodeEnv(meta.Agent, s.dataDir)
+	}
 	if meta.NotesFor != "" || meta.CanvasFor != "" || meta.GOA {
 		return nil
 	}

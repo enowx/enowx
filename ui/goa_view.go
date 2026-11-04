@@ -1,6 +1,7 @@
 package ui
 
 import (
+	"slices"
 	"strconv"
 
 	"github.com/egoist/mygo/ui"
@@ -115,9 +116,14 @@ func (a *App) openGOAStart() {
 				a.goa.err = "This host's enowX is too old for GOD of Agents: update it."
 				return
 			}
-			a.goa.err, a.goa.agents = "", list
+			a.goa.err, a.goa.agents = "", goaOfferedAgents(list)
 		})
 	}()
+}
+
+// goaOfferedAgents are the agents GOA is offered on, not those untested yet.
+func goaOfferedAgents(list []proto.GOAAgent) []proto.GOAAgent {
+	return slices.DeleteFunc(list, func(ag proto.GOAAgent) bool { return ag.NotYet != "" })
 }
 
 // goaLevelColor is how a level reads: enforced calm, watched a warning.
@@ -159,6 +165,7 @@ func (a *App) goaStartDialog(c *ui.Context) {
 					f.agent = ag.Agent
 				}
 			}
+			ui.Text(c, "Only agents tested to hold it to delegating are listed: Claude Code, Codex and OpenCode.").FontSize(theme.TextUI).TextColor(theme.TextSoft)
 		})
 	}, func() {
 		label := "Start"

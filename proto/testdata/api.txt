@@ -1144,6 +1144,7 @@ field GOAAgent.agent string
 field GOAAgent.installed bool
 field GOAAgent.level string
 field GOAAgent.name string
+field GOAAgent.notYet string
 field GOAAgent.why string
 field GOABoard.agent string
 field GOABoard.level string

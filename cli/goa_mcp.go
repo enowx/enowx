@@ -1,5 +1,7 @@
 package cli
 
+import "slices"
+
 // goaTools are GOD of Agents' commands as MCP tools (feature "goa").
 var goaTools = []mcpTool{
 	{name: "goa_skill", description: "A built-in guide of GOD of Agents: setup (doing every setting of enowX with the user, stopping for what needs them), features (every feature).",
@@ -64,4 +66,22 @@ var goaTools = []mcpTool{
 		}},
 	{name: "goa_agents", description: "The agents GOD of Agents can run on here, and how far each holds it to delegating: enforced, limited or watched.",
 		args: func(map[string]any) []string { return []string{"agents"} }},
+}
+
+// goaOfferedTools are the tools GOD of Agents' server offers: every tool offered goes
+// with each request, 222 of them at about 40,000 tokens each time against 3,000 for 6.
+// Its work is delegating; its "enowx" tool runs every other command.
+var goaOfferedTools = []string{"goa_agents", "goa_delegate", "goa_board", "goa_task", "goa_recall", "goa_remember",
+	"sessions_everywhere", "session_read", "session_chat", "session_answer", "enowx"}
+
+// goaOffered is groups with the tools offered GOD of Agents only.
+func goaOffered(groups []mcpGroup) []mcpGroup {
+	out := make([]mcpGroup, 0, len(groups))
+	for _, g := range groups {
+		g.tools = slices.DeleteFunc(slices.Clone(g.tools), func(t mcpTool) bool { return !slices.Contains(goaOfferedTools, t.name) })
+		if len(g.tools) > 0 {
+			out = append(out, g)
+		}
+	}
+	return out
 }

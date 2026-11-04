@@ -471,6 +471,9 @@ func (ch chatFor) toolEnv(id string) []string {
 		if ch.files == "" {
 			return nil
 		}
+		if agent.IsOpenCode(id) {
+			return goaOpenCodeEnv(id, ch.dataDir())
+		}
 		return agent.ToolEnvGuide(id, programPath(), filepath.Join(ch.dataDir(), "goa", agent.GOAGuideName))
 	}
 	return toolEnv(id)
