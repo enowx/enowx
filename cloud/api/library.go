@@ -96,7 +96,7 @@ const (
 var LibraryCategories = []string{"component", "dashboard", "landing-page", "mobile", "onboarding", "motion", "diagram", "icon-illustration", "other"}
 
 // LibraryReasons are why an item or an account may be reported.
-var LibraryReasons = []string{"spam", "copyright", "impersonation", "malicious", "abuse", "other"}
+var LibraryReasons = []string{"spam", "copyright", "impersonation", "malicious", "private-data", "abuse", "other"}
 
 // LibraryCreator is who made an item, as anyone sees them: never an email.
 type LibraryCreator struct {
