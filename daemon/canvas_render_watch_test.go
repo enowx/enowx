@@ -55,9 +55,12 @@ func TestCanvasRendersThroughAnAppWatching(t *testing.T) {
 	if err != nil || string(got.Data) != "from the app watching" {
 		t.Fatalf("watching: %q, %v", got.Data, err)
 	}
-	// It serves no Browsers: what an agent asks of one still says none is there.
-	if err := caller.Call(proto.MethodBrowserAct, proto.BrowserAction{}, nil); err == nil || !strings.Contains(err.Error(), "no enowX app") {
-		t.Fatalf("a Browser's action reached it: %v", err)
+	// It serves no Browsers: a Browser's action has to find an app showing the host.
+	srv.browsers.mu.Lock()
+	browsers := len(srv.browsers.serving)
+	srv.browsers.mu.Unlock()
+	if browsers != 0 {
+		t.Fatalf("%d apps serve Browsers", browsers)
 	}
 	showing := app("from the app showing")
 	if err := showing.ServeBrowsers(); err != nil {
