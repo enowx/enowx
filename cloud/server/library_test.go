@@ -7,6 +7,7 @@ import (
 	"encoding/base64"
 	"image"
 	"io"
+	"log/slog"
 	"net/http"
 	"net/url"
 	"slices"
@@ -630,6 +631,46 @@ func TestLibraryWithdrawAndVersions(t *testing.T) {
 	}
 	if _, err := e.blobs.Get(context.Background(), "items/"+sub.ID+"/v1/doc"); err != nil {
 		t.Fatalf("objects stay for a while: %v", err)
+	}
+}
+
+// Past its time a taken-back item's objects go and its account gets the room
+// back, while its address still answers 410; an upload left unfinished goes whole.
+func TestLibrarySweep(t *testing.T) {
+	e := newLibEnv(t, Config{})
+	ctx := context.Background()
+	ada := e.signIn(1, "ada", "")
+	sub := e.publish(ada, publishParams("Old"), `<p>x</p>`)
+	var left api.LibraryPublished
+	send(t, "POST", e.url+api.PathLibraryItems, ada.token, publishParams("Left"), &left)
+	if code, _ := send(t, "DELETE", e.url+itemPath(api.PathLibraryItem, sub.ID), ada.token, nil, nil); code != http.StatusNoContent {
+		t.Fatalf("withdraw: %d", code)
+	}
+	svc := library.New(library.Config{Blobs: e.blobs}, library.Host{}, e.db, slog.New(slog.NewTextHandler(io.Discard, nil)))
+	svc.SweepOnce(ctx)
+	if _, err := e.blobs.Get(ctx, "items/"+sub.ID+"/v1/doc"); err != nil {
+		t.Fatalf("gone before its time: %v", err)
+	}
+	if _, err := e.db.ExecContext(ctx, `UPDATE library_items SET purge_at = '2000-01-01T00:00:00.000000000Z' WHERE id = $1`, sub.ID); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := e.db.ExecContext(ctx, `UPDATE library_versions SET created = '2000-01-01T00:00:00.000000000Z' WHERE item_id = $1`, left.ID); err != nil {
+		t.Fatal(err)
+	}
+	svc.SweepOnce(ctx)
+	if _, err := e.blobs.Get(ctx, "items/"+sub.ID+"/v1/doc"); err == nil {
+		t.Fatal("its document stayed")
+	}
+	if code, _ := send(t, "GET", e.url+itemPath(api.PathLibraryItem, sub.ID), "", nil, nil); code != http.StatusGone {
+		t.Fatalf("its address after the purge: %d", code)
+	}
+	if _, err := e.db.LibraryItem(ctx, left.ID); err == nil {
+		t.Fatal("an upload left unfinished stayed")
+	}
+	var mine api.LibraryMine
+	send(t, "GET", e.url+api.PathLibraryMine, ada.token, nil, &mine)
+	if mine.Used != 0 {
+		t.Fatalf("still counted: %d", mine.Used)
 	}
 }
 

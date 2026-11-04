@@ -77,6 +77,8 @@ Go 1.27+ is required (MyGo needs it). With an older `go`, set `GOTOOLCHAIN=go1.2
 | `core/cacheclean` | Clean cache: what a host's enowX folder takes, what can go of it, and removing that, never anything outside the few folders it names (see `docs/daemon.md`) | **No** |
 | `core/procstat` | Memory and CPU of process trees and of the machine, for the resource usage view | **No** |
 | `cloud/` | The team cloud's server (`cloud/server`), its database (`cloud/store`), API types (`cloud/api`) and the sealing of a team's keys and items (`cloud/seal`) (see `docs/cloud.md`) | **No** |
+| `cloud/library` | enowX UI's server, under `/v1/library`: the community library's API, its web sign-in, moderation (see `docs/library.md`) | **No** |
+| `core/designshare` | A canvas's design made into what the community library keeps: its bundle and checks, the host's drafts; `core/designshare/thumb` its picture (see `docs/library.md`) | **No** |
 | `cmd/enowx-cloud` | The cloud server's entry point and its image (`Dockerfile`) | **No** |
 | `hostconn/` | Connects to a host's daemon: starts or replaces it locally, installs or upgrades it over SSH | **No** |
 | `docs/` | The docs, and package `docs` shipping them in the program for `goa doc` (all top-level `*.md` but `PLAN.md`) | **No** |

@@ -201,6 +201,10 @@ A link can't be made for someone else: it names the member Discord's signed requ
 
 A delivery that fails to give the role answers an error, so it can be delivered again from the webhook's page; Discord's rate limits aren't retried. A pull request merged while the server was down counts at the member's next Connect. Used links are remembered in the server's memory, so run one instance; a restart forgets them, within the 10 minutes a link lives.
 
+## The community library
+
+A cloud can also host enowX UI, the community library of canvases' designs: off unless its own bucket is set. See [library.md](library.md), for its variables too.
+
 ## Phases
 
 0. Foundation: this document, the server's frame and database (Postgres, or SQLite with none), its image.
