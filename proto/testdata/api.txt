@@ -179,6 +179,7 @@ field AgentCommand.kind string
 field AgentCommand.name string
 field AgentCommands.commands []AgentCommand
 field AgentCommands.loading bool
+field AgentInfo.alwaysSkips bool
 field AgentInfo.canSkipPermissions bool
 field AgentInfo.command string
 field AgentInfo.homepage string

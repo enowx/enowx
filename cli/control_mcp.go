@@ -57,7 +57,7 @@ var controlTools = []mcpTool{
 		args: func(a map[string]any) []string { return append(sessionArgs("answer", a), str(a, "answer")) }},
 	{name: "session_switch", description: "Change a running session's model, reasoning effort, permission mode or account, as its user would in the agent.",
 		props: idProps(map[string]mcpProp{"model": {"string", "The agent's name for the model"}, "effort": {"string", "low, medium, high, xhigh, max"},
-			"mode": {"string", "The agent's name for the mode (Claude Code: default, acceptEdits, plan, auto, bypassPermissions)"}, "account": {"string", "An account of the agent (accounts list)"}}),
+			"mode": {"string", "The agent's name for the mode (Claude Code: default, acceptEdits, plan, auto, bypassPermissions). It lands there, never through plan mode: if the way goes through it, the agent restarts on its conversation, which needs it at rest. It comes back in bypass after any restart."}, "account": {"string", "An account of the agent (accounts list)"}}),
 		required: []string{"id"},
 		args:     func(a map[string]any) []string { return sessionArgs("switch", a, "model", "effort", "mode", "account") }},
 	{name: "session_changes", description: "A session's branch against its base (ahead, behind, uncommitted, unpushed), or with diff what it changed.",
