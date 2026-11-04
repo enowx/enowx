@@ -2,6 +2,7 @@ package ui
 
 import (
 	"encoding/json"
+	"errors"
 	"slices"
 
 	"github.com/enowx/enowx/client"
@@ -24,9 +25,10 @@ type goaApp struct {
 	agents   []proto.GOAAgent
 	start    *goaStartForm
 	override *goaOverrideForm
-	detail   *goaDetail    // a session's details, from the Sessions tool
-	rules    *goaRulesForm // its rules being edited (goa_rules.go)
-	stall    *goaStallForm // when a task counts as stalled, being edited (goa_stall.go)
+	detail   *goaDetail       // a session's details, from the Sessions tool
+	rules    *goaRulesForm    // its rules being edited (goa_rules.go)
+	stall    *goaStallForm    // when a task counts as stalled, being edited (goa_stall.go)
+	settings *goaSettingsForm // its agent and config being changed (goa_settings.go)
 	// tabs are the sessions open beside GOA, as center tabs of its session
 	// (goa_tabs.go).
 	tabs []*goaTab
@@ -187,6 +189,19 @@ func (a *App) goaSession() (proto.SessionInfo, bool) {
 		return proto.SessionInfo{}, false
 	}
 	return a.sessions[i], true
+}
+
+// goaCallQuiet is goaCall leaving the error to fn alone, for a dialog that shows it.
+func (a *App) goaCallQuiet(method string, params, out any, fn func(error)) {
+	cl := a.client
+	if cl == nil {
+		fn(errors.New("not connected to this host"))
+		return
+	}
+	go func() {
+		err := cl.Call(method, params, out)
+		a.onMain(func() { fn(err) })
+	}()
 }
 
 // goaCall runs method on the connected host, then fn on the main thread

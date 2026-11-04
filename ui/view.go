@@ -107,6 +107,7 @@ func (a *App) view(c *ui.Context) {
 	a.goaDetailDialog(c)
 	a.goaOverrideDialog(c)
 	a.goaRulesDialog(c)
+	a.goaSettingsDialog(c)
 	a.goaStallDialog(c)
 	a.unslopCompareDialog(c)
 	a.unslopChoiceDialog(c)
