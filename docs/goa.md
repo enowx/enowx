@@ -7,7 +7,7 @@ GOD of Agents (GOA) is one session the user drives that controls every enowX ses
 **GOD of Agents** in the title bar's pages (or ⌘K, "GOD of Agents") enters the mode. With no GOA on the host shown, it asks which agent to run GOA on, each with how far it holds GOA to delegating (below). In the mode:
 
 - GOA's session is the main view, as a session's: the same header, tab strip, tools dock and panel, with the session list folded away.
-- The title bar reaches the pages as anywhere. GOA's header has **Rules** and **Leave**, which goes back (GOA keeps running), and its More menu **Stall limits**.
+- The title bar reaches the pages as anywhere. GOA's header has **Settings** (what it runs on, below), **Rules** and **Leave**, which goes back (GOA keeps running), and its More menu **Stall limits**.
 - Notes and Canvas show their own lists beside the page, with the choice of the user's own or a team's space, as the session list that holds them elsewhere is folded away.
 - GOA's session opens on its **chat** when its agent has one (Claude Code, Codex…), once; Chat and Terminal stay in its header, the tools open in center tabs as in a session, and the view picked is kept.
 - The side panel stays, its **GOA** group first:
@@ -35,7 +35,7 @@ GOA is offered only on agents run for real as GOA, a model pressed to work by it
 
 **A link in its folder, on OpenCode 2:** its rules go by the path asked for, not where it leads, and it has no plugin to look. GOA can't make one without a shell, and starting refuses when one leads out, but a link another session makes in that folder while GOA runs is a way out until the next start.
 
-**Its tools:** its MCP server offers 11 (`goa_*`, the sessions' it needs, `enowx` for every other command), about 3,000 tokens a request against about 40,000 for all 222. **`opencode run --standalone`** may offer enowX's tools only from its second request; enowX starts the TUI, where they came with the first in these runs. Its guide tells it not to take them for missing.
+**Its tools:** its MCP server offers 11 (`goa_*`, the sessions' it needs, `enowx` for every other command), about 3,000 tokens a request against about 40,000 for all 223. **`opencode run --standalone`** may offer enowX's tools only from its second request; enowX starts the TUI, where they came with the first in these runs. Its guide tells it not to take them for missing.
 
 ### Held to delegating, as far as each agent allows
 
@@ -53,6 +53,23 @@ The app shows each agent's level when picking GOA's; `enowx goa agents` lists th
 No enowX command that runs a program of GOA's choosing works in its session, or in its MCP server: `creds use … -- COMMAND`, `decide trim -- COMMAND`, and `run` of a project command (listing them still works). Those would be a way around the tools it lacks.
 
 Checked with Codex itself, started as GOA: enowX's tools reached it over MCP as `mcp__enowx__…`, as its hooks name them; it read a project's file and wrote one in its own folder, and handed over a write outside it and a `go version`. Checked with Claude Code itself, started as GOA: it read a project's file and wrote one (in auto mode, unasked), and handed `go version` to a session, having no Bash.
+
+### Changing what it runs on
+
+**Settings** in GOA's header shows the agent and config it runs on, each agent it is offered on (installed and proven, above) with its level, and the configs of the agent picked, the official one first. What a pick would do, or why it can't be done, shows before anything is pressed. `enowx goa switch [--agent A] [--config NAME|official]` and MCP `goa_switch` do the same on this host; with no agent or config, or `--check`, they only say.
+
+- **Another config, the same agent:** GOA restarts on the new config and goes on with the same conversation (`--resume` with its ID). Before GOA stops, the daemon checks the config can reach that conversation and start: an account's home has it (conversations are shared by links; one with a `projects` folder of its own, or a variable moving its home, doesn't), the account is signed in on this host, the vault lends a model API's key. If not, the user is told, and GOA goes on untouched. A GOA with no conversation yet just restarts.
+- **Another agent:** a conversation doesn't carry over to it, so the app says so and asks first (`--new-conversation`), then GOA restarts on a new one, its config the one picked (left out, the agent's preferred). Going back to the first agent later is a new conversation too: its session doesn't take conversations from before the change (`Meta.ConvoSince`).
+- **At work** (working, or asking something), the app asks first, as a restart cuts that off (`--force`). This is the daemon's word, not the app's, so a line reaching GOA as the user presses counts.
+- **If it doesn't take:** an agent ending within 5 seconds of starting (`goaSwitchSettle`) puts GOA back on what it was, on its conversation, and the error says what the screen last said. What only shows later, as a key an API refuses at its first request, its screen says.
+
+**What stays.** The change happens in GOA's own session, same ID: its tabs, the board (`goa-board.json`), its collection, its rules and its waiting lines (`goa-tell.json`). Its workers are sessions of their own and keep running. While it changes, no line goes to GOA: the hook waiting to wake it ends with nothing, and what comes waits for the agent that follows.
+
+**What holds it stays,** on every path: the restart goes through what `goa start` does, and a config can't undo it. On GOA a config's flags are only `--model`, `-m` and `--effort`, and its variables none of `ENOWX_*`, `ENABLE_TOOL_SEARCH`, `OPENCODE_CONFIG*` or `OPENCODE_PERMISSION` (`goa.ConfigArgs`, `goa.ConfigEnv`); the panel says so of a config that has others. A model API's own variables (its `OPENCODE_CONFIG`, say) go on as they are, under what holds OpenCode's GOA. A limit's fallback to another agent is refused for GOA: an agent only changes by this.
+
+**Its permission mode.** Another config keeps the mode GOA runs in (`Meta.Mode`, passed as its agent's flag), including after a mode set by the user; another agent starts in what the user chose for that agent's new sessions (on a config, not that), else its own default.
+
+**GOA can't change itself.** A change ends the turn asking for it, and for an agent loses its conversation, unasked. So GOA isn't offered `goa_switch`, and `goa switch` through its `enowx` tool only reads: it is told to ask the user. Asked by another session's agent, a change is a `confirm` method of control: the user says yes first ([goa-tools.md](goa-tools.md#when-the-user-is-asked)). An older daemon answers as not knowing the method, which the app and the command say, GOA going on as it was.
 
 ## Tasks
 
@@ -135,11 +152,11 @@ GOA's collection is its folder's (`rag.ProjectID` of GOA's folder), apart from e
 
 ## Commands and tools
 
-`enowx goa board|delegate|task|remember|recall|rules|agents|flags|start` ([cli.md](cli.md#god-of-agents)); MCP `goa_board`, `goa_delegate`, `goa_task`, `goa_remember`, `goa_recall`, `goa_agents` (feature `goa`, always on in GOA's session). Everything else GOA reaches is the rest of enowX's tools, on any host: [goa-tools.md](goa-tools.md).
+`enowx goa board|delegate|task|remember|recall|rules|agents|flags|start|switch` ([cli.md](cli.md#god-of-agents)); MCP `goa_board`, `goa_delegate`, `goa_task`, `goa_remember`, `goa_recall`, `goa_agents`, `goa_switch`, not offered to GOA itself (feature `goa`, always on in GOA's session). Everything else GOA reaches is the rest of enowX's tools, on any host: [goa-tools.md](goa-tools.md).
 
 ## Protocol
 
-`goa.agents`, `goa.board`, `goa.delegate`, `goa.task`, `goa.override`, `goa.worker`, `goa.flags`, `goa.revert`, `goa.remember`, `goa.recall`, `goa.rules`, `goa.rules.save`, `rules.draft`; events `goa.changed` (the board) and `goa.flagged`; `SessionCreateParams.GOA` and `GOAWorker`, `SessionInfo.GOA` and `GOAWorker`, `SessionAsk.Urgent`. Older daemons ignore the fields and lack the methods: the app's chip then says the host's enowX is too old.
+`goa.agents`, `goa.board`, `goa.delegate`, `goa.task`, `goa.override`, `goa.worker`, `goa.flags`, `goa.revert`, `goa.remember`, `goa.recall`, `goa.rules`, `goa.rules.save`, `goa.switch`, `rules.draft`; events `goa.changed` (the board) and `goa.flagged`; `SessionCreateParams.GOA` and `GOAWorker`, `SessionInfo.GOA` and `GOAWorker`, `SessionAsk.Urgent`. Older daemons ignore the fields and lack the methods: the app's chip then says the host's enowX is too old.
 
 ## What it can't do yet
 
