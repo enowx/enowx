@@ -110,11 +110,23 @@ func usage(u procstat.Usage) proto.Usage {
 // program they run, its agent or login shell, but none of what that
 // program started.
 func (s *Server) sessionProgram(id string) map[int]bool {
+	s.sampleNow()
+	return s.sampledProgram(id)
+}
+
+// sampleNow has the next questions about processes answered from a fresh look at them.
+func (s *Server) sampleNow() {
 	st := &s.statsState
 	st.mu.Lock()
 	st.last = time.Time{}
 	st.mu.Unlock()
 	s.stats()
+}
+
+// sampledProgram is sessionProgram from the last sample. A look at every process is what
+// costs: on macOS it runs ps, so something asking of many sessions looks once.
+func (s *Server) sampledProgram(id string) map[int]bool {
+	st := &s.statsState
 	st.mu.Lock()
 	defer st.mu.Unlock()
 	keep := map[int]bool{}
