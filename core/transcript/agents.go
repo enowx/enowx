@@ -26,7 +26,7 @@ var readers = map[string]struct {
 }{
 	"claude":             {claudeFound, NewClaudeReader, claudeID},
 	"claude-agent-teams": {claudeFound, NewClaudeReader, claudeID},
-	"codex":              {CodexFiles, NewCodexReader, nil},
+	"codex":              {CodexFiles, NewCodexReader, codexID},
 	"omp":                {OMPFiles, NewOMPReader, OMPConversationID},
 }
 
@@ -106,16 +106,8 @@ func claudeFound(home, dir string) []Found {
 }
 
 // ForkID is the id agent forks the conversation at path by, "" when it has
-// none to give: the one it resumes by, or Codex's own.
-func ForkID(agent, path string) string {
-	if path == "" {
-		return ""
-	}
-	if agent == "codex" {
-		return codexID(path)
-	}
-	return ConversationID(agent, path)
-}
+// none to give: the one it resumes by.
+func ForkID(agent, path string) string { return ConversationID(agent, path) }
 
 // Compacted says the conversation at path holds a compaction, as Claude Code
 // and Codex record one.

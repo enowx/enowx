@@ -117,3 +117,18 @@ func TestCodexTranscriptReadsTheRolloutAForkContinues(t *testing.T) {
 		t.Fatalf("entries = %+v", got)
 	}
 }
+
+// A Codex conversation gives the id it resumes by, or waking it would start a new one.
+func TestCodexConversationID(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "rollout.jsonl")
+	line := `{"timestamp":"2026-10-23T14:24:47Z","type":"session_meta","payload":{"id":"019a-conversation","cwd":"/work"}}` + "\n"
+	if err := os.WriteFile(path, []byte(line+`{"type":"event_msg"}`+"\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if got := ConversationID("codex", path); got != "019a-conversation" {
+		t.Fatalf("got %q", got)
+	}
+	if got := ConversationID("codex", filepath.Join(t.TempDir(), "none.jsonl")); got != "" {
+		t.Fatalf("no file: %q", got)
+	}
+}
