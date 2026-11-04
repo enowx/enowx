@@ -212,7 +212,9 @@ func (s *Server) takeHelperConvo(p proto.SessionCreateParams) string {
 	}
 	delete(m, key)
 	s.writeHelperConvos(m)
-	if preset, found := agent.Find(p.Agent); !found || len(preset.Resume) == 0 {
+	// One that keeps its conversations in the session's own folder (Preset.SessionDir) lost
+	// them with the session it ended: asked to resume, it only says so and exits.
+	if preset, found := agent.Find(p.Agent); !found || len(preset.Resume) == 0 || len(preset.SessionDir) > 0 {
 		return ""
 	}
 	return convo
