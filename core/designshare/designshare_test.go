@@ -230,3 +230,24 @@ func TestCheckComponentWalksThePage(t *testing.T) {
 		}
 	}
 }
+
+// However a page spells changing its address, its creator hears of it.
+func TestCheckWarnsOfEveryWayToNavigate(t *testing.T) {
+	for _, code := range []string{
+		`location="https://evil.example"`,
+		`location.href = "https://evil.example"`,
+		`location["href"]="https://evil.example"`,
+		`window.location['href'] = "https://evil.example"`,
+		"top.location[`href`]='x'",
+		`location.assign("x")`,
+		`location["replace"]("x")`,
+	} {
+		found := Check(bundleOf(`<script>`+code+`</script>`), Text{})
+		if !strings.Contains(kinds(found, Warn), "changes the page's address") {
+			t.Errorf("no warning of %s: %v", code, found)
+		}
+	}
+	if found := Check(bundleOf(`<script>if(location.href=="x"){}</script>`), Text{}); strings.Contains(kinds(found, Warn), "changes the page's address") {
+		t.Errorf("reading it: %v", found)
+	}
+}

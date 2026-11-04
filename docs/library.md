@@ -101,6 +101,8 @@ What doesn't stop it, and can't: a connection's `Kind` is its own word, so a pro
 | A picture | 300 KiB, 1200 px wide, WebP |
 | A component | 64 KiB of HTML and CSS, no scripts |
 | An account | 200 MiB kept, 50 items live, 5 versions an item, 20 uploads a day; a new one 3 in review |
+| What an account sends | 40 parts and 10 submits a minute, 2 requests at once, 512 MiB written a day; 4 requests of anyone hold a bundle in memory at once |
+| A document the server makes | 32 MiB before it's zipped, worked out before it's made: a bundle naming a file or a library many times is refused. 20,000 shapes a design, a name 120 characters, a shape's text 8,000 |
 | The library in the bucket | 100 GiB kept, 30 GiB written a month, teams' files not counted; moderators are warned at 70% |
 
 The library at its limit stops publishing, with a message; reading goes on. Public reads are limited per address, and a few run at once so the teams' sync keeps its database connections. The website's own requests carry its secret and aren't counted as one address.
@@ -166,9 +168,11 @@ What happens to a creator: approved, rejected, taken down, a comment, a report u
 
 **A view isn't analytics.** The website has no analytics or trackers, and this adds none: no script, cookie, pixel or beacon, and no outside call. Its server counts as it renders a design's page (`src/lib/views.ts`), leaving out robots, prefetching, a creator's own looks and moderators'. A salted hash of the item, the address and the browser's name, in that process's memory for 6 hours, keeps a reload from counting again; the salt and hashes then go, unwritten. Once a minute it sends `POST views` with how many per item and nothing else, so the cloud never hears of a person, and `library_stats` holds totals. These are coarse: a restart loses up to a minute, and a change of address counts again.
 
+Moderators don't decide on their own: approving a design, or dismissing a report on it, is another moderator's, the owner's designs included. A preview frame saying it moved reports a live item at most once in six hours, and those reports come after what people reported. What's taken down stays down: a version prepared before it answers 410, and the store refuses it too. Why a version was rejected is its creator's and moderators' alone.
+
 ## A moving design's video
 
-At publish, `library.publish` has the app render a design that moves, unless the form says not to, with `canvas.video` and `preview`: 6 seconds at most, 720 pixels wide, smaller than an export, left in no folder of the user's. It needs a serving app, a web view and ffmpeg: without them, or if it comes out too big, the design goes without one and nothing else changes.
+When a draft is prepared, `library.prepare` has the app render a design that moves, with `canvas.video` and `preview`: 6 seconds at most, 720 pixels wide, smaller than an export, left in no folder of the user's. It needs a serving app, a web view and ffmpeg: without them, or if it comes out too big, the design goes without one and nothing else changes.
 
 It's part `video`: 4 MiB, 15 seconds, only on a design that moves. The cloud reads the file's boxes (`designshare.CheckVideo`) and refuses anything but an MP4 of video tracks alone, so a preview can't carry sound. Like a picture it comes from the host: moderators see it in review, and a trusted account's isn't reviewed first.
 
