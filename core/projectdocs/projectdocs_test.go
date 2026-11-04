@@ -73,11 +73,8 @@ func TestAgentWriteProposesApprovedAndNeverApproves(t *testing.T) {
 
 func TestProjectThroughStore(t *testing.T) {
 	st := notes.Open(t.TempDir())
-	root, made, err := New(Options{Title: "Shop", Size: SizeCore}, st.Save)
-	if err == nil {
-		t.Log("made", len(made))
-	}
-	if err != nil && !strings.Contains(err.Error(), "no template") {
+	root, _, err := New(Options{Title: "Shop", Size: SizeCore}, st.Save)
+	if err != nil {
 		t.Fatal(err)
 	}
 	if root.ID == "" {
