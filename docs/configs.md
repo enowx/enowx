@@ -12,6 +12,7 @@ Every config also has a name, a badge color, an effort (the agent's own effort f
 
 - **Settings → Agents**: every agent, installed ones first, with search: a page per agent saying how it takes a config, or why it can't, and its configs, the official one first by default, in the order sessions use them. **New config** makes one in a dialog; a config's menu edits, duplicates, signs in (an account, on this host), makes it the default for new sessions, keeps it to some projects, or removes it after asking. None of these change the official config.
 - **New session** picks **Default** or a config; by default the one the preferences name ([accounts.md](accounts.md)).
+- **The tab bar's +**: an agent with configs opens in the menu to pick one, the preferred marked; one with none stays one click. A long menu scrolls in the window.
 - A session's row shows its config's badge; its menu switches it to another config, its conversation picked up.
 - **Command line**: `enowx-app configs`, `spawn --config NAME` ([cli.md](cli.md)). MCP: `configs_list`, `configs_add`, `configs_edit`, `configs_remove`, and `session_spawn`'s `config` (feature **Agent configs**).
 

@@ -87,16 +87,13 @@ func (a *App) tabStrip(c *ui.Context, s proto.SessionInfo) {
 		})
 		add := widget.IconButton(c, icon.Plus, "New tab in this session's folder", false)
 		a.menu.OpenBelow(add, "tab:"+s.ID, theme.ControlHeight)
-		a.menu.Show(c, add, "tab:"+s.ID, func(done func()) {
+		a.menu.ShowLong(c, add, "tab:"+s.ID, func(done func()) {
 			a.shellTabItems(c, s, done)
 			for _, ag := range a.agents {
 				if ag.Command == "" || !ag.Installed {
 					continue
 				}
-				if widget.MenuItem(c, icon.Agent(ag.ID), ag.Name, false) {
-					a.openTab(s, ag.ID, "")
-					done()
-				}
+				a.agentTabItems(c.Key("tab-agent:"+ag.ID), s, ag, done)
 			}
 		})
 		a.runButton(c, s)
@@ -126,6 +123,70 @@ func (a *App) tabButton(c *ui.Context, parent, t proto.SessionInfo, front, closa
 // openTab starts agent id (agent.Shell for a terminal, shell its shell or
 // "" for the host's default) as a tab of s.
 func (a *App) openTab(s proto.SessionInfo, id, shell string) {
+	a.openTabWith(s, id, shell, "")
+}
+
+// tabConfig is a config the + menu offers for an agent.
+type tabConfig struct {
+	account, label string
+}
+
+// tabConfigsOf are what an agent's entry of the + menu opens to, as New session offers
+// them: Default and each config, the one the preferences name marked. None for an agent
+// with no other config, which stays one click.
+func tabConfigsOf(list []proto.Account, preferred string) []tabConfig {
+	if len(list) == 0 {
+		return nil
+	}
+	mark := func(account, name string) string {
+		if account == preferred {
+			return name + " (preferred)"
+		}
+		return name
+	}
+	out := []tabConfig{{"", mark("", "Default")}}
+	for _, acc := range list {
+		out = append(out, tabConfig{acc.ID, mark(acc.ID, acc.Name)})
+	}
+	return out
+}
+
+// agentTabItems is agent ag in the + menu: one click with no other config; with some,
+// it opens in place to pick one, as a menu here has no submenus.
+func (a *App) agentTabItems(c *ui.Context, s proto.SessionInfo, ag proto.AgentInfo, done func()) {
+	configs := tabConfigsOf(a.accountsOf().accountsOfAgent(ag.ID), a.defaultAccountFor(ag.ID, s.Project))
+	if len(configs) == 0 {
+		if widget.MenuItem(c, icon.Agent(ag.ID), ag.Name, false) {
+			a.openTab(s, ag.ID, "")
+			done()
+		}
+		return
+	}
+	open := a.tabMenuAgent == ag.ID
+	chevron := icon.ChevronRight
+	if open {
+		chevron = icon.ChevronDown
+	}
+	if widget.MenuItemTrailing(c, icon.Agent(ag.ID), ag.Name, chevron) {
+		a.tabMenuAgent = ag.ID
+		if open {
+			a.tabMenuAgent = ""
+		}
+	}
+	if !open {
+		return
+	}
+	for _, cfg := range configs {
+		if widget.MenuItem(c.Key("config:"+cfg.account), nil, "    "+cfg.label, false) {
+			a.openTabWith(s, ag.ID, "", cfg.account)
+			a.tabMenuAgent = ""
+			done()
+		}
+	}
+}
+
+// openTabWith is openTab with the agent's config, "" for Default.
+func (a *App) openTabWith(s proto.SessionInfo, id, shell, account string) {
 	cl := a.client
 	if cl == nil {
 		return
@@ -135,7 +196,7 @@ func (a *App) openTab(s proto.SessionInfo, id, shell string) {
 		cols, rows = p.term.Size()
 	}
 	params := proto.SessionCreateParams{Parent: s.ID, Project: s.Project, Agent: id, BranchMode: proto.BranchNone,
-		SkipPermissions: s.SkipPermissions, Shell: shell, Cols: cols, Rows: rows}
+		SkipPermissions: s.SkipPermissions, Shell: shell, Account: account, Cols: cols, Rows: rows}
 	go func() {
 		info, err := cl.CreateSession(params)
 		a.onMain(func() {

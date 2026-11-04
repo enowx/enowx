@@ -55,6 +55,18 @@ func (m *ContextMenu) Show(c *ui.Context, anchor ui.Element, key string, items f
 	}
 }
 
+// ShowLong is Show for a menu that may not fit the window: what doesn't, scrolls.
+func (m *ContextMenu) ShowLong(c *ui.Context, anchor ui.Element, key string, items func(done func())) {
+	_, h := c.Size()
+	room := h - anchor.Bounds().Y
+	if at := m.open; at != nil {
+		room -= at.y
+	}
+	m.Show(c, anchor, key, func(done func()) {
+		menuScroll(c, room-menuEdge, func() { items(done) })
+	})
+}
+
 // ShowBeside is Show for a menu whose anchor is at the window's edge: it opens
 // up and to the left of it, clear of what sits under the anchor.
 func (m *ContextMenu) ShowBeside(c *ui.Context, anchor ui.Element, key string, items func(done func())) {
@@ -71,6 +83,20 @@ func (m *ContextMenu) ShowBeside(c *ui.Context, anchor ui.Element, key string, i
 	if !open && m.open == at {
 		m.open = nil
 	}
+}
+
+// menuEdge is what a menu leaves between it and the window's edge.
+const menuEdge = 24
+
+// menuMinRoom is the least a menu shows, however near the edge it opens.
+const menuMinRoom = 160
+
+// menuScroll holds a menu's entries in room, scrolling what doesn't fit, so a long menu
+// stays in the window.
+func menuScroll(c *ui.Context, room float32, items func()) {
+	Scroll(c).FillWidth().MaxHeight(max(room, menuMinRoom)).Children(func() {
+		ui.Column(c).FillWidth().Children(items)
+	})
 }
 
 // MenuItem is an entry of a context menu; danger colors destructive ones.
@@ -120,6 +146,26 @@ func MenuItemOff(c *ui.Context, svg *ui.SVG, label string) {
 		}
 		ui.Text(c, label).FontSize(theme.TextUI).SingleLine().Shrink(1).MinWidth(0)
 	})
+}
+
+// MenuItemTrailing is a menu item with an icon at its end, for one that opens rather
+// than acts.
+func MenuItemTrailing(c *ui.Context, svg *ui.SVG, label string, trailing *ui.SVG) bool {
+	b := ui.ButtonBase(c).Gap(theme.S2).Padding(theme.S1, theme.S3).MinHeight(theme.ControlHeight).Radius(theme.RadiusCard).
+		Cursor(ui.CursorPointer).Label(label).FillWidth().Justify(ui.Start)
+	bg := theme.Fade(theme.Selected, 0)
+	if b.Hovered() {
+		bg = theme.Selected
+	}
+	b.Background(QuickTint(b, "bg", bg)).TextColor(theme.Text)
+	b.Children(func() {
+		if svg != nil {
+			ui.Icon(c, svg).FontSize(14)
+		}
+		ui.Text(c, label).FontSize(theme.TextUI).SingleLine().Shrink(1).MinWidth(0).Grow(1)
+		ui.Icon(c, trailing).FontSize(12).TextColor(theme.TextSoft)
+	})
+	return b.Clicked()
 }
 
 // MenuItemSub is a menu item with a quieter line under its label.

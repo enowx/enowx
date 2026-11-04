@@ -79,6 +79,7 @@ type App struct {
 	trust           *trustPrompt
 	runAs           *runAsPrompt
 	menu            widget.ContextMenu
+	tabMenuAgent    string // the agent whose configs the + menu shows
 	passphrase      *passphrasePrompt
 	signIn          *signInPrompt
 	sync            *syncview.Dialog
