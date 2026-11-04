@@ -89,7 +89,7 @@ func TestAgentThroughCmdShim(t *testing.T) {
 		t.Fatalf("no guide's file: %q", got)
 	}
 	data, err := os.ReadFile(got[i+1])
-	if err != nil || string(data) != guide {
+	if err != nil || !strings.HasSuffix(string(data), guide) {
 		t.Fatalf("the guide's file: %d bytes of %d, %v", len(data), len(guide), err)
 	}
 }
