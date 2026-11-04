@@ -60,8 +60,12 @@ func (ch *Chat) slashMenu(c *ui.Context) {
 		return
 	}
 	matches := ch.slashMatches()
-	widget.Float(ui.Column(c.Key("slash")).FillWidth().Padding(theme.S1).Radius(theme.RadiusCard).
-		Background(theme.Popover)).Transition(widget.OverlayMotion).Children(func() {
+	menu := widget.Float(ui.Column(c.Key("slash")).FillWidth().Padding(theme.S1).Radius(theme.RadiusCard).
+		Background(theme.Popover)).Transition(widget.OverlayMotion)
+	if menu.PressedOutside() {
+		ch.slashClosed = ch.input // as Escape does: typing on opens it again
+	}
+	menu.Children(func() {
 		switch {
 		case !ch.commandsRead:
 			ui.Row(c).Gap(theme.S2).Padding(theme.S2, theme.S3).Children(func() {
