@@ -6,7 +6,7 @@ The owner's target is the app and the daemon each under 100 MB at idle. This say
 
 `enowx-app profile [--cpu SECONDS] [--json] [--out DIR]` measures the running daemon and the app attached to it, changing nothing and restarting nothing (`daemon.profile`). It also goes in a diagnostics bundle as `profile.txt`. It says:
 
-- **memory by the system's count.** On Linux: RSS, PSS, private dirty, private clean, shared clean, anonymous, swap, peak RSS, and the mappings by file. On macOS: RSS, and physical footprint with its regions, read from `vmmap --summary`, which stops the process for as long as it reads. Elsewhere: RSS.
+- **memory by the system's count.** On Linux: RSS, PSS, private dirty, private clean, shared clean, anonymous, swap, peak RSS, and the mappings by file. On macOS: RSS, and physical footprint with its regions, read from `vmmap -summary`, which stops the process for as long as it reads. Elsewhere: RSS.
 - **memory by Go's count.** Live heap, what spans hold, what is free but still held, what has been returned, stacks, and `sys`.
 - **which code holds the heap, and which allocates the most**, sampled, and the goroutines by code.
 - **what the program keeps**: terminals, chat views, conversations, pictures, sessions.

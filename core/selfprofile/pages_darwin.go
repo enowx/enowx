@@ -26,7 +26,7 @@ func pages() proto.ProfileMemory {
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
 	defer cancel()
-	out, err := quietcmd.CommandContext(ctx, "vmmap", "--summary", strconv.Itoa(os.Getpid())).Output()
+	out, err := quietcmd.CommandContext(ctx, "vmmap", "-summary", strconv.Itoa(os.Getpid())).Output()
 	if err != nil {
 		m.Note = "vmmap: " + err.Error()
 		return m
@@ -35,7 +35,7 @@ func pages() proto.ProfileMemory {
 	return m
 }
 
-// readVmmap reads vmmap --summary: its footprint lines, and the table of regions
+// readVmmap reads vmmap -summary: its footprint lines, and the table of regions
 // whose columns are virtual, resident, dirty, swapped.
 func readVmmap(text string, m *proto.ProfileMemory) {
 	inTable := false
