@@ -30,16 +30,33 @@ func PlatformFiles(home, dir string) []Found {
 	}
 	names := namesOfDir(filepath.Clean(dir))
 	var out []Found
-	for _, e := range entries {
+	// take keeps a conversation that ran in dir, as its first line says.
+	take := func(folder string, e os.DirEntry) {
 		if e.IsDir() || !strings.HasSuffix(e.Name(), ".jsonl") || strings.HasPrefix(e.Name(), ".") {
-			continue
+			return
 		}
-		path := filepath.Join(root, e.Name())
+		path := filepath.Join(folder, e.Name())
 		if !slices.Contains(names, platformDir(path)) {
-			continue
+			return
 		}
 		if info, err := e.Info(); err == nil {
 			out = append(out, Found{Path: path, Changed: info.ModTime()})
+		}
+	}
+	for _, e := range entries {
+		if !e.IsDir() {
+			take(root, e)
+			continue
+		}
+		// The agent keeps them a folder per folder it ran in (cli.sanitizeSessionDir). The
+		// first line says which, as two folders can share a name.
+		folder := filepath.Join(root, e.Name())
+		inner, err := os.ReadDir(folder)
+		if err != nil {
+			continue
+		}
+		for _, f := range inner {
+			take(folder, f)
 		}
 	}
 	slices.SortFunc(out, func(a, b Found) int { return b.Changed.Compare(a.Changed) })

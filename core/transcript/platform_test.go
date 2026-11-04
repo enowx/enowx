@@ -1,6 +1,7 @@
 package transcript
 
 import (
+	"encoding/json"
 	"os"
 	"path/filepath"
 	"strings"
@@ -247,5 +248,26 @@ func TestPlatformIsRegistered(t *testing.T) {
 	appendLines(t, mine, `{"type":"compact","before":5}`+"\n")
 	if !Compacted(record.AgentID, mine) {
 		t.Fatal("compacted")
+	}
+}
+
+// A conversation of the agent run by hand is found where it keeps them, a folder per
+// working folder, by what its first line says it ran in.
+func TestPlatformFilesFindsAgentRunByHand(t *testing.T) {
+	t.Setenv("ENOWX_HOME", "")
+	home, work := t.TempDir(), t.TempDir()
+	folder := filepath.Join(record.SessionsDir(home), "a-work-folder")
+	if err := os.MkdirAll(folder, 0o700); err != nil {
+		t.Fatal(err)
+	}
+	here := filepath.Join(folder, "here.jsonl")
+	line, _ := json.Marshal(record.Record{Type: record.Meta, Dir: work})
+	appendLines(t, here, string(line)+"\n")
+	line, _ = json.Marshal(record.Record{Type: record.Meta, Dir: "/another/folder"})
+	appendLines(t, filepath.Join(folder, "there.jsonl"), string(line)+"\n")
+
+	found := PlatformFiles(home, work)
+	if len(found) != 1 || found[0].Path != here {
+		t.Fatalf("found %+v", found)
 	}
 }
