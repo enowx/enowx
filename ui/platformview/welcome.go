@@ -48,7 +48,7 @@ func (w Welcome) Draw(c *ui.Context) {
 			})
 			w.facts(c)
 			KeyNotice(c.Key("key"), w.Key, w.OpenKeys)
-			quiet(c, "You pay Anthropic by the token at list prices. The figure beside the context shows what this session has cost; it asks before going past its budget, and /budget changes that.")
+			quiet(c, "You pay Anthropic by the token at list prices. /budget sets what a session may spend before it asks; the figure beside the context shows what it has cost.")
 		})
 	})
 }
@@ -98,9 +98,11 @@ func KeyNotice(c *ui.Context, state KeyState, open func()) {
 		return
 	}
 	widget.Notice(c, icon.Key, theme.Warning, title, body, func() {
-		if open != nil && widget.Button(c.Key("open-keys"), widget.Secondary, nil, action, "").Clicked() {
-			open()
-		}
+		ui.Row(c.Key("act")).FillWidth().Padding(theme.S1, 0, 0, 0).Children(func() {
+			if open != nil && widget.Button(c.Key("open-keys"), widget.Secondary, nil, action, "").Clicked() {
+				open()
+			}
+		})
 	})
 }
 

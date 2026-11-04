@@ -121,8 +121,9 @@ func (ch *Chat) costDetails(c *ui.Context, o Options, open *bool) {
 			}
 			widget.Meter(c, widget.Segment{Fraction: ch.cost / ch.budget, Color: col})
 			ui.Row(c).FillWidth().MinWidth(0).Children(func() {
-				widget.Running(c.Key("budget"), "Budget: "+budgetMoney(ch.budget)+". It asks you before going past it.", widget.RunStyle{Size: theme.TextLabel, Color: theme.TextSoft})
+				widget.Running(c.Key("budget"), "Budget: "+budgetMoney(ch.budget), widget.RunStyle{Size: theme.TextLabel, Color: theme.TextSoft})
 			})
+			ui.Text(c, "It asks you before going past it.").FontSize(theme.TextLabel).TextColor(theme.TextSoft)
 		} else {
 			ui.Text(c, "No budget: it goes on until you stop it.").FontSize(theme.TextLabel).TextColor(theme.TextSoft)
 		}

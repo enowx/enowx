@@ -52,7 +52,39 @@ func TestPlatformKeysAndSheet(t *testing.T) {
 	if app.platformKeyState() != platformview.KeyMissing {
 		t.Fatal("no vault is no key")
 	}
+	app.host.Name = "this Mac"
+	// Before the vault is open the sheet holds making or unlocking it, inside its frame.
+	gate := func(wants ...string) {
+		t.Helper()
+		app.openPlatform(platformview.TabKeys)
+		for _, size := range [][2]int{{1000, 800}, {320, 420}} {
+			tt := mygoui.NewTester(func(c *mygoui.Context) {
+				c.SetTheme(theme.Window())
+				mygoui.Column(c).Size(float32(size[0]), float32(size[1])).Background(theme.Background).TextColor(theme.Text).Children(func() { app.platformSheet(c) })
+			}, size[0], size[1])
+			for range 4 {
+				tt.Frame()
+			}
+			for _, want := range wants {
+				if !tt.HasText(want) {
+					t.Errorf("%v: no %q in %q", size, want, tt.Texts())
+				}
+			}
+			if out := outOfParents(tt); len(out) > 0 {
+				t.Errorf("%v: out of their parents: %q", size, out)
+			}
+		}
+	}
+	gate("One vault for your logins")
 	if err := app.vaultCreate("audit password", false); err != nil {
+		t.Fatal(err)
+	}
+	app.vaultLock()
+	gate("The vault is locked")
+	if app.platformKeyState() != platformview.KeyLocked {
+		t.Fatal("a locked vault isn't said to be")
+	}
+	if err := app.vaultUnlock("audit password", false); err != nil {
 		t.Fatal(err)
 	}
 	if _, err := v.data.Add(vault.Credential{Platform: "github", Name: "gh", Type: vault.TypeToken, Fields: map[string]string{"token": "made-up-1"}}); err != nil {
@@ -67,7 +99,6 @@ func TestPlatformKeysAndSheet(t *testing.T) {
 	if app.platformKeyState() != platformview.KeyHave {
 		t.Fatal("the key isn't seen")
 	}
-	app.host.Name = "this Mac"
 	app.openPlatform(platformview.TabKeys)
 	tt := mygoui.NewTester(func(c *mygoui.Context) {
 		c.SetTheme(theme.Window())
