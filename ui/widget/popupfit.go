@@ -1,6 +1,8 @@
 package widget
 
 import (
+	"time"
+
 	"github.com/egoist/mygo/ui"
 )
 
@@ -24,15 +26,29 @@ func PopupRoom(c *ui.Context, anchor ui.Element, want float32) float32 {
 	return max(min(want, max(b.Y, h-b.Y-b.H)-popupChrome), popupLeast)
 }
 
-// FitScroll is a popup's list, at most room high: it scrolls what doesn't fit,
-// keeping room for its bar only then, so that a list that fits looks as it
-// would without it.
+// FitScroll is a popup's list, at most room high. One that fits is a plain column,
+// as it would be without this; a scroller keeps a gutter for its bar, which a
+// short menu has no use for. One that doesn't fit scrolls from its second frame,
+// once its height is known.
 func FitScroll(c *ui.Context, room float32, items func()) {
-	s := ui.Scroll(c.Key("popup-list")).FillWidth().MaxHeight(room)
-	if s.Bounds().H >= room {
-		s.Padding(0, ScrollGutter, 0, 0)
+	list := ui.Column(c.Key("popup-list")).FillWidth()
+	tall := ui.Local(list, "tall", func() bool { return false })
+	h := list.Bounds().H
+	if h == 0 {
+		c.After(time.Millisecond) // measured in this frame: read it in the next
 	}
-	s.Children(func() { ui.Column(c).FillWidth().Children(items) })
+	if h > room {
+		*tall = true
+	}
+	list.Children(func() {
+		if !*tall {
+			items()
+			return
+		}
+		Scroll(c).FillWidth().MaxHeight(room).Children(func() {
+			ui.Column(c).FillWidth().Children(items)
+		})
+	})
 }
 
 // AnchorNew says that anchor wasn't in the last frame: it just appeared, or came
