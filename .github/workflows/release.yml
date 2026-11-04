@@ -65,13 +65,13 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
           MYGO_UPDATER_PRIVATE_KEY: ${{ secrets.MYGO_UPDATER_PRIVATE_KEY }}
-        run: go run ./scripts/terminalpatch -- tool mygo build -platform "${{ matrix.platform }}" -upload cmd/enowx
+        run: sh scripts/terminalpatch.sh -- tool mygo build -platform "${{ matrix.platform }}" -upload cmd/enowx
       - name: Build
         if: ${{ !startsWith(github.ref, 'refs/tags/v') }}
         env:
           GH_TOKEN: ${{ github.token }}
           MYGO_UPDATER_PRIVATE_KEY: ${{ secrets.MYGO_UPDATER_PRIVATE_KEY }}
-        run: go run ./scripts/terminalpatch -- tool mygo build -platform "${{ matrix.platform }}" cmd/enowx
+        run: sh scripts/terminalpatch.sh -- tool mygo build -platform "${{ matrix.platform }}" cmd/enowx
       - uses: actions/upload-artifact@v4
         if: ${{ !startsWith(github.ref, 'refs/tags/v') }}
         with:

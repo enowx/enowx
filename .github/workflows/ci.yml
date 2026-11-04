@@ -25,7 +25,7 @@ jobs:
         shell: bash
         run: |
           status=0
-          go run ./scripts/terminalpatch -- test -json -timeout 15m ./... > test.json || status=$?
+          sh scripts/terminalpatch.sh -- test -json -timeout 15m ./... > test.json || status=$?
           go run ./scripts/testreport test.json
           exit $status
       - uses: actions/upload-artifact@v4
@@ -36,7 +36,7 @@ jobs:
           retention-days: 7
       - run: make lint
       - name: Terminal input ordering
-        run: go run ./scripts/terminalpatch -- test github.com/egoist/mygo/plugins/terminal -run '^TestEnowxCheckedInput'
+        run: sh scripts/terminalpatch.sh -- test github.com/egoist/mygo/plugins/terminal -run '^TestEnowxCheckedInput'
 
   # The cloud's database code against Postgres, as the cloud runs in
   # production; the tests above run it on SQLite.
@@ -75,6 +75,11 @@ jobs:
       # cmd.exe (docs/agents.md).
       - run: go test ./core/agent -run 'TestMoveToFiles|TestShortenGuide'
       - run: go test ./core/diag
-      - run: go run ./scripts/terminalpatch -- test ./daemon -run 'TestPsQuote|TestPsThenShell|TestCommandsFit|TestLongPrompt|TestAgentThroughCmdShim'
+      - shell: bash
+        run: sh scripts/terminalpatch.sh -- test ./daemon -run 'TestPsQuote|TestPsThenShell|TestCommandsFit|TestLongPrompt|TestAgentThroughCmdShim'
       - name: Terminal input ordering
-        run: go run ./scripts/terminalpatch -- test github.com/egoist/mygo/plugins/terminal -run '^TestEnowxCheckedInput'
+        shell: bash
+        run: sh scripts/terminalpatch.sh -- test github.com/egoist/mygo/plugins/terminal -run '^TestEnowxCheckedInput'
+      - name: Terminal bootstrap portability
+        shell: bash
+        run: ENOWX_TEST_SH="$(cygpath -m "$BASH")" go test ./scripts/terminalpatch

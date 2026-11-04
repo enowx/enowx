@@ -27,16 +27,26 @@ this API does not promise a historical classification of every raw redraw.
 
 ## Reproducible use
 
-Use the wrapper from the repository root with Go 1.27.3+:
+Use the shell entrypoint from the repository root with Go 1.27.3+ (Git Bash
+on Windows):
 
 ```sh
-go run ./scripts/terminalpatch -- test ./core/session ./daemon
-go run ./scripts/terminalpatch -- test github.com/egoist/mygo/plugins/terminal -run '^TestEnowxCheckedInput' -count=10
-go run ./scripts/terminalpatch -- vet ./core/session ./daemon
+sh scripts/terminalpatch.sh -- test ./core/session ./daemon
+sh scripts/terminalpatch.sh -- test github.com/egoist/mygo/plugins/terminal -run '^TestEnowxCheckedInput' -count=10
+sh scripts/terminalpatch.sh -- vet ./core/session ./daemon
 ```
 
+`terminalpatch.sh` asks the selected Go toolchain for GOHOSTOS/GOHOSTARCH and
+compiles the preparer for that host in a private temporary directory. It runs
+the preparer with the original environment, so an inherited GOOS/GOARCH still
+selects the child's build target. The bootstrap executable is removed when the
+child finishes. `HOST_GO` selects an underlying Go executable, including a path
+containing spaces, rather than another wrapper. Its ordinary GOTOOLCHAIN
+selection still applies. Preparation and child Go commands use that same
+executable, without recursive bootstrap.
+
 `make` targets, the daemon/package scripts and applicable CI/release commands
-use the patch. Direct `go test/build` of packages importing session requires
+use this entrypoint. Direct `go test/build` of packages importing session requires
 the prepared modfile; otherwise the missing `SendChecked` method fails compilation.
 If overriding Make's `GO`, retain the wrapper or supply its prepared modfile.
 
@@ -48,13 +58,16 @@ exits. The module cache and repository `go.mod`/`go.sum` are untouched. To retai
 a fixture or cross compile with a host bootstrap:
 
 ```sh
-go run ./scripts/terminalpatch -out /absolute/new-fixture/go.mod
-GOFLAGS='-modfile=/absolute/new-fixture/go.mod' go test ./core/session ./daemon
+flags=$(sh scripts/terminalpatch.sh -out "/absolute/new fixture/go.mod" -print-go-flags)
+GOFLAGS="$flags" go test ./core/session ./daemon
 ```
 
 The output directory must be new; preparation refuses to overlay an existing
 module copy. Use `TMPDIR` (Unix) or `TMP`/`TEMP` (Windows) to select the staging
-drive. Prepare with host GOOS/GOARCH before applying cross compilation settings.
+drive. `TMPDIR` selects the shell bootstrap directory. `-print-go-flags` emits
+the existing GOFLAGS plus a quoted modfile token using the preparer's native
+path spelling. This also handles Git Bash's argument-path conversion on Windows;
+putting a shell-only `/c/...` path inside GOFLAGS would not convert it for Go.
 An existing unrelated `-modfile` is refused by the wrapper.
 
 The tool requires un-replaced MyGo v0.6.2 and verifies SHA-256 of the terminal

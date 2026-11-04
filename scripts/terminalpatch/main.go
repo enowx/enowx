@@ -21,9 +21,17 @@ var source []byte
 //go:embed guarded_input_test.go.txt
 var tests []byte
 
+var goBinary = "go"
+
 func main() {
+	flag.StringVar(&goBinary, "go", "go", "underlying Go executable (not a wrapper)")
 	out := flag.String("out", "", "absolute private go.mod output path (required)")
+	printFlags := flag.Bool("print-go-flags", false, "print GOFLAGS for -out using native paths and Go token quoting")
 	flag.Parse()
+	if *printFlags && *out == "" {
+		fmt.Fprintln(os.Stderr, "terminalpatch: -print-go-flags requires -out")
+		os.Exit(1)
+	}
 	if err := run(*out, flag.Args()); err != nil {
 		fmt.Fprintln(os.Stderr, "terminalpatch:", err)
 		if e, ok := err.(interface{ ExitCode() int }); ok {
@@ -31,6 +39,13 @@ func main() {
 		}
 		os.Exit(1)
 	}
+	if *printFlags {
+		fmt.Println(modfileFlags(*out))
+	}
+}
+
+func modfileFlags(path string) string {
+	return os.Getenv("GOFLAGS") + fmt.Sprintf(" %q", "-modfile="+filepath.ToSlash(path))
 }
 
 func run(out string, args []string) error {
@@ -60,11 +75,11 @@ func run(out string, args []string) error {
 }
 
 func runGo(args []string, modfile string) error {
-	cmd := quietcmd.Command("go", args...)
+	cmd := quietcmd.Command(goBinary, args...)
 	cmd.Stdin, cmd.Stdout, cmd.Stderr = os.Stdin, os.Stdout, os.Stderr
 	cmd.Env = os.Environ()
 	if modfile != "" {
-		cmd.Env = append(cmd.Env, "GOFLAGS="+os.Getenv("GOFLAGS")+fmt.Sprintf(" %q", "-modfile="+modfile), "ENOWX_TERMINAL_PATCH=v0.6.2")
+		cmd.Env = append(cmd.Env, "GOFLAGS="+modfileFlags(modfile), "ENOWX_TERMINAL_PATCH=v0.6.2")
 	}
 	return cmd.Run()
 }
@@ -73,7 +88,7 @@ func prepare(out string) error {
 	if !filepath.IsAbs(out) {
 		return fmt.Errorf("-out must be an absolute path")
 	}
-	cmd := quietcmd.Command("go", "list", "-m", "-json", "github.com/egoist/mygo")
+	cmd := quietcmd.Command(goBinary, "list", "-m", "-json", "github.com/egoist/mygo")
 	b, err := cmd.Output()
 	if err != nil {
 		return fmt.Errorf("locate terminal module: %w", err)
@@ -89,7 +104,7 @@ func prepare(out string) error {
 		return fmt.Errorf("requires unmodified github.com/egoist/mygo v0.6.2; review patch when upgrading")
 	}
 	if mod.Dir == "" {
-		cmd = quietcmd.Command("go", "mod", "download", "-json", "github.com/egoist/mygo")
+		cmd = quietcmd.Command(goBinary, "mod", "download", "-json", "github.com/egoist/mygo")
 		b, err = cmd.Output()
 		if err != nil {
 			return fmt.Errorf("download pinned terminal module: %w", err)

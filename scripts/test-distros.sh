@@ -15,14 +15,14 @@ esac
 mkdir -p "$HOME/.cache"
 out=$(mktemp -d "$HOME/.cache/enowx-distros.XXXXXX")
 trap 'rm -rf "$out"' EXIT
-go run ./scripts/terminalpatch -out "$out/go.mod"
-export GOFLAGS="${GOFLAGS:-} -modfile=$out/go.mod"
-CGO_ENABLED=0 GOOS=linux GOARCH=$goarch go build -o "$out/enowxd" ./cmd/enowxd
-CGO_ENABLED=0 GOOS=linux GOARCH=$goarch go test -c -o "$out/setup.test" ./core/setup
+flags=$(sh scripts/terminalpatch.sh -out "$out/go.mod" -print-go-flags)
+export GOFLAGS="$flags"
+CGO_ENABLED=0 GOOS=linux GOARCH=$goarch "${HOST_GO:-go}" build -o "$out/enowxd" ./cmd/enowxd
+CGO_ENABLED=0 GOOS=linux GOARCH=$goarch "${HOST_GO:-go}" test -c -o "$out/setup.test" ./core/setup
 cp hostconn/prepare.sh "$out/"
 # Images there are no native build of run emulated.
-CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -o "$out/enowxd-amd64" ./cmd/enowxd
-CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go test -c -o "$out/setup-amd64.test" ./core/setup
+CGO_ENABLED=0 GOOS=linux GOARCH=amd64 "${HOST_GO:-go}" build -o "$out/enowxd-amd64" ./cmd/enowxd
+CGO_ENABLED=0 GOOS=linux GOARCH=amd64 "${HOST_GO:-go}" test -c -o "$out/setup-amd64.test" ./core/setup
 failed=""
 for image in $images; do
 	platform="" suffix=""
