@@ -153,6 +153,7 @@ func (s *Service) Mount(mux *http.ServeMux) {
 	handle("GET "+api.PathLibraryAuthorize, s.authorize)
 	handle("POST "+api.PathLibraryExchange, s.webOnly(s.exchange))
 	handle("POST "+api.PathLibrarySignOut, s.signOut)
+	s.mountCreators(mux)
 }
 
 // Sweep goes until ctx ends: objects past their time go, and a bucket nearing

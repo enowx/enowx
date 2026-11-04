@@ -3,7 +3,9 @@ package server
 import (
 	"context"
 	"fmt"
+	"maps"
 	"net/http"
+	"slices"
 	"strings"
 	"sync"
 	"time"
@@ -43,11 +45,20 @@ func (s *Server) isContributor(ctx context.Context, id int64) bool {
 		c.read, c.err = time.Now(), err
 		if err == nil {
 			c.ids = ids
+			s.keepContributors(ctx, "repository", slices.Collect(maps.Keys(ids))...)
 		} else {
 			s.log.Warn("contributors", "repo", s.cfg.DefaultTeamRepo, "err", err)
 		}
 	}
 	return c.ids[id]
+}
+
+// keepContributors records who the Cloud found to have contributed, for the library's
+// badge. It reads nothing from GitHub itself; failing leaves them to the next finding.
+func (s *Server) keepContributors(ctx context.Context, source string, ids ...int64) {
+	if err := s.db.MarkGitHubContributors(ctx, source, ids...); err != nil {
+		s.log.Warn("contributors: keep", "err", err)
+	}
 }
 
 // readContributors lists every contributor of the repository, a page of a

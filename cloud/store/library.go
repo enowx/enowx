@@ -572,7 +572,7 @@ func (s *DB) ForgetLibraryVersion(ctx context.Context, p LibraryPurge) error {
 // LibraryMine are accID's items, the latest changed first, each with its
 // latest version.
 func (s *DB) LibraryMine(ctx context.Context, accID string) ([]api.LibraryMineItem, error) {
-	rows, err := s.QueryContext(ctx, `SELECT `+libraryItemCols+libraryItemFrom+` WHERE i.owner_id = $1 ORDER BY i.updated DESC LIMIT 500`, accID)
+	rows, err := s.QueryContext(ctx, `SELECT `+libraryItemCols+libraryItemFrom+` WHERE i.owner_id = $1 AND i.title <> '' ORDER BY i.updated DESC LIMIT 500`, accID)
 	if err != nil {
 		return nil, fmt.Errorf("store: library mine: %w", err)
 	}

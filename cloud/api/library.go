@@ -142,8 +142,11 @@ type LibraryItem struct {
 	HasVideo     bool           `json:"hasVideo,omitempty"`
 	Creator      LibraryCreator `json:"creator"`
 	Actions      LibraryActions `json:"actions"`
-	Created      time.Time      `json:"created"`
-	Updated      time.Time      `json:"updated"`
+	// Unlisted says its creator hid: it shows at its address, with its credit, and
+	// in no list. Only an item asked for alone says so.
+	Unlisted bool      `json:"unlisted,omitempty"`
+	Created  time.Time `json:"created"`
+	Updated  time.Time `json:"updated"`
 }
 
 // LibraryItems is a page of items; Next asks for the following one.
