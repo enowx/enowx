@@ -10,6 +10,7 @@ The daemon reads the transcript the agent records on its own host (`session.tran
 |---|---|---|
 | Claude Code | `~/.claude/projects/<folder>/<session>.jsonl`; `<folder>` is the working directory with every character other than a letter or digit replaced by `-`. Records of type `user` and `assistant` carry `message.content`: a string, or blocks `text`, `thinking`, `tool_use` (`id`, `name`, `input`) and `tool_result` (`tool_use_id`, `content`, `is_error`). Records with `isMeta` or `isSidechain` (subagents) aren't the conversation. | Supported. Format as read by `codex-rs/external-agent-migration/src/sessions/records_cla.rs` in openai/codex. |
 | Codex | `~/.codex/sessions/YYYY/MM/DD/rollout-*.jsonl` (`$CODEX_HOME` if set): lines `{timestamp, type, payload}`. `session_meta` has the `cwd`, `turn_context` the model and effort, `event_msg` `token_count` the last answer's tokens and the model's window. Since about 0.160, `event_msg` `item_started`/`item_completed` carry the conversation as Codex shows it (`UserMessage`, `AgentMessage`, `Reasoning`, `Plan`, `CommandExecution` with its exit code and output, `FileChange` with a unified diff per file, `McpToolCall`, `WebSearch`, `ImageView`), and those are read: the model's own calls there are scripts (`exec`) calling the real tools. Older rollouts are read from `response_item` (assistant `message`s, `reasoning` summaries, `function_call`/`custom_tool_call` with `apply_patch` and their outputs) and `user_message` events. | Supported; checked against Codex 0.164. The newest 200 rollouts are searched for a session's folder. |
+| Claude Platform | enowX's own agent: its record (`core/platformagent/record`), which streams its answers. | Supported. Its sessions open on the chat; see below. |
 | OpenCode, Gemini CLI, Kiro CLI | — | Terminal only: the Chat tab doesn't show for them. |
 
 ## Which file belongs to a session
@@ -27,6 +28,18 @@ Beside a wide conversation, **Your messages** lists the user's messages, the one
 A message sent shows in the same frame, the composer emptied, without waiting for the host or the agent's file; the entry the agent records takes its row, with nothing doubled. While the agent is busy it says it waits for the agent. If it couldn't reach the session, or stays unrecorded for 45 seconds with the agent free, it says so and offers Retry and Edit, which puts it back in the composer with its files. A command (`/model`) shows no bubble: agents don't record those as messages.
 
 The outline of the user's messages stands at the conversation's side when the column leaves room for it. A column running the frame's width (GOD of Agents') gives up that side; otherwise the outline folds to a button in the chat's corner.
+
+## Claude Platform's chat
+
+The chat is this agent's main face: its sessions open on it, right after they start, with the terminal a tab away (leaving the chat is remembered per session), and the composer doesn't wait for the terminal to attach: without one, a message goes through the daemon (`session.input`).
+
+While it works the poller asks every 120 ms rather than 700, so an answer changing revision reads as streaming; with no news the app isn't woken, and it goes back to 700 ms when the agent stops. An answer still arriving is parsed from its last blank line outside a fence on (`widget.MarkdownStream`), not whole for each change, and isn't kept in the Markdown or highlight caches; a code block still arriving shows its last 8 KB in plain text and gets its colors when it closes. Once the turn is done the answer draws as any other.
+
+Beside the context, a chip says what the session has cost at list prices and of what budget (`Transcript.CostUSD`, `BudgetUSD`), amber from 80% of the budget, red at it; it shows only for an agent that reports a cost, and opens to the spend, the budget, `/budget`, and the Claude Console, where the remaining credit shows: an ordinary API key can't read it. A notice about a refused or missing key offers the agent's API keys.
+
+Answers to its questions are keys: one digit for an option, the digit after the last option then the text and Enter for an answer of the user's own, and the same for the rest of the agent's asks (`Preset.Approve`). A question with several picks or more than nine options is answered in the terminal.
+
+Its sheet (Settings → Agents, its chat, the new session dialog; `ui/platformview`) lists the vault's `anthropic` credentials by name, adds them with the vault's form, tests and removes them, and edits the host's `<data dir>/claude-platform/system-prompt.md` through `platform.prompt` and `platform.prompt.save`. Reset removes that file, for the built-in prompt.
 
 ## Changing the agent's settings
 
