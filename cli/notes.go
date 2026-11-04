@@ -162,6 +162,9 @@ func (r runner) notes(args []string) error {
 		if arg == "" {
 			return errors.New(notesUsage)
 		}
+		if err := guardNewNote(*body); err != nil {
+			return err
+		}
 		team, err := r.findSpace(*teamName)
 		if err != nil {
 			return err
@@ -202,6 +205,7 @@ func (r runner) notes(args []string) error {
 		if err != nil {
 			return err
 		}
+		before := full.Body
 		set := map[string]bool{}
 		fs.Visit(func(f *flag.Flag) { set[f.Name] = true })
 		if set["title"] {
@@ -226,11 +230,17 @@ func (r runner) notes(args []string) error {
 		if propose {
 			return r.proposeNote(full)
 		}
+		if proposed, err := r.guardNoteWrite(before, full); proposed || err != nil {
+			return err
+		}
 		_, err = r.c.SaveNote(full)
 		return err
 	case "move":
 		n, err := r.findNote(arg)
 		if err != nil {
+			return err
+		}
+		if err := r.guardNoteRemove(n.ID); err != nil {
 			return err
 		}
 		if isSet(fs, "group") {
@@ -262,10 +272,16 @@ func (r runner) notes(args []string) error {
 		if err != nil {
 			return err
 		}
+		if err := r.guardNoteRemove(n.ID); err != nil {
+			return err
+		}
 		return r.c.DeleteNote(n.ID)
 	case "space":
 		n, err := r.findNote(arg)
 		if err != nil {
+			return err
+		}
+		if err := r.guardNoteRemove(n.ID); err != nil {
 			return err
 		}
 		if *toSpace == "" {

@@ -457,6 +457,7 @@ func mcpGroups() []mcpGroup {
 		{goaTools, runner.goaCmd},
 		{docsSkillTools, runner.docs},
 		{docsGOATools, runner.docs},
+		{docsTools, runner.docs},
 	}
 }
 

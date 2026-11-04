@@ -155,6 +155,7 @@ const (
 	ExportHTML     = "html" // one page
 	ExportPDF      = "pdf"
 	ExportJSON     = "json" // a full backup, files included
+	ExportRepo     = "repo" // a Project Docs project's documents, into the folder Out
 )
 
 // NoteExportParams pick the notes to export: IDs (with the notes under
@@ -166,6 +167,10 @@ type NoteExportParams struct {
 	All    bool     `json:"all,omitempty"`
 	Format string   `json:"format,omitempty"`
 	Out    string   `json:"out,omitempty"`
+	// Force and DryRun are ExportRepo's: write over files that aren't an
+	// export's, and only say what would be written.
+	Force  bool `json:"force,omitempty"`
+	DryRun bool `json:"dryRun,omitempty"`
 }
 
 // NoteExported is the export written.
@@ -174,6 +179,8 @@ type NoteExported struct {
 	Name  string `json:"name"` // a file name for it
 	Size  int64  `json:"size"`
 	Notes int    `json:"notes"`
+	// Files are what ExportRepo wrote or would write, under Path.
+	Files []string `json:"files,omitempty"`
 }
 
 // NoteExportBytesParams read an export made without Out, from Offset.

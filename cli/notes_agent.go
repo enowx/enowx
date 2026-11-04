@@ -60,6 +60,9 @@ func (r runner) noteAgent(cmd string, args []string) error {
 		if cmd == "reject" {
 			return r.c.RejectNoteProposal(pos[0])
 		}
+		if err := r.guardNoteAccept(pos[0]); err != nil {
+			return err
+		}
 		_, err := r.c.AcceptNoteProposal(pos[0])
 		return err
 	}
