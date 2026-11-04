@@ -177,3 +177,56 @@ func TestParseRefusesTooManyShapes(t *testing.T) {
 		t.Fatal("shapes that aren't a list")
 	}
 }
+
+// What people paste into their own pages runs nothing, however it's written.
+func TestCheckComponentWalksThePage(t *testing.T) {
+	for _, page := range []string{
+		`<script>x()</script>`,
+		`<SCRIPT/x>x()</SCRIPT>`,
+		`<svg><script>x()</script></svg>`,
+		`<button onclick="x()">Go</button>`,
+		`<img/onerror=x() src=y>`,
+		`<img src=y"onerror=x()>`,
+		`<svg/onload=x()>`,
+		`<body onload=x()>`,
+		`<iframe srcdoc="<p>x</p>"></iframe>`,
+		`<iframe src="https://example.com"></iframe>`,
+		`<embed src="x.swf">`,
+		`<object data="x"></object>`,
+		`<a href=javascript:x()>a</a>`,
+		`<a href="JaVaScRiPt:x()">a</a>`,
+		`<a href=" javascript:x()">a</a>`,
+		"<a href=\"java\tscript:x()\">a</a>",
+		"<a href=\"java\nscript:x()\">a</a>",
+		`<a href="java&#10;script:x()">a</a>`,
+		`<a href="&#106;avascript:x()">a</a>`,
+		`<a href="&#x6a;avascript&colon;x()">a</a>`,
+		`<a href="java%0ascript:x()">a</a>`,
+		`<a href="%6a%61vascript:x()">a</a>`,
+		`<a href="vbscript:x">a</a>`,
+		`<a href="data:text/html,<script>x()</script>">a</a>`,
+		`<form action="javascript:x()"><button>Go</button></form>`,
+		`<svg><a xlink:href="javascript:x()"><text>a</text></a></svg>`,
+		`<svg><animate attributeName="href" to="javascript:x()"/></svg>`,
+		`<base href="https://example.com/">`,
+		`<meta http-equiv="refresh" content="0;url=https://example.com">`,
+		`<template><img src=y onerror=x()></template>`,
+		`<noscript><img src=y></noscript>`,
+	} {
+		if err := CheckComponent(bundleOf(page)); err == nil {
+			t.Errorf("taken as a component: %s", page)
+		}
+	}
+	for _, page := range []string{
+		`<style>.a{color:red}</style><button class="a">Go</button>`,
+		`<a href="https://example.com/?q=javascript:x">a</a>`,
+		`<p>turn on=off, onward</p>`,
+		`<img src="data:image/png;base64,AAAA" alt="only a picture">`,
+		`<input value="100%" placeholder="50%zz">`,
+		`<a href="#on">on</a>`,
+	} {
+		if err := CheckComponent(bundleOf(page)); err != nil {
+			t.Errorf("%s: %v", page, err)
+		}
+	}
+}
