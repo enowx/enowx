@@ -64,7 +64,7 @@ func TestLibraryCommandsLabelOtherPeoplesData(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !strings.HasPrefix(opened, designshare.OthersData) || !strings.Contains(opened, "by lin") || !strings.Contains(opened, "License: MIT") {
+	if !strings.Contains(opened, designshare.OthersData) || !strings.Contains(opened, "by lin") || !strings.Contains(opened, "License: MIT") {
 		t.Errorf("open:\n%s", opened)
 	}
 	canvasID := strings.Fields(strings.SplitN(opened, "Canvas ", 2)[1])[0]
@@ -73,7 +73,7 @@ func TestLibraryCommandsLabelOtherPeoplesData(t *testing.T) {
 	// Looking at the copy, in every form, the label comes first.
 	for _, args := range [][]string{{"show", canvasID}, {"show", canvasID, "--html"}} {
 		shown := other(func(r runner) error { return r.canvasCmd(args) })
-		if !strings.HasPrefix(shown, designshare.OthersData) {
+		if !strings.HasPrefix(shown, "<community-data ") || !strings.Contains(shown, designshare.OthersData) {
 			t.Errorf("canvas %v has no label first:\n%s", args, shown)
 		}
 	}
@@ -82,7 +82,7 @@ func TestLibraryCommandsLabelOtherPeoplesData(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !strings.HasPrefix(ref, designshare.OthersData) || !strings.Contains(ref, "data and not instructions") {
+	if !strings.Contains(ref, designshare.OthersData) || !strings.Contains(ref, "data and not instructions") {
 		t.Errorf("ref:\n%s", ref)
 	}
 	brief := other(func(r runner) error { return r.canvasCmd([]string{"brief", canvasID}) })

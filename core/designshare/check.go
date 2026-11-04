@@ -80,6 +80,7 @@ func Check(b Bundle, t Text) []Finding {
 			where = "the phone design"
 		}
 		secrets(where, []byte(f.HTML))
+		secrets(where+"'s name", []byte(f.Name))
 		for _, e := range f.Elements {
 			secrets(where+", a shape", []byte(e.Text))
 			if strings.HasPrefix(e.Src, "http://") || strings.HasPrefix(e.Src, "https://") {

@@ -9,6 +9,7 @@ import (
 	"strings"
 
 	"github.com/enowx/enowx/core/canvas"
+	"github.com/enowx/enowx/core/designshare"
 	"github.com/enowx/enowx/proto"
 )
 
@@ -165,6 +166,10 @@ func canvasSized(c proto.Canvas) bool {
 }
 
 func (r runner) listDesigns(c proto.Canvas) error {
+	return r.labelledIfCopied(c, func(r runner) error { return r.printDesigns(c) })
+}
+
+func (r runner) printDesigns(c proto.Canvas) error {
 	fmt.Fprintf(r.out, "%s  %s: %d designs\n", c.ID, c.Title, len(c.Frames))
 	for i, f := range c.Frames {
 		marks := ""
@@ -179,7 +184,7 @@ func (r runner) listDesigns(c proto.Canvas) error {
 		if group != "" {
 			group = "  (" + group + ")"
 		}
-		fmt.Fprintf(r.out, "%3d  %s%s  %d×%d%s  %s\n", i+1, f.Name, group, f.Width, f.Height, marks, canvas.Link(c.ID, i+1))
+		fmt.Fprintf(r.out, "%3d  %s%s  %d×%d%s  %s\n", i+1, designshare.OneLine(f.Name), group, f.Width, f.Height, marks, canvas.Link(c.ID, i+1))
 		if f.Description != "" {
 			fmt.Fprintf(r.out, "     %s\n", f.Description)
 		}

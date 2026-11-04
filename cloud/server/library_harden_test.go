@@ -49,11 +49,15 @@ func TestLibraryDocumentsHaveABudget(t *testing.T) {
 	for i := range shapes {
 		shapes[i] = proto.CanvasElement{ID: "s", Type: proto.ShapeImage, Src: "a.png"}
 	}
+	lines := make([]proto.CanvasElement, 250)
+	for i := range lines {
+		lines[i] = proto.CanvasElement{ID: "t", Type: proto.ShapeText, Text: "x" + strings.Repeat("\n", 7990) + "x"}
+	}
 	for name, frame := range map[string]proto.CanvasFrame{
 		"a file named many times":  {Name: "x", Width: 800, Height: 600, HTML: strings.Repeat(`assets/a.png `, 64)},
 		"a shape showing it, many": {Name: "x", Width: 800, Height: 600, Elements: shapes},
 		"a known library, many":    {Name: "x", Width: 800, Height: 600, HTML: strings.Repeat(anime+" ", 3000)},
-		"shapes' text, escaped":    {Name: "x", Width: 800, Height: 600, Elements: []proto.CanvasElement{{ID: "s", Type: proto.ShapeText, Text: strings.Repeat("\n", 2<<20)}}},
+		"shapes' lines":            {Name: "x", Width: 800, Height: 600, Elements: lines},
 	} {
 		data, err := designshare.Build(frame, nil, read).Marshal()
 		if err != nil {

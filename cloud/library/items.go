@@ -8,10 +8,10 @@ import (
 	"strconv"
 	"strings"
 	"time"
-	"unicode"
 
 	"github.com/enowx/enowx/cloud/api"
 	"github.com/enowx/enowx/cloud/blobstore"
+	"github.com/enowx/enowx/core/designshare"
 )
 
 // What anyone can read, and what an owner can do with their own.
@@ -142,12 +142,12 @@ func (s *Service) getPrompt(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	s.countReuse(it.ID)
-	reply(w, api.LibraryPrompt{Prompt: v.Prompt + "\n\n" + s.credit(it)})
+	reply(w, api.LibraryPrompt{Prompt: cleanText(v.Prompt, 8000) + "\n\n" + s.credit(it)})
 }
 
 // credit says where a copy comes from, who made it and under which license.
 func (s *Service) credit(it api.LibraryItem) string {
-	return "Design: " + it.Title + " by " + it.Creator.Handle + "\n" + s.address(it) + "\nLicense: " + it.License
+	return "Design: " + designshare.Credit(it.Title, it.Creator.Handle) + "\n" + s.address(it) + "\nLicense: " + it.License
 }
 
 // object is a shown version's document or picture, for the website alone: nobody's
@@ -380,22 +380,7 @@ func (s *Service) escaped(w http.ResponseWriter, r *http.Request) {
 	s.answer(w, nil, s.db.AddLibraryEscape(r.Context(), id, "A preview tried to leave its frame."))
 }
 
-// cleanText is s as text the library keeps and shows: control and
-// direction-changing characters out, at most max characters.
-func cleanText(s string, max int) string {
-	var b strings.Builder
-	n := 0
-	for _, r := range strings.TrimSpace(s) {
-		if n == max {
-			break
-		}
-		if (unicode.IsControl(r) && r != '\n') || unicode.Is(unicode.Bidi_Control, r) || r == '​' {
-			continue
-		}
-		b.WriteRune(r)
-		n++
-	}
-	return strings.TrimSpace(b.String())
-}
+// cleanText is s as text the library keeps and shows.
+func cleanText(s string, max int) string { return designshare.CleanText(s, max) }
 
 var errRefused = errors.New("library: refused")

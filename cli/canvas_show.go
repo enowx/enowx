@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/enowx/enowx/core/canvas"
+	"github.com/enowx/enowx/core/designshare"
 	"github.com/enowx/enowx/proto"
 )
 
@@ -28,6 +29,7 @@ func (r runner) canvasList() error {
 			names[sp.Team] = sp.Name
 		}
 	}
+	var copied strings.Builder // their titles are the library's creators' words
 	for _, c := range list {
 		state := ""
 		if c.Team != "" {
@@ -36,7 +38,14 @@ func (r runner) canvasList() error {
 		if c.Paused {
 			state += "  (paused by the user)"
 		}
+		if c.Source != nil {
+			fmt.Fprintf(&copied, "%s  %-9s  %s%s\n", c.ID, c.Kind, designshare.OneLine(c.Title), state)
+			continue
+		}
 		fmt.Fprintf(r.out, "%s  %-9s  %s%s\n", c.ID, c.Kind, c.Title, state)
+	}
+	if copied.Len() > 0 {
+		fmt.Fprintf(r.out, "Copied from the community library:\n%s\n", designshare.ForAgents(strings.TrimRight(copied.String(), "\n")))
 	}
 	return nil
 }
@@ -91,7 +100,10 @@ func (r runner) canvasNew(title string, f *canvasFlags) error {
 // canvasShow prints what an agent works from: frames, their elements by
 // id, and the comments still open.
 func (r runner) canvasShow(c proto.Canvas, f *canvasFlags) error {
-	r.canvasSourceLabel(c)
+	return r.labelledIfCopied(c, func(r runner) error { return r.printCanvas(c, f) })
+}
+
+func (r runner) printCanvas(c proto.Canvas, f *canvasFlags) error {
 	if *f.showHTML {
 		i, err := canvas.FrameIndex(c, *f.frame)
 		if err != nil {
@@ -108,7 +120,7 @@ func (r runner) canvasShow(c proto.Canvas, f *canvasFlags) error {
 		fmt.Fprintf(r.out, "Projects: %s\n", strings.Join(c.Projects, ", "))
 	}
 	for _, fr := range c.Frames {
-		fmt.Fprintf(r.out, "\nFrame %s (%s) %d×%d\n", fr.Name, fr.ID, fr.Width, fr.Height)
+		fmt.Fprintf(r.out, "\nFrame %s (%s) %d×%d\n", designshare.OneLine(fr.Name), fr.ID, fr.Width, fr.Height)
 		if g := fr.Grid; g != nil {
 			var names []string
 			for _, a := range g.Areas {

@@ -281,8 +281,18 @@ func (s *Service) putPart(w http.ResponseWriter, r *http.Request) {
 	}
 	defer release()
 	if part == api.PartSource {
-		if _, err := designshare.Parse(data); err != nil {
+		b, err := designshare.Parse(data)
+		if err != nil {
 			fail(w, http.StatusBadRequest, "this isn't a design's bundle")
+			return
+		}
+		// What's kept is what was read: its words clean, nothing it didn't need.
+		if data, err = b.Marshal(); err != nil {
+			s.answer(w, nil, err)
+			return
+		}
+		if len(data) > api.MaxLibraryBundle {
+			fail(w, http.StatusRequestEntityTooLarge, "that's bigger than the library takes: a design is 10 MB at most, a picture 300 KB, a video 4 MB")
 			return
 		}
 		if data, err = gzipped(data); err != nil {

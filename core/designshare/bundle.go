@@ -144,7 +144,26 @@ func Parse(data []byte) (Bundle, error) {
 			return b, errors.New("designshare: a design's size is out of bounds")
 		}
 	}
+	b.Frame.clean()
+	if b.Phone != nil {
+		b.Phone.clean()
+	}
 	return b, nil
+}
+
+// What a design's name and a shape's text may hold: an agent reads both.
+const (
+	mostName      = 120
+	mostShapeText = 8000
+)
+
+// clean takes out of f's words what can't be seen, at a length. It's read this way
+// by the cloud and by every host, so a bundle kept before stays no different.
+func (f *Frame) clean() {
+	f.Name = CleanName(f.Name, mostName)
+	for i := range f.Elements {
+		f.Elements[i].Text = CleanText(f.Elements[i].Text, mostShapeText)
+	}
 }
 
 func (b Bundle) frames() []Frame {

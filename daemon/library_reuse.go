@@ -150,6 +150,7 @@ func (s *Server) libraryOpen(p proto.LibraryOpenParams) (proto.LibraryOpened, er
 	if err != nil {
 		return out, err
 	}
+	src.Title, src.Handle = designshare.CleanName(src.Title, libraryTitleMost), designshare.CleanName(src.Handle, libraryTitleMost)
 	cv, err := st.Create(proto.CanvasCreateParams{Title: src.Title, Kind: proto.CanvasMockup, Projects: p.Projects, Frames: []proto.CanvasFrame{frame},
 		Source: &proto.CanvasSource{ItemID: src.ItemID, Version: src.Version, Title: src.Title, Creator: src.Handle, License: src.License, Address: src.Address}})
 	if err != nil {
@@ -166,6 +167,9 @@ func (s *Server) libraryOpen(p proto.LibraryOpenParams) (proto.LibraryOpened, er
 	s.canvasesChanged()
 	return proto.LibraryOpened{Canvas: cv.CanvasInfo, Files: len(kept.Assets)}, nil
 }
+
+// libraryTitleMost is the most of a title or a handle a host keeps, whatever a cloud says.
+const libraryTitleMost = 120
 
 // libraryCreditLine is the line a canvas's brief keeps of a reference: labelled,
 // on one line, since an agent on that canvas reads it.

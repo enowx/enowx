@@ -1,10 +1,12 @@
 package cli
 
 import (
+	"bytes"
 	"errors"
 	"flag"
 	"fmt"
 	"io"
+	"strings"
 
 	"github.com/enowx/enowx/core/designshare"
 	"github.com/enowx/enowx/proto"
@@ -61,11 +63,8 @@ func (r runner) libraryOpenCmd(args []string) error {
 		return err
 	}
 	src := got.Canvas.Source
-	fmt.Fprintln(r.out, designshare.OthersData)
-	fmt.Fprintf(r.out, "Canvas %s: %s\nVersion %d, %d files. It stays as it is when the original changes.\n", got.Canvas.ID, designshare.Notice(src.Title, src.Creator, src.Address, src.License)[0], src.Version, got.Files)
-	for _, l := range designshare.Notice(src.Title, src.Creator, src.Address, src.License)[1:] {
-		fmt.Fprintln(r.out, l)
-	}
+	fmt.Fprintf(r.out, "Canvas %s: a copy, version %d, %d files. It stays as it is when the original changes.\n", got.Canvas.ID, src.Version, got.Files)
+	fmt.Fprintln(r.out, designshare.ForAgents(strings.Join(designshare.Notice(src.Title, src.Creator, src.Address, src.License), "\n")))
 	return nil
 }
 
@@ -88,8 +87,8 @@ func (r runner) libraryRefCmd(args []string) error {
 	if err != nil {
 		return err
 	}
-	fmt.Fprintln(r.out, designshare.OthersData)
-	fmt.Fprintf(r.out, "Kept with canvas %s, as its file %s:\n%s\n", got.Canvas, got.File, got.Credit)
+	fmt.Fprintf(r.out, "Kept with canvas %s, as its file %s.\n", got.Canvas, got.File)
+	fmt.Fprintln(r.out, designshare.ForAgents(got.Credit))
 	return nil
 }
 
@@ -119,11 +118,20 @@ func (r runner) librarySkillCmd(args []string) error {
 	return nil
 }
 
-// canvasSourceLabel says, before what a copied canvas shows, whose it is.
-func (r runner) canvasSourceLabel(c proto.Canvas) {
-	if s := c.Source; s != nil {
-		fmt.Fprintf(r.out, "%s The design on this canvas is a copy of %s, %s, license %s.\n\n", designshare.OthersData, designshare.Credit(s.Title, s.Creator), s.Address, designshare.LicenseName(s.License))
+// labelledIfCopied runs print, and for a canvas copied from the library puts what
+// it prints inside the block saying whose words those are: its title, names and
+// page are all still the creator's.
+func (r runner) labelledIfCopied(c proto.Canvas, print func(runner) error) error {
+	s := c.Source
+	if s == nil {
+		return print(r)
 	}
+	var out bytes.Buffer
+	inner := r
+	inner.out = &out
+	err := print(inner)
+	fmt.Fprintf(r.out, "%s\n", designshare.ForAgents(fmt.Sprintf("The design on this canvas is a copy of %s, %s, license %s.\n\n%s", designshare.Credit(s.Title, s.Creator), s.Address, designshare.LicenseName(s.License), strings.TrimRight(out.String(), "\n"))))
+	return err
 }
 
 // canvasReferences lists what a canvas keeps of other people's designs.
@@ -131,10 +139,7 @@ func (r runner) canvasReferences(c proto.Canvas) {
 	if len(c.References) == 0 {
 		return
 	}
-	fmt.Fprintf(r.out, "\n## References\n%s\n", designshare.OthersData)
-	for _, l := range c.References {
-		fmt.Fprintln(r.out, l)
-	}
+	fmt.Fprintf(r.out, "\n## References\n%s\n", designshare.ForAgents(strings.Join(c.References, "\n")))
 }
 
 // libraryUseTools are the same as MCP tools.
