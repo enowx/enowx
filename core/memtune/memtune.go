@@ -17,6 +17,10 @@ const (
 	// gigabytes of address space. Over it the runtime spends at most half the CPU
 	// collecting, so a heap that truly needs more only runs slower.
 	limit = 1 << 30
+	// gcPercent is GOGC unless the environment sets one. At 50 the two programs held 20 to
+	// 25 MB less each in the measured use, for no CPU that showed (docs/performance.md):
+	// they allocate little when idle, and what they do allocate is mostly short-lived.
+	gcPercent = 50
 	// trimEvery is how often the heap is looked at; each look is a read of counters.
 	trimEvery = 30 * time.Second
 	// trimOver is how much free memory held from the system is worth a collection.
@@ -25,10 +29,13 @@ const (
 )
 
 // Start applies the limit, and returns free memory to the system while done is open.
-// It lets the user's GOMEMLIMIT stand.
+// It lets the user's GOMEMLIMIT and GOGC stand.
 func Start(done <-chan struct{}) {
 	if os.Getenv("GOMEMLIMIT") == "" {
 		debug.SetMemoryLimit(limit)
+	}
+	if os.Getenv("GOGC") == "" {
+		debug.SetGCPercent(gcPercent)
 	}
 	go func() {
 		tick := time.NewTicker(trimEvery)

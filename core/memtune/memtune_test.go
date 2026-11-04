@@ -26,11 +26,17 @@ func TestFreeHeldFallsAfterABurst(t *testing.T) {
 
 func TestStartLetsTheUsersLimitStand(t *testing.T) {
 	t.Setenv("GOMEMLIMIT", "123MiB")
+	t.Setenv("GOGC", "200")
 	was := debug.SetMemoryLimit(-1)
+	wasGC := debug.SetGCPercent(100)
+	defer debug.SetGCPercent(wasGC)
 	done := make(chan struct{})
 	defer close(done)
 	Start(done)
 	if now := debug.SetMemoryLimit(-1); now != was {
 		t.Fatalf("limit changed from %d to %d", was, now)
+	}
+	if now := debug.SetGCPercent(100); now != 100 {
+		t.Fatalf("GOGC changed to %d", now)
 	}
 }
