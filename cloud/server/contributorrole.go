@@ -30,7 +30,8 @@ import (
 //
 // It takes the GitHub OAuth app of the cloud's sign-in, but not that sign-in: that makes
 // an account, a session and a member of the default team, keeps a name and an email, and
-// asks for more than an identity. This asks for no scope and keeps two IDs.
+// asks for more than an identity. This asks for no scope and keeps two IDs, and, for
+// the library's badge, the GitHub ID of who has a merged pull request (public data).
 
 const (
 	pathContributorPage     = "/contributor"
@@ -405,6 +406,9 @@ func (s *Server) contributorCallback(w http.ResponseWriter, r *http.Request) {
 		s.page(w, http.StatusBadGateway, "Your account is linked, but I couldn't look for a merged pull request. Click Connect in Discord again in a moment.", nil)
 		return
 	}
+	if merged {
+		s.keepContributors(ctx, "merged pull request", user.ID)
+	}
 	if !merged {
 		s.page(w, http.StatusOK, "", &pageData{Title: "Linked", Lead: fmt.Sprintf("%s has no merged pull request in %s yet, so there's no role for now. You'll get Contributor when one merges.", user.Login, role.cfg.Repo)})
 		return
@@ -454,6 +458,7 @@ func (s *Server) githubWebhook(w http.ResponseWriter, r *http.Request) {
 	}
 	ctx, cancel := context.WithTimeout(r.Context(), 10*time.Second)
 	defer cancel()
+	s.keepContributors(ctx, "merged pull request", author)
 	member, err := s.db.DiscordOfGitHub(ctx, author)
 	if err != nil {
 		s.log.Warn("contributor: read the link", "err", err)
