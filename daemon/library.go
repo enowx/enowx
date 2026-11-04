@@ -148,15 +148,25 @@ func (s *Server) libraryPrepare(p proto.LibraryPrepareParams) (proto.LibraryPrep
 	id := designshare.DraftID(cv.ID, frame.ID)
 	var old libraryDraft
 	form := proto.LibraryForm{Kind: api.LibraryPage, License: api.LicenseCCBY, Title: orStr(frame.Name, cv.Title), Description: frame.Description, Category: "other"}
-	if s.libraryDrafts().Get(id, &old) == nil && old.Form.Title != "" {
+	item := s.libraryDrafts().ItemOf(cv.ID, frame.ID)
+	mine, mineErr := c.LibraryMine(ctx)
+	switch {
+	case s.libraryDrafts().Get(id, &old) == nil && old.Form.Title != "":
 		form = old.Form
+	case item != "" && mineErr == nil:
+		// An update starts from what shows; approval and rights are said again.
+		for _, it := range mine.Items {
+			if it.ID == item {
+				form = proto.LibraryForm{Kind: it.Kind, License: it.License, Title: it.Title, Description: it.Description, Category: it.Category, Tags: it.Tags, SourceURL: it.SourceURL, Prompt: it.Latest.Prompt}
+			}
+		}
 	}
 	if form.Prompt == "" {
 		form.Prompt = designshare.DraftPrompt(bundle, form.Title, form.Description, form.Kind)
 	}
 	out = proto.LibraryPrepared{DraftID: id, Canvas: cv.ID, Frame: frame.ID, FrameName: frame.Name, Width: frame.Width, Height: frame.Height,
 		PhoneOffered: offered, Files: len(bundle.Assets), OtherDesigns: len(cv.Frames) - 1, Size: int64(len(data)), MadeWith: "hand",
-		HasMotion: canvas.UsesMotion(frame.HTML), Form: form, ItemID: s.libraryDrafts().ItemOf(cv.ID, frame.ID), SiteURL: site}
+		HasMotion: canvas.UsesMotion(frame.HTML), Form: form, ItemID: item, SiteURL: site}
 	if phone != nil {
 		out.Phone, out.PhoneName, out.PhoneWidth, out.PhoneHeight = phone.ID, phone.Name, phone.Width, phone.Height
 		out.OtherDesigns--
@@ -165,7 +175,7 @@ func (s *Server) libraryPrepare(p proto.LibraryPrepareParams) (proto.LibraryPrep
 		out.MadeWith = "agent"
 	}
 	out.Findings = findingsFor(designshare.Check(bundle, designshare.Text{Title: form.Title, Description: form.Description, Prompt: form.Prompt}))
-	if mine, err := c.LibraryMine(ctx); err == nil {
+	if mineErr == nil {
 		out.Trust = mine.Trust
 	}
 	d := libraryDraft{Form: form, Prepared: out}

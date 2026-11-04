@@ -186,7 +186,7 @@ func TestLibraryPrepareAndPublishThroughTheProtocol(t *testing.T) {
 	}
 	// A new version keeps the address.
 	next, err := c.LibraryPrepare(proto.LibraryPrepareParams{Canvas: cv.ID, Frame: main.ID})
-	if err != nil || next.ItemID != sent.ItemID {
+	if err != nil || next.ItemID != sent.ItemID || next.Form.Title != "A saved title" || next.Form.Prompt == "" || next.Form.Rights {
 		t.Fatalf("an update: %v %+v", err, next)
 	}
 	form.PromptApproved, form.Rights = true, true

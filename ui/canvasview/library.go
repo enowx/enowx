@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"slices"
 	"strings"
+	"time"
 
 	"github.com/egoist/mygo/ui"
 
@@ -22,10 +23,16 @@ import (
 var libraryCategories = [][2]string{{"component", "Component"}, {"dashboard", "Dashboard"}, {"landing-page", "Landing page"}, {"mobile", "Mobile"},
 	{"onboarding", "Onboarding"}, {"motion", "Motion"}, {"diagram", "Diagram"}, {"icon-illustration", "Icon and illustration"}, {"other", "Other"}}
 
+// libraryRefresh is how old what a menu says of the library may be.
+const libraryRefresh = 15 * time.Second
+
 // libraryState is what the view holds of the library: whether it's there, and
 // the dialog open.
 type libraryState struct {
-	asked  bool
+	asked bool
+	// at is when it was last asked: a menu open asks again, since signing in or
+	// a moderator's decision happen elsewhere.
+	at     time.Time
 	state  proto.LibraryState
 	form   *libraryForm
 	status *libraryStatus
@@ -69,6 +76,7 @@ func (v *View) reloadLibrary(o Options) {
 	if o.LibraryStatus == nil {
 		return
 	}
+	v.library.at = time.Now()
 	o.LibraryStatus(func(st proto.LibraryState, err error) {
 		if err == nil {
 			v.library.state = st
@@ -89,6 +97,9 @@ func (v *View) designOf(canvas, frame string) (proto.LibraryDesign, bool) {
 // libraryItem is a design's entry in its menu: the form, how it stands once
 // shared, or signing in first.
 func (v *View) libraryItem(c *ui.Context, o Options, canvas string, f proto.CanvasFrame, done func()) {
+	if time.Since(v.library.at) > libraryRefresh {
+		v.reloadLibrary(o)
+	}
 	if !v.library.state.On || o.LibraryPrepare == nil {
 		return
 	}
@@ -375,6 +386,20 @@ func (v *View) libraryButtons(c *ui.Context, o Options, form *libraryForm) {
 		return
 	}
 	id := form.prep.DraftID
+	if slices.ContainsFunc(v.library.state.Designs, func(d proto.LibraryDesign) bool { return d.DraftID == id }) && o.LibraryDeleteDraft != nil {
+		if widget.GhostButton(c, "Delete draft").Clicked() {
+			o.Confirm("Delete this draft?", "What you wrote in this form goes. The design stays on the canvas, and nothing was public.", "Delete", func() {
+				o.LibraryDeleteDraft(id, func(err error) {
+					if err != nil {
+						form.err = err.Error()
+						return
+					}
+					form.open = false
+					v.reloadLibrary(o)
+				})
+			})
+		}
+	}
 	if widget.GhostButton(c, "Save draft").Clicked() && !form.busy {
 		form.busy, form.err = true, ""
 		o.LibrarySaveDraft(proto.LibraryDraftParams{DraftID: id, Form: form.f}, func(err error) {

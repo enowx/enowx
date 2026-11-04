@@ -318,6 +318,9 @@ func (a *App) canvasOptions() canvasview.Options {
 		LibraryWithdraw: func(id string, done func(error)) {
 			call(func() error { _, err := cl.LibraryWithdraw(id); return err }, done)
 		},
+		LibraryDeleteDraft: func(id string, done func(error)) {
+			call(func() error { return cl.LibraryDeleteDraft(id) }, done)
+		},
 		CloudSignIn: func() { a.page, a.settingsSection = pageSettings, sectionCloud },
 		OpenURL:     func(url string) { go func() { _ = mygo.Shell.OpenExternal(url) }() },
 		Share: func(id string, stop bool, done func(proto.CanvasShare, error)) {

@@ -74,11 +74,12 @@ type Options struct {
 	// sharing).
 	Share func(id string, stop bool, done func(proto.CanvasShare, error))
 	// The community library (library.go): nil, or a cloud without one, offers nothing.
-	LibraryStatus    func(done func(proto.LibraryState, error))
-	LibraryPrepare   func(p proto.LibraryPrepareParams, done func(proto.LibraryPrepared, error))
-	LibrarySaveDraft func(p proto.LibraryDraftParams, done func(error))
-	LibraryPublish   func(p proto.LibraryPublishParams, done func(proto.LibraryDesign, error))
-	LibraryWithdraw  func(id string, done func(error))
+	LibraryStatus      func(done func(proto.LibraryState, error))
+	LibraryPrepare     func(p proto.LibraryPrepareParams, done func(proto.LibraryPrepared, error))
+	LibrarySaveDraft   func(p proto.LibraryDraftParams, done func(error))
+	LibraryPublish     func(p proto.LibraryPublishParams, done func(proto.LibraryDesign, error))
+	LibraryWithdraw    func(id string, done func(error))
+	LibraryDeleteDraft func(id string, done func(error))
 	// CloudSignIn goes to where the host signs in to its cloud; OpenURL opens an
 	// address in the user's browser.
 	CloudSignIn func()
