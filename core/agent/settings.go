@@ -34,6 +34,10 @@ type Settings struct {
 	// ModelFlag, EffortFlag and ModeFlag, with %s the choice, start the agent on a
 	// model, an effort and a permission mode: arguments of its command line.
 	ModelFlag, EffortFlag, ModeFlag []string
+	// KeptModeFlag takes ModeFlag's place starting it again, for an agent that keeps its
+	// mode with the conversation: it counts only when nothing is kept, so that what enowX
+	// last read off the screen, maybe stale, can't change a session's mode by itself.
+	KeptModeFlag []string
 }
 
 // StartArgs are the arguments that start agent id as a session was: its model, effort
@@ -47,6 +51,21 @@ func StartArgs(id, model, effort, mode string, skip bool) []string {
 	out := LaunchArgs(id, model, effort)
 	if s := SettingsOf(id); mode != "" && !skip && mode != "bypassPermissions" {
 		for _, f := range s.ModeFlag {
+			out = append(out, strings.ReplaceAll(f, "%s", mode))
+		}
+	}
+	return out
+}
+
+// KeptArgs are StartArgs for starting agent id again, a session already under way.
+func KeptArgs(id, model, effort, mode string, skip bool) []string {
+	s := SettingsOf(id)
+	if len(s.KeptModeFlag) == 0 {
+		return StartArgs(id, model, effort, mode, skip)
+	}
+	out := StartArgs(id, model, effort, "", skip)
+	if mode != "" && !skip && mode != "bypassPermissions" {
+		for _, f := range s.KeptModeFlag {
 			out = append(out, strings.ReplaceAll(f, "%s", mode))
 		}
 	}

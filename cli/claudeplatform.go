@@ -27,8 +27,9 @@ type claudePlatformFlags struct {
 	version bool
 
 	model, effort, mode string
-	skipPermissions     bool // --dangerously-skip-permissions: bypass from the start
-	allowBypass         bool // --allow-dangerously-skip-permissions: bypass on offer
+	modeIfNew           string // --permission-mode-if-new: what enowX starts a session again with
+	skipPermissions     bool   // --dangerously-skip-permissions: bypass from the start
+	allowBypass         bool   // --allow-dangerously-skip-permissions: bypass on offer
 
 	continueLast bool
 	resume       string
@@ -82,6 +83,11 @@ func parseClaudePlatformFlags(args []string) (claudePlatformFlags, error) {
 			if err == nil && !validMode(f.mode) {
 				err = fmt.Errorf("claude-platform: unknown --permission-mode %q: default, acceptEdits, plan or bypassPermissions", f.mode)
 			}
+		case "--permission-mode-if-new":
+			f.modeIfNew, err = needValue()
+			if err == nil && !validMode(f.modeIfNew) {
+				err = fmt.Errorf("claude-platform: unknown --permission-mode-if-new %q", f.modeIfNew)
+			}
 		case "--dangerously-skip-permissions":
 			f.skipPermissions = true
 		case "--allow-dangerously-skip-permissions":
@@ -131,9 +137,6 @@ func parseClaudePlatformFlags(args []string) (claudePlatformFlags, error) {
 		}
 	}
 	f.prompt = strings.Join(positional, " ")
-	if f.skipPermissions {
-		f.mode = record.ModeBypass
-	}
 	if f.continueLast && f.resume != "" {
 		return f, errors.New("claude-platform: --continue and --resume ask for different conversations")
 	}
@@ -152,13 +155,16 @@ func validMode(mode string) bool {
 // folder. The Front and Hooks are the caller's.
 func (f claudePlatformFlags) options(dir, home string) (platformagent.Options, error) {
 	o := platformagent.Options{
-		Dir:      dir,
-		Resume:   f.resume,
-		Continue: f.continueLast,
-		Model:    f.model,
-		Effort:   f.effort,
-		Mode:     f.mode,
-		Append:   strings.Join(f.appendPrompts, "\n\n"),
+		Dir:             dir,
+		Resume:          f.resume,
+		Continue:        f.continueLast,
+		Model:           f.model,
+		Effort:          f.effort,
+		Mode:            f.mode,
+		ModeIfNew:       f.modeIfNew,
+		SkipPermissions: f.skipPermissions,
+		AllowBypass:     f.allowBypass,
+		Append:          strings.Join(f.appendPrompts, "\n\n"),
 	}
 	o.SessionDir = f.sessionDir
 	if o.SessionDir == "" {
@@ -293,7 +299,7 @@ func runClaudePlatform(f claudePlatformFlags, in io.Reader, out io.Writer, start
 	cfg := terminal.Config{
 		In:          in,
 		Out:         out,
-		AllowBypass: f.allowBypass || f.mode == record.ModeBypass,
+		AllowBypass: f.allowBypass || f.skipPermissions || f.mode == record.ModeBypass,
 		FirstPrompt: f.prompt,
 	}
 	inFile, inOK := in.(*os.File)
@@ -303,7 +309,7 @@ func runClaudePlatform(f claudePlatformFlags, in io.Reader, out io.Writer, start
 		cfg.Cols = terminal.ColsOf(outFile)
 	}
 	bridge := hookbridge.New()
-	bridge.SetMode(f.mode)
+	bridge.SetMode(f.mode) // until the agent says, having read its conversation
 	takeKey(ctx, bridge)
 	if extra := bridge.Start(ctx); extra != "" {
 		o.Append = strings.TrimSpace(o.Append + "\n\n" + extra)
@@ -317,6 +323,8 @@ func runClaudePlatform(f claudePlatformFlags, in io.Reader, out io.Writer, start
 	if err != nil {
 		return fmt.Errorf("claude-platform: %w", err)
 	}
+	_, _, mode, _ := runner.Settings()
+	bridge.SetMode(mode)
 	if cfg.Interactive {
 		restore, err := terminal.Raw(inFile, outFile)
 		if err != nil {

@@ -10,6 +10,7 @@ It is a program in a session's terminal like any other agent, so sessions, tabs,
 |---|---|
 | `--model M`, `--effort E`, `--permission-mode P` | What it starts on (below). |
 | `--dangerously-skip-permissions`, `--allow-dangerously-skip-permissions` | Start in bypass; offer bypass as a mode to switch to. |
+| `--permission-mode-if-new P` | The mode when the conversation has none kept: what enowX starts a session again with. |
 | `--continue`, `--resume ID`, `--session-dir DIR` | The newest conversation in the folder; one by its ID; the folder a session keeps them in. |
 | `--append-system-prompt-file F`, `--system-prompt-file F` | Added after the prompt; in place of it. |
 | `--mcp-config F` | MCP servers, as a file's path or its JSON. |
@@ -63,7 +64,7 @@ A new conversation starts on `claude-opus-5-5`, effort `high`, and a budget of $
 | Opus 5.5 (the default), Fable 5.1, Sonnet 5.5, Haiku 5.5, Opus 5, Sonnet 5 | 1M |
 | Haiku 4.5 | 200K |
 
-**Modes** go by Shift+Tab, and its status line names the one on: `default` "ask first mode on", `acceptEdits` "accept edits on", `plan` "plan mode on", `bypassPermissions` "bypass permissions on". **Effort** is low, medium, high, xhigh or max (`/effort`), **model** `/model`.
+**Modes** go by Shift+Tab, and its status line names the one on: `default` "ask first mode on", `acceptEdits` "accept edits on", `plan` "plan mode on", `bypassPermissions` "bypass permissions on". A conversation goes on in the mode it kept, so hibernating and waking change nothing, and a flag given at every start can't undo a switch to something safer; only an explicit `--permission-mode` overrides it. A kept bypass comes back only with `--dangerously-skip-permissions` or `--allow-dangerously-skip-permissions` given again, else it asks first and says so. GOD of Agents' allowing of `mcp__enowx__` tools lasts for that run alone, never on record. **Effort** is low, medium, high, xhigh or max (`/effort`), **model** `/model`.
 
 **The system prompt** is, first found: `--system-prompt-file` for one session; `~/.enowx-app/claude-platform/system-prompt.md` for every session on the host; the built-in one. enowX's inject and guide go after whichever it is. A config's `args` can carry `--system-prompt-file`, so a config can have its own.
 

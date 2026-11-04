@@ -110,7 +110,7 @@ func New(o Options) (*Agent, error) {
 
 	a.model = first(o.Model, saved.model, record.DefaultModel)
 	a.effort = first(o.Effort, saved.effort, record.DefaultEffort)
-	a.mode = first(o.Mode, saved.mode, record.ModeDefault)
+	a.mode = startMode(o, saved)
 	a.budget = saved.budget
 	if o.Budget > 0 {
 		a.budget = o.Budget
@@ -129,10 +129,11 @@ func New(o Options) (*Agent, error) {
 	a.all, problems = a.gatherTools()
 	if os.Getenv(proto.EnvGOA) != "" {
 		// GOD of Agents works through enowX's tools alone; asking for each would stop it.
-		// The daemon's tool.before still judges every call.
+		// The daemon's tool.before still judges every call. For this run only: on record
+		// they would hold for a later run of the conversation that isn't GOA's.
 		for _, tool := range a.all {
 			if strings.HasPrefix(tool.Name(), "mcp__enowx__") {
-				a.engine.Add(tool.Name())
+				a.engine.AddForSession(tool.Name())
 			}
 		}
 	}
@@ -143,6 +144,9 @@ func New(o Options) (*Agent, error) {
 	if saved.model != a.model || saved.effort != a.effort || saved.mode != a.mode || saved.budget != a.budget || !saved.found {
 		a.writeMeta()
 	}
+	if saved.mode == record.ModeBypass && a.mode != record.ModeBypass && o.Mode == "" {
+		a.notice("info", "This conversation was in bypass mode. It goes on asking first, as neither bypass flag was given again.")
+	}
 	for _, p := range problems {
 		a.notice("warning", p)
 	}
@@ -152,6 +156,26 @@ func New(o Options) (*Agent, error) {
 		a.notice("info", "The last answer's tool calls never finished; they were marked interrupted.")
 	}
 	return a, nil
+}
+
+// startMode is the mode a conversation goes on in. What was kept stands, so a session's
+// mode doesn't change by itself: a flag given every start can't undo the user's switching
+// to something safer, and only --permission-mode says otherwise. Bypass alone doesn't come
+// back from a file unasked: its flags must be there again.
+func startMode(o Options, saved replayed) string {
+	if o.Mode != "" {
+		return o.Mode
+	}
+	if saved.mode != "" {
+		if saved.mode == record.ModeBypass && !o.AllowBypass {
+			return record.ModeDefault
+		}
+		return saved.mode
+	}
+	if o.SkipPermissions {
+		return record.ModeBypass
+	}
+	return first(o.ModeIfNew, record.ModeDefault)
 }
 
 // connectAPI makes the client if the environment has a key. The key stays in the client

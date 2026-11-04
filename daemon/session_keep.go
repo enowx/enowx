@@ -18,7 +18,7 @@ func keptArgs(m session.Meta) []string {
 	if m.Config != nil {
 		return nil
 	}
-	return agent.StartArgs(m.Agent, m.Model, m.Effort, m.Mode, m.SkipPermissions)
+	return agent.KeptArgs(m.Agent, m.Model, m.Effort, m.Mode, m.SkipPermissions)
 }
 
 // withAgentStart gives p what the user chose for new sessions of its agent, where p itself

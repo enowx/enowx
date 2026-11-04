@@ -129,6 +129,17 @@ func TestPlatformSettings(t *testing.T) {
 	if got != "--model claude-sonnet-5-5 --effort low --permission-mode plan" {
 		t.Errorf("start args: %s", got)
 	}
+	// Started again, what enowX last read of its mode counts only if nothing was kept.
+	got = strings.Join(KeptArgs(PlatformID, "claude-sonnet-5-5", "low", "plan", false), " ")
+	if got != "--model claude-sonnet-5-5 --effort low --permission-mode-if-new plan" {
+		t.Errorf("kept args: %s", got)
+	}
+	if got := KeptArgs(PlatformID, "", "", "plan", true); len(got) != 0 {
+		t.Errorf("kept args of a session skipping permissions: %v", got)
+	}
+	if got := strings.Join(KeptArgs("claude", "", "", "plan", false), " "); !strings.Contains(got, "--permission-mode plan") {
+		t.Errorf("another agent's kept args changed: %s", got)
+	}
 	cmds, err := Commands(context.Background(), PlatformID, "")
 	if err != nil || len(cmds) == 0 {
 		t.Errorf("commands: %v %v", cmds, err)

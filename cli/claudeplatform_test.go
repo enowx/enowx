@@ -43,7 +43,7 @@ func TestClaudePlatformFlags(t *testing.T) {
 	}
 
 	f, err = parseClaudePlatformFlags([]string{"--dangerously-skip-permissions", "--continue"})
-	if err != nil || f.mode != record.ModeBypass || !f.continueLast {
+	if err != nil || !f.skipPermissions || !f.continueLast {
 		t.Fatalf("%+v %v", f, err)
 	}
 

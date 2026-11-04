@@ -54,6 +54,7 @@ var platformSettings = Settings{
 	ModelFlag:     []string{"--model", "%s"},
 	EffortFlag:    []string{"--effort", "%s"},
 	ModeFlag:      []string{"--permission-mode", "%s"},
+	KeptModeFlag:  []string{"--permission-mode-if-new", "%s"},
 }
 
 // platformFileForms take its guide and enowX's tools in files of the session's folder.

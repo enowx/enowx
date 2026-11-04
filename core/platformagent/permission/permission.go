@@ -29,7 +29,9 @@ type Engine struct {
 	mu    sync.Mutex
 	mode  string
 	rules []string
-	dir   string
+	// sessionRules allow for this run alone: Rules, what goes on record, leaves them out.
+	sessionRules []string
+	dir          string
 }
 
 // New is an engine in mode (record.Mode*) with the rules kept so far. An unknown mode is
@@ -53,7 +55,7 @@ func knownMode(mode string) bool {
 func (e *Engine) snapshot() (mode string, rules []string, dir string) {
 	e.mu.Lock()
 	defer e.mu.Unlock()
-	return e.mode, slices.Clone(e.rules), e.dir
+	return e.mode, slices.Concat(e.rules, e.sessionRules), e.dir
 }
 
 // Check says whether the call may run. On Ask, rule is what "always allow" would keep
@@ -120,7 +122,19 @@ func (e *Engine) Add(rule string) {
 	}
 }
 
-// Rules are the rules kept.
+// AddForSession allows by rule for this run alone, never on record.
+func (e *Engine) AddForSession(rule string) {
+	if rule == "" {
+		return
+	}
+	e.mu.Lock()
+	defer e.mu.Unlock()
+	if !slices.Contains(e.sessionRules, rule) {
+		e.sessionRules = append(e.sessionRules, rule)
+	}
+}
+
+// Rules are the rules kept, which a new conversation's file carries on.
 func (e *Engine) Rules() []string {
 	e.mu.Lock()
 	defer e.mu.Unlock()
