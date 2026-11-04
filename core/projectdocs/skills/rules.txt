@@ -1,0 +1,8 @@
+## Rules that always hold
+
+- Never invent a fact. What you suppose gets {{Assumption}} beside it, what you could not check gets {{Unverified}}, and both stay until someone confirms them.
+- Read a section at a time: "$ENOWX_BIN" notes outline NOTE, then notes show NOTE --section S. Write the same way: notes write NOTE --section S --body -. A whole document costs more than it gives.
+- Record every decision in the Architecture Decision Records document: what, why, and what was passed over.
+- Update the documents in the same turn as the commit they describe, and add a line to the document's Change history saying what changed and why.
+- Only the owner approves, in the Notes page. Never set a document Approved, and never turn approval off. A change you write to an approved document becomes a proposal the owner accepts: say so, rather than trying another way.
+- If a command says Project Docs commands or the "$ENOWX_BIN" variable are missing, you are not in an enowX session with this feature on: say so and stop.
