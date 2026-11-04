@@ -239,6 +239,7 @@ type App struct {
 	tok        tokensState   // token usage: the Tokens tab, sessions' badges (tokens.go)
 	goa        goaApp        // GOD of Agents mode (goa.go)
 	blurred    bool          // the window isn't the focused one
+	unfocused  atomic.Bool   // the same, for goroutines
 	winCtl     windowControl // what the window buttons act on, when not win (tests)
 	// retrying counts the tries to connect again to retryHost after its
 	// connection dropped; 0 when not retrying.
@@ -399,8 +400,8 @@ func (a *App) Open() *mygo.Window {
 	stopAppearance := mygo.Theme.OnUpdated(func() { a.systemAppearanceChanged(mygo.Theme.IsDark()) })
 	a.watchQuit()
 	a.usage.Every = a.usageEvery
-	a.win.OnFocus(func() { a.blurred = false; a.usage.Poke() })
-	a.win.OnBlur(func() { a.blurred = true })
+	a.win.OnFocus(func() { a.blurred = false; a.unfocused.Store(false); a.usage.Poke(); a.pokeWatches() })
+	a.win.OnBlur(func() { a.blurred = true; a.unfocused.Store(true) })
 	setAppMenu(a)
 	a.holdForUnsaved()
 	a.win.OnClosed(func() {

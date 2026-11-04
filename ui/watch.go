@@ -30,6 +30,7 @@ import (
 // unreachable one waits before the next try, at most.
 const (
 	watchEvery    = 15 * time.Second
+	watchUnseen   = time.Minute // while the window isn't focused: events still tell of sessions
 	watchRetryMax = 5 * time.Minute
 )
 
@@ -76,6 +77,7 @@ type hostWatch struct {
 	// between hosts sync over it (autosync.go).
 	cl   *client.Client
 	info proto.DaemonInfo
+	poke chan struct{} // the window came back into focus: ask now
 }
 
 // errNeedsYou stops a watch's connecting where the user would be asked.
@@ -104,7 +106,7 @@ func (a *App) syncWatches() {
 	}
 	for id, h := range want {
 		if _, ok := a.watches[id]; !ok {
-			w := &hostWatch{host: h, status: hostStatus{state: hostConnecting}, stop: make(chan struct{})}
+			w := &hostWatch{host: h, status: hostStatus{state: hostConnecting}, stop: make(chan struct{}), poke: make(chan struct{}, 1)}
 			a.watches[id] = w
 			go a.watch(w)
 		}
@@ -158,8 +160,6 @@ func (a *App) watch(w *hostWatch) {
 // poll asks cl how its host is every watchEvery, until the connection
 // drops or w stops.
 func (a *App) poll(w *hostWatch, cl *client.Client) {
-	t := time.NewTicker(watchEvery)
-	defer t.Stop()
 	for {
 		start := time.Now()
 		info, err := cl.Info()
@@ -167,23 +167,48 @@ func (a *App) poll(w *hostWatch, cl *client.Client) {
 		if err != nil {
 			return
 		}
-		stats, _ := cl.Stats()
+		// What a host uses shows on screen only, and asking has it look at all its
+		// processes; events tell of its sessions meanwhile.
+		unseen := a.unfocused.Load()
+		var stats proto.DaemonStats
+		if !unseen {
+			stats, _ = cl.Stats()
+		}
 		sessions, err := cl.Sessions()
 		if err != nil {
 			return
 		}
 		projects, _ := cl.Projects()
 		a.onMain(func() {
-			w.status = hostStatus{state: hostOnline, latency: latency, usage: stats.Host, sessions: sessions, projects: projects, checked: time.Now()}
+			usage := stats.Host
+			if unseen {
+				usage = w.status.usage
+			}
+			w.status = hostStatus{state: hostOnline, latency: latency, usage: usage, sessions: sessions, projects: projects, checked: time.Now()}
 			w.cl, w.info = cl, info
 			a.goaCatchUp(w.host.Name, sessions)
 		})
+		wait := watchEvery
+		if unseen {
+			wait = watchUnseen
+		}
 		select {
 		case <-w.stop:
 			return
 		case <-cl.Done():
 			return
-		case <-t.C:
+		case <-w.poke:
+		case <-time.After(wait):
+		}
+	}
+}
+
+// pokeWatches has every watch ask now: the window is back in sight. It runs on the main thread.
+func (a *App) pokeWatches() {
+	for _, w := range a.watches {
+		select {
+		case w.poke <- struct{}{}:
+		default:
 		}
 	}
 }
