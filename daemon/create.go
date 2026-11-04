@@ -578,6 +578,10 @@ func agentLaunch(preset agent.Preset, skip bool, prompt string, cont bool, chat 
 	if home, err := os.UserHomeDir(); err == nil && !chat.member && (chat.config == nil || !chat.config.api) {
 		hooks = append(hooks, agentapi.LaunchArgs(home, preset.ID)...) // its model API's config
 	}
+	if agent.Skips(preset.ID, false) {
+		// Repeated, --settings takes the last alone (run on 2.1.318): one, merged.
+		hooks = agentapi.WithSettings(hooks, map[string]any{agent.BypassAccepted: true})
+	}
 	if run := chat.config; run != nil {
 		// Its config's (configs.go): Claude Code's settings go into the
 		// --settings enowX's hooks use.

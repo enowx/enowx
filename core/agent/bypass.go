@@ -1,6 +1,7 @@
 package agent
 
 import (
+	"encoding/json"
 	"os"
 	"slices"
 	"strings"
@@ -16,7 +17,11 @@ const (
 	// ModeBypass is Claude Code's name for the mode that asks nothing.
 	ModeBypass = "bypassPermissions"
 	// modePlan is the mode switching never steps on by the way (Settings.ModeRoute).
-	modePlan       = "plan"
+	modePlan = "plan"
+	// BypassAccepted is the setting that spares Claude Code's warning on starting in
+	// bypass, a dialog whose first answer exits, on a home that hasn't seen it yet (run on
+	// 2.1.318, by --settings too). The rule is the owner's decision, not each session's.
+	BypassAccepted = "skipDangerousModePermissionPrompt"
 	claudeSkipFlag = "--dangerously-skip-permissions"
 )
 
@@ -85,7 +90,7 @@ func withoutModeFlag(args []string) []string {
 
 // TabAgentBypass is the command bringing back an agent found running in a terminal
 // (TabAgentCommand), in bypass where AlwaysSkips holds. It goes over a command saved by an
-// earlier daemon too.
+// earlier daemon too. Settings kept in a file stay as they are: the warning may show.
 func TabAgentBypass(argv []string) []string {
 	if len(argv) == 0 {
 		return argv
@@ -98,6 +103,16 @@ func TabAgentBypass(argv []string) []string {
 	out = slices.DeleteFunc(out, func(a string) bool { return a == "--allow-dangerously-skip-permissions" })
 	if !slices.Contains(out, claudeSkipFlag) {
 		out = append(out, claudeSkipFlag)
+	}
+	i := slices.Index(out, "--settings")
+	if i < 0 {
+		return append(out, "--settings", `{"`+BypassAccepted+`":true}`)
+	}
+	var cur map[string]any
+	if i+1 < len(out) && json.Unmarshal([]byte(out[i+1]), &cur) == nil && cur != nil {
+		cur[BypassAccepted] = true
+		data, _ := json.Marshal(cur)
+		out[i+1] = string(data)
 	}
 	return out
 }

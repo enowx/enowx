@@ -177,6 +177,34 @@ func TestForkOfClaudeCodeIsInBypass(t *testing.T) {
 	}
 }
 
+// A home that never saw Claude Code's warning on bypass doesn't stop at it, a dialog whose
+// first answer exits; the one --settings it reads keeps enowX's hooks too.
+func TestBypassWarningIsAnsweredInItsSettings(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("uses sh")
+	}
+	_, c, home, dir := forkHarness(t)
+	if _, err := c.CreateSession(proto.SessionCreateParams{Agent: "claude", Project: dir, Cols: 80, Rows: 24}); err != nil {
+		t.Fatal(err)
+	}
+	line := startsOf(home).next(t)
+	if strings.Count(line, "--settings") != 1 {
+		t.Fatalf("settings: %s", clip(line, 300))
+	}
+	if !strings.Contains(line, agent.BypassAccepted) && !strings.Contains(settingsFileOf(t, line), agent.BypassAccepted) {
+		t.Errorf("nothing accepts the warning: %s", clip(line, 300))
+	}
+}
+
+// settingsFileOf reads the file a command line's --settings names, "" when it names none.
+func settingsFileOf(t *testing.T, line string) string {
+	t.Helper()
+	_, rest, _ := strings.Cut(line, "--settings ")
+	path, _, _ := strings.Cut(rest, " ")
+	data, _ := os.ReadFile(path)
+	return string(data)
+}
+
 // The mode new sessions take, as Settings keeps it, doesn't turn bypass off.
 func TestAgentStartModeDoesNotTurnBypassOff(t *testing.T) {
 	if runtime.GOOS == "windows" {

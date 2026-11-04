@@ -97,10 +97,14 @@ func TestClaudeAsRootDoesNotAskForBypass(t *testing.T) {
 
 func TestTabAgentBypass(t *testing.T) {
 	runsAs(t, false)
+	accepted := []string{"--settings", `{"` + BypassAccepted + `":true}`}
 	for _, c := range []struct{ in, want []string }{
-		{[]string{"claude", "--continue", "--permission-mode", "auto"}, []string{"claude", "--continue", "--dangerously-skip-permissions"}},
-		{[]string{"claude", "--continue", "--permission-mode=plan", "--allow-dangerously-skip-permissions"}, []string{"claude", "--continue", "--dangerously-skip-permissions"}},
-		{[]string{"claude", "--resume", "a", "--dangerously-skip-permissions"}, []string{"claude", "--resume", "a", "--dangerously-skip-permissions"}},
+		{[]string{"claude", "--continue", "--permission-mode", "auto"}, append([]string{"claude", "--continue", "--dangerously-skip-permissions"}, accepted...)},
+		{[]string{"claude", "--continue", "--permission-mode=plan", "--allow-dangerously-skip-permissions"}, append([]string{"claude", "--continue", "--dangerously-skip-permissions"}, accepted...)},
+		{[]string{"claude", "--resume", "a", "--dangerously-skip-permissions"}, append([]string{"claude", "--resume", "a", "--dangerously-skip-permissions"}, accepted...)},
+		// One --settings, merged: of several Claude Code takes the last alone.
+		{[]string{"claude", "--continue", "--settings", `{"a":1}`}, []string{"claude", "--continue", "--settings", `{"a":1,"` + BypassAccepted + `":true}`, "--dangerously-skip-permissions"}},
+		{[]string{"claude", "--continue", "--settings", "/a/file.json"}, []string{"claude", "--continue", "--settings", "/a/file.json", "--dangerously-skip-permissions"}},
 		{[]string{"codex", "resume", "--last", "--sandbox", "read-only"}, []string{"codex", "resume", "--last", "--sandbox", "read-only"}},
 		{nil, nil},
 	} {
