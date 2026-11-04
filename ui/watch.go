@@ -28,9 +28,13 @@ import (
 
 // Watch timing: how often a connected host is asked, and how long an
 // unreachable one waits before the next try, at most.
+var watchEvery = 15 * time.Second
+
 const (
-	watchEvery    = 15 * time.Second
 	watchRetryMax = 5 * time.Minute
+	// watchListsEvery is how often a connected host's sessions and projects are
+	// read whole: events keep them current between, this only catches what one missed.
+	watchListsEvery = 5 * time.Minute
 )
 
 // Host states a watch reports.
@@ -115,7 +119,7 @@ func (a *App) syncWatches() {
 func (a *App) watch(w *hostWatch) {
 	retry := watchEvery
 	for {
-		cl, err := hostconn.Connect(w.host, a.watchOptions(w))
+		cl, err := a.dialWatch(w)
 		if err != nil {
 			// A host off for a while fails again and again.
 			a.diag.Every("watch:"+w.host.ID, 10*time.Minute, "conn.failed", "use", "watch", "host", w.host.ID, "name", w.host.Name, "err", err)
@@ -155,11 +159,20 @@ func (a *App) watch(w *hostWatch) {
 	}
 }
 
+// dialWatch connects w's connection.
+func (a *App) dialWatch(w *hostWatch) (*client.Client, error) {
+	if a.watchDial != nil {
+		return a.watchDial(w.host)
+	}
+	return hostconn.Connect(w.host, a.watchOptions(w))
+}
+
 // poll asks cl how its host is every watchEvery, until the connection
 // drops or w stops.
 func (a *App) poll(w *hostWatch, cl *client.Client) {
 	t := time.NewTicker(watchEvery)
 	defer t.Stop()
+	var listed time.Time
 	for {
 		start := time.Now()
 		info, err := cl.Info()
@@ -168,15 +181,26 @@ func (a *App) poll(w *hostWatch, cl *client.Client) {
 			return
 		}
 		stats, _ := cl.Stats()
-		sessions, err := cl.Sessions()
-		if err != nil {
-			return
+		var sessions []proto.SessionInfo
+		var projects []proto.ProjectInfo
+		read := time.Since(listed) >= watchListsEvery
+		if read {
+			if sessions, err = cl.Sessions(); err != nil {
+				return
+			}
+			projects, _ = cl.Projects()
+			listed = time.Now()
 		}
-		projects, _ := cl.Projects()
 		a.onMain(func() {
-			w.status = hostStatus{state: hostOnline, latency: latency, usage: stats.Host, sessions: sessions, projects: projects, checked: time.Now()}
+			st := hostStatus{state: hostOnline, latency: latency, usage: stats.Host, sessions: w.status.sessions, projects: w.status.projects, checked: time.Now()}
+			if read {
+				st.sessions, st.projects = sessions, projects
+			}
+			w.status = st
 			w.cl, w.info = cl, info
-			a.goaCatchUp(w.host.Name, sessions)
+			if read {
+				a.goaCatchUp(w.host.Name, sessions)
+			}
 		})
 		select {
 		case <-w.stop:
@@ -245,6 +269,15 @@ func (a *App) watchEvent(w *hostWatch, ev proto.Event) {
 		var req proto.CanvasRenderRequest
 		if json.Unmarshal(ev.Data, &req) == nil {
 			a.onMain(func() { a.renderCanvas(w.cl, req) })
+		}
+		return
+	}
+	if ev.Name == proto.EventSessionRemoved {
+		var ref proto.SessionRef
+		if json.Unmarshal(ev.Data, &ref) == nil {
+			a.onMain(func() {
+				w.status.sessions = slices.DeleteFunc(w.status.sessions, func(s proto.SessionInfo) bool { return s.ID == ref.ID })
+			})
 		}
 		return
 	}
