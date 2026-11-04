@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"slices"
 	"strconv"
 	"strings"
 	"time"
@@ -197,19 +198,22 @@ func (s *Server) keepRulesVersion(key, rules string) {
 
 // rulesHistory lists p's rules as they were, newest first.
 func (s *Server) rulesHistory(p proto.RulesDraftParams) []proto.RulesVersion {
-	key := "project:" + p.Path
-	if p.For == proto.RulesForGOA {
-		key = "goa"
+	keys := []string{"goa"}
+	if p.For != proto.RulesForGOA {
+		keys = rulesHistoryKeys(p.Path)
 	}
-	dir := s.rulesHistoryDir(key)
-	entries, _ := os.ReadDir(dir)
 	out := []proto.RulesVersion{}
-	for i := len(entries) - 1; i >= 0; i-- {
-		n, err := strconv.ParseInt(strings.TrimSuffix(entries[i].Name(), ".md"), 10, 64)
-		data, rerr := os.ReadFile(filepath.Join(dir, entries[i].Name()))
-		if err == nil && rerr == nil {
-			out = append(out, proto.RulesVersion{Time: time.Unix(0, n), Rules: string(data)})
+	for _, key := range keys {
+		dir := s.rulesHistoryDir(key)
+		entries, _ := os.ReadDir(dir)
+		for _, e := range entries {
+			n, err := strconv.ParseInt(strings.TrimSuffix(e.Name(), ".md"), 10, 64)
+			data, rerr := os.ReadFile(filepath.Join(dir, e.Name()))
+			if err == nil && rerr == nil {
+				out = append(out, proto.RulesVersion{Time: time.Unix(0, n), Rules: string(data)})
+			}
 		}
 	}
+	slices.SortFunc(out, func(a, b proto.RulesVersion) int { return b.Time.Compare(a.Time) })
 	return out
 }

@@ -88,6 +88,7 @@ type Server struct {
 	teams             teamSpaces       // the teams' notes and canvases (spaces.go)
 	teamSync          teamSyncer       // their syncs with the cloud (teamsync.go)
 	teamProjectsState teamProjectState // the teams\' projects found here (teamprojects.go)
+	rulesPlaces       rulesPlacesCache // where each folder's rules are (rules.go)
 	visitors          visitorList      // the teams\' members connected (visitors.go)
 	share             hostSharing      // what the host shares, its team listener (hostshare.go)
 	takeover          takeovers        // sessions visitors took over (takeover.go)
