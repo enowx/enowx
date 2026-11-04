@@ -86,7 +86,7 @@ func stallCase(l stallLook, lim proto.GOAStall) (string, time.Duration) {
 		}
 	case l.Info.Exited && l.Info.Hibernated:
 		if l.Still >= idle {
-			return "idle: its session is hibernated", idle
+			return "idle: its session is hibernated, and takes nothing up until something is sent to it or it is woken", idle
 		}
 	case l.Info.Exited, l.Info.Queued, !quiet:
 	case l.Blank:
@@ -413,6 +413,9 @@ func (s *Server) stallCheck(w *stallWatch, t proto.GOATask, h stallHost, lim pro
 		}
 	}
 	info, there := h.infos[t.Session]
+	if there && s.goaNoteAsleep(info) {
+		s.goaChanged()
+	}
 	look := stallLook{Info: info, Gone: !there, NoCPU: !h.cpuKnown, Age: now.Sub(t.Created)}
 	text := ""
 	if there {

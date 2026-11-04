@@ -471,7 +471,7 @@ func (s *Server) goaReportSeen(info proto.SessionInfo) {
 	})
 	for _, t := range changed {
 		where, hostFlag := goaTaskPlace(t)
-		s.goaTellReport(info, goaLine{Task: t.ID, Session: t.Session, Text: fmt.Sprintf("[enowX GOA] Task %s %q (%s) reports %s: %s Check it (chat %s%s), then settle it: goa task %s --status done|failed --result \"…\".", t.ID, t.Title, where, t.Outcome, clip(oneLine(t.Said), goaResultMax), t.Session, hostFlag, t.ID)})
+		s.goaTellReport(info, goaLine{Task: t.ID, Session: t.Session, Text: fmt.Sprintf("[enowX GOA] Task %s %q (%s) reports %s: %s%s Check it (chat %s%s), then settle it: goa task %s --status done|failed --result \"…\".", t.ID, t.Title, where, t.Outcome, clip(oneLine(t.Said), goaResultMax), s.goaAsleepNamed(t.Host, t.Outcome, t.Session, t.Said), t.Session, hostFlag, t.ID)})
 	}
 	if len(changed) > 0 {
 		s.goaChanged()

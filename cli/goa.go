@@ -171,10 +171,17 @@ func (r runner) goaBoard(args []string) error {
 		if t.SessionName != "" {
 			where = t.SessionName + " " + where
 		}
-		fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%s\t%s\n", t.ID, t.Status, where, taskModel(t), taskPlace(t), t.Title)
+		status := t.Status
+		if t.Asleep {
+			status = "asleep"
+		}
+		fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%s\t%s\n", t.ID, status, where, taskModel(t), taskPlace(t), t.Title)
 	}
 	w.Flush()
 	for _, t := range b.Tasks {
+		if t.Asleep {
+			fmt.Fprintf(r.out, "%s: its session is hibernated, and takes nothing up until something is sent to it or it is woken (it was %s)\n", t.ID, t.Status)
+		}
 		if t.Urgent != "" {
 			fmt.Fprintf(r.out, "%s waits on the user (%s): %s\n", t.ID, t.Urgent, t.Asks)
 		} else if t.Asks != "" {

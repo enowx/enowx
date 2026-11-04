@@ -188,7 +188,7 @@ func (s *Server) goaToldChanged(info proto.SessionInfo) {
 	s.saveGOATold()
 	t := proto.GOATask{Session: info.ID}
 	if info.ReportAt > was.ReportAt {
-		s.goaTellReport(info, goaLine{Session: info.ID, Text: fmt.Sprintf("[enowX GOA] Session %s, which you sent something to, reports %s: %s", info.ID, info.ReportOutcome, clip(oneLine(info.Report), goaResultMax))})
+		s.goaTellReport(info, goaLine{Session: info.ID, Text: fmt.Sprintf("[enowX GOA] Session %s, which you sent something to, reports %s: %s%s", info.ID, info.ReportOutcome, clip(oneLine(info.Report), goaResultMax), s.goaAsleepNamed(was.Host, info.ReportOutcome, info.ID, info.Report))})
 		if status == was.Status {
 			return // what it reports is all there is to say
 		}

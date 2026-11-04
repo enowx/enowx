@@ -125,8 +125,11 @@ type GOATask struct {
 	Override bool `json:"override,omitempty"`
 	// Reused: no session was named, and the project had this one for it.
 	// Woken: its agent had stopped, and was brought back for the prompt.
-	Reused bool   `json:"reused,omitempty"`
-	Woken  bool   `json:"woken,omitempty"`
+	Reused bool `json:"reused,omitempty"`
+	Woken  bool `json:"woken,omitempty"`
+	// Asleep: not settled, its session is hibernated, so nothing moves until something
+	// is sent to it or it's woken. As the board is read, not kept.
+	Asleep bool   `json:"asleep,omitempty"`
 	Status string `json:"status"`
 	// Project is the project its session works in, when it has one.
 	Project string `json:"project,omitempty"`

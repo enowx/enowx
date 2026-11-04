@@ -307,3 +307,47 @@ func TestGOATaskForAnEndedShellSaysItCantComeBack(t *testing.T) {
 		t.Fatal("the shell started again")
 	}
 }
+
+// GOA's board says asleep of a task whose session is hibernated, not the working it
+// stopped at, and a worker's report of being blocked says which session it names sleeps.
+func TestGOABoardAndBlockedReportSayAsleep(t *testing.T) {
+	starts, _ := wakeAgent(t)
+	srv := startServer(t)
+	c := connect(t, srv, nil)
+	info := asleepAgent(t, srv, c, starts)
+	task, err := srv.goa.board.Add(proto.GOATask{Title: "x", Session: info.ID, Status: proto.GOATaskWorking})
+	if err != nil {
+		t.Fatal(err)
+	}
+	asleepOf := func() bool {
+		for _, x := range srv.goaBoard().Tasks {
+			if x.ID == task.ID {
+				return x.Asleep
+			}
+		}
+		t.Fatal("no task")
+		return false
+	}
+	if !asleepOf() {
+		t.Fatal("hibernated, not shown asleep")
+	}
+	if list, _ := c.Sessions(); list[0].State == proto.StateWorking || !list[0].Hibernated {
+		t.Fatalf("the session list: %+v", list[0])
+	}
+	said := srv.goaAsleepNamed("", "blocked", "other", "waiting for "+info.ID[:8]+" and commit abc1234")
+	if !strings.Contains(said, info.ID) || !strings.Contains(said, "asleep") {
+		t.Fatalf("what it adds: %q", said)
+	}
+	if said := srv.goaAsleepNamed("", "done", "other", "looked at "+info.ID); said != "" {
+		t.Fatalf("not blocked: %q", said)
+	}
+	if _, err := c.WakeSession(info.ID); err != nil {
+		t.Fatal(err)
+	}
+	if asleepOf() {
+		t.Fatal("awake, shown asleep")
+	}
+	if said := srv.goaAsleepNamed("", "blocked", "other", "waiting for "+info.ID); said != "" {
+		t.Fatalf("it's awake: %q", said)
+	}
+}

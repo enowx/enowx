@@ -49,6 +49,9 @@ type goaState struct {
 	// heard of each and the report it last heard: it hears of them as of a task.
 	told map[string]goaTold
 
+	// asleep are the sessions on other hosts last heard hibernated.
+	asleep map[string]bool
+
 	// waking are the sessions being brought back for a queued task (queuedWake).
 	waking map[string]bool
 
@@ -189,6 +192,9 @@ func (s *Server) goaBoard() proto.GOABoard {
 			}
 		}
 	}
+	for i, t := range b.Tasks {
+		b.Tasks[i].Asleep = !goa.Settled(t.Status) && s.goaAsleep(t)
+	}
 	b.Told = s.goaToldIDs()
 	b.Waiting = s.goaWaitingLines()
 	if g, ok := s.goaSession(); ok {
@@ -226,6 +232,9 @@ func (s *Server) goaSeen(info proto.SessionInfo) {
 // from the app for another host's: the board, then its next queued task if it can
 // take one.
 func (s *Server) goaWorkerSeen(info proto.SessionInfo) {
+	if s.goaNoteAsleep(info) {
+		s.goaChanged()
+	}
 	if info.State == proto.StateWorking {
 		s.goaTurnStarted(info.ID)
 	}

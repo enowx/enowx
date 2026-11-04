@@ -197,9 +197,9 @@ func (a *App) goaSessionLine(host string, s proto.SessionInfo) (string, ui.Color
 		return "Needs you: " + t.Asks, theme.Warning
 	case t != nil:
 		if t.NoReport {
-			return t.Title + " · " + t.Status + " · no report", theme.Warning
+			return t.Title + " · " + goaStatusWord(*t) + " · no report", theme.Warning
 		}
-		return t.Title + " · " + t.Status, theme.TextSoft
+		return t.Title + " · " + goaStatusWord(*t), theme.TextSoft
 	}
 	return host + " · " + goaSentence(statusOf(s).label), theme.TextSoft
 }
@@ -364,7 +364,7 @@ func goaSentence(s string) string {
 
 // goaTaskState is a task's state: its dot and word.
 func goaTaskState(c *ui.Context, t proto.GOATask) {
-	label := goaSentence(t.Status)
+	label := goaSentence(goaStatusWord(t))
 	if t.Urgent != "" && t.Status == proto.GOATaskWaiting {
 		label = "Waiting on you"
 	}
@@ -374,9 +374,19 @@ func goaTaskState(c *ui.Context, t proto.GOATask) {
 	widget.Legend(c, goaStatusColor(t), label)
 }
 
+// goaStatusWord is a task's status as shown: asleep rather than the working it stopped at.
+func goaStatusWord(t proto.GOATask) string {
+	if t.Asleep {
+		return "asleep"
+	}
+	return t.Status
+}
+
 // goaStatusColor is a task's status as a color.
 func goaStatusColor(t proto.GOATask) ui.Color {
 	switch {
+	case t.Asleep:
+		return theme.Idle
 	case t.Urgent != "" && t.Status == proto.GOATaskWaiting, t.Status == proto.GOATaskStalled:
 		return theme.Warning
 	case t.Status == proto.GOATaskWorking:
@@ -395,7 +405,7 @@ func goaStatusColor(t proto.GOATask) ui.Color {
 // effort and why, where it runs, what it asks, its result.
 func (a *App) goaTaskBody(c *ui.Context, t proto.GOATask) {
 	widget.KV(c, "Task", t.Title, false)
-	widget.KV(c, "State", t.Status+" · "+textfmt.Age(t.Created, time.Now()), false)
+	widget.KV(c, "State", goaStatusWord(t)+" · "+textfmt.Age(t.Created, time.Now()), false)
 	s, shown := a.sessionOn(a.goaHostName(t.Host), t.Session)
 	model := taskRanOn(t, s, shown)
 	if t.Config != "" {
