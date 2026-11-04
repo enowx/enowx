@@ -2,8 +2,9 @@
 
 MyGo v0.6.2 has separate `Text()` and `Send()` operations. A permission/menu
 redraw can complete after the text sample but before Enter is enqueued. Its
-public API has no operation that covers both. This directory adds one method,
-`Terminal.SendChecked(data, allow) bool`, inside the terminal package.
+public API has no operation that covers both. This directory adds
+`Terminal.SendChecked(data, allow) bool` and its write-completion variant,
+`Terminal.SendCheckedWritten(data, allow, written) bool`, inside that package.
 
 The addition is in `guarded_input.go.txt`, with tests in
 `guarded_input_test.go.txt`. They are Go source stored as embedded resources so
@@ -24,6 +25,16 @@ native permission was accepted. Output that reaches the terminal after enqueue
 is later in this ordering. An unsafe screen that appeared and disappeared
 before inspection is detected only if the session observed it during settling;
 this API does not promise a historical classification of every raw redraw.
+
+`SendCheckedWritten` uses the existing FIFO's completion callback, invoked only
+after a successful PTY write, outside terminal/queue locks. It does not fire for
+discarded or failed writes. Chat delivery bounds the wait by program lifetime
+and a five-second write deadline; failure is retained as an interrupted delivery
+and never causes another paste or Enter. The unchanged 300ms settle interval
+starts after paste write completion, and the original readiness/history guard
+still covers the final Enter enqueue. The session anchors suppression of that
+paste's echo to completion only while its input sequence and epoch still match.
+A successful write still does not acknowledge native message consumption.
 
 ## Reproducible use
 
@@ -102,3 +113,8 @@ old session's `Text`/predicate/`Send` sequence, not a native permission fixture.
 The queue test separately checks FIFO order, copy ownership and refusal after
 closure. Existing daemon-protocol and native fixture tests cover the delivery
 ledger, interrupted retries, manual drafts and lost responses.
+
+`TestEnowxCheckedInputWriteCompletion` holds a writer with channels, proving
+enqueue and queue close do not acknowledge a pending write, and failed writes
+do not invoke completion. `TestDeliveryPasteCompletionKeepsCancellationHistory`
+checks delayed echo suppression and preserves manual-input/hook invalidation.

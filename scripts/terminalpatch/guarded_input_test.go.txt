@@ -1,11 +1,80 @@
 package terminal
 
 import (
+	"io"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/egoist/mygo/plugins/terminal/internal/vt"
 )
+
+type enowxGateWriter struct {
+	release <-chan struct{}
+	start   chan<- struct{}
+	err     error
+}
+
+func (w enowxGateWriter) Write(p []byte) (int, error) {
+	close(w.start)
+	<-w.release
+	if w.err != nil {
+		return 0, w.err
+	}
+	return len(p), nil
+}
+
+func TestEnowxCheckedInputWriteCompletion(t *testing.T) {
+	for _, fail := range []bool{false, true} {
+		t.Run(map[bool]string{false: "success", true: "failure"}[fail], func(t *testing.T) {
+			term := guardedFixture(t)
+			entered, release, written, stopped := make(chan struct{}), make(chan struct{}), make(chan struct{}), make(chan struct{})
+			var writeErr error
+			if fail {
+				writeErr = io.ErrClosedPipe
+			}
+			if !term.SendCheckedWritten([]byte("PASTE"), func(string) bool { return true }, func() { close(written) }) {
+				t.Fatal("refused paste")
+			}
+			go func() {
+				defer close(stopped)
+				term.in.run(enowxGateWriter{start: entered, release: release, err: writeErr})
+			}()
+			select {
+			case <-entered:
+			case <-time.After(time.Second):
+				t.Fatal("writer not entered")
+			}
+			select {
+			case <-written:
+				t.Fatal("acknowledged enqueue as write completion")
+			default:
+			}
+			term.in.close() // Also prove closing the queue doesn't acknowledge an in-flight write.
+			select {
+			case <-written:
+				t.Fatal("acknowledged queue close as a write")
+			default:
+			}
+			close(release)
+			select {
+			case <-stopped:
+			case <-time.After(time.Second):
+				t.Fatal("writer stranded")
+			}
+			select {
+			case <-written:
+				if fail {
+					t.Fatal("acknowledged failed write")
+				}
+			default:
+				if !fail {
+					t.Fatal("missing successful write completion")
+				}
+			}
+		})
+	}
+}
 
 func guardedFixture(t *testing.T) *Terminal {
 	t.Helper()

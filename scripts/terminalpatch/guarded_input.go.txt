@@ -5,6 +5,14 @@ package terminal
 // check that never reenters the terminal. Screen writes and queue insertion
 // cannot interleave. Success means queued, not written to or read by the PTY.
 func (t *Terminal) SendChecked(data []byte, allow func(string) bool) bool {
+	return t.SendCheckedWritten(data, allow, nil)
+}
+
+// SendCheckedWritten also calls written after the PTY write succeeds. The
+// callback runs without terminal or queue locks and must return promptly.
+// It is not called for discarded input or failed writes; callers must
+// separately bound their wait and handle program cancellation.
+func (t *Terminal) SendCheckedWritten(data []byte, allow func(string) bool, written func()) bool {
 	t.mu.Lock()
 	defer t.mu.Unlock()
 	// Same lock order as terminal replies: terminal -> input queue.
@@ -13,9 +21,9 @@ func (t *Terminal) SendChecked(data []byte, allow func(string) bool) bool {
 	if t.closed || t.term == nil || t.in.closed || allow == nil || !allow(t.term.Text()) {
 		return false
 	}
-	if len(data) > 0 {
+	if len(data) > 0 || written != nil {
 		t.in.init()
-		t.in.queue = append(t.in.queue, queued{p: append([]byte(nil), data...)})
+		t.in.queue = append(t.in.queue, queued{p: append([]byte(nil), data...), done: written})
 		t.in.cond.Signal()
 	}
 	return true

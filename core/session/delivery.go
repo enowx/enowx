@@ -37,7 +37,15 @@ func (s *Session) DeliveryGuard() DeliveryGuard {
 // run only after those locks are released. Empty requires an untouched composer;
 // the commit permits the delivery's own pasted draft.
 func (m *Manager) DeliveryInput(s *Session, p []byte, guard DeliveryGuard, empty bool) (DeliveryGuard, bool) {
-	return m.input(s, p, nil, &guard, empty)
+	return m.input(s, p, nil, &guard, empty, nil)
+}
+
+// DeliveryPaste also reports successful PTY completion, independently of queue
+// acceptance. Failure or close need not signal written; the caller bounds it.
+func (m *Manager) DeliveryPaste(s *Session, p []byte, guard DeliveryGuard) (DeliveryGuard, <-chan struct{}, bool) {
+	written := make(chan struct{})
+	next, ok := m.input(s, p, nil, &guard, true, written)
+	return next, written, ok
 }
 
 // deliveryReadyLocked checks current readiness, not the snapshot before paste.
@@ -55,7 +63,7 @@ func (s *Session) deliveryReadyLocked(guard DeliveryGuard) bool {
 
 // Input types p into the session and records it (see NoteInput).
 func (m *Manager) Input(s *Session, p []byte) {
-	m.input(s, p, nil, nil, false)
+	m.input(s, p, nil, nil, false, nil)
 }
 
 // InputSequence identifies the most recently queued input, independently of echo.
@@ -68,11 +76,11 @@ func (s *Session) InputSequence() uint64 {
 // InputIfUnchanged queues p only if no other input followed sequence after.
 // It does not infer the contents of the program's composer from its screen.
 func (m *Manager) InputIfUnchanged(s *Session, p []byte, after uint64) bool {
-	_, ok := m.input(s, p, &after, nil, false)
+	_, ok := m.input(s, p, &after, nil, false, nil)
 	return ok
 }
 
-func (m *Manager) input(s *Session, p []byte, after *uint64, guard *DeliveryGuard, empty bool) (DeliveryGuard, bool) {
+func (m *Manager) input(s *Session, p []byte, after *uint64, guard *DeliveryGuard, empty bool, written chan struct{}) (DeliveryGuard, bool) {
 	// Lock order: manager (guarded delivery only), input, session. Send only
 	// enqueues bytes; prompt callbacks and notifications run after unlocking.
 	if guard != nil {
@@ -95,10 +103,26 @@ func (m *Manager) input(s *Session, p []byte, after *uint64, guard *DeliveryGuar
 		}
 		return DeliveryGuard{}, false
 	}
+	var next DeliveryGuard
+	var onWritten func()
+	if written != nil {
+		onWritten = func() {
+			// Delayed PTY writes echo after enqueue-time suppression expires.
+			// Anchor only this still-current input's echo window to its write.
+			s.inputMu.Lock()
+			s.mu.Lock()
+			if s.inputSeq == next.input && s.deliveryEpoch == next.epoch {
+				s.lastInput = time.Now()
+			}
+			s.mu.Unlock()
+			s.inputMu.Unlock()
+			close(written)
+		}
+	}
 	if guard != nil {
-		if !s.term.SendChecked(p, func(screen string) bool {
+		if !s.term.SendCheckedWritten(p, func(screen string) bool {
 			return agent.PromptFree(screen) && (!empty || agent.PromptEmpty(screen))
-		}) {
+		}, onWritten) {
 			s.deliveryPending = false
 			s.mu.Unlock()
 			s.inputMu.Unlock()
@@ -117,7 +141,7 @@ func (m *Manager) input(s *Session, p []byte, after *uint64, guard *DeliveryGuar
 	prompted := s.noteInputLocked(p)
 	changed := s.stateChanged(time.Now())
 	sent := s.lines.feed(p)
-	next := DeliveryGuard{input: s.inputSeq, epoch: s.deliveryEpoch}
+	next = DeliveryGuard{input: s.inputSeq, epoch: s.deliveryEpoch}
 	s.mu.Unlock()
 	s.inputMu.Unlock()
 	if guard != nil {

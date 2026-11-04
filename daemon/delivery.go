@@ -31,6 +31,10 @@ type deliveryAttempt struct {
 
 const maxDeliveriesPerRun = 4096
 
+// A program that stops reading must not strand the ledger or a retry forever.
+// This bounds only the new write-completion wait, not the paste settle delay.
+const deliveryWriteLimit = 5 * time.Second
+
 func (s *Server) deliver(p proto.DeliveryParams) (proto.DeliveryResult, error) {
 	sess, err := s.sessions.Get(p.ID)
 	if err != nil {
@@ -78,7 +82,12 @@ func (s *Server) deliver(p proto.DeliveryParams) (proto.DeliveryResult, error) {
 	r.entries[p.Key], r.sending = a, true
 	d.mu.Unlock()
 
-	next, pasted := s.sessions.DeliveryInput(sess, []byte(pasteStart+p.Text+pasteEnd), guard, true)
+	next, written, pasted := s.sessions.DeliveryPaste(sess, []byte(pasteStart+p.Text+pasteEnd), guard)
+	if pasted {
+		limit := time.NewTimer(deliveryWriteLimit)
+		pasted = deliveryWritten(written, sess.Done(), limit.C)
+		limit.Stop()
+	}
 	if !pasted {
 		a.result.Interrupted = true
 	} else {
@@ -97,4 +106,14 @@ func (s *Server) deliver(p proto.DeliveryParams) (proto.DeliveryResult, error) {
 	close(a.done)
 	d.mu.Unlock()
 	return a.result, nil
+}
+
+func deliveryWritten(written, stopped <-chan struct{}, expired <-chan time.Time) bool {
+	select {
+	case <-written:
+		return true
+	case <-stopped:
+	case <-expired:
+	}
+	return false
 }
