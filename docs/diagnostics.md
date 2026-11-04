@@ -43,6 +43,8 @@ Lines read `TIME EVENT key=value…`, with the same connection's `conn=` on both
 | `canvas.load` | app | which canvas, its designs, its HTML's size, how long |
 | `webview.created`, `webview.destroyed`, `webview.render` | app | the Canvas page's web view; a hidden one for a render (at most once in 10 s) |
 | `frame.slow` | app | a frame over 250 ms, with what was on screen, at most once in 30 s |
+| `daemon.kept`, `daemon.replaceAsked`, `daemon.replaceWhenDone` | app | a daemon of another version left running, with how much it runs; replacing it, asked for or once nothing would stop |
+| `restart.plan`, `restart.noted`, `restart.tabAgent`, `restart.carryOn` | daemon | what a restart would stop; what was noted of a session as the daemon stopped; an agent brought back in a terminal; an agent told to carry on |
 | `logs.swept` | both | files and bytes removed |
 | `log.dropped` | both | lines lost because the writer fell behind |
 

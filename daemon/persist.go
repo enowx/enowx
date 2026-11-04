@@ -27,11 +27,16 @@ const (
 
 // record is a session as saved on disk.
 type record struct {
-	ID       string               `json:"id"`
-	Created  time.Time            `json:"created"`
-	Dir      string               `json:"dir"`
-	Command  []string             `json:"command,omitempty"`
-	Relaunch bool                 `json:"relaunch,omitempty"`
+	ID       string    `json:"id"`
+	Created  time.Time `json:"created"`
+	Dir      string    `json:"dir"`
+	Command  []string  `json:"command,omitempty"`
+	Relaunch bool      `json:"relaunch,omitempty"`
+	// What the daemon's stopping noted, for the next one alone: an update of the record
+	// forgets it, as it no longer holds.
+	MidTurn  bool                 `json:"midTurn,omitempty"`      // its agent was at work
+	TabAgent []string             `json:"tabAgent,omitempty"`     // an agent run by hand in its terminal, to bring back
+	Lost     []string             `json:"lost,omitempty"`         // what ran in its terminal, which can't come back
 	Restart  []string             `json:"restart,omitempty"`      // nil with Relaunch: the login shell
 	Convo    string               `json:"conversation,omitempty"` // Meta.Conversation
 	Exited   bool                 `json:"exited,omitempty"`
@@ -196,6 +201,26 @@ func (p *persistence) loadHistory(id string) []byte {
 
 // stopping marks the daemon as stopping: the sessions it hangs up next are
 // relaunched at the next start, not recorded as exited.
+// restartNote is what a daemon's stopping notes of a session.
+type restartNote struct {
+	midTurn  bool
+	tabAgent []string
+	lost     []string
+}
+
+// noteRestart keeps note in session id's record, for the next daemon.
+func (p *persistence) noteRestart(id string, note restartNote) {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	r, known := p.records[id]
+	if !known || p.closing {
+		return
+	}
+	r.MidTurn, r.TabAgent, r.Lost = note.midTurn, note.tabAgent, note.lost
+	p.records[id] = r
+	p.saveLocked()
+}
+
 func (p *persistence) stopping() {
 	p.mu.Lock()
 	p.closing = true
@@ -245,6 +270,10 @@ func (s *Server) restore() {
 				Hibernated: r.Hibernated, HibernatedByHand: r.HibernatedByHand, HibernatedAt: r.HibernatedAt, NoAutoHibernate: r.NoAutoHibernate,
 			},
 		}
+		for _, what := range r.Lost {
+			line := "\r\n\x1b[33m── This was running here, and ended when the daemon restarted: " + what + " ──\x1b[0m"
+			spec.History = append(spec.History, line...)
+		}
 		_, dirErr := os.Stat(r.Dir)
 		if r.Exited || !r.Relaunch || dirErr != nil {
 			s.exitsLogged.Store(r.ID, true) // ended with an earlier daemon
@@ -283,6 +312,10 @@ func (s *Server) restore() {
 				spec.Command = thenShell(preset.Argv(l))
 				spec.Meta.Restart = spec.Command
 			}
+			if len(r.TabAgent) > 0 {
+				spec.Command = thenShell(r.TabAgent) // not a bare shell, which what is sent to it would run
+				s.Diag.Event("restart.tabAgent", "session", r.ID, "agent", r.TabAgent[0])
+			}
 			if r.Display {
 				// A new display: the old one went with the daemon.
 				if disp, err := s.displays.start(r.ID); err == nil {
@@ -302,6 +335,7 @@ func (s *Server) restore() {
 			continue
 		}
 		s.persist.update(sess, r.Command)
+		s.restored(sess, r)
 	}
 }
 

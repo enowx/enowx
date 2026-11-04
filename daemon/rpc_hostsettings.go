@@ -31,6 +31,7 @@ var hostSettingHandlers = map[string]handler{
 	proto.MethodDaemonLog: with(func(c *conn, p proto.DaemonLogParams) (any, error) {
 		return c.srv.logTail(max(p.Lines, 1)), nil
 	}),
+	proto.MethodDaemonRestartPlan: bare(func(c *conn) (any, error) { return c.srv.restartPlan(), nil }),
 	proto.MethodDaemonDiagnostics: bare(func(c *conn) (any, error) { return c.srv.diagnostics(), nil }),
 	proto.MethodDaemonRestart: bare(func(c *conn) (any, error) {
 		// After the answer is out: the app reconnects, which starts the

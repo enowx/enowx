@@ -60,6 +60,9 @@ type Server struct {
 	// Diag receives the connections' events, for later (core/diag); nil discards them.
 	Diag *diag.Log
 
+	restartLostMu sync.Mutex
+	restartLost   []proto.RestartItem // what the last restart ended (restart.go)
+
 	sessions          *session.Manager
 	projects          *project.Store
 	notes             *notes.Store
@@ -339,6 +342,7 @@ func (s *Server) Close() {
 		s.stopShares()
 		s.shares.mu.Unlock()
 		s.projWatches.stopAll()
+		s.noteForRestart()
 		s.persist.stopping()
 		var tags []tag
 		for _, sess := range s.sessions.List() {

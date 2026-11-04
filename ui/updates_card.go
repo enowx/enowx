@@ -14,12 +14,13 @@ import (
 // cornerCards are the cards over the window's bottom right corner: a new
 // version, teams deleted, then ports a session opened.
 func (a *App) cornerCards(c *ui.Context) {
-	if !a.showsUpdateCard() && !a.spacesGoneShown() && !a.showsVideoCard() && (len(a.portOffers) == 0 || a.client == nil) {
+	if !a.showsUpdateCard() && !a.showsDaemonBehindCard() && !a.spacesGoneShown() && !a.showsVideoCard() && (len(a.portOffers) == 0 || a.client == nil) {
 		return
 	}
 	ui.Column(c.Key("corner-cards")).Absolute().Right(theme.S4).Bottom(40).Width(340).Gap(theme.S2).TextColor(theme.Text).Children(func() {
 		a.videoCard(c.Key("video"))
 		a.updateCard(c.Key("update"))
+		a.daemonBehindCard(c.Key("daemon-behind"))
 		a.spacesGoneCards(c)
 		a.portOfferCards(c)
 	})
@@ -54,7 +55,7 @@ func (a *App) updateCard(c *ui.Context) {
 						title = fmt.Sprintf("Updating to %s · %d%%", v.Version, u.done*100/u.total)
 					}
 				case updateReady:
-					title, detail = "enowX "+v.Version+" is installed", "Restart to run it: your sessions come back, agents on their conversations."
+					title, detail = "enowX "+v.Version+" is installed", "Restart to run it: your sessions keep running. Their daemon updates when that stops nothing, or when you say so."
 				}
 				widget.Running(c, title, widget.RunStyle{Weight: 500})
 				ui.Text(c, detail).FontSize(theme.TextLabel).TextColor(theme.TextSoft)
