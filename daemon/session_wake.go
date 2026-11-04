@@ -148,14 +148,14 @@ func (s *Server) bringBack(id string, l *wakeLine) {
 func (s *Server) wakeSession(id string) (*session.Session, error) {
 	w := &s.wakes
 	w.mu.Lock()
-	if w.lines[id] != nil {
-		w.mu.Unlock()
-		return s.sessions.Get(id)
-	}
 	sess, err := s.sessions.Get(id)
 	if err != nil || !sess.Info().Exited {
 		w.mu.Unlock()
 		return s.continueSession(id) // says why not
+	}
+	if w.lines[id] != nil {
+		w.mu.Unlock()
+		return sess, nil // on its way back
 	}
 	l := w.open(id, true)
 	w.mu.Unlock()
