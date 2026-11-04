@@ -94,6 +94,18 @@ func TestBypassScratchpadFromTheHook(t *testing.T) {
 	}
 }
 
+// What a built-in plugin asks of a command holding the account's email passes; with a
+// push in it, it stays the owner's, whatever made it ask.
+func TestBypassOnAPrivacyPrompt(t *testing.T) {
+	bypassSession(t)
+	if out := permissionHook(bypassMode, "curl -s -d email=me@example.com http://127.0.0.1:9/"); !allowed(out) {
+		t.Fatalf("%q", out)
+	}
+	if out := permissionHook(bypassMode, "git -c user.email=me@example.com commit -m x && git push origin next"); allowed(out) {
+		t.Fatalf("%q", out)
+	}
+}
+
 // A session not in bypass asks as before, and nothing is logged as answered.
 func TestNotInBypassStillAsks(t *testing.T) {
 	srv, _ := bypassSession(t)

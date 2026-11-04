@@ -353,9 +353,12 @@ func (s *Server) goaWorkerChanged(info proto.SessionInfo) {
 		head := fmt.Sprintf("[enowX GOA] Task %s %q (%s)", t.ID, t.Title, where)
 		switch status {
 		case proto.GOATaskTurnEnded:
-			said := s.goaResult(t)
+			said := nonEmpty(info.TurnText, "")
+			if said == "" {
+				said = s.goaResult(t)
+			}
 			t, _ = s.goa.board.Update(t.ID, func(t *proto.GOATask) { t.Said = said })
-			s.goaTellLine(goaLine{Task: t.ID, Session: t.Session, Text: head + " finished a turn, which may be mid-work: " + clip(oneLine(said), goaResultMax) + " Check it (chat " + t.Session + hostFlag + "), then settle it: goa task " + t.ID + " --status done|failed --result \"…\"."})
+			s.goaTellTurnEnd(goaLine{Task: t.ID, Session: t.Session, Text: head + " finished a turn, which may be mid-work: " + clip(oneLine(said), goaResultMax) + " Check it (chat " + t.Session + hostFlag + "), then settle it: goa task " + t.ID + " --status done|failed --result \"…\"."}, said)
 		case proto.GOATaskWaiting:
 			ask := s.goaAskOf(t)
 			t, _ = s.goa.board.Update(t.ID, func(t *proto.GOATask) { t.Asks, t.Urgent = askLine(ask), ask.Urgent })
@@ -453,7 +456,7 @@ func (s *Server) goaReportSeen(info proto.SessionInfo) {
 	})
 	for _, t := range changed {
 		where, hostFlag := goaTaskPlace(t)
-		s.goaTellLine(goaLine{Task: t.ID, Session: t.Session, Text: fmt.Sprintf("[enowX GOA] Task %s %q (%s) reports %s: %s Check it (chat %s%s), then settle it: goa task %s --status done|failed --result \"…\".", t.ID, t.Title, where, t.Outcome, clip(oneLine(t.Said), goaResultMax), t.Session, hostFlag, t.ID)})
+		s.goaTellReport(info, goaLine{Task: t.ID, Session: t.Session, Text: fmt.Sprintf("[enowX GOA] Task %s %q (%s) reports %s: %s Check it (chat %s%s), then settle it: goa task %s --status done|failed --result \"…\".", t.ID, t.Title, where, t.Outcome, clip(oneLine(t.Said), goaResultMax), t.Session, hostFlag, t.ID)})
 	}
 	if len(changed) > 0 {
 		s.goaChanged()
@@ -499,13 +502,24 @@ func (s *Server) goaResult(t proto.GOATask) string {
 	if g, ok := s.goaSession(); ok {
 		from = g.ID
 	}
-	var tr proto.Transcript
-	if err := s.goaCall(from, t.Host, proto.MethodSessionTranscript, proto.TranscriptParams{ID: t.Session, Tail: 20}, &tr); err == nil {
-		for i := len(tr.Entries) - 1; i >= 0; i-- {
-			if e := tr.Entries[i]; e.Kind == proto.TranscriptAssistant && strings.TrimSpace(e.Text) != "" {
-				return clip(strings.TrimSpace(e.Text), goaResultMax)
-			}
+	// Never a message from before the turn's end: wait for the transcript to have it.
+	deadline := time.Now().Add(turnEndWait)
+	for {
+		var tr proto.Transcript
+		err := s.goaCall(from, t.Host, proto.MethodSessionTranscript, proto.TranscriptParams{ID: t.Session, Tail: 20}, &tr)
+		if err != nil {
+			break // it has none: its screen says
 		}
+		if text, ok := turnEndIn(tr.Entries); ok {
+			return clip(text, goaResultMax)
+		}
+		if time.Now().After(deadline) {
+			if len(tr.Entries) == 0 {
+				break
+			}
+			return "(its last message isn't in its transcript yet: chat " + t.Session + " shows it)"
+		}
+		time.Sleep(turnEndEvery)
 	}
 	var sc proto.SessionScreen
 	if err := s.goaCall(from, t.Host, proto.MethodSessionScreen, proto.SessionRef{ID: t.Session}, &sc); err != nil {

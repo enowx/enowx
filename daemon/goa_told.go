@@ -157,6 +157,9 @@ func (s *Server) goaMarkTold(from, host, id string) {
 // goaToldChanged tells GOA of a session it sent something to, with no task, as it
 // is told of a worker: its report, its turn's end, what it asks, its end.
 func (s *Server) goaToldChanged(info proto.SessionInfo) {
+	if info.State == proto.StateWorking {
+		s.goaTurnStarted(info.ID)
+	}
 	s.goa.mu.Lock()
 	was, told := s.goa.told[info.ID]
 	if !told {
@@ -185,14 +188,21 @@ func (s *Server) goaToldChanged(info proto.SessionInfo) {
 	s.saveGOATold()
 	t := proto.GOATask{Session: info.ID}
 	if info.ReportAt > was.ReportAt {
-		s.goaTellAbout(info.ID, fmt.Sprintf("[enowX GOA] Session %s, which you sent something to, reports %s: %s", info.ID, info.ReportOutcome, clip(oneLine(info.Report), goaResultMax)))
-		if status == was.Status || status == proto.GOATaskTurnEnded {
-			return // that was its turn's end
+		s.goaTellReport(info, goaLine{Session: info.ID, Text: fmt.Sprintf("[enowX GOA] Session %s, which you sent something to, reports %s: %s", info.ID, info.ReportOutcome, clip(oneLine(info.Report), goaResultMax))})
+		if status == was.Status {
+			return // what it reports is all there is to say
+		}
+		if status != proto.GOATaskTurnEnded {
+			return // its turn goes on: its end joins the report
 		}
 	}
 	switch status {
 	case proto.GOATaskTurnEnded:
-		s.goaTellAbout(info.ID, fmt.Sprintf("[enowX GOA] Session %s, which you sent something to, finished a turn: %s", info.ID, clip(oneLine(s.goaResult(t)), goaResultMax)))
+		said := info.TurnText
+		if said == "" {
+			said = s.goaResult(t)
+		}
+		s.goaTellTurnEnd(goaLine{Session: info.ID, Text: fmt.Sprintf("[enowX GOA] Session %s, which you sent something to, finished a turn: %s", info.ID, clip(oneLine(said), goaResultMax))}, said)
 	case proto.GOATaskWaiting:
 		s.goaTellAbout(info.ID, fmt.Sprintf("[enowX GOA] Session %s, which you sent something to, asks something: %s", info.ID, clip(oneLine(s.goaResult(t)), goaResultMax)))
 	case proto.GOATaskFailed, proto.GOATaskStopped:

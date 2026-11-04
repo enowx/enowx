@@ -50,6 +50,12 @@ func (s *Server) sessionHook(p proto.SessionHookParams) (proto.HookDecision, err
 		}
 		return proto.HookDecision{Approve: true}, nil
 	}
+	switch p.Event.Event {
+	case proto.HookTurnDone:
+		s.sessions.NoteTurnText(sess, s.maskLent(p.Event.LastMessage))
+	case proto.HookPromptStart:
+		s.sessions.NoteTurnText(sess, "")
+	}
 	if p.State != "" {
 		if err := s.sessions.SetState(sess, p.State); err != nil {
 			return proto.HookDecision{}, err

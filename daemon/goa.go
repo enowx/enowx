@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 	"slices"
 	"sync"
+	"time"
 
 	"github.com/enowx/enowx/core/agent"
 	"github.com/enowx/enowx/core/goa"
@@ -209,6 +210,9 @@ func (s *Server) goaSeen(info proto.SessionInfo) {
 // from the app for another host's: the board, then its next queued task if it can
 // take one.
 func (s *Server) goaWorkerSeen(info proto.SessionInfo) {
+	if info.State == proto.StateWorking {
+		s.goaTurnStarted(info.ID)
+	}
 	s.goaReportSeen(info)
 	s.goaWorkerChanged(info)
 	if info.State == proto.StateDone || info.Exited && !info.Hibernated {
@@ -249,6 +253,13 @@ type goaLine struct {
 	// Soft: it only says to look. It never keeps GOA's turn going, and reading the
 	// session takes it back.
 	Soft bool `json:"soft,omitempty"`
+	// Turn says it tells of a turn (goa_turnline.go): a report (goaLineReport) or its
+	// end (goaLineTurn). Those of one turn become one line.
+	Turn string `json:"turn,omitempty"`
+	// Closed: its turn is over and told, so nothing more merges into it.
+	Closed bool `json:"closed,omitempty"`
+	// HoldUntil keeps a report back for its turn's end to join it.
+	HoldUntil time.Time `json:"holdUntil,omitzero"`
 }
 
 // goaTellMax bounds what waits for a GOA that never comes back, the oldest going.
@@ -263,6 +274,9 @@ func (s *Server) goaTellLine(line goaLine) {
 		return
 	}
 	s.goa.mu.Lock()
+	if line.Turn == "" && line.Session != "" {
+		releaseHeld(s.goa.tell, line.Session) // what it says of the session comes first
+	}
 	s.goa.tell = append(s.goa.tell, line)
 	if over := len(s.goa.tell) - goaTellMax; over > 0 {
 		s.goa.tell = slices.Delete(s.goa.tell, 0, over)
@@ -327,16 +341,23 @@ func (s *Server) goaFlushIdle() {
 
 // goaLinesToSay takes what waits for GOA, less what its task's end made moot.
 func (s *Server) goaLinesToSay() []goaLine {
+	now := time.Now()
 	s.goa.mu.Lock()
 	lines := s.goa.tell
 	s.goa.tell = nil
-	s.goa.mu.Unlock()
+	// Of a session, nothing goes past what it holds back; another session's go on.
+	held := map[string]bool{}
 	var out []goaLine
 	for _, l := range lines {
-		if l.Task == "" || !s.goa.board.IsSettled(l.Task) {
+		switch {
+		case l.HoldUntil.After(now) || held[l.Session] && l.Session != "":
+			held[l.Session] = true
+			s.goa.tell = append(s.goa.tell, l)
+		case l.Task == "" || !s.goa.board.IsSettled(l.Task):
 			out = append(out, l)
 		}
 	}
+	s.goa.mu.Unlock()
 	return out
 }
 

@@ -85,6 +85,8 @@ type Meta struct {
 	// Note is what the session is at, as its agent or the user last said
 	// (SessionInfo.Note).
 	Note string
+	// TurnText is the message its last turn ended on, when its agent's hook says.
+	TurnText string
 	// Report, ReportOutcome and ReportAt are its agent's last report of a turn
 	// (SessionInfo). They don't outlast the daemon, their news having gone.
 	Report        string
@@ -207,6 +209,7 @@ func (s *Session) Info() proto.SessionInfo {
 		Report:          s.meta.Report,
 		ReportOutcome:   s.meta.ReportOutcome,
 		ReportAt:        s.meta.ReportAt,
+		TurnText:        s.meta.TurnText,
 		Group:           s.meta.Group,
 		Account:         s.meta.Account,
 		Config:          cloneConfig(s.meta.Config),

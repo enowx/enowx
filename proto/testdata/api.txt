@@ -1315,6 +1315,7 @@ field HookEvent.exit int
 field HookEvent.failed bool
 field HookEvent.host string
 field HookEvent.kind string
+field HookEvent.lastMessage string
 field HookEvent.message string
 field HookEvent.op string
 field HookEvent.paths []string
@@ -2024,6 +2025,7 @@ field SessionInfo.skipUnheard bool
 field SessionInfo.state string
 field SessionInfo.stateStale bool
 field SessionInfo.title string
+field SessionInfo.turnText string
 field SessionInfo.worked int64
 field SessionInfo.worktree bool
 field SessionInputParams.enter bool

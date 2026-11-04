@@ -192,6 +192,8 @@ type HookEvent struct {
 	PermissionMode string `json:"permissionMode,omitempty"`
 	// Scratchpad is the agent's own folder for scratch files, if it says.
 	Scratchpad string `json:"scratchpad,omitempty"`
+	// LastMessage is the turn's last message, from an agent whose turn-end hook says it.
+	LastMessage string `json:"lastMessage,omitempty"`
 	// Via is how it was seen (HookInAgent, HookOutside).
 	Via  string    `json:"via,omitempty"`
 	Time time.Time `json:"time"`

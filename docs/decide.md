@@ -31,6 +31,8 @@ Every use is **on** until the user turns it off (Settings → Decisions → Uses
 | Others that report no mode | The screen: enowX presses allow if the session started in bypass and it knows the agent's keys | **Not run.** A prompt it can't read or has no keys for stays the user's |
 | An agent run by hand in a shell tab | Nothing new: it isn't known to be in bypass | |
 
+Claude Code's built-in plugin `cc-plugin-privacy` is one such asker: it asks when a command that reaches out holds the account's email. It isn't in `claude plugin list`, which shows installed plugins only. The policy answers it (run on 2.1.318), unless the command is the owner's by the rules above, as one with `git push` is, whatever made it ask.
+
 No hook can tell Claude Code's `PermissionRequest` who asked: the log says it was the agent's prompt, not which hook. Its built-in checks on `rm` and on `.git` and `.claude` paths didn't prompt under bypass on 2.1.318 for literal paths, so nothing was seen to answer there.
 
 **Approving commands and trimming** act through hooks ([hooks.md](hooks.md)). While their use is on, enowX adds its own built-in hook for each, with no hook to add (`core/hooks/builtin.go`); a `tool.before` hook of the user's with the same action replaces the built-in one, its conditions then saying which commands are covered. GOD of Agents and its workers are judged by GOA instead ([goa.md](goa.md)). Settings → Decisions → Uses has **Set your own…** for each, to change what it covers:
