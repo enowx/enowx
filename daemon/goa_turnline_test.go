@@ -139,13 +139,58 @@ func TestTwoRealTurnsHaveTwoLines(t *testing.T) {
 	srv, w, _ := turnFixture(t)
 	report(srv, w, proto.StateWorking, "First done.", 1)
 	turnDone(t, srv, w, "first message")
-	srv.goaTurnStarted(w.ID())
-	_, _ = srv.goa.board.Update(srv.goa.board.List()[0].ID, func(x *proto.GOATask) { x.Status = proto.GOATaskWorking })
+	// Its next turn, as a real one starts: the session at work, which its first turn's
+	// end, still on its way, finds stale, and which GOA hears of.
+	if err := srv.sessions.SetState(w, proto.StateWorking); err != nil {
+		t.Fatal(err)
+	}
+	waitFor(t, "the board to say working", func() bool { return srv.goa.board.List()[0].Status == proto.GOATaskWorking })
 	report(srv, w, proto.StateWorking, "Second done.", 2)
 	turnDone(t, srv, w, "second message")
 	lines := waitingOf(srv)
-	if len(lines) != 2 || !strings.Contains(lines[0], "first message") || !strings.Contains(lines[1], "second message") {
+	if len(lines) != 2 || !strings.Contains(lines[0], "first message") || !strings.Contains(lines[1], "second message") || strings.Contains(lines[1], "first message") {
 		t.Fatalf("%q", lines)
+	}
+}
+
+// What else changes of a session done with its turn, as its report or last message do,
+// while a queued task is being typed into it is of the turn before: that task isn't done
+// by it, and what that task's agent reports doesn't join it.
+func TestLateTurnEndDoesntTakeAQueuedTask(t *testing.T) {
+	srv, w, first := turnFixture(t)
+	turnDone(t, srv, w, "first message")
+	if _, err := srv.goa.board.Update(first.ID, func(x *proto.GOATask) { x.Status = proto.GOATaskDone }); err != nil {
+		t.Fatal(err)
+	}
+	queued, err := srv.goa.board.Add(proto.GOATask{Title: "Next", Session: w.ID(), Status: proto.GOATaskQueued, Prompt: "next thing"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	late := w.Info()
+	stop, stopped := make(chan struct{}), make(chan struct{})
+	go func() {
+		defer close(stopped)
+		for {
+			select {
+			case <-stop:
+				return
+			default:
+				srv.goaWorkerChanged(late)
+				time.Sleep(5 * time.Millisecond)
+			}
+		}
+	}()
+	srv.goaDeliver(late)
+	close(stop)
+	<-stopped
+	if st := taskStatus(t, srv, queued.ID).Status; st != proto.GOATaskWorking {
+		t.Fatalf("given the next task, it says %s", st)
+	}
+	report(srv, w, proto.StateWorking, "Next done.", 9)
+	for _, l := range waitingOf(srv) {
+		if strings.Contains(l, "Next done.") && strings.Contains(l, "first message") {
+			t.Fatalf("joined the turn before's: %q", l)
+		}
 	}
 }
 

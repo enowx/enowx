@@ -240,6 +240,9 @@ func (s *Server) goaDeliverNext(info proto.SessionInfo) bool {
 	if g, ok := s.goaSession(); ok {
 		from = g.ID
 	}
+	// Until it's typed the session still says done, of the turn before this task's.
+	s.goa.giving.Store(next.Session, true)
+	defer s.goa.giving.Delete(next.Session)
 	// Claimed first: a turn's end and the stall watch may both come to give it.
 	claimed := false
 	_, _ = s.goa.board.Update(next.ID, func(t *proto.GOATask) {
@@ -333,6 +336,9 @@ const goaTurnLeast = 3 * time.Second
 // session is no longer done, a task having been typed in since; on another host, which
 // can't be asked as simply, it came just after the task was given.
 func (s *Server) goaTurnStale(info proto.SessionInfo, t proto.GOATask) bool {
+	if _, giving := s.goa.giving.Load(info.ID); giving {
+		return true
+	}
 	if sess, err := s.sessions.Get(info.ID); err == nil {
 		return sess.Info().State != proto.StateDone
 	}

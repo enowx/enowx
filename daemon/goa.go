@@ -49,6 +49,10 @@ type goaState struct {
 	// asleep are the sessions on other hosts last heard hibernated.
 	asleep map[string]bool
 
+	// giving are the sessions a queued task is being typed into. Apart from mu: it is
+	// read within the board's lock.
+	giving sync.Map
+
 	// waking are the sessions being brought back for a queued task (queuedWake).
 	waking map[string]bool
 
