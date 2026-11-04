@@ -164,6 +164,9 @@ func (s *Server) info(w http.ResponseWriter, r *http.Request) {
 	if s.library != nil {
 		in.Features = append(in.Features, api.FeatureLibrary)
 		in.LibraryURL = s.cfg.Library.PublicURL
+		if s.library.MeaningOn() {
+			in.Features = append(in.Features, api.FeatureLibraryMeaning)
+		}
 	}
 	s.reply(w, in)
 }

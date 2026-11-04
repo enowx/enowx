@@ -16,6 +16,7 @@ import (
 	"time"
 
 	"github.com/enowx/enowx/cloud/blobstore"
+	"github.com/enowx/enowx/cloud/library"
 	"github.com/enowx/enowx/cloud/server"
 	"github.com/enowx/enowx/cloud/store"
 	"github.com/enowx/enowx/version"
@@ -79,6 +80,10 @@ func run(log *slog.Logger) error {
 		}
 		cfg.Library = &server.LibraryConfig{Blobs: cfg.Blobs, Prefix: env("ENOWX_CLOUD_LIBRARY_PREFIX", ""), PublicURL: env("ENOWX_CLOUD_LIBRARY_PUBLIC_URL", ""),
 			ReturnURL: env("ENOWX_CLOUD_LIBRARY_RETURN_URL", ""), WebSecret: env("ENOWX_CLOUD_LIBRARY_WEB_SECRET", ""), AdminTeam: env("ENOWX_CLOUD_LIBRARY_ADMIN_TEAM", "")}
+		// Searching by meaning: off unless the owner names an embedder.
+		if base := env("ENOWX_CLOUD_LIBRARY_EMBED_URL", ""); base != "" {
+			cfg.Library.Embedder = library.NewHTTPEmbedder(base, env("ENOWX_CLOUD_LIBRARY_EMBED_MODEL", ""), os.Getenv("ENOWX_CLOUD_LIBRARY_EMBED_KEY"))
+		}
 	}
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()

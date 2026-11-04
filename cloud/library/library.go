@@ -42,6 +42,8 @@ type Config struct {
 	WebSecret string
 	// AdminTeam is the team whose owner and admins moderate.
 	AdminTeam string
+	// Embedder turns on searching by meaning; nil leaves it off.
+	Embedder Embedder
 }
 
 // DefaultPrefix is where the library's objects are in the store it shares.
@@ -73,6 +75,10 @@ type Service struct {
 	// burst of them can't take the memory of the server teams use.
 	objects     blobstore.Store
 	objectReads chan struct{}
+	// vectors is meaning search's store, nil while that's off; set in New, then
+	// only read. embeds holds a place per search's call to the embedder.
+	vectors *store.LibraryVectors
+	embeds  chan struct{}
 }
 
 // publicReads is the most public reads at work at once.
@@ -91,7 +97,8 @@ func New(cfg Config, host Host, db *store.DB, log *slog.Logger) (*Service, error
 	if err != nil {
 		return nil, fmt.Errorf("library: %w", err)
 	}
-	s := &Service{cfg: cfg, host: host, db: db, log: log, reads: make(chan struct{}, publicReads), objects: objects, objectReads: make(chan struct{}, objectsAtOnce)}
+	s := &Service{cfg: cfg, host: host, db: db, log: log, reads: make(chan struct{}, publicReads), objects: objects, objectReads: make(chan struct{}, objectsAtOnce), embeds: make(chan struct{}, embedsAtOnce)}
+	s.openMeaning()
 	return s, nil
 }
 
@@ -128,6 +135,8 @@ func (s *Service) Mount(mux *http.ServeMux) {
 	handle("POST "+api.PathLibraryModerators, s.owner(s.appoint))
 	handle("DELETE "+api.PathLibraryModerator, s.owner(s.dismiss))
 
+	s.mountSearch(mux)
+
 	handle("GET "+api.PathLibraryAuthorize, s.authorize)
 	handle("POST "+api.PathLibraryExchange, s.webOnly(s.exchange))
 	handle("POST "+api.PathLibrarySignOut, s.signOut)
@@ -136,6 +145,9 @@ func (s *Service) Mount(mux *http.ServeMux) {
 // Sweep goes until ctx ends: objects past their time go, and a bucket nearing
 // its limits is said in the log.
 func (s *Service) Sweep(ctx context.Context) {
+	if s.MeaningOn() {
+		go s.embedLoop(ctx)
+	}
 	tick := time.NewTicker(time.Hour)
 	defer tick.Stop()
 	for {
