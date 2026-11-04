@@ -232,6 +232,15 @@ func (v *View) WebOf(make func() *Web) *Web {
 	return v.web
 }
 
+// Unload lets go of what only showing the canvas needs: its web view, whose page is a
+// process of its own, and its pictures, which the disk keeps. Drawing again brings them back.
+func (v *View) Unload() {
+	if v.web != nil {
+		v.web.Close()
+	}
+	v.thumbs, v.htmlKeys = nil, nil
+}
+
 // Web is the view's web view of mockups, nil before WebOf made one.
 func (v *View) Web() *Web { return v.web }
 

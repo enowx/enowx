@@ -266,6 +266,7 @@ type App struct {
 	sessions   []proto.SessionInfo
 	panes      map[string]*pane // the terminals attached (panes.go), nil while attaching
 	paneSeen   map[string]time.Time
+	canvasLeft time.Time // when the Canvas page was noticed left (panes.go)
 	// removed remembers killed sessions, so a late update can't revive them.
 	removed map[string]bool
 
@@ -419,7 +420,10 @@ func (a *App) Open() *mygo.Window {
 		for range time.Tick(time.Minute) {
 			a.onMain(a.vaultTick)
 			a.onMain(a.notionSyncTick)
-			a.onMain(func() { a.unloadPanes(time.Now()) })
+			a.onMain(func() {
+				a.unloadPanes(time.Now())
+				a.unloadCanvasPage(time.Now())
+			})
 		}
 	}()
 	a.setUpTray()

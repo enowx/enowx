@@ -60,6 +60,22 @@ func (a *App) withPane(id string, use func(*pane), failed func()) {
 	time.AfterFunc(50*time.Millisecond, func() { a.onMain(again) })
 }
 
+// canvasKeep is how long the Canvas page's web view and pictures stay once it is left.
+const canvasKeep = 2 * time.Minute
+
+// unloadCanvasPage lets go of the Canvas page's heavy parts once it has been left a while.
+// It runs on the main thread.
+func (a *App) unloadCanvasPage(now time.Time) {
+	switch {
+	case a.page == pageCanvas:
+		a.canvasLeft = time.Time{}
+	case a.canvasLeft.IsZero():
+		a.canvasLeft = now
+	case now.Sub(a.canvasLeft) > canvasKeep:
+		a.canvases.Unload()
+	}
+}
+
 // errNotAttached is what withPane's failure comes to.
 var errNotAttached = errors.New("the session isn't attached yet")
 
