@@ -8,6 +8,7 @@ var adapters = []adapter{
 	{agent: "openclaude", files: claudeLike([]string{"OPENCLAUDE_CONFIG_DIR"}, ".openclaude"), read: readClaudeAs("openclaude")},
 	{agent: "zcode", files: claudeLike(nil, ".zcode"), read: readClaudeAs("zcode")},
 	{agent: "qoder", files: claudeLike([]string{"QODER_CONFIG_DIR"}, ".qoder"), read: readClaudeAs("qoder")},
+	{agent: "claude-platform", files: platformFiles, read: readPlatform},
 	{agent: "codex", files: codexFiles, read: readCodex},
 	{agent: "pi", files: piFiles, read: readPi},
 	{agent: "omp", files: ompFiles, read: readPi},
@@ -52,6 +53,7 @@ const (
 var coverage = []proto.TokenCoverage{
 	{Agent: "claude", Layer: proto.TokenLayerRecords, Checked: true, Records: recordsOfClaude, Where: "~/.claude/projects/<folder>/*.jsonl"},
 	{Agent: "claude-agent-teams", Layer: proto.TokenLayerRecords, Checked: true, Records: "Claude Code's, its teammates' included", Where: "~/.claude/projects/<folder>/*.jsonl"},
+	{Agent: "claude-platform", Layer: proto.TokenLayerRecords, Checked: true, Records: "each answer: input, cache read, cache write, output, cost; model (subagents too)", Where: "~/.enowx-app/agent-sessions/<session>/*.jsonl, ~/.enowx-app/claude-platform/sessions/*.jsonl"},
 	{Agent: "openclaude", Layer: proto.TokenLayerRecords, Records: recordsOfClaude, Where: "~/.openclaude/projects/<folder>/*.jsonl"},
 	{Agent: "zcode", Layer: proto.TokenLayerRecords, Records: "Claude Code's shape, its usage when it writes one (unconfirmed)", Where: "~/.zcode/projects/<folder>/*.jsonl"},
 	{Agent: "qoder", Layer: proto.TokenLayerRecords, Records: "Claude Code's shape, its usage when it writes one (undocumented)", Where: "~/.qoder/projects/<folder>/*.jsonl"},
