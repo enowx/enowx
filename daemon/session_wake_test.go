@@ -9,6 +9,7 @@ import (
 	"strings"
 	"sync"
 	"testing"
+	"time"
 
 	"github.com/enowx/enowx/client"
 	"github.com/enowx/enowx/proto"
@@ -349,5 +350,63 @@ func TestGOABoardAndBlockedReportSayAsleep(t *testing.T) {
 	}
 	if said := srv.goaAsleepNamed("", "blocked", "other", "waiting for "+info.ID); said != "" {
 		t.Fatalf("it's awake: %q", said)
+	}
+}
+
+// Woken and hibernated again before its agent was ready, as a user may, then sent to at
+// once: what still waited for that first waking is no answer, and the message brings it
+// back anew and arrives once. Nothing of stopping the old program reaches the new one:
+// past every grace it still takes a message.
+func TestHibernateWhileComingBackThenSend(t *testing.T) {
+	starts, lines := wakeAgent(t)
+	srv := startServer(t)
+	c := connect(t, srv, nil)
+	info := asleepAgent(t, srv, c, starts)
+	if _, err := c.WakeSession(info.ID); err != nil {
+		t.Fatal(err)
+	}
+	if res, err := c.HibernateSessions(proto.SessionHibernateParams{IDs: []string{info.ID}, Force: true}); err != nil || len(res.Hibernated) != 1 {
+		t.Fatalf("hibernate again: %+v, %v", res, err)
+	}
+	res, err := sendTo(c, info.ID, "the first")
+	if err != nil || !res.Sent || !res.Woken {
+		t.Fatalf("sent: %+v, %v", res, err)
+	}
+	waitFor(t, "the message", func() bool { return len(linesOf(lines)) > 0 })
+	time.Sleep(reapGrace + procsHangup + time.Second)
+	if res, err = sendTo(c, info.ID, "the second"); err != nil || res.Woken {
+		t.Fatalf("sent later: %+v, %v", res, err)
+	}
+	waitFor(t, "the second message", func() bool { return len(linesOf(lines)) >= 2 })
+	if got := linesOf(lines); len(got) != 2 || got[0] != "the first" || got[1] != "the second" {
+		t.Fatalf("what arrived: %q", got)
+	}
+}
+
+// What waits in line as the session goes back to sleep starts over, and arrives once.
+func TestSendInLineWhenHibernatedAgainArrivesOnce(t *testing.T) {
+	starts, lines := wakeAgent(t)
+	srv := startServer(t)
+	c := connect(t, srv, nil)
+	info := asleepAgent(t, srv, c, starts)
+	if _, err := c.WakeSession(info.ID); err != nil {
+		t.Fatal(err)
+	}
+	sent := make(chan error, 1)
+	go func() {
+		_, err := sendTo(connect(t, srv, nil), info.ID, "in line")
+		sent <- err
+	}()
+	time.Sleep(50 * time.Millisecond)
+	if _, err := c.HibernateSessions(proto.SessionHibernateParams{IDs: []string{info.ID}, Force: true}); err != nil {
+		t.Fatal(err)
+	}
+	if err := <-sent; err != nil {
+		t.Fatal(err)
+	}
+	waitFor(t, "the message", func() bool { return len(linesOf(lines)) > 0 })
+	time.Sleep(time.Second)
+	if got := linesOf(lines); len(got) != 1 || got[0] != "in line" {
+		t.Fatalf("what arrived: %q", got)
 	}
 }
