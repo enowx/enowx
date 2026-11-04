@@ -9,7 +9,8 @@ import (
 
 // Respond is the built-in script: it answers with thinking and text; a prompt that says
 // "use a tool" calls the Bash and Read tools the request offers, then, given their
-// results, finishes; a request for a <summary> gets one.
+// results, finishes; a request for a <summary> gets one. A line "tool: NAME {input}" in a
+// prompt calls that tool with that input, for a person driving a session by hand.
 func Respond(req Request) Reply {
 	var body struct {
 		Tools []struct {
@@ -33,6 +34,9 @@ func Respond(req Request) Reply {
 		reply.Usage = usage
 		return reply
 	}
+	if blocks := namedCalls(text); len(blocks) > 0 {
+		return Reply{Blocks: blocks, Usage: usage}
+	}
 	if strings.Contains(strings.ToLower(text), "use a tool") {
 		blocks := []Block{Thinking("The user asked for a tool.", "sig-standin")}
 		for i, t := range body.Tools {
@@ -52,6 +56,23 @@ func Respond(req Request) Reply {
 		},
 		Usage: usage,
 	}
+}
+
+// namedCalls are the calls a prompt's "tool: NAME {input}" lines ask for.
+func namedCalls(text string) []Block {
+	var blocks []Block
+	for i, line := range strings.Split(text, "\n") {
+		rest, ok := strings.CutPrefix(strings.TrimSpace(line), "tool: ")
+		if !ok {
+			continue
+		}
+		name, input, ok := strings.Cut(rest, " ")
+		if !ok {
+			input = "{}"
+		}
+		blocks = append(blocks, ToolUse(fmt.Sprintf("toolu_named_%d", i), name, input))
+	}
+	return blocks
 }
 
 // lastUser is the text of the last user message, and whether it holds tool results.
