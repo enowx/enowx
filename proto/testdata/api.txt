@@ -1619,6 +1619,10 @@ field PipelineStartParams.project string
 field PipelineStartParams.skipPermissions bool
 field PipelineStartParams.stages []PipelineStage
 field PipelineStartParams.task string
+field PlatformPrompt.custom bool
+field PlatformPrompt.path string
+field PlatformPrompt.reset bool
+field PlatformPrompt.text string
 field PluginRun.ok bool
 field PluginRun.output string
 field PluginRunParams.action string
@@ -2966,6 +2970,8 @@ method pipeline.cancel
 method pipeline.list
 method pipeline.remove
 method pipeline.start
+method platform.prompt
+method platform.prompt.save
 method project.add
 method project.arrange
 method project.clone
