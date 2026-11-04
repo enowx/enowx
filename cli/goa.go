@@ -46,7 +46,9 @@ const goaUsage = `usage: enowx-app goa COMMAND
                                    how long a task may not move before GOA is told, on this host (90s, 10m; 0 its default)
   agents                           the agents GOA can run on, and how far each holds it
   flags                            what a GOA only watched did itself
-  start [--agent A]                start GOD of Agents on this host`
+  start [--agent A]                start GOD of Agents on this host
+  switch [--agent A] [--config NAME|official] [--check] [--new-conversation] [--force]
+                                   what GOA runs on; change it, restarting GOA: a config keeps its conversation (or GOA stays as it was), an agent starts a new one`
 
 // goaReport is a session reporting how its turn ended, to its own host's daemon.
 func (r runner) goaReport(args []string) error {
@@ -116,6 +118,8 @@ func (r runner) goaCmd(args []string) error {
 		return r.goaFlags()
 	case "start":
 		return r.goaStart(rest)
+	case "switch":
+		return r.goaSwitch(rest)
 	}
 	return errors.New(goaUsage)
 }
