@@ -29,7 +29,7 @@ const EnvSession = "ENOWX_SESSION"
 
 // Commands are the command line's commands, for the programs that also
 // do other things with their arguments to tell them apart.
-var Commands = []string{"ls", "list", "sessions", "peek", "status", "spawn", "send", "read", "wait", "kill", "hibernate", "wake", "agents", "projects", "project", "shells", "notes", "features", "creds", "canvas", "review", "sync", "cache", "diagnostics", "icons", "attach", "pipeline", "pipelines", "note", "automation", "automations", "hooks", "accounts", "configs", "rag", "decide", "usage", "browser", "traffic", "android", "mcp", "guide", "ports", "run", "api", "notify", "cloud", "team", "help",
+var Commands = []string{"ls", "library", "list", "sessions", "peek", "status", "spawn", "send", "read", "wait", "kill", "hibernate", "wake", "agents", "projects", "project", "shells", "notes", "features", "creds", "canvas", "review", "sync", "cache", "diagnostics", "icons", "attach", "pipeline", "pipelines", "note", "automation", "automations", "hooks", "accounts", "configs", "rag", "decide", "usage", "browser", "traffic", "android", "mcp", "guide", "ports", "run", "api", "notify", "cloud", "team", "help",
 	"interrupt", "stop", "continue", "fork", "rename", "close", "chat", "answer", "switch", "changes", "settings", "control", "goa"}
 
 // Is reports whether args start with one of Commands.
@@ -92,6 +92,7 @@ const usage = `usage: enowx-app <command> [arguments]
   notes [show|new|write|move|rm|import|export]
                                    the user's notes on this host ("notes help")
   icons search WORD [--lib L]      SVG icons for notes and groups (lib:name), by name and keyword
+  library open|ref|skill ITEM      take a design from the community library: a copy, a reference, a skill
   canvas COMMAND                   mockups, wireframes and diagrams the user watches built live
   review -                         as a design's independent reviewer: send the verdict (Score:, Issue:, Improve:, Keep:, Next:)
                                    ("canvas help"; "canvas guide" on designing them)
@@ -277,6 +278,8 @@ func (r runner) command(args []string) error {
 		return r.icons(rest)
 	case "canvas":
 		return r.canvasCmd(rest)
+	case "library":
+		return r.libraryUseCmd(rest)
 	case "review":
 		return r.review(rest)
 	case "attach":

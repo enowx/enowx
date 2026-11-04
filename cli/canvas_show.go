@@ -91,6 +91,7 @@ func (r runner) canvasNew(title string, f *canvasFlags) error {
 // canvasShow prints what an agent works from: frames, their elements by
 // id, and the comments still open.
 func (r runner) canvasShow(c proto.Canvas, f *canvasFlags) error {
+	r.canvasSourceLabel(c)
 	if *f.showHTML {
 		i, err := canvas.FrameIndex(c, *f.frame)
 		if err != nil {
