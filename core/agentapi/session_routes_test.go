@@ -241,3 +241,36 @@ func TestOpenCodeConfigFitsBothVersions(t *testing.T) {
 		}
 	}
 }
+
+// Claude Platform's key goes in its session's environment and nowhere else, and it has
+// no settings for one to be written to.
+func TestPlatformSessionKeyInItsEnvironmentAlone(t *testing.T) {
+	const key = "sk-ant-api03-test"
+	dir := t.TempDir()
+	l, err := SessionLaunch(platformID, API{BaseURL: "https://gw.example/", APIKey: key, Model: "m"}, dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	env := strings.Join(l.Env, "\n")
+	if !strings.Contains(env, "ANTHROPIC_BASE_URL=https://gw.example\n") || !strings.Contains(env, "ANTHROPIC_API_KEY="+key) {
+		t.Fatalf("env: %v", l.Env)
+	}
+	if strings.Join(l.Args, " ") != "--model m" || l.Settings != nil {
+		t.Fatalf("args: %v, settings: %v", l.Args, l.Settings)
+	}
+	if entries, _ := os.ReadDir(dir); len(entries) != 0 {
+		t.Fatalf("files: %v", entries)
+	}
+	if _, err := SessionLaunch(platformID, API{BaseURL: "https://gw.example", Protocol: OpenAI}, dir); err == nil {
+		t.Fatal("it speaks Anthropic's protocol alone")
+	}
+	if err := Set(t.TempDir(), platformID, API{BaseURL: "https://gw.example", APIKey: key}); err == nil {
+		t.Fatal("a key written in its settings")
+	}
+	if slices.Contains(Supported(), platformID) || !PerSession(platformID) {
+		t.Fatalf("supported: %v", Supported())
+	}
+	if a, err := Of(t.TempDir(), platformID); err != nil || a.Current != nil || a.Protocols[0] != Anthropic {
+		t.Fatalf("of: %+v, %v", a, err)
+	}
+}

@@ -160,6 +160,8 @@ func SettingsOf(id string) Settings {
 	switch id {
 	case "claude":
 		return claudeSettings
+	case PlatformID:
+		return platformSettings
 	case "codex":
 		return codexSettings
 	}

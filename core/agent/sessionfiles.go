@@ -34,6 +34,7 @@ var claudeFileForms = []fileForm{
 // fileForms are the agents' file forms, by agent.
 var fileForms = map[string][]fileForm{
 	"claude":             claudeFileForms,
+	PlatformID:           platformFileForms,
 	"claude-agent-teams": claudeFileForms,
 	"openclaude":         claudeFileForms,
 	"droid":              {{flag: "--append-system-prompt", to: "--append-system-prompt-file", name: "system-prompt.md"}},

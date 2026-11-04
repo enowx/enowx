@@ -185,7 +185,7 @@ func (s *Server) fireHooks(info proto.SessionInfo, ev proto.HookEvent) proto.Hoo
 // gets it as a refusal naming the command to run.
 func (s *Server) rewritten(info proto.SessionInfo, ev proto.HookEvent, d proto.HookDecision) proto.HookDecision {
 	d.Approve = workerRunsUnasked(info, ev)
-	if agent.Base(info.Agent) == "codex" && !d.Approve {
+	if agent.Base(info.Agent) == "codex" && !d.Approve || agent.IsBuiltin(info.Agent) { // a hook's answer can't rewrite its call
 		return proto.HookDecision{Block: true, Reason: "A hook changes this command. Run this instead: " + d.Command, Context: d.Context}
 	}
 	return d

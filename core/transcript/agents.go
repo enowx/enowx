@@ -9,6 +9,8 @@ import (
 	"slices"
 	"strings"
 	"time"
+
+	"github.com/enowx/enowx/core/platformagent/record"
 )
 
 // Found is a conversation an agent recorded, by the path a Reader opens it
@@ -28,6 +30,7 @@ var readers = map[string]struct {
 	"claude-agent-teams": {claudeFound, NewClaudeReader, claudeID},
 	"codex":              {CodexFiles, NewCodexReader, nil},
 	"omp":                {OMPFiles, NewOMPReader, OMPConversationID},
+	record.AgentID:       {PlatformFiles, NewPlatformReader, claudeID},
 }
 
 func claudeID(path string) string { return strings.TrimSuffix(filepath.Base(path), ".jsonl") }
@@ -106,8 +109,8 @@ func ForkID(agent, path string) string {
 	return ConversationID(agent, path)
 }
 
-// Compacted says the conversation at path holds a compaction, as Claude Code
-// and Codex record one.
+// Compacted says the conversation at path holds a compaction, as Claude Code,
+// Codex and Claude Platform record one.
 func Compacted(agent, path string) bool {
 	data, err := os.ReadFile(path)
 	if err != nil {
@@ -125,7 +128,7 @@ func Compacted(agent, path string) bool {
 		if json.Unmarshal(line, &rec) != nil {
 			continue
 		}
-		if rec.Summary || agent == "codex" && rec.Type == "compacted" {
+		if rec.Summary || agent == "codex" && rec.Type == "compacted" || agent == record.AgentID && rec.Type == record.Compact {
 			return true
 		}
 	}

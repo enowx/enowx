@@ -87,7 +87,7 @@ func (s *Server) createSessionFor(p proto.SessionCreateParams, member *proto.Ses
 		dir = goaDir
 	}
 	meta.SkipUnheard = p.SkipUnheard
-	if p.SkipUnheard && len(agent.HookArgs(p.Agent)) == 0 {
+	if p.SkipUnheard && !agent.ReportsItself(p.Agent) {
 		p.SkipPermissions = true
 	}
 	// Settle what to run before creating a worktree it would leave behind.
@@ -218,10 +218,10 @@ func (s *Server) createSessionFor(p proto.SessionCreateParams, member *proto.Ses
 		spec.Env = append(spec.Env, disp.Env()...)
 		spec.Meta.Display, spec.Meta.DisplayScale = disp.Port, disp.Scale
 	}
-	if p.NotesFor == "" && p.CanvasFor == "" && !p.SignIn && member == nil {
-		// The vault's credentials it asked for, and its helpers.
-		env, names := s.vaultSessionEnv(spec.ID, meta.Project, meta.Parent, p.Creds)
-		spec.Env, spec.Meta.Creds = append(spec.Env, env...), names
+	if needsKey := s.agentKeyPlatform(p.Agent, p.Account) != ""; (p.NotesFor == "" && p.CanvasFor == "" || needsKey) && !p.SignIn && member == nil {
+		// The vault's credentials it asked for, those its agent runs on, and its helpers.
+		env, names := s.vaultSessionEnv(spec.ID, meta.Project, meta.Parent, s.agentCreds(p.Agent, meta.Project, p.Account, p.Creds), p.Agent)
+		spec.Env, spec.Meta.Creds = append(append(spec.Env, env...), chat.config.environ()...), names // its config's API over any key lent
 	}
 	// An agent that keeps no record of its tokens is metered through
 	// the interceptor, when the user tracks that way (tokens_layers.go).

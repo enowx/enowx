@@ -19,9 +19,9 @@ import (
 // logins through enowX's helpers, which ask the app at each use.
 
 // vaultSessionEnv is the environment new session id (of project; a tab of
-// parent) gets from the vault: the credentials of names, those the app
-// puts in every session, and its helpers.
-func (s *Server) vaultSessionEnv(id, project, parent string, names []string) ([]string, []string) {
+// parent; agentID's, to say who asks) gets from the vault: the credentials of names,
+// those the app puts in every session, and its helpers.
+func (s *Server) vaultSessionEnv(id, project, parent string, names []string, agentID string) ([]string, []string) {
 	idx := s.vaultIndex()
 	if !idx.Present {
 		return nil, nil
@@ -36,7 +36,7 @@ func (s *Server) vaultSessionEnv(id, project, parent string, names []string) ([]
 	} else if len(names) > 0 || slices.ContainsFunc(idx.Credentials, func(c proto.CredentialInfo) bool { return c.Auto }) {
 		if s.vault.served() {
 			a := proto.VaultAsk{Action: proto.VaultSession, Session: id, Names: names}
-			req := proto.VaultRequest{VaultAsk: a, Project: project}
+			req := proto.VaultRequest{VaultAsk: a, Project: project, Agent: agentID}
 			req.Hostname, _ = os.Hostname()
 			lend, err := s.vaultRequest(req)
 			s.vaultAudit(a, lend, err)
@@ -200,14 +200,26 @@ func (s *Server) vaultLease(id string) *vaultLease {
 }
 
 // vaultEnvFor is the environment session id's program starts with again:
-// its lease's, or (after the daemon restarted) its credentials lent again
-// while an app answers.
-func (s *Server) vaultEnvFor(id, project string, names []string) []string {
-	if l := s.vaultLease(id); l != nil {
+// its lease's, or (after the daemon restarted, or when its lease lacks one of names, an
+// app being gone when it was made) its credentials lent again while an app answers.
+func (s *Server) vaultEnvFor(id, project string, names []string, agentID string) []string {
+	if l := s.vaultLease(id); l != nil && (!s.vault.served() || s.leaseHolds(l, names)) {
 		return l.environ()
 	}
-	env, _ := s.vaultSessionEnv(id, project, "", names)
+	env, _ := s.vaultSessionEnv(id, project, "", names, agentID)
 	return env
+}
+
+// leaseHolds says lease l has every credential of names.
+func (s *Server) leaseHolds(l *vaultLease, names []string) bool {
+	s.vault.mu.Lock()
+	defer s.vault.mu.Unlock()
+	for _, n := range names {
+		if !slices.Contains(l.names, n) {
+			return false
+		}
+	}
+	return true
 }
 
 // vaultAttach lends credentials names to session id for the programs it
@@ -219,7 +231,7 @@ func (s *Server) vaultAttach(p proto.VaultAttach) ([]string, error) {
 	}
 	l := s.vaultLease(p.Session)
 	if l == nil {
-		s.vaultSessionEnv(p.Session, sess.Meta().Project, "", nil)
+		s.vaultSessionEnv(p.Session, sess.Meta().Project, "", nil, sess.Meta().Agent)
 		if l = s.vaultLease(p.Session); l == nil {
 			return nil, errors.New("vault: this host has no vault yet: open Credentials in the app")
 		}

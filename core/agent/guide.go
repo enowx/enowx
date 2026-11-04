@@ -30,7 +30,7 @@ func GuideArgsText(id, text string) []string { return guideArgsWith(id, text, Gu
 // where the agents that take a file read it.
 func guideArgsWith(id, text string, file func() string) []string {
 	switch id {
-	case "claude", "claude-agent-teams", "openclaude", "qoder", "qoder-cn", "omp", "prime-agent", "droid", "qwen-code", "codebuddy":
+	case "claude", PlatformID, "claude-agent-teams", "openclaude", "qoder", "qoder-cn", "omp", "prime-agent", "droid", "qwen-code", "codebuddy":
 		return []string{"--append-system-prompt", text}
 	case "codex":
 		if own := codexInstructions(); own != "" {

@@ -9,6 +9,7 @@ The daemon reads the transcript the agent records on its own host (`session.tran
 | Agent | Transcript | Status |
 |---|---|---|
 | Claude Code | `~/.claude/projects/<folder>/<session>.jsonl`; `<folder>` is the working directory with every character other than a letter or digit replaced by `-`. Records of type `user` and `assistant` carry `message.content`: a string, or blocks `text`, `thinking`, `tool_use` (`id`, `name`, `input`) and `tool_result` (`tool_use_id`, `content`, `is_error`). Records with `isMeta` or `isSidechain` (subagents) aren't the conversation. | Supported. Format as read by `codex-rs/external-agent-migration/src/sessions/records_cla.rs` in openai/codex. |
+| Claude Platform | `<session dir>/<id>.jsonl`: a session's own folder (`~/.enowx-app/agent-sessions/<session>/`), or `~/.enowx-app/claude-platform/sessions/` run by hand, its first line's `dir` saying where it ran. One record a line (`core/platformagent/record`): `block_start` and `delta` show an answer as it streams, a delta changing its entry's revision; `assistant` replaces them with the final text and thoughts, each where it first showed; `tool_start` to `tool_end` is a call; a `sidechain`'s steps fold into its `Task` call. Cost and budget go in `Transcript.CostUSD` and `BudgetUSD`. | Reads the same way; the chat follows it live. |
 | Codex | `~/.codex/sessions/YYYY/MM/DD/rollout-*.jsonl` (`$CODEX_HOME` if set): lines `{timestamp, type, payload}`. `session_meta` has the `cwd`, `turn_context` the model and effort, `event_msg` `token_count` the last answer's tokens and the model's window. Since about 0.160, `event_msg` `item_started`/`item_completed` carry the conversation as Codex shows it (`UserMessage`, `AgentMessage`, `Reasoning`, `Plan`, `CommandExecution` with its exit code and output, `FileChange` with a unified diff per file, `McpToolCall`, `WebSearch`, `ImageView`), and those are read: the model's own calls there are scripts (`exec`) calling the real tools. Older rollouts are read from `response_item` (assistant `message`s, `reasoning` summaries, `function_call`/`custom_tool_call` with `apply_patch` and their outputs) and `user_message` events. | Supported; checked against Codex 0.164. The newest 200 rollouts are searched for a session's folder. |
 | Claude Platform | enowX's own agent: its record (`core/platformagent/record`), which streams its answers. | Supported. Its sessions open on the chat; see below. |
 | OpenCode, Gemini CLI, Kiro CLI | — | Terminal only: the Chat tab doesn't show for them. |
@@ -44,6 +45,8 @@ Its sheet (Settings → Agents, its chat, the new session dialog; `ui/platformvi
 ## Changing the agent's settings
 
 The composer shows the agent's model, permission mode and effort, as the transcript and the screen say them, and changes them the way the agent's user would (`core/agent/settings.go`):
+
+Claude Platform is changed the same way as Claude Code: `/model <name>` (Opus 5.5, its default, Fable 5.1, Sonnet 5.5, Haiku 5.5, Opus 5, Sonnet 5, Haiku 4.5), Shift+Tab until the screen says the mode (ask first, accept edits, plan, bypass permissions, each named on its status line), `/effort <level>`. All read back from its record's `meta`. Its chat offers no going back to edit a message.
 
 | Setting | Claude Code | Codex (checked on 0.164) |
 |---|---|---|

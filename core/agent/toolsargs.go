@@ -24,7 +24,7 @@ func ToolArgs(id, exe string) []string {
 		return string(b)
 	}
 	switch id {
-	case "claude", "claude-agent-teams", "openclaude":
+	case "claude", PlatformID, "claude-agent-teams", "openclaude":
 		return []string{"--mcp-config", cfg(toolServer(exe))}
 	case "kimi":
 		return []string{"--mcp-config", cfg(toolServer(exe))}

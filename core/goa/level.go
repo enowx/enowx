@@ -30,7 +30,7 @@ func LevelOf(id string) (level, why string) {
 
 // provenAgents are those run for real as GOA and seen to hold: a model pressed to work
 // by itself got nowhere. The others may follow by the same test.
-var provenAgents = map[string]bool{"claude": true, "claude-agent-teams": true, "codex": true, "opencode": true, "opencode2": true}
+var provenAgents = map[string]bool{"claude": true, "claude-agent-teams": true, "codex": true, "opencode": true, "opencode2": true, agent.PlatformID: true}
 
 // NotProven says why GOA isn't offered on agent id, "" when it is.
 func NotProven(id string) string {
