@@ -53,6 +53,16 @@ Checked with Codex itself, started as GOA: enowX's tools reached it over MCP as 
 
 There is no limit on workers; rate limits fall to accounts' fallback ([accounts.md](accounts.md)) and budgets.
 
+## Tasks from Project Docs
+
+`goa delegate --doc NOTE[#SECTION]` (`doc` on `goa_delegate`) hands over a task of a [Project Docs](project-docs.md) project. It reads the project first and refuses while its gate is closed, naming each document in the way; the owner approves in the Notes page. Otherwise it prepends to the prompt what the task needs of the documents, up to 8000 bytes, saying what was cut and how to read it: the section, the PRD's and Technical Spec's sections it is based on, the acceptance criteria not met yet; without such links, the document's outline. A line of that context, `Project Docs: <project ID> <doc ID>#<section>`, ties the task to its project: the board and the protocol don't change, so a daemon of before serves all of it.
+
+The gate holds only with `--doc`: `goa delegate` without it hands over whatever it is given, and the guide tells GOA to stop while the gate is closed.
+
+- `docs plan PROJECT` (`docs_plan`): the Work Breakdown's tasks, written `- [ ] T-1: verb phrase (stage, depends on T-0)`, their dependencies, the board tasks whose title names them, what is ready and the exact command for each. It delegates nothing.
+- `docs progress PROJECT` (`docs_progress`): documents by status, the gate, tasks planned and done, the project's tasks on the board, acceptance criteria done.
+- `docs verify PROJECT --task ID` (`docs_verify`): the task's result beside the criteria that apply to it, the document's or section's own, else User Stories and Acceptance Criteria. It ticks nothing: the checker ticks with `notes check`, only with evidence, and names what remains.
+
 ## Workers' permission prompts
 
 On the worker's host, before each tool call of a GOA worker (its agent's hooks):
@@ -74,7 +84,7 @@ GOA's collection is its folder's (`rag.ProjectID` of GOA's folder), apart from e
 
 ## Commands and tools
 
-`enowx goa board|delegate|task|remember|recall|rules|agents|flags|start` ([cli.md](cli.md#god-of-agents)); MCP `goa_board`, `goa_delegate`, `goa_task`, `goa_remember`, `goa_recall`, `goa_agents` (feature `goa`, always on in GOA's session). Everything else GOA reaches is the rest of enowX's tools, on any host: [goa-tools.md](goa-tools.md).
+`enowx goa board|delegate|task|remember|recall|rules|agents|flags|start` ([cli.md](cli.md#god-of-agents)); MCP `goa_board`, `goa_delegate`, `goa_task`, `goa_remember`, `goa_recall`, `goa_agents`, `docs_plan`, `docs_progress`, `docs_verify` (feature `goa`, always on in GOA's session). Everything else GOA reaches is the rest of enowX's tools, on any host: [goa-tools.md](goa-tools.md).
 
 ## Protocol
 
