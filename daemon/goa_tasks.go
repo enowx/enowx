@@ -214,11 +214,15 @@ func (s *Server) goaDeliverNext(info proto.SessionInfo) bool {
 		}
 	}
 	if info.Exited {
+		if goa.ComesBack(info) {
+			go s.queuedWake(*next, info) // it waits for the agent: this holds the others up
+			return false
+		}
 		t, _ := s.goa.board.Update(next.ID, func(t *proto.GOATask) {
-			t.Status, t.Result = proto.GOATaskFailed, "its session ended before it could take this"
+			t.Status, t.Result = proto.GOATaskFailed, "its session ended before it could take this, and can't come back on a conversation"
 		})
 		s.goaChanged()
-		s.goaTell(fmt.Sprintf("[enowX GOA] Task %s %q failed: its session %s ended before it could take it. Delegate it again.", t.ID, t.Title, t.Session))
+		s.goaTell(fmt.Sprintf("[enowX GOA] Task %s %q failed: its session %s ended before it could take it, and can't come back on a conversation (a shell, or a program enowX can't continue). Delegate it again to another session.", t.ID, t.Title, t.Session))
 		return true
 	}
 	from := ""

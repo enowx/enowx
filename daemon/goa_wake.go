@@ -51,7 +51,11 @@ func (s *Server) goaReady(p proto.GOADelegateParams, info proto.SessionInfo) (bo
 		return false, nil
 	}
 	if info.Exited {
-		if err := s.goaCall(p.From, p.Host, proto.MethodSessionContinue, proto.SessionRef{ID: info.ID}, nil); err != nil {
+		if !goa.ComesBack(info) {
+			return false, fmt.Errorf("goa: session %s ended and can't come back on a conversation (a shell, or a program enowX can't continue), so nothing was given to it: start a new one", info.ID)
+		}
+		// Running by now: what someone sent it brought it back since info was read.
+		if err := s.goaCall(p.From, p.Host, proto.MethodSessionContinue, proto.SessionRef{ID: info.ID}, nil); err != nil && !strings.Contains(err.Error(), errStillRunning) {
 			return false, fmt.Errorf("goa: session %s can't be brought back: %w", info.ID, err)
 		}
 	}

@@ -49,6 +49,9 @@ type goaState struct {
 	// heard of each and the report it last heard: it hears of them as of a task.
 	told map[string]goaTold
 
+	// waking are the sessions being brought back for a queued task (queuedWake).
+	waking map[string]bool
+
 	tellFile string
 	// tellSave has one write of tellFile at a time, the latest last. It is taken
 	// before mu, which no file is written under.

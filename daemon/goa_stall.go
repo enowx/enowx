@@ -367,8 +367,25 @@ func (s *Server) queuedCheck(w *stallWatch, t proto.GOATask, h stallHost) bool {
 	return true
 }
 
-// queuedWake brings back the hibernated session of queued task t and gives it its task.
+// queuedWake brings back the session of queued task t, hibernated or ended, and gives
+// it its task; GOA hears when it can't. Once at a time for a session: a turn's end, the
+// app's word and the stall watch may each come here.
 func (s *Server) queuedWake(t proto.GOATask, info proto.SessionInfo) {
+	s.goa.mu.Lock()
+	if s.goa.waking[info.ID] {
+		s.goa.mu.Unlock()
+		return
+	}
+	if s.goa.waking == nil {
+		s.goa.waking = map[string]bool{}
+	}
+	s.goa.waking[info.ID] = true
+	s.goa.mu.Unlock()
+	defer func() {
+		s.goa.mu.Lock()
+		delete(s.goa.waking, info.ID)
+		s.goa.mu.Unlock()
+	}()
 	from := ""
 	if g, ok := s.goaSession(); ok {
 		from = g.ID

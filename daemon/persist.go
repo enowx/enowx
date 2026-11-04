@@ -383,6 +383,10 @@ func (s *Server) saveHistories(done <-chan struct{}) {
 // starting before it isn't continued: nothing good comes of a tight loop.
 const quickExitsMax = 3
 
+// errStillRunning is continueSession's word for a session not to bring back, by which
+// another host's daemon says so too.
+const errStillRunning = "the session is still running"
+
 func (s *Server) continueSession(id string) (*session.Session, error) {
 	return s.resumeSession(id, "")
 }
@@ -396,7 +400,7 @@ func (s *Server) resumeSession(id, convo string) (*session.Session, error) {
 	}
 	info, meta := sess.Info(), sess.Meta()
 	if !info.Exited {
-		return nil, errors.New("the session is still running")
+		return nil, errors.New(errStillRunning)
 	}
 	if sess.QuickExits() >= quickExitsMax {
 		return nil, fmt.Errorf("it ended right after starting %d times in a row, so enowX won't start it again by itself: %s", quickExitsMax, info.ExitWhy)

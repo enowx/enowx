@@ -5,6 +5,7 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
+	"slices"
 	"strings"
 	"sync"
 	"testing"
@@ -222,5 +223,87 @@ func TestSendWhileWakingWaitsForTheAgent(t *testing.T) {
 	waitFor(t, "the message", func() bool { return len(linesOf(lines)) == 1 })
 	if got := linesOf(starts); len(got) != 2 {
 		t.Fatalf("started %d times", len(got))
+	}
+}
+
+// endAgent ends session id's agent on its own, and the shell after it if it has one.
+func endAgent(t *testing.T, srv *Server, id string) {
+	t.Helper()
+	sess, err := srv.sessions.Get(id)
+	if err != nil {
+		t.Fatal(err)
+	}
+	srv.sessions.Input(sess, []byte("\x04"))
+	waitFor(t, "it ended", func() bool {
+		srv.sessions.Input(sess, []byte("exit\r"))
+		return sess.Info().Exited
+	})
+}
+
+// A task queued for a session whose agent then ends brings it back, and goes in once,
+// rather than failing with it.
+func TestGOAQueuedTaskBringsBackAnEndedSession(t *testing.T) {
+	queueServerAgent(t)
+	srv := startServer(t)
+	c := connect(t, srv, nil)
+	sess := busySession(t, srv, c, t.TempDir())
+	task := queuedTask(t, c, proto.GOADelegateParams{Session: sess.ID(), Prompt: "after it ended"})
+	endAgent(t, srv, sess.ID())
+	waitFor(t, "it took the task", func() bool {
+		now, err := srv.sessions.Get(sess.ID())
+		return err == nil && heardTimes(now, "after it ended") > 0
+	})
+	now, _ := srv.sessions.Get(sess.ID())
+	if n := heardTimes(now, "after it ended"); n != 1 {
+		t.Fatalf("heard %d times", n)
+	}
+	if st := taskStatus(t, srv, task.ID).Status; st == proto.GOATaskFailed || st == proto.GOATaskQueued {
+		t.Fatalf("task: %s", st)
+	}
+}
+
+// A task for what can't come back says so: to GOA delegating, and, queued before it
+// ended, on the board and in a line to GOA.
+func TestGOATaskForAnEndedShellSaysItCantComeBack(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("uses sh")
+	}
+	queueServerAgent(t)
+	srv := startServer(t)
+	c := connect(t, srv, nil)
+	g, err := c.CreateSession(proto.SessionCreateParams{Agent: "claude", GOA: true, Cols: 100, Rows: 30})
+	if err != nil {
+		t.Fatal(err)
+	}
+	shell, err := c.CreateSession(proto.SessionCreateParams{Dir: t.TempDir(), Command: []string{"sh", "-c", "read x"}, Cols: 80, Rows: 10})
+	if err != nil {
+		t.Fatal(err)
+	}
+	sess, _ := srv.sessions.Get(shell.ID)
+	if err := srv.sessions.SetState(sess, proto.StateWorking); err != nil {
+		t.Fatal(err)
+	}
+	task := queuedTask(t, c, proto.GOADelegateParams{From: g.ID, Session: shell.ID, Prompt: "for a shell"})
+	srv.sessions.Input(sess, []byte("go\r"))
+	waitFor(t, "it ended", func() bool { return sess.Info().Exited })
+	waitFor(t, "the task failed", func() bool { return taskStatus(t, srv, task.ID).Status == proto.GOATaskFailed })
+	if r := taskStatus(t, srv, task.ID).Result; !strings.Contains(r, "can't come back") {
+		t.Fatalf("result: %s", r)
+	}
+	gs, _ := srv.sessions.Get(g.ID)
+	waitFor(t, "GOA told", func() bool {
+		said := "Task " + task.ID
+		if strings.Contains(strings.Join(strings.Fields(gs.Terminal().Text()), ""), strings.Join(strings.Fields(said), "")) {
+			return true
+		}
+		return slices.ContainsFunc(srv.goaWaitingLines(), func(l string) bool { return strings.Contains(l, said) })
+	})
+	var again proto.GOATask
+	err = c.Call(proto.MethodGOADelegate, proto.GOADelegateParams{From: g.ID, Session: shell.ID, Prompt: "again", NoRoute: true}, &again)
+	if err == nil || !strings.Contains(err.Error(), "can't come back") {
+		t.Fatalf("delegated: %+v, %v", again, err)
+	}
+	if !sess.Info().Exited {
+		t.Fatal("the shell started again")
 	}
 }

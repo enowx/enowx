@@ -86,6 +86,8 @@ Routes, in order:
 
 What the session doesn't say, enowX says for it: its process exiting or crashing, with the exit code and its last words, marked `NoReport` on the board and never shown as at work; a turn interrupted; a limit its agent showed; a lost sign-in, as what it asks; going silent, as a stall line; a host that can't be reached, once, after the idle limit.
 
+A task for a session asleep brings it back on its conversation first, hibernated or ended, once, whoever gets there first; one queued goes in when it is back. What can't come back (a plain shell) fails at once, with that said, on the board and to GOA, as does a wake that fails.
+
 A line stays until it has gone in: kept in `goa-tell.json` while GOA is busy, hibernated or stopped and over a daemon's restart, put back if typing it fails, the newest 200 kept. Only a stall line of a task since settled is dropped, as moot; a report isn't. With no GOA on the host at all there is no one to tell.
 
 Sent something again, a task whose turn had ended is at work again, so a screen with no hook can report the next turn too.

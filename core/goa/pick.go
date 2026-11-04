@@ -86,6 +86,13 @@ func pickRank(s proto.SessionInfo, busy func(string) bool) int {
 	return 3
 }
 
+// ComesBack says session s, once its agent stopped, can come back on its conversation:
+// not a plain shell, nor a program enowX can't continue.
+func ComesBack(s proto.SessionInfo) bool {
+	preset, ok := agent.Find(s.Agent)
+	return ok && len(preset.Continue) > 0
+}
+
 // Busy says a running session is in a turn or asking: a prompt would land
 // on top of it, and waits for its turn's end.
 func Busy(s proto.SessionInfo) bool {
