@@ -23,19 +23,6 @@ func init() {
 	docsCommands["verify"] = docsCommand{"verify PROJECT --task ID [--json] a board task's result beside its criteria (ticks nothing)", runner.docsVerify}
 }
 
-// docsProject reads the project of note ref: the project's note or a document's.
-func (r runner) docsProject(ref string) (*projectdocs.Project, error) {
-	n, err := r.findNote(ref)
-	if err != nil {
-		return nil, err
-	}
-	list, err := r.notesSeen()
-	if err != nil {
-		return nil, err
-	}
-	return projectdocs.Load(list, n.ID, r.c.Note)
-}
-
 // withDocContext is goa delegate's --doc: the project's gate holds, the prompt
 // carries what the documents say, and the title stays what was asked, as the
 // prompt's first line is no longer that.
@@ -45,7 +32,7 @@ func (r runner) withDocContext(p *proto.GOADelegateParams, ref string) error {
 	if err != nil {
 		return err
 	}
-	project, err := r.docsProject(n.ID)
+	project, _, err := r.docsProject(n.ID)
 	if err != nil {
 		return err
 	}
@@ -141,7 +128,7 @@ func (r runner) docsPlan(args []string) error {
 	if err != nil {
 		return err
 	}
-	project, err := r.docsProject(ref)
+	project, _, err := r.docsProject(ref)
 	if err != nil {
 		return err
 	}
@@ -323,7 +310,7 @@ func (r runner) docsProgress(args []string) error {
 	if err != nil {
 		return err
 	}
-	project, err := r.docsProject(ref)
+	project, _, err := r.docsProject(ref)
 	if err != nil {
 		return err
 	}
@@ -405,7 +392,7 @@ func (r runner) docsVerify(args []string) error {
 	if err != nil || len(words) != 1 || *id == "" {
 		return errors.New(docsUsage())
 	}
-	project, err := r.docsProject(words[0])
+	project, _, err := r.docsProject(words[0])
 	if err != nil {
 		return err
 	}
