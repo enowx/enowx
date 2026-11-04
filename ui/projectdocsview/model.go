@@ -336,17 +336,5 @@ func repoFiles(m *model) []string {
 	if m == nil {
 		return nil
 	}
-	files := []string{"README.md"}
-	areas := map[string]string{}
-	for _, a := range m.project.Areas {
-		areas[a.ID] = noteblocks.Slug(titleOf(a))
-	}
-	for _, d := range m.project.Docs {
-		name := noteblocks.Slug(titleOf(d.NoteInfo)) + ".md"
-		if a, ok := areas[d.Parent]; ok {
-			name = a + "/" + name
-		}
-		files = append(files, name)
-	}
-	return files
+	return projectdocs.RepoPaths(m.project)
 }

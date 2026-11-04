@@ -35,6 +35,12 @@ func (a *App) projectDocsOptions() projectdocsview.Options {
 			}()
 		},
 		Folder: a.projectFolderHere,
+		ExportRepo: func(id, folder string, force bool, done func(string, error)) {
+			go func() {
+				r, err := cl.ExportNotes(proto.NoteExportParams{IDs: []string{id}, Format: proto.ExportRepo, Out: folder, Force: force})
+				a.onMain(func() { done(r.Path, err) })
+			}()
+		},
 	}
 }
 

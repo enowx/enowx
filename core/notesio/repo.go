@@ -125,28 +125,14 @@ func repoTargetProblem(target string, force bool) (string, error) {
 // repoLayout places the project note as README.md and each document under
 // its area's folder when it's in one. The first is the project's.
 func repoLayout(p *projectdocs.Project) []repoFile {
-	files := []repoFile{{note: p.Note, file: "README.md", title: p.Note.Title}}
-	used := map[string]bool{"readme.md": true}
+	paths := projectdocs.RepoPaths(p)
+	files := []repoFile{{note: p.Note, file: paths[0], title: p.Note.Title}}
 	areas := map[string]string{}
 	for _, a := range p.Areas {
 		areas[a.ID] = a.Title
 	}
-	for _, d := range p.Docs {
-		name := noteblocks.Slug(d.Title)
-		if name == "" {
-			name = d.ID
-		}
-		dir := ""
-		if area, ok := areas[d.Parent]; ok {
-			if dir = noteblocks.Slug(area); dir == "" {
-				dir = d.Parent
-			}
-		}
-		file := path.Join(dir, name+".md")
-		for i := 2; used[strings.ToLower(file)]; i++ {
-			file = path.Join(dir, fmt.Sprintf("%s-%d.md", name, i))
-		}
-		used[strings.ToLower(file)] = true
+	for i, d := range p.Docs {
+		file := paths[i+1]
 		status := d.Meta.Status
 		if status == "" {
 			status = projectdocs.StatusDraft

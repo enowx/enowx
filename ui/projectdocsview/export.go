@@ -148,7 +148,8 @@ func (v *View) runExport(o Options, f *exportForm, folder string, force bool) {
 	o.ExportRepo(f.note.ID, folder, force, func(written string, err error) {
 		f.busy = false
 		if err != nil {
-			f.err, f.refused = err.Error(), !force
+			// Only this refusal can be overridden: a secret is never written.
+			f.err, f.refused = err.Error(), !force && strings.Contains(err.Error(), "aren't files of an export")
 			return
 		}
 		f.refused, f.wrote = false, written

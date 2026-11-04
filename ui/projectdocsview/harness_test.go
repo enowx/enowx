@@ -303,7 +303,7 @@ func click(t *testing.T, tt *ui.Tester, label string) {
 
 var longTitle = strings.TrimSpace(strings.Repeat("A very long title that never seems to end ", 8))
 
-var errRefused = fmt.Errorf("not exported from Notes: docs/prd.md")
+var errRefused = fmt.Errorf("export: not written, these aren't files of an export: prd.md (not from Notes) (--force writes over a file)")
 
 // proposalTester draws the panel for the page page gives.
 func (s *store) proposalTester(page func() Page) *ui.Tester {

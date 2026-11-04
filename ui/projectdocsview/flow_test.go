@@ -1,6 +1,7 @@
 package projectdocsview
 
 import (
+	"fmt"
 	"strings"
 	"testing"
 	"time"
@@ -343,6 +344,28 @@ func TestApprovalAndAddDocument(t *testing.T) {
 	}
 	if added != 2 {
 		t.Errorf("under its area: %d", added)
+	}
+}
+
+// A secret found is never written, so nothing offers to write over it.
+func TestExportOffersNoOverwriteOfASecretRefusal(t *testing.T) {
+	s := newStore()
+	root := s.project(t, "Shop", projectdocs.SizeCore)
+	s.open = root.ID
+	tt := s.exportTester(func(_, _ string, _ bool, done func(string, error)) {
+		done("", fmt.Errorf("export: not written, it looks like it holds a secret (prd.md:3 API key): remove it first"))
+	})
+	s.settle(t, tt, "the summary", func() bool { return s.view.model != nil })
+	click(t, tt, "Export to repo…")
+	s.frames(tt, 8)
+	s.view.export.path = "/work/y"
+	s.frames(tt, 2)
+	click(t, tt, "Export…")
+	s.frames(tt, 8)
+	click(t, tt, "Export")
+	s.frames(tt, 8)
+	if !tt.HasText("holds a secret") || tt.HasText("Overwrite…") {
+		t.Fatalf("after a secret's refusal: %q", tt.Texts())
 	}
 }
 
