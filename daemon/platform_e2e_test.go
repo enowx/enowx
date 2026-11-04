@@ -398,4 +398,5 @@ func TestPlatformE2E(t *testing.T) {
 	t.Run("GOADelegates", e2eGOADelegates)
 	t.Run("Failures", e2eFailures)
 	t.Run("UsageAndBudget", e2eUsageAndBudget)
+	t.Run("VaultKey", e2eVaultKey)
 }

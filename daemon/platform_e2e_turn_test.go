@@ -134,17 +134,17 @@ func e2eTools(t *testing.T) {
 	}
 
 	// Bash with "2": kept as a rule, so the like of it doesn't ask again.
-	e.api.Enqueue(call("Bash", `{"command":"echo always-one"}`))
+	e.api.Enqueue(call("Bash", `{"command":"ls new.txt"}`))
 	e.send(id, "run it")
 	e.answer(id, proto.AnswerAlways)
 	e.wait(id, "the command's result", func() bool {
 		bash, ok := lastTool(e.entries(id), "Bash")
-		return ok && bash.Done && strings.Contains(bash.Result, "always-one")
+		return ok && bash.Done && strings.Contains(bash.Result, "new.txt")
 	})
 	e.waitState(id, proto.StateDone)
-	e.api.Enqueue(call("Bash", `{"command":"echo always-two"}`))
+	e.api.Enqueue(call("Bash", `{"command":"ls README.md"}`))
 	e.say(id, "run it again", 2)
-	if bash, _ := lastTool(e.entries(id), "Bash"); !strings.Contains(bash.Result, "always-two") {
+	if bash, _ := lastTool(e.entries(id), "Bash"); !strings.Contains(bash.Result, "README.md") {
 		t.Errorf("the rule kept didn't cover it: %+v", bash)
 	}
 

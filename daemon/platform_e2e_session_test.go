@@ -25,13 +25,11 @@ func (e *e2e) agentProcess(id string) int {
 		if err != nil {
 			continue
 		}
-		exe, _ := os.Readlink(filepath.Join("/proc", entry.Name(), "exe"))
-		if exe != e2eBin {
-			continue
-		}
+		// By its command line: the agent keeps its /proc entries from its own user, exe
+		// and environ included. Its first word tells it from the shell wrapping it.
 		data, _ := os.ReadFile(filepath.Join("/proc", entry.Name(), "cmdline"))
 		line := strings.ReplaceAll(string(data), "\x00", " ")
-		if strings.Contains(line, "claude-platform") && strings.Contains(line, id) {
+		if strings.HasPrefix(line, e2eBin+" ") && strings.Contains(line, "claude-platform") && strings.Contains(line, id) {
 			return pid
 		}
 	}
@@ -54,7 +52,7 @@ func e2eResume(t *testing.T) {
 	e := startE2E(t, e2eOptions{})
 	id := e.spawn(proto.SessionCreateParams{})
 
-	e.api.Enqueue(standinapi.Calls(standinapi.ToolUse("toolu_first", "Bash", `{"command":"echo kept-rule"}`)))
+	e.api.Enqueue(standinapi.Calls(standinapi.ToolUse("toolu_first", "Bash", `{"command":"ls README.md"}`)))
 	e.send(id, "remember the word pineapple")
 	e.answer(id, proto.AnswerAlways)
 	e.wait(id, "the command's result", func() bool {
@@ -84,7 +82,7 @@ func e2eResume(t *testing.T) {
 	e.wait(id, "the transcript back", func() bool { return e.transcript(id).CostUSD >= costBefore })
 
 	// The rule kept still holds: the like of that command doesn't ask.
-	e.api.Enqueue(standinapi.Calls(standinapi.ToolUse("toolu_second", "Bash", `{"command":"echo rule-held"}`)))
+	e.api.Enqueue(standinapi.Calls(standinapi.ToolUse("toolu_second", "Bash", `{"command":"ls ."}`)))
 	e.say(id, "again", 2)
 	r := lastRequest(t, e.api)
 	if p := historyProblem(r); p != "" {
@@ -93,7 +91,7 @@ func e2eResume(t *testing.T) {
 	if !strings.Contains(string(r.Body), "pineapple") {
 		t.Errorf("the conversation didn't come back: %s", r.Body)
 	}
-	if b, _ := lastTool(e.entries(id), "Bash"); !strings.Contains(b.Result, "rule-held") {
+	if b, _ := lastTool(e.entries(id), "Bash"); !strings.Contains(b.Result, "README.md") {
 		t.Errorf("after waking: %+v", b)
 	}
 	if got := e.transcript(id).CostUSD; got <= costBefore {
