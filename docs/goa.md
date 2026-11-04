@@ -72,6 +72,10 @@ GOA's collection is its folder's (`rag.ProjectID` of GOA's folder), apart from e
 
 **Write with AI**, there and in a project's rules, takes what the user wants in their own words and has an AI write it as clear rules, keeping the current ones (`rules.draft`). The first of the host's judges that writes is asked: agents' one-shot commands, then model APIs, then local models, never a decision model, which only picks; the policy *local only* keeps it on the host. The result lands in the editor, to read and undo; nothing is saved until the user saves. Text that looks like it holds a secret isn't sent.
 
+## Project Docs
+
+A project documented as notes hands GOA its tasks, with the approval gate before them: [project-docs.md](project-docs.md#god-of-agents).
+
 ## Commands and tools
 
 `enowx goa board|delegate|task|remember|recall|rules|agents|flags|start` ([cli.md](cli.md#god-of-agents)); MCP `goa_board`, `goa_delegate`, `goa_task`, `goa_remember`, `goa_recall`, `goa_agents` (feature `goa`, always on in GOA's session). Everything else GOA reaches is the rest of enowX's tools, on any host: [goa-tools.md](goa-tools.md).

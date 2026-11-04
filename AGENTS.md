@@ -30,6 +30,7 @@ Go 1.27+ is required (MyGo needs it). With an older `go`, set `GOTOOLCHAIN=go1.2
 | `core/git` | Thin wrappers over the `git` CLI | **No** |
 | `core/project` | Project folders a daemon knows, in the user's order and groups, stored in `~/.enowx-app/projects.json` | **No** |
 | `core/notes` | The user's notes on a host, a Markdown file each in `~/.enowx-app/notes` (see `docs/notes.md`) | **No** |
+| `core/projectdocs` | Project Docs: a project documented as notes under one project note: the first line and Based on lines in the body, catalog and templates, staleness, the approval gate, the guard on agents' writes, the skills (see `docs/project-docs.md`) | **No** |
 | `core/features` | Which features agents get, per scope (everywhere, host, project, session), resolved for a session; the registry is `core/agent.Features` (see `docs/features.md`) | **No** |
 | `core/notify` | How the app notifies of agents: the settings kept in the synced settings, the sounds built in (synthesized), quiet hours | **No** |
 | `core/usersync` | Keeps the user's data (notes, canvases, settings, vault) the same on every host: three-way file sync, merges, conflicts, trash (see `docs/user-data-sync.md`) | **No** |

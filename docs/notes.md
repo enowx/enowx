@@ -192,6 +192,10 @@ A page attaches to any number of projects, on any host: a plan touching a fronte
 
 `enowx-app notes attach NOTE --project P [--host H]`, `notes detach NOTE (--project P | --all)`, `notes projects NOTE`, `notes --project P`, `project context P`, `project read P FILE`; MCP `notes_attach`, `notes_detach`, `notes_projects`, `notes_for_project`, `project_context`, `project_read`.
 
+## Project Docs
+
+A whole project (PRD, Technical Spec, ERD and the rest) documented as ordinary pages under one project note: [project-docs.md](project-docs.md).
+
 ## A note's agent from anywhere
 
 A note keeps the agent its page talks to (`agent:` in its header, so the same on every host) and its conversations with it, in `notes/chats/<id>.json`: each turn the agent ends there is kept, so what was said on one host shows on the others, under the panel before a conversation starts. Other agents ask it with `enowx-app notes ask NOTE "…" [--wait]` (MCP `notes_ask`), read what was said with `notes chat NOTE` (`notes_chat`), and pick it with `notes agent NOTE --use codex` (`notes_agent`). What agents proposed is listed by `notes proposals`, and settled by `notes accept ID` or `notes reject ID` when the user asks; the note's own agent can't settle its own proposals.
