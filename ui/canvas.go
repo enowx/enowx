@@ -7,6 +7,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/egoist/mygo"
 	"github.com/egoist/mygo/ui"
 
 	"github.com/enowx/enowx/client"
@@ -299,6 +300,26 @@ func (a *App) canvasOptions() canvasview.Options {
 			}
 			return a.openCanvasSpaceMove
 		}(),
+		LibraryStatus: func(done func(proto.LibraryState, error)) {
+			var st proto.LibraryState
+			call(func() (err error) { st, err = cl.LibraryStatus(); return err }, func(err error) { done(st, err) })
+		},
+		LibraryPrepare: func(p proto.LibraryPrepareParams, done func(proto.LibraryPrepared, error)) {
+			var out proto.LibraryPrepared
+			call(func() (err error) { out, err = cl.LibraryPrepare(p); return err }, func(err error) { done(out, err) })
+		},
+		LibrarySaveDraft: func(p proto.LibraryDraftParams, done func(error)) {
+			call(func() error { return cl.LibrarySaveDraft(p) }, done)
+		},
+		LibraryPublish: func(p proto.LibraryPublishParams, done func(proto.LibraryDesign, error)) {
+			var out proto.LibraryDesign
+			call(func() (err error) { out, err = cl.LibraryPublish(p); return err }, func(err error) { done(out, err) })
+		},
+		LibraryWithdraw: func(id string, done func(error)) {
+			call(func() error { _, err := cl.LibraryWithdraw(id); return err }, done)
+		},
+		CloudSignIn: func() { a.page, a.settingsSection = pageSettings, sectionCloud },
+		OpenURL:     func(url string) { go func() { _ = mygo.Shell.OpenExternal(url) }() },
 		Share: func(id string, stop bool, done func(proto.CanvasShare, error)) {
 			var x proto.CanvasShare
 			call(func() (err error) { x, err = cl.ShareCanvas(id, stop); return err }, func(err error) { done(x, err) })
