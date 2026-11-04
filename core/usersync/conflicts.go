@@ -13,6 +13,7 @@ import (
 	"slices"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/enowx/enowx/proto"
 )
@@ -23,7 +24,16 @@ func (f *Folder) conflictFile(id string) string {
 	return filepath.Join(f.dir, filepath.FromSlash(ConflictsDir), filepath.Base(id)+".json")
 }
 
-// Conflicts lists the conflicts waiting for the user, the oldest first.
+// conflictHead is a conflict's file's list entry, while the file stays as it was.
+type conflictHead struct {
+	size int64
+	mod  time.Time
+	c    proto.SyncConflict
+}
+
+// Conflicts lists the conflicts waiting for the user, the oldest first, without their
+// versions' data, which ConflictVersion reads. A file is
+// read once: asked often and holding whole versions, they ran to 340 MB allocated a call.
 func (f *Folder) Conflicts() ([]proto.SyncConflict, error) {
 	dir := filepath.Join(f.dir, filepath.FromSlash(ConflictsDir))
 	entries, err := os.ReadDir(dir)
@@ -34,21 +44,74 @@ func (f *Folder) Conflicts() ([]proto.SyncConflict, error) {
 		return nil, fmt.Errorf("usersync: %w", err)
 	}
 	out := []proto.SyncConflict{}
+	keep := make(map[string]conflictHead, len(entries))
 	for _, e := range entries {
 		if !strings.HasSuffix(e.Name(), ".json") {
 			continue
 		}
-		data, err := os.ReadFile(filepath.Join(dir, e.Name()))
+		info, err := e.Info()
 		if err != nil {
 			continue
 		}
-		var c proto.SyncConflict
-		if json.Unmarshal(data, &c) == nil && c.ID != "" {
-			out = append(out, c)
+		f.mu.Lock()
+		h, ok := f.heads[e.Name()]
+		f.mu.Unlock()
+		if !ok || h.size != info.Size() || !h.mod.Equal(info.ModTime()) {
+			c, err := readConflictHead(filepath.Join(dir, e.Name()))
+			if err != nil {
+				continue
+			}
+			h = conflictHead{info.Size(), info.ModTime(), c}
 		}
+		keep[e.Name()] = h
+		out = append(out, h.c)
 	}
+	f.mu.Lock()
+	f.heads = keep
+	f.mu.Unlock()
 	slices.SortFunc(out, func(a, b proto.SyncConflict) int { return a.Created.Compare(b.Created) })
 	return out, nil
+}
+
+// readConflictHead reads a conflict's file, its versions' data left as sizes.
+func readConflictHead(file string) (proto.SyncConflict, error) {
+	data, err := os.ReadFile(file)
+	if err != nil {
+		return proto.SyncConflict{}, err
+	}
+	var c proto.SyncConflict
+	if err := json.Unmarshal(data, &c); err != nil {
+		return c, err
+	}
+	if c.ID == "" {
+		return c, errors.New("no ID")
+	}
+	for i := range c.Versions {
+		v := &c.Versions[i]
+		v.Size, v.Data = int64(len(v.Data)), nil
+	}
+	return c, nil
+}
+
+// ConflictVersion is version n, from 1, of conflict id, with its data.
+func (f *Folder) ConflictVersion(id string, n int) (proto.SyncVersion, error) {
+	data, err := os.ReadFile(f.conflictFile(id))
+	if errors.Is(err, fs.ErrNotExist) {
+		return proto.SyncVersion{}, fmt.Errorf("usersync: no conflict %q", id)
+	}
+	if err != nil {
+		return proto.SyncVersion{}, fmt.Errorf("usersync: %w", err)
+	}
+	var c proto.SyncConflict
+	if err := json.Unmarshal(data, &c); err != nil {
+		return proto.SyncVersion{}, fmt.Errorf("usersync: conflict %s: %w", id, err)
+	}
+	if n < 1 || n > len(c.Versions) {
+		return proto.SyncVersion{}, fmt.Errorf("usersync: conflict %s has %d versions", id, len(c.Versions))
+	}
+	v := c.Versions[n-1]
+	v.Size = int64(len(v.Data))
+	return v, nil
 }
 
 // Resolve settles conflict id: the version of host keep (or numbered

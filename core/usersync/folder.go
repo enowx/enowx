@@ -28,6 +28,8 @@ type Folder struct {
 
 	mu    sync.Mutex
 	cache map[string]cached // hashes, by path, while size and time stay
+	// heads are the conflicts without their data, by file name, while size and time stay.
+	heads map[string]conflictHead
 }
 
 type cached struct {
@@ -37,7 +39,9 @@ type cached struct {
 }
 
 // OpenFolder is daemon folder dir's synced files.
-func OpenFolder(dir string) *Folder { return &Folder{dir: dir, cache: map[string]cached{}} }
+func OpenFolder(dir string) *Folder {
+	return &Folder{dir: dir, cache: map[string]cached{}, heads: map[string]conflictHead{}}
+}
 
 // ID is the folder's identity for syncs, made the first time: the
 // daemon's own (daemon-id, proto.DaemonInfo.ID).
