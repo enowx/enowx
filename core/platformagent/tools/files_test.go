@@ -327,4 +327,4 @@ func TestSchemas(t *testing.T) {
 	}
 }
 
-func allTools() []Tool { return Builtin() }
+func allTools() []Tool { return append(Builtin(), NewAskUserQuestion(nil), NewTodoWrite()) }
