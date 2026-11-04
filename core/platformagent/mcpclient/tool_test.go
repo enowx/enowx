@@ -1,12 +1,14 @@
 package mcpclient
 
 import (
+	"encoding/base64"
 	"encoding/json"
 	"regexp"
 	"strings"
 	"testing"
 
 	"github.com/enowx/enowx/core/goa"
+	"github.com/enowx/enowx/core/platformagent/tools"
 )
 
 var validName = regexp.MustCompile(`^[a-zA-Z0-9_-]{1,64}$`)
@@ -102,5 +104,41 @@ func TestBadSchemasBecomeObjects(t *testing.T) {
 	}
 	if got := string(canonicalSchema(json.RawMessage(`{"b":"<x>","properties":{}}`))); got != `{"b":"<x>","properties":{},"type":"object"}` {
 		t.Errorf("schema: %s", got)
+	}
+}
+
+func imageResult(t *testing.T, blocks ...map[string]any) tools.Result {
+	t.Helper()
+	raw, err := json.Marshal(map[string]any{"content": blocks})
+	if err != nil {
+		t.Fatal(err)
+	}
+	return resultOf(raw)
+}
+
+// A picture that would fail every later request stays out, a note in its place.
+func TestResultImagesAreBounded(t *testing.T) {
+	image := func(data string) map[string]any {
+		return map[string]any{"type": "image", "mimeType": "image/png", "data": data}
+	}
+	ok := base64.StdEncoding.EncodeToString(make([]byte, 300))
+	big := strings.Repeat("A", tools.ImageBase64Most+4)
+
+	res := imageResult(t, image(ok), image(big), image("not base64!"))
+	if len(res.Images) != 1 || !strings.Contains(res.Text, "over the limit") || !strings.Contains(res.Text, "isn't valid base64") {
+		t.Errorf("%d images, text %q", len(res.Images), res.Text)
+	}
+	var many []map[string]any
+	for range maxResultImages + 2 {
+		many = append(many, image(ok))
+	}
+	res = imageResult(t, many...)
+	if len(res.Images) != maxResultImages || !strings.Contains(res.Text, "at most") {
+		t.Errorf("%d images, text %q", len(res.Images), res.Text)
+	}
+	large := strings.Repeat("A", tools.ImageBase64Most)
+	res = imageResult(t, image(large), image(large), image(large), image(large), image(large))
+	if total := len(res.Images) * len(large); total > maxImagesBase64 || !strings.Contains(res.Text, "too large together") {
+		t.Errorf("%d bytes, text %q", total, res.Text)
 	}
 }

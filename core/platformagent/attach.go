@@ -26,10 +26,11 @@ var mediaTypes = map[string]string{
 	".pdf":  "application/pdf",
 }
 
-// userMessage builds what goes to the API of a user's prompt, and says which files went
-// along; nil when there is nothing to send. The first message of a conversation opens
-// with the repository's instructions.
-func (t *thread) userMessage(text string, attachments []string) (json.RawMessage, []string) {
+// userMessage builds what goes to the API of a prompt, and says which files went along;
+// nil when there is nothing to send. The first message of a conversation opens with the
+// repository's instructions. Paths are looked for in own alone, the user's own words:
+// text the model or a hook wrote mustn't send a file off unasked, no gate being there.
+func (t *thread) userMessage(text, own string, attachments []string) (json.RawMessage, []string) {
 	a := t.a
 	var blocks []map[string]any
 	if len(t.history) == 0 {
@@ -39,7 +40,7 @@ func (t *thread) userMessage(text string, attachments []string) (json.RawMessage
 	}
 
 	var files []string
-	for _, path := range gatherPaths(a.opts.Dir, text, attachments) {
+	for _, path := range gatherPaths(a.opts.Dir, own, attachments) {
 		block, err := attachmentBlock(a.opts.Dir, path)
 		if err != nil {
 			a.notice("warning", fmt.Sprintf("%s wasn't attached: %v", path, err))

@@ -36,7 +36,9 @@ func (s *Server) platformPrompt() (proto.PlatformPrompt, error) {
 	} else if err != nil {
 		return out, fmt.Errorf("system prompt: %w", err)
 	} else if info.Size() > maxPlatformPrompt {
-		return out, fmt.Errorf("system prompt: %s is over %d KB, too long to edit here", file, maxPlatformPrompt>>10)
+		// Not an error, or the app couldn't offer to reset it.
+		out.Custom, out.TooLong = true, true
+		return out, nil
 	}
 	data, err := os.ReadFile(file)
 	if err != nil {

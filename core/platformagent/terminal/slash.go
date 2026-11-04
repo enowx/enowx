@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"strconv"
 	"strings"
 
 	"github.com/enowx/enowx/core/platformagent/record"
@@ -185,9 +184,9 @@ func (t *Terminal) budgetCommand(arg string, fail func(string, ...any), say func
 		say(fmt.Sprintf("Budget: $%.2f", t.view.budget))
 		return
 	}
-	usd, err := strconv.ParseFloat(strings.TrimPrefix(arg, "$"), 64)
-	if err != nil || usd < 0 {
-		fail("/budget: %q isn't a number of dollars", arg)
+	usd, err := record.ParseBudget(arg)
+	if err != nil {
+		fail("/budget: %s", err)
 		return
 	}
 	t.r.SetBudget(usd)
@@ -227,6 +226,13 @@ func (t *Terminal) systemPromptCommand(arg string, fail func(string, ...any), sa
 func (t *Terminal) clearAnswered(yes bool) {
 	if !yes {
 		t.sc.Line(t.sc.paint(styleDim, "Kept the conversation"))
+		return
+	}
+	// A message typed in the same burst as /clear may have started a job since: Clear waits
+	// for it on this goroutine, the one that answers what it asks, and would wipe the
+	// message besides.
+	if t.job != nil || len(t.queue) > 0 {
+		t.sc.Line(t.sc.paint(styleRed, "! /clear: not done, as a turn started meanwhile: send it again when it ends"))
 		return
 	}
 	if err := t.r.Clear(); err != nil {

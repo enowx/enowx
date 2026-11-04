@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"slices"
+	"strings"
 	"sync"
 
 	"github.com/enowx/enowx/core/platformagent/record"
@@ -29,7 +30,9 @@ type Engine struct {
 	mu    sync.Mutex
 	mode  string
 	rules []string
-	dir   string
+	// sessionRules allow for this run alone: Rules, what goes on record, leaves them out.
+	sessionRules []string
+	dir          string
 }
 
 // New is an engine in mode (record.Mode*) with the rules kept so far. An unknown mode is
@@ -53,7 +56,7 @@ func knownMode(mode string) bool {
 func (e *Engine) snapshot() (mode string, rules []string, dir string) {
 	e.mu.Lock()
 	defer e.mu.Unlock()
-	return e.mode, slices.Clone(e.rules), e.dir
+	return e.mode, slices.Concat(e.rules, e.sessionRules), e.dir
 }
 
 // Check says whether the call may run. On Ask, rule is what "always allow" would keep
@@ -64,22 +67,26 @@ func (e *Engine) Check(t tools.Tool, input json.RawMessage) (v Verdict, rule, wh
 	switch mode {
 	case record.ModeBypass:
 		return Allow, "", ""
-	case record.ModePlan:
-		if t.ReadOnly() {
-			return Allow, "", ""
-		}
-		return Deny, "", "plan mode: reads only"
 	}
 	if t.ReadOnly() {
+		if !readsInside(t, dir, input) {
+			return Ask, "", "" // this once: a kept rule would open the whole disk
+		}
 		return Allow, "", ""
+	}
+	if mode == record.ModePlan {
+		if strings.HasPrefix(t.Name(), "mcp__") {
+			return Deny, "", "plan mode: reads only, and nothing says an MCP tool only reads"
+		}
+		return Deny, "", "plan mode: reads only"
 	}
 	if mode == record.ModeAcceptEdits && t.Edits() && editInside(dir, input) {
 		return Allow, "", ""
 	}
-	if ruleAllows(rules, t.Name(), input) {
+	if ruleAllows(rules, t, dir, input) {
 		return Allow, "", ""
 	}
-	return Ask, suggestion(t.Name(), input), ""
+	return Ask, suggestion(t, dir, input), ""
 }
 
 // Mode is the mode now.
@@ -120,7 +127,19 @@ func (e *Engine) Add(rule string) {
 	}
 }
 
-// Rules are the rules kept.
+// AddForSession allows by rule for this run alone, never on record.
+func (e *Engine) AddForSession(rule string) {
+	if rule == "" {
+		return
+	}
+	e.mu.Lock()
+	defer e.mu.Unlock()
+	if !slices.Contains(e.sessionRules, rule) {
+		e.sessionRules = append(e.sessionRules, rule)
+	}
+}
+
+// Rules are the rules kept, which a new conversation's file carries on.
 func (e *Engine) Rules() []string {
 	e.mu.Lock()
 	defer e.mu.Unlock()
@@ -139,21 +158,42 @@ func commandOf(input json.RawMessage) string {
 }
 
 // ruleAllows says a kept rule covers the call: its tool's name, or for Bash patterns
-// that between them cover every part of the command.
-func ruleAllows(rules []string, tool string, input json.RawMessage) bool {
-	if slices.Contains(rules, tool) {
-		return true
+// that between them cover every part of the command. A file tool's name holds inside the
+// working folder alone: "always" on one edit mustn't cover .git/hooks or ~/.ssh.
+func ruleAllows(rules []string, t tools.Tool, dir string, input json.RawMessage) bool {
+	if slices.Contains(rules, t.Name()) {
+		return !t.Edits() || editInside(dir, input)
 	}
-	if tool != bashTool {
+	if t.Name() != bashTool {
 		return false
 	}
 	return bashRulesCover(rules, commandOf(input))
 }
 
-// suggestion is the rule "always allow" would keep for a call.
-func suggestion(tool string, input json.RawMessage) string {
-	if tool == bashTool {
+// suggestion is the rule "always allow" would keep for a call, "" when one wouldn't hold.
+func suggestion(t tools.Tool, dir string, input json.RawMessage) string {
+	if t.Name() == bashTool {
 		return suggestBashRule(commandOf(input))
 	}
-	return tool
+	if t.Edits() && !editInside(dir, input) {
+		return ""
+	}
+	return t.Name()
+}
+
+// readsInside says a read-only call stays in dir: a tool naming no paths does.
+func readsInside(t tools.Tool, dir string, input json.RawMessage) bool {
+	reader, ok := t.(tools.PathReader)
+	if !ok {
+		return true
+	}
+	if dir == "" {
+		return false
+	}
+	for _, p := range reader.ReadPaths(input, dir) {
+		if _, inside := relInside(dir, p); !inside {
+			return false
+		}
+	}
+	return true
 }

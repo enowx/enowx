@@ -56,6 +56,29 @@ type Tool interface {
 	Run(ctx context.Context, input json.RawMessage, env Env) Result
 }
 
+// SideBySider is a tool that may run alongside others, and be a subagent's, though
+// permission doesn't count it as read-only.
+type SideBySider interface {
+	SideBySide() bool
+}
+
+// RunsSideBySide says calls of t may run together.
+func RunsSideBySide(t Tool) bool {
+	if t.ReadOnly() {
+		return true
+	}
+	s, ok := t.(SideBySider)
+	return ok && s.SideBySide()
+}
+
+// PathReader is a read-only tool that reads paths named in its input: permission allows
+// it unasked only inside the working folder.
+type PathReader interface {
+	// ReadPaths are the absolute paths a call with input would read from, dir being the
+	// working folder.
+	ReadPaths(input json.RawMessage, dir string) []string
+}
+
 // Asker answers what only the user can: the AskUserQuestion tool takes it.
 type Asker interface {
 	// Questions asks them and returns one answer each.

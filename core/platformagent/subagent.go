@@ -25,7 +25,7 @@ func (*taskTool) Description() string {
 }
 
 func (*taskTool) Schema() json.RawMessage {
-	return json.RawMessage(`{"type":"object","properties":{"description":{"type":"string","description":"What the task is, in a few words, for the user."},"prompt":{"type":"string","description":"The task in full: everything the subagent needs to know, and what to report back."}},"required":["description","prompt"]}`)
+	return json.RawMessage(`{"type":"object","properties":{"description":{"type":"string","description":"What the task is, in a few words, for the user."},"prompt":{"type":"string","description":"The task in full: everything the subagent needs to know, and what to report back."}},"required":["description","prompt"],"additionalProperties":false}`)
 }
 
 func (*taskTool) ReadOnly() bool { return true }
@@ -50,7 +50,7 @@ func (task *taskTool) Run(ctx context.Context, input json.RawMessage, _ tools.En
 
 	sub := &thread{a: a, sidechain: callOf(ctx).ID}
 	sub.setup(subagentTools(a.all), systemJSON(subagentPrompt))
-	msg, files := sub.userMessage(in.Prompt, nil)
+	msg, files := sub.userMessage(in.Prompt, "", nil)
 	if msg == nil {
 		return tools.Result{Text: "The task was empty.", Failed: true}
 	}
@@ -78,7 +78,7 @@ func subagentTools(all []tools.Tool) []tools.Tool {
 		if name == taskToolName || name == askToolName {
 			continue
 		}
-		if t.ReadOnly() || name == "Bash" {
+		if tools.RunsSideBySide(t) || name == "Bash" {
 			out = append(out, t)
 		}
 	}

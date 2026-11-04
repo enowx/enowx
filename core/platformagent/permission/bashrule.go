@@ -1,7 +1,6 @@
 package permission
 
 import (
-	"path"
 	"regexp"
 	"strings"
 )
@@ -124,7 +123,7 @@ func bashRulesCover(rules []string, command string) bool {
 // "git" and "git status" but not "gitx"; without one the command must equal it.
 func patternMatches(pattern, part string) bool {
 	if prefix, ok := strings.CutSuffix(pattern, " *"); ok {
-		return part == prefix || strings.HasPrefix(part, prefix+" ")
+		return (part == prefix || strings.HasPrefix(part, prefix+" ")) && !reachesOut(prefix, part)
 	}
 	if prefix, ok := strings.CutSuffix(pattern, "*"); ok {
 		return strings.HasPrefix(part, prefix)
@@ -132,32 +131,54 @@ func patternMatches(pattern, part string) bool {
 	return part == pattern
 }
 
-var (
-	programWord    = regexp.MustCompile(`^[A-Za-z0-9_./+-]+$`)
-	subcommandWord = regexp.MustCompile(`^[A-Za-z0-9][A-Za-z0-9:_-]*$`)
-)
+var programWord = regexp.MustCompile(`^[A-Za-z0-9_./+-]+$`)
 
-// programsWithSubcommands are kept with their subcommand: "git status" says what's being
-// allowed, "git" all there is.
-var programsWithSubcommands = wordSet("apt apt-get brew bun bundle cargo composer deno docker dotnet gh git go gradle helm kubectl make mvn npm npx pip pip3 pnpm poetry rails systemctl terraform uv yarn")
-
-// programsAnyArgument are kept only as the exact command: with any arguments they run
-// other programs, delete or overwrite anything, or send data out, so a prefix would allow
-// all of it.
-var programsAnyArgument = wordSet(". awk bash builtin chmod chown command cp curl dash dd doas env eval exec find fish ksh mkfs mv nc ncat nice node nohup perl php python python2 python3 rm rsync ruby scp sed sh ssh sudo su tee time timeout watch wget xargs zsh")
-
-func wordSet(words string) map[string]bool {
-	set := map[string]bool{}
-	for _, w := range strings.Fields(words) {
-		set[w] = true
-	}
-	return set
+// boundedCommands are the only commands kept as a prefix: what they do is plainly bounded,
+// whatever arguments follow, but for the flags listed, which run other programs or write
+// where they say. Anything else is kept as the exact command: too many programs run others
+// with the right arguments (setsid, stdbuf, flock, busybox, uv run, npm exec, docker run,
+// go run, ...) for a list of those to be complete.
+var boundedCommands = map[string][]string{
+	"git status": nil,
+	"git diff":   gitReachesOut,
+	"git log":    gitReachesOut,
+	"git show":   gitReachesOut,
+	"go test":    goReachesOut,
+	"go build":   goReachesOut,
+	"go vet":     goReachesOut,
+	"npm test":   {"--script-shell"},
+	"make":       {"-f", "--file", "--makefile", "-C", "--directory", "--eval", "-E", "-I", "--include-dir"},
+	"ls":         nil,
+	"pwd":        nil,
 }
 
-// suggestBashRule is the narrowest useful rule for command: Bash(git status *) or
-// Bash(ls *), the exact command for a program whose arguments can do anything, nothing
-// when a rule can't stand for it (several commands in one, a command that can't be
-// judged). It never suggests a pattern that allows every command.
+var (
+	gitReachesOut = []string{"--output", "--ext-diff", "--textconv"}
+	goReachesOut  = []string{"-exec", "--exec", "-toolexec", "--toolexec", "-vettool", "--vettool", "-o", "--o", "-overlay", "--overlay", "-modfile", "--modfile"}
+)
+
+// reachesOut says part, kept under prefix, uses a flag the prefix doesn't vouch for, or for
+// make sets a variable, which can be SHELL.
+func reachesOut(prefix, part string) bool {
+	fields := strings.Fields(part)
+	for _, arg := range fields[min(len(strings.Fields(prefix)), len(fields)):] {
+		if prefix == "make" && !strings.HasPrefix(arg, "-") && strings.Contains(arg, "=") {
+			return true
+		}
+		for _, flag := range boundedCommands[prefix] {
+			short := len(flag) == 2 // -fFILE is -f FILE
+			if arg == flag || strings.HasPrefix(arg, flag+"=") || short && strings.HasPrefix(arg, flag) {
+				return true
+			}
+		}
+	}
+	return false
+}
+
+// suggestBashRule is the narrowest useful rule for command: Bash(git status *) for what
+// boundedCommands hold, else the exact command; nothing when a rule can't stand for it
+// (several commands in one, a command that can't be judged). It never suggests a pattern
+// that allows every command.
 func suggestBashRule(command string) string {
 	parts, ok := splitCommand(command)
 	if !ok || len(parts) != 1 {
@@ -165,20 +186,16 @@ func suggestBashRule(command string) string {
 	}
 	part := parts[0]
 	fields := strings.Fields(part)
-	program := fields[0]
-	if !programWord.MatchString(program) {
+	if !programWord.MatchString(fields[0]) {
 		return "" // an assignment, a variable, a quoted name: what runs isn't what it says
 	}
-	switch base := path.Base(program); {
-	case programsAnyArgument[base]:
-		return exactRule(part)
-	case programsWithSubcommands[base]:
-		if len(fields) > 1 && subcommandWord.MatchString(fields[1]) {
-			return bashTool + "(" + program + " " + fields[1] + " *)"
+	for n := min(2, len(fields)); n > 0; n-- {
+		prefix := strings.Join(fields[:n], " ")
+		if _, bounded := boundedCommands[prefix]; bounded && !reachesOut(prefix, part) {
+			return bashTool + "(" + prefix + " *)"
 		}
-		return exactRule(part)
 	}
-	return bashTool + "(" + program + " *)"
+	return exactRule(part)
 }
 
 // exactRule keeps part as it is, unless a * in it would read as a wildcard ("rm *").

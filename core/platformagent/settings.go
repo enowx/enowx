@@ -3,6 +3,7 @@ package platformagent
 import (
 	"errors"
 	"fmt"
+	"math"
 
 	"github.com/enowx/enowx/core/platformagent/record"
 )
@@ -54,6 +55,9 @@ func (a *Agent) SetMode(mode string) error {
 
 // SetBudget changes the budget, 0 for none.
 func (a *Agent) SetBudget(budget float64) {
+	if budget < 0 || math.IsNaN(budget) || math.IsInf(budget, 0) {
+		return // the commands refuse these; the file's JSON can't hold them
+	}
 	a.mu.Lock()
 	a.budget, a.limit = budget, budget
 	a.mu.Unlock()
@@ -81,6 +85,7 @@ func (a *Agent) Clear() error {
 	}
 
 	a.main.history, a.main.stripBefore, a.main.used, a.main.lastPrompt = nil, 0, 0, ""
+	a.main.compactFailed, a.main.compactFailedAt = false, 0
 	a.writeMeta()
 	for _, rule := range a.engine.Rules() {
 		a.emit(record.Record{Type: record.Allow, Rule: rule})

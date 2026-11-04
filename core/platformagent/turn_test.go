@@ -273,8 +273,10 @@ func TestCancelMidStreamDropsThePartial(t *testing.T) {
 	if r.front.turnStop(t) != "interrupted" {
 		t.Fatalf("stop: %s", r.front.turnStop(t))
 	}
-	if len(r.front.of(record.Assistant)) != 0 {
-		t.Error("the partial answer was kept")
+	for _, a := range r.front.of(record.Assistant) {
+		if a.Message != nil {
+			t.Error("the partial answer was kept")
+		}
 	}
 	r.front.onEvent = nil
 	r.mustTurn("second")
@@ -287,5 +289,29 @@ func TestCancelMidStreamDropsThePartial(t *testing.T) {
 	messages := parseMessages(t, req)
 	if len(messages) != 1 || messages[0].Role != "user" {
 		t.Errorf("messages: %s", req.Raw("messages"))
+	}
+}
+
+// The sixth pause in a row ends the turn; a call it carried still needs its result.
+func TestTooManyPausesAnswerTheCallsOfTheLast(t *testing.T) {
+	pause := standinapi.Reply{Blocks: []standinapi.Block{standinapi.TextBlock("working")}, Stop: "pause_turn"}
+	last := standinapi.Reply{Blocks: []standinapi.Block{standinapi.ToolUse("c9", "Alpha", `{}`)}, Stop: "pause_turn"}
+	ran := false
+	r := newRig(t, func(o *Options) {
+		o.ExtraTools = []tools.Tool{&fakeTool{name: "Alpha", run: func(context.Context, json.RawMessage) tools.Result {
+			ran = true
+			return tools.Result{}
+		}}}
+	}, pause, pause, pause, pause, pause, last, standinapi.Text("next"))
+	if err := r.turn("go"); err == nil {
+		t.Fatal("no error")
+	}
+	if ran {
+		t.Error("the call ran")
+	}
+	r.mustTurn("again")
+	reqs := r.srv.Requests()
+	if text, isError := resultOf(t, reqs[len(reqs)-1], "c9"); !isError || !strings.Contains(text, "did not run") {
+		t.Errorf("result: %q, %v", text, isError)
 	}
 }

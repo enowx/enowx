@@ -27,6 +27,9 @@ const (
 	// MethodVaultScan finds logins the host's tools keep (gh, aws,
 	// wrangler, docker, npm, SSH keys…), with their values, to import.
 	MethodVaultScan = "vault.scan" // → []VaultFound
+	// MethodVaultAgentKey hands a session's agent, as it starts, the credential it runs
+	// on: once per start, as only that process is to hold it (docs/claude-platform.md).
+	MethodVaultAgentKey = "vault.agentKey" // VaultAgentKeyParams → VaultAgentKey
 	// MethodVaultAttach gives a session credentials (by name): lent now,
 	// and again whenever its program starts.
 	MethodVaultAttach = "vault.attach" // VaultAttach → []string
@@ -151,6 +154,16 @@ type VaultLend struct {
 	Signature   []byte            `json:"signature,omitempty"`
 	SigFormat   string            `json:"sigFormat,omitempty"`
 	Message     string            `json:"message,omitempty"`
+}
+
+// VaultAgentKeyParams names the session whose agent asks.
+type VaultAgentKeyParams struct {
+	Session string `json:"session"`
+}
+
+// VaultAgentKey is what an agent runs on, as variables; empty when nothing waits for it.
+type VaultAgentKey struct {
+	Env map[string]string `json:"env,omitempty"`
 }
 
 // VaultReply is the app's answer to request ID.

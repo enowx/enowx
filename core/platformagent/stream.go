@@ -74,6 +74,7 @@ func (t *thread) streamOnce(ctx context.Context, body []byte, betas []string, qu
 		watchdog.Reset(a.streamIdle)
 		ev := stream.Current()
 		if err := msg.Accumulate(ev); err != nil {
+			t.recordSpend(cutAnswer(&msg))
 			return nil, err
 		}
 		index := int(ev.Index)
@@ -104,16 +105,49 @@ func (t *thread) streamOnce(ctx context.Context, body []byte, betas []string, qu
 			deltas.flush()
 		}
 	}
+	// What a stream said so far is billed like any answer, whole or not.
 	if err := stream.Err(); err != nil {
+		t.recordSpend(cutAnswer(&msg))
 		if errors.Is(context.Cause(streamCtx), errStreamStalled) {
 			return nil, errStreamStalled
 		}
 		return nil, err
 	}
 	if !stopped {
+		t.recordSpend(cutAnswer(&msg))
 		return nil, errStreamCut
 	}
 	return newAnswer(&msg, inputs), nil
+}
+
+// usageOf is what msg says it used so far.
+func usageOf(msg *anthropic.BetaMessage) record.Usage {
+	return record.Usage{
+		Input:      msg.Usage.InputTokens,
+		Output:     msg.Usage.OutputTokens,
+		CacheRead:  msg.Usage.CacheReadInputTokens,
+		CacheWrite: msg.Usage.CacheCreationInputTokens,
+	}
+}
+
+// cutAnswer is an answer cut short, as far as its bill goes.
+func cutAnswer(msg *anthropic.BetaMessage) *answer {
+	return &answer{id: msg.ID, stop: "cut", model: string(msg.Model), usage: usageOf(msg)}
+}
+
+// recordSpend counts an answer no other record will, with its cost and tokens on record
+// for a resume and the token views; nothing of it goes in the history. One that never
+// said a word, a stream that failed at once, cost nothing.
+func (t *thread) recordSpend(ans *answer) {
+	if ans.usage == (record.Usage{}) {
+		return
+	}
+	cost, total := t.a.account(ans)
+	usage := ans.usage
+	t.a.emit(record.Record{
+		Type: record.Assistant, Msg: ans.id, Model: ans.model, Usage: &usage, Cost: cost, TotalCost: total,
+		Stop: ans.stop, Sidechain: t.sidechain,
+	})
 }
 
 // deltaBuffer holds a block's text until coalesceEvery has passed. It belongs to the
@@ -157,12 +191,7 @@ func newAnswer(msg *anthropic.BetaMessage, inputs map[int]*strings.Builder) *ans
 		id:    msg.ID,
 		stop:  string(msg.StopReason),
 		model: string(msg.Model),
-		usage: record.Usage{
-			Input:      msg.Usage.InputTokens,
-			Output:     msg.Usage.OutputTokens,
-			CacheRead:  msg.Usage.CacheReadInputTokens,
-			CacheWrite: msg.Usage.CacheCreationInputTokens,
-		},
+		usage: usageOf(msg),
 	}
 	boundary := -1
 	for i, block := range msg.Content {

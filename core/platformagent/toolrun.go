@@ -87,7 +87,7 @@ func (t *thread) runCalls(ctx context.Context, calls []toolCall) []json.RawMessa
 
 func (t *thread) readOnly(c toolCall) bool {
 	tool, ok := t.toolsByName[c.Name]
-	return ok && tool.ReadOnly()
+	return ok && tools.RunsSideBySide(tool)
 }
 
 // runCall takes one call from ToolStart to ToolEnd.
@@ -101,7 +101,7 @@ func (t *thread) runCall(ctx context.Context, c toolCall) json.RawMessage {
 	a.emit(record.Record{Type: record.ToolStart, Tool: &shown, Sidechain: t.sidechain})
 
 	started := time.Now()
-	res := t.execute(ctx, c, tool, shown)
+	res := a.scrubResult(t.execute(ctx, c, tool, shown))
 
 	// The input is on the ToolStart and the Assistant already; a big Write needn't be
 	// kept a third time.
@@ -181,6 +181,13 @@ func (t *thread) gate(ctx context.Context, tool tools.Tool, c toolCall, shown re
 	case permission.Deny:
 		return first(why, "This call isn't permitted."), extra, "", nil
 	case permission.Allow:
+		// Hooks may have taken minutes: a link swapped meanwhile mustn't take an edit
+		// that was allowed for where it pointed then.
+		if tool.Edits() {
+			if again, _, _ := a.engine.Check(tool, c.Input); again != permission.Allow {
+				return "The path changed while this call waited, so it did not run. Send it again.", extra, "", nil
+			}
+		}
 		return "", extra, command, nil
 	}
 	if hook.Allow {

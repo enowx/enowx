@@ -12,6 +12,7 @@ import (
 	"github.com/enowx/enowx/core/platformagent/record"
 	"github.com/enowx/enowx/core/platformagent/tools"
 	"github.com/enowx/enowx/internal/standinapi"
+	"github.com/enowx/enowx/proto"
 )
 
 func TestNoKeySaysWhereToAddOne(t *testing.T) {
@@ -167,5 +168,72 @@ func TestClearStartsAnotherFile(t *testing.T) {
 	}
 	if r.records()[0].Type != record.Meta {
 		t.Errorf("first record of the new file: %+v", r.records()[0])
+	}
+}
+
+// How a conversation's mode goes on: what was kept stands unless --permission-mode says.
+func TestResumedMode(t *testing.T) {
+	cases := []struct {
+		name  string
+		saved string
+		o     Options
+		want  string
+	}{
+		{"new: default", "", Options{}, record.ModeDefault},
+		{"new: mode", "", Options{Mode: record.ModePlan}, record.ModePlan},
+		{"new: if new", "", Options{ModeIfNew: record.ModeAcceptEdits}, record.ModeAcceptEdits},
+		{"new: skip", "", Options{SkipPermissions: true, AllowBypass: true}, record.ModeBypass},
+		{"plain resume keeps a mode", record.ModeAcceptEdits, Options{}, record.ModeAcceptEdits},
+		{"plain resume doesn't restore bypass", record.ModeBypass, Options{}, record.ModeDefault},
+		{"if new doesn't restore bypass", record.ModeBypass, Options{ModeIfNew: record.ModePlan}, record.ModeDefault},
+		{"the allow flag restores bypass", record.ModeBypass, Options{AllowBypass: true}, record.ModeBypass},
+		{"the skip flag restores bypass", record.ModeBypass, Options{SkipPermissions: true, AllowBypass: true}, record.ModeBypass},
+		{"the skip flag doesn't override safer", record.ModePlan, Options{SkipPermissions: true, AllowBypass: true}, record.ModePlan},
+		{"a stale mode from enowX doesn't change it", record.ModeAcceptEdits, Options{ModeIfNew: record.ModeDefault}, record.ModeAcceptEdits},
+		{"an explicit mode does", record.ModeAcceptEdits, Options{Mode: record.ModePlan}, record.ModePlan},
+		{"an explicit bypass does", record.ModePlan, Options{Mode: record.ModeBypass}, record.ModeBypass},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			r := newRig(t, func(o *Options) { o.Mode = c.saved })
+			id := r.agent.Conversation()
+			_ = r.agent.Close()
+			change := c.o
+			change.Resume, change.Dir, change.SessionDir, change.Front = id, r.opts.Dir, r.opts.SessionDir, r.front
+			if c.saved == "" {
+				change.Resume = "" // nothing kept
+			}
+			r.opts = change
+			r.start()
+			if _, _, got, _ := r.agent.Settings(); got != c.want {
+				t.Fatalf("mode %s, want %s", got, c.want)
+			}
+		})
+	}
+}
+
+// GOD of Agents' rules stay out of the record: a later, ordinary run of the conversation
+// must ask.
+func TestGOARulesNeverGoOnRecord(t *testing.T) {
+	t.Setenv(proto.EnvGOA, "1")
+	r := newRig(t, func(o *Options) {
+		o.ExtraTools = []tools.Tool{&fakeTool{name: "mcp__enowx__goa_board"}}
+	}, standinapi.Calls(standinapi.ToolUse("c1", "mcp__enowx__goa_board", `{}`)), standinapi.Text("done"))
+	r.mustTurn("go")
+	if len(r.front.asked) != 0 {
+		t.Fatalf("GOA's tool asked: %+v", r.front.asked)
+	}
+	r.agent.engine.Add("Bash(git status *)")
+	if err := r.agent.Clear(); err != nil {
+		t.Fatal(err)
+	}
+	var kept []string
+	for _, rec := range r.records() {
+		if rec.Type == record.Allow {
+			kept = append(kept, rec.Rule)
+		}
+	}
+	if len(kept) != 1 || kept[0] != "Bash(git status *)" {
+		t.Fatalf("on record: %v", kept)
 	}
 }

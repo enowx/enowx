@@ -42,6 +42,15 @@ func (globTool) Detail(input json.RawMessage) string {
 	return oneLine(in.Pattern, 200)
 }
 
+func (globTool) ReadPaths(input json.RawMessage, dir string) []string {
+	in, err := decode[globInput](input)
+	if err != nil {
+		return nil
+	}
+	root, _, _ := globRoot(ResolvePath(dir, cmpOr(in.Path, ".")), in.Pattern)
+	return []string{root}
+}
+
 func (globTool) Run(ctx context.Context, input json.RawMessage, env Env) Result {
 	in, err := decode[globInput](input)
 	if err != nil {

@@ -1,6 +1,7 @@
 package platformagent
 
 import (
+	"context"
 	"os"
 	"strings"
 	"testing"
@@ -22,6 +23,73 @@ func TestRateLimitHonorsRetryAfter(t *testing.T) {
 	}
 	if len(r.srv.Requests()) != 2 || r.front.turnStop(t) != "done" {
 		t.Errorf("requests %d, stop %s", len(r.srv.Requests()), r.front.turnStop(t))
+	}
+}
+
+// A failed, cut or interrupted stream was billed for what it said so far.
+func TestCutStreamsCountTheirUsage(t *testing.T) {
+	seen := standinapi.Usage{Input: 1_000_000} // $4
+	partial := strings.Repeat("partial text ", 10)
+	r := newRig(t, nil,
+		standinapi.Reply{Blocks: []standinapi.Block{standinapi.TextBlock(partial)}, Drop: true, Usage: seen},
+		standinapi.Reply{Blocks: []standinapi.Block{standinapi.TextBlock(partial)}, StreamError: "overloaded_error", Usage: seen},
+		standinapi.Text("whole"))
+	r.mustTurn("hi")
+	if got := r.agent.Cost(); got < 7.9 {
+		t.Fatalf("cost: %v", got)
+	}
+	// And it survives a resume, for its record holds it, and token usage reads it.
+	id, spent := r.agent.Conversation(), r.agent.Cost()
+	_ = r.agent.Close()
+	r.opts.Resume = id
+	r.start()
+	if got := r.agent.Cost(); got != spent {
+		t.Fatalf("resumed cost %v, want %v", got, spent)
+	}
+	counted := 0
+	for _, rec := range r.records() {
+		if rec.Type == record.Assistant && rec.Usage != nil && rec.Usage.Input >= 1_000_000 {
+			counted++
+		}
+	}
+	if counted != 2 {
+		t.Fatalf("records with the cut streams' usage: %d", counted)
+	}
+}
+
+func TestInterruptedStreamCountsItsUsage(t *testing.T) {
+	hold := make(chan struct{})
+	defer close(hold)
+	r := newRig(t, nil, standinapi.Reply{Blocks: []standinapi.Block{standinapi.TextBlock(strings.Repeat("partial ", 20))}, Hold: hold, Usage: standinapi.Usage{Input: 1_000_000}})
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	r.front.onEvent = func(rec record.Record) {
+		if rec.Type == record.BlockStart {
+			cancel()
+		}
+	}
+	if err := r.agent.Turn(ctx, "hi", nil); err != nil {
+		t.Fatal(err)
+	}
+	if got := r.agent.Cost(); got < 3.9 {
+		t.Fatalf("cost: %v", got)
+	}
+}
+
+func TestARetryAfterOverTheLimitFailsWithAClearMessage(t *testing.T) {
+	r := newRig(t, nil, standinapi.RateLimited("3600"), standinapi.Text("never"))
+	began := time.Now()
+	if err := r.turn("hi"); err == nil {
+		t.Fatal("no error")
+	}
+	if took := time.Since(began); took > 5*time.Second {
+		t.Errorf("waited %v", took)
+	}
+	if !strings.Contains(r.front.notices(), "asks to wait 1h0m0s") || len(r.srv.Requests()) != 1 {
+		t.Errorf("notices %s, requests %d", r.front.notices(), len(r.srv.Requests()))
+	}
+	if got := parseRetryAfter("1e300", time.Now()); got <= 0 {
+		t.Errorf("a huge retry-after overflowed: %v", got)
 	}
 }
 
@@ -51,9 +119,15 @@ func TestDropMidStreamRetriesWholeWithoutThePartial(t *testing.T) {
 	if !strings.Contains(notices, "connection lost") || !strings.Contains(notices, "overloaded") {
 		t.Errorf("notices: %s", notices)
 	}
-	answers := r.front.of(record.Assistant)
-	if len(answers) != 1 {
-		t.Fatalf("answers: %d", len(answers))
+	// The cut ones are on record for their cost, with no message.
+	answers := 0
+	for _, a := range r.front.of(record.Assistant) {
+		if a.Message != nil {
+			answers++
+		}
+	}
+	if answers != 1 {
+		t.Fatalf("answers: %d", answers)
 	}
 	r.mustTurn("again")
 	reqs := r.srv.Requests()

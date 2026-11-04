@@ -19,10 +19,12 @@ const (
 	readDefaultLimit = 2000
 	readLineMost     = 2000
 	readTextMost     = 100 << 10
-	// The API takes a picture of up to 5 MB once base64: 3/4 of that as a file.
-	readImageMost = 5 << 20 * 3 / 4
-	sniffSize     = 8 << 10
+	readImageMost    = ImageBase64Most * 3 / 4
+	sniffSize        = 8 << 10
 )
+
+// ImageBase64Most is the largest picture the API takes, once base64.
+const ImageBase64Most = 5 << 20
 
 const readSchema = `{"type":"object","properties":{"file_path":{"type":"string","description":"The file to read, absolute or relative to the working folder"},"offset":{"type":"integer","minimum":1,"description":"The line to start from, 1 being the first"},"limit":{"type":"integer","minimum":1,"description":"How many lines to read (default 2000)"}},"required":["file_path"],"additionalProperties":false}`
 
@@ -51,6 +53,14 @@ func (readTool) Detail(input json.RawMessage) string {
 		return oneLine(fmt.Sprintf("%s from line %d", in.FilePath, in.Offset), 200)
 	}
 	return oneLine(in.FilePath, 200)
+}
+
+func (readTool) ReadPaths(input json.RawMessage, dir string) []string {
+	in, err := decode[readInput](input)
+	if err != nil || in.FilePath == "" {
+		return nil
+	}
+	return []string{ResolvePath(dir, in.FilePath)}
 }
 
 func (readTool) Run(ctx context.Context, input json.RawMessage, env Env) Result {

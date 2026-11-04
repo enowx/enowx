@@ -118,7 +118,8 @@ func parseRetryAfter(value string, now time.Time) time.Duration {
 		return 0
 	}
 	if seconds, err := strconv.ParseFloat(value, 64); err == nil && seconds >= 0 {
-		return time.Duration(seconds * float64(time.Second))
+		// Capped so that a huge value doesn't overflow into a negative wait.
+		return time.Duration(min(seconds, 1e9) * float64(time.Second))
 	}
 	if at, err := http.ParseTime(value); err == nil {
 		return max(at.Sub(now), 0)

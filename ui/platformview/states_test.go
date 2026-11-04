@@ -233,6 +233,85 @@ func TestPromptTab(t *testing.T) {
 	}
 }
 
+// A save or a reset answering after the host changed leaves the new host's state alone.
+func TestPromptAnswersForAnotherHostAreDropped(t *testing.T) {
+	var finish func(proto.PlatformPrompt, error)
+	o := Options{Host: "first",
+		LoadPrompt: func(done func(proto.PlatformPrompt, error)) {
+			done(proto.PlatformPrompt{Text: "first's", Custom: true, Path: "/first"}, nil)
+		},
+		SavePrompt:  func(_ string, done func(proto.PlatformPrompt, error)) { finish = done },
+		ResetPrompt: func(done func(proto.PlatformPrompt, error)) { finish = done },
+		Confirm:     func(_, _, _ string, do func()) { do() },
+	}
+	for name, begin := range map[string]func(tt *ui.Tester, v *View) error{
+		"save": func(tt *ui.Tester, v *View) error {
+			v.prompt.draft = "typed"
+			frames(tt, 2)
+			return tt.Click("Save")
+		},
+		"reset": func(tt *ui.Tester, v *View) error { return tt.Click("Reset to built-in") },
+	} {
+		o.Host = "first"
+		o.LoadPrompt = func(done func(proto.PlatformPrompt, error)) {
+			done(proto.PlatformPrompt{Text: "first's", Custom: true, Path: "/first"}, nil)
+		}
+		v := &View{}
+		v.Open(TabPrompt)
+		tt := drawn(v, &o, 900, 700)
+		frames(tt, 3)
+		if err := begin(tt, v); err != nil {
+			t.Fatalf("%s: %v", name, err)
+		}
+		frames(tt, 2)
+		if finish == nil {
+			t.Fatalf("%s: never asked", name)
+		}
+		o.Host = "second"
+		o.LoadPrompt = func(done func(proto.PlatformPrompt, error)) {
+			done(proto.PlatformPrompt{Text: "second's", Custom: true, Path: "/second"}, nil)
+		}
+		frames(tt, 3)
+		v.prompt.draft = "typed on second"
+		finish(proto.PlatformPrompt{Text: "first's answer", Path: "/first"}, errors.New("late"))
+		finish(proto.PlatformPrompt{Text: "first's answer", Path: "/first"}, nil)
+		frames(tt, 2)
+		p := v.prompt
+		if p.host != "second" || p.saved.Text != "second's" || p.draft != "typed on second" || p.err != "" || p.note != "" {
+			t.Errorf("%s: the second host's state changed: %+v", name, p)
+		}
+		finish = nil
+	}
+}
+
+// A prompt too long to edit can still be reset, and says why the editor is empty.
+func TestPromptTooLongOffersReset(t *testing.T) {
+	saved := proto.PlatformPrompt{Custom: true, TooLong: true, Path: "/h/system-prompt.md"}
+	reset := false
+	o := Options{Host: strings.Repeat("a-long-host-name-", 20),
+		LoadPrompt: func(done func(proto.PlatformPrompt, error)) { done(saved, nil) },
+		ResetPrompt: func(done func(proto.PlatformPrompt, error)) {
+			reset = true
+			done(proto.PlatformPrompt{Path: saved.Path}, nil)
+		},
+		Confirm: func(_, _, _ string, do func()) { do() },
+	}
+	v := &View{}
+	v.Open(TabPrompt)
+	tt := drawn(v, &o, 500, 700)
+	frames(tt, 3)
+	if !has(tt, "too long to edit") {
+		t.Fatalf("no reason: %q", tt.Texts())
+	}
+	if err := tt.Click("Reset to built-in"); err != nil {
+		t.Fatal(err)
+	}
+	frames(tt, 2)
+	if !reset || !has(tt, "built-in") {
+		t.Fatalf("reset %v: %q", reset, tt.Texts())
+	}
+}
+
 // The chat's first words name the agent, its model and the cost, a key's absence with
 // the way to fix it, in a narrow chat too.
 func TestWelcome(t *testing.T) {

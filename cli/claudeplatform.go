@@ -9,7 +9,6 @@ import (
 	"os"
 	"os/signal"
 	"path/filepath"
-	"strconv"
 	"strings"
 	"syscall"
 	"unicode"
@@ -27,8 +26,9 @@ type claudePlatformFlags struct {
 	version bool
 
 	model, effort, mode string
-	skipPermissions     bool // --dangerously-skip-permissions: bypass from the start
-	allowBypass         bool // --allow-dangerously-skip-permissions: bypass on offer
+	modeIfNew           string // --permission-mode-if-new: what enowX starts a session again with
+	skipPermissions     bool   // --dangerously-skip-permissions: bypass from the start
+	allowBypass         bool   // --allow-dangerously-skip-permissions: bypass on offer
 
 	continueLast bool
 	resume       string
@@ -82,6 +82,11 @@ func parseClaudePlatformFlags(args []string) (claudePlatformFlags, error) {
 			if err == nil && !validMode(f.mode) {
 				err = fmt.Errorf("claude-platform: unknown --permission-mode %q: default, acceptEdits, plan or bypassPermissions", f.mode)
 			}
+		case "--permission-mode-if-new":
+			f.modeIfNew, err = needValue()
+			if err == nil && !validMode(f.modeIfNew) {
+				err = fmt.Errorf("claude-platform: unknown --permission-mode-if-new %q", f.modeIfNew)
+			}
 		case "--dangerously-skip-permissions":
 			f.skipPermissions = true
 		case "--allow-dangerously-skip-permissions":
@@ -117,9 +122,8 @@ func parseClaudePlatformFlags(args []string) (claudePlatformFlags, error) {
 		case "--max-budget":
 			var v string
 			if v, err = needValue(); err == nil {
-				f.budget, err = strconv.ParseFloat(strings.TrimPrefix(v, "$"), 64)
-				if err != nil || f.budget < 0 {
-					err = fmt.Errorf("claude-platform: --max-budget: %q isn't a number of dollars", v)
+				if f.budget, err = record.ParseBudget(v); err != nil {
+					err = fmt.Errorf("claude-platform: --max-budget: %w", err)
 				}
 				f.budgetSet = true
 			}
@@ -131,9 +135,6 @@ func parseClaudePlatformFlags(args []string) (claudePlatformFlags, error) {
 		}
 	}
 	f.prompt = strings.Join(positional, " ")
-	if f.skipPermissions {
-		f.mode = record.ModeBypass
-	}
 	if f.continueLast && f.resume != "" {
 		return f, errors.New("claude-platform: --continue and --resume ask for different conversations")
 	}
@@ -152,23 +153,24 @@ func validMode(mode string) bool {
 // folder. The Front and Hooks are the caller's.
 func (f claudePlatformFlags) options(dir, home string) (platformagent.Options, error) {
 	o := platformagent.Options{
-		Dir:      dir,
-		Resume:   f.resume,
-		Continue: f.continueLast,
-		Model:    f.model,
-		Effort:   f.effort,
-		Mode:     f.mode,
-		Append:   strings.Join(f.appendPrompts, "\n\n"),
+		Dir:             dir,
+		Resume:          f.resume,
+		Continue:        f.continueLast,
+		Model:           f.model,
+		Effort:          f.effort,
+		Mode:            f.mode,
+		ModeIfNew:       f.modeIfNew,
+		SkipPermissions: f.skipPermissions,
+		AllowBypass:     f.allowBypass,
+		Append:          strings.Join(f.appendPrompts, "\n\n"),
 	}
 	o.SessionDir = f.sessionDir
 	if o.SessionDir == "" {
 		o.SessionDir = filepath.Join(record.SessionsDir(home), sanitizeSessionDir(dir))
 	}
-	switch {
-	case f.budgetSet:
-		o.Budget = f.budget
-	case f.resume == "" && !f.continueLast:
-		o.Budget = record.DefaultBudget // a conversation resumed keeps its own
+	o.NewBudget = record.DefaultBudget // a conversation resumed keeps its own
+	if f.budgetSet {
+		o.Budget, o.NoBudget = f.budget, f.budget == 0
 	}
 	switch {
 	case f.systemPromptFile != "":
@@ -251,6 +253,9 @@ func claudePlatform(args []string, out io.Writer) error {
 		fmt.Fprintf(out, "%s (enowX) %s\n", record.AgentID, version.String)
 		return nil
 	}
+	if err := platformagent.HardenProcess(); err != nil {
+		fmt.Fprintf(os.Stderr, "claude-platform: other programs of this user may read this process: %v\n", err)
+	}
 	return runClaudePlatform(f, os.Stdin, out, func(o platformagent.Options) (platformagent.Runner, error) {
 		a, err := platformagent.New(o)
 		if err != nil {
@@ -258,6 +263,16 @@ func claudePlatform(args []string, out io.Writer) error {
 		}
 		return a, nil
 	})
+}
+
+// takeKey puts what the daemon holds for this agent where the agent reads it, which then
+// forgets it: a config's API, already in the environment, stays over any key lent.
+func takeKey(ctx context.Context, bridge *hookbridge.Bridge) {
+	for k, v := range bridge.TakeKey(ctx) {
+		if os.Getenv(k) == "" {
+			_ = os.Setenv(k, v)
+		}
+	}
 }
 
 // runClaudePlatform is claudePlatform with what starts the agent given, for tests.
@@ -280,7 +295,7 @@ func runClaudePlatform(f claudePlatformFlags, in io.Reader, out io.Writer, start
 	cfg := terminal.Config{
 		In:          in,
 		Out:         out,
-		AllowBypass: f.allowBypass || f.mode == record.ModeBypass,
+		AllowBypass: f.allowBypass || f.skipPermissions || f.mode == record.ModeBypass,
 		FirstPrompt: f.prompt,
 	}
 	inFile, inOK := in.(*os.File)
@@ -290,7 +305,8 @@ func runClaudePlatform(f claudePlatformFlags, in io.Reader, out io.Writer, start
 		cfg.Cols = terminal.ColsOf(outFile)
 	}
 	bridge := hookbridge.New()
-	bridge.SetMode(f.mode)
+	bridge.SetMode(f.mode) // until the agent says, having read its conversation
+	takeKey(ctx, bridge)
 	if extra := bridge.Start(ctx); extra != "" {
 		o.Append = strings.TrimSpace(o.Append + "\n\n" + extra)
 	}
@@ -303,6 +319,8 @@ func runClaudePlatform(f claudePlatformFlags, in io.Reader, out io.Writer, start
 	if err != nil {
 		return fmt.Errorf("claude-platform: %w", err)
 	}
+	_, _, mode, _ := runner.Settings()
+	bridge.SetMode(mode)
 	if cfg.Interactive {
 		restore, err := terminal.Raw(inFile, outFile)
 		if err != nil {

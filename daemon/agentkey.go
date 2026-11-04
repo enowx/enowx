@@ -11,10 +11,11 @@ import (
 )
 
 // An agent whose official form runs on a credential of the vault (Preset.VaultPlatform):
-// its sessions get it as the vault lends to any session, with the app's consent, in
-// their process's environment alone. Their saved command holds no value and they keep
-// its name (Meta.Creds), so a wake or a restart has it lent again. With none in the vault
-// a session still starts, and the agent says what is missing. docs/claude-platform.md.
+// its sessions get it as the vault lends to any session, with the app's consent, and the
+// agent takes it from the daemon as it starts (takeAgentKey), never in the session's
+// environment. Their saved command holds no value and they keep its name (Meta.Creds), so
+// a wake or a restart has it lent again. With none in the vault a session still starts,
+// and the agent says what is missing. docs/claude-platform.md.
 
 // agentKeyPlatform is the vault's platform session of agentID needs a credential of, ""
 // when it needs none, as its config (account) is a model API with a key of its own.

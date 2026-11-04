@@ -206,6 +206,21 @@ func (b *Bridge) Start(ctx context.Context) string {
 	return d.Context
 }
 
+// TakeKey is what the daemon holds for this agent to run on, as variables, none outside a
+// session or when it holds nothing: the key doesn't come through the session's environment,
+// which wrapper shells, the shell after the agent and tabs would share. It asks once.
+func (b *Bridge) TakeKey(ctx context.Context) map[string]string {
+	if !b.inSession() {
+		return nil
+	}
+	var got proto.VaultAgentKey
+	// An error is a daemon too old to hold it apart: the key is in the environment then.
+	if err := b.call(ctx, shortTimeout, proto.MethodVaultAgentKey, proto.VaultAgentKeyParams{Session: b.id}, &got); err != nil {
+		return nil
+	}
+	return got.Env
+}
+
 // End says the agent's program is ending.
 func (b *Bridge) End() {
 	if !b.inSession() {

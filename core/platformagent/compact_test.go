@@ -160,3 +160,51 @@ func TestCompactOnEmptyConversationSaysSo(t *testing.T) {
 		t.Errorf("requests %d, notices %s", len(r.srv.Requests()), r.front.notices())
 	}
 }
+
+// A compaction with no summary is tried once a turn, however many tool rounds follow,
+// and not again until the context has grown.
+func TestAFailedCompactionBacksOff(t *testing.T) {
+	full := standinapi.Usage{CacheRead: 800_000}
+	round := func(id string) standinapi.Reply {
+		return standinapi.Reply{Blocks: []standinapi.Block{standinapi.ToolUse(id, "Alpha", `{}`)}, Usage: full}
+	}
+	empty := standinapi.Reply{Blocks: []standinapi.Block{standinapi.ToolUse("x", "Alpha", `{}`)}, Usage: standinapi.Usage{Input: 100}}
+	emptyText := standinapi.Reply{Blocks: []standinapi.Block{}, Usage: standinapi.Usage{Input: 100}}
+	r := newRig(t, func(o *Options) { o.ExtraTools = []tools.Tool{&fakeTool{name: "Alpha", readOnly: true}} },
+		round("c1"),
+		empty, emptyText, // the one try: a stray call, then nothing
+		round("c2"), round("c3"), standinapi.Reply{Blocks: []standinapi.Block{standinapi.TextBlock("done")}, Usage: full},
+		standinapi.Reply{Blocks: []standinapi.Block{standinapi.TextBlock("second turn")}, Usage: full})
+	r.mustTurn("work")
+	if got := len(r.srv.Requests()); got != 6 {
+		t.Fatalf("requests in the turn: %d", got)
+	}
+	if n := strings.Count(r.front.notices(), "Compaction failed"); n != 1 {
+		t.Errorf("failures told: %d: %s", n, r.front.notices())
+	}
+	// A new turn with the context no bigger doesn't pay for another.
+	r.mustTurn("again")
+	if got := len(r.srv.Requests()); got != 7 {
+		t.Errorf("requests after a turn: %d", got)
+	}
+	// Its unsummarized answers are on record for their cost.
+	spent := 0
+	for _, rec := range r.records() {
+		if rec.Type == record.Assistant && rec.Message == nil && rec.Usage != nil && rec.Usage.Input == 100 {
+			spent++
+		}
+	}
+	if spent != 2 {
+		t.Errorf("records of the failed compaction's answers: %d", spent)
+	}
+	// Once it has grown, it tries again.
+	r.agent.main.compactFailed = false
+	r.agent.mu.Lock()
+	r.agent.used = 900_000
+	r.agent.mu.Unlock()
+	r.srv.Enqueue(standinapi.Text("<summary>at last</summary>"), standinapi.Text("after"))
+	r.mustTurn("grown")
+	if len(r.front.of(record.Compact)) != 1 {
+		t.Error("no compaction once the context grew")
+	}
+}

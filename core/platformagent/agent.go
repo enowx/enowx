@@ -85,8 +85,18 @@ type Options struct {
 	Resume   string
 	Continue bool
 
+	// Mode is --permission-mode: it holds over what a conversation kept.
 	Model, Effort, Mode string
-	Budget              float64
+	// ModeIfNew is the mode to start in when nothing is kept: what enowX starts a session
+	// again with.
+	ModeIfNew string
+	// SkipPermissions starts a new conversation in bypass; it and AllowBypass, which only
+	// offers it, let a conversation that was in bypass come back to it.
+	SkipPermissions, AllowBypass bool
+	// Budget, or with NoBudget none at all, holds over what a conversation kept;
+	// NewBudget is for one that kept nothing, however it was asked for.
+	Budget, NewBudget float64
+	NoBudget          bool
 
 	// SystemPrompt, when not empty, replaces the built-in prompt whole; Append goes
 	// after it (enowX's inject and guide).

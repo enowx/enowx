@@ -55,3 +55,19 @@ func TestPlatformAdapterCountsAnswers(t *testing.T) {
 		t.Fatalf("layer: %s", LayerOf("claude-platform"))
 	}
 }
+
+func TestPlatformAdapterCountsCompactions(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "c1.jsonl")
+	writeFile(t, path, `{"type":"meta","conversation":"c1","dir":"/w","model":"claude-opus-5-5"}
+{"type":"compact","time":"2026-10-30T10:00:00Z","msg":"m1","usage":{"input":10,"output":20,"cacheRead":0,"cacheWrite":0},"cost":0.5,"totalCost":0.5}
+{"type":"compact","time":"2026-10-30T10:01:00Z","usage":{"input":1,"output":2,"cacheRead":0,"cacheWrite":0},"cost":0.1,"totalCost":0.6}
+{"type":"compact","time":"2026-10-30T10:02:00Z"}
+`)
+	calls, err := readPlatform(path, &FileState{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(calls) != 2 || calls[0].Input != 10 || calls[0].Cost != 0.5 || calls[1].Output != 2 || calls[0].ID == calls[1].ID || calls[0].Model != "claude-opus-5-5" {
+		t.Fatalf("calls: %+v", calls)
+	}
+}
