@@ -205,6 +205,7 @@ type App struct {
 	tabs               map[string]string         // the tab each session shows in front, by session ID
 	installs           map[string]func()         // install sessions, by session ID: what to check once each ends
 	chats              map[string]*chatview.Chat // by session ID
+	chatDrawn          map[string]time.Time      // when each was last drawn (chatOnScreen)
 	diffs              map[string]*diffview.View // by session ID
 	fileViews          map[string]*fileview.View // by session ID
 	center             map[string]*centerTabs    // what tools opened in the center, by session ID
@@ -712,6 +713,7 @@ func (a *App) remove(id string) {
 		}
 	}
 	delete(a.chats, id)
+	delete(a.chatDrawn, id)
 	delete(a.state.Chats, id)
 	delete(a.diffs, id)
 	delete(a.fileViews, id)

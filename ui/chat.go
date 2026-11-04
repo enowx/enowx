@@ -57,6 +57,12 @@ func (a *App) chatViewWhile(c *ui.Context, s proto.SessionInfo, shown func() boo
 	a.chatViewSending(c, s, shown, chatTweaks{})
 }
 
+// chatOnScreen says a chat last drawn at drawn is still in sight. The session in chat mode
+// isn't enough: a session left selected-away stays in that mode, and went on polling every
+// 700 ms, which kept all its conversation in the daemon. A chat following asks about every
+// 5 s, each asking draws a frame, so one on screen has always been drawn lately.
+func chatOnScreen(drawn, now time.Time) bool { return now.Sub(drawn) < 15*time.Second }
+
 // chatTweaks change a chat for a page's agent: where the composer's
 // messages go, pastes, and how the user's messages read. Nil ones are a
 // session's own.
@@ -81,10 +87,14 @@ func (a *App) chatViewSending(c *ui.Context, s proto.SessionInfo, shown func() b
 		spent, spentTip = tokenview.Spent(t), tokenview.SpentTip(t)
 	}
 	ch := a.chatOf(s.ID)
+	if a.chatDrawn == nil {
+		a.chatDrawn = map[string]time.Time{}
+	}
+	a.chatDrawn[s.ID] = time.Now()
 	if cl := a.client; cl != nil {
 		gen := a.gen
 		ch.Follow(cl, s.ID, a.onMain, func() bool {
-			return gen == a.gen && shown() && a.chats[s.ID] == ch
+			return gen == a.gen && shown() && a.chats[s.ID] == ch && chatOnScreen(a.chatDrawn[s.ID], time.Now())
 		})
 	}
 	column := float32(0)
