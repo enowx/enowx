@@ -68,7 +68,7 @@ Checked with Codex itself, started as GOA: enowX's tools reached it over MCP as 
 
 **What holds it stays,** on every path: the restart goes through what `goa start` does, and a config can't undo it. On GOA a config's flags are only `--model`, `-m` and `--effort`, and its variables none of `ENOWX_*`, `ENABLE_TOOL_SEARCH`, `OPENCODE_CONFIG*` or `OPENCODE_PERMISSION` (`goa.ConfigArgs`, `goa.ConfigEnv`); the panel says so of a config that has others. A model API's own variables (its `OPENCODE_CONFIG`, say) go on as they are, under what holds OpenCode's GOA. A limit's fallback to another agent is refused for GOA: an agent only changes by this.
 
-**Its permission mode.** Another config keeps the mode GOA runs in (`Meta.Mode`, passed as its agent's flag), including after a mode set by the user; another agent starts in what the user chose for that agent's new sessions (on a config, not that), else its own default.
+**Its permission mode.** On Claude Code, bypass, whatever the change. On another agent, another config keeps the mode GOA runs in (`Meta.Mode`, passed as its agent's flag), including after a mode set by the user; another agent starts in what the user chose for that agent's new sessions (on a config, not that), else its own default.
 
 **GOA can't change itself.** A change ends the turn asking for it, and for an agent loses its conversation, unasked. So GOA isn't offered `goa_switch`, and `goa switch` through its `enowx` tool only reads: it is told to ask the user. Asked by another session's agent, a change is a `confirm` method of control: the user says yes first ([goa-tools.md](goa-tools.md#when-the-user-is-asked)). An older daemon answers as not knowing the method, which the app and the command say, GOA going on as it was.
 
