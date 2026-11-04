@@ -148,6 +148,7 @@ func (s *Service) Mount(mux *http.ServeMux) {
 	handle("GET "+api.PathLibraryStats, s.signedIn(s.stats))
 	handle("POST "+api.PathLibraryViews, s.webOnly(s.addViews))
 	handle("GET "+api.PathLibraryPicks, s.moderator(s.picks))
+	s.mountReuse(handle)
 
 	handle("GET "+api.PathLibraryAuthorize, s.authorize)
 	handle("POST "+api.PathLibraryExchange, s.webOnly(s.exchange))
@@ -439,14 +440,16 @@ func (l *perAddress) allow(addr string, limit int) bool {
 
 // actionsOf says what an item allows anyone, by its license and kind: copies of
 // a view-only item aren't made, and a full page's code isn't copied.
-func actionsOf(it api.LibraryItem) api.LibraryActions {
-	if it.License == api.LicenseViewOnly {
+func actionsOf(it api.LibraryItem) api.LibraryActions { return actionsFor(it.Kind, it.License) }
+
+func actionsFor(kind, license string) api.LibraryActions {
+	if license == api.LicenseViewOnly {
 		return api.LibraryActions{}
 	}
 	return api.LibraryActions{
 		CopyPrompt:   true,
-		UseComponent: it.Kind == api.LibraryComponent,
-		UseReference: it.Kind == api.LibraryPage,
+		UseComponent: kind == api.LibraryComponent,
+		UseReference: kind == api.LibraryPage,
 		OpenInEnowX:  true,
 	}
 }

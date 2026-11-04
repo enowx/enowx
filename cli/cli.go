@@ -92,6 +92,7 @@ const usage = `usage: enowx-app <command> [arguments]
   notes [show|new|write|move|rm|import|export]
                                    the user's notes on this host ("notes help")
   icons search WORD [--lib L]      SVG icons for notes and groups (lib:name), by name and keyword
+  library open|ref|skill ITEM      take a design from the community library: a copy, a reference, a skill
   canvas COMMAND                   mockups, wireframes and diagrams the user watches built live
   library [search|show|prompt|publish]
                                    the community library: other people's designs, as data; publish only opens the app's form

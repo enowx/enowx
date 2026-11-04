@@ -17,8 +17,8 @@ import (
 // address tried. Only what's live: a moderator's or a creator's token may see
 // more of the cloud, and an agent on their host doesn't get that by asking here.
 
-// libraryOpen is a client of a cloud that has a library, and its website.
-func (s *Server) libraryOpen(ctx context.Context) (*cloudclient.Client, string, error) {
+// libraryReader is a client of a cloud that has a library, and its website.
+func (s *Server) libraryReader(ctx context.Context) (*cloudclient.Client, string, error) {
 	c, _, err := s.libraryClient()
 	if err != nil {
 		return nil, "", err
@@ -97,7 +97,7 @@ func (s *Server) liveItem(ctx context.Context, c *cloudclient.Client, id, site s
 func (s *Server) libraryItem(p proto.LibraryItemRef) (proto.LibraryListing, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), libraryTimeout)
 	defer cancel()
-	c, site, err := s.libraryOpen(ctx)
+	c, site, err := s.libraryReader(ctx)
 	if err != nil {
 		return proto.LibraryListing{}, err
 	}
@@ -110,7 +110,7 @@ func (s *Server) libraryPrompt(p proto.LibraryItemRef) (proto.LibraryPromptAnswe
 	var out proto.LibraryPromptAnswer
 	ctx, cancel := context.WithTimeout(context.Background(), libraryTimeout)
 	defer cancel()
-	c, site, err := s.libraryOpen(ctx)
+	c, site, err := s.libraryReader(ctx)
 	if err != nil {
 		return out, err
 	}
@@ -155,7 +155,7 @@ func (s *Server) libraryAskPublish(p proto.LibraryAskPublishParams) (proto.Libra
 	var out proto.LibraryPublishAsked
 	ctx, cancel := context.WithTimeout(context.Background(), libraryTimeout)
 	defer cancel()
-	if _, _, err := s.libraryOpen(ctx); err != nil {
+	if _, _, err := s.libraryReader(ctx); err != nil {
 		return out, err
 	}
 	if err := s.mayShare(p.Canvas); err != nil {

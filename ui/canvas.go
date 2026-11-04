@@ -321,6 +321,10 @@ func (a *App) canvasOptions() canvasview.Options {
 		LibraryDeleteDraft: func(id string, done func(error)) {
 			call(func() error { return cl.LibraryDeleteDraft(id) }, done)
 		},
+		LibraryNewer: func(id string, done func(proto.LibraryNewer, error)) {
+			var out proto.LibraryNewer
+			call(func() (err error) { out, err = cl.LibraryNewer(id); return err }, func(err error) { done(out, err) })
+		},
 		CloudSignIn:   func() { a.page, a.settingsSection = pageSettings, sectionCloud },
 		OpenURL:       func(url string) { go func() { _ = mygo.Shell.OpenExternal(url) }() },
 		OpenCommunity: func() { a.page = pageCommunity },

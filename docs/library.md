@@ -9,6 +9,9 @@ People share designs from their canvases to `ui.enowx.ai`, where anyone can brow
 | `core/designshare` | A design's bundle (`enowx-design/1`), its checks, its draft prompt, drafts on a host. The host and the cloud run the same checks |
 | `core/designshare/thumb` | A design's picture as a WebP. Apart, so the cloud doesn't carry an image encoder |
 | `proto/library.go`, `daemon/library.go`, `daemon/rpc_library.go` | `library.prepare`, `saveDraft`, `deleteDraft`, `publish`, `status`, `withdraw` |
+| `proto/library_reuse.go`, `daemon/library_reuse.go`, `cli/library_reuse.go` | `library.useInfo`, `open`, `reference`, `skill`, `newer`; `enowx-app library open`, `ref`, `skill` |
+| `cloud/library/reuse.go`, `core/designshare/reuse.go`, `skill.go`, `link.go` | Code, copies, skills, `enowx://` links |
+| `cmd/enowx/links.go`, `ui/librarylink.go`, `ui/canvasview/source.go` | Receiving a link, the dialog it opens, what a copied canvas says |
 | `ui/canvasview/library.go` | The entry in a design's menu, the form, the status dialog |
 | `proto/library_browse.go`, `daemon/library_browse.go` | `library.search`, `item`, `prompt`, `picture`, `askPublish`, all through the cloud the user set |
 | `ui/communityview` | The browse page, reached from the Canvas page's list |
@@ -49,6 +52,8 @@ What this costs: each object not yet kept passes through the cloud once, as a re
 A bundle has fields for a design and its files alone, so a canvas's comments, brief, history and chats can't come along. The prompt is written from the design's structure and what the creator typed; a canvas's chat is never read. Agents and the command line can't publish: the form is the only way (see [Agents](#agents)).
 
 A new account's designs wait in review; once one is approved its next ones go live directly. A new version keeps the address; what it says of the item shows only once it's live, and changing an item's kind goes through review again. Unpublishing answers 410 from then on, and the objects go after 30 days.
+
+A design keeps 5 versions: at the limit, a new one makes the oldest that neither shows nor waits for review go, objects and all, so it can always be updated. The website lists what shows and what showed before (`GET items/{id}/versions`) and shows any of them by `?v=N`; a version in review, rejected or gone can't be read by its number.
 
 | Check | Result |
 |---|---|
@@ -169,10 +174,37 @@ An admin says a pick on Discord from the admin page's Picks tab, with `DecisionA
 | A device | `POST items`, `PUT items/{id}/versions/{v}/{source,thumb,thumb-phone,video}`, `POST items/{id}/versions/{v}/submit`, `GET mine` |
 | A device or a web session | `DELETE items/{id}`, `GET me`, `POST reports`, `POST auth/signout`, `POST items/{id}/comments`, `DELETE items/{id}/comments/{comment}`, `PUT items/{id}/comments-off`, `GET notifications`, `POST notifications/read`, `GET`/`PUT notifications/settings`, `GET stats` |
 | Moderators | `POST admin/comments/{id}/remove`, `GET admin/picks`, `GET admin/queue`, `GET admin/items/{id}/versions/{v}/{doc,doc-phone,thumb,thumb-phone,video}`, `POST admin/items/{id}/decisions`, `POST admin/reports/{id}/decisions`, `POST admin/accounts/{id}/block`, `.../unblock`, `GET admin/log`, `GET admin/usage` |
+| Anyone, by license and kind, limited per address | `GET items/{id}/code`, `GET items/{id}/skill` |
+| A device, by license and kind | `GET items/{id}/source`, `GET items/{id}/reference` |
 | The owner | `GET admin/accounts?q=`, `GET admin/moderators`, `POST admin/moderators`, `DELETE admin/moderators/{id}` |
 
 Objects are in the store as `<prefix>/items/<id>/v<n>/{source,doc,doc-phone,thumb,thumb-phone,video}`, `source` and `doc` gzipped.
 
+## Taking a design
+
+| What | Component | Full page | View only |
+|---|---|---|---|
+| Try the preview | yes | yes | yes |
+| Copy prompt (`prompt`) | yes | yes | 403 |
+| Use component (`code`) | yes | 404 | 403 |
+| Reference or skill (`reference`, `skill`) | 404 | yes | 403 |
+| Open in enowX (`source`) | yes | yes | 403 |
+
+The API is what refuses, not only the buttons. Each of these takes `?version=N` and answers by **that version's** license and kind: a license change applies from its version on, so an earlier version keeps what it allowed, and one that was view only stays so.
+
+- **Use component** answers the HTML and the CSS apart (split by the parser `core/canvas` uses), each opening with the notice, and the files they name, which don't come along as their rights may not be the design's. A title can't close the comment it's in.
+- **Open in enowX** makes a new canvas with the one design and its files, a `Source` (item, version, creator, license, address) and the notice in its page. It stays as it is when the original changes or goes; the canvas says when a newer version is out. It needs the host signed in to its cloud.
+- **Reference** keeps a full page's picture in a canvas's files and one credit line beside its brief (`Canvas.References`, apart from `Brief`, since builds ask for a brief by its being there). Nothing goes in the designs.
+- **Skill** is a `SKILL.md`: credit and license on top, the label, then colors, fonts and spacing matched value by value from the CSS, and the prompt in a fence it can't close. No code. Its description holds no word of the creator's, as agents load that line by themselves. It's installed through `core/envsync`: from the app's dialog, or by `library skill --install --agent NAME`; without `--install` the command only prints it.
+
+**It's other people's data.** Everything an agent or a command gets from the library says so (`designshare.OthersData`), and `canvas show` and `canvas brief` say it first for a copy or a reference.
+
+### Links
+
+The website opens `enowx://library/{open,reference,skill}?item=ID&version=N`, and shows "Nothing opened?" either way, since the system doesn't say. Any page on the web can open such a link, so it only ever opens a dialog: it shows what the chosen host's cloud says of the item, never what the link says, and nothing happens until the user picks where and says so. Links on anything but this form are ignored.
+
+`urlSchemes` in `cmd/enowx/mygo.json` registers the scheme in what the installers write: the bundle's `Info.plist` on macOS, the `.desktop` entry on Linux, the registry on Windows. An install that updates itself never runs an installer again, so a packaged app registers it at start when it isn't. macOS sends links to the running app by Apple Events. Windows and Linux start a new process, which hands the link to the first by MyGo's single-instance lock and exits; a launch without a link goes on as before, so enowX can still run twice. An app with `ENOWX_HOME` set (`make dev`, tests) neither holds the lock nor registers.
+
 ## What this phase leaves out
 
-Copying a component's code, Open in enowX, references and skills (`code`, `source` and `skill` have no endpoints yet, though an item's `actions` already say what its license allows), full-text and meaning search, profiles, saves, and exporting or deleting a profile.
+Copying one component out of a design, remixes, full-text and meaning search, profiles, saves, and exporting or deleting a profile.

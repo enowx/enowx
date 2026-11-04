@@ -185,7 +185,7 @@ func (s *Store) Create(p proto.CanvasCreateParams) (proto.Canvas, error) {
 	now := time.Now().UTC()
 	c := proto.Canvas{CanvasInfo: proto.CanvasInfo{
 		ID: newID(6), Title: title, Kind: kind, Group: strings.TrimSpace(p.Group), Projects: p.Projects,
-		Created: now, Updated: now,
+		Created: now, Updated: now, Source: p.Source,
 	}}
 	for _, f := range p.Frames {
 		c.Frames = append(c.Frames, newFrame(f, kind))

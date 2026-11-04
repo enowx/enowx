@@ -122,6 +122,8 @@ func (s *Service) listVersions(w http.ResponseWriter, r *http.Request) {
 		if v.Status == api.LibraryLive || v.Status == api.LibrarySuperseded {
 			a := v.API()
 			a.Scan, a.Prompt = nil, ""
+			actions := actionsFor(v.Kind, v.License)
+			a.Actions = &actions
 			out = append(out, a)
 		}
 	}
@@ -131,17 +133,8 @@ func (s *Service) listVersions(w http.ResponseWriter, r *http.Request) {
 // getPrompt is what Copy prompt copies. A view-only item answers 403 here, not
 // only by having no button.
 func (s *Service) getPrompt(w http.ResponseWriter, r *http.Request) {
-	it, ok := s.publicItem(w, r)
+	it, v, ok := s.usable(w, r, func(a api.LibraryActions) bool { return a.CopyPrompt })
 	if !ok {
-		return
-	}
-	if !it.Actions.CopyPrompt {
-		fail(w, http.StatusForbidden, "this design is view only")
-		return
-	}
-	v, err := s.db.LibraryVersion(r.Context(), it.ID, it.LiveVersion)
-	if err != nil {
-		s.answer(w, nil, err)
 		return
 	}
 	if v.Prompt == "" || v.PromptApproved == "" {
@@ -154,11 +147,10 @@ func (s *Service) getPrompt(w http.ResponseWriter, r *http.Request) {
 
 // credit says where a copy comes from, who made it and under which license.
 func (s *Service) credit(it api.LibraryItem) string {
-	address := strings.TrimSuffix(s.cfg.PublicURL, "/") + "/d/" + it.ID + "/" + it.Slug
-	return "Design: " + it.Title + " by " + it.Creator.Handle + "\n" + address + "\nLicense: " + it.License
+	return "Design: " + it.Title + " by " + it.Creator.Handle + "\n" + s.address(it) + "\nLicense: " + it.License
 }
 
-// object is a live version's document or picture, for the website alone: nobody's
+// object is a shown version's document or picture, for the website alone: nobody's
 // browser gets other people's HTML from this server's address, and the bucket's
 // token, which reads teams' files too, stays here. The bytes come as they're
 // kept (a document gzipped), and never change for a version, so the website keeps
@@ -182,9 +174,16 @@ func (s *Service) object(w http.ResponseWriter, r *http.Request) {
 	case gone(it.Status):
 		fail(w, http.StatusGone, "this design was taken down or unpublished")
 		return
-	case it.Status != api.LibraryLive || it.LiveVersion != n:
+	case it.Status != api.LibraryLive:
 		fail(w, http.StatusNotFound, "not found")
 		return
+	}
+	if it.LiveVersion != n {
+		// A version a later one replaced can still be looked at.
+		if v, err := s.db.LibraryVersion(r.Context(), it.ID, n); err != nil || v.Status != api.LibrarySuperseded {
+			fail(w, http.StatusNotFound, "not found")
+			return
+		}
 	}
 	select {
 	case s.objectReads <- struct{}{}:

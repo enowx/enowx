@@ -166,6 +166,9 @@ type LibraryVersion struct {
 	Created  time.Time        `json:"created"`
 	Scan     []LibraryFinding `json:"scan,omitempty"`
 	Prompt   string           `json:"prompt,omitempty"`
+	// Actions say what this version's own license and kind allow, in the public
+	// list of versions.
+	Actions *LibraryActions `json:"actions,omitempty"`
 }
 
 // LibraryFinding is what a design's check found: where and of what kind,

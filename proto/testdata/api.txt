@@ -367,6 +367,7 @@ field CacheReport.kinds []CacheKind
 field CacheReport.total int64
 field Canvas.brief *DesignBrief
 field Canvas.frames []CanvasFrame
+field Canvas.references []string
 field CanvasAsset.data []byte
 field CanvasAsset.id string
 field CanvasAsset.name string
@@ -446,6 +447,7 @@ field CanvasCreateParams.frames []CanvasFrame
 field CanvasCreateParams.group string
 field CanvasCreateParams.kind string
 field CanvasCreateParams.projects []string
+field CanvasCreateParams.source *CanvasSource
 field CanvasCreateParams.team string
 field CanvasCreateParams.title string
 field CanvasEdit.before string
@@ -466,6 +468,7 @@ field CanvasEdit.name *string
 field CanvasEdit.op string
 field CanvasEdit.page *string
 field CanvasEdit.projects *[]string
+field CanvasEdit.reference string
 field CanvasEdit.session string
 field CanvasEdit.target string
 field CanvasEdit.title *string
@@ -518,6 +521,7 @@ field CanvasInfo.id string
 field CanvasInfo.kind string
 field CanvasInfo.paused bool
 field CanvasInfo.projects []string
+field CanvasInfo.source *CanvasSource
 field CanvasInfo.team string
 field CanvasInfo.title string
 field CanvasInfo.updated time.Time
@@ -567,6 +571,12 @@ field CanvasShare.token string
 field CanvasShare.urls []string
 field CanvasShareParams.id string
 field CanvasShareParams.stop bool
+field CanvasSource.address string
+field CanvasSource.creator string
+field CanvasSource.itemId string
+field CanvasSource.license string
+field CanvasSource.title string
+field CanvasSource.version int
 field CanvasUnslop.ask string
 field CanvasUnslop.findings []UnslopFinding
 field CanvasUnslop.frame string
@@ -1476,6 +1486,15 @@ field LibraryListing.updated time.Time
 field LibraryListing.url string
 field LibraryListing.version int
 field LibraryListing.width int
+field LibraryNewer.gone bool
+field LibraryNewer.latest int
+field LibraryNewer.source *CanvasSource
+field LibraryNewer.url string
+field LibraryOpenParams.itemId string
+field LibraryOpenParams.projects []string
+field LibraryOpenParams.version int
+field LibraryOpened.canvas CanvasInfo
+field LibraryOpened.files int
 field LibraryPicture.data []byte
 field LibraryPictureParams.itemId string
 field LibraryPictureParams.phone bool
@@ -1515,6 +1534,12 @@ field LibraryPublishAsked.from string
 field LibraryPublishParams.acceptWarnings bool
 field LibraryPublishParams.draftId string
 field LibraryPublishParams.form LibraryForm
+field LibraryReferenceParams.canvas string
+field LibraryReferenceParams.itemId string
+field LibraryReferenceParams.version int
+field LibraryReferenced.canvas string
+field LibraryReferenced.credit string
+field LibraryReferenced.file string
 field LibraryResults.items []LibraryListing
 field LibraryResults.next string
 field LibraryResults.on bool
@@ -1526,12 +1551,35 @@ field LibrarySearchParams.license string
 field LibrarySearchParams.limit int
 field LibrarySearchParams.query string
 field LibrarySearchParams.sort string
+field LibrarySkillAnswer.installed string
+field LibrarySkillAnswer.name string
+field LibrarySkillAnswer.text string
+field LibrarySkillParams.agent string
+field LibrarySkillParams.install bool
+field LibrarySkillParams.itemId string
+field LibrarySkillParams.project string
+field LibrarySkillParams.version int
 field LibraryState.designs []LibraryDesign
 field LibraryState.limit int64
 field LibraryState.on bool
 field LibraryState.signedIn bool
 field LibraryState.siteUrl string
 field LibraryState.used int64
+field LibraryUseInfo.canOpen bool
+field LibraryUseInfo.canReference bool
+field LibraryUseInfo.creator string
+field LibraryUseInfo.itemId string
+field LibraryUseInfo.kind string
+field LibraryUseInfo.license string
+field LibraryUseInfo.on bool
+field LibraryUseInfo.refused string
+field LibraryUseInfo.signedIn bool
+field LibraryUseInfo.skillAgents []string
+field LibraryUseInfo.title string
+field LibraryUseInfo.url string
+field LibraryUseInfo.version int
+field LibraryUseRef.itemId string
+field LibraryUseRef.version int
 field MCPTest.error string
 field MCPTest.ok bool
 field MCPTest.protocol string
@@ -3019,13 +3067,18 @@ method host.visitors
 method library.askPublish
 method library.deleteDraft
 method library.item
+method library.newer
+method library.open
 method library.picture
 method library.prepare
 method library.prompt
 method library.publish
+method library.reference
 method library.saveDraft
 method library.search
+method library.skill
 method library.status
+method library.useInfo
 method library.withdraw
 method note.accept
 method note.asset
@@ -3361,6 +3414,7 @@ value CanvasOpHTMLSet=html.set
 value CanvasOpHTMLText=html.text
 value CanvasOpMeta=meta
 value CanvasOpPick=pick
+value CanvasOpReference=reference
 value CanvasOpen=open
 value CanvasPause=pause
 value CanvasResume=resume

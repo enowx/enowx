@@ -281,6 +281,9 @@ func (v *View) libraryFields(c *ui.Context, o Options, form *libraryForm) {
 				}
 			}
 		})
+		if form.prep != nil && form.prep.ItemID != "" {
+			ui.Text(c, "A new version keeps the address. A license change applies from this version on: earlier ones keep theirs, as people may already use them.").FontSize(theme.TextLabel).TextColor(theme.TextSoft)
+		}
 	})
 }
 

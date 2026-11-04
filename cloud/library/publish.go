@@ -3,6 +3,7 @@ package library
 import (
 	"bytes"
 	"encoding/json"
+	"errors"
 	"io"
 	"net/http"
 	"net/url"
@@ -13,6 +14,7 @@ import (
 	"golang.org/x/image/webp"
 
 	"github.com/enowx/enowx/cloud/api"
+	"github.com/enowx/enowx/cloud/blobstore"
 	"github.com/enowx/enowx/cloud/store"
 	"github.com/enowx/enowx/core/canvas"
 	"github.com/enowx/enowx/core/designshare"
@@ -168,12 +170,36 @@ func (s *Service) createItem(w http.ResponseWriter, r *http.Request) {
 		s.answer(w, nil, err)
 		return
 	}
-	if len(versions) >= api.MaxLibraryVersions && versions[0].Status != api.LibraryUploading {
-		fail(w, http.StatusConflict, "a design keeps 5 versions at most")
+	if len(versions) >= api.MaxLibraryVersions && versions[0].Status != api.LibraryUploading && !s.dropOldest(r, versions) {
+		fail(w, http.StatusConflict, "a design keeps 5 versions at most, and none of its can go now: wait for the one in review")
 		return
 	}
 	n, err := s.db.AddLibraryVersion(r.Context(), it.ID, version)
 	s.answer(w, api.LibraryPublished{ID: it.ID, Version: n}, err)
+}
+
+// dropOldest makes room for a new version, so that a design at its limit can
+// still be updated: the oldest that neither shows nor waits goes, objects first.
+// versions are the latest first.
+func (s *Service) dropOldest(r *http.Request, versions []store.LibraryVersionRow) bool {
+	for i := len(versions) - 1; i >= 0; i-- {
+		v := versions[i]
+		if v.Status != api.LibrarySuperseded && v.Status != api.LibraryRejected {
+			continue
+		}
+		for _, part := range []string{api.PartSource, api.PartDoc, api.PartDocPhone, api.PartThumb, api.PartThumbPhone} {
+			if err := s.objects.Delete(r.Context(), objectKey(v.ItemID, v.Version, part)); err != nil && !errors.Is(err, blobstore.ErrNotFound) {
+				s.log.Warn("library: drop a version", "item", v.ItemID, "err", err)
+				return false
+			}
+		}
+		if err := s.db.ForgetLibraryVersion(r.Context(), store.LibraryPurge{ItemID: v.ItemID, Version: v.Version}); err != nil {
+			s.log.Warn("library: drop a version", "item", v.ItemID, "err", err)
+			return false
+		}
+		return true
+	}
+	return false
 }
 
 func madeWith(v string) string {

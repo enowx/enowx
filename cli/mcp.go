@@ -449,6 +449,7 @@ func mcpGroups() []mcpGroup {
 		{contextTools, runner.projectCmd},
 		{canvasTools, runner.canvasCmd},
 		{libraryTools, runner.libraryCmd},
+		{libraryUseTools, runner.libraryUseCmd},
 		{projectLinkTools, runner.projectCmd},
 		{onAnyHost([]string{"project"}, rulesTools), runner.command},
 		{peekTools, runner.command},

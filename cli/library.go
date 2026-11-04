@@ -22,7 +22,9 @@ const libraryUsage = `usage: enowx-app library search [QUERY] [--category C] [--
        enowx-app library show ITEM     what it is, its license, its credit, what it allows
        enowx-app library prompt ITEM   the creator's prompt (a view-only design has none)
        enowx-app library publish CANVAS DESIGN
-                                       opens the app's form for the user; nothing is sent from here`
+                                       opens the app's form for the user; nothing is sent from here
+       enowx-app library open|ref|skill ITEM
+                                       take a design under its license: a copy, a reference, a skill`
 
 // libraryCmd runs `enowx-app library …`.
 func (r runner) libraryCmd(args []string) error {
@@ -43,6 +45,8 @@ func (r runner) libraryCmd(args []string) error {
 		return r.libraryPrompt(rest)
 	case "publish":
 		return r.libraryPublishForm(rest)
+	case "open", "ref", "skill":
+		return r.libraryUseCmd(args)
 	}
 	return errors.New(libraryUsage)
 }

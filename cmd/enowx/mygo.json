@@ -4,6 +4,7 @@
   "version": "0.6.2",
   "copyright": "© 2026 enowX contributors",
   "out": "../../build",
+  "urlSchemes": ["enowx"],
   "macos": {
     "minimumSystemVersion": "13.0"
   },

@@ -148,6 +148,7 @@ type App struct {
 	libraryHost        string
 	community          *communityview.View // the community library's page, for communityHost
 	communityHost      string
+	libLink            *libraryLink               // an enowx:// link's dialog
 	setup              *setupPage                 // the Setup page, for the host it was opened on
 	setupPolled        time.Time                  // when the setup's status was last read
 	drift              map[string]int             // steps a host lacks to be what this device is, by host ID
@@ -394,6 +395,7 @@ func (a *App) Open() *mygo.Window {
 	a.onMain = a.win.Update
 	a.startDevDriver()
 	a.startDiag()
+	a.logLink()
 	a.startWatchdog()
 	stopAppearance := mygo.Theme.OnUpdated(func() { a.systemAppearanceChanged(mygo.Theme.IsDark()) })
 	a.watchQuit()
