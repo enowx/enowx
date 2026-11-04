@@ -261,6 +261,8 @@ func (s *Service) answer(w http.ResponseWriter, v any, err error) {
 		reply(w, v)
 	case errors.Is(err, store.ErrNotFound):
 		fail(w, http.StatusNotFound, "not found")
+	case errors.Is(err, store.ErrLibraryGone):
+		fail(w, http.StatusGone, "this design was taken down or unpublished: publish it as a new one")
 	case errors.Is(err, store.ErrLibraryQuota):
 		fail(w, http.StatusInsufficientStorage, "your library storage is full: 200 MB. Unpublish something first")
 	case errors.Unwrap(err) == nil && strings.HasPrefix(err.Error(), "store: "):

@@ -231,7 +231,12 @@ func (s *Service) uploading(w http.ResponseWriter, r *http.Request) (store.Libra
 		fail(w, http.StatusBadRequest, "a version is a number")
 		return store.LibraryVersionRow{}, false
 	}
-	if _, err := s.ownItem(w, r, r.PathValue("id")); err != nil {
+	it, err := s.ownItem(w, r, r.PathValue("id"))
+	if err != nil {
+		return store.LibraryVersionRow{}, false
+	}
+	if gone(it.Status) {
+		fail(w, http.StatusGone, "this design was taken down or unpublished: publish it as a new one")
 		return store.LibraryVersionRow{}, false
 	}
 	v, err := s.db.LibraryVersion(r.Context(), r.PathValue("id"), n)

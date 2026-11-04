@@ -389,6 +389,9 @@ func (s *DB) SetLibraryPartSize(ctx context.Context, owner, id string, n int, pa
 // ErrLibraryQuota is an account's storage full.
 var ErrLibraryQuota = errors.New("store: this account's library storage is full")
 
+// ErrLibraryGone says an item was taken back or down: nothing brings it back.
+var ErrLibraryGone = errors.New("store: this design was taken down or unpublished")
+
 // LibraryCounts are what an account's limits are counted from.
 type LibraryCounts struct {
 	Live, InReview, UploadsToday int
@@ -430,8 +433,14 @@ func (s *DB) SubmitLibraryVersion(ctx context.Context, actor, id string, n int, 
 		if err := goLive(ctx, tx, id, n, at); err != nil {
 			return err
 		}
-	} else if _, err := tx.ExecContext(ctx, `UPDATE library_items SET status = CASE WHEN status = 'live' THEN status ELSE 'review' END, reject_reason = '', updated = $1 WHERE id = $2`, at, id); err != nil {
-		return fmt.Errorf("store: library submit: %w", err)
+	} else {
+		res, err := tx.ExecContext(ctx, `UPDATE library_items SET status = CASE WHEN status = 'live' THEN status ELSE 'review' END, reject_reason = '', updated = $1 WHERE id = $2 AND status NOT IN ('withdrawn', 'unpublished', 'removed')`, at, id)
+		if err != nil {
+			return fmt.Errorf("store: library submit: %w", err)
+		}
+		if done, _ := res.RowsAffected(); done == 0 {
+			return ErrLibraryGone
+		}
 	}
 	if err := libraryLog(ctx, tx, actor, "version.submitted", id, "", n, "sent as "+status); err != nil {
 		return err
@@ -463,11 +472,14 @@ func goLive(ctx context.Context, tx *sql.Tx, id string, n int, at string) error 
 	if _, err := tx.ExecContext(ctx, `UPDATE library_versions SET status = 'superseded' WHERE item_id = $1 AND status = 'live' AND version <> $2`, id, n); err != nil {
 		return fmt.Errorf("store: library live: %w", err)
 	}
-	_, err := tx.ExecContext(ctx, `UPDATE library_items SET status = 'live', live_version = $1, reject_reason = '', purge_at = '', updated = $2,
+	res, err := tx.ExecContext(ctx, `UPDATE library_items SET status = 'live', live_version = $1, reject_reason = '', purge_at = '', updated = $2,
 		kind = (SELECT kind FROM library_versions WHERE item_id = $3 AND version = $1),
-		license = (SELECT license FROM library_versions WHERE item_id = $3 AND version = $1) WHERE id = $3`, n, at, id)
+		license = (SELECT license FROM library_versions WHERE item_id = $3 AND version = $1) WHERE id = $3 AND status NOT IN ('withdrawn', 'unpublished', 'removed')`, n, at, id)
 	if err != nil {
 		return fmt.Errorf("store: library live: %w", err)
+	}
+	if done, _ := res.RowsAffected(); done == 0 {
+		return ErrLibraryGone
 	}
 	return nil
 }
