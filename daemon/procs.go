@@ -151,6 +151,9 @@ func (s *Server) procsLook() {
 	defer t.mu.Unlock()
 	was := t.known
 	known, changed := mergeTrees(t.known, list, self, roots, spare)
+	if adoptDetached(known, list, procstat.Env, s.isSession) {
+		changed = true
+	}
 	t.known = known
 	found := t.backgroundLocked(list, was, procstat.Args, time.Now())
 	if changed {

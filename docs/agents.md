@@ -290,7 +290,7 @@ A session's row and `enowx-app ls` say which agents its agent has running beside
 | An agent that only runs at an API, on someone's cloud | Nothing runs here. |
 | An agent started by a CLI's own background service, as OpenCode's server | It isn't a child of the session. |
 | An agent named nothing a preset names, or run by an interpreter not listed | Its arguments name no agent. |
-| One that starts and leaves its tree between two looks | The tree never showed it. |
+| One that starts and leaves its tree between two looks, on macOS and Windows | The tree never showed it, and only Linux shows a process's session tag, by which it is found there. |
 
 **Per agent, on top of that:** Claude Code's Stop hook gives `background_tasks` (its background shells and subagents, checked on 2.1.318): a turn that ends with any running leaves the session working, and the turn it takes when they end makes it done. No other agent's hook is read for this.
 

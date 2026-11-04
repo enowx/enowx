@@ -7,6 +7,7 @@ import (
 
 	"github.com/enowx/enowx/core/agent"
 	"github.com/enowx/enowx/core/procstat"
+	"github.com/enowx/enowx/core/session"
 	"github.com/enowx/enowx/proto"
 )
 
@@ -78,6 +79,35 @@ func inBackground(pid int, p startedProc, known map[int]startedProc, byPID map[i
 			return true
 		}
 	}
+}
+
+// adoptDetached puts on the list what left its session's tree before a look could see it there, as
+// a command started with nohup whose shell has ended: taken up by init, it still bears its session's
+// tag, where the system shows it, and only a session of this daemon's counts. It says if any came.
+func adoptDetached(known map[int]startedProc, list []procstat.Proc, env func(int, string) string, isSession func(string) bool) bool {
+	inits := map[int]bool{1: true}
+	for _, p := range list {
+		if p.Name == "systemd" {
+			inits[p.PID] = true // a user's own, which takes up orphans too
+		}
+	}
+	added := false
+	for _, p := range list {
+		if _, ok := known[p.PID]; ok || !inits[p.PPID] {
+			continue
+		}
+		if id := env(p.PID, session.EnvSession); id != "" && isSession(id) {
+			known[p.PID] = startedProc{PID: p.PID, Start: p.Start, Name: p.Name, Session: id, Left: true}
+			added = true
+		}
+	}
+	return added
+}
+
+// isSession says id is a session of this daemon's.
+func (s *Server) isSession(id string) bool {
+	_, err := s.sessions.Get(id)
+	return err == nil
 }
 
 // commandLine is a process's arguments, short enough for a tooltip.

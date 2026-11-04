@@ -8,6 +8,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/enowx/enowx/core/procstat"
 	"github.com/enowx/enowx/proto"
 )
 
@@ -78,5 +79,23 @@ esac
 	}
 	if err := c.KillSession(created.ID); err != nil {
 		t.Fatal(err)
+	}
+}
+
+// What left its session's tree before any look comes on the list by its session's tag; another
+// daemon's session's doesn't, nor one with no tag.
+func TestAdoptDetached(t *testing.T) {
+	list := []procstat.Proc{
+		{PID: 10, PPID: 1, Start: "a", Name: "codex"},
+		{PID: 11, PPID: 1, Start: "b", Name: "codex"},
+		{PID: 12, PPID: 1, Start: "c", Name: "cron"},
+		{PID: 13, PPID: 99, Start: "d", Name: "under-another"},
+	}
+	env := func(pid int, _ string) string {
+		return map[int]string{10: "mine", 11: "another-daemons", 13: "mine"}[pid]
+	}
+	known := map[int]startedProc{}
+	if !adoptDetached(known, list, env, func(id string) bool { return id == "mine" }) || len(known) != 1 || !known[10].Left || known[10].Session != "mine" {
+		t.Fatalf("%+v", known)
 	}
 }
