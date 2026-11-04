@@ -321,8 +321,9 @@ func (a *App) canvasOptions() canvasview.Options {
 		LibraryDeleteDraft: func(id string, done func(error)) {
 			call(func() error { return cl.LibraryDeleteDraft(id) }, done)
 		},
-		CloudSignIn: func() { a.page, a.settingsSection = pageSettings, sectionCloud },
-		OpenURL:     func(url string) { go func() { _ = mygo.Shell.OpenExternal(url) }() },
+		CloudSignIn:   func() { a.page, a.settingsSection = pageSettings, sectionCloud },
+		OpenURL:       func(url string) { go func() { _ = mygo.Shell.OpenExternal(url) }() },
+		OpenCommunity: func() { a.page = pageCommunity },
 		Share: func(id string, stop bool, done func(proto.CanvasShare, error)) {
 			var x proto.CanvasShare
 			call(func() (err error) { x, err = cl.ShareCanvas(id, stop); return err }, func(err error) { done(x, err) })

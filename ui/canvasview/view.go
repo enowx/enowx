@@ -84,6 +84,9 @@ type Options struct {
 	// address in the user's browser.
 	CloudSignIn func()
 	OpenURL     func(url string)
+	// OpenCommunity goes to the community library's page, offered from the list
+	// when the host's cloud has one.
+	OpenCommunity func()
 	// Confirm does do once the user agrees (title, what is lost, the
 	// action); nil does it at once.
 	Confirm func(title, msg, action string, do func())

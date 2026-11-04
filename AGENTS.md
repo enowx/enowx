@@ -94,7 +94,7 @@ Go 1.27+ is required (MyGo needs it). With an older `go`, set `GOTOOLCHAIN=go1.2
 | `ui/widget` | Controls every view shares: buttons, dialogs, menus, chips, Markdown | Yes |
 | `ui/textfmt` | How values read in the UI: sizes, plurals, paths | **No** |
 | `ui/localpicker` | Picks files and folders of this device, for adding them to a session's folder | Yes |
-| `ui/chatview`, `ui/activityview`, `ui/appwindow`, `ui/libraryview`, `ui/browserview`, `ui/checkview`, `ui/diffview`, `ui/fileview`, `ui/portview`, `ui/trafficview`, `ui/androidview`, `ui/notesview`, `ui/canvasview`, `ui/vaultview`, `ui/usageview`, `ui/folderpicker`, `ui/syncview` | Self-contained views; they get what they need from `ui` through options and callbacks, never import it | Yes |
+| `ui/chatview`, `ui/activityview`, `ui/appwindow`, `ui/libraryview`, `ui/communityview`, `ui/browserview`, `ui/checkview`, `ui/diffview`, `ui/fileview`, `ui/portview`, `ui/trafficview`, `ui/androidview`, `ui/notesview`, `ui/canvasview`, `ui/vaultview`, `ui/usageview`, `ui/folderpicker`, `ui/syncview` | Self-contained views; they get what they need from `ui` through options and callbacks, never import it | Yes |
 | `ui/onboardview` | The first run: the app assembling itself, a clock driving the opening, frames, wires and the change of style, the seven steps in a panel; its links in `links.go` (see `docs/onboarding.md`); self-contained like the views above | Yes |
 | `ui/tokenview` | The Tokens tab of Resource usage: every host's token use, budgets, prices, coverage; self-contained like the views above | Yes |
 

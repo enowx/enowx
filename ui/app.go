@@ -30,6 +30,7 @@ import (
 	"github.com/enowx/enowx/ui/canvasview"
 	"github.com/enowx/enowx/ui/chatview"
 	"github.com/enowx/enowx/ui/checkview"
+	"github.com/enowx/enowx/ui/communityview"
 	"github.com/enowx/enowx/ui/creditview"
 	"github.com/enowx/enowx/ui/diffview"
 	"github.com/enowx/enowx/ui/fileview"
@@ -145,6 +146,8 @@ type App struct {
 	quitting           bool
 	library            *libraryview.View // the Settings page's library, for libraryHost
 	libraryHost        string
+	community          *communityview.View // the community library's page, for communityHost
+	communityHost      string
 	setup              *setupPage                 // the Setup page, for the host it was opened on
 	setupPolled        time.Time                  // when the setup's status was last read
 	drift              map[string]int             // steps a host lacks to be what this device is, by host ID
@@ -521,6 +524,10 @@ func (a *App) handleEvent(gen int, ev proto.Event) {
 		}
 	case proto.EventCanvasesChanged, proto.EventCanvasChanged, proto.EventCanvasRender, proto.EventCanvasVideo:
 		if apply = a.canvasEvent(ev); apply == nil {
+			return
+		}
+	case proto.EventLibraryPublishAsked:
+		if apply = a.libraryAsked(ev.Data); apply == nil {
 			return
 		}
 	case proto.EventTeamChat:

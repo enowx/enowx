@@ -120,6 +120,9 @@ func (a *App) workspaceView(c *ui.Context) {
 	case a.page == pageCanvas && a.client != nil:
 		a.canvasPage(c)
 		return
+	case a.page == pageCommunity && a.client != nil:
+		a.communityPage(c)
+		return
 	case a.page == pageTeam && a.client != nil:
 		a.teamPage(c)
 		return
