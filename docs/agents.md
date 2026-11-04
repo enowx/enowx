@@ -1,6 +1,6 @@
 # Agent presets
 
-How enowX starts each agent (`core/agent`). Sessions start with permission prompts skipped when **Skip permission prompts** is on in the New session dialog (the default), and keep that setting when the daemon restarts them with **continue**.
+How enowX starts each agent (`core/agent`). Claude Code's sessions always run in `bypassPermissions` ([below](#claude-code-always-runs-in-bypass)). Other agents' sessions start with permission prompts skipped when **Skip permission prompts** is on in the New session dialog (the default), and keep that setting when the daemon restarts them with **continue**.
 
 | Agent | Command | First prompt | Skip permission prompts | Continue last conversation | Source |
 |---|---|---|---|---|---|
@@ -323,9 +323,20 @@ The session list, `sessions` and `ls` show each agent session's project, path an
 
 ## Skipping permission prompts
 
-New session's **Skip permission prompts** starts an agent in its mode that asks nothing. Sessions the user doesn't start by hand follow it only where nothing would hear a prompt: an agent with no hooks (OpenCode and most others; every agent on Windows), started as GOD of Agents, its worker, or the chat of a note or a canvas (`SkipUnheard`). Claude Code and Codex tell enowX they are asking, so GOA's workers of them stay as `goa delegate` said (`--yolo`), and GOA answers. `goa start --yolo` is the same default on the command line.
+New session's **Skip permission prompts**, offered for agents other than Claude Code, starts an agent in its mode that asks nothing. Sessions the user doesn't start by hand follow it only where nothing would hear a prompt: an agent with no hooks (OpenCode and most others; every agent on Windows), started as GOD of Agents, its worker, or the chat of a note or a canvas (`SkipUnheard`). Codex tells enowX it is asking, so GOA's workers of it stay as `goa delegate` said (`--yolo`), and GOA answers. `goa start --yolo` is the same default on the command line.
 
 The mode is the one a session shows ("skips permission prompts"), and stays through resuming and waking. An agent with no keys for its mode (OpenCode) takes it only as it starts: `switch --mode` says so.
+
+### Claude Code always runs in bypass
+
+Every Claude Code session enowX starts or brings back runs in `bypassPermissions`, for every user on every host, Claude Agent Teams and GOD of Agents included: New session, `spawn`, `goa delegate`, resume, `continue`, `wake`, a message to one asleep, fork, a tab, a session copied from another host, a switch of account, and a daemon's restart or an app's update, whatever an earlier daemon saved of it. `Preset.Argv` holds it for every command line, so a mode named anywhere goes unsaid; `--dangerously-skip-permissions` also beats a `defaultMode` in Claude Code's settings and what a conversation last ran in (run on 2.1.318).
+
+- **No setting turns it off.** New session's switch and **Settings › New sessions › Permission mode** aren't offered for it; a `SkipPermissions` or `Mode` an app, the command line or an automation still sends is ignored. The rule is Claude Code's alone: other agents do as they are asked, and one taking over from Claude Code doesn't inherit it.
+- **The warning.** On a home that never accepted it, Claude Code stops at a warning whose first answer exits. enowX passes `skipDangerousModePermissionPrompt` in the `--settings` it starts Claude Code with, so nobody sees that warning, and the user's own files aren't touched. The session's banner says it skips permission prompts.
+- **Asking mid-session.** `switch --mode` or the chat may leave bypass, for as long as that process runs: any restart, wake or update brings it back. See [chat-view.md](chat-view.md) for how it gets there without plan mode.
+- **What still stops it.** A hook's refusal (a deny, which bypass doesn't pass), the judge's sure no, and a hook's ask, which Claude Code still prompts for ([decide.md](decide.md)). A user's agent in bypass doesn't get the app's card for what can't be undone ([goa-tools.md](goa-tools.md#when-the-user-is-asked)).
+- **Where it can't.** As root Claude Code refuses bypass, so the session starts asking, in the mode it was given, and its note says why; `switch --mode bypassPermissions` says the same. A `permissions.disableBypassPermissionsMode` Claude Code is given (run on 2.1.318 through `--settings`, not as a managed policy) starts it in `default` without a word: enowX goes by the mode its hook reports, and the session asks.
+- **Started by hand in a shell tab.** enowX doesn't start that one, so it gets what its command line and Claude Code's settings say, and its prompts stay the user's ([decide.md](decide.md)). A custom command is the same. If a daemon's restart brings it back, it comes back in bypass, on its conversation.
 
 OpenCode's mode is `--auto`: it approves what asks, in the session and its subagents, and paths outside the project, `.env` reads and repeated calls included; a `deny` rule of its config still stops the tool, which reports it in the session. enowX doesn't touch that config.
 
@@ -351,7 +362,7 @@ The daemon reads what each signed-in account has left (`core/credits`, `credits.
 
 ## Caveats
 
-- **Claude Code refuses `--dangerously-skip-permissions` as root.** An address without a user signs in as root, and enowX then runs its daemon, and so every session, as a regular user of its own, `enowx`, made the first time (or the one it ran as before), through `su`. Sign in to each agent once from a Shell session as that user. The choice is saved per host. To run as root, or as another user, pick it in **Hosts › ⋯ › Edit… › Run sessions as** (*A regular user* with its name, or *root*) and save: enowX connects again as it says, and keeps it on every connection after. **Hosts › ⋯ › Ask which user to run as** makes the next connection ask instead, listing the server's users. Sessions started as one user stay with that user's daemon. If you keep root, enowX reports Claude Code's refusal to skip permission prompts instead of starting the session.
+- **Claude Code refuses `--dangerously-skip-permissions` as root.** An address without a user signs in as root, and enowX then runs its daemon, and so every session, as a regular user of its own, `enowx`, made the first time (or the one it ran as before), through `su`. Sign in to each agent once from a Shell session as that user. The choice is saved per host. To run as root, or as another user, pick it in **Hosts › ⋯ › Edit… › Run sessions as** (*A regular user* with its name, or *root*) and save: enowX connects again as it says, and keeps it on every connection after. **Hosts › ⋯ › Ask which user to run as** makes the next connection ask instead, listing the server's users. Sessions started as one user stay with that user's daemon. If you keep root, Claude Code's sessions start asking, and each one's note says why.
 - **Gemini CLI enables its sandbox with `--yolo`** (a Docker image by default). Without Docker, set `GEMINI_SANDBOX=false` in the server's environment, or turn sandboxing off in `~/.gemini/settings.json`, if that is what you want.
 - Skipping permission prompts lets an agent run any command and edit any file the user can. Worktrees isolate files between sessions, not from the rest of the machine.
 
