@@ -131,7 +131,7 @@ func TestNewSessionWakesAHibernatedSession(t *testing.T) {
 	}
 	bin := t.TempDir()
 	// A stand-in for Claude Code that echoes what it is typed.
-	script := "#!/bin/sh\nwhile IFS= read -r line; do echo \"got: $line\"; done\n"
+	script := "#!/bin/sh\necho ready\nwhile IFS= read -r line; do echo \"got: $line\"; done\n" // shows its input, as an agent does
 	if err := os.WriteFile(filepath.Join(bin, "claude"), []byte(script), 0o755); err != nil {
 		t.Fatal(err)
 	}
