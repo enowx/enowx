@@ -11,6 +11,10 @@ mkdir -p "$dist"
 
 cd "$root"
 make daemons
+patch=$(mktemp -d "${TMPDIR:-/tmp}/enowx-terminalpatch.XXXXXX")
+trap 'rm -rf "$patch"' EXIT
+go run ./scripts/terminalpatch -out "$patch/go.mod"
+export GOFLAGS="${GOFLAGS:-} -modfile=$patch/go.mod"
 go tool mygo build -platform darwin/universal cmd/enowx
 
 app="$root/build/darwin-universal/enowX.app"

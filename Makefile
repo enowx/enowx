@@ -1,4 +1,5 @@
-GO ?= go
+HOST_GO ?= go
+GO ?= $(HOST_GO) run ./scripts/terminalpatch --
 BIN := bin
 # Where `make dev` keeps its daemon, sessions, projects and hosts, apart
 # from the installed app's ~/.enowx-app.
@@ -19,7 +20,7 @@ build: daemons
 
 # Linux builds of enowxd that the app installs on servers.
 daemons:
-	GO=$(GO) scripts/daemons.sh
+	HOST_GO=$(HOST_GO) scripts/daemons.sh
 
 test:
 	$(GO) test ./...

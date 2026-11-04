@@ -13,6 +13,8 @@ mkdir -p "$HOME/.cache"
 out=$(mktemp -d "$HOME/.cache/enowx-service.XXXXXX")
 name=enowx-service-test
 trap 'docker rm -f $name >/dev/null 2>&1; rm -rf "$out"' EXIT
+go run ./scripts/terminalpatch -out "$out/go.mod"
+export GOFLAGS="${GOFLAGS:-} -modfile=$out/go.mod"
 CGO_ENABLED=0 GOOS=linux GOARCH=$goarch go build -o "$out/enowxd" ./cmd/enowxd
 cp hostconn/linger.sh "$out/"
 cat >"$out/Dockerfile" <<'DOCKERFILE'

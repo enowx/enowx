@@ -1,0 +1,83 @@
+package terminal
+
+import (
+	"strings"
+	"testing"
+
+	"github.com/egoist/mygo/plugins/terminal/internal/vt"
+)
+
+func guardedFixture(t *testing.T) *Terminal {
+	t.Helper()
+	if err := Load(); err != nil {
+		t.Fatal(err)
+	}
+	v, err := vt.NewTerminal(80, 24, vt.Effects{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(v.Free)
+	// No PTY, queue consumer, UI or activity goroutine can hold either lock.
+	term := &Terminal{term: v}
+	term.Feed([]byte("› DRAFT"))
+	return term
+}
+
+func TestEnowxCheckedInputRedrawBoundary(t *testing.T) {
+	term := guardedFixture(t)
+	checked, resume := make(chan struct{}), make(chan struct{})
+	done := make(chan bool, 1)
+	go func() {
+		done <- term.SendChecked([]byte("\r"), func(screen string) bool {
+			close(checked)
+			<-resume
+			return !strings.Contains(screen, "Proceed?")
+		})
+	}()
+	<-checked
+	// This is the exact mutex acquired by Feed/write for a raw redraw. A
+	// failed TryLock proves exclusion without a sleep or scheduler guess.
+	redrawCanWin := term.mu.TryLock()
+	if redrawCanWin {
+		term.mu.Unlock()
+		term.Feed([]byte("\x1b[2J\x1b[HProceed?\r\n> Yes\r\n  No"))
+	}
+	close(resume)
+	accepted := <-done
+	if redrawCanWin {
+		t.Fatalf("raw redraw completed between screen check and enqueue: accepted=%v queue=%+v", accepted, term.in.queue)
+	}
+	if !accepted || len(term.in.queue) != 1 || string(term.in.queue[0].p) != "\r" {
+		t.Fatalf("commit before redraw: accepted=%v queue=%+v", accepted, term.in.queue)
+	}
+	// The competing redraw can now complete, after the Enter was enqueued.
+	term.Feed([]byte("\x1b[2J\x1b[HProceed?\r\n> Yes\r\n  No"))
+	if term.SendChecked([]byte("\r"), func(screen string) bool { return !strings.Contains(screen, "Proceed?") }) {
+		t.Fatal("accepted Enter after redraw won")
+	}
+	if len(term.in.queue) != 1 {
+		t.Fatalf("unexpected queue: %+v", term.in.queue)
+	}
+	t.Log("terminal mutex excludes raw redraw through predicate and enqueue; redraw-first refuses Enter")
+}
+
+func TestEnowxCheckedInputQueueOwnership(t *testing.T) {
+	term := guardedFixture(t)
+	term.Send([]byte("MANUAL"))
+	data := []byte("PASTE")
+	if !term.SendChecked(data, func(string) bool { return true }) {
+		t.Fatal("refused ready screen")
+	}
+	data[0] = 'X'
+	if len(term.in.queue) != 2 || string(term.in.queue[0].p) != "MANUAL" || string(term.in.queue[1].p) != "PASTE" {
+		t.Fatalf("queue order or ownership lost: %+v", term.in.queue)
+	}
+	term.in.close()
+	called := false
+	if term.SendChecked([]byte("\r"), func(string) bool { called = true; return true }) {
+		t.Fatal("accepted input into closed queue")
+	}
+	if called {
+		t.Fatal("ran predicate after queue closed")
+	}
+}

@@ -15,6 +15,8 @@ esac
 mkdir -p "$HOME/.cache"
 out=$(mktemp -d "$HOME/.cache/enowx-distros.XXXXXX")
 trap 'rm -rf "$out"' EXIT
+go run ./scripts/terminalpatch -out "$out/go.mod"
+export GOFLAGS="${GOFLAGS:-} -modfile=$out/go.mod"
 CGO_ENABLED=0 GOOS=linux GOARCH=$goarch go build -o "$out/enowxd" ./cmd/enowxd
 CGO_ENABLED=0 GOOS=linux GOARCH=$goarch go test -c -o "$out/setup.test" ./core/setup
 cp hostconn/prepare.sh "$out/"

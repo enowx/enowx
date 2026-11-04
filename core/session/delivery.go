@@ -42,9 +42,7 @@ func (m *Manager) DeliveryInput(s *Session, p []byte, guard DeliveryGuard, empty
 
 // deliveryReadyLocked checks current readiness, not the snapshot before paste.
 // The caller holds the manager, input and session locks through queueing.
-// Terminal.Text releases its own lock before Send: this serializes known
-// session transitions, but cannot exclude a concurrent terminal redraw.
-func (s *Session) deliveryReadyLocked(guard DeliveryGuard, empty bool) bool {
+func (s *Session) deliveryReadyLocked(guard DeliveryGuard) bool {
 	if s.inputSeq != guard.input || s.deliveryEpoch != guard.epoch || s.exited || s.meta.Queued {
 		return false
 	}
@@ -52,8 +50,7 @@ func (s *Session) deliveryReadyLocked(guard DeliveryGuard, empty bool) bool {
 	if state == proto.StateWaiting || s.workingLocked(time.Now()) {
 		return false
 	}
-	screen := s.term.Text()
-	return agent.PromptFree(screen) && (!empty || agent.PromptEmpty(screen))
+	return true
 }
 
 // Input types p into the session and records it (see NoteInput).
@@ -87,7 +84,7 @@ func (m *Manager) input(s *Session, p []byte, after *uint64, guard *DeliveryGuar
 	}
 	s.inputMu.Lock()
 	s.mu.Lock()
-	if after != nil && s.inputSeq != *after || guard != nil && !s.deliveryReadyLocked(*guard, empty) {
+	if after != nil && s.inputSeq != *after || guard != nil && !s.deliveryReadyLocked(*guard) {
 		if guard != nil {
 			s.deliveryPending = false
 		}
@@ -98,7 +95,19 @@ func (m *Manager) input(s *Session, p []byte, after *uint64, guard *DeliveryGuar
 		}
 		return DeliveryGuard{}, false
 	}
-	s.term.Send(p)
+	if guard != nil {
+		if !s.term.SendChecked(p, func(screen string) bool {
+			return agent.PromptFree(screen) && (!empty || agent.PromptEmpty(screen))
+		}) {
+			s.deliveryPending = false
+			s.mu.Unlock()
+			s.inputMu.Unlock()
+			m.mu.Unlock()
+			return DeliveryGuard{}, false
+		}
+	} else {
+		s.term.Send(p)
+	}
 	if guard != nil {
 		s.deliveryPending = empty
 	}
