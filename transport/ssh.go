@@ -436,12 +436,22 @@ func (c *SSHClient) Run(command string, stdin io.Reader) (string, error) {
 	var out, errOut bytes.Buffer
 	sess.Stdin, sess.Stdout, sess.Stderr = stdin, &out, &errOut
 	if err := sess.Run(command); err != nil {
-		if msg := strings.TrimSpace(errOut.String()); msg != "" {
-			return out.String(), fmt.Errorf("%w: %s", err, msg)
-		}
-		return out.String(), err
+		return out.String(), commandError(err, errOut.String(), out.String())
 	}
 	return out.String(), nil
+}
+
+// commandError is err with what the command said: its stderr, else its stdout, as a
+// nologin shell says why on stdout.
+func commandError(err error, stderr, stdout string) error {
+	msg := strings.TrimSpace(stderr)
+	if msg == "" {
+		msg = strings.TrimSpace(stdout)
+	}
+	if msg == "" {
+		return err
+	}
+	return fmt.Errorf("%w: %s", err, msg)
 }
 
 // AsUser returns command run through `su` as user, so a root login can run
