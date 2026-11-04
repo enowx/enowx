@@ -6,6 +6,7 @@ import (
 	imgcolor "image/color"
 	"image/png"
 	"testing"
+	"time"
 
 	"github.com/egoist/mygo/ui"
 
@@ -148,5 +149,45 @@ func TestUnloadClosesTheWebViewAndDrawingBringsItBack(t *testing.T) {
 	}
 	if made != 2 || o.Web.page == nil || o.Web.pending == "" {
 		t.Fatalf("made %d, pending %d bytes", made, len(o.Web.pending))
+	}
+}
+
+// With a way to run on the main thread without a frame, asking the page draws no frames
+// unless it has news, and stops when the page no longer shows.
+func TestAskingThePageDrawsNoFrames(t *testing.T) {
+	updates, quiet := 0, 0
+	showing := true
+	asked := make(chan struct{}, 64)
+	var posted = make(chan func(), 64)
+	w := &Web{
+		Update:  func(fn func()) { updates++; fn() },
+		Quiet:   func(fn func()) { posted <- fn },
+		Showing: func() bool { return showing },
+	}
+	w.page = livePage{}
+	var loop bool
+	if !w.asking(&loop, 5*time.Millisecond, func() { quiet++; asked <- struct{}{} }) {
+		t.Fatal("it should run without frames")
+	}
+	for quiet < 3 {
+		(<-posted)()
+		<-asked
+	}
+	if updates != 0 {
+		t.Fatalf("%d frames for nothing new", updates)
+	}
+	w.news(func() bool { return false })
+	(<-posted)()
+	if updates != 0 {
+		t.Fatalf("%d frames for no news", updates)
+	}
+	w.news(func() bool { return true })
+	(<-posted)()
+	if updates != 1 {
+		t.Fatalf("%d frames for news", updates)
+	}
+	showing = false
+	for loop {
+		(<-posted)()
 	}
 }
