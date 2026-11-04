@@ -188,9 +188,13 @@ func (t *thread) gate(ctx context.Context, tool tools.Tool, c toolCall, shown re
 	}
 
 	// Whoever answers sees all of what they allow, not the one line a chat's summary is.
-	shown.Detail = askDetail(c.Input, shown.Detail)
+	input := c.Input
+	if command != "" {
+		input = withCommand(input, command) // what would really run
+	}
+	shown.Detail = askDetail(input, shown.Detail)
 	decision, err := a.askPermission(ctx, shown, PermissionRequest{
-		Tool: c.Name, Detail: shown.Detail, Input: c.Input, Rule: rule,
+		Tool: c.Name, Detail: shown.Detail, Input: input, Rule: rule,
 	}, t.sidechain)
 	if err != nil {
 		return "", extra, "", err

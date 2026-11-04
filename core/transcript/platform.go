@@ -321,8 +321,16 @@ func (*platformParser) toolWait(rec record.Record, r *Reader) {
 	if t == nil {
 		return
 	}
-	if i, ok := r.tools[t.ID]; ok && len(t.Questions) > 0 {
+	i, ok := r.tools[t.ID]
+	if !ok {
+		return
+	}
+	if len(t.Questions) > 0 {
 		r.change(i, func(e *proto.TranscriptEntry) { platformQuestions(e, t) })
+	}
+	// What the user is asked to allow shows whole: the call's line may be clipped.
+	if t.Detail != "" {
+		r.change(i, func(e *proto.TranscriptEntry) { e.Detail = t.Detail })
 	}
 }
 

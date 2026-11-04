@@ -162,7 +162,7 @@ func (f claudePlatformFlags) options(dir, home string) (platformagent.Options, e
 	}
 	o.SessionDir = f.sessionDir
 	if o.SessionDir == "" {
-		o.SessionDir = filepath.Join(home, ".enowx-app", "claude-platform", "sessions", sanitizeSessionDir(dir))
+		o.SessionDir = filepath.Join(record.SessionsDir(home), sanitizeSessionDir(dir))
 	}
 	switch {
 	case f.budgetSet:
@@ -179,7 +179,7 @@ func (f claudePlatformFlags) options(dir, home string) (platformagent.Options, e
 		o.SystemPrompt = string(text)
 	default:
 		// What the app's editor keeps; without it, the built-in prompt.
-		text, err := os.ReadFile(filepath.Join(home, ".enowx-app", "claude-platform", "system-prompt.md"))
+		text, err := os.ReadFile(record.SystemPromptFile(home))
 		if err != nil && !errors.Is(err, os.ErrNotExist) {
 			return o, fmt.Errorf("claude-platform: the system prompt: %w", err)
 		}

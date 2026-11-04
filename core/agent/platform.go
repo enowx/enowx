@@ -84,7 +84,7 @@ func platformCommands() []proto.AgentCommand {
 		{"context", "show how much of the model's context is used"},
 		{"compact", "summarize the conversation to free context"},
 		{"clear", "start a new conversation"},
-		{"resume", "go on with an earlier conversation"},
+		{"system-prompt", "use a file as this session's system prompt"},
 		{"help", "list the commands and keys"},
 		{"exit", "leave Claude Platform"},
 	}

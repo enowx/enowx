@@ -5,14 +5,12 @@ package hookbridge
 
 import (
 	"context"
-	"encoding/json"
 	"os"
-	"path/filepath"
-	"strings"
 	"sync"
 	"time"
 
 	"github.com/enowx/enowx/client"
+	"github.com/enowx/enowx/core/hooks"
 	"github.com/enowx/enowx/core/platformagent"
 	"github.com/enowx/enowx/core/platformagent/record"
 	"github.com/enowx/enowx/proto"
@@ -236,37 +234,7 @@ func (b *Bridge) SetMode(mode string) {
 	b.mu.Unlock()
 }
 
-// toolEvent reads a tool's input as agents' events say it, Claude's fields: its command,
-// or the files it touches, or else what it was given.
+// toolEvent is the event of a tool's call, as every agent's are made.
 func (b *Bridge) toolEvent(event, tool string, data []byte) proto.HookEvent {
-	ev := proto.HookEvent{Event: event, Tool: tool}
-	var input map[string]any
-	if json.Unmarshal(data, &input) != nil {
-		return ev
-	}
-	for _, k := range []string{"command", "cmd"} {
-		if v, ok := input[k].(string); ok {
-			ev.Command = v
-			break
-		}
-	}
-	for _, k := range []string{"file_path", "path", "notebook_path"} {
-		if v, ok := input[k].(string); ok && v != "" {
-			ev.Paths = append(ev.Paths, b.rel(v))
-		}
-	}
-	if ev.Command == "" && len(ev.Paths) == 0 {
-		ev.Command = strings.TrimSpace(string(data))
-	}
-	return ev
-}
-
-// rel is path p from the session's folder when it is inside it, with slashes.
-func (b *Bridge) rel(p string) string {
-	if b.dir != "" && filepath.IsAbs(p) {
-		if rel, err := filepath.Rel(b.dir, p); err == nil && !strings.HasPrefix(rel, "..") {
-			p = rel
-		}
-	}
-	return filepath.ToSlash(p)
+	return hooks.ToolEvent(event, tool, data, b.dir)
 }
