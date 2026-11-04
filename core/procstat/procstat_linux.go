@@ -2,6 +2,7 @@ package procstat
 
 import (
 	"bufio"
+	"errors"
 	"os"
 	"strconv"
 	"strings"
@@ -16,43 +17,48 @@ func processes() ([]Proc, error) {
 	if err != nil {
 		return nil, err
 	}
-	page := uint64(os.Getpagesize())
 	var out []Proc
 	for _, e := range entries {
 		pid, err := strconv.Atoi(e.Name())
 		if err != nil {
 			continue
 		}
-		data, err := os.ReadFile("/proc/" + e.Name() + "/stat")
-		if err != nil {
-			continue
+		if p, err := process(pid); err == nil {
+			out = append(out, p)
 		}
-		// The command name may hold spaces and parentheses: fields start
-		// after the last ')'.
-		s := string(data)
-		i := strings.LastIndexByte(s, ')')
-		if i < 0 {
-			continue
-		}
-		f := strings.Fields(s[i+1:])
-		if len(f) < 22 {
-			continue
-		}
-		ppid, _ := strconv.Atoi(f[1])
-		utime, _ := strconv.ParseUint(f[11], 10, 64)
-		stime, _ := strconv.ParseUint(f[12], 10, 64)
-		rss, _ := strconv.ParseUint(f[21], 10, 64)
-		name := ""
-		if open := strings.IndexByte(s, '('); open >= 0 && open < i {
-			name = s[open+1 : i]
-		}
-		out = append(out, Proc{
-			PID: pid, PPID: ppid, RSS: rss * page,
-			CPUTime: time.Duration(utime+stime) * time.Second / clockTicks,
-			Name:    name, Start: f[19],
-		})
 	}
 	return out, nil
+}
+
+func process(pid int) (Proc, error) {
+	data, err := os.ReadFile("/proc/" + strconv.Itoa(pid) + "/stat")
+	if err != nil {
+		return Proc{}, err
+	}
+	// The command name may hold spaces and parentheses: fields start
+	// after the last ')'.
+	s := string(data)
+	i := strings.LastIndexByte(s, ')')
+	if i < 0 {
+		return Proc{}, errors.New("procstat: unreadable stat")
+	}
+	f := strings.Fields(s[i+1:])
+	if len(f) < 22 {
+		return Proc{}, errors.New("procstat: unreadable stat")
+	}
+	ppid, _ := strconv.Atoi(f[1])
+	utime, _ := strconv.ParseUint(f[11], 10, 64)
+	stime, _ := strconv.ParseUint(f[12], 10, 64)
+	rss, _ := strconv.ParseUint(f[21], 10, 64)
+	name := ""
+	if open := strings.IndexByte(s, '('); open >= 0 && open < i {
+		name = s[open+1 : i]
+	}
+	return Proc{
+		PID: pid, PPID: ppid, RSS: rss * uint64(os.Getpagesize()),
+		CPUTime: time.Duration(utime+stime) * time.Second / clockTicks,
+		Name:    name, Start: f[19],
+	}, nil
 }
 
 func memory() (total, used uint64) {

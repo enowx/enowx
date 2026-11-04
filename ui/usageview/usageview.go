@@ -86,7 +86,7 @@ func (u *Meter) Follow(cl *client.Client, update func(func()), wanted func() boo
 		for {
 			st, err := cl.Stats()
 			var app procstat.Usage
-			if u.sampler.Sample() == nil {
+			if u.sampler.SampleOne(os.Getpid()) == nil {
 				app = u.sampler.One(os.Getpid())
 			}
 			stop := make(chan bool, 1)

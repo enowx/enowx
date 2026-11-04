@@ -56,6 +56,23 @@ func (s *Sampler) Sample() error {
 	if err != nil {
 		return err
 	}
+	s.note(list)
+	return nil
+}
+
+// SampleOne reads only process pid: for what asks about itself, it saves looking at
+// every process, which on macOS takes a ps of them all. What asks about others afterwards
+// finds only pid.
+func (s *Sampler) SampleOne(pid int) error {
+	p, err := process(pid)
+	if err != nil {
+		return err
+	}
+	s.note([]Proc{p})
+	return nil
+}
+
+func (s *Sampler) note(list []Proc) {
 	now := time.Now()
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -73,7 +90,6 @@ func (s *Sampler) Sample() error {
 		}
 	}
 	s.prev, s.at = next, now
-	return nil
 }
 
 // List is the processes of the last sample, in no order.
