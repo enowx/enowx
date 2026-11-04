@@ -358,6 +358,47 @@ func TestClaudeAsRootStartsAskingAndSaysSo(t *testing.T) {
 	}
 }
 
+// GOD of Agents in bypass is still held by its hook: what it may not do is refused, a deny
+// bypass doesn't pass, and a secret it reads stays the user's to allow, which is an ask.
+func TestGOAInBypassIsStillHeld(t *testing.T) {
+	srv := startServer(t)
+	info := proto.SessionInfo{ID: "g", GOA: true, Agent: "claude", SkipPermissions: true}
+	before := func(tool, command string, paths ...string) proto.HookEvent {
+		return proto.HookEvent{Event: proto.HookToolBefore, Tool: tool, Command: command, Paths: paths, PermissionMode: agent.ModeBypass}
+	}
+	for what, ev := range map[string]proto.HookEvent{
+		"a command":              before("Bash", "go version"),
+		"a chain":                before("Bash", "cat a; rm -rf b"),
+		"an edit outside":        before("Write", "", "/etc/hosts"),
+		"its agent's settings":   before("Edit", "", filepath.Join(srv.goaDir(), ".claude", "settings.json")),
+		"a tool it wasn't given": before("Task", ""),
+	} {
+		if d, stop := srv.goaHook(info, ev); !stop || !d.Block || d.Approve {
+			t.Errorf("%s: %+v, %v", what, d, stop)
+		}
+	}
+	if d, stop := srv.goaHook(info, before("Read", "", "/home/me/project/.env")); stop || !d.Ask || d.Approve {
+		t.Errorf("a secret: %+v, %v", d, stop)
+	}
+	if d, _ := srv.goaHook(info, before("Read", "", "/home/me/project/main.go")); d.Ask || !d.Approve {
+		t.Errorf("a plain read: %+v", d)
+	}
+	if d, _ := srv.goaHook(info, before("Write", "", "plan.md")); d.Ask || d.Block {
+		t.Errorf("an edit in its folder: %+v", d)
+	}
+	// Its asking stays the user's: enowX doesn't answer it allow as it does for a worker.
+	if srv.bypassAnswer(info, proto.HookEvent{Event: proto.HookPermission, Tool: "Read", PermissionMode: agent.ModeBypass}) {
+		t.Error("answered GOA's prompt")
+	}
+	if got := mergeWorker(proto.HookDecision{Approve: true}, proto.HookDecision{Ask: true, Reason: "r"}); got.Approve || !got.Ask || got.Reason != "r" {
+		t.Errorf("a user's hook's allow over the ask: %+v", got)
+	}
+	var out, errs strings.Builder
+	if code := answerHook(proto.HookToolBefore, "claude", nil, proto.HookDecision{Ask: true, Reason: "why"}, &out, &errs); code != 0 || !strings.Contains(out.String(), `"permissionDecision":"ask"`) {
+		t.Errorf("answered %d: %q", code, out.String())
+	}
+}
+
 // keepBypass only ever speaks for an agent that always skips.
 func TestKeepBypassLeavesOthersAlone(t *testing.T) {
 	m := session.Meta{Agent: "codex", Mode: "plan"}

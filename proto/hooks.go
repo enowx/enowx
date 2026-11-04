@@ -214,6 +214,8 @@ type HookDecision struct {
 	Context string `json:"context,omitempty"`
 	Command string `json:"command,omitempty"`
 	Approve bool   `json:"approve,omitempty"`
+	// Ask has the agent ask the user about this tool call, even in a mode that asks nothing.
+	Ask bool `json:"ask,omitempty"`
 	// Continue keeps a turn going to take this, at its end: lines for GOD of Agents.
 	Continue string `json:"continue,omitempty"`
 }

@@ -83,6 +83,10 @@ func answerHook(event, agentID string, data []byte, d proto.HookDecision, stdout
 			return 0
 		}
 	}
+	if d.Ask && event == proto.HookToolBefore {
+		fmt.Fprintln(stdout, askOutput(d.Reason))
+		return 0
+	}
 	if d.Approve && event == proto.HookPermission {
 		fmt.Fprintln(stdout, permissionAllowOutput())
 		return 0
@@ -287,6 +291,17 @@ func permissionAllowOutput() string {
 	b, _ := json.Marshal(map[string]any{"hookSpecificOutput": map[string]any{
 		"hookEventName": "PermissionRequest",
 		"decision":      map[string]any{"behavior": "allow"},
+	}})
+	return string(b)
+}
+
+// askOutput has an agent ask the user about its tool call: Claude Code does so under bypass
+// too (run on 2.1.318).
+func askOutput(why string) string {
+	b, _ := json.Marshal(map[string]any{"hookSpecificOutput": map[string]any{
+		"hookEventName":            "PreToolUse",
+		"permissionDecision":       "ask",
+		"permissionDecisionReason": why,
 	}})
 	return string(b)
 }
