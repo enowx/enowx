@@ -109,6 +109,9 @@ func (a *App) sessionField(c *ui.Context) {
 			})
 			ui.Icon(c, icon.ChevronDown).FontSize(12).TextColor(theme.TextSoft)
 		})
+		if widget.AnchorNew(b) {
+			f.contOpen = false
+		}
 		if b.Clicked() {
 			f.contOpen = !f.contOpen
 		}

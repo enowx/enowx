@@ -402,6 +402,9 @@ func (ch *Chat) setting(c *ui.Context, o Options, key string, svg *ui.SVG, list 
 		}
 		ui.Icon(c, icon.ChevronDown).FontSize(14).Shrink(0)
 	})
+	if widget.AnchorNew(b) && ch.menu == key {
+		ch.menu = ""
+	}
 	if widget.Pressable(b).Clicked() {
 		if ch.menu == key {
 			ch.menu = ""

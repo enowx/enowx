@@ -16,8 +16,9 @@ type ContextMenu struct {
 }
 
 type menuAt struct {
-	key  string
-	x, y float32
+	key   string
+	x, y  float32
+	shown bool // drawn at least once, so its anchor's state holds it
 }
 
 // Open opens key's menu at the pointer when anchor is right-clicked.
@@ -37,12 +38,27 @@ func (m *ContextMenu) OpenBelow(anchor ui.Element, key string, height float32) {
 	}
 }
 
+// showing is key's open menu, unless its anchor has been away: a menu goes
+// with what it belongs to, rather than coming back when the user returns.
+func (m *ContextMenu) showing(anchor ui.Element, key string) *menuAt {
+	at := m.open
+	if at == nil || at.key != key {
+		return nil
+	}
+	if AnchorNew(anchor) && at.shown {
+		m.open = nil
+		return nil
+	}
+	at.shown = true
+	return at
+}
+
 // Show draws key's menu, if open, at the pointer over anchor; items builds
 // its entries with MenuItem and MenuSeparator, and calls done to close it.
 // One taller than the window scrolls.
 func (m *ContextMenu) Show(c *ui.Context, anchor ui.Element, key string, items func(done func())) {
-	at := m.open
-	if at == nil || at.key != key {
+	at := m.showing(anchor, key)
+	if at == nil {
 		return
 	}
 	open := true
@@ -62,8 +78,8 @@ func (m *ContextMenu) Show(c *ui.Context, anchor ui.Element, key string, items f
 // ShowBeside is Show for a menu whose anchor is at the window's edge: it opens
 // up and to the left of it, clear of what sits under the anchor.
 func (m *ContextMenu) ShowBeside(c *ui.Context, anchor ui.Element, key string, items func(done func())) {
-	at := m.open
-	if at == nil || at.key != key {
+	at := m.showing(anchor, key)
+	if at == nil {
 		return
 	}
 	open := true

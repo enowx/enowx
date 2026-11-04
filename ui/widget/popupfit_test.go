@@ -3,6 +3,7 @@ package widget
 import (
 	"fmt"
 	"testing"
+	"time"
 
 	"github.com/egoist/mygo/ui"
 )
@@ -148,6 +149,48 @@ func TestMenuClosesWithEscapeAndAClickOutside(t *testing.T) {
 	}
 }
 
+// A menu goes with what it belongs to: when the user comes back to it, it
+// doesn't open by itself.
+func TestMenuGoesWithItsAnchor(t *testing.T) {
+	var m ContextMenu
+	shows := true
+	tt := ui.NewTester(func(c *ui.Context) {
+		ui.Column(c).Size(fitW, fitH).Children(func() {
+			if !shows {
+				return
+			}
+			b := ui.ButtonBase(c.Key("open")).Size(60, 28).Label("Open")
+			m.OpenBelow(b, "menu", 28)
+			m.Show(c, b, "menu", func(done func()) { MenuItem(c.Key("one"), nil, "Item", false) })
+		})
+	}, fitW, fitH)
+	tt.Frame()
+	if err := tt.Click("Open"); err != nil {
+		t.Fatal(err)
+	}
+	tt.Frame()
+	tt.Frame()
+	if !tt.HasText("Item") {
+		t.Fatal("no menu")
+	}
+	shows = false
+	tt.Frame()
+	tt.Frame()
+	shows = true
+	tt.Frame()
+	tt.Frame()
+	if tt.HasText("Item") {
+		t.Error("the menu came back with its anchor")
+	}
+	if err := tt.Click("Open"); err != nil {
+		t.Fatal(err)
+	}
+	tt.Frame()
+	if !tt.HasText("Item") {
+		t.Error("it doesn't open again")
+	}
+}
+
 // A select whose list fits on neither side of it stays in the window: its last
 // option is reached by scrolling. It closes with Escape and a click outside.
 func TestChoiceStaysInTheWindow(t *testing.T) {
@@ -203,5 +246,46 @@ func TestChoiceStaysInTheWindow(t *testing.T) {
 		if tt.HasText("Option 1") {
 			t.Errorf("at %v: a click outside left it open", y)
 		}
+	}
+}
+
+// A tooltip goes with the pointer leaving its element, or with the element.
+func TestTooltipGoesWithPointerAndElement(t *testing.T) {
+	shows := true
+	tt := ui.NewTester(func(c *ui.Context) {
+		ui.Column(c).Size(fitW, fitH).Padding(80).Children(func() {
+			if shows {
+				ui.ButtonBase(c.Key("b")).Size(60, 28).Label("Tipped").Tooltip("The tip")
+			}
+		})
+	}, fitW, fitH)
+	tt.Frame()
+	rest := func() {
+		t.Helper()
+		b, ok := tt.Find("Tipped")
+		if !ok {
+			t.Fatal("no button")
+		}
+		tt.Move(b.X+b.W/2, b.Y+b.H/2)
+		tt.Frame()
+		tt.Advance(time.Second)
+		tt.Frame()
+		if !tt.HasText("The tip") {
+			t.Fatal("no tip after resting")
+		}
+	}
+	rest()
+	tt.Move(900, 600)
+	tt.Frame()
+	if tt.HasText("The tip") {
+		t.Error("the tip stayed as the pointer left")
+	}
+	tt.Advance(time.Second)
+	rest()
+	shows = false
+	tt.Frame()
+	tt.Frame()
+	if tt.HasText("The tip") {
+		t.Error("the tip stayed with its element gone")
 	}
 }

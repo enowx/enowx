@@ -58,6 +58,9 @@ func (a *App) issueButton(c *ui.Context) {
 		return
 	}
 	b := widget.GhostButton(c, "From a GitHub issue…").Tooltip("Fill the prompt and the branch from an open issue")
+	if widget.AnchorNew(b) {
+		a.issues.open = false
+	}
 	if b.Clicked() {
 		a.issues = issuePicker{open: true}
 		a.loadIssues(f.project.Path)

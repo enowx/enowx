@@ -34,3 +34,16 @@ func FitScroll(c *ui.Context, room float32, items func()) {
 	}
 	s.Children(func() { ui.Column(c).FillWidth().Children(items) })
 }
+
+// AnchorNew says that anchor wasn't in the last frame: it just appeared, or came
+// back. A pop-up open by then was left open by a user who has moved on, and
+// shouldn't open by itself: call it every frame anchor is built, as it knows by
+// the state that goes with the element. It is true in anchor's first frame too.
+func AnchorNew(anchor ui.Element) bool {
+	fresh := false
+	ui.Local(anchor, "popup-anchor", func() struct{} {
+		fresh = true
+		return struct{}{}
+	})
+	return fresh
+}
