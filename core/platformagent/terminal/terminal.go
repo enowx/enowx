@@ -91,6 +91,8 @@ type Terminal struct {
 	exitC    <-chan time.Time
 	view     settingsView
 	turnMsg  string // the message whose text streamed
+	// lastError is the last error a notice showed: a turn returns it too.
+	lastError string
 	// The start and the latest of the thinking under way.
 	thinkHead, thinkTail string
 }

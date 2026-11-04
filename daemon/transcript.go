@@ -8,6 +8,7 @@ import (
 	"os"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/enowx/enowx/core/agent"
@@ -197,9 +198,14 @@ func (s *Server) switchMode(p proto.SessionModeParams) error {
 		return fmt.Errorf("unknown mode %q", p.Mode)
 	}
 	s.sessions.SetMode(sess, p.Mode)
+	// A switch asked for meanwhile ends this one: two pressing the key at once could end
+	// on a mode neither asked for, even one that skips permissions.
+	v, _ := s.modeSwitches.LoadOrStore(p.ID, new(atomic.Uint64))
+	latest := v.(*atomic.Uint64)
+	turn := latest.Add(1)
 	go func() {
 		for range len(set.Modes) + 1 {
-			if set.ModeShown(sess.Terminal().Text()) == p.Mode {
+			if latest.Load() != turn || set.ModeShown(sess.Terminal().Text()) == p.Mode {
 				return
 			}
 			s.sessions.Input(sess, []byte(set.ModeKey))

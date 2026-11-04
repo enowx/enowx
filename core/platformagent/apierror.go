@@ -82,7 +82,7 @@ func (f failure) final(scrub func(string) string) error {
 	said := scrub(f.message)
 	switch f.status {
 	case http.StatusUnauthorized:
-		return errors.New("the API key is wrong: the API refused it. Change it in enowX (Settings, vault, platform anthropic)")
+		return errors.New("the API key is wrong (401): the API refused it. Change it in enowX (Settings, vault, platform anthropic)")
 	case http.StatusPaymentRequired:
 		return fmt.Errorf("the API account can't pay for this: %s", said)
 	case http.StatusForbidden:

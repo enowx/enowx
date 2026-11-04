@@ -152,6 +152,9 @@ func (t *Terminal) notice(level, text string) {
 		style, mark = styleRed, "! "
 	}
 	t.sc.Line(t.sc.paint(style, mark+cleanText(text)))
+	if level == "error" {
+		t.lastError = text
+	}
 }
 
 // AssistantText is the text of an Assistant record's answer.

@@ -282,8 +282,8 @@ func TestGOAHoldsPlatformByHooks(t *testing.T) {
 	}
 }
 
-// A hook that changes a command can't reach it: the call is refused, naming the command.
-func TestPlatformTakesAHooksRewrite(t *testing.T) {
+// A hook that changes a command goes to it as it is: the agent runs what it says.
+func TestPlatformHookRewriteReachesIt(t *testing.T) {
 	srv := startServer(t)
 	info := proto.SessionInfo{Agent: agent.PlatformID}
 	d := srv.rewritten(info, proto.HookEvent{}, proto.HookDecision{Command: "go vet"})
