@@ -395,8 +395,9 @@ func TestGOAChangeTakesNoLineToTheOldAgent(t *testing.T) {
 	r.srv.goaReleaseLines()
 }
 
-// A mode the user gave GOA stays over a change of config, which decides its model alone.
-func TestGOAConfigKeepsItsMode(t *testing.T) {
+// GOA on Claude Code stays in bypass over a change of config, whatever mode was saved, and
+// keeps what holds it.
+func TestGOAConfigKeepsBypassAndItsHold(t *testing.T) {
 	r := newGOASwitchRig(t, "claude")
 	r.said()
 	r.account("Work")
@@ -409,7 +410,10 @@ func TestGOAConfigKeepsItsMode(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if res.Mode != "acceptEdits" || !slices.Contains(args, "acceptEdits") {
+	if res.Mode != "bypassPermissions" || !slices.Contains(args, "--dangerously-skip-permissions") {
 		t.Fatalf("mode %q, args %q", res.Mode, args)
+	}
+	if !slices.Contains(args, "--strict-mcp-config") || !slices.Contains(args, "--tools") {
+		t.Fatalf("what holds it went: %q", args)
 	}
 }
