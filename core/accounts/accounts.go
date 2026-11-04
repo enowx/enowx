@@ -40,7 +40,9 @@ var kinds = map[string]kind{
 	// .claude.json holds who is signed in; its backups would offer the
 	// default account's back.
 	"claude": {env: "CLAUDE_CONFIG_DIR", home: ".claude", own: []string{".credentials.json", ".claude.json", ".claude.json.lock", "backups"}},
-	"codex":  {env: "CODEX_HOME", home: ".codex", own: []string{"auth.json"}},
+	// Codex also keeps databases and daemon state private; shareCodex
+	// permits only known settings and canonical conversation paths.
+	"codex": {env: "CODEX_HOME", home: ".codex", own: []string{"auth.json"}},
 	// https://www.kimi.com/code/docs/en/kimi-code-cli/configuration/data-locations.html
 	"kimi": {env: "KIMI_CODE_HOME", home: ".kimi-code", own: []string{"credentials"}, docsOnly: true},
 	// https://docs.mistral.ai/mistral-vibe/terminal/configuration
@@ -271,6 +273,19 @@ func (s *Store) Env(agent, id string) ([]string, error) {
 		return nil, nil // a key or an API: the agent's own home
 	}
 	k := kinds[agent]
+	// The config's explicit home wins at launch. Do not prepare or share
+	// an unused account home before that override is applied.
+	if agent == "codex" && acc.Member == "" {
+		for i := len(acc.Env) - 1; i >= 0; i-- {
+			name, value, _ := strings.Cut(acc.Env[i], "=")
+			if sameEnvName(name, k.env) {
+				if value == "" {
+					return nil, errors.New("accounts: an explicit Codex home must not be empty")
+				}
+				return []string{acc.Env[i]}, nil
+			}
+		}
+	}
 	home := s.Home(id)
 	link := share
 	if acc.Member != "" {
@@ -324,6 +339,9 @@ func share(k kind, home string) error {
 		return err
 	}
 	src := filepath.Join(userHome, k.home)
+	if k.env == "CODEX_HOME" {
+		return shareCodex(src, home)
+	}
 	entries, err := os.ReadDir(src)
 	if errors.Is(err, os.ErrNotExist) {
 		return nil
