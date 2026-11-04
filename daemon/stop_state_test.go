@@ -17,7 +17,7 @@ func TestDoneOnlyWhenNothingGoesOn(t *testing.T) {
 	}
 	stop := func(background int) {
 		t.Helper()
-		ev := proto.HookEvent{Event: proto.HookTurnDone, Background: background}
+		ev := proto.HookEvent{Event: proto.HookTurnDone, BackgroundTasks: background}
 		if _, err := srv.sessionHook(proto.SessionHookParams{ID: sess.ID(), State: proto.StateDone, Event: ev}); err != nil {
 			t.Fatal(err)
 		}
@@ -42,7 +42,7 @@ func TestStopReadsBackgroundTasks(t *testing.T) {
 		`{"background_tasks":[]}`:                      0,
 		`{}`:                                           0,
 	} {
-		if got := agentEvent(proto.HookTurnDone, []byte(in)).Background; got != want {
+		if got := agentEvent(proto.HookTurnDone, []byte(in)).BackgroundTasks; got != want {
 			t.Errorf("%s: %d", in, got)
 		}
 	}

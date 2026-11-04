@@ -63,6 +63,10 @@ type Meta struct {
 	// Model and Effort: what its agent last said it runs on. Mode: its permission mode, the
 	// same way. All three go on its command line whenever it starts again.
 	Model, Effort, Mode string
+	// ModelStarted is what it was started on, or the user last chose in its agent; ModelMoved:
+	// its agent no longer says that one.
+	ModelStarted string
+	ModelMoved   bool
 	// Conversation is its agent's conversation, by the id the agent
 	// resumes it with: it goes on with its own, not the folder's latest.
 	Conversation string
@@ -163,9 +167,10 @@ type Session struct {
 	lastInput  time.Time
 	streamed   time.Time // when an attached stream last checked the screen
 	active     bool
-	state      string    // what the agent's hooks last said (proto.State*)
-	stateAt    time.Time // when they said it
-	shown      string    // the state last reported to OnUpdate
+	state      string                  // what the agent's hooks last said (proto.State*)
+	background []proto.BackgroundAgent // agents in its process tree but its own: Manager.SetBackground
+	stateAt    time.Time               // when they said it
+	shown      string                  // the state last reported to OnUpdate
 	prompt     string
 	typed      []rune // the line being typed, until the first prompt is known
 	inEscape   bool
@@ -244,6 +249,8 @@ func (s *Session) Info() proto.SessionInfo {
 		Model:           s.meta.Model,
 		Effort:          s.meta.Effort,
 		ModelLast:       s.meta.Model != "" && (s.exited || s.meta.Hibernated),
+		ModelStarted:    s.movedFromLocked(),
+		Background:      s.background,
 		Restored:        s.meta.Restored,
 		Exited:          s.exited,
 		ExitCode:        s.code,

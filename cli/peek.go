@@ -34,6 +34,9 @@ func sessionModel(s proto.SessionInfo) string {
 	if s.ModelLast {
 		out += " (last)"
 	}
+	if s.ModelStarted != "" {
+		out += " (started on " + s.ModelStarted + ")"
+	}
 	return out
 }
 

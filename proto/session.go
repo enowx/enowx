@@ -154,6 +154,12 @@ type SessionInfo struct {
 	Model     string `json:"model,omitempty"`
 	Effort    string `json:"effort,omitempty"`
 	ModelLast bool   `json:"modelLast,omitempty"`
+	// ModelStarted is what it was started on, or the user last chose in its agent, when its
+	// agent says it now runs on another, a fallback say; "" when it doesn't.
+	ModelStarted string `json:"modelStarted,omitempty"`
+	// Background are other agents running under or left by this one, as its process tree
+	// shows them: see BackgroundAgent.
+	Background []BackgroundAgent `json:"background,omitempty"`
 	// SkipUnheard is SessionCreateParams.SkipUnheard: for GOD of Agents,
 	// what its workers follow.
 	SkipUnheard bool `json:"skipUnheard,omitempty"`
@@ -388,4 +394,20 @@ const MethodSessionFork = "session.fork"
 type SessionForkParams struct {
 	ID     string `json:"id"`
 	Prompt string `json:"prompt,omitempty"`
+}
+
+// BackgroundAgent is an agent a session's agent started, seen in its process tree. An agent's
+// subagents that run inside its own process, or only at its API, don't show here.
+type BackgroundAgent struct {
+	PID     int    `json:"pid"`
+	Start   string `json:"start"` // with PID it names the process: StopProcessParams
+	Name    string `json:"name"`  // the agent's program
+	Command string `json:"command,omitempty"`
+	// Since is when the daemon first saw it.
+	Since time.Time `json:"since"`
+	// Left: it no longer runs under the session's program.
+	Left bool `json:"left,omitempty"`
+	// Memory is its resident memory in bytes, and CPU the CPU time it used in seconds, when last looked at.
+	Memory uint64  `json:"memory,omitempty"`
+	CPU    float64 `json:"cpu,omitempty"`
 }

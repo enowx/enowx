@@ -372,9 +372,14 @@ func (s *Server) Close() {
 // deleteSession hangs up a session and forgets it for good.
 func (s *Server) deleteSession(id string) error {
 	s.procsLook() // what it started up to now, while its tree still shows it
+	var was proto.SessionInfo
+	if sess, err := s.sessions.Get(id); err == nil {
+		was = sess.Info()
+	}
 	if err := s.sessions.Kill(id); err != nil {
 		return err
 	}
+	s.endRegionsOfLead(was)
 	// What it started outside its terminal goes too: no leftovers.
 	reap(tag{key: session.EnvSession, value: id})
 	s.endSessionProcs(id)

@@ -34,7 +34,7 @@ More agents, started the same way; their flags are those their documentation giv
 | Aider | `aider` | typed in once it shows its input | `--yes-always` | — | [docs](https://aider.chat/docs/) |
 | Goose | `goose --version` | typed in once it shows its input | `GOOSE_MODE=auto` in its environment · always `GOOSE_MODE=auto` | — | [docs](https://block.github.io/goose/docs/quickstart/) |
 | Amp | `amp` | typed in once it shows its input | `--dangerously-allow-all` | — | [docs](https://ampcode.com/manual#install) |
-| Kilo Code | `kilo` | typed in once it shows its input | — | — | [docs](https://kilo.ai/docs/cli) |
+| Kilo Code | `kilo` | `--prompt` | — | — | [docs](https://kilo.ai/docs/cli) |
 | Crush | `crush` | typed in once it shows its input | `--yolo` | — | [docs](https://github.com/charmbracelet/crush) |
 | Auggie | `auggie` | typed in once it shows its input | — | — | [docs](https://docs.augmentcode.com/cli/overview) |
 | Autohand Code | `autohand` | typed in once it shows its input | `--unrestricted` | — | [docs](https://github.com/autohandai/code-cli) |
@@ -203,17 +203,17 @@ A guide of real size is tens of thousands of characters, with a project's rules 
 
 A secret in the guide's text (what `rag.HoldsSecret` finds, in rules the user wrote) is taken out before it is written anywhere, on every system, and the daemon logs that it was.
 
-The owner's check of each in a real session is still to do: start one, ask who it is in enowX, have it name its enowX tools and call one. Until then every row says **Not checked**, whatever its source says. Sessions on the Notes and Canvas pages and GOD of Agents have tools of their own, and a teammate's session gets no MCP server from here.
+**Real sessions:** each agent marked Checked ran in a real session of an isolated daemon, with a temporary home, against a local stand-in model that records what the agent sends: its system prompt, the tools it offers, and the results of the calls the stand-in asks for. So it shows what the agent received and could run, not what a real model makes of it, and agents were signed in to nothing. The rest are not installed on the machine this was run on, or need an account of their own, and aren't counted as working: start one, ask who it is in enowX, have it name its enowX tools and call one. Sessions on the Notes and Canvas pages and GOD of Agents have tools of their own, and a teammate's session gets no MCP server from here.
 
 | Agent | Prompt | Tools | Knowledge | Source | Real session |
 |---|---|---|---|---|---|
-| Claude Code | `--append-system-prompt-file` | `--mcp-config` with a file; the `"$ENOWX_BIN"` commands | The guide, whole, project rules included | [CLI reference](https://code.claude.com/docs/en/cli-reference) | Not checked |
-| Codex | `-c developer_instructions=`, after the user's own | `-c mcp_servers.enowx.*`; the `"$ENOWX_BIN"` commands | The inject, which names `ENOWX.md`: the guide and project rules, read by the agent | `codex-rs` config, rust-v0.166.0 | Not checked |
-| OpenCode | `instructions` in `OPENCODE_CONFIG_CONTENT`, naming enowX's file | `mcp` in `OPENCODE_CONFIG_CONTENT`; the `"$ENOWX_BIN"` commands | The guide, whole, project rules included | `config.mdx`, `mcp-servers.mdx` in sst/opencode | Not checked |
-| Gemini CLI | a block of `~/.gemini/GEMINI.md`, saying to run the guide | None for one session; the `"$ENOWX_BIN"` commands | By running `"$ENOWX_BIN" guide` | `docs/reference/configuration.md` in google-gemini/gemini-cli | Not checked |
+| Claude Code | `--append-system-prompt-file` | `--mcp-config` with a file; the `"$ENOWX_BIN"` commands | The guide, whole, project rules included | [CLI reference](https://code.claude.com/docs/en/cli-reference) | Checked, 2.1.318: guide in the system prompt, enowX's MCP tools listed and loaded, a canvas tool called, `"$ENOWX_BIN"` run |
+| Codex | `-c developer_instructions=`, after the user's own | `-c mcp_servers.enowx.*`; the `"$ENOWX_BIN"` commands | The inject, which names `ENOWX.md`: the guide and project rules, read by the agent | `codex-rs` config, rust-v0.166.0 | Checked, 0.166.0: guide, 93 MCP tools, one called, `"$ENOWX_BIN"` run |
+| OpenCode | `instructions` in `OPENCODE_CONFIG_CONTENT`, naming enowX's file | `mcp` in `OPENCODE_CONFIG_CONTENT`; the `"$ENOWX_BIN"` commands | The guide, whole, project rules included | `config.mdx`, `mcp-servers.mdx` in sst/opencode | Checked, 1.19.5: guide, 93 MCP tools, one called, `"$ENOWX_BIN"` run |
+| Gemini CLI | a block of `~/.gemini/GEMINI.md`, saying to run the guide | None for one session; the `"$ENOWX_BIN"` commands | By running `"$ENOWX_BIN" guide` | `docs/reference/configuration.md` in google-gemini/gemini-cli | Partly, 0.66.0: guide arrives; the stand-in's answer with a tool call failed to parse, so no tool ran |
 | Kiro CLI | enowX's `~/.kiro/steering/enowx.md` | None for one session; the `"$ENOWX_BIN"` commands | The guide, whole; project rules by running `\"$ENOWX_BIN\" guide` | the preset tables above; session flags not re-read | Not checked |
-| Claude Agent Teams | `--append-system-prompt-file` | `--mcp-config` with a file; the `"$ENOWX_BIN"` commands | The guide, whole, project rules included | [CLI reference](https://code.claude.com/docs/en/cli-reference) | Not checked |
-| OpenClaude | `--append-system-prompt-file` | `--mcp-config` with a file; the `"$ENOWX_BIN"` commands | The guide, whole, project rules included | the preset tables above; session flags not re-read | Not checked |
+| Claude Agent Teams | `--append-system-prompt-file` | `--mcp-config` with a file; the `"$ENOWX_BIN"` commands | The guide, whole, project rules included | [CLI reference](https://code.claude.com/docs/en/cli-reference) | Checked, 2.1.318: as Claude Code |
+| OpenClaude | `--append-system-prompt-file` | `--mcp-config` with a file; the `"$ENOWX_BIN"` commands | The guide, whole, project rules included | the preset tables above; session flags not re-read | Not checked: stopped at its first-run screens in a new home |
 | Grok | `--rules` | None for one session; the `"$ENOWX_BIN"` commands | The inject, which names `ENOWX.md`: the guide and project rules, read by the agent | the preset tables above; session flags not re-read | Not checked |
 | GitHub Copilot | enowX's `~/.copilot/instructions/enowx.instructions.md` | `--additional-mcp-config=@file`; the `"$ENOWX_BIN"` commands | The guide, whole; project rules by running `\"$ENOWX_BIN\" guide` | [CLI reference](https://docs.github.com/en/copilot/reference/cli-command-reference) | Not checked |
 | OpenCode 2 | None found: a line after the first prompt | None for one session; the `"$ENOWX_BIN"` commands | By running `"$ENOWX_BIN" guide` | [docs](https://opencode.ai/v2/docs/) | Not checked |
@@ -225,27 +225,27 @@ The owner's check of each in a real session is still to do: start one, ask who i
 | Qoder CLI | `--append-system-prompt` | None for one session; the `"$ENOWX_BIN"` commands | The inject, which names `ENOWX.md`: the guide and project rules, read by the agent | the preset tables above; session flags not re-read | Not checked |
 | Qoder CLI China | `--append-system-prompt` | None for one session; the `"$ENOWX_BIN"` commands | The guide, whole, project rules included | the preset tables above; session flags not re-read | Not checked |
 | ZCode | a block of `~/.zcode/AGENTS.md`, saying to run the guide | None for one session; the `"$ENOWX_BIN"` commands | By running `"$ENOWX_BIN" guide` | the preset tables above; session flags not re-read | Not checked |
-| Pi | a block of `~/.pi/agent/APPEND_SYSTEM.md`, saying to run the guide | None for one session; the `"$ENOWX_BIN"` commands | By running `"$ENOWX_BIN" guide` | the preset tables above; session flags not re-read | Not checked |
-| OMP | `--append-system-prompt` | None for one session; the `"$ENOWX_BIN"` commands | The inject, which names `ENOWX.md`: the guide and project rules, read by the agent | the preset tables above; session flags not re-read | Not checked |
+| Pi | a block of `~/.pi/agent/APPEND_SYSTEM.md`, saying to run the guide | None for one session; the `"$ENOWX_BIN"` commands | By running `"$ENOWX_BIN" guide` | the preset tables above; session flags not re-read | Checked, 0.73.1: guide, no MCP, `"$ENOWX_BIN"` run |
+| OMP | `--append-system-prompt` | None for one session; the `"$ENOWX_BIN"` commands | The inject, which names `ENOWX.md`: the guide and project rules, read by the agent | the preset tables above; session flags not re-read | Checked, 18.16.0: guide, no MCP, `"$ENOWX_BIN"` run |
 | Prime Agent | `--append-system-prompt` | None for one session; the `"$ENOWX_BIN"` commands | The inject, which names `ENOWX.md`: the guide and project rules, read by the agent | the preset tables above; session flags not re-read | Not checked |
 | Antigravity | enowX's `~/.gemini/config/rules/enowx.md` | None for one session; the `"$ENOWX_BIN"` commands | The guide, whole; project rules by running `\"$ENOWX_BIN\" guide` | the preset tables above; session flags not re-read | Not checked |
 | Aider | `--read` enowX's file | None for one session; the `"$ENOWX_BIN"` commands | The guide, whole, project rules included | the preset tables above; session flags not re-read | Not checked |
 | Goose | a block of `~/.config/goose/.goosehints`, saying to run the guide | None for one session; the `"$ENOWX_BIN"` commands | By running `"$ENOWX_BIN" guide` | the preset tables above; session flags not re-read | Not checked |
 | Amp | a block of `~/.config/amp/AGENTS.md`, saying to run the guide | None for one session; the `"$ENOWX_BIN"` commands | By running `"$ENOWX_BIN" guide` | the preset tables above; session flags not re-read | Not checked |
-| Kilo Code | `instructions` in `KILO_CONFIG_CONTENT`, naming enowX's file | `mcp` in `KILO_CONFIG_CONTENT`; the `"$ENOWX_BIN"` commands | The guide, whole, project rules included | [CLI](https://kilo.ai/docs/cli), [custom rules](https://kilo.ai/docs/customize/custom-rules) | Not checked |
-| Crush | a block of `~/.config/crush/CRUSH.md`, saying to run the guide | None for one session; the `"$ENOWX_BIN"` commands | By running `"$ENOWX_BIN" guide` | the preset tables above; session flags not re-read | Not checked |
+| Kilo Code | `instructions` in `KILO_CONFIG_CONTENT`, naming enowX's file | `mcp` in `KILO_CONFIG_CONTENT`; the `"$ENOWX_BIN"` commands | The guide, whole, project rules included | [CLI](https://kilo.ai/docs/cli), [custom rules](https://kilo.ai/docs/customize/custom-rules) | Checked, 7.8.18: guide, 93 MCP tools, one called, `"$ENOWX_BIN"` run |
+| Crush | a block of `~/.config/crush/CRUSH.md`, saying to run the guide | None for one session; the `"$ENOWX_BIN"` commands | By running `"$ENOWX_BIN" guide` | the preset tables above; session flags not re-read | Checked, 0.99.0: guide, no MCP, `"$ENOWX_BIN"` run |
 | Auggie | `--rules` enowX's file | None for one session; the `"$ENOWX_BIN"` commands | The guide, whole, project rules included | the preset tables above; session flags not re-read | Not checked |
 | Autohand Code | `--append-sys-prompt` with a file | None for one session; the `"$ENOWX_BIN"` commands | The guide, whole, project rules included | the preset tables above; session flags not re-read | Not checked |
 | Cline | enowX's `~/.cline/rules/enowx.md` | None for one session; the `"$ENOWX_BIN"` commands | The guide, whole; project rules by running `\"$ENOWX_BIN\" guide` | the preset tables above; session flags not re-read | Not checked |
 | Codebuff | None found: a line after the first prompt | None for one session; the `"$ENOWX_BIN"` commands | By running `"$ENOWX_BIN" guide` | its page gave nothing to read (drawn by script) | Not checked |
 | Freebuff | None found: a line after the first prompt | None for one session; the `"$ENOWX_BIN"` commands | By running `"$ENOWX_BIN" guide` | the preset tables above; session flags not re-read | Not checked |
 | Command Code | a block of `~/.commandcode/AGENTS.md`, saying to run the guide | None for one session; the `"$ENOWX_BIN"` commands | By running `"$ENOWX_BIN" guide` | the preset tables above; session flags not re-read | Not checked |
-| Continue | `--rule` with a file | None for one session; the `"$ENOWX_BIN"` commands | The guide, whole, project rules included | the preset tables above; session flags not re-read | Not checked |
+| Continue | `--rule` with a file | None for one session; the `"$ENOWX_BIN"` commands | The guide, whole, project rules included | the preset tables above; session flags not re-read | Not checked: asked for its own key before any prompt, and it took the prompt as the key |
 | Cursor | None found: a line after the first prompt | None for one session; the `"$ENOWX_BIN"` commands | By running `"$ENOWX_BIN" guide` | [CLI](https://cursor.com/docs/cli/using), [MCP](https://cursor.com/docs/cli/mcp) | Not checked |
 | Droid | `--append-system-prompt-file` | None for one session; the `"$ENOWX_BIN"` commands | The guide, whole, project rules included | the preset tables above; session flags not re-read | Not checked |
 | Kimi | None found: a line after the first prompt | `--mcp-config-file`; the `"$ENOWX_BIN"` commands | By running `"$ENOWX_BIN" guide` | [command](https://moonshotai.github.io/kimi-cli/en/reference/kimi-command.html), [MCP](https://moonshotai.github.io/kimi-cli/en/customization/mcp.html) | Not checked |
 | Mistral Vibe | a block of `~/.vibe/AGENTS.md`, saying to run the guide | None for one session; the `"$ENOWX_BIN"` commands | By running `"$ENOWX_BIN" guide` | the preset tables above; session flags not re-read | Not checked |
-| Qwen Code | `--append-system-prompt` | None for one session; the `"$ENOWX_BIN"` commands | The inject, which names `ENOWX.md`: the guide and project rules, read by the agent | the preset tables above; session flags not re-read | Not checked |
+| Qwen Code | `--append-system-prompt` | None for one session; the `"$ENOWX_BIN"` commands | The inject, which names `ENOWX.md`: the guide and project rules, read by the agent | the preset tables above; session flags not re-read | Checked, 0.26.7: guide, no MCP, `"$ENOWX_BIN"` run |
 | Rovo Dev | a block of `~/.rovodev/AGENTS.md`, saying to run the guide | None for one session; the `"$ENOWX_BIN"` commands | By running `"$ENOWX_BIN" guide` | the preset tables above; session flags not re-read | Not checked |
 | Hermes | None found: a line after the first prompt | None for one session; the `"$ENOWX_BIN"` commands | By running `"$ENOWX_BIN" guide` | [context files](https://hermes-agent.nousresearch.com/docs/user-guide/features/context-files), [MCP](https://hermes-agent.nousresearch.com/docs/user-guide/features/mcp) | Not checked |
 | Devin | enowX's `~/.devin/rules/enowx.md` | None for one session; the `"$ENOWX_BIN"` commands | The guide, whole; project rules by running `\"$ENOWX_BIN\" guide` | the preset tables above; session flags not re-read | Not checked |
@@ -293,7 +293,27 @@ Sessions enowX starts for one piece of work end when it does, without the user a
 | A build's direction | after 15 minutes unused, as it may be sent back after the comparison | its design, on the canvas |
 | A Canvas page's agent, a Notes page's agent | after 15 minutes unused: the next message goes on with its conversation, by its ID where the agent can resume one; else a new one, with the page's chat log | the canvas, the note, the chat log |
 
-One at work or waiting on the user is never ended, nor one whose hooks have gone quiet, which may be either. Not helpers, and never ended by this: sessions the user starts, GOD of Agents and its workers, anything on its board, a teammate's session, a fan-out (its results wait to be compared), pipelines and automations (the session is their result), and tabs, which end with their session. Those left from before this are cleaned up the same way, at the first look after the daemon starts.
+One at work or waiting on the user is never ended, nor one whose hooks have gone quiet, which may be either. Two exceptions, for an unslop's regions' agents, which are sessions of their own and which nothing else would end: one that reported done goes after 2 minutes whatever its state reads, and one that ran for 2 hours without reporting ends with its run's others.
+
+An unslop's regions' agents end with the run: when the Canvas page's Stop is pressed (its redesign's agent is only interrupted), when the redesign's agent is closed or hibernated by hand, when it reports the run done, and when a new run starts. The redesign's agent itself doesn't end by being left idle while they work. The panel's bar over a region's agent has **End**, for one at a time. Not helpers, and never ended by this: sessions the user starts, GOD of Agents and its workers, anything on its board, a teammate's session, a fan-out (its results wait to be compared), pipelines and automations (the session is their result), and tabs, which end with their session. Those left from before this are cleaned up the same way, at the first look after the daemon starts.
+
+## Agents in a session's background
+
+A session's row and `enowx-app ls` say which agents its agent has running besides itself (`SessionInfo.Background`): `background(N)` as its state in `ls` and `status`, their names in the row, each one's command, time and memory on hover. `wait` goes on while they run, and a helper isn't ended under them. Hibernate and updates don't name them yet, GOA's board doesn't show them, and only a process left from a session can be stopped alone, under Left running in Resource usage.
+
+**How they're found: the session's process tree, for any agent.** Every 15 seconds the daemon follows what each session started (`daemon/procs.go`); a process of it counts when its arguments name a preset's program (`agent.ProgramOf`), through an interpreter too (`node`, `bun`, `python`, `sh`), and it runs under another agent or left the tree. Its own agent doesn't count, nor a wrapper starting a binary of the same name, a server or a command, nor an agent's own MCP server. One that runs for under a look doesn't count, so a one-shot call isn't an alarm.
+
+**What it can't see, said plainly:**
+
+| What | Why |
+|---|---|
+| A subagent inside the agent's own process (Claude Code's Task tool, Codex's, OpenCode's, ...) | No process of its own. Only the agent's hook or transcript can say, and only Claude Code's is read (below). |
+| An agent that only runs at an API, on someone's cloud | Nothing runs here. |
+| An agent started by a CLI's own background service, as OpenCode's server | It isn't a child of the session. |
+| An agent named nothing a preset names, or run by an interpreter not listed | Its arguments name no agent. |
+| One that starts and leaves its tree between two looks, on macOS and Windows | The tree never showed it, and only Linux shows a process's session tag, by which it is found there. |
+
+**Per agent, on top of that:** Claude Code's Stop hook gives `background_tasks` (its background shells and subagents, checked on 2.1.318): a turn that ends with any running leaves the session working, and the turn it takes when they end makes it done. No other agent's hook is read for this.
 
 ## The model a session runs on
 

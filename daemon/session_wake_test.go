@@ -71,7 +71,7 @@ func TestSendToAHibernatedSessionWakesItAndArrivesOnce(t *testing.T) {
 	c := connect(t, srv, nil)
 	info := asleepAgent(t, srv, c, starts)
 	sess, _ := srv.sessions.Get(info.ID)
-	srv.sessions.SetModel(sess, "claude-opus-5-5", "high")
+	srv.sessions.SetModel(sess, "claude-opus-5-5", "high", "", false)
 	srv.sessions.SetMode(sess, "plan")
 
 	res, err := sendTo(c, info.ID, "the first")

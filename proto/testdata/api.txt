@@ -317,6 +317,14 @@ field AutopushStatus.lastRun time.Time
 field AutopushStatus.next time.Time
 field AutopushStatus.prURL string
 field AutopushStatus.visibility string
+field BackgroundAgent.command string
+field BackgroundAgent.cpu float64
+field BackgroundAgent.left bool
+field BackgroundAgent.memory uint64
+field BackgroundAgent.name string
+field BackgroundAgent.pid int
+field BackgroundAgent.since time.Time
+field BackgroundAgent.start string
 field BrowserAction.action string
 field BrowserAction.ref string
 field BrowserAction.session string
@@ -1310,7 +1318,7 @@ field HookDecision.continue string
 field HookDecision.reason string
 field HookEvent.agent string
 field HookEvent.allowed bool
-field HookEvent.background int
+field HookEvent.backgroundTasks int
 field HookEvent.branch string
 field HookEvent.command string
 field HookEvent.commit string
@@ -1989,6 +1997,7 @@ field SessionHooks.session string
 field SessionInfo.account string
 field SessionInfo.active bool
 field SessionInfo.agent string
+field SessionInfo.background []BackgroundAgent
 field SessionInfo.branch string
 field SessionInfo.budget int64
 field SessionInfo.canvasFor string
@@ -2013,6 +2022,7 @@ field SessionInfo.id string
 field SessionInfo.member *SessionMember
 field SessionInfo.model string
 field SessionInfo.modelLast bool
+field SessionInfo.modelStarted string
 field SessionInfo.name string
 field SessionInfo.noAutoHibernate bool
 field SessionInfo.note string

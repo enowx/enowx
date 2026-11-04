@@ -3,6 +3,7 @@ package daemon
 import (
 	"github.com/enowx/enowx/core/agent"
 	"github.com/enowx/enowx/core/session"
+	"github.com/enowx/enowx/core/transcript"
 	"github.com/enowx/enowx/proto"
 )
 
@@ -18,7 +19,13 @@ func keptArgs(m session.Meta) []string {
 	if m.Config != nil {
 		return nil
 	}
-	return agent.StartArgs(m.Agent, m.Model, m.Effort, m.Mode, m.SkipPermissions)
+	model := m.Model
+	// A model it moved to by itself isn't one it was given. Where the transcript can't tell
+	// that from the user's own /model, what it last said stands, and the session says so.
+	if m.ModelMoved && transcript.TellsModelChoice(m.Agent) {
+		model = m.ModelStarted
+	}
+	return agent.StartArgs(m.Agent, model, m.Effort, m.Mode, m.SkipPermissions)
 }
 
 // withAgentStart gives p what the user chose for new sessions of its agent, where p itself

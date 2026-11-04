@@ -161,11 +161,32 @@ func (s *Session) QuickExits() int {
 }
 
 // SetModel records what session s's agent last said it runs on.
-func (m *Manager) SetModel(s *Session, model, effort string) {
+func (m *Manager) SetModel(s *Session, model, effort, started string, moved bool) {
 	s.mu.Lock()
-	s.meta.Model, s.meta.Effort = model, effort
+	s.meta.Model, s.meta.Effort, s.meta.ModelStarted, s.meta.ModelMoved = model, effort, started, moved
 	s.mu.Unlock()
 	m.notify(s)
+}
+
+// SetBackground records the agents session s's agent has in the background, said only when
+// which they are changes: memory and CPU alone don't call for a word to every window.
+func (m *Manager) SetBackground(s *Session, agents []proto.BackgroundAgent) (changed bool) {
+	s.mu.Lock()
+	changed = !slices.EqualFunc(s.background, agents, func(a, b proto.BackgroundAgent) bool { return a.PID == b.PID && a.Start == b.Start && a.Left == b.Left })
+	s.background = agents
+	s.mu.Unlock()
+	if changed {
+		m.notify(s)
+	}
+	return changed
+}
+
+// movedFromLocked is SessionInfo.ModelStarted. The caller holds s.mu.
+func (s *Session) movedFromLocked() string {
+	if s.meta.ModelMoved {
+		return s.meta.ModelStarted
+	}
+	return ""
 }
 
 // SetMode records the permission mode session s's agent is in.

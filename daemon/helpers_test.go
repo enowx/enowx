@@ -89,3 +89,14 @@ func TestHelpersPassEndsThemAndKeepsTheRest(t *testing.T) {
 		t.Fatalf("taken twice: %q", got)
 	}
 }
+
+// OMP keeps its conversations in the session's own folder, gone with the session, and exits
+// when asked to resume one: a page's next message starts anew, on any agent like it.
+func TestPageAgentInItsOwnFolderStartsAnew(t *testing.T) {
+	srv := startServer(t)
+	p := proto.SessionCreateParams{Agent: "omp", CanvasFor: "c1"}
+	srv.writeHelperConvos(map[string]string{helperConvoKey("c1", "", "omp"): "conv-1"})
+	if got := srv.takeHelperConvo(p); got != "" {
+		t.Fatalf("resumes %q", got)
+	}
+}

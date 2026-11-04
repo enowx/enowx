@@ -404,6 +404,8 @@ func State(s proto.SessionInfo) string {
 		return fmt.Sprintf("exited(%d)", s.ExitCode)
 	case s.Queued:
 		return "queued"
+	case len(s.Background) > 0 && !s.Active && s.State != proto.StateWorking && s.State != proto.StateWaiting:
+		return fmt.Sprintf("background(%d)", len(s.Background)) // its turn ended, not its work
 	case s.State != "":
 		return s.State
 	case s.Active:

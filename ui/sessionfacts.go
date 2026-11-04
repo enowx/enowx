@@ -1,7 +1,10 @@
 package ui
 
 import (
+	"fmt"
 	"path/filepath"
+	"strings"
+	"time"
 
 	"github.com/egoist/mygo/ui"
 
@@ -21,6 +24,9 @@ const pathChars = 34
 func (a *App) sessionFacts(c *ui.Context, s proto.SessionInfo) {
 	if model, full := modelLine(s); model != "" {
 		ui.Text(c, model).FontSize(theme.TextLabel).Font(theme.MonoFont).TextColor(theme.Muted).SingleLine().Shrink(1).Tooltip(full)
+	}
+	if line, full := backgroundLine(s); line != "" {
+		ui.Text(c, line).FontSize(theme.TextLabel).TextColor(theme.Accent).SingleLine().Tooltip(full)
 	}
 	branch := ""
 	if s.Worktree {
@@ -48,7 +54,28 @@ func modelLine(s proto.SessionInfo) (short, full string) {
 		short += " (last)"
 		full += ", the last it said: it isn't running"
 	}
+	if s.ModelStarted != "" {
+		short += " (started on " + textfmt.ShortModel(s.ModelStarted) + ")"
+		full += "\nStarted on " + s.ModelStarted + ": its agent moved to this one, by a fallback or a change in the agent"
+	}
 	return short, full
+}
+
+// backgroundLine is what a session's row says of agents in its background, short and whole.
+func backgroundLine(s proto.SessionInfo) (short, full string) {
+	var names, lines []string
+	for _, b := range s.Background {
+		names = append(names, b.Name)
+		line := fmt.Sprintf("%s, pid %d, for %s, %s", b.Name, b.PID, time.Since(b.Since).Round(time.Second), textfmt.Bytes(b.Memory))
+		if b.Left {
+			line += ", left from under it"
+		}
+		lines = append(lines, line+": "+b.Command)
+	}
+	if len(names) == 0 {
+		return "", ""
+	}
+	return fmt.Sprintf("%d %s: %s", len(names), textfmt.Plural(len(names), "background agent", "background agents"), strings.Join(names, ", ")), strings.Join(lines, "\n")
 }
 
 // projectLine says a project by name and path, with host when it's another's;

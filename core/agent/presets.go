@@ -201,7 +201,8 @@ var Presets = []Preset{
 	},
 	{
 		ID: "kilo", Name: "Kilo Code", Command: "kilo",
-		TypePrompt: true,
+		// Typed in, it was lost: its screen settles before its input takes keys (7.8.18).
+		PromptFlag: []string{"--prompt"},
 		Install:    npmInstall("Kilo Code CLI", "@kilocode/cli"),
 		Homepage:   "https://kilo.ai/docs/cli",
 	},

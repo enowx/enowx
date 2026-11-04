@@ -61,7 +61,7 @@ func (s *Server) sessionHook(p proto.SessionHookParams) (proto.HookDecision, err
 // goesOn says the agent's turn doesn't end at this Stop: it was given more to do, or
 // tasks of its own still run in the background and will bring it back.
 func goesOn(ev proto.HookEvent, d proto.HookDecision) bool {
-	return d.Continue != "" || ev.Background > 0
+	return d.Continue != "" || ev.BackgroundTasks > 0
 }
 
 // sessionEvent is sessionHook but for the state a Stop means.

@@ -130,6 +130,7 @@ func (s *Server) createSessionFor(p proto.SessionCreateParams, member *proto.Ses
 		p = s.withAgentStart(p)
 	}
 	meta.Model, meta.Effort, meta.Mode = strings.TrimPrefix(p.Model, "default"), strings.TrimPrefix(p.Effort, "default"), p.Mode
+	meta.ModelStarted = meta.Model
 	launch, err := launchFor(p, chat)
 	if err != nil {
 		s.configForget(id)
