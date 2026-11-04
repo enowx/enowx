@@ -58,12 +58,18 @@ func styleOf(v string) string {
 }
 
 // readTraits keeps what the server itself reads of a version being submitted: a
-// design's look from its bundle.
+// design's look from its bundle, its picture's hash. A picture that can't be read
+// only leaves moderators without near matches for it.
 func (s *Service) readTraits(ctx context.Context, v store.LibraryVersionRow, b designshare.Bundle) error {
 	look := designshare.LookOf(b.Frame)
 	t := store.LibraryTraits{Theme: look.Theme, Device: look.Device}
 	for _, c := range look.Colors {
 		t.Colors = append(t.Colors, store.LibraryColor{Color: c.Name, Share: c.Share})
+	}
+	if picture, err := s.objects.Get(ctx, objectKey(v.ItemID, v.Version, api.PartThumb)); err == nil {
+		t.Phash = picturePhash(picture)
+	} else {
+		s.log.Warn("library: picture for its hash", "item", v.ItemID, "err", err)
 	}
 	return s.db.SetLibraryTraits(ctx, v.ItemID, v.Version, t)
 }

@@ -22,6 +22,10 @@ func (s *Service) queue(w http.ResponseWriter, r *http.Request) {
 	for i := range items {
 		items[i].LibraryItem = shown(items[i].LibraryItem)
 	}
+	if err := s.fillSimilar(r.Context(), items); err != nil {
+		s.answer(w, nil, err)
+		return
+	}
 	reports, err := s.db.LibraryOpenReports(r.Context(), 50)
 	if err != nil {
 		s.answer(w, nil, err)
