@@ -14,7 +14,7 @@ const (
 	MethodSyncReport   = "sync.report"   // SyncPeerStatus: how a sync with a peer went
 	MethodSyncStatus   = "sync.status"   // → SyncStatus
 	MethodSyncRequest  = "sync.request"  // asks the app to sync now (EventSyncRequested)
-	// MethodSyncConflicts lists them without their versions' data: a daemon before 0.7
+	// MethodSyncConflicts lists them without their versions' data: an older daemon
 	// sends it, but no app ever read it from here. MethodSyncConflict reads one version's.
 	MethodSyncConflicts = "sync.conflicts" // → []SyncConflict
 	MethodSyncConflict  = "sync.conflict"  // SyncConflictParams → SyncVersion
