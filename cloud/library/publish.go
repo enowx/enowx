@@ -280,7 +280,7 @@ func (s *Service) keep(w http.ResponseWriter, r *http.Request, v store.LibraryVe
 		s.answer(w, nil, err)
 		return false
 	}
-	if err := s.cfg.Blobs.Put(r.Context(), objectKey(v.ItemID, v.Version, part), data); err != nil {
+	if err := s.objects.Put(r.Context(), objectKey(v.ItemID, v.Version, part), data); err != nil {
 		s.log.Error("library: put", "item", v.ItemID, "err", err)
 		_ = s.db.SetLibraryPartSize(r.Context(), owner, v.ItemID, v.Version, part, 0, api.MaxLibraryAccount)
 		fail(w, http.StatusBadGateway, "the library's storage didn't answer: try again")
@@ -313,7 +313,7 @@ func (s *Service) submit(w http.ResponseWriter, r *http.Request) {
 		fail(w, http.StatusForbidden, "this account can't publish")
 		return
 	}
-	raw, err := s.cfg.Blobs.Get(r.Context(), objectKey(v.ItemID, v.Version, api.PartSource))
+	raw, err := s.objects.Get(r.Context(), objectKey(v.ItemID, v.Version, api.PartSource))
 	if err != nil {
 		s.log.Error("library: get", "item", v.ItemID, "err", err)
 		fail(w, http.StatusBadGateway, "the library's storage didn't answer: try again")

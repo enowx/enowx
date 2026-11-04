@@ -351,7 +351,8 @@ type LibraryLog struct {
 	Next    string            `json:"next,omitempty"`
 }
 
-// LibraryUsage says how far the bucket is from its limits.
+// LibraryUsage says how far the library is from its limits in the bucket: teams'
+// files aren't counted.
 type LibraryUsage struct {
 	Month        string `json:"month"`
 	BytesWritten int64  `json:"bytesWritten"`

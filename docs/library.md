@@ -14,18 +14,26 @@ People share designs from their canvases to `ui.enowx.ai`, where anyone can brow
 
 ## Off unless set up
 
-The library is off unless the cloud has `ENOWX_CLOUD_LIBRARY_R2_BUCKET`, which needs Postgres. `GET /v1/info` then says `features: ["library"]` and the website's address in `libraryUrl`. The app offers sharing only when the cloud it was set to answers so: a team's own cloud is unaffected, and nothing reaches any other service.
+The library is off unless the cloud has `ENOWX_CLOUD_LIBRARY=on`. `GET /v1/info` then says `features: ["library"]` and the website's address in `libraryUrl`. The app offers sharing only when the cloud it was set to answers so: a team's own cloud is unaffected, and nothing reaches any other service.
 
 | Variable | What |
 |---|---|
-| `ENOWX_CLOUD_LIBRARY_R2_BUCKET`, `_R2_ACCOUNT_ID`, `_R2_ACCESS_KEY_ID`, `_R2_SECRET_ACCESS_KEY` | The bucket, apart from teams' files, and a token that can write it |
+| `ENOWX_CLOUD_LIBRARY` | `on` turns it on. Over an R2 bucket it needs Postgres |
+| `ENOWX_CLOUD_LIBRARY_PREFIX` | Where its objects are in the store, `library` by default. A staging cloud sharing a bucket uses its own |
 | `ENOWX_CLOUD_LIBRARY_PUBLIC_URL` | The website's address, for credits and links |
 | `ENOWX_CLOUD_LIBRARY_RETURN_URL` | Where a sign-in sends its code (`https://ui.enowx.ai/auth/callback`). Only from here, never from a request |
 | `ENOWX_CLOUD_LIBRARY_WEB_SECRET` | What the website's server proves itself with. Without it the website can't sign anyone in |
 | `ENOWX_CLOUD_LIBRARY_ADMIN_TEAM` | The team whose owner and admins moderate |
-| `ENOWX_CLOUD_LIBRARY_DIR` | For developing: a folder instead of a bucket |
 
 The cloud now imports `core/autopush`, `core/canvas` and `core/designshare`: a deploy that watches paths has to watch those and `proto/` too.
+
+## Sharing the bucket with teams' files
+
+The library keeps its objects in the store the cloud already uses for teams' files (`ENOWX_CLOUD_R2_*`), under its prefix. `cloud/library` only ever holds that store wrapped by `blobstore.Prefixed`, which checks a key before adding the prefix, so no key resolves outside it. Teams' files, under `teams/`, are never read, changed or counted by it: the library's limits are its own (`library_profiles.used_bytes`, `library_usage`).
+
+**The website holds no bucket token.** R2's lasting API tokens are per bucket, and this one holds teams' files. Only R2's temporary credentials can be limited to a prefix, and they last at most 7 days. So the website gets objects from the cloud, with its secret (`GET items/{id}/versions/{v}/{part}`, live versions only, nobody else), and keeps them in memory (`UI_OBJECT_CACHE_MB`, 128 by default). A version's objects never change, so a kept one costs the cloud nothing; whether it may still show is asked of the item each time.
+
+What this costs: each object not yet kept passes through the cloud once, as a read from R2 and a copy in its memory, at most 16 at once. R2's egress is free and reads the same as before; what's new is CPU and memory on the cloud, and bytes between the two apps. Point `CLOUD_INTERNAL_URL` at the cloud's address on the servers' own network, or those bytes go out through the proxy and back.
 
 ## Publishing
 
@@ -53,9 +61,9 @@ A finding says where and of what kind, never the value. The patterns can't know 
 | A picture | 300 KiB, 1200 px wide, WebP |
 | A component | 64 KiB of HTML and CSS, no scripts |
 | An account | 200 MiB kept, 50 items live, 5 versions an item, 20 uploads a day; a new one 3 in review |
-| The bucket | 100 GiB kept, 30 GiB written a month; moderators are warned at 70% |
+| The library in the bucket | 100 GiB kept, 30 GiB written a month, teams' files not counted; moderators are warned at 70% |
 
-A full bucket stops publishing, with a message; reading goes on. Public reads are limited per address, and a few run at once so the teams' sync keeps its database connections. The website's own requests carry its secret and aren't counted as one address.
+The library at its limit stops publishing, with a message; reading goes on. Public reads are limited per address, and a few run at once so the teams' sync keeps its database connections. The website's own requests carry its secret and aren't counted as one address.
 
 ## Signing in on the website
 
@@ -74,13 +82,13 @@ Every decision needs a reason and goes in `library_log`, which the store can onl
 | Access | Endpoints under `/v1/library` |
 |---|---|
 | Anyone, limited per address | `GET items`, `GET items/{id}`, `GET items/{id}/versions`, `GET items/{id}/prompt` (403 when view only) |
-| The website's secret | `POST items/{id}/escaped`, `POST auth/exchange` |
+| The website's secret | `GET items/{id}/versions/{v}/{doc,doc-phone,thumb,thumb-phone}` (a live version's), `POST items/{id}/escaped`, `POST auth/exchange` |
 | A device | `POST items`, `PUT items/{id}/versions/{v}/{source,thumb,thumb-phone}`, `POST items/{id}/versions/{v}/submit`, `GET mine` |
 | A device or a web session | `DELETE items/{id}`, `GET me`, `POST reports`, `POST auth/signout` |
 | Moderators | `GET admin/queue`, `GET admin/items/{id}/versions/{v}/{doc,doc-phone,thumb,thumb-phone}`, `POST admin/items/{id}/decisions`, `POST admin/reports/{id}/decisions`, `POST admin/accounts/{id}/block`, `.../unblock`, `GET admin/log`, `GET admin/usage` |
 | The owner | `GET admin/accounts?q=`, `GET admin/moderators`, `POST admin/moderators`, `DELETE admin/moderators/{id}` |
 
-Objects are in the bucket as `items/<id>/v<n>/{source,doc,doc-phone,thumb,thumb-phone}`, `source` and `doc` gzipped.
+Objects are in the store as `<prefix>/items/<id>/v<n>/{source,doc,doc-phone,thumb,thumb-phone}`, `source` and `doc` gzipped.
 
 ## What this phase leaves out
 

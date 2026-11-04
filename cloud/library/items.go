@@ -6,9 +6,11 @@ import (
 	"net/http"
 	"strconv"
 	"strings"
+	"time"
 	"unicode"
 
 	"github.com/enowx/enowx/cloud/api"
+	"github.com/enowx/enowx/cloud/blobstore"
 	"github.com/enowx/enowx/cloud/store"
 )
 
@@ -153,6 +155,60 @@ func (s *Service) getPrompt(w http.ResponseWriter, r *http.Request) {
 func (s *Service) credit(it api.LibraryItem) string {
 	address := strings.TrimSuffix(s.cfg.PublicURL, "/") + "/d/" + it.ID + "/" + it.Slug
 	return "Design: " + it.Title + " by " + it.Creator.Handle + "\n" + address + "\nLicense: " + it.License
+}
+
+// object is a live version's document or picture, for the website alone: nobody's
+// browser gets other people's HTML from this server's address, and the bucket's
+// token, which reads teams' files too, stays here. The bytes come as they're
+// kept (a document gzipped), and never change for a version, so the website keeps
+// them; whether they may still show is what it asks about the item.
+func (s *Service) object(w http.ResponseWriter, r *http.Request) {
+	part := r.PathValue("part")
+	if part != api.PartDoc && part != api.PartDocPhone && part != api.PartThumb && part != api.PartThumbPhone {
+		fail(w, http.StatusNotFound, "not found")
+		return
+	}
+	n, err := strconv.Atoi(r.PathValue("version"))
+	if err != nil {
+		fail(w, http.StatusBadRequest, "a version is a number")
+		return
+	}
+	it, err := s.db.LibraryItem(r.Context(), r.PathValue("id"))
+	switch {
+	case err != nil:
+		s.answer(w, nil, err)
+		return
+	case gone(it.Status):
+		fail(w, http.StatusGone, "this design was taken down or unpublished")
+		return
+	case it.Status != api.LibraryLive || it.LiveVersion != n:
+		fail(w, http.StatusNotFound, "not found")
+		return
+	}
+	select {
+	case s.objectReads <- struct{}{}:
+		defer func() { <-s.objectReads }()
+	case <-time.After(5 * time.Second):
+		w.Header().Set("Retry-After", "5")
+		fail(w, http.StatusServiceUnavailable, "the library is busy: try again")
+		return
+	case <-r.Context().Done():
+		return
+	}
+	data, err := s.objects.Get(r.Context(), objectKey(it.ID, n, part))
+	if errors.Is(err, blobstore.ErrNotFound) {
+		fail(w, http.StatusNotFound, "not found")
+		return
+	}
+	if err != nil {
+		s.log.Error("library: get", "item", it.ID, "err", err)
+		fail(w, http.StatusBadGateway, "the library's storage didn't answer: try again")
+		return
+	}
+	h := w.Header()
+	h.Set("Content-Type", "application/octet-stream")
+	h.Set("Content-Security-Policy", "sandbox; default-src 'none'")
+	w.Write(data)
 }
 
 // withdraw is an owner taking their item back, from the app or the website.

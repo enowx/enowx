@@ -71,20 +71,14 @@ func run(log *slog.Logger) error {
 	} else {
 		cfg.Blobs = blobstore.Dir(filepath.Join(data, "blobs"))
 	}
-	// enowX UI: off unless its own bucket is set, and only over Postgres; a
-	// folder stands in for a bucket when developing.
-	if bucket := env("ENOWX_CLOUD_LIBRARY_R2_BUCKET", ""); bucket != "" || os.Getenv("ENOWX_CLOUD_LIBRARY_DIR") != "" {
-		lib := &server.LibraryConfig{PublicURL: env("ENOWX_CLOUD_LIBRARY_PUBLIC_URL", ""), ReturnURL: env("ENOWX_CLOUD_LIBRARY_RETURN_URL", ""),
-			WebSecret: env("ENOWX_CLOUD_LIBRARY_WEB_SECRET", ""), AdminTeam: env("ENOWX_CLOUD_LIBRARY_ADMIN_TEAM", "")}
-		if bucket != "" {
-			if os.Getenv("ENOWX_CLOUD_DATABASE_URL") == "" {
-				return errors.New("ENOWX_CLOUD_LIBRARY_R2_BUCKET needs ENOWX_CLOUD_DATABASE_URL: the library runs on Postgres")
-			}
-			lib.Blobs = blobstore.R2(env("ENOWX_CLOUD_LIBRARY_R2_ACCOUNT_ID", ""), bucket, env("ENOWX_CLOUD_LIBRARY_R2_ACCESS_KEY_ID", ""), env("ENOWX_CLOUD_LIBRARY_R2_SECRET_ACCESS_KEY", ""))
-		} else {
-			lib.Blobs = blobstore.Dir(os.Getenv("ENOWX_CLOUD_LIBRARY_DIR"))
+	// enowX UI: off unless asked for. It shares the store above, teams' files
+	// untouched, under a prefix of its own, and over a bucket only on Postgres.
+	if env("ENOWX_CLOUD_LIBRARY", "") == "on" {
+		if os.Getenv("ENOWX_CLOUD_R2_BUCKET") != "" && os.Getenv("ENOWX_CLOUD_DATABASE_URL") == "" {
+			return errors.New("ENOWX_CLOUD_LIBRARY needs ENOWX_CLOUD_DATABASE_URL: the library runs on Postgres")
 		}
-		cfg.Library = lib
+		cfg.Library = &server.LibraryConfig{Blobs: cfg.Blobs, Prefix: env("ENOWX_CLOUD_LIBRARY_PREFIX", ""), PublicURL: env("ENOWX_CLOUD_LIBRARY_PUBLIC_URL", ""),
+			ReturnURL: env("ENOWX_CLOUD_LIBRARY_RETURN_URL", ""), WebSecret: env("ENOWX_CLOUD_LIBRARY_WEB_SECRET", ""), AdminTeam: env("ENOWX_CLOUD_LIBRARY_ADMIN_TEAM", "")}
 	}
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()

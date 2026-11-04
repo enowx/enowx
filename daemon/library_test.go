@@ -84,7 +84,7 @@ func TestLibraryDraftReachesTheCloudHoldingOnlyTheDesign(t *testing.T) {
 	if got.Status != api.LibraryReview || got.ItemID == "" || !strings.Contains(got.URL, "https://ui.example.com/d/"+got.ItemID+"/home") {
 		t.Fatalf("published: %+v", got)
 	}
-	if _, err := e.blobs.Get(context.Background(), "items/"+got.ItemID+"/v1/doc"); err != nil {
+	if _, err := e.blobs.Get(context.Background(), "library/items/"+got.ItemID+"/v1/doc"); err != nil {
 		t.Fatalf("no document: %v", err)
 	}
 	if s := e.srv.libraryDrafts().File(id, "bundle.json"); s != nil {
@@ -173,11 +173,11 @@ func TestLibraryPrepareAndPublishThroughTheProtocol(t *testing.T) {
 	}
 	ctx := context.Background()
 	for _, part := range []string{"source", "doc", "doc-phone", "thumb", "thumb-phone"} {
-		if _, err := e.blobs.Get(ctx, "items/"+sent.ItemID+"/v1/"+part); err != nil {
+		if _, err := e.blobs.Get(ctx, "library/items/"+sent.ItemID+"/v1/"+part); err != nil {
 			t.Errorf("%s: %v", part, err)
 		}
 	}
-	raw, err := e.blobs.Get(ctx, "items/"+sent.ItemID+"/v1/source")
+	raw, err := e.blobs.Get(ctx, "library/items/"+sent.ItemID+"/v1/source")
 	if err != nil {
 		t.Fatal(err)
 	}

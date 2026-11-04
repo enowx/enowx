@@ -28,8 +28,11 @@ import (
 // Config is how the library is set up (cmd/enowx-cloud reads it from the
 // environment). Without Blobs there is no library.
 type Config struct {
-	// Blobs keeps designs: a bucket of its own, apart from teams' files.
+	// Blobs is the store it shares with teams' files. The library reaches only
+	// what's under Prefix.
 	Blobs blobstore.Store
+	// Prefix is the library's place in that store; DefaultPrefix when empty.
+	Prefix string
 	// PublicURL is the website's address, for credits.
 	PublicURL string
 	// ReturnURL is where a sign-in sends its code. It comes from here alone,
@@ -40,6 +43,9 @@ type Config struct {
 	// AdminTeam is the team whose owner and admins moderate.
 	AdminTeam string
 }
+
+// DefaultPrefix is where the library's objects are in the store it shares.
+const DefaultPrefix = "library"
 
 // Host is what the library takes from the server around it.
 type Host struct {
@@ -62,14 +68,30 @@ type Service struct {
 	// leaves the database's connections to the teams' sync.
 	reads  chan struct{}
 	limits perAddress
+	// objects is the library's own view of the store: nothing else here touches
+	// the store. objectReads holds a place per object on its way through, so a
+	// burst of them can't take the memory of the server teams use.
+	objects     blobstore.Store
+	objectReads chan struct{}
 }
 
 // publicReads is the most public reads at work at once.
 const publicReads = 4
 
+// objectsAtOnce is the most objects on their way to the website at once.
+const objectsAtOnce = 16
+
 // New is a library over db.
-func New(cfg Config, host Host, db *store.DB, log *slog.Logger) *Service {
-	return &Service{cfg: cfg, host: host, db: db, log: log, reads: make(chan struct{}, publicReads)}
+func New(cfg Config, host Host, db *store.DB, log *slog.Logger) (*Service, error) {
+	prefix := cfg.Prefix
+	if prefix == "" {
+		prefix = DefaultPrefix
+	}
+	objects, err := blobstore.Prefixed(cfg.Blobs, prefix)
+	if err != nil {
+		return nil, fmt.Errorf("library: %w", err)
+	}
+	return &Service{cfg: cfg, host: host, db: db, log: log, reads: make(chan struct{}, publicReads), objects: objects, objectReads: make(chan struct{}, objectsAtOnce)}, nil
 }
 
 // Mount adds the library's routes to mux.
@@ -80,6 +102,7 @@ func (s *Service) Mount(mux *http.ServeMux) {
 	handle("GET "+api.PathLibraryVersions, s.public(s.listVersions))
 	handle("GET "+api.PathLibraryPrompt, s.public(s.getPrompt))
 	handle("POST "+api.PathLibraryEscaped, s.webOnly(s.escaped))
+	handle("GET "+api.PathLibraryPart, s.webOnly(s.object))
 
 	handle("POST "+api.PathLibraryItems, s.deviceOnly(s.createItem))
 	handle("PUT "+api.PathLibraryPart, s.deviceOnly(s.putPart))
@@ -133,7 +156,7 @@ func (s *Service) SweepOnce(ctx context.Context) {
 	for _, p := range due {
 		failed := false
 		for _, part := range []string{api.PartSource, api.PartDoc, api.PartDocPhone, api.PartThumb, api.PartThumbPhone} {
-			if err := s.cfg.Blobs.Delete(ctx, objectKey(p.ItemID, p.Version, part)); err != nil && !errors.Is(err, blobstore.ErrNotFound) {
+			if err := s.objects.Delete(ctx, objectKey(p.ItemID, p.Version, part)); err != nil && !errors.Is(err, blobstore.ErrNotFound) {
 				s.log.Warn("library: purge", "item", p.ItemID, "err", err)
 				failed = true
 			}

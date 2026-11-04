@@ -29,12 +29,16 @@ type libEnv struct {
 	*teamEnv
 	blobs blobstore.Dir
 	admin signedInMember
-	team  string
 }
 
 func newLibEnv(t *testing.T, cfg Config) *libEnv {
 	t.Helper()
-	dir := blobstore.Dir(t.TempDir())
+	return newLibEnvOver(t, cfg, blobstore.Dir(t.TempDir()))
+}
+
+// newLibEnvOver is a library in store dir.
+func newLibEnvOver(t *testing.T, cfg Config, dir blobstore.Dir) *libEnv {
+	t.Helper()
 	cfg.URL = "https://cloud.example.com"
 	cfg.Library = &library.Config{Blobs: dir, PublicURL: "https://ui.example.com", ReturnURL: "https://ui.example.com/auth/callback", WebSecret: libSecret}
 	e := newTeamEnv(t, Config{}) // to make the admin team first, then a server knowing it
@@ -42,7 +46,7 @@ func newLibEnv(t *testing.T, cfg Config) *libEnv {
 	team := e.team(admin, "moderators")
 	cfg.Library.AdminTeam = team
 	e.url = e.on(cfg, e.db)
-	return &libEnv{teamEnv: e, blobs: dir, admin: admin, team: team}
+	return &libEnv{teamEnv: e, blobs: dir, admin: admin}
 }
 
 func thumb(t *testing.T) []byte {
@@ -134,7 +138,7 @@ func (e *libEnv) decide(token, id string, version int, action, reason string) (i
 }
 
 // Off unless its bucket is set: no routes, nothing in info.
-func TestLibraryOffWithoutItsBucket(t *testing.T) {
+func TestLibraryOffUnlessSetUp(t *testing.T) {
 	e := newTeamEnv(t, Config{})
 	if code, _ := send(t, "GET", e.url+api.PathLibraryItems, "", nil, nil); code != http.StatusNotFound {
 		t.Fatalf("items without a bucket: %d", code)
@@ -248,7 +252,7 @@ func TestLibraryServerChecksAgain(t *testing.T) {
 		if strings.Contains(msg, secret) {
 			t.Errorf("%s: the answer holds the secret", name)
 		}
-		if _, err := e.blobs.Get(context.Background(), "items/"+made.ID+"/v1/doc"); err == nil {
+		if _, err := e.blobs.Get(context.Background(), "library/items/"+made.ID+"/v1/doc"); err == nil {
 			t.Errorf("%s: a document was made", name)
 		}
 	}
@@ -629,7 +633,7 @@ func TestLibraryWithdrawAndVersions(t *testing.T) {
 	if code, _ := send(t, "GET", e.url+itemPath(api.PathLibraryItem, sub.ID), "", nil, nil); code != http.StatusGone {
 		t.Fatalf("after unpublishing: %d", code)
 	}
-	if _, err := e.blobs.Get(context.Background(), "items/"+sub.ID+"/v1/doc"); err != nil {
+	if _, err := e.blobs.Get(context.Background(), "library/items/"+sub.ID+"/v1/doc"); err != nil {
 		t.Fatalf("objects stay for a while: %v", err)
 	}
 }
@@ -646,9 +650,12 @@ func TestLibrarySweep(t *testing.T) {
 	if code, _ := send(t, "DELETE", e.url+itemPath(api.PathLibraryItem, sub.ID), ada.token, nil, nil); code != http.StatusNoContent {
 		t.Fatalf("withdraw: %d", code)
 	}
-	svc := library.New(library.Config{Blobs: e.blobs}, library.Host{}, e.db, slog.New(slog.NewTextHandler(io.Discard, nil)))
+	svc, err := library.New(library.Config{Blobs: e.blobs}, library.Host{}, e.db, slog.New(slog.NewTextHandler(io.Discard, nil)))
+	if err != nil {
+		t.Fatal(err)
+	}
 	svc.SweepOnce(ctx)
-	if _, err := e.blobs.Get(ctx, "items/"+sub.ID+"/v1/doc"); err != nil {
+	if _, err := e.blobs.Get(ctx, "library/items/"+sub.ID+"/v1/doc"); err != nil {
 		t.Fatalf("gone before its time: %v", err)
 	}
 	if _, err := e.db.ExecContext(ctx, `UPDATE library_items SET purge_at = '2000-01-01T00:00:00.000000000Z' WHERE id = $1`, sub.ID); err != nil {
@@ -658,7 +665,7 @@ func TestLibrarySweep(t *testing.T) {
 		t.Fatal(err)
 	}
 	svc.SweepOnce(ctx)
-	if _, err := e.blobs.Get(ctx, "items/"+sub.ID+"/v1/doc"); err == nil {
+	if _, err := e.blobs.Get(ctx, "library/items/"+sub.ID+"/v1/doc"); err == nil {
 		t.Fatal("its document stayed")
 	}
 	if code, _ := send(t, "GET", e.url+itemPath(api.PathLibraryItem, sub.ID), "", nil, nil); code != http.StatusGone {
@@ -693,6 +700,92 @@ func TestLibraryAdminPart(t *testing.T) {
 	}
 }
 
+// Objects reach the website, not anyone else, and only a live version's: other
+// people's HTML is never served from this server's address to a browser.
+func TestLibraryObjectsGoToTheWebsiteAlone(t *testing.T) {
+	e := newLibEnv(t, Config{})
+	boss := e.webSession(e.admin.acc)
+	ada := e.signIn(1, "ada", "")
+	sub := e.publish(ada, publishParams("One"), `<p>x</p>`)
+	part := func(id string, v int, p string) string { return partPath(id, v, p) }
+	web := map[string]string{api.HeaderLibraryWeb: libSecret}
+	if code, _ := sendWith(t, "GET", e.url+part(sub.ID, 1, api.PartThumb), "", web, nil, nil); code != http.StatusNotFound {
+		t.Fatalf("in review, to the website: %d", code)
+	}
+	e.decide(boss, sub.ID, 1, api.DecisionApprove, "ok")
+	for name, c := range map[string]struct {
+		token string
+		hdr   map[string]string
+	}{"nobody": {}, "a session": {token: boss}, "a device": {token: ada.token}, "a wrong secret": {hdr: map[string]string{api.HeaderLibraryWeb: "wrong"}}} {
+		if code, _ := sendWith(t, "GET", e.url+part(sub.ID, 1, api.PartDoc), c.token, c.hdr, nil, nil); code != http.StatusForbidden {
+			t.Errorf("%s: %d", name, code)
+		}
+	}
+	req, _ := http.NewRequest("GET", e.url+part(sub.ID, 1, api.PartDoc), nil)
+	req.Header.Set(api.HeaderLibraryWeb, libSecret)
+	res, err := (&http.Client{Transport: &http.Transport{DisableCompression: true}}).Do(req)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer res.Body.Close()
+	doc, _ := io.ReadAll(res.Body)
+	if res.StatusCode != http.StatusOK || !bytes.HasPrefix(doc, []byte{0x1f, 0x8b}) || !strings.Contains(res.Header.Get("Content-Security-Policy"), "sandbox") {
+		t.Fatalf("a document, as it's kept: %d %.20q %v", res.StatusCode, doc, res.Header)
+	}
+	if code, _ := sendWith(t, "GET", e.url+part(sub.ID, 1, api.PartThumb), "", web, nil, nil); code != http.StatusOK {
+		t.Fatalf("a picture: %d", code)
+	}
+	if code, _ := sendWith(t, "GET", e.url+part(sub.ID, 1, api.PartSource), "", web, nil, nil); code != http.StatusNotFound {
+		t.Fatalf("a bundle: %d", code)
+	}
+	for _, id := range []string{"..%2F..%2Fteams", "teams"} {
+		if code, _ := sendWith(t, "GET", e.url+"/v1/library/items/"+id+"/versions/1/doc", "", web, nil, nil); code != http.StatusNotFound {
+			t.Errorf("%s: %d", id, code)
+		}
+	}
+	if code, _ := send(t, "DELETE", e.url+itemPath(api.PathLibraryItem, sub.ID), ada.token, nil, nil); code != http.StatusNoContent {
+		t.Fatalf("withdraw: %d", code)
+	}
+	if code, _ := sendWith(t, "GET", e.url+part(sub.ID, 1, api.PartDoc), "", web, nil, nil); code != http.StatusGone {
+		t.Fatalf("unpublished: %d", code)
+	}
+}
+
+// Sharing a store with teams: a team's file stays where it is, isn't counted
+// against the library's limits, and the library's objects aren't among a team's.
+func TestLibrarySharesTheStoreWithTeams(t *testing.T) {
+	dir := blobstore.Dir(t.TempDir())
+	e := newLibEnvOver(t, Config{Blobs: dir}, dir)
+	ada := e.signIn(1, "ada", "")
+	team := e.team(ada, "t")
+	blob := strings.Repeat("a", 32)
+	if code, msg := e.put(ada.token, "/v1/teams/"+team+"/blobs/"+blob, []byte("sealed")); code != http.StatusNoContent {
+		t.Fatalf("a team's file: %d %s", code, msg)
+	}
+	boss := e.webSession(e.admin.acc)
+	var before api.LibraryUsage
+	send(t, "GET", e.url+api.PathLibraryUsage, boss, nil, &before)
+	if before.BytesStored != 0 || before.BytesWritten != 0 {
+		t.Fatalf("a team's file counts against the library: %+v", before)
+	}
+	sub := e.publish(ada, publishParams("One"), `<p>x</p>`)
+	ctx := context.Background()
+	if got, err := dir.Get(ctx, "teams/"+team+"/"+blob); err != nil || string(got) != "sealed" {
+		t.Fatalf("a team's file changed: %q %v", got, err)
+	}
+	if _, err := dir.Get(ctx, "library/items/"+sub.ID+"/v1/doc"); err != nil {
+		t.Fatalf("not under its prefix: %v", err)
+	}
+	if _, err := dir.Get(ctx, "items/"+sub.ID+"/v1/doc"); err == nil {
+		t.Fatal("outside its prefix")
+	}
+	var mine api.LibraryMine
+	send(t, "GET", e.url+api.PathLibraryMine, ada.token, nil, &mine)
+	if mine.Used == 0 {
+		t.Fatal("the library's own isn't counted")
+	}
+}
+
 // Over an account's storage the next part is refused and nothing written.
 func TestLibraryQuota(t *testing.T) {
 	e := newLibEnv(t, Config{})
@@ -705,7 +798,7 @@ func TestLibraryQuota(t *testing.T) {
 	if code, msg := e.put(ada.token, partPath(made.ID, 1, api.PartThumb), thumb(t)); code != http.StatusInsufficientStorage {
 		t.Fatalf("over quota: %d %s", code, msg)
 	}
-	if _, err := e.blobs.Get(context.Background(), "items/"+made.ID+"/v1/thumb"); err == nil {
+	if _, err := e.blobs.Get(context.Background(), "library/items/"+made.ID+"/v1/thumb"); err == nil {
 		t.Fatal("written over quota")
 	}
 }

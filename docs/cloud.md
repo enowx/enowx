@@ -203,7 +203,7 @@ A delivery that fails to give the role answers an error, so it can be delivered 
 
 ## The community library
 
-A cloud can also host enowX UI, the community library of canvases' designs: off unless its own bucket is set. See [library.md](library.md), for its variables too.
+A cloud can also host enowX UI, the community library of canvases' designs: off unless `ENOWX_CLOUD_LIBRARY=on`, its objects under a prefix of the same store. See [library.md](library.md), for its variables too.
 
 ## Phases
 

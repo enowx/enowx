@@ -133,7 +133,7 @@ func (s *Service) adminPart(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	h.Set("Content-Security-Policy", "sandbox; default-src 'none'")
-	data, err := s.cfg.Blobs.Get(r.Context(), objectKey(r.PathValue("id"), n, part))
+	data, err := s.objects.Get(r.Context(), objectKey(r.PathValue("id"), n, part))
 	if err != nil {
 		h.Del("Content-Encoding")
 		if errors.Is(err, blobstore.ErrNotFound) {

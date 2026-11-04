@@ -42,7 +42,7 @@ type Config struct {
 	Blobs blobstore.Store
 	// Contributor is the Contributor role on Discord; empty, it's off.
 	Contributor ContributorConfig
-	// Library is enowX UI's setup; nil or without its bucket, there's none.
+	// Library is enowX UI's setup; nil or without a store, there's none.
 	Library *library.Config
 }
 
@@ -121,8 +121,14 @@ func New(cfg Config, db *store.DB, log *slog.Logger) *Server {
 	s.mux.HandleFunc("POST /device", s.approve)
 	s.mux.HandleFunc("POST /signout", s.webSignOut)
 	if cfg.Library != nil && cfg.Library.Blobs != nil {
-		s.library = library.New(*cfg.Library, library.Host{WebAccount: s.webAccount, SignInURL: s.signInURL, ClientAddr: clientAddr}, db, log)
-		s.library.Mount(s.mux)
+		lib, err := library.New(*cfg.Library, library.Host{WebAccount: s.webAccount, SignInURL: s.signInURL, ClientAddr: clientAddr}, db, log)
+		if err != nil {
+			// Off rather than reaching what isn't its own; the prefix is checked at start.
+			log.Error("library", "err", err)
+		} else {
+			s.library = lib
+			s.library.Mount(s.mux)
+		}
 	}
 	s.contributorRoutes()
 	return s
