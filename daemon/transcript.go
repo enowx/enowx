@@ -57,6 +57,25 @@ func (t *transcripts) follower(id string) *follower {
 	return f
 }
 
+// held says how many conversations are in memory, and their entries.
+func (t *transcripts) held() (conversations, entries int) {
+	t.mu.Lock()
+	followers := make([]*follower, 0, len(t.byID))
+	for _, f := range t.byID {
+		followers = append(followers, f)
+	}
+	t.mu.Unlock()
+	for _, f := range followers {
+		f.mu.Lock()
+		if f.reader != nil && f.reader.Len() > 0 {
+			conversations++
+			entries += f.reader.Len()
+		}
+		f.mu.Unlock()
+	}
+	return conversations, entries
+}
+
 // quietFollower is session id's follower, not counted as a chat asking.
 func (t *transcripts) quietFollower(id string) *follower {
 	t.mu.Lock()

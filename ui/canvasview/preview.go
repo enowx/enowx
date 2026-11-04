@@ -200,6 +200,17 @@ const (
 	thumbsInSight = 2 * time.Second // drawn this lately, it may be on screen
 )
 
+// PicturesHeld says how many pictures are in memory and what they hold.
+func (v *View) PicturesHeld() (count int, bytes uint64) {
+	for _, t := range v.thumbs {
+		if t.img != nil {
+			count++
+			bytes += uint64(t.size)
+		}
+	}
+	return count, bytes
+}
+
 // trimThumbs lets go of pictures past thumbsKeep.
 func (v *View) trimThumbs(now time.Time) {
 	total := 0

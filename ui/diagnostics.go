@@ -144,8 +144,10 @@ func (a *App) saveDiagnostics() {
 // the main thread; a window that doesn't answer in time gets a profile without them.
 func (a *App) profileAreas() []proto.ProfileArea {
 	got := make(chan []proto.ProfileArea, 1)
-	a.onMain(func() {
+	a.quietly(func() {
+		pictures, held := a.canvases.PicturesHeld()
 		got <- []proto.ProfileArea{
+			{Name: "canvas pictures", Count: pictures, Bytes: held},
 			{Name: "terminals (a session's or a tab's)", Count: len(a.panes)},
 			{Name: "chat views", Count: len(a.chats)},
 			{Name: "diff views", Count: len(a.diffs)},

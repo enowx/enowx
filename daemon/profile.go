@@ -45,7 +45,12 @@ func (s *Server) profile(p proto.ProfileParams) proto.Profile {
 
 // profileAreas are what the daemon keeps, by part.
 func (s *Server) profileAreas() []proto.ProfileArea {
-	return []proto.ProfileArea{{Name: "sessions", Count: len(s.sessions.List())}}
+	conversations, entries := s.transcripts.held()
+	return []proto.ProfileArea{
+		{Name: "sessions (each up to about 13 MB of scrollback, outside Go)", Count: len(s.sessions.List())},
+		{Name: "conversations held for chats", Count: conversations},
+		{Name: "their entries", Count: entries},
+	}
 }
 
 // sessionPrograms sums what sessions' processes hold, by program, the most first.
