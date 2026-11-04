@@ -56,6 +56,9 @@ type goaState struct {
 	// waking are the sessions being brought back for a queued task (queuedWake).
 	waking map[string]bool
 
+	// switching: its agent or config is being changed (goa_switch.go).
+	switching bool
+
 	tellFile string
 	// tellSave has one write of tellFile at a time, the latest last. It is taken
 	// before mu, which no file is written under.
@@ -97,29 +100,42 @@ func (s *Server) goaCreate(p *proto.SessionCreateParams, meta *session.Meta) (st
 	if g, ok := s.goaSession(); ok && !g.Exited {
 		return "", fmt.Errorf("goa: GOD of Agents already runs on this host: session %s", g.ID)
 	}
-	preset, ok := agent.Find(p.Agent)
-	if !ok {
-		return "", fmt.Errorf("goa: %q isn't an agent GOD of Agents can run on", p.Agent)
+	if _, err := s.goaAgentReady(p.Agent); err != nil {
+		return "", err
 	}
-	if why := goa.NotProven(p.Agent); why != "" {
-		return "", fmt.Errorf("goa: %s: %s", preset.Name, why)
+	goaParams(p, meta)
+	return s.goaDir(), nil
+}
+
+// goaAgentReady is agent id's preset, GOA's folder made, if GOA may start on it.
+func (s *Server) goaAgentReady(id string) (agent.Preset, error) {
+	preset, ok := agent.Find(id)
+	if !ok {
+		return preset, fmt.Errorf("goa: %q isn't an agent GOD of Agents can run on", id)
+	}
+	if why := goa.NotProven(id); why != "" {
+		return preset, fmt.Errorf("goa: %s: %s", preset.Name, why)
 	}
 	dir := s.goaDir()
 	if err := os.MkdirAll(dir, 0o700); err != nil {
-		return "", fmt.Errorf("goa: %w", err)
+		return preset, fmt.Errorf("goa: %w", err)
 	}
-	if agent.IsOpenCode(p.Agent) {
+	if agent.IsOpenCode(id) {
 		if err := goaOpenCodeReady(preset, dir); err != nil {
-			return "", err
+			return preset, err
 		}
 	}
+	return preset, nil
+}
+
+// goaParams makes p and meta what every start of GOA on a new conversation is.
+func goaParams(p *proto.SessionCreateParams, meta *session.Meta) {
 	p.Project, p.Parent, p.BranchMode, p.SkipPermissions, p.GOAWorker = "", "", proto.BranchNone, false, ""
 	p.Features = agent.AllFeatures()
 	meta.Project, meta.GOA, meta.GOAWorker, meta.Features = "", true, "", p.Features
 	if meta.Name == "" {
 		meta.Name = "GOD of Agents"
 	}
-	return dir, nil
 }
 
 // goaChat is chat as GOA's, for a GOA session (meta): its guide first.
@@ -372,6 +388,10 @@ func (s *Server) goaFlushIdle() {
 func (s *Server) goaLinesToSay() []goaLine {
 	now := time.Now()
 	s.goa.mu.Lock()
+	if s.goa.switching {
+		s.goa.mu.Unlock()
+		return nil // its agent is being replaced: a line given now would go with it
+	}
 	lines := s.goa.tell
 	s.goa.tell = nil
 	// Of a session, nothing goes past what it holds back; another session's go on.

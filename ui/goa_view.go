@@ -61,13 +61,16 @@ func (a *App) goaHeader(c *ui.Context, s, front proto.SessionInfo) {
 				widget.Running(c, "GOD of Agents", widget.RunStyle{Size: theme.TextTitle, Weight: 600, Always: true})
 			})
 			ui.Row(c).MinWidth(0).Shrink(100).Children(func() {
-				widget.Running(c.Key("facts"), a.agentName(s.Agent)+" · "+a.host.Name, widget.RunStyle{Color: theme.TextSoft})
+				widget.Running(c.Key("facts"), a.goaFacts(s), widget.RunStyle{Color: theme.TextSoft})
 			})
 		})
 		if n := a.goaNeedsYou(); n > 0 {
 			widget.Tag(c, strconv.Itoa(n)+" "+textfmt.Plural(n, "task needs you", "tasks need you"), theme.Warning)
 		}
 		a.viewToggle(c, front)
+		if widget.Button(c, widget.Secondary, nil, "Settings", "").Label("Settings of GOD of Agents").Tooltip("The agent and config GOD of Agents runs on").Clicked() {
+			a.openGOASettings()
+		}
 		if widget.Button(c, widget.Secondary, nil, "Rules", "").Tooltip("What GOD of Agents follows, written by you or with AI").Clicked() {
 			a.openGOARules()
 		}
@@ -77,6 +80,10 @@ func (a *App) goaHeader(c *ui.Context, s, front proto.SessionInfo) {
 		more := widget.IconButton(c, icon.More, "More for GOD of Agents", false)
 		a.menu.OpenBelow(more, "goa-more", theme.ControlHeight)
 		a.menu.Show(c, more, "goa-more", func(done func()) {
+			if widget.MenuItem(c, icon.Settings, "Settings…", false) {
+				a.openGOASettings()
+				done()
+			}
 			if widget.MenuItem(c, icon.List, "Rules…", false) {
 				a.openGOARules()
 				done()
@@ -94,6 +101,15 @@ func (a *App) goaHeader(c *ui.Context, s, front proto.SessionInfo) {
 	})
 }
 
+// goaFacts is what GOA runs on and where: its config only when it isn't the official one.
+func (a *App) goaFacts(s proto.SessionInfo) string {
+	text := a.agentName(s.Agent)
+	if name := goaConfigName(s); name != "" {
+		text += " · " + name
+	}
+	return text + " · " + a.host.Name
+}
+
 // goaStartForm is the dialog starting GOA: which agent, each with how far
 // it holds GOA to delegating.
 type goaStartForm struct {
@@ -104,6 +120,11 @@ type goaStartForm struct {
 
 func (a *App) openGOAStart() {
 	a.goa.start = &goaStartForm{open: true, agent: "claude"}
+	a.loadGOAAgents("This host's enowX is too old for GOD of Agents: update it.")
+}
+
+// loadGOAAgents reads the agents GOA is offered on, or says tooOld.
+func (a *App) loadGOAAgents(tooOld string) {
 	cl := a.client
 	if cl == nil {
 		return
@@ -113,7 +134,7 @@ func (a *App) openGOAStart() {
 		err := cl.Call(proto.MethodGOAAgents, nil, &list)
 		a.onMain(func() {
 			if err != nil {
-				a.goa.err = "This host's enowX is too old for GOD of Agents: update it."
+				a.goa.err = tooOld
 				return
 			}
 			a.goa.err, a.goa.agents = "", goaOfferedAgents(list)

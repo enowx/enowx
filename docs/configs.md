@@ -14,6 +14,7 @@ Every config also has a name, a badge color, an effort (the agent's own effort f
 - **New session** picks **Default** or a config; by default the one the preferences name ([accounts.md](accounts.md)).
 - **The tab bar's +**: an agent with configs opens in the menu to pick one, the preferred marked; one with none stays one click. A long menu scrolls in the window.
 - A session's row shows its config's badge; its menu switches it to another config, its conversation picked up.
+- **GOD of Agents** picks its own in **Settings** in its header, or `goa switch`, where a config's other flags and variables don't apply ([goa.md](goa.md#changing-what-it-runs-on)).
 - **Command line**: `enowx-app configs`, `spawn --config NAME` ([cli.md](cli.md)). MCP: `configs_list`, `configs_add`, `configs_edit`, `configs_remove`, and `session_spawn`'s `config` (feature **Agent configs**).
 
 Configs are in the synced settings (`settings/configs.json`, [user-data-sync.md](user-data-sync.md)), so every host of the user's has them. Keys stay in the vault and are read on the host that starts the session. An account's sign-in stays on the host it was made on: signed in once per host, from the config's menu.

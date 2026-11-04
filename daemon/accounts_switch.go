@@ -1,6 +1,7 @@
 package daemon
 
 import (
+	"errors"
 	"fmt"
 	"slices"
 	"strings"
@@ -39,6 +40,10 @@ func (s *Server) switchAgent(p proto.AccountSwitchParams) (proto.SessionInfo, er
 		return proto.SessionInfo{}, err
 	}
 	info, meta := sess.Info(), sess.Meta()
+	if meta.GOA {
+		// Started here it would be no GOA: held by nothing, on an agent perhaps not proven.
+		return proto.SessionInfo{}, errors.New("goa: GOD of Agents changes agent only by its own Settings or `goa switch`, never by itself")
+	}
 	preset, ok := agent.Find(p.Agent)
 	if !ok {
 		return proto.SessionInfo{}, fmt.Errorf("unknown agent %q", p.Agent)

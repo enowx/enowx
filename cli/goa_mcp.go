@@ -64,13 +64,25 @@ var goaTools = []mcpTool{
 			}
 			return args
 		}},
+	{name: "goa_switch", description: "What GOD of Agents runs on on this host, or change it, restarting it: another config goes on with the same conversation, or says it can't and leaves GOA as it was; another agent starts a new conversation, so it needs new_conversation. At work it needs force. Asked by an agent, the user says yes first. GOA itself can't change itself: it is told to ask the user.",
+		props: map[string]mcpProp{"agent": {"string", "An agent goa_agents offers; left out, the one it runs on"}, "config": {"string", "A config of that agent, by name, or official; left out, the one it runs on or, for another agent, the preferred"},
+			"check": {"boolean", "Only say what the change would do"}, "new_conversation": {"boolean", "The user agreed that a new agent's conversation doesn't carry over"},
+			"force": {"boolean", "The user agreed to cut off what GOA is at"}},
+		args: func(a map[string]any) []string {
+			args := []string{"switch"}
+			for _, k := range []string{"agent", "config", "check", "force"} {
+				args = withFlag(args, a, k, k)
+			}
+			return withFlag(args, a, "new_conversation", "new-conversation")
+		}},
 	{name: "goa_agents", description: "The agents GOD of Agents can run on here, and how far each holds it to delegating: enforced, limited or watched.",
 		args: func(map[string]any) []string { return []string{"agents"} }},
 }
 
 // goaOfferedTools are the tools GOD of Agents' server offers: every tool offered goes
 // with each request, 222 of them at about 40,000 tokens each time against 3,000 for 6.
-// Its work is delegating; its "enowx" tool runs every other command.
+// Its work is delegating; its "enowx" tool runs every other command. goa_switch isn't one:
+// a change ends the turn asking for it, so it is the user's, and refused there.
 var goaOfferedTools = []string{"goa_agents", "goa_delegate", "goa_board", "goa_task", "goa_recall", "goa_remember",
 	"sessions_everywhere", "session_read", "session_chat", "session_answer", "enowx"}
 

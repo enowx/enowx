@@ -144,6 +144,7 @@ GOA's commands ([goa.md](goa.md)): a session handing tasks to others, on any hos
 | `goa agents` | The agents GOA can run on and how far each holds it: enforced, limited, watched. |
 | `goa flags` | What a watched GOA did itself: programs it ran, files it changed in projects. |
 | `goa start [--agent A]` | Starts GOA on this host (the app's GOD of Agents does the same). |
+| `goa switch [--agent A] [--config NAME\|official] [--check] [--new-conversation] [--force]` | What GOA runs on; with an agent or config, restarts it on them. A config goes on with the same conversation, or says it can't and leaves GOA as it was; an agent starts a new one, which `--new-conversation` agrees to. At work it needs `--force` ([goa.md](goa.md#changing-what-it-runs-on)). In GOA's own session it only reads. |
 
-MCP: `goa_board`, `goa_delegate`, `goa_task`, `goa_remember`, `goa_recall`, `goa_stall`, `goa_agents` (Settings → Features, GOD of Agents; always on in GOA's session).
+MCP: `goa_board`, `goa_delegate`, `goa_task`, `goa_remember`, `goa_recall`, `goa_stall`, `goa_agents`, `goa_switch` (Settings → Features, GOD of Agents; always on in GOA's session).
 

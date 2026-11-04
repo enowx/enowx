@@ -17,6 +17,9 @@ import (
 // decides its own model and effort.
 func keptArgs(m session.Meta) []string {
 	if m.Config != nil {
+		if m.GOA {
+			return agent.StartArgs(m.Agent, "", "", m.Mode, m.SkipPermissions) // a config doesn't decide GOA's mode
+		}
 		return nil
 	}
 	model := m.Model

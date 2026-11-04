@@ -226,10 +226,14 @@ func (s *Server) findTranscript(id string, info proto.SessionInfo, home string, 
 		return false
 	}
 	f.checked = time.Now()
+	since := info.Created
+	if sess, err := s.sessions.Get(id); err == nil && sess.Meta().ConvoSince.After(since) {
+		since = sess.Meta().ConvoSince
+	}
 	for _, found := range transcript.FindIn(info.Agent, home, info.Dir, s.agentStore(info.Agent, id, false)) {
 		// Conversations older than the session belong to earlier ones;
 		// a restored session's changes once its agent continues.
-		if found.Changed.Before(info.Created.Add(-time.Second)) {
+		if found.Changed.Before(since.Add(-time.Second)) {
 			break
 		}
 		if f.reader != nil && f.reader.Path() == found.Path {

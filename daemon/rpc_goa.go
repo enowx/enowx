@@ -41,7 +41,8 @@ var goaHandlers = map[string]handler{
 		}
 		return r, err
 	}),
-	proto.MethodGOAStall: bare(func(c *conn) (any, error) { return c.srv.goaStall(), nil }),
+	proto.MethodGOASwitch: with(func(c *conn, p proto.GOASwitchParams) (any, error) { return c.srv.goaSwitch(p) }),
+	proto.MethodGOAStall:  bare(func(c *conn) (any, error) { return c.srv.goaStall(), nil }),
 	proto.MethodGOAStallSave: with(func(c *conn, p proto.GOAStall) (any, error) {
 		return c.srv.saveGOAStall(p)
 	}),
@@ -57,7 +58,7 @@ func init() {
 		handlers[m] = h
 	}
 	// Delegating waits on another host through the app, and on the judge.
-	for _, m := range []string{proto.MethodGOADelegate, proto.MethodGOAOverride, proto.MethodGOARecall, proto.MethodGOARevert} {
+	for _, m := range []string{proto.MethodGOADelegate, proto.MethodGOAOverride, proto.MethodGOARecall, proto.MethodGOARevert, proto.MethodGOASwitch} {
 		slowMethods[m] = true
 	}
 }
