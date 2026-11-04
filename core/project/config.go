@@ -18,6 +18,11 @@ const ConfigFile = ".enowx.toml"
 
 // Config is a project's .enowx.toml.
 type Config struct {
+	// Guide is how enowX gives the guide to agents with no other way.
+	Guide struct {
+		// Block false keeps its block out of the project's AGENTS.md or CLAUDE.md.
+		Block *bool `toml:"block,omitempty"`
+	} `toml:"guide,omitempty"`
 	Worktree struct {
 		// Copy are files or folders git ignores (.env, say) that new
 		// worktrees get from the project's folder, as paths or globs.
@@ -115,3 +120,6 @@ func copyFile(src, dst string) error {
 	}
 	return out.Close()
 }
+
+// GuideBlockOff says the project turned off the guide's block.
+func (c Config) GuideBlockOff() bool { return c.Guide.Block != nil && !*c.Guide.Block }

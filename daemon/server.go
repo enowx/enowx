@@ -262,6 +262,7 @@ func newServer(dir, hookBin string) (*Server, error) {
 	// project's mocks answer its tests.
 	s.runner.Env = func(session string) []string { return s.trafficEnvFor(session, "") }
 	s.runner.OnFailed = s.judgeCheck // flaky or real, when the use is on
+	s.writeHostGuide()
 	s.restore()
 	s.pipes.load(pipelinesFile(dir))
 	s.resumePipelines()

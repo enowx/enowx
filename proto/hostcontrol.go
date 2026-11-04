@@ -146,4 +146,7 @@ type ProjectConfig struct {
 	Path  string   `json:"path"`
 	Copy  []string `json:"copy"`
 	Setup string   `json:"setup,omitempty"`
+	// GuideBlockOff keeps enowX's block out of its AGENTS.md or CLAUDE.md, for agents
+	// with no other way to the guide.
+	GuideBlockOff bool `json:"guideBlockOff,omitempty"`
 }
