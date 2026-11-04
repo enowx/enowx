@@ -10,6 +10,7 @@ import (
 	"net"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/enowx/enowx/proto"
@@ -42,6 +43,10 @@ type Client struct {
 	// processed yet: the daemon may send frames before the caller registers.
 	early   map[uint32][]proto.Frame
 	onEvent func(proto.Event)
+	// parts: the daemon reads a frame too large for one as parts; lastPart
+	// numbers those sent.
+	parts    bool
+	lastPart atomic.Uint32
 	// adb are the ADB bridges listening on this daemon, by listener.
 	adb  map[uint32]func(id uint32)
 	err  error
@@ -80,7 +85,7 @@ func New(rw io.ReadWriteCloser, onEvent func(proto.Event)) (*Client, error) {
 		onEvent: onEvent,
 		done:    make(chan struct{}),
 	}
-	hello, _ := json.Marshal(proto.Hello{Protocol: proto.Version, Agent: "enowx/" + Version})
+	hello, _ := json.Marshal(proto.Hello{Protocol: proto.Version, Agent: "enowx/" + Version, Parts: true})
 	if err := c.write(proto.Frame{Type: proto.TypeHello, Payload: hello}); err != nil {
 		rw.Close()
 		return nil, fmt.Errorf("client: handshake: %w", err)
@@ -104,6 +109,7 @@ func New(rw io.ReadWriteCloser, onEvent func(proto.Event)) (*Client, error) {
 		rw.Close()
 		return nil, fmt.Errorf("client: the daemon speaks protocol %d, older than %d: reconnect to update it", theirs.Protocol, proto.MinVersion)
 	}
+	c.parts = theirs.Parts
 	go c.read()
 	return c, nil
 }
@@ -387,7 +393,25 @@ func (c *Client) Attach(id string) (*Stream, error) {
 	return st, nil
 }
 
+// write sends f, as parts when too large for one frame (other frames going
+// between them) and the daemon takes them; refused alone otherwise.
 func (c *Client) write(f proto.Frame) error {
+	if len(f.Payload) <= proto.MaxPayload {
+		return c.writeFrame(f)
+	}
+	if !c.parts || !proto.FitsParts(len(f.Payload)) {
+		return fmt.Errorf("%w: %s of %d bytes", proto.ErrTooLarge, f.Type, len(f.Payload))
+	}
+	id := c.lastPart.Add(1)
+	for part := range proto.Parts(f, id) {
+		if err := c.writeFrame(part); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (c *Client) writeFrame(f proto.Frame) error {
 	c.wmu.Lock()
 	defer c.wmu.Unlock()
 	return proto.WriteFrame(c.rw, f)
@@ -395,11 +419,21 @@ func (c *Client) write(f proto.Frame) error {
 
 func (c *Client) read() {
 	var err error
+	var large proto.Assembler // this goroutine's
 	for {
 		var f proto.Frame
 		f, err = proto.ReadFrame(c.rw)
 		if err != nil {
 			break
+		}
+		if f.Type == proto.TypePart {
+			var done bool
+			if f, done, err = large.Take(f); err != nil {
+				break
+			}
+			if !done {
+				continue
+			}
 		}
 		switch f.Type {
 		case proto.TypeResponse:

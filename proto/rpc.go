@@ -6,6 +6,8 @@ import "encoding/json"
 type Hello struct {
 	Protocol int    `json:"protocol"`
 	Agent    string `json:"agent"` // "enowx/0.0.1" or "enowxd/0.0.1"
+	// Parts: this side reads a frame over MaxPayload sent as parts (parts.go).
+	Parts bool `json:"parts,omitempty"`
 }
 
 // Request is a client call. ID is unique per connection.

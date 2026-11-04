@@ -6,6 +6,7 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"image"
 	"image/png"
 	"strings"
@@ -259,7 +260,12 @@ func (s *Server) appRender(req proto.CanvasRenderRequest) (proto.CanvasRenderRep
 	cs.mu.Unlock()
 	raw, _ := json.Marshal(req)
 	ev, _ := json.Marshal(proto.Event{Name: proto.EventCanvasRender, Data: raw})
-	app.send(proto.Frame{Type: proto.TypeEvent, Payload: ev})
+	if err := app.send(proto.Frame{Type: proto.TypeEvent, Payload: ev}); err != nil {
+		cs.mu.Lock()
+		delete(cs.pending, req.ID)
+		cs.mu.Unlock()
+		return proto.CanvasRenderReply{}, fmt.Errorf("canvas: the page can't reach the app to render it (%d MB with its files): %w", len(req.HTML)>>20, err)
+	}
 	select {
 	case r := <-ch:
 		if r.Error != "" {

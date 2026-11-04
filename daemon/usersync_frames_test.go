@@ -102,14 +102,19 @@ func TestUserSyncLargerThanFrame(t *testing.T) {
 func TestOversizedSyncReplyKeepsConnection(t *testing.T) {
 	srv := startServer(t)
 	paths, _ := syncFrameFixture(t, srv)
+	// A client that takes parts is sent all of it.
 	c := connect(t, srv, nil)
 	var result proto.SyncReadResult
-	err := c.Call(proto.MethodSyncRead, proto.SyncReadParams{Paths: paths}, &result)
-	if err == nil || !strings.Contains(err.Error(), "frame limit") {
-		t.Fatalf("expected a normal size error, got %v (connection: %v)", err, c.Err())
+	if err := c.Call(proto.MethodSyncRead, proto.SyncReadParams{Paths: paths}, &result); err != nil {
+		t.Fatalf("read: %v (connection: %v)", err, c.Err())
 	}
-	if _, err := c.Info(); err != nil {
-		t.Fatalf("oversized response closed the connection: %v", err)
+	// One from before them gets a normal size error.
+	nc, frames := oldApp(t, srv)
+	if r := oldCall(t, nc, frames, 1, proto.MethodSyncRead, proto.SyncReadParams{Paths: paths}); !strings.Contains(r.Error, "frame limit") {
+		t.Fatalf("expected a normal size error, got %q", r.Error)
+	}
+	if r := oldCall(t, nc, frames, 2, proto.MethodDaemonInfo, struct{}{}); r.Error != "" {
+		t.Fatalf("oversized response closed the connection: %s", r.Error)
 	}
 }
 

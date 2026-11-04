@@ -149,13 +149,17 @@ func (c *conn) reply(id uint64, value any, err error) {
 		resp.Result = raw
 	}
 	payload, _ := json.Marshal(resp)
-	// A file can grow after a sync manifest was read. Return an RPC error
-	// instead of letting send close the connection on an oversized reply.
-	if len(payload) > proto.MaxPayload {
-		payload, _ = json.Marshal(proto.Response{ID: id,
-			Error: fmt.Sprintf("response payload of %d bytes exceeds the %d-byte frame limit", len(payload), proto.MaxPayload)})
+	// What can't reach this client is an RPC error, for this call alone.
+	limit := proto.MaxPayload
+	if c.parts.Load() {
+		limit = proto.MaxMessage
 	}
-	c.send(proto.Frame{Type: proto.TypeResponse, Payload: payload})
+	if len(payload) > limit {
+		c.srv.logger().Warn("reply too large, refused", "bytes", len(payload), "limit", limit)
+		payload, _ = json.Marshal(proto.Response{ID: id,
+			Error: fmt.Sprintf("response payload of %d bytes exceeds the %d-byte frame limit", len(payload), limit)})
+	}
+	_ = c.send(proto.Frame{Type: proto.TypeResponse, Payload: payload})
 }
 
 func decode(raw json.RawMessage, v any) error {
