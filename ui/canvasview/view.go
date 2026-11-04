@@ -208,6 +208,7 @@ type View struct {
 	listInSidebar, listOutside bool
 	thumbs                     map[string]*thumb
 	thumbsBusy                 int        // pictures asked for, not back yet
+	layersAll                  bool       // the panel lists all layers (layersAtOnce)
 	video                      *videoForm // Export's MP4 dialog (video.go)
 	descr                      *describeForm
 	// pendingFrame is a design to show once the canvas opening loaded.
