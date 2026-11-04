@@ -1261,6 +1261,7 @@ field Hello.conn string
 field Hello.kind string
 field Hello.parts bool
 field Hello.protocol int
+field HibernatePlan.background []string
 field HibernatePlan.blocked string
 field HibernatePlan.cpu float64
 field HibernatePlan.display bool

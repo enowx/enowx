@@ -127,3 +127,19 @@ func (a *App) askStopBackground(s proto.SessionInfo, b proto.BackgroundAgent) {
 		}()
 	})
 }
+
+// backgroundAtRisk warns of the agents in sessions' backgrounds, which a restart stops: their
+// sessions come back on their conversations, they don't.
+func backgroundAtRisk(sessions []proto.SessionInfo) string {
+	var names []string
+	for _, s := range sessions {
+		for _, b := range s.Background {
+			names = append(names, b.Name)
+		}
+	}
+	if len(names) == 0 {
+		return ""
+	}
+	return fmt.Sprintf("Restarting stops %d background %s (%s). Their sessions come back; they don't, and what they haven't saved may be lost.",
+		len(names), textfmt.Plural(len(names), "agent", "agents"), strings.Join(names, ", "))
+}

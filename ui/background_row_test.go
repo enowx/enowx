@@ -30,3 +30,14 @@ func TestSessionWithABackgroundAgent(t *testing.T) {
 		t.Fatal("none left isn't done")
 	}
 }
+
+// An update says which background agents its restart stops.
+func TestUpdateNamesBackgroundAgents(t *testing.T) {
+	if got := backgroundAtRisk([]proto.SessionInfo{{State: proto.StateDone}}); got != "" {
+		t.Fatalf("with none: %q", got)
+	}
+	got := backgroundAtRisk([]proto.SessionInfo{{Background: []proto.BackgroundAgent{{Name: "codex"}}}, {Background: []proto.BackgroundAgent{{Name: "kilo"}}}})
+	if !strings.Contains(got, "2 background agents") || !strings.Contains(got, "codex, kilo") || !strings.Contains(got, "lost") {
+		t.Fatalf("%q", got)
+	}
+}

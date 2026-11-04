@@ -115,6 +115,9 @@ func (r runner) hibernate(args []string) error {
 		if pl.Task != "" {
 			fmt.Fprintf(r.out, "  GOD of Agents' task %s is under way\n", pl.Task)
 		}
+		for _, name := range pl.Background {
+			fmt.Fprintf(r.out, "  background agent %s stops with it, and what it hasn't saved may be lost\n", name)
+		}
 		for _, port := range pl.Ports {
 			fmt.Fprintf(r.out, "  serves port %d\n", port)
 		}
