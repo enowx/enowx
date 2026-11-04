@@ -29,7 +29,7 @@ const EnvSession = "ENOWX_SESSION"
 
 // Commands are the command line's commands, for the programs that also
 // do other things with their arguments to tell them apart.
-var Commands = []string{"ls", "list", "sessions", "peek", "status", "spawn", "send", "read", "wait", "kill", "hibernate", "wake", "agents", "projects", "project", "shells", "notes", "features", "creds", "canvas", "review", "sync", "cache", "diagnostics", "icons", "attach", "pipeline", "pipelines", "note", "automation", "automations", "hooks", "accounts", "configs", "rag", "decide", "usage", "browser", "traffic", "android", "mcp", "guide", "ports", "run", "api", "notify", "cloud", "team", "help",
+var Commands = []string{"ls", "list", "sessions", "peek", "status", "spawn", "send", "read", "wait", "kill", "hibernate", "wake", "agents", "projects", "project", "shells", "notes", "features", "creds", "canvas", "review", "sync", "cache", "diagnostics", "profile", "icons", "attach", "pipeline", "pipelines", "note", "automation", "automations", "hooks", "accounts", "configs", "rag", "decide", "usage", "browser", "traffic", "android", "mcp", "guide", "ports", "run", "api", "notify", "cloud", "team", "help",
 	"interrupt", "stop", "continue", "fork", "rename", "close", "chat", "answer", "switch", "changes", "settings", "control", "goa"}
 
 // Is reports whether args start with one of Commands.
@@ -85,6 +85,8 @@ const usage = `usage: enowx-app <command> [arguments]
   notify [sound|set|status]        sounds the user's enowX app plays ("notify help")
   cache [clean]                    what this host's enowX folder takes, and cleaning what can go ("cache --help")
   diagnostics [--all] [--bundle F] recent connection events from the logs, or all the logs as a zip for a bug report
+  profile [--cpu SECONDS] [--json] [--out DIR]
+                                   what the running app and daemon hold and use, changing nothing
   cloud [login|logout|devices|approve|url]
                                    this host's sign-in to a team cloud ("cloud help")
   team [list|create|members|invite|join|role|remove|leave]
@@ -265,6 +267,8 @@ func (r runner) command(args []string) error {
 		return r.team(rest)
 	case "sync":
 		return r.sync(rest)
+	case "profile":
+		return r.profile(rest)
 	case "cache":
 		return r.cache(rest)
 	case "features":

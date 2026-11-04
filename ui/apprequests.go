@@ -136,6 +136,13 @@ func (a *App) appRequest(cl *client.Client, id string, req proto.AppRequest) {
 		a.hostCallAsked(id, req, reply, func() { bypassed = true })
 	case "app.settings":
 		a.appSettingsAsked(req, reply)
+	case "profile":
+		var p proto.ProfileParams
+		if err := json.Unmarshal(req.Params, &p); err != nil {
+			reply(nil, err)
+			return
+		}
+		go func() { reply(a.selfProfile(p), nil) }()
 	default:
 		reply(nil, errors.New("this app doesn't know “"+req.Kind+"”: update it"))
 	}

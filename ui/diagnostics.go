@@ -10,6 +10,7 @@ import (
 	"github.com/enowx/enowx/client"
 	"github.com/enowx/enowx/core/diag"
 	"github.com/enowx/enowx/core/hosts"
+	"github.com/enowx/enowx/core/selfprofile"
 	"github.com/enowx/enowx/proto"
 	"github.com/enowx/enowx/transport"
 	"github.com/enowx/enowx/version"
@@ -85,6 +86,22 @@ func (a *App) logClosed(what string, h hosts.Host, c *client.Client) {
 	a.diag.Event("conn.closed", "use", what, "host", h.ID, "name", h.Name, "conn", c.ID(), "lasted", c.Since(), "by", c.ClosedBy(), "why", c.Err())
 }
 
+// selfProfile measures this app (`enowx-app profile`). It runs off the main thread.
+func (a *App) selfProfile(p proto.ProfileParams) proto.ProcessProfile {
+	return selfprofile.Take(selfprofile.Options{Kind: "app", Version: version.String, Params: p, Areas: a.profileAreas})
+}
+
+// profileFile is the profile a bundle holds: this app and the connected daemon's, or
+// this app alone with a daemon that can't say.
+func (a *App) profileFile(cl *client.Client) proto.DiagFile {
+	var got proto.Profile
+	if cl == nil || cl.Call(proto.MethodDaemonProfile, proto.ProfileParams{}, &got) != nil {
+		me := a.selfProfile(proto.ProfileParams{})
+		return proto.DiagFile{Name: diag.ProfileFile, Text: diag.Scrub(selfprofile.TextOf(me))}
+	}
+	return proto.DiagFile{Name: diag.ProfileFile, Text: diag.Scrub(selfprofile.Text(got))}
+}
+
 // saveDiagnostics writes this device's logs and the connected host's as a zip for a
 // bug report, and says where.
 func (a *App) saveDiagnostics() {
@@ -96,6 +113,7 @@ func (a *App) saveDiagnostics() {
 		if dir, err := transport.Dir(); err == nil {
 			sets["this device"] = diag.Collect(dir)
 		}
+		sets["this device"] = append(sets["this device"], a.profileFile(cl))
 		about := "enowX " + version.String + " " + runtime.GOOS + "/" + runtime.GOARCH
 		if cl != nil && cl.Remote() {
 			var got proto.Diagnostics
@@ -120,4 +138,30 @@ func (a *App) saveDiagnostics() {
 			a.notify("Diagnostics saved to " + path + ". Logs hold names, IDs, sizes and errors, not your content.")
 		})
 	}()
+}
+
+// profileAreas are what the app keeps per session and per host. Those maps belong to
+// the main thread; a window that doesn't answer in time gets a profile without them.
+func (a *App) profileAreas() []proto.ProfileArea {
+	got := make(chan []proto.ProfileArea, 1)
+	a.onMain(func() {
+		got <- []proto.ProfileArea{
+			{Name: "terminals (a session's or a tab's)", Count: len(a.panes)},
+			{Name: "chat views", Count: len(a.chats)},
+			{Name: "diff views", Count: len(a.diffs)},
+			{Name: "file views", Count: len(a.fileViews)},
+			{Name: "files open in tabs", Count: len(a.docs)},
+			{Name: "browsers", Count: len(a.browsers)},
+			{Name: "activity views", Count: len(a.activityViews)},
+			{Name: "check views", Count: len(a.checkViews)},
+			{Name: "port views", Count: len(a.portViews)},
+			{Name: "other hosts watched", Count: len(a.watches)},
+		}
+	})
+	select {
+	case areas := <-got:
+		return areas
+	case <-time.After(3 * time.Second):
+		return nil
+	}
 }

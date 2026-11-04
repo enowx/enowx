@@ -1630,6 +1630,71 @@ field Port.process string
 field PortsChange.opened []Port
 field PortsChange.ports []Port
 field PortsChange.session string
+field ProcessProfile.arch string
+field ProcessProfile.areas []ProfileArea
+field ProcessProfile.cpuPercent float64
+field ProcessProfile.cpuSeconds float64
+field ProcessProfile.cpuWindow float64
+field ProcessProfile.go ProfileGo
+field ProcessProfile.goroutinesBy []ProfileCost
+field ProcessProfile.heapBy []ProfileCost
+field ProcessProfile.kind string
+field ProcessProfile.memory ProfileMemory
+field ProcessProfile.os string
+field ProcessProfile.pid int
+field ProcessProfile.raw *ProfileRaw
+field ProcessProfile.uptimeSeconds int64
+field ProcessProfile.version string
+field Profile.app *ProcessProfile
+field Profile.appError string
+field Profile.daemon ProcessProfile
+field Profile.programs []ProfileProgram
+field ProfileArea.bytes uint64
+field ProfileArea.count int
+field ProfileArea.name string
+field ProfileCost.bytes uint64
+field ProfileCost.count int64
+field ProfileCost.name string
+field ProfileGo.gcCpuPercent float64
+field ProfileGo.gcPercent int
+field ProfileGo.goroutines int
+field ProfileGo.heapAlloc uint64
+field ProfileGo.heapIdle uint64
+field ProfileGo.heapInuse uint64
+field ProfileGo.heapReleased uint64
+field ProfileGo.heapSys uint64
+field ProfileGo.memoryLimit int64
+field ProfileGo.nextGC uint64
+field ProfileGo.numGC uint32
+field ProfileGo.objects uint64
+field ProfileGo.pauseMillis uint64
+field ProfileGo.stackInuse uint64
+field ProfileGo.sys uint64
+field ProfileGo.threads int
+field ProfileMemory.anon uint64
+field ProfileMemory.footprint uint64
+field ProfileMemory.footprintPeak uint64
+field ProfileMemory.note string
+field ProfileMemory.peakRss uint64
+field ProfileMemory.privateClean uint64
+field ProfileMemory.privateDirty uint64
+field ProfileMemory.pss uint64
+field ProfileMemory.regions []ProfileRegion
+field ProfileMemory.rss uint64
+field ProfileMemory.sharedClean uint64
+field ProfileMemory.sharedDirty uint64
+field ProfileMemory.swap uint64
+field ProfileParams.cpuSeconds int
+field ProfileParams.raw bool
+field ProfileProgram.count int
+field ProfileProgram.name string
+field ProfileProgram.rss uint64
+field ProfileRaw.cpu []byte
+field ProfileRaw.goroutines []byte
+field ProfileRaw.heap []byte
+field ProfileRegion.name string
+field ProfileRegion.privateDirty uint64
+field ProfileRegion.rss uint64
 field ProjectArrangeParams.before string
 field ProjectArrangeParams.group string
 field ProjectArrangeParams.path string
@@ -2836,6 +2901,7 @@ method credits.get
 method daemon.diagnostics
 method daemon.info
 method daemon.log
+method daemon.profile
 method daemon.restart
 method daemon.restartPlan
 method daemon.setSettings
