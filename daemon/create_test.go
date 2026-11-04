@@ -261,7 +261,7 @@ func TestAgentsTakeTheirPromptAsTheyCan(t *testing.T) {
 		t.Skip("uses sh")
 	}
 	bin := t.TempDir()
-	script := "#!/bin/sh\necho \"mode=$GOOSE_MODE args=$*\"\nprintf '> '\nread -r line\necho \"got: $line\"\nsleep 30\n"
+	script := "#!/bin/sh\n[ \"$1\" = --help ] && { echo session; exit 0; }\necho \"mode=$GOOSE_MODE args=$*\"\nprintf '> '\nread -r line\necho \"got: $line\"\nsleep 30\n"
 	if err := os.WriteFile(filepath.Join(bin, "goose"), []byte(script), 0o755); err != nil {
 		t.Fatal(err)
 	}

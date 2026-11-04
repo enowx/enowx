@@ -652,7 +652,7 @@ func TestGOABringsSessionsBack(t *testing.T) {
 		t.Fatal(err)
 	}
 	waitFor(t, "it ended", func() bool { return plain.Info().Exited })
-	if task, err := delegate(proto.GOADelegateParams{Session: plain.ID(), Prompt: "lost task"}); err == nil || !strings.Contains(err.Error(), "can't be brought back") {
+	if task, err := delegate(proto.GOADelegateParams{Session: plain.ID(), Prompt: "lost task"}); err == nil || !strings.Contains(err.Error(), "can't come back") {
 		t.Fatalf("a session that can't come back: %+v %v", task, err)
 	}
 	if n := len(a.goa.board.List()); n != before {
@@ -789,7 +789,7 @@ func TestSkipUnheardAgents(t *testing.T) {
 	}
 	bin := t.TempDir()
 	for _, name := range []string{"opencode", "claude"} {
-		if err := os.WriteFile(filepath.Join(bin, name), []byte("#!/bin/sh\nsleep 60\n"), 0o755); err != nil {
+		if err := os.WriteFile(filepath.Join(bin, name), []byte("#!/bin/sh\n[ \"$1\" = --version ] && { echo 1.0.0; exit 0; }\nsleep 60\n"), 0o755); err != nil {
 			t.Fatal(err)
 		}
 	}

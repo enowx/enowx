@@ -30,7 +30,9 @@ var openCodeVersion = regexp.MustCompile(`(\d+)\.\d+\.\d+`)
 func OpenCodeMajor(command string) int {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
-	out, err := quietcmd.CommandContext(ctx, command, "--version").Output()
+	cmd := quietcmd.CommandContext(ctx, command, "--version")
+	cmd.WaitDelay = time.Second // what it left running mustn't hold the session's start
+	out, err := cmd.Output()
 	if err != nil {
 		return 0
 	}

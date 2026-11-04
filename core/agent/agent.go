@@ -233,7 +233,9 @@ func (p Preset) found() string {
 func (n Namesake) confirms(name string) bool {
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
-	out, _ := quietcmd.CommandContext(ctx, name, n.Args...).CombinedOutput()
+	cmd := quietcmd.CommandContext(ctx, name, n.Args...)
+	cmd.WaitDelay = time.Second // what it left running mustn't hold the answer
+	out, _ := cmd.CombinedOutput()
 	return strings.Contains(string(out), n.AgentSays)
 }
 
