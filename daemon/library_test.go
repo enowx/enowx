@@ -16,6 +16,7 @@ import (
 	"github.com/enowx/enowx/cloud/hostauth"
 	"github.com/enowx/enowx/cloud/seal"
 	"github.com/enowx/enowx/cloud/server"
+	"github.com/enowx/enowx/cloud/store"
 	"github.com/enowx/enowx/cloud/store/storetest"
 	"github.com/enowx/enowx/core/designshare"
 	"github.com/enowx/enowx/core/designshare/thumb"
@@ -29,6 +30,8 @@ type libraryEnv struct {
 	srv   *Server
 	blobs blobstore.Dir
 	cloud string
+	db    *store.DB
+	acc   api.Account
 }
 
 // newLibraryEnv is a daemon signed in to a cloud that has a library. An app
@@ -57,7 +60,7 @@ func newLibraryEnv(t *testing.T, library bool) *libraryEnv {
 	if err := srv.cloud.store.Put(hostauth.State{URL: web.URL, Token: token}); err != nil {
 		t.Fatal(err)
 	}
-	return &libraryEnv{srv: srv, blobs: blobs, cloud: web.URL}
+	return &libraryEnv{srv: srv, blobs: blobs, cloud: web.URL, db: db, acc: acc}
 }
 
 // The whole way from a draft to the cloud, the bundle holding only the design:
@@ -110,7 +113,7 @@ func TestLibraryDraftReachesTheCloudHoldingOnlyTheDesign(t *testing.T) {
 // with it, and what the canvas holds around them stays behind.
 func TestLibraryPrepareAndPublishThroughTheProtocol(t *testing.T) {
 	e := newLibraryEnv(t, true)
-	c := connect(t, e.srv, nil)
+	c := connectApp(t, e.srv, nil) // what publishes is the app's form
 	cv, err := c.CreateCanvas(proto.CanvasCreateParams{Title: "Ridgeline", Kind: proto.CanvasBoard})
 	if err != nil {
 		t.Fatal(err)
