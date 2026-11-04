@@ -1,6 +1,9 @@
 package tools
 
-import "strings"
+import (
+	"os"
+	"strings"
+)
 
 // secretEnv are the credentials the agent itself runs on, which a program a tool starts
 // has no business reading.
@@ -22,6 +25,17 @@ func CleanEnviron(env []string) []string {
 		}
 	}
 	return out
+}
+
+// ForgetCredentials takes what CleanEnviron removes out of this process's own environment.
+// /proc's copy of what it started with stays: that is what HardenProcess is for.
+func ForgetCredentials() {
+	for _, kv := range os.Environ() {
+		if secretName(envName(kv)) {
+			name, _, _ := strings.Cut(kv, "=")
+			_ = os.Unsetenv(name)
+		}
+	}
 }
 
 // envName is the name of a KEY=value entry, folded where names ignore case. Windows has

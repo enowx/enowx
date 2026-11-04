@@ -101,7 +101,7 @@ func (t *thread) runCall(ctx context.Context, c toolCall) json.RawMessage {
 	a.emit(record.Record{Type: record.ToolStart, Tool: &shown, Sidechain: t.sidechain})
 
 	started := time.Now()
-	res := t.execute(ctx, c, tool, shown)
+	res := a.scrubResult(t.execute(ctx, c, tool, shown))
 
 	// The input is on the ToolStart and the Assistant already; a big Write needn't be
 	// kept a third time.

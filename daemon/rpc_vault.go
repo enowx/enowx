@@ -31,6 +31,12 @@ var vaultHandlers = map[string]handler{
 		return ok, nil
 	}),
 	proto.MethodVaultAsk: with(func(c *conn, p proto.VaultAsk) (any, error) { return c.srv.vaultAskFiles(p) }),
+	proto.MethodVaultAgentKey: with(func(c *conn, p proto.VaultAgentKeyParams) (any, error) {
+		if c.remote {
+			return nil, errors.New("vault: only a program of this host takes an agent's key")
+		}
+		return proto.VaultAgentKey{Env: c.srv.takeAgentKey(p.Session)}, nil
+	}),
 	proto.MethodVaultAudit: with(func(c *conn, p proto.VaultAuditParams) (any, error) {
 		if c.srv.vault.audit == nil {
 			return []proto.VaultAuditEntry{}, nil

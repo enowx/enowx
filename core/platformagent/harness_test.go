@@ -198,6 +198,7 @@ func newRig(t *testing.T, change func(*Options), script ...standinapi.Reply) *ri
 // start makes an agent of the rig's options.
 func (r *rig) start() {
 	r.t.Helper()
+	r.t.Setenv("ANTHROPIC_API_KEY", fakeKey) // New takes it out of the environment
 	a, err := New(r.opts)
 	if err != nil {
 		r.t.Fatal(err)

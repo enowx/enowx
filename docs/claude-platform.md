@@ -30,11 +30,23 @@ One JSON line per record, in `<session dir>/<id>.jsonl`: a session's own folder 
 
 ## The key
 
-The key lives only in the vault, as a credential of platform `anthropic` (`Preset.VaultPlatform`). It reaches the agent only as `ANTHROPIC_API_KEY` in its session's process environment: never in a file, a command line, a transcript, a log, a session's saved command or a sync.
+The key lives only in the vault, as a credential of platform `anthropic` (`Preset.VaultPlatform`). The daemon keeps it apart from what the session's other programs get, and the agent takes it from the daemon over the local socket as it starts (`vault.agentKey`, once per start): never in a file, a command line, a transcript, a log, a session's saved command, a sync, or the session's environment, which the wrapper shells around the agent, the login shell after it and its tabs would share.
+
+**What keeps it from the agent's own commands.** The tools' programs start without it (`tools.CleanEnviron`). The agent then forgets it from its environment (`os.Unsetenv`; the SDK reads the environment only as its client is made) and holds it in memory, and on Linux makes itself non-dumpable (`PR_SET_DUMPABLE` 0), so a command of the same user can't read its `/proc/PID/environ` or memory, or attach to it. Text a tool brings back, an MCP server's too, has the literal key replaced before the model, the record and the screen see it.
+
+**What that doesn't stop.**
+
+- **`"$ENOWX_BIN" creds use` is open to any command.** The vault lends a credential to whatever program asks in the session, by its design: a credential allowed on this host, or allowed by the user when asked, can be read by a command the model runs, this key included. The protections above stop accidents and prying through the process; they are not a sandbox between the model's commands and the vault. `vault.agentKey` itself is one-shot: a program racing the agent to it leaves the agent with no key, which says so.
+- **Linux's limit:** root and `CAP_SYS_PTRACE` still read the process. Non-dumpable lasts for the agent alone: a program it starts is dumpable again after its exec, which is why those start without the key. Enabling core dumps doesn't undo it.
+- **macOS and Windows have no such call used here:** a program of the same user can read the agent's memory (with the usual debugging rights) and, for a key given by hand, its starting environment (`ps eww` on macOS).
+- **A key given by hand or by a config:** run from a shell with `ANTHROPIC_API_KEY` set, or on a model API config, the key is in the environment the agent starts with, and so in that shell's or wrapper's environment. Unsetting changes only the agent's own view: `/proc/PID/environ` shows what it started with, which is what non-dumpable hides, for the agent and not for those others.
+- **Encoded forms:** only the literal key is replaced in text; base64 of it isn't.
 
 **Adding one.** Credentials → Add credential → Anthropic, or `enowx-app creds login anthropic`, which opens that form. Whether one is set: `vault.index` (`VaultIndex.Credentials`, any with `platform: "anthropic"`, no values there).
 
 **At a session's start** the daemon picks the credential from the host's index (the one scoped to the session's project, else the platform's default, else the first; `vault.AgentKey`), and asks the app for it with the session's other credentials (`vault.request`, action `session`), the same lending as `creds env` ([vault.md](vault.md)): the app answers at once on a host the credential may be used on, and otherwise asks the user: **Allow once**, **Always on HOST**, **Refuse**, naming Claude Platform and the host. The daemon keeps the value in memory for the session, masked wherever a session's screen, conversation or traffic is read, and the session keeps only the credential's name.
+
+**Tabs and other programs of the session** (Android runs, the Run menu's, a worktree's setup) get its other credentials as ever, but not this one, nor its name, so a restart doesn't lend it to them; a tab that is itself Claude Platform takes its own. Any credential of platform `anthropic` in such a session counts, a named or an automatic one too. Running `claude-platform` by hand in the session's shell after the agent left finds no key waiting: the session's next start has one.
 
 **Hibernating and waking** use what the daemon holds. **After a daemon restart** nothing is held and no app is connected yet, so a session that has a key waits, stopped, and continues by itself once an app serves the vault; waking one before that says it needs the app, rather than start with no key. A credential added since a session started is picked up the next time it starts.
 

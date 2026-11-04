@@ -157,6 +157,9 @@ func New(o Options) (*Agent, error) {
 // connectAPI makes the client if the environment has a key. The key stays in the client
 // and in secrets, in memory.
 func (a *Agent) connectAPI() {
+	// All the SDK reads of the environment it reads in NewClient. Forgetting it here keeps
+	// whatever this process starts later from inheriting it by accident.
+	defer tools.ForgetCredentials()
 	base := strings.TrimSpace(os.Getenv("ANTHROPIC_BASE_URL"))
 	a.firstParty = a.opts.FirstParty || base == "" || isAnthropicAddress(base)
 
@@ -221,6 +224,13 @@ func (a *Agent) scrub(s string) string {
 		s = strings.ReplaceAll(s, secret, "[key]")
 	}
 	return s
+}
+
+// scrubResult takes the key out of what a tool brought back before the model, the chat
+// or the screen see it: a command, a file or an MCP server may have held it.
+func (a *Agent) scrubResult(res tools.Result) tools.Result {
+	res.Text, res.Old, res.New = a.scrub(res.Text), a.scrub(res.Old), a.scrub(res.New)
+	return res
 }
 
 func first(values ...string) string {

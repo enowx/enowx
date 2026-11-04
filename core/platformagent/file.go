@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"crypto/rand"
 	"encoding/hex"
+	"encoding/json"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -71,8 +72,18 @@ func (a *Agent) emit(r record.Record) {
 		r.Time = time.Now().UTC()
 	}
 	line := marshalStable(r)
+	held := false
 	for _, secret := range a.secrets {
+		held = held || bytes.Contains(line, []byte(secret))
 		line = bytes.ReplaceAll(line, []byte(secret), []byte("[key]"))
+	}
+	if held {
+		// The screen gets what the file gets.
+		var clean record.Record
+		if json.Unmarshal(line, &clean) != nil {
+			clean = record.Record{Type: record.Notice, Level: "warning", Text: "A record held the API key, so it isn't shown.", Time: r.Time}
+		}
+		r = clean
 	}
 	a.mu.Lock()
 	file := a.file

@@ -251,6 +251,9 @@ func claudePlatform(args []string, out io.Writer) error {
 		fmt.Fprintf(out, "%s (enowX) %s\n", record.AgentID, version.String)
 		return nil
 	}
+	if err := platformagent.HardenProcess(); err != nil {
+		fmt.Fprintf(os.Stderr, "claude-platform: other programs of this user may read this process: %v\n", err)
+	}
 	return runClaudePlatform(f, os.Stdin, out, func(o platformagent.Options) (platformagent.Runner, error) {
 		a, err := platformagent.New(o)
 		if err != nil {
@@ -258,6 +261,16 @@ func claudePlatform(args []string, out io.Writer) error {
 		}
 		return a, nil
 	})
+}
+
+// takeKey puts what the daemon holds for this agent where the agent reads it, which then
+// forgets it: a config's API, already in the environment, stays over any key lent.
+func takeKey(ctx context.Context, bridge *hookbridge.Bridge) {
+	for k, v := range bridge.TakeKey(ctx) {
+		if os.Getenv(k) == "" {
+			_ = os.Setenv(k, v)
+		}
+	}
 }
 
 // runClaudePlatform is claudePlatform with what starts the agent given, for tests.
@@ -291,6 +304,7 @@ func runClaudePlatform(f claudePlatformFlags, in io.Reader, out io.Writer, start
 	}
 	bridge := hookbridge.New()
 	bridge.SetMode(f.mode)
+	takeKey(ctx, bridge)
 	if extra := bridge.Start(ctx); extra != "" {
 		o.Append = strings.TrimSpace(o.Append + "\n\n" + extra)
 	}

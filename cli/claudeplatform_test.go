@@ -283,3 +283,32 @@ func TestClaudePlatformBridgeReachesTheDaemon(t *testing.T) {
 		t.Fatalf("state after a turn: %q", got)
 	}
 }
+
+// keyConn is a daemon holding a key for the agent.
+type keyConn struct{ env map[string]string }
+
+func (k keyConn) Close() error { return nil }
+func (k keyConn) Call(method string, params, out any) error {
+	if method != proto.MethodVaultAgentKey {
+		return errors.New("unexpected " + method)
+	}
+	out.(*proto.VaultAgentKey).Env = k.env
+	return nil
+}
+
+// The key the daemon holds reaches the agent's environment, under a config's API key if any.
+func TestClaudePlatformTakesItsKeyFromTheDaemon(t *testing.T) {
+	bridge := hookbridge.NewOver("s1", false, "", func() (hookbridge.Conn, error) {
+		return keyConn{map[string]string{"ANTHROPIC_API_KEY": "from-the-daemon"}}, nil
+	})
+	t.Setenv("ANTHROPIC_API_KEY", "")
+	takeKey(context.Background(), bridge)
+	if got := os.Getenv("ANTHROPIC_API_KEY"); got != "from-the-daemon" {
+		t.Fatalf("key: %q", got)
+	}
+	t.Setenv("ANTHROPIC_API_KEY", "a-configs")
+	takeKey(context.Background(), bridge)
+	if got := os.Getenv("ANTHROPIC_API_KEY"); got != "a-configs" {
+		t.Fatalf("a config's key was replaced: %q", got)
+	}
+}

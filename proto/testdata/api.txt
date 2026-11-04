@@ -2663,6 +2663,8 @@ field UnslopWalkState.steps []string
 field Usage.cpu float64
 field Usage.procs int
 field Usage.rss uint64
+field VaultAgentKey.env map[string]string
+field VaultAgentKeyParams.session string
 field VaultAsk.account string
 field VaultAsk.action string
 field VaultAsk.command string
@@ -3148,6 +3150,7 @@ method transfer.read
 method transfer.unpack
 method transfer.write
 method tunnel.open
+method vault.agentKey
 method vault.ask
 method vault.attach
 method vault.audit
