@@ -3,6 +3,7 @@ package ui
 import (
 	"encoding/json"
 	"fmt"
+	"maps"
 	"path/filepath"
 	"strings"
 	"time"
@@ -42,8 +43,9 @@ type dataSync struct {
 	ticking bool
 
 	leaving   map[string]bool       // hosts being cleared, not synced
-	conflicts []proto.SyncConflict  // on this device, after the last sync
+	conflicts []proto.SyncConflict  // on this device, after the last sync that changed anything
 	trash     []proto.SyncTrashItem // deleted lately, on this device
+	listed    bool                  // conflicts and trash have been read
 }
 
 // hostSync is how syncing a host goes.
@@ -52,6 +54,10 @@ type hostSync struct {
 	err   string
 	last  time.Time
 	rep   usersync.Report
+	// seen is both hosts' files as this sync found them (usersync.Fingerprint), ran
+	// whether it had to do anything about them.
+	seen string
+	ran  bool
 }
 
 // syncPeer is a host to sync with the hub, and its connection.
@@ -116,6 +122,8 @@ func (a *App) syncData() {
 	if a.dsync.hosts == nil {
 		a.dsync.hosts = map[string]hostSync{}
 	}
+	before := maps.Clone(a.dsync.hosts)
+	listed := a.dsync.listed
 	for _, p := range peers {
 		st := a.dsync.hosts[p.host.ID]
 		st.state = syncSyncing
@@ -124,18 +132,31 @@ func (a *App) syncData() {
 	a.dsync.running = true
 	go func() {
 		results := map[string]hostSync{}
+		// What's in conflict and deleted only changes with the files: read when they did.
+		read := !listed
 		for _, p := range peers {
-			results[p.host.ID] = syncWith(hub, p)
+			r := syncWith(hub, p, before[p.host.ID])
+			results[p.host.ID] = r
+			read = read || r.ran
 		}
 		a.shareHosts(hub)
 		status, _ := hub.SyncStatus()
-		conflicts, _ := hub.SyncConflicts()
-		trash, _ := hub.SyncTrash()
+		var conflicts []proto.SyncConflict
+		var trash []proto.SyncTrashItem
+		var errC, errT error
+		if read {
+			conflicts, errC = hub.SyncConflicts()
+			trash, errT = hub.SyncTrash()
+		}
 		a.onMain(func() {
 			for id, r := range results {
 				a.dsync.hosts[id] = r
 			}
-			a.dsync.hub, a.dsync.conflicts, a.dsync.trash = status, conflicts, trash
+			a.dsync.hub = status
+			if read {
+				a.dsync.conflicts, a.dsync.trash = conflicts, trash
+				a.dsync.listed = errC == nil && errT == nil
+			}
 			a.dsync.running = false
 			if a.dsync.again {
 				a.dsync.again = false
@@ -146,7 +167,7 @@ func (a *App) syncData() {
 }
 
 // syncWith syncs host p with the hub, and tells both how it went.
-func syncWith(hub *client.Client, p syncPeer) hostSync {
+func syncWith(hub *client.Client, p syncPeer, before hostSync) hostSync {
 	mh, err := hub.SyncManifest()
 	if err != nil {
 		return hostSync{state: syncFailed, err: "this device: " + client.Explain(err), last: time.Now()}
@@ -158,23 +179,32 @@ func syncWith(hub *client.Client, p syncPeer) hostSync {
 		}
 		return hostSync{state: syncOffline, err: client.Explain(err)}
 	}
-	dir, err := transport.Dir()
-	if err != nil {
-		return hostSync{state: syncFailed, err: err.Error()}
-	}
-	dir = filepath.Join(dir, "usersync")
-	base, err := usersync.LoadBase(dir, mp.ID)
-	if err != nil {
-		return hostSync{state: syncFailed, err: err.Error()}
-	}
+	seen := usersync.Fingerprint(mh, mp)
 	here := LocalHost().Name
-	rep, err := usersync.Sync(client.SyncSide{C: hub, From: p.host.Name, Name: here}, client.SyncSide{C: p.cl, From: here, Name: p.host.Name}, base)
-	out := hostSync{state: syncIdle, last: time.Now(), rep: rep}
-	if err == nil {
-		err = base.Save(dir)
-	}
-	if err != nil {
-		out.state, out.err = syncFailed, client.Explain(err)
+	var rep usersync.Report
+	out := hostSync{state: syncIdle, last: time.Now(), seen: seen}
+	if before.state != syncIdle || before.seen != seen {
+		// Files as they were when the last sync, which went well, looked at them: it has
+		// nothing to do but read and write the whole base again.
+		dir, err := transport.Dir()
+		if err != nil {
+			return hostSync{state: syncFailed, err: err.Error()}
+		}
+		dir = filepath.Join(dir, "usersync")
+		base, err := usersync.LoadBase(dir, mp.ID)
+		if err != nil {
+			return hostSync{state: syncFailed, err: err.Error()}
+		}
+		rep, err = usersync.Sync(client.SyncSide{C: hub, From: p.host.Name, Name: here}, client.SyncSide{C: p.cl, From: here, Name: p.host.Name}, base)
+		out.rep, out.ran = rep, true
+		if err == nil {
+			err = base.Save(dir)
+		}
+		if err != nil {
+			out.state, out.err = syncFailed, client.Explain(err)
+		}
+	} else {
+		out.rep = before.rep
 	}
 	report := func(c *client.Client, peer proto.SyncManifest) {
 		_ = c.SyncReport(proto.SyncPeerStatus{Peer: peer.ID, Name: peer.Name, Last: out.last.UTC(), Err: out.err,

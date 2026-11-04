@@ -83,6 +83,7 @@ Go 1.27+ is required (MyGo needs it). With an older `go`, set `GOTOOLCHAIN=go1.2
 | `version/` | The release version shared by app, daemon and client | **No** |
 | `internal/quietcmd` | Starts programs in the background without a console window on Windows | **No** |
 | `internal/watchdog` | Leaves a report when a thread stops answering (every goroutine's stack, what was on screen), and a line of what memory holds, in the data folder's `watchdog` folder | **No** |
+| `internal/rpccount` | A connection counting calls and bytes, for tests saying how often a method is called | **No** |
 | `internal/testlisten` | A test binary standing in for a dev server a session starts, for tests of ports | **No** |
 | `core/*` (others) | Runner, scheduler, store (later) | **No** |
 | `transport/` | Local socket, SSH, daemon spawning | **No** |
