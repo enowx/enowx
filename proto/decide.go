@@ -32,6 +32,7 @@ const (
 	DecideContext = "context" // a project's search results: which bear on a prompt
 	DecideMemory  = "memory"  // what an agent said last: a decision worth keeping
 	DecideChat    = "chat"    // a team chat message: urgent, normal or quiet
+	DecideBypass  = "bypass"  // a prompt of a session in bypass, answered by policy (docs/decide.md); no judge's use
 	DecideFlaky   = "flaky"   // a failed check's output: flaky or a real failure
 )
 

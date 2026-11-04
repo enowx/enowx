@@ -172,7 +172,7 @@ func (s *Server) fireHooks(info proto.SessionInfo, ev proto.HookEvent) proto.Hoo
 	}
 	d.Context = strings.Join(contexts, "\n\n")
 	if d.Command != "" {
-		d = s.rewritten(info, d)
+		d = s.rewritten(info, ev, d)
 	}
 	d.Approve = d.Approve || approved && !d.Block
 	return d
@@ -180,11 +180,12 @@ func (s *Server) fireHooks(info proto.SessionInfo, ev proto.HookEvent) proto.Hoo
 
 // rewritten is decision d, its command changed, as session info's agent
 // can take it: Claude Code asks the user about the new command unless the
-// session skips permissions; Codex takes one only as approved, so a
-// session that asks gets it as a refusal naming the command to run.
-func (s *Server) rewritten(info proto.SessionInfo, d proto.HookDecision) proto.HookDecision {
-	d.Approve = info.SkipPermissions
-	if agent.Base(info.Agent) == "codex" && !info.SkipPermissions {
+// session is in bypass, by the mode it reports with the call, as one may be switched
+// to it after it started; Codex takes one only as approved, so a session that asks
+// gets it as a refusal naming the command to run.
+func (s *Server) rewritten(info proto.SessionInfo, ev proto.HookEvent, d proto.HookDecision) proto.HookDecision {
+	d.Approve = workerRunsUnasked(info, ev)
+	if agent.Base(info.Agent) == "codex" && !d.Approve {
 		return proto.HookDecision{Block: true, Reason: "A hook changes this command. Run this instead: " + d.Command, Context: d.Context}
 	}
 	return d

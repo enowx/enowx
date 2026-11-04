@@ -43,6 +43,13 @@ func (s *Server) sessionHook(p proto.SessionHookParams) (proto.HookDecision, err
 	if err != nil {
 		return proto.HookDecision{}, err
 	}
+	// Answered before it counts as waiting: nothing is asked of the user.
+	if p.Event.Event == proto.HookPermission && s.bypassAnswer(sess.Info(), p.Event) {
+		if p.Event.PermissionMode != "" {
+			s.agentModes.note(p.ID, p.Event.PermissionMode, time.Now())
+		}
+		return proto.HookDecision{Approve: true}, nil
+	}
 	if p.State != "" {
 		if err := s.sessions.SetState(sess, p.State); err != nil {
 			return proto.HookDecision{}, err

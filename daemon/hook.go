@@ -83,6 +83,10 @@ func answerHook(event, agentID string, data []byte, d proto.HookDecision, stdout
 			return 0
 		}
 	}
+	if d.Approve && event == proto.HookPermission {
+		fmt.Fprintln(stdout, permissionAllowOutput())
+		return 0
+	}
 	if d.Approve && event == proto.HookToolBefore {
 		if agentID != "codex" {
 			fmt.Fprintln(stdout, approveOutput())
@@ -133,9 +137,10 @@ func agentEvent(event string, data []byte) proto.HookEvent {
 		Error    string          `json:"error"`
 		Cwd      string          `json:"cwd"`
 		Mode     string          `json:"permission_mode"`
+		Scratch  string          `json:"scratchpad_dir"`
 	}
 	_ = json.Unmarshal(data, &in)
-	ev := proto.HookEvent{Event: event, Prompt: in.Prompt, Tool: in.Tool, PermissionMode: in.Mode, Failed: in.Event == "PostToolUseFailure" || in.Error != ""}
+	ev := proto.HookEvent{Event: event, Prompt: in.Prompt, Tool: in.Tool, PermissionMode: in.Mode, Scratchpad: in.Scratch, Failed: in.Event == "PostToolUseFailure" || in.Error != ""}
 	var input map[string]any
 	if json.Unmarshal(in.Input, &input) == nil {
 		for _, k := range []string{"command", "cmd"} {
@@ -256,6 +261,17 @@ func rewriteOutput(data []byte, d proto.HookDecision) (string, bool) {
 	}}
 	b, err := json.Marshal(out)
 	return string(b), err == nil
+}
+
+// permissionAllowOutput answers a permission prompt yes, without showing the user.
+// Claude Code does so for another hook's ask too (run on 2.1.318); a hook's deny never
+// asks.
+func permissionAllowOutput() string {
+	b, _ := json.Marshal(map[string]any{"hookSpecificOutput": map[string]any{
+		"hookEventName": "PermissionRequest",
+		"decision":      map[string]any{"behavior": "allow"},
+	}})
+	return string(b)
 }
 
 // approveOutput tells an agent to run its tool without asking the user:
