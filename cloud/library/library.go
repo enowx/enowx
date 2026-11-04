@@ -478,6 +478,15 @@ func actionsFor(kind, license string) api.LibraryActions {
 
 func shown(it api.LibraryItem) api.LibraryItem {
 	it.Actions = actionsOf(it)
+	it.RejectReason = "" // its creator's and moderators' alone: see forWhoMayPeek
+	return it
+}
+
+// forWhoMayPeek is it as its owner and moderators see it.
+func forWhoMayPeek(it api.LibraryItem) api.LibraryItem {
+	reason := it.RejectReason
+	it = shown(it)
+	it.RejectReason = reason
 	return it
 }
 

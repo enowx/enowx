@@ -83,6 +83,8 @@ func (s *Service) publicItem(w http.ResponseWriter, r *http.Request) (api.Librar
 		fail(w, http.StatusGone, "this design was taken down or unpublished")
 	case it.Status != api.LibraryLive && !s.mayPeek(r, it):
 		fail(w, http.StatusNotFound, "not found")
+	case it.RejectReason != "" && s.mayPeek(r, it):
+		return forWhoMayPeek(it), true
 	default:
 		return shown(it), true
 	}
@@ -257,7 +259,7 @@ func (s *Service) mine(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	for i := range items {
-		items[i].LibraryItem = shown(items[i].LibraryItem)
+		items[i].LibraryItem = forWhoMayPeek(items[i].LibraryItem)
 	}
 	reply(w, api.LibraryMine{Items: items, Used: c.Used, Limit: api.MaxLibraryAccount, Trust: me.Trust})
 }

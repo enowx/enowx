@@ -20,7 +20,7 @@ func (s *Service) queue(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	for i := range items {
-		items[i].LibraryItem = shown(items[i].LibraryItem)
+		items[i].LibraryItem = forWhoMayPeek(items[i].LibraryItem)
 	}
 	if err := s.fillSimilar(r.Context(), items); err != nil {
 		s.answer(w, nil, err)
