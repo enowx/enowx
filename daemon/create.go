@@ -201,6 +201,9 @@ func (s *Server) createSessionFor(p proto.SessionCreateParams, member *proto.Ses
 	}
 
 	meta.Restart, meta.Relaunch, meta.SkipPermissions = launch.restart, launch.relaunch, launch.skip
+	if !p.SignIn {
+		keepBypass(&meta)
+	}
 	meta.Budget = time.Duration(p.Budget) * time.Second
 	if !p.SignIn {
 		meta.Rules = s.rulesAtStart(meta, dir, false)
@@ -373,10 +376,7 @@ func launchFor(p proto.SessionCreateParams, chat chatFor) (launch, error) {
 	if other := preset.NamesakeHere(); other != "" {
 		return launch{}, fmt.Errorf("%s at %s isn't the agent, but another program with its name: install the agent to start it", preset.Name, other)
 	}
-	skip := p.SkipPermissions && len(preset.SkipPermissions)+len(preset.SkipEnv) > 0
-	if skip && preset.RefusesRootSkip && os.Geteuid() == 0 {
-		return launch{}, fmt.Errorf("%s refuses to skip permission prompts as root; reconnect and let enowX run as a regular user (Manage hosts → Ask user again), or turn off Skip permission prompts", preset.Name)
-	}
+	skip := agent.Skips(preset.ID, p.SkipPermissions) && len(preset.SkipPermissions)+len(preset.SkipEnv) > 0
 	switch {
 	case chat.goa:
 		if note := agent.GOANote(preset.ID, chat.guide); note != "" && prompt != "" {
@@ -416,6 +416,9 @@ func launchFor(p proto.SessionCreateParams, chat chatFor) (launch, error) {
 		relaunch: len(preset.Continue) > 0,
 		skip:     skip,
 		warn:     commandWarning(preset, first),
+	}
+	if agent.AlwaysSkips(preset.ID) && preset.SkipRefused() {
+		l.warn = strings.TrimSpace(l.warn + " " + preset.Name + " refuses bypass as root, so this session asks before it runs tools: let enowX run as a regular user (Manage hosts → Ask user again).")
 	}
 	switch {
 	case longPrompt:
@@ -541,7 +544,7 @@ func agentLaunch(preset agent.Preset, skip bool, prompt string, cont bool, chat 
 	given := chat.agentGuide(preset.ID, guide)
 	// Skipping stays a mode to switch to from the chat, except as root,
 	// where the agent would refuse to start with it.
-	allow := !(preset.RefusesRootSkip && os.Geteuid() == 0)
+	allow := !preset.SkipRefused()
 	if home, err := os.UserHomeDir(); err == nil && !chat.goa {
 		// Agents whose command line takes no guide read it from their home
 		// (GOA's own is a file its first prompt names: agent.GOANote).

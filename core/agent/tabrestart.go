@@ -18,7 +18,7 @@ var (
 )
 
 // TabAgentCommand is the command bringing back the agent running as args in a terminal,
-// on its conversation and in its mode; false for what isn't an agent enowX can continue,
+// on its conversation and in its mode (bypass, for an agent that AlwaysSkips); false for what isn't an agent enowX can continue,
 // which ends with the terminal. It never holds a prompt.
 func TabAgentCommand(args []string) ([]string, bool) {
 	if len(args) == 0 {
@@ -56,7 +56,7 @@ func TabAgentCommand(args []string) ([]string, bool) {
 	if !resumes {
 		out = append(out, preset.Continue...) // first: some are subcommands
 	}
-	return append(out, kept...), true
+	return TabAgentBypass(append(out, kept...)), true
 }
 
 // findByProgram is the preset whose command program runs.

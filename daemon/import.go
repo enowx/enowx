@@ -190,9 +190,7 @@ func (s *Server) importSession(in *importing, ms transfer.Session, ids map[strin
 	var command []string
 	switch preset, isAgent := agent.Find(ms.Agent); {
 	case isAgent:
-		if preset.RefusesRootSkip && os.Geteuid() == 0 {
-			meta.SkipPermissions = false
-		}
+		keepBypass(&meta)
 		command = thenShell(preset.Argv(agentLaunch(preset, meta.SkipPermissions, "", false, chatFor{guide: s.guideFor(meta), files: s.agentFilesDir(spec.ID)})))
 		if convo != "" {
 			l := agentLaunch(preset, meta.SkipPermissions, "", true, chatFor{guide: s.guideFor(meta), files: s.agentFilesDir(spec.ID)})

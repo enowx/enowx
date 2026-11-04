@@ -28,6 +28,17 @@ func keptArgs(m session.Meta) []string {
 	return agent.StartArgs(m.Agent, model, m.Effort, m.Mode, m.SkipPermissions)
 }
 
+// keepBypass has meta say what agent.Preset.Argv does to its agent's command line: a saved
+// mode, or an earlier daemon's word that it asks, doesn't come back.
+func keepBypass(meta *session.Meta) {
+	if !agent.AlwaysSkips(meta.Agent) {
+		return
+	}
+	if meta.SkipPermissions = agent.Skips(meta.Agent, false); meta.SkipPermissions {
+		meta.Mode = agent.ModeBypass
+	}
+}
+
 // withAgentStart gives p what the user chose for new sessions of its agent, where p itself
 // doesn't say.
 func (s *Server) withAgentStart(p proto.SessionCreateParams) proto.SessionCreateParams {

@@ -275,6 +275,9 @@ func (s *Server) restore() {
 				Hibernated: r.Hibernated, HibernatedByHand: r.HibernatedByHand, HibernatedAt: r.HibernatedAt, NoAutoHibernate: r.NoAutoHibernate, Rules: r.Rules,
 			},
 		}
+		if r.Relaunch {
+			keepBypass(&spec.Meta)
+		}
 		for _, what := range r.Lost {
 			line := "\r\n\x1b[33m── This was running here, and ended when the daemon restarted: " + what + " ──\x1b[0m"
 			spec.History = append(spec.History, line...)
@@ -311,7 +314,7 @@ func (s *Server) restore() {
 				chat.store = s.agentStore(r.Agent, r.ID, true)
 				chat.files = s.agentFilesDir(r.ID)
 				chat.config = run
-				l := agentLaunch(preset, r.Skip, "", hasConversation(preset, r.Convo), chat)
+				l := agentLaunch(preset, spec.Meta.SkipPermissions, "", hasConversation(preset, r.Convo), chat)
 				l.Resume = r.Convo // its own, not the folder's latest
 				l.Hooks = append(l.Hooks, keptArgs(spec.Meta)...)
 				spec.Command = thenShell(preset.Argv(l))
@@ -320,7 +323,7 @@ func (s *Server) restore() {
 				spec.Env = append(spec.Env, chat.ownGuideEnv(r.Agent)...)
 			}
 			if len(r.TabAgent) > 0 {
-				spec.Command = thenShell(r.TabAgent) // not a bare shell, which what is sent to it would run
+				spec.Command = thenShell(agent.TabAgentBypass(r.TabAgent)) // not a bare shell, which what is sent to it would run
 				s.Diag.Event("restart.tabAgent", "session", r.ID, "agent", r.TabAgent[0])
 			}
 			if r.Display {
@@ -409,6 +412,7 @@ func (s *Server) resumeSession(id, convo string) (*session.Session, error) {
 	if !info.Exited {
 		return nil, errors.New(errStillRunning)
 	}
+	keepBypass(&meta)
 	if sess.QuickExits() >= quickExitsMax {
 		return nil, fmt.Errorf("it ended right after starting %d times in a row, so enowX won't start it again by itself: %s", quickExitsMax, info.ExitWhy)
 	}

@@ -149,10 +149,14 @@ type Launch struct {
 	SessionDir string
 	// Hooks report the agent's state to enowX (HookArgs).
 	Hooks []string
+	// Mode starts an agent that AlwaysSkips in this mode, this once and with bypass still
+	// one to switch to; "" is bypass, what it always comes back in.
+	Mode string
 }
 
 // Argv returns the command line that starts the agent as l says.
 func (p Preset) Argv(l Launch) []string {
+	l = p.holdBypass(l)
 	argv := append([]string{p.Program()}, p.Args...)
 	switch {
 	case l.Resume != "" && l.Fork && len(p.Fork) > 0:

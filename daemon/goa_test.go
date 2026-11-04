@@ -788,7 +788,7 @@ func TestSkipUnheardAgents(t *testing.T) {
 		t.Skip("uses sh")
 	}
 	bin := t.TempDir()
-	for _, name := range []string{"opencode", "claude"} {
+	for _, name := range []string{"opencode", "claude", "codex"} {
 		if err := os.WriteFile(filepath.Join(bin, name), []byte("#!/bin/sh\nsleep 60\n"), 0o755); err != nil {
 			t.Fatal(err)
 		}
@@ -811,7 +811,7 @@ func TestSkipUnheardAgents(t *testing.T) {
 	if s := create(proto.SessionCreateParams{Agent: "opencode", SkipUnheard: true}); !s.SkipPermissions {
 		t.Fatal("OpenCode's prompts would wait unseen")
 	}
-	if s := create(proto.SessionCreateParams{Agent: "claude", SkipUnheard: true}); s.SkipPermissions {
+	if s := create(proto.SessionCreateParams{Agent: "codex", SkipUnheard: true}); s.SkipPermissions {
 		t.Fatal("an agent with hooks was put in bypass though nobody asked")
 	}
 
@@ -831,8 +831,8 @@ func TestSkipUnheardAgents(t *testing.T) {
 		t.Fatal("a worker skipped with no GOA that keeps prompts skipped")
 	}
 	g := create(proto.SessionCreateParams{Agent: "claude", GOA: true, SkipUnheard: true})
-	if g.SkipPermissions || !g.SkipUnheard {
-		t.Fatalf("GOA on an agent with hooks: %+v", g)
+	if !g.SkipPermissions || !g.SkipUnheard {
+		t.Fatalf("GOA on Claude Code, which always skips: %+v", g)
 	}
 	if w := worker(); !w.SkipPermissions {
 		t.Fatal("GOA's OpenCode worker would wait on a prompt it can't hear of")

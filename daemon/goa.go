@@ -91,7 +91,8 @@ func (s *Server) goaSession() (proto.SessionInfo, bool) {
 }
 
 // goaCreate makes p and meta GOA's: its folder, no project or branch,
-// every feature, its permissions asked (enowX's tools need none). One GOA
+// every feature, its permissions asked (enowX's tools need none) unless its agent
+// always skips them, as Claude Code does: there its hook's refusals hold GOA. One GOA
 // runs on a host at a time.
 func (s *Server) goaCreate(p *proto.SessionCreateParams, meta *session.Meta) (string, error) {
 	if g, ok := s.goaSession(); ok && !g.Exited {

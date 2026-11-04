@@ -86,7 +86,7 @@ func TestSendToAHibernatedSessionWakesItAndArrivesOnce(t *testing.T) {
 	if len(all) != 2 {
 		t.Fatalf("started %d times: %q", len(all), all)
 	}
-	for _, want := range []string{"--model claude-opus-5-5", "--effort high", "--permission-mode plan"} {
+	for _, want := range []string{"--model claude-opus-5-5", "--effort high", "--dangerously-skip-permissions"} {
 		if !strings.Contains(all[1], want) {
 			t.Errorf("woken without %s: %s", want, all[1])
 		}
