@@ -44,6 +44,9 @@ Go 1.27+ is required (MyGo needs it). With an older `go`, set `GOTOOLCHAIN=go1.2
 | `core/vault` | The user's credential vault: sealed with a key that stays on the device, its platforms, what a session gets of a credential, hosts' imports, the SSH agent and the record of uses (see `docs/vault.md`) | **No** |
 | `core/accounts` | Agents' configs (synced): other accounts, each a home of its own sharing the agent's settings, and model APIs; team members' accounts per host (see `docs/configs.md`, `docs/accounts.md`) | **No** |
 | `core/agent` | Agent presets (Claude Code, Codex, …) and how they take a first prompt | **No** |
+| `core/platformagent` | Claude Platform, enowX's own agent (see `docs/claude-platform.md`): the loop over Anthropic's Messages API | **No** |
+| `core/platformagent/record` | Its conversation's file format, read by `core/transcript` and `core/tokens` | **No** |
+| `core/platformagent/terminal`, `tools`, `permission`, `mcpclient` | Its screen in a session's terminal, its tools, permission rules and MCP client | **No** |
 | `core/agentapi` | How each agent takes a model API: per session by its environment and flags (a config's), or in its own settings, backed up first, for those that can't (see `docs/configs.md`, `docs/agent-api.md`) | **No** |
 | `core/hosts` | The device's server list (`~/.enowx-app/hosts.json`); passwords live in the keychain, never here | **No** |
 | `core/tailnet` | Devices on the user's tailnet, via the `tailscale` CLI | **No** |

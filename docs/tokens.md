@@ -26,6 +26,7 @@ The headline **Tokens**, everywhere (the Usage page, a session's line, `enowx us
 | Agent | Layer | What is counted | Where | Checked |
 |---|---|---|---|---|
 | Claude Code, Claude Agent Teams | records | each message: input, cache read, cache write, output, thinking; model (subagents too) | `~/.claude/projects/<folder>/*.jsonl` | yes |
+| Claude Platform | records | each answer: input, cache read, cache write, output, cost; model (subagents too) | `~/.enowx-app/agent-sessions/<session>/*.jsonl`, `~/.enowx-app/claude-platform/sessions/*.jsonl` | yes |
 | Codex | records | each call's `token_count` (`last_token_usage`, or the difference between `total_token_usage` records where only that is written, the first being a baseline; records of rate limits alone skipped; a fork's copied records left out): input, cached (at most the input), cache write, output, reasoning; model; the plan | `~/.codex/sessions/YYYY/MM/DD/rollout-*.jsonl` | yes |
 | OpenCode | records | each model call (a `step-finish` part; the message holds only its last step): input, output, reasoning, cache read, cache write, cost; provider, model | `~/.local/share/opencode/opencode.db`, before 1.x `storage/part/` | yes |
 | CodeBuddy | records | each message: input, cache read, cache write, output, reasoning; model | `~/.codebuddy/projects/<folder>/*.jsonl` | yes |
