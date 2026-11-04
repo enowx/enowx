@@ -136,7 +136,8 @@ func (a *App) watch(w *hostWatch) {
 		a.onMain(func() {
 			w.cl = cl
 			a.syncSoon()
-			a.vaultConnected(cl) // the vault answers its requests too
+			a.vaultConnected(cl)                        // the vault answers its requests too
+			go func() { _ = cl.ServeCanvasRenders() }() // an agent there sees its canvases too
 		})
 		go func() { _ = cl.ServeApp() }() // what agents there ask across hosts comes here
 		a.poll(w, cl)
@@ -237,6 +238,13 @@ func (a *App) watchEvent(w *hostWatch, ev proto.Event) {
 		var req proto.VaultRequest
 		if json.Unmarshal(ev.Data, &req) == nil {
 			a.onMain(func() { a.vaultEvent(w.cl, w.host, req) })
+		}
+		return
+	}
+	if ev.Name == proto.EventCanvasRender {
+		var req proto.CanvasRenderRequest
+		if json.Unmarshal(ev.Data, &req) == nil {
+			a.onMain(func() { a.renderCanvas(w.cl, req) })
 		}
 		return
 	}

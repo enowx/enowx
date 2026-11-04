@@ -26,11 +26,14 @@ const (
 	MethodCanvasAsset    = "canvas.asset"    // CanvasAsset → CanvasAsset (its Name, Data left out)
 	MethodCanvasAssetGet = "canvas.assetGet" // CanvasAsset (ID, Name) → CanvasAsset with its Data
 	// MethodCanvasRender renders a frame as a PNG or a PDF: a frame of
-	// shapes alone by the daemon, one with HTML by the app serving
-	// Browsers (EventCanvasRender), which answers with
-	// MethodCanvasRenderReply.
+	// shapes alone by the daemon, one with HTML by an app connected to the
+	// host (EventCanvasRender), which answers with MethodCanvasRenderReply.
 	MethodCanvasRender      = "canvas.render"      // CanvasRenderParams → CanvasRendered
 	MethodCanvasRenderReply = "canvas.renderReply" // CanvasRenderReply
+	// MethodCanvasServe tells the daemon this connection renders frames but serves no
+	// Browsers: an app only watching this host, showing another (the event's sent to
+	// it when no app here serves Browsers).
+	MethodCanvasServe = "canvas.serve"
 )
 
 // Canvas events.

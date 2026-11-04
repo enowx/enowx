@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"image"
 	"image/png"
+	"slices"
 	"strings"
 	"sync"
 	"time"
@@ -25,6 +26,40 @@ type canvasState struct {
 	mu      sync.Mutex
 	paused  map[string]bool
 	pending map[string]chan proto.CanvasRenderReply
+	// renderers are the apps that render but serve no Browsers, the latest last.
+	renderers []*conn
+}
+
+// serveRenders has c render frames.
+func (cs *canvasState) serveRenders(c *conn) {
+	cs.mu.Lock()
+	defer cs.mu.Unlock()
+	cs.renderers = append(slices.DeleteFunc(cs.renderers, func(o *conn) bool { return o == c }), c)
+}
+
+// dropRenderer forgets c, which closed.
+func (cs *canvasState) dropRenderer(c *conn) {
+	cs.mu.Lock()
+	defer cs.mu.Unlock()
+	cs.renderers = slices.DeleteFunc(cs.renderers, func(o *conn) bool { return o == c })
+}
+
+// renderer is the app to render a frame: the latest showing this host, else the latest
+// only watching it; nil with no app connected.
+func (s *Server) renderer() *conn {
+	b := &s.browsers
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	if n := len(b.serving); n > 0 {
+		return b.serving[n-1]
+	}
+	cs := &s.canvasState
+	cs.mu.Lock()
+	defer cs.mu.Unlock()
+	if n := len(cs.renderers); n > 0 {
+		return cs.renderers[n-1]
+	}
+	return nil
 }
 
 func (cs *canvasState) isPaused(id string) bool {
@@ -239,16 +274,12 @@ func encodePNG(img image.Image) ([]byte, error) {
 // canvasRenderTimeout bounds a render by the app: a page loading.
 const canvasRenderTimeout = 40 * time.Second
 
-// appRender has the latest app serving Browsers render req.
+// appRender has the app that renders frames render req.
 func (s *Server) appRender(req proto.CanvasRenderRequest) (proto.CanvasRenderReply, error) {
-	b := &s.browsers
-	b.mu.Lock()
-	if len(b.serving) == 0 {
-		b.mu.Unlock()
+	app := s.renderer()
+	if app == nil {
 		return proto.CanvasRenderReply{}, canvas.ErrNeedsBrowser
 	}
-	app := b.serving[len(b.serving)-1]
-	b.mu.Unlock()
 	req.ID = newRenderID()
 	ch := make(chan proto.CanvasRenderReply, 1)
 	cs := &s.canvasState
