@@ -272,7 +272,9 @@ Sessions enowX starts for one piece of work end when it does, without the user a
 | A build's direction | after 15 minutes unused, as it may be sent back after the comparison | its design, on the canvas |
 | A Canvas page's agent, a Notes page's agent | after 15 minutes unused: the next message goes on with its conversation, by its ID where the agent can resume one; else a new one, with the page's chat log | the canvas, the note, the chat log |
 
-One at work or waiting on the user is never ended, nor one whose hooks have gone quiet, which may be either. Not helpers, and never ended by this: sessions the user starts, GOD of Agents and its workers, anything on its board, a teammate's session, a fan-out (its results wait to be compared), pipelines and automations (the session is their result), and tabs, which end with their session. Those left from before this are cleaned up the same way, at the first look after the daemon starts.
+One at work or waiting on the user is never ended, nor one whose hooks have gone quiet, which may be either. Two exceptions, for an unslop's regions' agents, which are sessions of their own and which nothing else would end: one that reported done goes after 2 minutes whatever its state reads, and one that ran for 2 hours without reporting ends with its run's others.
+
+An unslop's regions' agents end with the run: when the Canvas page's Stop is pressed (its redesign's agent is only interrupted), when the redesign's agent is closed or hibernated by hand, when it reports the run done, and when a new run starts. The redesign's agent itself doesn't end by being left idle while they work. The panel's bar over a region's agent has **End**, for one at a time. Not helpers, and never ended by this: sessions the user starts, GOD of Agents and its workers, anything on its board, a teammate's session, a fan-out (its results wait to be compared), pipelines and automations (the session is their result), and tabs, which end with their session. Those left from before this are cleaned up the same way, at the first look after the daemon starts.
 
 ## The model a session runs on
 

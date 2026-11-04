@@ -81,7 +81,7 @@ func (r runner) canvasSession(id, agent string) (proto.SessionInfo, bool, error)
 		return proto.SessionInfo{}, false, err
 	}
 	for i := len(list) - 1; i >= 0; i-- {
-		if s := list[i]; s.CanvasFor == id && s.Agent == agent && !s.Exited {
+		if s := list[i]; s.CanvasFor == id && s.Agent == agent && !s.Exited && !strings.HasPrefix(s.Group, proto.UnslopGroup) {
 			return s, true, nil
 		}
 	}

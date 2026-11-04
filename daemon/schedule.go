@@ -434,6 +434,9 @@ func (s *Server) hibernateSession(sess *session.Session, byHand bool) error {
 		return err
 	}
 	s.reapSession(info.ID)
+	if byHand {
+		s.endRegionsOfLead(info) // an idle one, on its own, may be waiting for them
+	}
 	s.logger().Info("hibernated an idle agent", "id", info.ID, "agent", meta.Agent)
 	return nil
 }

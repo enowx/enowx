@@ -122,7 +122,7 @@ func (v *View) agentBar(c *ui.Context, o Options, cv proto.Canvas) {
 		if widget.Button(c, widget.Secondary, icon.Pause, "Pause", "").Clicked() {
 			o.Control(cv.ID, proto.CanvasPause, v.reportErr)
 		}
-		if widget.Button(c, widget.Secondary, icon.Stop, "Stop", "").Tooltip("Interrupt the agent, and pause").Clicked() {
+		if widget.Button(c, widget.Secondary, icon.Stop, "Stop", "").Tooltip("Interrupt the agent, end its region agents, and pause").Clicked() {
 			o.Control(cv.ID, proto.CanvasStop, v.reportErr)
 		}
 	})

@@ -37,13 +37,19 @@ const (
 	helperGrace = 5 * time.Second
 	// helpersEvery is how often they're looked at.
 	helpersEvery = time.Minute
+	// regionFinishedMax is how long a region's agent that reported done has to settle: an
+	// agent whose state enowX can't read may read as at work for good.
+	regionFinishedMax = 2 * time.Minute
+	// regionMax bounds a region's agent that never reports, a bugged or hung one: its few
+	// passes take minutes, and nothing else would ever end it.
+	regionMax = 2 * time.Hour
 )
 
 // helpersState is what the watch keeps. mu guards finished.
 type helpersState struct {
 	mu       sync.Mutex
-	finished map[string]bool // sessions whose work is known to be done
-	convos   sync.Mutex      // the file of conversations to go on with
+	finished map[string]time.Time // sessions whose work is known to be done, and since when
+	convos   sync.Mutex           // the file of conversations to go on with
 }
 
 // helperKind says what helper a session is, "" for none: a page's agent
@@ -85,9 +91,9 @@ func (s *Server) helperFinished(id string) {
 	}
 	s.helpers.mu.Lock()
 	if s.helpers.finished == nil {
-		s.helpers.finished = map[string]bool{}
+		s.helpers.finished = map[string]time.Time{}
 	}
-	s.helpers.finished[id] = true
+	s.helpers.finished[id] = time.Now()
 	s.helpers.mu.Unlock()
 }
 
@@ -115,10 +121,21 @@ func (s *Server) helpersPass(now time.Time) []string {
 			continue // GOA's, whatever else it looks like
 		}
 		s.helpers.mu.Lock()
-		finished := s.helpers.finished[info.ID]
+		finishedAt, finished := s.helpers.finished[info.ID]
 		s.helpers.mu.Unlock()
-		if !helperEnds(info, finished, sess.QuietFor(now)) {
+		region := strings.HasPrefix(info.Group, proto.UnslopGroup)
+		if region && !info.Exited && !finished && now.Sub(info.Created) > regionMax {
+			s.logger().Warn("helpers: a region's agent ran too long: ending its unslop's", "session", info.ID, "canvas", info.CanvasFor)
+			s.endUnslopRegions(info.CanvasFor)
+			ended = append(ended, info.ID)
 			continue
+		}
+		overdue := region && finished && now.Sub(finishedAt) > regionFinishedMax
+		if !overdue && !helperEnds(info, finished, sess.QuietFor(now)) {
+			continue
+		}
+		if !info.Exited && s.regionsAtWork(info) {
+			continue // what it leads goes with it: it ends once they are done
 		}
 		s.keepHelperConvo(info, sess.Meta())
 		if err := s.deleteSession(info.ID); err != nil {

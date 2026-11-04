@@ -14,7 +14,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/enowx/enowx/core/agent"
 	"github.com/enowx/enowx/core/canvas"
 	"github.com/enowx/enowx/proto"
 )
@@ -175,13 +174,12 @@ func (s *Server) canvasControl(p proto.CanvasControl) (proto.CanvasInfo, error) 
 		return ch.Canvas.CanvasInfo, nil
 	case proto.CanvasStop:
 		s.canvasState.setPaused(p.ID, true)
-		if sess, err := s.sessions.Get(c.Agent); err == nil {
-			key := "\x03"
-			if preset, ok := agent.Find(sess.Meta().Agent); ok {
-				key = preset.InterruptKey()
-			}
-			s.sessions.Input(sess, []byte(key))
+		_ = s.interruptSession(c.Agent) // none, when no agent has touched it lately
+		// The last to touch it may be a region's agent, and the redesign goes on without it.
+		if run, ok := s.unslopRuns.status(c.ID); ok && run.Lead != "" && run.Lead != c.Agent {
+			_ = s.interruptSession(run.Lead)
 		}
+		s.background.start(func() { s.endUnslopRegions(c.ID) })
 	default:
 		return proto.CanvasInfo{}, errors.New("canvas: pause, resume, stop, open or compare")
 	}
