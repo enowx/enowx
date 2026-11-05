@@ -178,6 +178,9 @@ func (a *App) ragProjectOn(c *ui.Context, st *ragSettingsState, p proto.ProjectI
 	case s.Error != "":
 		widget.StatusLine(c, theme.Error, false, "The last index failed")
 		widget.CardNote(c, s.Error, 3)
+	case s.ContextError != "":
+		widget.StatusLine(c, theme.Warning, false, "The last prompt's search failed")
+		widget.CardNote(c, s.ContextError, 3)
 	case changed:
 		widget.StatusLine(c, theme.Warning, false, "The embedder changed to "+s.Embedder)
 	default:
@@ -277,11 +280,10 @@ func (a *App) ragConsentSheet(c *ui.Context, st *ragSettingsState) {
 			open = false
 			set := r.status[dir].Settings
 			set.On, set.Consent, set.Exclude = true, plan.Host, splitList(r.planEx)
-			if !set.Context && !set.Offer {
-				// First turned on: prompts get the parts bearing on them, and
-				// decisions are offered as memories (each can be turned off).
-				set.Context, set.Offer = true, true
-			}
+			// First turned on: decisions are offered as memories (it can be
+			// turned off). Prompts get the parts bearing on them whatever this
+			// says: that isn't a switch.
+			set.Offer = true
 			a.setRAGProjectFor(st, dir, set, true)
 		}
 	})
@@ -323,13 +325,16 @@ func (a *App) ragDetailsSheet(c *ui.Context, st *ragSettingsState) {
 		if s.Error != "" {
 			widget.Notice(c, icon.Alert, theme.Error, "The last index failed", s.Error, nil)
 		}
+		if s.ContextError != "" {
+			widget.Notice(c, icon.Alert, theme.Warning, "The last prompt's search failed", s.ContextError+". Prompts got what the index's words found instead, marked as such.", nil)
+		}
 		set := s.Settings
-		if switchRowKey(c, "ctx", &set.Context, "Add results to a prompt", "At the start of each prompt, the parts that bear on it.") ||
-			switchRowKey(c, "offer", &set.Offer, "Offer decisions as memories", "When an answer settles something: “Keep this as a memory of the project?”") {
+		if switchRowKey(c, "offer", &set.Offer, "Offer decisions as memories", "When an answer settles something: “Keep this as a memory of the project?”") {
 			s.Settings = set
 			r.status[dir] = s
 			a.setRAGProjectFor(st, dir, set, false)
 		}
+		widget.CardNote(c, "Every prompt gets the four parts that bear on it, up to 6000 characters, as it starts (agents with a start-of-prompt hook).", 3)
 		widget.Field(c, "Leave out", func() {
 			widget.Input(c, &r.exclude, "testdata/").FillWidth().Font(theme.MonoFont)
 		})

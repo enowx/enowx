@@ -157,11 +157,10 @@ func (a *App) ragConsentDialog(c *ui.Context, p *ragPanelState) {
 				p.plan = nil
 				set := p.st.Settings
 				set.On, set.Consent, set.Exclude = true, plan.Host, splitList(p.exclude)
-				if !set.Context && !set.Offer {
-					// First turned on: prompts get the parts bearing on them, and
-					// decisions are offered as memories (each can be turned off).
-					set.Context, set.Offer = true, true
-				}
+				// First turned on: decisions are offered as memories (it can be
+				// turned off). Prompts get the parts bearing on them whatever
+				// this says: that isn't a switch.
+				set.Offer = true
 				a.setRAGProject(p, set, true)
 			}
 		})
@@ -258,14 +257,17 @@ func (a *App) ragOn(c *ui.Context, s proto.SessionInfo, p *ragPanelState) {
 			}
 		})
 	}
+	if st.ContextError != "" {
+		widget.Notice(c, icon.Alert, theme.Warning, "The last prompt's search failed", st.ContextError+". Prompts got what the index's words found instead, marked as such.", nil)
+	}
 	a.ragMemories(c, p)
-	widget.Field(c, "Agents here", func() {
+	widget.Field(c, "Memories", func() {
 		set := st.Settings
-		if switchRowKey(c, "ctx", &set.Context, "Give prompts the parts that bear on them", "Up to four results, added as the prompt starts (agents with hooks).") ||
-			switchRowKey(c, "offer", &set.Offer, "Offer to keep decisions as memories", "As a session ends, what its agent said last, to edit and keep.") {
+		if switchRowKey(c, "offer", &set.Offer, "Offer to keep decisions as memories", "As a session ends, what its agent said last, to edit and keep.") {
 			a.setRAGProject(p, set, false)
 		}
 	})
+	widget.CardNote(c, "Every prompt gets the four parts of the project that bear on it, up to 6000 characters, as it starts: agents with a start-of-prompt hook only (Claude Code, Codex, Claude Platform).", 3)
 	if widget.DangerButton(c, "Turn off and delete the index").Disabled(p.busy).Clicked() {
 		a.confirm("Turn off project search?", "The index of “"+textfmt.LastPathPart(p.dir)+"” on "+a.host.Name+" is deleted and agents here stop finding the project by meaning. Its memories stay.", "Turn off", func() {
 			set := p.st.Settings

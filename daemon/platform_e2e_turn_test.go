@@ -3,13 +3,12 @@
 package daemon
 
 import (
-	"fmt"
-	"os"
 	"path/filepath"
 	"slices"
 	"strings"
 	"testing"
 
+	"github.com/enowx/enowx/core/procstat"
 	"github.com/enowx/enowx/internal/standinapi"
 	"github.com/enowx/enowx/proto"
 )
@@ -229,18 +228,10 @@ func e2eQuestions(t *testing.T) {
 // processWith is a running process whose whole command line is exactly command, 0 for
 // none: a program's arguments merely naming it don't count.
 func processWith(command string) int {
-	entries, _ := os.ReadDir("/proc")
-	for _, entry := range entries {
-		var pid int
-		if _, err := fmt.Sscanf(entry.Name(), "%d", &pid); err != nil {
-			continue
-		}
-		data, err := os.ReadFile(filepath.Join("/proc", entry.Name(), "cmdline"))
-		if err != nil {
-			continue
-		}
-		if strings.TrimRight(strings.ReplaceAll(string(data), "\x00", " "), " ") == command {
-			return pid
+	procs, _ := procstat.Snapshot()
+	for _, p := range procs {
+		if strings.Join(procstat.Args(p.PID), " ") == command {
+			return p.PID
 		}
 	}
 	return 0

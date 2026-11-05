@@ -157,21 +157,25 @@ func (a *App) chatViewSending(c *ui.Context, s proto.SessionInfo, shown func() b
 	ch.View(c, opts)
 }
 
-// setAgentSetting asks session s's agent for a setting, as its preset
-// says: a command typed in for the model and effort, the daemon cycling
-// the agent's mode key for the mode.
+// setAgentSetting asks session s's daemon for a setting of its agent: the model and effort
+// for that session alone (session.settings), the mode by cycling its mode key.
 func (a *App) setAgentSetting(s proto.SessionInfo, setting, id string) {
-	set := agent.SettingsOf(s.Agent)
+	cl := a.client
+	if cl == nil {
+		return
+	}
 	switch setting {
-	case "model":
-		a.sendToSession(s.ID, fmt.Sprintf(set.ModelCommand, id))
-	case "effort":
-		a.sendToSession(s.ID, fmt.Sprintf(set.EffortCommand, id))
-	case "mode":
-		cl := a.client
-		if cl == nil {
-			return
+	case "model", "effort":
+		p := proto.SessionSettingsParams{ID: s.ID, Model: id}
+		if setting == "effort" {
+			p = proto.SessionSettingsParams{ID: s.ID, Effort: id}
 		}
+		go func() {
+			if err := cl.SwitchSettings(p); err != nil {
+				a.onMain(func() { a.status = client.Explain(err) })
+			}
+		}()
+	case "mode":
 		go func() {
 			if err := cl.SwitchMode(s.ID, id); err != nil {
 				a.onMain(func() { a.status = err.Error() })

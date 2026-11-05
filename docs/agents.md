@@ -323,6 +323,16 @@ A session's row and `enowx-app ls` say which agents its agent has running beside
 
 The session list, `sessions` and `ls` show each agent session's project, path and model. The model is what the agent writes in its transcript with each answer, looked at every few seconds, so `/model`, a switch, a fallback and a config all show, Claude Code's `/model` at once and others with their next answer. An agent enowX reads no transcript of, or one that hasn't answered yet, reads "unknown model"; a stopped session shows the last it said, marked "(last)". A program started by hand in a shell tab is listed as the shell, with no model.
 
+### What a switch does
+
+`switch --model/--effort`, the chat's composer, `goa delegate --model/--effort` on a session already there and the board's **Change model** all change that session alone (`session.settings`). Claude Code's `/model` and `/effort` save what they set in `~/.claude/settings.json` as the default for new sessions (2.1.318), and Codex's `/model` keeps its choice too (read in 0.166's program, not run), so enowX never types them for those agents: **the agent stops and starts again on its conversation with `--model`/`--effort`** (`-c` for Codex), which hold for that process, and the user's settings file isn't touched. It takes a few seconds, and the session comes back on those flags each time it starts.
+
+- **When it is refused, nothing having changed:** while its agent is at work or asking (try at its turn's end), when stopping would lose what it runs or serves, or when it runs on a config, which decides its model (switch its config). `goa delegate` still gives the task then, its board line saying the session kept its own model. A session that isn't running only takes the new values, for when it comes back.
+- **The permission mode isn't affected:** Shift+Tab holds for the process, as does `--permission-mode` (2.1.318: only `/config`'s default mode writes `permissions.defaultMode`), so `session.mode` is as it was.
+- **Claude Platform** keeps its typed `/model` and `/effort`, which hold for its session alone.
+- **Typing `/model` yourself** in a session's terminal or chat is still Claude Code's own command, and saves your default as it says.
+- **An older daemon** answers that it can't, and nothing is typed in its place: update it.
+
 ## Skipping permission prompts
 
 New session's **Skip permission prompts**, offered for agents other than Claude Code, starts an agent in its mode that asks nothing. Sessions the user doesn't start by hand follow it only where nothing would hear a prompt: an agent with no hooks (OpenCode and most others; every agent on Windows), started as GOD of Agents, its worker, or the chat of a note or a canvas (`SkipUnheard`). Codex tells enowX it is asking, so GOA's workers of it stay as `goa delegate` said (`--yolo`), and GOA answers. `goa start --yolo` is the same default on the command line.

@@ -59,11 +59,19 @@ The side panel's **Code** group has an **Index** tool for the selected session's
 - **Reindex**, and progress (`rag.progress`) while indexing runs;
 - a search box. Results show file:line, the symbol and the matching part; clicking one opens the file at those lines, marked;
 - the project's memories, which can be added, changed and deleted;
-- **Give prompts the parts that bear on them**: at the start of a prompt, the four best results, up to 6000 characters, are added as context. This needs the start-of-prompt hook (Claude Code, Codex). With the judge's use **RAG: context or not** on, only those it says bear on the prompt are added ([decide.md](decide.md)).
 - **Offer to keep decisions as memories**: when a session ends, a card offers the agent's last answer to edit and save (`rag.offer`). With the judge's use **RAG: memories to keep** on, it offers only an answer holding a decision, written as that decision ([decide.md](decide.md)).
 - **Turn off and delete the index**, which asks first.
 
-The feature `rag` is on by default, and agreeing to index a project turns on both switches above when neither was set.
+The feature `rag` is on by default, and agreeing to index a project turns on the memory offer when it wasn't set.
+
+## Every prompt gets the project's parts
+
+A prompt is not searched by choice. In a session whose project is indexed, the start-of-prompt hook searches the project with the prompt and adds the four best results, up to 6000 characters, to what the agent is given. Nothing turns that off: not a switch in the Index tool, not the judge. The only thing that keeps a search from running is consent — a project not turned on, or not agreed to for the embedder in use, sends nothing, and nothing is embedded without that agreement.
+
+- **The query is embedded** on every prompt, like an index's chunks: that is one call to the embedder per prompt.
+- **It is bounded**: past 3 seconds the prompt goes on without the index rather than wait (a search measures p90 300 ms).
+- **A failed embedder doesn't cost the prompt**: the search falls back to the index's words alone, in the host's own store, and the parts say so (`found by words: the embedder failed`). The failure is logged and shown in Settings → RAG and in the Index tool until a search works again (`RAGStatus.ContextError`).
+- **Agents with a start-of-prompt hook**: Claude Code, Claude Agent Teams, Codex, and Claude Platform (the built-in agent, through `core/platformagent/hookbridge`). Any other agent can't be given the parts: enowX has no moment of the prompt to answer, so a session of one of those gets nothing from the index unless its agent searches with `rag search` itself.
 
 ## Staying fresh
 

@@ -27,8 +27,11 @@ var ErrNotFound = errors.New("session: not found")
 // ErrReplaced is returned when a session changed while being replaced.
 var ErrReplaced = errors.New("session: it changed meanwhile")
 
-// Scrollback is how many bytes of scrollback each session keeps.
-const Scrollback = 10 << 20
+// Scrollback is how many bytes of scrollback each session keeps: a fifth of
+// what it did, as the daemon's own memory is mostly this, one scrollback a
+// session (docs/performance.md). A long build's log is cut sooner; an agent's
+// chat isn't affected, being read from its transcript.
+const Scrollback = 2 << 20
 
 // A session is active while its screen changed within activeFor; the
 // screen is checked every activityPeriod. Changes within echoFor of the

@@ -44,6 +44,12 @@ func TestHostPastItemsRecoversOnce(t *testing.T) {
 	if got := ts.pullFrom(); got != 2103 {
 		t.Fatalf("asked from %d, after", got)
 	}
+	// Cut off partway, it carries on from where it stopped: asking for the whole
+	// space again is what read it all, every few seconds.
+	ts.state.Recheck, ts.state.RecheckAt = 0, 869
+	if got := ts.pullFrom(); got != 869 {
+		t.Fatalf("a recheck cut off asked from %d, not from 869", got)
+	}
 }
 
 // What waits is asked for again, and past the first day still, less often: what was seen

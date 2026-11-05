@@ -10,10 +10,10 @@ import (
 )
 
 // The judge's later uses on this host (docs/decide.md): a model and effort
-// for a prompt (route), the search results that bear on a prompt
-// (context), a memory worth offering (memory), how a chat message
-// notifies (chat), and whether a failed check is flaky (flaky). Each, off
-// or unanswered, leaves things as they were without the judge.
+// for a prompt (route), a memory worth offering (memory), how a chat
+// message notifies (chat), and whether a failed check is flaky (flaky).
+// Each, off or unanswered, leaves things as they were without the judge.
+// A prompt's project search isn't judged: it runs on every prompt.
 
 // useOn says whether use is on on this host.
 func (s *Server) useOn(use string) bool { return decide.Use(s.judge.Settings().Get(), use).On }
@@ -74,31 +74,6 @@ func (s *Server) routeFor(p proto.DecideRouteParams) (proto.RouteChoice, error) 
 	}
 	s.acted(d, proto.ActedRouted, 0)
 	return out, nil
-}
-
-// pickContext is those of hits (parts, as the prompt would get them) that
-// bear on session info's prompt, as the judge says; all of them when the
-// use is off or the judge has no sure answer.
-func (s *Server) pickContext(info proto.SessionInfo, prompt string, hits []proto.RAGHit, parts []string) []proto.RAGHit {
-	if len(hits) == 0 || !s.useOn(proto.DecideContext) {
-		return hits
-	}
-	d, err := s.decideFor(info, proto.DecideAsk{Use: proto.DecideContext, Prompt: s.maskLent(prompt), Parts: parts})
-	switch {
-	case err != nil:
-		return hits
-	case !s.sure(d):
-		if d.Judge != "" {
-			s.acted(d, proto.ActedNothing, 0)
-		}
-		return hits
-	case d.Verdict == proto.VerdictNone:
-		s.acted(d, proto.ActedDropped, 0)
-		return nil
-	}
-	kept := decide.Keep(hits, d)
-	s.acted(d, proto.ActedChosen, 0)
-	return kept
 }
 
 // memoryOf is what to offer as a memory of session info's agent's last

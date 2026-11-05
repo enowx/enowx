@@ -225,14 +225,15 @@ func TestPlatformIsRegistered(t *testing.T) {
 	here := filepath.Join(sessions, "c1.jsonl")
 	appendLines(t, here, cpMeta)
 	appendLines(t, filepath.Join(sessions, "other.jsonl"), `{"type":"meta","dir":"/elsewhere"}`+"\n")
-	found := FindIn(record.AgentID, home, "/repo", store)
+	found := Find(record.AgentID, home, "/repo")
 	if len(found) != 1 || found[0].Path != here {
 		t.Fatalf("default folder: %+v", found)
 	}
-	// In a session: its own folder.
+	// In a session: its own folder, which the daemon reads instead of the default
+	// one (daemon/transcript.go).
 	mine := filepath.Join(store, "c2.jsonl")
 	appendLines(t, mine, cpMeta+cpFinal)
-	found = FindIn(record.AgentID, home, "/repo", store)
+	found = Stored(store)
 	if len(found) != 1 || found[0].Path != mine {
 		t.Fatalf("store: %+v", found)
 	}

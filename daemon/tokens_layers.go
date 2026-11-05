@@ -5,9 +5,11 @@ import (
 	"fmt"
 	"strconv"
 	"strings"
+	"sync/atomic"
 	"time"
 
 	"github.com/enowx/enowx/core/agent"
+	"github.com/enowx/enowx/core/rag"
 	"github.com/enowx/enowx/core/tokens"
 	"github.com/enowx/enowx/proto"
 )
@@ -120,15 +122,21 @@ func (s *Server) judgeTokens(d proto.Decision) {
 	s.recordOwn(c)
 }
 
-// ragTokens keeps an index's embedding tokens as RAG's, enowX's own.
+// ragCallSeq numbers RAG's calls: an index embeds several batches at once,
+// and two of them in the same nanosecond would otherwise be one call kept.
+var ragCallSeq atomic.Int64
+
+// ragTokens keeps embedding tokens as RAG's, enowX's own: an index's, and
+// a prompt's search, which embeds its query every time.
 func (s *Server) ragTokens(dir string, n int64) {
 	if n <= 0 {
 		return
 	}
 	st := s.ragSettings.Get()
 	now := time.Now()
-	s.recordOwn(tokens.Call{ID: "rag:" + dir + ":" + strconv.FormatInt(now.UnixNano(), 36), Time: now, Project: dir,
-		Own: proto.TokensOwnRAG, Provider: st.Embedder, Model: st.Model, Input: n})
+	id := "rag:" + dir + ":" + strconv.FormatInt(now.UnixNano(), 36) + ":" + strconv.FormatInt(ragCallSeq.Add(1), 36)
+	s.recordOwn(tokens.Call{ID: id, Time: now, Project: dir,
+		Own: proto.TokensOwnRAG, Provider: st.Embedder, Model: rag.EmbedderModel(st), Input: n})
 }
 
 // tokenGate refuses a new agent session while a budget it falls under is

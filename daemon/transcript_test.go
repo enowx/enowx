@@ -213,7 +213,7 @@ func TestTranscriptPathReadsNothing(t *testing.T) {
 		t.Fatal(err)
 	}
 	file := filepath.Join(folder, "11111111-1111-4111-8111-111111111111.jsonl")
-	line := `{"type":"user","timestamp":"2026-10-22T06:00:00Z","message":{"role":"user","content":"hello"}}` + "\n"
+	line := `{"type":"user","timestamp":"` + time.Now().UTC().Format(time.RFC3339) + `","message":{"role":"user","content":"hello"}}` + "\n"
 	if err := os.WriteFile(file, []byte(line), 0o600); err != nil {
 		t.Fatal(err)
 	}
@@ -246,5 +246,141 @@ func TestTranscriptPathReadsNothing(t *testing.T) {
 	srv.transcripts.mu.Unlock()
 	if kept {
 		t.Fatal("asking for the path kept it from being let go")
+	}
+}
+
+// claudeConversation writes a conversation begun at began, and changing now.
+func claudeConversation(t *testing.T, home, dir, id string, began time.Time, text string) string {
+	t.Helper()
+	folder := filepath.Join(home, ".claude", "projects", transcript.ClaudeFolder(dir))
+	if err := os.MkdirAll(folder, 0o700); err != nil {
+		t.Fatal(err)
+	}
+	path := filepath.Join(folder, id+".jsonl")
+	line := `{"type":"user","timestamp":"` + began.UTC().Format(time.RFC3339Nano) + `","message":{"role":"user","content":"` + text + `"}}` + "\n"
+	if err := os.WriteFile(path, []byte(line), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	return path
+}
+
+// A new session in the folder of one long at work shows nothing until it writes its own,
+// though the other's file is the newest there: what `chat` showed of GOD of Agents.
+func TestNewSessionDoesNotShowAnothersConversation(t *testing.T) {
+	home := t.TempDir()
+	t.Setenv("HOME", home)
+	t.Setenv("CLAUDE_CONFIG_DIR", "")
+	srv := startServer(t)
+	dir := t.TempDir()
+	sess, err := srv.sessions.Create(session.Spec{Command: []string{"sleep", "30"}, Dir: dir, Meta: session.Meta{Agent: "claude"}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	claudeConversation(t, home, dir, "older", time.Now().Add(-time.Hour), "not yours")
+	got, err := srv.transcript(proto.TranscriptParams{ID: sess.ID()})
+	if err != nil || len(got.Entries) != 0 || !got.Supported {
+		t.Fatalf("before it wrote: %+v, %v", got, err)
+	}
+	if path := srv.transcriptPath(sess.ID()); path != "" {
+		t.Fatalf("it follows %s", path)
+	}
+	if convo := srv.sessionConversation(sess); convo != "" {
+		t.Fatalf("it would resume %s", convo)
+	}
+	own := claudeConversation(t, home, dir, "mine", time.Now(), "yours")
+	if path := srv.transcriptPath(sess.ID()); path != own {
+		t.Fatalf("its own: %q", path)
+	}
+	if meta := sess.Meta(); meta.Conversation != "mine" {
+		t.Fatalf("kept %q", meta.Conversation)
+	}
+}
+
+// Two sessions begun together each stay on their own, also once the claims on files are gone,
+// as after a restart; a conversation known by id isn't left for a newer file.
+func TestSessionsInOneFolderKeepTheirOwnConversation(t *testing.T) {
+	home := t.TempDir()
+	t.Setenv("HOME", home)
+	t.Setenv("CLAUDE_CONFIG_DIR", "")
+	srv := startServer(t)
+	dir := t.TempDir()
+	create := func(convo string) *session.Session {
+		t.Helper()
+		sess, err := srv.sessions.Create(session.Spec{Command: []string{"sleep", "30"}, Dir: dir, Meta: session.Meta{Agent: "claude", Conversation: convo}})
+		if err != nil {
+			t.Fatal(err)
+		}
+		return sess
+	}
+	a, b := create("a"), create("")
+	fileA := claudeConversation(t, home, dir, "a", time.Now(), "for a")
+	if got := srv.transcriptPath(a.ID()); got != fileA {
+		t.Fatalf("a follows %q", got)
+	}
+	srv.transcripts.forget(a.ID())
+	if got := srv.transcriptPath(b.ID()); got != "" {
+		t.Fatalf("b took a's: %q", got)
+	}
+	fileB := claudeConversation(t, home, dir, "b", time.Now(), "for b")
+	if got := srv.transcriptPath(b.ID()); got != fileB {
+		t.Fatalf("b follows %q", got)
+	}
+	srv.transcripts.forget(a.ID())
+	if got := srv.transcriptPath(a.ID()); got != fileA {
+		t.Fatalf("a moved to %q", got)
+	}
+}
+
+// Claude Code naming its conversation settles it before the file exists, and /clear moves the
+// chat to the new one, which isn't what a restart resumes until it is written.
+func TestClaudeCodeSaysWhichConversationItIsOn(t *testing.T) {
+	home := t.TempDir()
+	t.Setenv("HOME", home)
+	t.Setenv("CLAUDE_CONFIG_DIR", "")
+	srv := startServer(t)
+	dir := t.TempDir()
+	sess, err := srv.sessions.Create(session.Spec{Command: []string{"sleep", "30"}, Dir: dir, Meta: session.Meta{Agent: "claude"}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	start := func(convo, source string) {
+		t.Helper()
+		ev := agentEvent(proto.HookSessionStart, []byte(`{"session_id":"`+convo+`","source":"`+source+`"}`))
+		if _, err := srv.sessionHook(proto.SessionHookParams{ID: sess.ID(), Event: ev}); err != nil {
+			t.Fatal(err)
+		}
+	}
+	start("first", "startup")
+	claudeConversation(t, home, dir, "someone-elses", time.Now(), "not yours")
+	if got := srv.transcriptPath(sess.ID()); got != "" {
+		t.Fatalf("it follows %q", got)
+	}
+	first := claudeConversation(t, home, dir, "first", time.Now(), "yours")
+	if got := srv.transcriptPath(sess.ID()); got != first {
+		t.Fatalf("it follows %q", got)
+	}
+	start("second", "clear")
+	got, err := srv.transcript(proto.TranscriptParams{ID: sess.ID(), Since: 3})
+	if err != nil || !got.Reset || len(got.Entries) != 0 {
+		t.Fatalf("after /clear: %+v, %v", got, err)
+	}
+	if meta := sess.Meta(); meta.Conversation != "first" {
+		t.Fatalf("it would resume %q, not yet written", meta.Conversation)
+	}
+	second := claudeConversation(t, home, dir, "second", time.Now(), "after clear")
+	if got := srv.transcriptPath(sess.ID()); got != second {
+		t.Fatalf("it follows %q", got)
+	}
+}
+
+func TestStartedIsTheFirstRecordsTime(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "c.jsonl")
+	lines := `{"type":"last-prompt","sessionId":"c"}` + "\n" + `{"type":"user","timestamp":"2026-10-22T06:00:00Z"}` + "\n" + `{"type":"user","timestamp":"2026-11-01T06:00:00Z"}` + "\n"
+	if err := os.WriteFile(path, []byte(lines), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	got, ok := transcript.Started("claude", path)
+	if want := time.Date(2026, 10, 22, 6, 0, 0, 0, time.UTC); !ok || !got.Equal(want) {
+		t.Fatalf("%v, %v", got, ok)
 	}
 }

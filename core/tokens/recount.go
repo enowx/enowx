@@ -129,7 +129,7 @@ func (s *Store) Recount(fresh []Call) error {
 	old := map[string]*Call{}
 	var order []string
 	for _, d := range dayNames {
-		for _, c := range s.loadLocked(d).calls {
+		for _, c := range s.rawLocked(d) {
 			if k := old[c.ID]; k != nil {
 				k.grow(c)
 				continue
@@ -198,7 +198,10 @@ func (s *Store) Recount(fresh []Call) error {
 			return fmt.Errorf("tokens: write %s: %w", d, err)
 		}
 	}
-	s.days, s.where = map[string]*dayCalls{}, nil
+	// The day files are new: what was read of them, and where each ID was, is
+	// out of date.
+	s.days = map[string]*dayCalls{}
+	s.where, s.pruned = nil, ""
 	r := recounted{Version: RecountVersion}
 	for d := range approximate {
 		r.Approximate = append(r.Approximate, d)

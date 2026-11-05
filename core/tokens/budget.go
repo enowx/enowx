@@ -25,16 +25,21 @@ func PeriodStart(period string, now time.Time) time.Time {
 // applies reports whether call c counts against budget b: enowX's own use
 // never does.
 func applies(b proto.TokenBudget, c Call) bool {
-	if c.Own != "" {
+	return appliesRow(b, row{agent: c.Agent, project: c.Project, config: c.Config, own: c.Own})
+}
+
+// appliesRow is applies for a row of a summary.
+func appliesRow(b proto.TokenBudget, r row) bool {
+	if r.own != "" {
 		return false
 	}
 	switch b.Scope {
 	case proto.BudgetAgent:
-		return c.Agent == b.Target
+		return r.agent == b.Target
 	case proto.BudgetConfig:
-		return c.Config == b.Target
+		return r.config == b.Target
 	case proto.BudgetProject:
-		return c.Project == b.Target
+		return r.project == b.Target
 	}
 	return true
 }
@@ -44,9 +49,9 @@ func (s *Store) Budgets(budgets []proto.TokenBudget, prices *Prices, now time.Ti
 	out := make([]proto.TokenBudgetState, 0, len(budgets))
 	for _, b := range budgets {
 		st := proto.TokenBudgetState{TokenBudget: b, Since: PeriodStart(b.Period, now)}
-		for _, c := range s.Calls(st.Since, now.Add(time.Minute)) {
-			if applies(b, c) {
-				st.Used.Add(c.Counts(prices))
+		for _, r := range s.rows(st.Since, now.Add(time.Minute), prices) {
+			if appliesRow(b, r) {
+				st.Used.Add(r.counts)
 			}
 		}
 		if b.Tokens > 0 {

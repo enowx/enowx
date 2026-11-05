@@ -18,6 +18,7 @@ import (
 	"github.com/enowx/enowx/client"
 	"github.com/enowx/enowx/core/agent"
 	"github.com/enowx/enowx/core/decide"
+	"github.com/enowx/enowx/core/procstat"
 	"github.com/enowx/enowx/internal/standinapi"
 	"github.com/enowx/enowx/proto"
 	"github.com/enowx/enowx/transport"
@@ -148,13 +149,14 @@ func (e *e2e) assertNoKeyOnDisk() {
 	})
 }
 
-// assertNoKeyInCommandLines is what `ps` shows of every process, agents' included.
+// assertNoKeyInCommandLines is what `ps` shows of every process, agents' included. Read
+// through procstat, as macOS has no /proc.
 func (e *e2e) assertNoKeyInCommandLines() {
 	e.t.Helper()
-	entries, _ := os.ReadDir("/proc")
-	for _, entry := range entries {
-		if data, err := os.ReadFile(filepath.Join("/proc", entry.Name(), "cmdline")); err == nil && strings.Contains(string(data), e2eKey) {
-			e.t.Errorf("the key is on the command line of process %s", entry.Name())
+	procs, _ := procstat.Snapshot()
+	for _, p := range procs {
+		if strings.Contains(strings.Join(procstat.Args(p.PID), " "), e2eKey) {
+			e.t.Errorf("the key is on the command line of process %d", p.PID)
 		}
 	}
 }

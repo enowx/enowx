@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/enowx/enowx/core/agent"
+	"github.com/enowx/enowx/core/session"
 	"github.com/enowx/enowx/core/transcript"
 	"github.com/enowx/enowx/proto"
 )
@@ -21,6 +22,10 @@ type transcripts struct {
 	mu    sync.Mutex
 	byID  map[string]*follower
 	files map[string]string // transcript file → the session following it
+	// told is the conversation each session's agent said it is on, which it may not have
+	// written yet. Kept apart from Meta.Conversation, which resumes: an agent can't resume
+	// a conversation it never wrote.
+	told map[string]string
 }
 
 type follower struct {
@@ -146,11 +151,51 @@ func (t *transcripts) owned(id string) string {
 func (t *transcripts) forget(id string) {
 	t.mu.Lock()
 	defer t.mu.Unlock()
+	t.forgetLocked(id)
+}
+
+func (t *transcripts) forgetLocked(id string) {
 	delete(t.byID, id)
+	delete(t.told, id)
 	for path, owner := range t.files {
 		if owner == id {
 			delete(t.files, path)
 		}
+	}
+}
+
+// tell notes the conversation session id's agent says it is on; one it wasn't told before
+// lets go of what the session followed, which the chat then shows anew.
+func (t *transcripts) tell(id, convo string) {
+	t.mu.Lock()
+	defer t.mu.Unlock()
+	if t.told[id] == convo {
+		return
+	}
+	t.forgetLocked(id)
+	if t.told == nil {
+		t.told = map[string]string{}
+	}
+	t.told[id] = convo
+}
+
+func (t *transcripts) toldOf(id string) string {
+	t.mu.Lock()
+	defer t.mu.Unlock()
+	return t.told[id]
+}
+
+// conversationStarted takes what an agent's start says of its conversation. Claude Code names
+// it, even before writing it. Its teams' preset doesn't count, as a teammate starts too. An
+// agent that doesn't say it but says it cleared is on a new one, to be found.
+func (s *Server) conversationStarted(sess *session.Session, ev proto.HookEvent) {
+	meta := sess.Meta()
+	switch {
+	case ev.Conversation != "" && meta.Agent == "claude":
+		s.transcripts.tell(sess.ID(), ev.Conversation)
+	case ev.Source == "clear":
+		s.sessions.NewConversation(sess)
+		s.transcripts.forget(sess.ID())
 	}
 }
 
@@ -178,7 +223,8 @@ func (s *Server) transcript(p proto.TranscriptParams) (proto.Transcript, error) 
 	reset := s.findTranscript(p.ID, info, home, f) || f.opened
 	f.opened = false
 	if f.reader == nil {
-		return proto.Transcript{Supported: true, Reason: "Nothing yet: the conversation shows here once " + name + " records it."}, nil
+		// A chat holding what it followed before drops it: that isn't this conversation.
+		return proto.Transcript{Supported: true, Reset: p.Since > 0, Reason: "Nothing yet: the conversation shows here once " + name + " records it."}, nil
 	}
 	if err := f.reader.Update(); err != nil {
 		return proto.Transcript{}, err
@@ -203,6 +249,11 @@ func (s *Server) transcript(p proto.TranscriptParams) (proto.Transcript, error) 
 	out := proto.Transcript{Supported: true, Entries: entries, Rev: rev, Reset: reset,
 		Model: f.reader.Model, Mode: f.reader.Mode, Effort: f.reader.Effort,
 		ContextTokens: f.reader.Context, CostUSD: f.reader.CostUSD, BudgetUSD: f.reader.BudgetUSD}
+	if s.floorOf(info.ID, f.reader.Path()) > 0 {
+		// Switched: the transcript names the model it left until its next answer.
+		meta := sess.Meta()
+		out.Model, out.Effort = meta.Model, meta.Effort
+	}
 	if out.ContextTokens > 0 {
 		out.ContextWindow = f.reader.Window
 		if out.ContextWindow == 0 {
@@ -217,37 +268,121 @@ func (s *Server) transcript(p proto.TranscriptParams) (proto.Transcript, error) 
 	return out, nil
 }
 
-// findTranscript has f follow the newest file of the conversation of session id, looking
-// every lookEvery, and says when that is another file than it followed. f.mu is held.
+// findTranscript has f follow the file of the conversation of session id, looking every
+// lookEvery, and says when that is another file than it followed. f.mu is held.
 // Finding reads nothing of the file: what only wants its name stays cheap.
 func (s *Server) findTranscript(id string, info proto.SessionInfo, home string, f *follower) (reset bool) {
 	if f.reader != nil && time.Since(f.checked) <= lookEvery {
 		return false
 	}
 	f.checked = time.Now()
+	current := ""
+	if f.reader != nil {
+		current = f.reader.Path()
+	}
+	path := s.ownTranscript(id, info, home, current)
+	if path == "" || path == current {
+		return false
+	}
+	f.reader = transcript.Open(info.Agent, path)
+	return true
+}
+
+// ownTranscript is the file of session id's own conversation, "" while it has none, current
+// being the one it follows. Agents keep conversations by folder, and an older session's in
+// the same folder keeps changing, so a file's being new says nothing of whose it is:
+//   - in the session's own folder (Preset.SessionDir), the newest is its own;
+//   - a conversation known by id is that file alone, written or not;
+//   - otherwise, a conversation that began after the session did and no other session is on.
+//
+// What it finds is kept as the session's, so that resuming and a restart go on with it.
+func (s *Server) ownTranscript(id string, info proto.SessionInfo, home, current string) string {
+	sess, err := s.sessions.Get(id)
+	if err != nil {
+		return ""
+	}
+	meta := sess.Meta()
 	since := info.Created
-	if sess, err := s.sessions.Get(id); err == nil && sess.Meta().ConvoSince.After(since) {
-		since = sess.Meta().ConvoSince
+	if meta.ConvoSince.After(since) {
+		since = meta.ConvoSince
 	}
-	for _, found := range transcript.FindIn(info.Agent, home, info.Dir, s.agentStore(info.Agent, id, false)) {
-		// Conversations older than the session belong to earlier ones;
-		// a restored session's changes once its agent continues.
-		if found.Changed.Before(since.Add(-time.Second)) {
-			break
+	since = since.Add(-time.Second)
+	store := s.agentStore(info.Agent, id, false)
+	if stored := transcript.Stored(store); len(stored) > 0 {
+		if stored[0].Changed.Before(since) {
+			return ""
 		}
-		if f.reader != nil && f.reader.Path() == found.Path {
-			break
+		s.transcripts.claim(id, stored[0].Path, current)
+		s.keepConversation(sess, stored[0].Path)
+		return stored[0].Path
+	}
+	want := s.transcripts.toldOf(id)
+	if want == "" {
+		want = meta.Conversation
+	}
+	if want != "" {
+		if current != "" && transcript.ConversationID(info.Agent, current) == want {
+			return current
 		}
-		old := ""
-		if f.reader != nil {
-			old = f.reader.Path()
+		for _, found := range transcript.Find(info.Agent, home, info.Dir) {
+			if transcript.ConversationID(info.Agent, found.Path) == want {
+				// Its own even if another session follows it: resumed in two, both show it.
+				s.transcripts.claim(id, found.Path, current)
+				s.sessions.SetConversation(sess, want)
+				return found.Path
+			}
 		}
-		if s.transcripts.claim(id, found.Path, old) {
-			f.reader, reset = transcript.Open(info.Agent, found.Path), true
-			break
+		return ""
+	}
+	if store != "" {
+		return "" // it keeps them in its own folder, and has none yet
+	}
+	others := s.othersConversations(id, info.Agent)
+	for _, found := range transcript.Find(info.Agent, home, info.Dir) {
+		if found.Changed.Before(since) {
+			break // sorted newest first: the rest are older still
+		}
+		if others[transcript.ConversationID(info.Agent, found.Path)] {
+			continue
+		}
+		if began, ok := transcript.Started(info.Agent, found.Path); ok && began.Before(since) {
+			continue // it was going before this session: changing now, it is another's
+		}
+		if s.transcripts.claim(id, found.Path, current) {
+			s.keepConversation(sess, found.Path)
+			return found.Path
 		}
 	}
-	return reset
+	return ""
+}
+
+// keepConversation records the conversation at path as sess's.
+func (s *Server) keepConversation(sess *session.Session, path string) {
+	if convo := transcript.ConversationID(sess.Meta().Agent, path); convo != "" {
+		s.sessions.SetConversation(sess, convo)
+	}
+}
+
+// othersConversations are the conversations other sessions of agent's are on. They outlast a
+// restart, which the claims on files don't.
+func (s *Server) othersConversations(id, agentID string) map[string]bool {
+	out := map[string]bool{}
+	for _, other := range s.sessions.List() {
+		if other.ID() == id {
+			continue
+		}
+		meta := other.Meta()
+		if agent.Base(meta.Agent) != agent.Base(agentID) {
+			continue
+		}
+		if meta.Conversation != "" {
+			out[meta.Conversation] = true
+		}
+		if told := s.transcripts.toldOf(other.ID()); told != "" {
+			out[told] = true
+		}
+	}
+	return out
 }
 
 // rewind takes session id's agent back to before one of the user's

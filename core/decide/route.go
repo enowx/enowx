@@ -73,10 +73,14 @@ func Cheaper(difficulty string) string {
 	return difficulty
 }
 
-// Switch is what to type in a running session of agent id to change to r:
-// its model command, its effort command, as it has them.
+// Switch is what to type in a running session of agent id to change to r: its model command,
+// its effort command, as it has them. None for an agent whose commands save what they set for
+// all its sessions: session.settings changes those.
 func (r Route) Switch(id string) []string {
 	s := agent.SettingsOf(id)
+	if s.SavesDefaults {
+		return nil
+	}
 	var out []string
 	if r.Model != "" && s.ModelCommand != "" {
 		out = append(out, fmt.Sprintf(s.ModelCommand, r.Model))

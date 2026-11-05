@@ -97,21 +97,11 @@ func (s *Server) readModel(home string, info proto.SessionInfo, f *modelFollow) 
 	if own := s.transcripts.owned(info.ID); own != "" && own != f.path {
 		f.path, f.stamp, f.length = own, time.Time{}, 0
 	}
-	// Files are found by folder alone, so a newer one may be another session's,
-	// as a fork's: only a session at work can have started a new conversation.
+	// Only a session at work can have started a new conversation.
 	if f.path == "" && info.State != proto.StateDone || info.State == proto.StateWorking && time.Since(f.found) > modelFind {
 		f.found = time.Now()
-		for _, found := range transcript.FindIn(info.Agent, home, info.Dir, s.agentStore(info.Agent, info.ID, false)) {
-			if found.Changed.Before(info.Created.Add(-time.Second)) {
-				break
-			}
-			if found.Path == f.path {
-				break
-			}
-			if s.transcripts.claim(info.ID, found.Path, f.path) {
-				f.path, f.stamp, f.length = found.Path, time.Time{}, 0
-				break
-			}
+		if path := s.ownTranscript(info.ID, info, home, f.path); path != "" && path != f.path {
+			f.path, f.stamp, f.length = path, time.Time{}, 0
 		}
 	}
 	if f.path == "" {
@@ -122,7 +112,7 @@ func (s *Server) readModel(home string, info proto.SessionInfo, f *modelFollow) 
 		return said, false
 	}
 	f.stamp, f.length = st.ModTime(), st.Size()
-	said = transcript.LastSettings(info.Agent, f.path)
+	said = transcript.LastSettingsSince(info.Agent, f.path, s.floorOf(info.ID, f.path))
 	return said, said.Model != ""
 }
 

@@ -47,7 +47,7 @@ Per thing, on this branch:
 | What | App, private dirty | Daemon, private dirty |
 |---|---:|---:|
 | An idle session | about 0.05 MB (no terminal until it shows) | 0.55 MB |
-| A session's full scrollback (10 MiB of its text) | about 10 to 13 MB while its terminal is attached, 0 otherwise | about 13 MB, outside Go, for as long as the session lasts |
+| A session's full scrollback | about 10 to 13 MB while its terminal is attached, 0 otherwise | about 2 to 3 MB: the daemon keeps 2 MiB (`session.Scrollback`), outside Go, for as long as the session lasts |
 | A small canvas (3 designs, 20 KB each) | 2.6 MB once made | none measurable |
 
 Before lazy terminals, a full scrollback cost the app the same 10 to 13 MB for every session on the connected host, shown or not.
@@ -59,7 +59,7 @@ Same use each time: 3 agents with a stand-in program and a 30 MB conversation ea
 | Area | Who holds it | v0.6.2 | This branch | Left, and what would move it |
 |---|---|---:|---:|---|
 | Terminals | app, native | 10 to 13 per session attached, all of them | Those shown, and the 3 last shown | A smaller scrollback, or fewer kept |
-| Terminals | daemon, native | About 13 per full scrollback | The same | **The main cost left in the daemon:** a smaller scrollback |
+| Terminals | daemon, native | About 13 per full scrollback | About 2: the scrollback is 2 MiB (`session.Scrollback`) | A smaller scrollback still, but it is no longer the floor with many sessions |
 | A canvas's layers | app, Go heap | 100 to 150 at 2,000 elements (`widget.Running`, `layerRow`) | About 10: the first 200, the rest on asking | - |
 | Conversations | daemon, Go heap | About 28 per 30 MB of conversation shown, or of **any agent at work** | Only those a chat shows, for 2 minutes after | - |
 | Canvas pictures | app, Go heap | Up to 16 per picture, all kept for the open canvas | 64 at most | By construction and a unit test. Not measured in a real run: no picture was kept in these runs, as `canvas.render` didn't return one under Xvfb |
@@ -86,8 +86,13 @@ Each row is a commit's effect, measured with the scenario above on builds of the
 | Open canvas asks without frames | `4bee637` | | | | App's CPU on an idle canvas page, 5 small canvases: 59.3% → 14.2% |
 | A chat polls only while on screen | `abcf5fe` | | | | Conversations held in the daemon, 4 minutes after 3 chats left the screen: 2 → 0, and with that the daemon at 3 min: 145 → 99 |
 | This branch, by `scripts/profile-scenario.sh` | | 101 | 168 | 99 | Daemon: Go heap 12 MB, of which conversations none |
+| Scrollback 10 → 2 MiB (`session.Scrollback`) | this branch | | | | Daemon, 5 full scrollbacks: 65 → 10 MB, about 2 a session. **Not re-measured on the Mac:** the daemon there wasn't restarted |
+| A cut-off team pull carries on where it stopped, and a chat's refresh is answered from the last completed sync | this branch | | | | **Measured on the Mac before it:** `cloudclient.(*Client).Items` allocated 31.65 GB of 109.5 GB, 100% of `Client.call`'s allocs, through `teamSync.pull` (37.67 GB, with 6.01 GB in `seal.OpenItem`), from a re-check that timed out at `?after=869` and was asked for again from seq 0 every 5 s |
+| Tokens: only the last 2 days held as calls, older days summed | this branch | | | | **Measured on the Mac before it:** `tokens.(*Store).loadLocked` held 45.6 MB of the heap for 126,000 calls, while 7 days of summaries need 333 rows |
 
 The daemon's 137 in one row and 169 in the next is noise of the kind above, from when a collection last ran: 62 MB had just been returned in the first. The last row's app has its canvas open with 2,000-element designs, its web view in the process, and software drawing's buffers.
+
+The last three rows are the Mac's work, and only the scrollback one has a number from a run: the other two are **estimates**, from the profile the owner sent rather than from a scenario here. What they free is the allocation itself (the repeated whole-space reads) and the ~50 MB the token store held, so a daemon holding both should drop by about 60 MB of footprint, less whatever the cloud's one catch-up read still needs. Not measured on a build of this branch.
 
 **Idle CPU**, % of a core, the two builds running at the same moment, under software drawing:
 
@@ -110,6 +115,8 @@ The daemon's 137 in one row and 169 in the next is noise of the kind above, from
 - **An open canvas woke the window several times a second** to ask its page two things, and each asking and each answer drew a frame.
 - **A chat polled for as long as its session stayed in chat mode**, on screen or not, every 700 ms each, which also kept its conversation in the daemon.
 - **The app listed every process of the machine** to learn its own RSS.
+- **A team's pull that timed out asked for the whole space again, every 5 seconds.** The one-time re-check of a host's space (`teamRecheck`) only marked itself done after the last page, so a pull cut off at `?after=869` after 3m27s restarted from seq 0 at each chat refresh (`ui/teamchat.go` asks every 5 s): `Items` was 100% of the daemon's 1,200 MB allocated in 100 calls on the Mac. It now records the place it reached (`RecheckAt`) and carries on from there, and a chat's refresh within 3 s of a completed sync asks the cloud for nothing.
+- **The token store held a year of calls in memory**, read on the first scan: 45.6 MB for 126,000 calls, when a week of summaries needs 333 rows. Only the last two days are held as calls now; older days are summed the first time a summary needs them (`hotDays`).
 
 The stand-in agents here don't print, so what agents at work cost isn't in these runs: the owner's 6-hour heap (median 377 MB, high 816) wasn't reproduced, only its likely causes, and the fixture's canvases are one case of them.
 
@@ -128,7 +135,10 @@ The stand-in agents here don't print, so what agents at work cost isn't in these
 | Lazy loading of pages | **Built where it costs.** Pages are drawn, not kept, so walking them moved the heap by little, other than Canvas. What was loaded regardless of being shown was the terminals, now lazy. Package start-up is a few MB, not worth changing |
 | Unloading what is out of sight | **Built:** terminals after 3 minutes beyond the 3 last shown; the Canvas page's web view and pictures 2 minutes after leaving. **Not built:** one web view at a time. The Browser tool's and file tabs' web views stay per session until the session closes, and weren't measured |
 | Image LRU with a size limit | **Built:** canvas pictures, 64 MB. Team chat images already had a limit |
-| Scrollback on disk | **App: built in effect**, as its terminals only exist when shown. **Daemon: not built**, see trade-offs |
+| Scrollback on disk | **App: built in effect**, as its terminals only exist when shown. **Daemon: the scrollback is 2 MiB** (`session.Scrollback`), measured at 65 → 10 MB for 5 full ones; keeping the rest on disk is still not built, see trade-offs |
+| A smaller scrollback (`session.Scrollback`) | **Built:** 10 → 2 MiB. A terminal keeps a fifth as much history, so a long build's log is cut sooner; an agent's chat isn't affected, being read from its transcript. **Not re-measured on the Mac**, as its daemon wasn't restarted |
+| Fewer whole-space reads (a team's re-check, a chat's refresh) | **Built:** a pull carries on from where it stopped (`RecheckAt`), and a chat's refresh within 3 s of a completed sync asks the cloud for nothing. `sync.conflicts`'s own size and polling were done earlier, in `83f15e89` |
+| A token store that doesn't hold its history | **Built:** the last 2 days as calls, older days summed into rows; a call's ID remembered 40 days across days. Every split, day row, budget and session badge is exact |
 | Events over polling | **Built for what polled for nothing:** the plan, watches, ports, the app's own usage, frames for looks, canvas asking. Left: the daemon's look at each session's screen (a session's activity every 150 ms at most, its prompts every 3 s, its model every 5 s), for which programs give no event, and and the daemon's whole CPU with 20 idle sessions is now 2.7% of a core on Linux |
 | One process sampler | **Built:** what only follows processes reuses the last look under 10 s old, a plan looks once, and the app looks only at itself. Left: `goa_watch` reads every process's environment per GOD of Agents session every 5 s |
 | Incremental transcripts | **Reading was already incremental.** The bug was reading at all, now fixed. Left: a chat's poll walks all entries of its conversation, harmless next to the rest. **Large message buffers aren't bounded yet**: a frame up to 256 MiB is read whole. Canvas pages and pictures need that, so a bound means streaming them |
@@ -144,7 +154,7 @@ By private dirty on Linux, which stands in for footprint.
 
 **App: around 100 MB at rest with what it held still kept, and under it fresh.** Fresh it holds 56; the heaviest use above, 168 with a canvas of 2,000-element designs open, three terminals kept, two of them with full scrollback, a web view in the process, and software drawing's buffers (about 15 MB of the heap and much of its garbage). Six minutes after leaving that page, at rest: **117**, with 67 in the Go heap's mapping and 26 of anonymous memory, mostly the terminals kept. About 13 of the heap is software drawing's, which a GPU doesn't need, so a Mac may well be under 100 there, though that is an estimate. Keeping one terminal rather than three takes off up to 26 more.
 
-**Daemon: under 100 MB until scrollback passes it, and only a smaller scrollback gets it there with many sessions.** 99 in the use above, 65 of it those 5 full scrollbacks. Fresh 16; each idle session adds 0.55; each full scrollback about 13. At 30 full sessions that is about 16 + 390, whatever else is done. That is the evidence of a floor at today's scrollback, and the reason for the first trade-off.
+**Daemon: under 100 MB at 2 MiB of scrollback, and it took three things to get many sessions there.** 99 in the use above, 65 of it those 5 full scrollbacks at the old 10 MiB. Fresh 16; each idle session adds 0.55; each full scrollback was about 13 and is now about 2, so 30 full sessions are about 16 + 60 rather than 16 + 390. The other two were what the Mac showed at 26 sessions: a team's pull reading the whole space again every 5 seconds, and the token store holding a year of calls. Together they were about 70 MB of the Mac's 267 MB footprint, so all three together should carry a many-session daemon under 100 MB there; the scrollback figure is measured, the other two are estimates from that profile.
 
 ### Trade-offs for the owner
 
@@ -152,10 +162,9 @@ These change behaviour or carry risk, so they aren't built.
 
 | Step | Saves | Consequence |
 |---|---|---|
-| **Scrollback of 10 → 2 MiB** (`session.Scrollback`) | Measured in the daemon: 5 full sessions took 65 MB at 10 MiB and 10 MB at 2 MiB, so 11 MB per full session. 30 full sessions: from about 406 to about 76 MB | **The one with the most effect, and the only one that gets a many-session daemon under 100 MB.** A terminal keeps about a fifth as much history, so a long build's log is cut. Agents' chats aren't affected, being read from their transcripts |
-| Older scrollback kept on disk and read on scrolling up | The same, without losing history | Needs the terminal library to page rows in, which it doesn't offer; or replaying on attach, which costs the time and memory while attached. A larger piece of work |
+| Older scrollback kept on disk and read on scrolling up | What the smaller scrollback gave up, and without losing history | Needs the terminal library to page rows in, which it doesn't offer; or replaying on attach, which costs the time and memory while attached. A larger piece of work |
 | Keep 1 terminal instead of 3 (`panesKept`) | Up to 26 MB in the app | Going back to a recent session takes attaching: a "Connecting…" flash and the time to replay its scrollback |
-| Free an idle or hibernated session's terminal | Its 13 MB or so | Needs saving and bringing back its screen exactly, which restarts do only approximately. Risk of a session looking wrong |
+| Free an idle or hibernated session's terminal | Its 2 MB or so | Needs saving and bringing back its screen exactly, which restarts do only approximately. Risk of a session looking wrong |
 | A hard `GOMEMLIMIT` such as 256 MB | Bounds Go's part | Past it, up to half the CPU goes on GC; a large canvas or a burst would feel slow. Not recommended above the plain limit until the Mac's numbers ask for it |
 | A separate `enowxd` for desktops' daemon | 27 MB of RSS measured here, none of footprint | The app ships two binaries, or one more file to update. Only worth it if RSS itself is the target |
 | Streaming canvas pages and pictures | Bounds what a 256 MiB frame takes | A protocol change, kept compatible |

@@ -64,6 +64,12 @@ const (
 	teamSyncEvery  = 30 * time.Second
 	teamSyncSettle = 2 * time.Second // after a change, for the next ones
 	teamSyncTime   = 2 * time.Minute // a sync's longest
+	// pullEvery is how long a chat's refresh is answered from the last pull
+	// instead of the cloud. A chat open asks every 5 seconds, and the side
+	// panel and the Team page both show it, so two views ask a second or two
+	// apart: one round trip answers both, and one that follows a sync has
+	// nothing to ask for at all.
+	pullEvery = 3 * time.Second
 	// maxTeamFile is the most a file shared holds: a sealed item's size,
 	// less its path and the seal's.
 	maxTeamFile = api.MaxItemSize - 4096
@@ -147,6 +153,14 @@ func (s *Server) syncSpaceWith(team string, push bool) (proto.Space, error) {
 	if sp.Team == "" {
 		return proto.Space{}, fmt.Errorf("spaces: team %s isn't on this host", team)
 	}
+	if !push {
+		// A chat's refresh: the sync that just ended took everything, and the
+		// other view of the chat asked a moment ago. Asking the cloud again
+		// would be a round trip for what this host already has.
+		if at, err := s.teamSync.status(team); err == "" && time.Since(at) < pullEvery {
+			return sp, nil
+		}
+	}
 	st, err := s.cloud.store.Get()
 	if err != nil {
 		return sp, err
@@ -221,6 +235,9 @@ type teamSyncState struct {
 	RetryAt time.Time `json:"retryAt,omitzero"`
 	// Recheck is the last teamRecheck done.
 	Recheck int `json:"recheck,omitempty"`
+	// RecheckAt is the place the recheck reached: a pull cut off partway asks
+	// from it next time, not from the start of the space again.
+	RecheckAt int64 `json:"recheckAt,omitempty"`
 }
 
 type syncedFile struct {
@@ -347,6 +364,13 @@ func (ts *teamSync) pull(ctx context.Context) (err error) {
 	}()
 	after := ts.pullFrom()
 	for {
+		// Where the recheck has got to: a pull that fails partway, even on the
+		// reply, keeps the seq it asked from, and the next one carries on from
+		// there instead of asking for the whole space again. It moves past a
+		// page only once that page is applied.
+		if ts.state.Recheck < teamRecheck {
+			ts.state.RecheckAt = after
+		}
 		page, err := ts.c.Items(ctx, ts.team, after)
 		if err != nil {
 			return err
@@ -409,7 +433,7 @@ func (ts *teamSync) pull(ctx context.Context) (err error) {
 			if ts.state.Retry == 0 {
 				ts.state.RetrySince = time.Time{}
 			}
-			ts.state.Recheck = teamRecheck
+			ts.state.Recheck, ts.state.RecheckAt = teamRecheck, 0
 			return nil
 		}
 	}

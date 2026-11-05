@@ -143,12 +143,13 @@ func agentEvent(event string, data []byte) proto.HookEvent {
 		Scratch  string          `json:"scratchpad_dir"`
 		Last     string          `json:"last_assistant_message"`
 		Source   string          `json:"source"`
+		Convo    string          `json:"session_id"`
 		Tasks    json.RawMessage `json:"background_tasks"`
 	}
 	_ = json.Unmarshal(data, &in)
 	ev := hooks.ToolEvent(event, in.Tool, in.Input, in.Cwd)
 	ev.Prompt, ev.PermissionMode, ev.Scratchpad, ev.LastMessage, ev.Failed = in.Prompt, in.Mode, in.Scratch, in.Last, in.Event == "PostToolUseFailure" || in.Error != ""
-	ev.Source, ev.BackgroundTasks = in.Source, countOf(in.Tasks)
+	ev.Source, ev.Conversation, ev.BackgroundTasks = in.Source, in.Convo, countOf(in.Tasks)
 	return ev
 }
 

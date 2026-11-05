@@ -65,7 +65,8 @@ var useInfo = map[string][2]string{
 	proto.DecideTrim:    {"Trimming long output", "A test's, build's or install's long output reaches the agent cut to what matters, saving its context; the whole stays in a file. Runs built in, for test, build and install commands."},
 	proto.DecideLoop:    {"Stopping loops", "When an agent's commands keep failing alike, the judge reads its last steps; a loop stops its turn and asks you how to go on, before more tokens go."},
 	proto.DecideRoute:   {"A model per prompt", "The judge says how hard a prompt is, and enowX suggests the agent's model and effort to match: the cheapest for easy ones. New session offers it; agents ask with decide route. A running session's model never changes on its own."},
-	proto.DecideContext: {"RAG: context or not", "Before a prompt gets a project's search results (RAG's Context), the judge keeps only those that bear on it, or none."},
+	// Retired: kept so a log's older lines read, never offered or asked.
+	proto.DecideContext: {"RAG: context or not (retired)", "No longer a use: every prompt's project search adds what it found (docs/rag.md)."},
 	proto.DecideMemory:  {"RAG: memories to keep", "When a session ends, its last answer is offered as a memory only when the judge finds a decision in it, written as that decision."},
 	proto.DecideChat:    {"Team chat urgency", "The judge reads a team message: urgent ones sound and show a banner even when the chat is set to mentions or off; quiet ones only count as unread. A message naming you is never kept quiet."},
 	proto.DecideFlaky:   {"Flaky or real test failures", "When a check fails, the judge reads its output: flaky (timing, network, order) or real, shown on the check with why; a flaky one offers Run again."},
@@ -79,7 +80,7 @@ var useShort = map[string]string{
 	proto.DecideTrim:    "A test's or build's long output reaches the agent cut to what matters.",
 	proto.DecideLoop:    "When an agent's commands keep failing alike, a loop stops its turn.",
 	proto.DecideRoute:   "How hard a prompt is, to suggest a model and effort.",
-	proto.DecideContext: "Keeps only the search results that bear on the prompt.",
+	proto.DecideContext: "Retired: a prompt's search always adds what it found.",
 	proto.DecideMemory:  "Offers a memory only when the last answer holds a decision.",
 	proto.DecideChat:    "Urgent messages sound even when the chat is set to mentions.",
 	proto.DecideFlaky:   "Reads a failed check: flaky offers Run again.",

@@ -22,6 +22,11 @@ func (c *Client) SwitchMode(id, mode string) error {
 	return c.Call(proto.MethodSessionMode, proto.SessionModeParams{ID: id, Mode: mode}, nil)
 }
 
+// SwitchSettings changes a session's model, its effort or both (SessionSettingsParams).
+func (c *Client) SwitchSettings(p proto.SessionSettingsParams) error {
+	return c.Call(proto.MethodSessionSettings, p, nil)
+}
+
 // Rewind takes session id's agent back to before the user's message back
 // messages from the end, whose text is text; the message sent next takes
 // its place.

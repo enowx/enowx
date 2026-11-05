@@ -112,6 +112,15 @@ func (m *Manager) SetConversation(s *Session, id string) {
 	}
 }
 
+// NewConversation says session s's agent left its conversation for a new one, not known yet:
+// what its folder held before now isn't its own.
+func (m *Manager) NewConversation(s *Session) {
+	s.mu.Lock()
+	s.meta.Conversation, s.meta.ConvoSince = "", time.Now()
+	s.mu.Unlock()
+	m.notify(s)
+}
+
 // SetNote sets what session s is at, "" to clear it.
 func (m *Manager) SetNote(s *Session, note string) {
 	note = strings.TrimSpace(note)

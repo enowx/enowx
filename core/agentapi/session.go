@@ -250,11 +250,20 @@ func addOpenCode2Provider(path string, api API) error {
 		return err
 	}
 	models := map[string]any{}
-	for _, m := range api.Models {
-		models[m.ID] = map[string]any{"name": m.ID}
+	add := func(m Model) {
+		entry := map[string]any{"name": m.ID}
+		// A model without one is assumed 200,000 context and 32,000 output, which
+		// a session's footer then shows against (2.2.5).
+		if l := openCodeLimit(m); l != nil {
+			entry["limit"] = l
+		}
+		models[m.ID] = entry
 	}
-	if api.Model != "" {
-		models[api.Model] = map[string]any{"name": api.Model}
+	for _, m := range api.Models {
+		add(m)
+	}
+	if api.Model != "" && models[api.Model] == nil {
+		add(Model{ID: api.Model})
 	}
 	provider := map[string]any{"name": "enowX config", "package": "@opencode/ai/providers/openai-compatible",
 		"settings": map[string]any{"baseURL": api.BaseURL}, "models": models}
@@ -267,6 +276,17 @@ func addOpenCode2Provider(path string, api API) error {
 		return err
 	}
 	return os.WriteFile(path, out, 0o600)
+}
+
+// openCodeLimit is a model's limits as OpenCode 2 takes them in a provider's
+// models: both counts, which it takes only together (its schema requires both),
+// or nil when the model gives neither, leaving it OpenCode's own assumption.
+// The defaults are 1.x's in the same file, so both forms say the same.
+func openCodeLimit(m Model) map[string]any {
+	if m.Context <= 0 && m.Output <= 0 {
+		return nil
+	}
+	return map[string]any{"context": orDefault(m.Context, 128000), "output": orDefault(m.Output, 16384)}
 }
 
 // envSession is an agent that takes its API from the environment only.

@@ -11,6 +11,7 @@ import (
 	"strings"
 	"text/tabwriter"
 
+	"github.com/enowx/enowx/client"
 	"github.com/enowx/enowx/core/agent"
 	"github.com/enowx/enowx/proto"
 )
@@ -372,26 +373,24 @@ func (r runner) switchSession(args []string) error {
 		return errors.New(usage)
 	}
 	set := agent.SettingsOf(s.Agent)
-	typeIn := func(what, command, v string, choices []agent.Choice) error {
-		if command == "" {
-			return fmt.Errorf("switch: %s's %s can't be changed while it runs", nonEmpty(s.Agent, "this program"), what)
+	note := func(what, v string, choices []agent.Choice) {
+		if v == "" || len(choices) == 0 || slices.ContainsFunc(choices, func(c agent.Choice) bool { return c.ID == v }) {
+			return
 		}
-		if len(choices) > 0 && !slices.ContainsFunc(choices, func(c agent.Choice) bool { return c.ID == v }) {
-			var ids []string
-			for _, c := range choices {
-				ids = append(ids, c.ID)
-			}
-			fmt.Fprintf(r.out, "(%s isn't among the %ss enowX knows of %s: %s; sent anyway)\n", v, what, s.Agent, strings.Join(ids, ", "))
+		var ids []string
+		for _, c := range choices {
+			ids = append(ids, c.ID)
 		}
-		return r.c.Input(s.ID, fmt.Sprintf(command, v), false, true)
+		fmt.Fprintf(r.out, "(%s isn't among the %ss enowX knows of %s: %s; asked anyway)\n", v, what, s.Agent, strings.Join(ids, ", "))
 	}
-	if *model != "" {
-		if err := typeIn("model", set.ModelCommand, *model, set.Models); err != nil {
-			return err
+	if *model != "" || *effort != "" {
+		note("model", *model, set.Models)
+		note("effort", *effort, set.Efforts)
+		err := r.c.SwitchSettings(proto.SessionSettingsParams{ID: s.ID, Model: *model, Effort: *effort})
+		if client.IsUnknownMethod(err) {
+			return errors.New("switch: this host's enowX is too old to change one session's model alone: update it. The session is as it was")
 		}
-	}
-	if *effort != "" {
-		if err := typeIn("effort", set.EffortCommand, *effort, set.Efforts); err != nil {
+		if err != nil {
 			return err
 		}
 	}

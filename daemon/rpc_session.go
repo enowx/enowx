@@ -52,6 +52,9 @@ var sessionHandlers = map[string]handler{
 	proto.MethodSessionMode: with(func(c *conn, p proto.SessionModeParams) (any, error) {
 		return ok, c.srv.switchMode(p)
 	}),
+	proto.MethodSessionSettings: with(func(c *conn, p proto.SessionSettingsParams) (any, error) {
+		return ok, c.srv.switchSettings(p)
+	}),
 	proto.MethodAgentHistory: with(func(c *conn, p proto.HistoryParams) (any, error) {
 		return c.srv.history(p)
 	}),

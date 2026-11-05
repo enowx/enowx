@@ -51,6 +51,8 @@ func (r runner) decideRoute(p proto.DecideRouteParams, asJSON bool) error {
 	fmt.Fprintf(r.out, "model: %s · effort: %s\n", model, effort)
 	if len(out.Switch) > 0 {
 		fmt.Fprintf(r.out, "in a running session: %s\n", strings.Join(out.Switch, ", "))
+	} else if model != "its own" || effort != "its own" {
+		fmt.Fprintln(r.out, "in a running session: enowx-app switch SESSION with --model and --effort (typing its /model would change the user's default)")
 	}
 	return nil
 }
