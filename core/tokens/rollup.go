@@ -5,6 +5,7 @@ import (
 	"os"
 	"path/filepath"
 	"slices"
+	"strings"
 	"time"
 
 	"github.com/enowx/enowx/core/envsync"
@@ -39,8 +40,7 @@ func (s *Store) Rollup(now time.Time, prices *Prices) error {
 	}
 	for _, d := range old {
 		s.mu.Lock()
-		dc := s.loadLocked(d)
-		calls := slices.Clone(dc.calls)
+		calls := slices.Clone(s.rawLocked(d))
 		s.mu.Unlock()
 		all = append(all, DayRows(calls, prices)...)
 	}
@@ -60,33 +60,36 @@ func (s *Store) Rollup(now time.Time, prices *Prices) error {
 	return nil
 }
 
+// DayRows is the store's use in [since, until) per day, agent, model, project,
+// config and own use: what a host syncs to the others.
+func (s *Store) DayRows(since, until time.Time, prices *Prices) []proto.TokenDayRow {
+	return dayRowsOf(s.rows(since, until, prices))
+}
+
 // DayRows sums calls per day, agent, model, project, config and own use.
 func DayRows(calls []Call, prices *Prices) []proto.TokenDayRow {
+	return dayRowsOf(rowsOf(calls, prices))
+}
+
+// dayRowsOf sums rows per day, agent, model, project, config and own use.
+func dayRowsOf(rows []row) []proto.TokenDayRow {
 	type key struct{ day, agent, model, project, config, own string }
 	sums := map[key]*proto.TokenDayRow{}
 	var order []key
-	for _, c := range calls {
-		k := key{day(c.Time), c.Agent, c.Model, c.Project, c.Config, c.Own}
-		r := sums[k]
-		if r == nil {
-			r = &proto.TokenDayRow{Day: k.day, Agent: k.agent, Model: k.model, Project: k.project, Config: k.config, Own: k.own}
-			sums[k] = r
+	for _, r := range rows {
+		k := key{r.day, r.agent, r.model, r.project, r.config, r.own}
+		row := sums[k]
+		if row == nil {
+			row = &proto.TokenDayRow{Day: k.day, Agent: k.agent, Model: k.model, Project: k.project, Config: k.config, Own: k.own}
+			sums[k] = row
 			order = append(order, k)
 		}
-		r.Add(c.Counts(prices))
+		row.Add(r.counts)
 	}
 	out := make([]proto.TokenDayRow, 0, len(order))
 	for _, k := range order {
 		out = append(out, *sums[k])
 	}
-	slices.SortStableFunc(out, func(a, b proto.TokenDayRow) int {
-		if a.Day < b.Day {
-			return -1
-		}
-		if a.Day > b.Day {
-			return 1
-		}
-		return 0
-	})
+	slices.SortStableFunc(out, func(a, b proto.TokenDayRow) int { return strings.Compare(a.Day, b.Day) })
 	return out
 }
