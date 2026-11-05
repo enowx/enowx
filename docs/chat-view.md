@@ -30,6 +30,13 @@ A message sent shows immediately, with the composer emptied. Messages waiting fo
 
 Chat uses `session.deliver`, with one key for the message and the program's run. The daemon queues its bracketed paste once, waits for that paste's successful PTY write, then starts the 300ms settle interval before a guarded Enter. A closed program or a write still unconfirmed after five seconds interrupts delivery without another paste or Enter. Retries with that same key return the original result, including after a lost RPC response. Input typed into the terminal during the write or paste delay cancels the automatic Enter. It never clears a draft or presses Enter again to recover a delivery. A program restart rejects an old run's delivery. Older daemons ask the user to reconnect for an update; there is no fallback to unprotected input. The existing `session.input` RPC and terminal streams keep their behavior for older apps and the CLI.
 
+If delivery is interrupted after its paste was queued, new chat delivery keys
+are blocked for that program run: the paste may still arrive later or leave a
+draft. A late write receipt, an empty screen, hooks, or manual terminal input
+cannot establish that all earlier bytes are resolved. Manual input remains
+available, but automatic delivery requires restarting the session's program.
+The new program has its own delivery ledger and still checks readiness.
+
 Transport success and screen echo are not acknowledgement. Only a newly recorded user entry matching the whole message and its attachment paths replaces its pending row. A message unrecorded for 45 seconds with the agent free is **unconfirmed**, not proven lost. A successful or interrupted terminal send offers **Show terminal**, without repasting or restoring an uncertain message to the Chat composer. **Retry** after a transport error uses the same key. **Stop tracking** removes only the pending row after the user has reviewed the terminal. A changed conversation never acknowledges a previous conversation's pending messages. Transcript formats that rewrite text or attachment paths may require manual review rather than automatic matching.
 
 A command (`/model`) shows no bubble: agents don't record those as messages. Slash commands and settings still use their existing terminal input path.

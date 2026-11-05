@@ -36,6 +36,13 @@ still covers the final Enter enqueue. The session anchors suppression of that
 paste's echo to completion only while its input sequence and epoch still match.
 A successful write still does not acknowledge native message consumption.
 
+An interrupted delivery after paste enqueue also quarantines new delivery keys
+for that program run. The original key retains its interrupted result. Late
+write completion, elapsed time, empty screens and manual/hook changes do not
+clear uncertainty about queued bytes or a draft. Only replacement of the
+program creates a fresh automatic-delivery ledger; manual terminal input is
+still available without resetting that gate.
+
 ## Reproducible use
 
 Use the shell entrypoint from the repository root with Go 1.27.3+ (Git Bash

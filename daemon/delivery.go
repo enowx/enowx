@@ -20,7 +20,9 @@ type deliveryState struct {
 
 type deliveryRun struct {
 	sending bool
-	entries map[string]*deliveryAttempt
+	// Only program replacement resolves an interrupted paste's draft uncertainty.
+	uncertain bool
+	entries   map[string]*deliveryAttempt
 }
 
 type deliveryAttempt struct {
@@ -74,6 +76,10 @@ func (s *Server) deliver(p proto.DeliveryParams) (proto.DeliveryResult, error) {
 		<-a.done
 		return a.result, nil
 	}
+	if r.uncertain {
+		d.mu.Unlock()
+		return proto.DeliveryResult{}, fmt.Errorf("a previous chat delivery left an unconfirmed paste; restart the session's program before sending another chat message")
+	}
 	if r.sending || len(r.entries) >= maxDeliveriesPerRun || working(info) || info.State == proto.StateWaiting || !ready {
 		d.mu.Unlock()
 		return proto.DeliveryResult{}, fmt.Errorf("the session isn't ready for a new chat delivery; check its terminal")
@@ -83,6 +89,7 @@ func (s *Server) deliver(p proto.DeliveryParams) (proto.DeliveryResult, error) {
 	d.mu.Unlock()
 
 	next, written, pasted := s.sessions.DeliveryPaste(sess, []byte(pasteStart+p.Text+pasteEnd), guard)
+	queued := pasted
 	if pasted {
 		limit := time.NewTimer(deliveryWriteLimit)
 		pasted = deliveryWritten(written, sess.Done(), limit.C)
@@ -102,6 +109,11 @@ func (s *Server) deliver(p proto.DeliveryParams) (proto.DeliveryResult, error) {
 		}
 	}
 	d.mu.Lock()
+	// A missing receipt or refused Enter can leave bytes queued or a late draft.
+	// Neither a later receipt nor an empty screen proves that draft was resolved.
+	if queued && a.result.Interrupted {
+		r.uncertain = true
+	}
 	r.sending = false
 	close(a.done)
 	d.mu.Unlock()
