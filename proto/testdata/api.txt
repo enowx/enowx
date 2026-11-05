@@ -2068,6 +2068,7 @@ field RAGHit.snippet string
 field RAGHit.source string
 field RAGHit.start int
 field RAGHit.symbol string
+field RAGHit.words bool
 field RAGKey.value string
 field RAGKey.which string
 field RAGMemory.by string
@@ -2110,6 +2111,7 @@ field RAGSettings.serverUrl string
 field RAGSettings.store string
 field RAGStatus.added int
 field RAGStatus.chunks int
+field RAGStatus.contextError string
 field RAGStatus.embedder string
 field RAGStatus.error string
 field RAGStatus.files int

@@ -10,6 +10,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"strings"
+	"sync"
 	"sync/atomic"
 	"testing"
 	"unicode/utf8"
@@ -138,6 +139,48 @@ func indexAndSearch(t *testing.T, store string) {
 	}
 }
 
+// Every request to the embedder is counted, the search's query too: an
+// index's and a prompt's, told apart by the project they were about.
+func TestEveryEmbedderCallIsCounted(t *testing.T) {
+	dir := t.TempDir()
+	os.WriteFile(filepath.Join(dir, "invoice.go"),
+		[]byte("package shop\n\n// Total sums an invoice's lines with tax.\nfunc Total(tax float64) float64 {\n\treturn 0\n}\n"), 0o644)
+	if out, err := exec.Command("git", "-C", dir, "init", "-q").CombinedOutput(); err != nil {
+		t.Skipf("git: %s", out)
+	}
+	home := t.TempDir()
+	st := OpenSettings(home)
+	if err := st.Set(proto.RAGSettings{Embedder: proto.RAGOpenAI, Model: "fake", BaseURL: fakeEmbeddings(t), Dim: 128}); err != nil {
+		t.Fatal(err)
+	}
+	e := NewEngine(home, st)
+	var mu sync.Mutex
+	counted := map[string]int64{}
+	e.OnEmbed = func(project string, n int64) {
+		mu.Lock()
+		counted[project] += n
+		mu.Unlock()
+	}
+	if _, err := e.Index(context.Background(), dir, proto.RAGProject{On: true}, nil); err != nil {
+		t.Fatal(err)
+	}
+	mu.Lock()
+	indexed := counted[dir]
+	mu.Unlock()
+	if indexed <= 0 {
+		t.Fatalf("the index counted %d tokens", indexed)
+	}
+	if _, err := e.Search(context.Background(), dir, "invoice tax total", 3, nil); err != nil {
+		t.Fatal(err)
+	}
+	mu.Lock()
+	after := counted[dir]
+	mu.Unlock()
+	if after <= indexed {
+		t.Fatalf("the query wasn't counted: %d after the index, %d after a search", indexed, after)
+	}
+}
+
 // With no embedder set nothing is indexed.
 func TestNotReady(t *testing.T) {
 	home := t.TempDir()
@@ -242,7 +285,7 @@ func TestEmbedBatchesBySize(t *testing.T) {
 	for i := range texts {
 		texts[i] = strings.Repeat("x", 10000)
 	}
-	vecs, err := h.embed(t.Context(), texts, false)
+	vecs, err := h.embed(t.Context(), texts, false, nil)
 	if err != nil || len(vecs) != len(texts) {
 		t.Fatalf("%d vectors: %v", len(vecs), err)
 	}

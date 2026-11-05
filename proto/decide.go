@@ -29,15 +29,17 @@ const (
 	DecideTrim    = "trim"    // a long command output: what the agent needs of it
 	DecideLoop    = "loop"    // an agent's last steps: looping, or getting on
 	DecideRoute   = "route"   // a prompt: how hard, so a model and an effort to match
-	DecideContext = "context" // a project's search results: which bear on a prompt
-	DecideMemory  = "memory"  // what an agent said last: a decision worth keeping
-	DecideChat    = "chat"    // a team chat message: urgent, normal or quiet
-	DecideBypass  = "bypass"  // a prompt of a session in bypass, answered by policy (docs/decide.md); no judge's use
-	DecideFlaky   = "flaky"   // a failed check's output: flaky or a real failure
+	// DecideContext is no longer a use: a prompt's project search always
+	// adds what it found (docs/rag.md). Kept as the protocol knew it.
+	DecideContext = "context"
+	DecideMemory  = "memory" // what an agent said last: a decision worth keeping
+	DecideChat    = "chat"   // a team chat message: urgent, normal or quiet
+	DecideBypass  = "bypass" // a prompt of a session in bypass, answered by policy (docs/decide.md); no judge's use
+	DecideFlaky   = "flaky"  // a failed check's output: flaky or a real failure
 )
 
 // DecideUses are the uses, in the order they're offered.
-var DecideUses = []string{DecideState, DecideApprove, DecideTrim, DecideLoop, DecideRoute, DecideContext, DecideMemory, DecideChat, DecideFlaky}
+var DecideUses = []string{DecideState, DecideApprove, DecideTrim, DecideLoop, DecideRoute, DecideMemory, DecideChat, DecideFlaky}
 
 // Verdicts.
 const (

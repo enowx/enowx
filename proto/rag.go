@@ -76,8 +76,10 @@ type RAGProject struct {
 	Consent  string   `json:"consent,omitempty"` // the embedder agreed to, "provider host"
 	Exclude  []string `json:"exclude,omitempty"`
 	MaxFiles int      `json:"maxFiles,omitempty"` // 0: 20000
-	Context  bool     `json:"context,omitempty"`  // add results to a prompt (start-of-prompt hook)
-	Offer    bool     `json:"offer,omitempty"`    // offer a session's decisions as memories
+	// Context is no longer read: a prompt always gets the parts that bear on
+	// it, where its agent has a start-of-prompt hook (docs/rag.md).
+	Context bool `json:"context,omitempty"`
+	Offer   bool `json:"offer,omitempty"` // offer a session's decisions as memories
 	// ServerURL, ServerCred and ServerProject are no longer used.
 	ServerURL     string `json:"serverUrl,omitempty"`
 	ServerCred    string `json:"serverCred,omitempty"`
@@ -115,6 +117,9 @@ type RAGStatus struct {
 	Skipped  int        `json:"skipped,omitempty"`
 	Tokens   int64      `json:"tokens,omitempty"`
 	Error    string     `json:"error,omitempty"`
+	// ContextError is why the last prompt's search failed: the embedder's
+	// error, with what the prompt got instead.
+	ContextError string `json:"contextError,omitempty"`
 }
 
 // RAGPlan is what indexing a project would send: to which embedder (its
@@ -147,6 +152,9 @@ type RAGHit struct {
 	Score   float64 `json:"score"`
 	Source  string  `json:"source"`
 	Memory  string  `json:"memory,omitempty"` // a memory's ID
+	// Words: found by its words alone, the embedder having failed (a
+	// search falls back to this rather than give nothing).
+	Words bool `json:"words,omitempty"`
 }
 
 // RAGRememberParams keeps Text as a memory of the project (or session's).

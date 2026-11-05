@@ -46,6 +46,10 @@ type Engine struct {
 	settings *Settings
 	// KeyOf is the value of the vault's credential named cred.
 	KeyOf func(cred string) (string, error)
+	// OnEmbed is told the tokens of every request to the embedder, for an
+	// index or a search (the folder the text was about, "" for a test), so
+	// that retrieval is counted as the index is.
+	OnEmbed func(project string, tokens int64)
 	// keys are the embedder's key and the PostgreSQL URL typed in the app,
 	// on this host alone; used before the vault's credentials.
 	keys *hostkeys.Store
@@ -174,6 +178,14 @@ func (e *Engine) secret(cred string) (string, error) {
 	return e.KeyOf(cred)
 }
 
+// count is the callback that tells OnEmbed what project's text was sent.
+func (e *Engine) count(project string) func(int64) {
+	if e.OnEmbed == nil {
+		return nil
+	}
+	return func(tokens int64) { e.OnEmbed(project, tokens) }
+}
+
 // Test embeds a line with settings st (not kept) and, for PostgreSQL,
 // connects to it; it says the vector's size.
 func (e *Engine) Test(ctx context.Context, st proto.RAGSettings) (int, error) {
@@ -181,7 +193,7 @@ func (e *Engine) Test(ctx context.Context, st proto.RAGSettings) (int, error) {
 	if err != nil {
 		return 0, err
 	}
-	v, err := emb.embed(ctx, []string{"enowX checks the embedder"}, true)
+	v, err := emb.embed(ctx, []string{"enowX checks the embedder"}, true, e.count(""))
 	if err != nil {
 		return 0, err
 	}
@@ -196,6 +208,15 @@ func (e *Engine) Test(ctx context.Context, st proto.RAGSettings) (int, error) {
 		s.close()
 	}
 	return len(v[0]), nil
+}
+
+// EmbedderModel is the model st's embedder asks for: its own, or the
+// embedder's default, which is what the tokens were counted against.
+func EmbedderModel(st proto.RAGSettings) string {
+	if st.Embedder == proto.RAGVoyage {
+		return orString(st.Model, "voyage-code-3")
+	}
+	return st.Model
 }
 
 // EmbedderHost is where st's embedder sends text, for the user to agree
@@ -267,7 +288,7 @@ func (e *Engine) Index(ctx context.Context, dir string, p proto.RAGProject, docs
 		}
 	}
 	before := emb.tokens()
-	added, err := embedAll(ctx, emb, s, key, fresh)
+	added, err := embedAll(ctx, emb, s, key, fresh, e.count(dir))
 	out.Added, out.Tokens = added, emb.tokens()-before
 	if err != nil {
 		return out, err
@@ -295,7 +316,7 @@ const embedWorkers = 4
 
 // embedAll embeds pts in batches, a few at once, and keeps each batch as
 // it comes; it says how many were kept.
-func embedAll(ctx context.Context, emb embedder, s store, key string, pts []point) (int, error) {
+func embedAll(ctx context.Context, emb embedder, s store, key string, pts []point, onCall func(int64)) (int, error) {
 	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()
 	batches := make(chan []point)
@@ -320,7 +341,7 @@ func embedAll(ctx context.Context, emb embedder, s store, key string, pts []poin
 				for j, pt := range part {
 					texts[j] = header(pt) + pt.text
 				}
-				vecs, err := emb.embed(ctx, texts, false)
+				vecs, err := emb.embed(ctx, texts, false, onCall)
 				if err == nil {
 					for j := range part {
 						part[j].vec = vecs[j]
@@ -428,7 +449,7 @@ func (e *Engine) Search(ctx context.Context, dir, query string, k int, scope []s
 	if len(scope) > 0 {
 		want = k * 12
 	}
-	q, err := emb.embed(ctx, []string{query}, true)
+	q, err := emb.embed(ctx, []string{query}, true, e.count(dir))
 	if err != nil {
 		return nil, err
 	}
@@ -460,6 +481,57 @@ func (e *Engine) Search(ctx context.Context, dir, query string, k int, scope []s
 			continue
 		}
 		out = append(out, hitOf(pt, cos[r.id]))
+		if len(out) == k {
+			break
+		}
+	}
+	return out, nil
+}
+
+// Words finds query in the project in dir by its words alone, its results
+// marked as such: what a search falls back to when the embedder fails.
+func (e *Engine) Words(ctx context.Context, dir, query string, k int, scope []string) ([]proto.RAGHit, error) {
+	if k <= 0 {
+		k = 5
+	}
+	st := e.settings.Get()
+	switch st.Embedder {
+	case proto.RAGVoyage, proto.RAGOpenAI, proto.RAGTEI:
+	default:
+		return nil, ErrNotReady
+	}
+	// No embedder here: a search by words alone needs none, so it still
+	// answers when the embedder's key or address is what fails.
+	s, err := e.storeOf(ctx, st)
+	if err != nil {
+		return nil, err
+	}
+	defer s.close()
+	key := indexKey(dir, st)
+	found, err := s.keyword(ctx, key, query, k*4)
+	if err != nil {
+		return nil, err
+	}
+	if len(found) == 0 {
+		return nil, nil
+	}
+	ids := make([]string, len(found))
+	for i, f := range found {
+		ids[i] = f.id
+	}
+	pts, err := s.get(ctx, key, ids)
+	if err != nil {
+		return nil, err
+	}
+	var out []proto.RAGHit
+	for _, f := range found {
+		pt, ok := pts[f.id]
+		if !ok || len(scope) > 0 && !slices.Contains(scope, pt.source) {
+			continue
+		}
+		h := hitOf(pt, 0)
+		h.Words = true
+		out = append(out, h)
 		if len(out) == k {
 			break
 		}

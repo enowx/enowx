@@ -193,9 +193,9 @@ func TestRouteChatAndFlakyThroughTheDaemon(t *testing.T) {
 	}
 }
 
-// RAG choices, through the daemon: a prompt gets only the parts the judge
-// says bear on it, none when none do; a session's last answer is offered
-// as a memory only when it holds a decision, distilled.
+// A session's last answer is offered as a memory only when it holds a
+// decision, distilled. A prompt's search is never judged: it runs on every
+// prompt (TestEveryPromptGetsTheProjectsParts).
 func TestRAGChoicesThroughTheDaemon(t *testing.T) {
 	if runtime.GOOS == "windows" {
 		t.Skip("uses sh")
@@ -239,20 +239,13 @@ func TestRAGChoicesThroughTheDaemon(t *testing.T) {
 		t.Fatal(err)
 	}
 	t.Setenv(session.EnvSession, inProject.ID())
+	// A prompt's parts come from the search alone, the judge never asked.
 	_, ctx, _ := hookOf(`{"prompt":"fix the invoice total tax"}`, "--event", proto.HookPromptStart)
-	if !strings.Contains(ctx, "billing/invoice.go") || strings.Contains(ctx, "ui/theme.go") {
-		t.Fatalf("the parts kept: %q", ctx)
+	if !strings.Contains(ctx, "billing/invoice.go") {
+		t.Fatalf("no parts: %q", ctx)
 	}
-	_, ctx, _ = hookOf(`{"prompt":"make the colors of the total and tax screens warmer"}`, "--event", proto.HookPromptStart)
-	if strings.Contains(ctx, "enowX RAG") {
-		t.Fatalf("parts kept though none bear on it: %q", ctx)
-	}
-	acted := map[string]int{}
-	for _, d := range srv.judge.Log(proto.DecideLogParams{Use: proto.DecideContext}) {
-		acted[d.Acted]++
-	}
-	if acted[proto.ActedChosen] != 1 || acted[proto.ActedDropped] != 1 {
-		t.Fatalf("context log %v", acted)
+	if acted := srv.judge.Log(proto.DecideLogParams{Use: proto.DecideContext}); len(acted) != 0 {
+		t.Fatalf("the judge chose the parts: %+v", acted)
 	}
 
 	// Two Claude Code sessions end: one settled on cents, one only reports.
