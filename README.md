@@ -10,6 +10,15 @@
 </p>
 
 <p align="center">
+  <a href="https://awesomemygo.dev/apps/enowx"><img src="https://awesomemygo.dev/badge.svg" alt="Listed on Awesome MyGo" height="20"></a>
+  <a href="https://github.com/enowdev/enowx/releases/latest"><img src="https://img.shields.io/github/v/release/enowdev/enowx" alt="Latest release" height="20"></a>
+  <a href="LICENSE"><img src="https://img.shields.io/github/license/enowdev/enowx" alt="MIT License" height="20"></a>
+  <a href="go.mod"><img src="https://img.shields.io/github/go-mod/go-version/enowdev/enowx?logo=go&logoColor=white" alt="Go version" height="20"></a>
+  <a href="docs/install.md"><img src="https://img.shields.io/badge/platforms-macOS%20%7C%20Linux%20%7C%20Windows-blue" alt="Runs on macOS, Linux and Windows" height="20"></a>
+  <a href="https://discord.gg/y8NVRnz8jh"><img src="https://img.shields.io/badge/Discord-5865F2?logo=discord&logoColor=white" alt="Discord" height="20"></a>
+</p>
+
+<p align="center">
   <a href="docs/install.md">Install</a> ·
   <a href="#what-it-does">Features</a> ·
   <a href="docs/agents.md">Agents</a> ·
