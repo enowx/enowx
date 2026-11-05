@@ -222,6 +222,40 @@ func TestPlatformKeyStaysOutOfTabs(t *testing.T) {
 	takesKey(t, c, again.ID)
 }
 
+// A tab that is this agent, under a session that isn't, asks for its own key as a new
+// session does: the session's lease holds none, as the key is its agent's alone.
+func TestPlatformTabUnderAnotherSessionTakesItsOwnKey(t *testing.T) {
+	fakePlatform(t)
+	srv := startServer(t)
+	c := connect(t, srv, nil)
+	app := serveVault(t, srv, keyLender(nil))
+	putVault(t, app.Client, vault.Credential{Name: "anthropic", Platform: "anthropic", Fields: map[string]string{"api_key": platformTestKey}})
+	parent, err := c.CreateSession(proto.SessionCreateParams{Agent: agent.Shell, Dir: t.TempDir(), Cols: 80, Rows: 24})
+	if err != nil {
+		t.Fatal(err)
+	}
+	tab, err := c.CreateSession(proto.SessionCreateParams{Parent: parent.ID, Agent: agent.PlatformID, Cols: 80, Rows: 24})
+	if err != nil {
+		t.Fatal(err)
+	}
+	takesKey(t, c, tab.ID)
+	if !slices.Contains(tab.Creds, "anthropic") {
+		t.Errorf("the tab keeps the key's name, which a restart lends again: %v", tab.Creds)
+	}
+	app.mu.Lock()
+	seen := slices.Clone(app.seen)
+	app.mu.Unlock()
+	i := slices.IndexFunc(seen, func(r proto.VaultRequest) bool { return r.Session == tab.ID })
+	if i < 0 || seen[i].Agent != agent.PlatformID || seen[i].Action != proto.VaultSession {
+		t.Errorf("the app isn't told who asks, and with what: %+v", seen)
+	}
+	// Its session, another agent's, holds none of it.
+	var got proto.VaultAgentKey
+	if err := c.Call(proto.MethodVaultAgentKey, proto.VaultAgentKeyParams{Session: parent.ID}, &got); err != nil || len(got.Env) > 0 {
+		t.Errorf("its session took the tab's key: %v, %v", got.Env, err)
+	}
+}
+
 // With no credential in the vault the session still starts: the agent says what's missing.
 func TestPlatformStartsWithNoKey(t *testing.T) {
 	starts := fakePlatform(t)

@@ -285,6 +285,11 @@ func (s *Server) goaRunSwitch(sess *session.Session, plan goaSwitchPlan) (*sessi
 	if !wasStopped {
 		_, beforeConvo, _ = s.goaConversationFor(sess, proto.Account{})
 	}
+	// A key it would start without, no app being here to lend it: GOA keeps running as it
+	// was, rather than stop for an agent that says what is missing.
+	if s.keyAwaitsApp(id, plan.next) {
+		return nil, fmt.Errorf("goa: GOD of Agents keeps running as it was: %s runs on a key in the vault: %w", agentName(plan.next.Agent), errNoVaultApp)
+	}
 	s.acctWatch.restarting(id)
 	if err := s.goaStop(sess, plan.next); err != nil {
 		s.acctWatch.settled(id, sess.Terminal().Text())
@@ -367,8 +372,11 @@ func (s *Server) goaStartOnAgent(id string, plan goaSwitchPlan) (*session.Sessio
 	if err != nil {
 		return nil, err
 	}
+	// Its key, as a session starting again takes it: another agent's lease isn't its own.
+	vaultEnv, creds := s.restartVaultEnv(id, meta)
+	meta.Creds = creds
 	spec := session.Spec{ID: id, Dir: info.Dir, Created: info.Created, History: sess.History(), Command: l.command, Meta: meta,
-		Env: append(append(append(append(append(s.hostEnvFor(nil), env...), l.env...), s.vaultEnvFor(id, "", meta.Creds, meta.Agent)...), run.environ()...), s.tokenTrafficEnv(id, p.Agent, "", meta.Name)...)}
+		Env: append(append(append(append(append(s.hostEnvFor(nil), env...), l.env...), vaultEnv...), run.environ()...), s.tokenTrafficEnv(id, p.Agent, "", meta.Name)...)}
 	next, err := s.sessions.Replace(spec)
 	if err != nil {
 		return nil, err
