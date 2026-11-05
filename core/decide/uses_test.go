@@ -29,8 +29,12 @@ func TestRouteFor(t *testing.T) {
 	if r := RouteFor("claude", proto.VerdictEasy, nil); r != (Route{"claude-haiku-5-5", "low"}) {
 		t.Fatalf("claude easy: %+v", r)
 	}
-	if got := RouteFor("claude", proto.VerdictEasy, nil).Switch("claude"); strings.Join(got, "|") != "/model claude-haiku-5-5|/effort low" {
+	// Claude Code's commands would save them for all its sessions.
+	if got := RouteFor("claude", proto.VerdictEasy, nil).Switch("claude"); len(got) != 0 {
 		t.Fatalf("switch %q", got)
+	}
+	if got := RouteFor(agent.PlatformID, proto.VerdictEasy, nil).Switch(agent.PlatformID); strings.Join(got, "|") != "/model claude-haiku-5-5|/effort low" {
+		t.Fatalf("platform's switch %q", got)
 	}
 	if r := RouteFor("codex", proto.VerdictHard, nil); r != (Route{"", "high"}) {
 		t.Fatalf("codex hard: %+v", r)

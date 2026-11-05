@@ -122,7 +122,7 @@ func (s *Server) readModel(home string, info proto.SessionInfo, f *modelFollow) 
 		return said, false
 	}
 	f.stamp, f.length = st.ModTime(), st.Size()
-	said = transcript.LastSettings(info.Agent, f.path)
+	said = transcript.LastSettingsSince(info.Agent, f.path, s.floorOf(info.ID, f.path))
 	return said, said.Model != ""
 }
 
