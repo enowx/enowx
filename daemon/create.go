@@ -131,6 +131,9 @@ func (s *Server) createSessionFor(p proto.SessionCreateParams, member *proto.Ses
 	}
 	meta.Model, meta.Effort, meta.Mode = strings.TrimPrefix(p.Model, "default"), strings.TrimPrefix(p.Effort, "default"), p.Mode
 	meta.ModelStarted = meta.Model
+	if p.Resume != "" && !p.Fork {
+		meta.Conversation = p.Resume // a fork's own gets an id of its own
+	}
 	launch, err := launchFor(p, chat)
 	if err != nil {
 		s.configForget(id)

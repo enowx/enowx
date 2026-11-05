@@ -169,6 +169,9 @@ type HookEvent struct {
 	// Source is why its agent's session started (HookSessionStart): startup,
 	// resume, clear or compact, as its agent says.
 	Source string `json:"source,omitempty"`
+	// Conversation is the conversation its agent is on, by the id it resumes it with, from an
+	// agent whose hook says (Claude Code's session_id).
+	Conversation string `json:"conversation,omitempty"`
 	// Tool is the tool's name, Command its command line or what it was
 	// given, Failed that it failed.
 	Tool    string `json:"tool,omitempty"`

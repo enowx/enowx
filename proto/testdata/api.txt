@@ -1358,6 +1358,7 @@ field HookEvent.backgroundTasks int
 field HookEvent.branch string
 field HookEvent.command string
 field HookEvent.commit string
+field HookEvent.conversation string
 field HookEvent.dir string
 field HookEvent.event string
 field HookEvent.exit int

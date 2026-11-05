@@ -18,7 +18,7 @@ import (
 // Claude Platform, enowX's own agent, keeps a conversation in one file of JSON lines
 // (package record): what the chat shows as it happens, the streamed text included, so a
 // chat polling the file sees an answer grow. A session's file is in its --session-dir
-// (FindIn); PlatformFiles finds those of the agent run by hand. See docs/chat-view.md.
+// (Stored); PlatformFiles finds those of the agent run by hand. See docs/chat-view.md.
 
 // PlatformFiles returns the conversations Claude Platform kept in its default folder
 // for sessions run in dir, newest first.

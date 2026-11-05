@@ -70,6 +70,9 @@ func (s *Server) sessionEvent(p proto.SessionHookParams) (proto.HookDecision, er
 	if err != nil {
 		return proto.HookDecision{}, err
 	}
+	if p.Event.Event == proto.HookSessionStart {
+		s.conversationStarted(sess, p.Event)
+	}
 	// Answered before it counts as waiting: nothing is asked of the user.
 	if p.Event.Event == proto.HookPermission && s.bypassAnswer(sess.Info(), p.Event) {
 		if p.Event.PermissionMode != "" {

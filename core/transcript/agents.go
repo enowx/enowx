@@ -51,24 +51,54 @@ func Supports(agent string) bool {
 	return ok
 }
 
-// FindIn lists the conversations agent had in dir, newest change first:
-// those in store when the agent kept them there (a session's own folder,
-// Preset.SessionDir), else Find's.
-func FindIn(agent, home, dir, store string) []Found {
-	if store != "" {
-		var out []Found
-		entries, _ := os.ReadDir(store)
-		for _, e := range entries {
-			if info, err := e.Info(); err == nil && !e.IsDir() && strings.HasSuffix(e.Name(), ".jsonl") && !strings.HasPrefix(e.Name(), ".") {
-				out = append(out, Found{Path: filepath.Join(store, e.Name()), Changed: info.ModTime()})
-			}
-		}
-		if len(out) > 0 {
-			slices.SortFunc(out, func(a, b Found) int { return b.Changed.Compare(a.Changed) })
-			return out
+// Stored lists the conversations an agent kept in store, a session's own folder
+// (Preset.SessionDir), newest change first; nil when it keeps none there.
+func Stored(store string) []Found {
+	if store == "" {
+		return nil
+	}
+	var out []Found
+	entries, _ := os.ReadDir(store)
+	for _, e := range entries {
+		if info, err := e.Info(); err == nil && !e.IsDir() && strings.HasSuffix(e.Name(), ".jsonl") && !strings.HasPrefix(e.Name(), ".") {
+			out = append(out, Found{Path: filepath.Join(store, e.Name()), Changed: info.ModTime()})
 		}
 	}
-	return Find(agent, home, dir)
+	slices.SortFunc(out, func(a, b Found) int { return b.Changed.Compare(a.Changed) })
+	return out
+}
+
+// Started is when the conversation at path began, as its first record's time says:
+// Claude Code's and Codex's timestamp, OMP's and Claude Platform's. ok is false when no
+// record says it (an older or a hand-written file), and the caller goes by the file's
+// change instead.
+func Started(agent, path string) (time.Time, bool) {
+	if !Supports(agent) {
+		return time.Time{}, false
+	}
+	f, err := os.Open(path)
+	if err != nil {
+		return time.Time{}, false
+	}
+	defer f.Close()
+	sc := bufio.NewScanner(f)
+	sc.Buffer(make([]byte, 64<<10), 16<<20)
+	for i := 0; i < 40 && sc.Scan(); i++ {
+		var rec struct {
+			Timestamp time.Time `json:"timestamp"`
+			Time      time.Time `json:"time"`
+		}
+		if json.Unmarshal(sc.Bytes(), &rec) != nil {
+			continue
+		}
+		if !rec.Timestamp.IsZero() {
+			return rec.Timestamp, true
+		}
+		if !rec.Time.IsZero() {
+			return rec.Time, true
+		}
+	}
+	return time.Time{}, false
 }
 
 // HomeOf is where agent keeps its files under home, "" for an agent with none known here.
