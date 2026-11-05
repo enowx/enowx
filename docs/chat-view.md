@@ -16,7 +16,13 @@ The daemon reads the transcript the agent records on its own host (`session.tran
 
 ## Which file belongs to a session
 
-A session's transcript is the newest file for its folder that changed after the session was created. A new file (after `/clear`, say) takes over; a file another session follows is left to it, so two Claude Code sessions in one folder each keep their own.
+A session shows its own conversation and nothing else, however many sessions share its folder. An older session's file keeps changing, so a file being new says nothing of whose it is.
+
+- **In its own folder:** an agent given one (`Preset.SessionDir`: Claude Platform, OMP) keeps its conversations there, and the newest is the session's. With none there yet, it shows nothing.
+- **Known by id:** Claude Code names its conversation as it starts (`SessionStart`'s `session_id`), even before writing it, so the session shows nothing until that file appears, and a new id (`/clear`, `/resume`) moves it there. A session resumed, imported or found earlier has its id too (`Meta.Conversation`), which outlasts a restart.
+- **Otherwise (Codex, Claude Agent Teams, no hooks):** a conversation whose first record is after the session's start (`transcript.Started`; a file with no time, by when it changed) and that no other session is on. Once found, it stays: `/clear` moves it only where the agent's hook says so (`source` `clear`), so on Windows, which has no hooks, the chat stays on the old conversation after `/clear`.
+
+Resume, fork, transfer, handoffs and the model shown all go by this choice.
 
 ## What the chat shows
 

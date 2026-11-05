@@ -84,6 +84,8 @@ func (s *Server) switchAgent(p proto.AccountSwitchParams) (proto.SessionInfo, er
 		s.reapSession(info.ID)
 	}
 	meta.Agent, meta.Account, meta.AccountFirst, meta.Conversation, meta.Config = preset.ID, acc, "", "", run.sessionInfo()
+	meta.ConvoSince = time.Now()
+	s.transcripts.forget(info.ID) // what it followed is the other agent's
 	meta.Restart, meta.Relaunch, meta.SkipPermissions = l.restart, l.relaunch, l.skip
 	keepBypass(&meta)
 	meta.Rules = s.rulesAtStart(meta, info.Dir, true)

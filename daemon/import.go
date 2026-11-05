@@ -185,6 +185,7 @@ func (s *Server) importSession(in *importing, ms transfer.Session, ids map[strin
 	meta := session.Meta{
 		Name: ms.Name, Prompt: ms.Prompt, Project: in.dest, Agent: ms.Agent, Branch: ms.Branch, Worktree: ms.Worktree,
 		SkipPermissions: ms.Skip, Budget: time.Duration(ms.Budget) * time.Second, Parent: ids[ms.Parent],
+		Conversation: convo,
 	}
 	spec := session.Spec{ID: session.NewID(), Dir: dir, Created: ms.Created, History: in.history[ms.ID], Env: s.sessionEnv()}
 	var command []string
