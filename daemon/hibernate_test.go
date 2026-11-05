@@ -157,12 +157,16 @@ func TestHibernateLeavesATaskUnderWay(t *testing.T) {
 	if err := srv.sessions.SetState(sess, proto.StateDone); err != nil {
 		t.Fatal(err)
 	}
-	// Its turn's end reaches the board too, and settles that task: one GOA has given
-	// it and it hasn't taken yet, as between a queued task's going in and the agent
-	// saying it is at work, is the one hibernation is kept off by.
+	// Its turn's end moves the board too, and settles that task. Put it back as one
+	// GOA has given and the session hasn't taken yet: that is the shape hibernation
+	// must keep off, and the plan is checked so it does so for that reason and not
+	// because the session still reads as active.
 	waitFor(t, "the turn's end on the board", func() bool { return taskStatus(t, srv, task.ID).Status == proto.GOATaskTurnEnded })
 	if _, err := srv.goa.board.Update(task.ID, func(x *proto.GOATask) { x.Status = proto.GOATaskWorking }); err != nil {
 		t.Fatal(err)
+	}
+	if plan := srv.hibernatePlan(sess, nil); plan.Task != task.ID {
+		t.Fatalf("its task under way: %+v", plan)
 	}
 	srv.hibernate()
 	if list, _ := c.Sessions(); list[0].Hibernated {
