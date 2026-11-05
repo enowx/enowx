@@ -114,6 +114,7 @@ type Server struct {
 	vault             vaultState   // apps lending credentials, and what they lent (vault.go)
 
 	transcripts transcripts
+	deliveries  deliveryState
 	// controlAsks are the sessions waiting for the user's yes in the app, and
 	// the method it's for (sessionAwaitsUser).
 	controlAsks sync.Map

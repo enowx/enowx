@@ -15,7 +15,7 @@ mkdir -p "$HOME/.cache"
 work=$(mktemp -d "$HOME/.cache/enowx-package.XXXXXX")
 trap 'rm -rf "$work"' EXIT
 scripts/daemons.sh
-go tool mygo build -o "$work" -platform "$platforms" cmd/enowx
+sh scripts/terminalpatch.sh -- tool mygo build -o "$work" -platform "$platforms" cmd/enowx
 mkdir -p "$dist"
 find "$work" -maxdepth 2 -type f \( -name '*.dmg' -o -name '*.deb' -o -name '*.tar.gz' -o -name '*Setup*.exe' -o -name install.sh \) | while read -r f; do
 	case "$f" in

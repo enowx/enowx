@@ -11,7 +11,11 @@ mkdir -p "$dist"
 
 cd "$root"
 make daemons
-go tool mygo build -platform darwin/universal cmd/enowx
+patch=$(mktemp -d "${TMPDIR:-/tmp}/enowx-terminalpatch.XXXXXX")
+trap 'rm -rf "$patch"' EXIT
+flags=$(sh scripts/terminalpatch.sh -out "$patch/go.mod" -print-go-flags)
+export GOFLAGS="$flags"
+"${HOST_GO:-go}" tool mygo build -platform darwin/universal cmd/enowx
 
 app="$root/build/darwin-universal/enowX.app"
 if [[ "$(uname)" == "Darwin" ]]; then
@@ -23,7 +27,7 @@ fi
 
 for arch in amd64 arm64; do
   mkdir -p "$dist/linux-$arch"
-  GOOS=linux GOARCH="$arch" CGO_ENABLED=0 go build -trimpath -ldflags "-s -w" -o "$dist/linux-$arch/enowxd" ./cmd/enowxd
+  GOOS=linux GOARCH="$arch" CGO_ENABLED=0 "${HOST_GO:-go}" build -trimpath -ldflags "-s -w" -o "$dist/linux-$arch/enowxd" ./cmd/enowxd
   tar -C "$dist/linux-$arch" -czf "$dist/enowxd-$version-linux-$arch.tar.gz" enowxd
 done
 

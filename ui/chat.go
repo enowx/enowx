@@ -90,9 +90,11 @@ func (a *App) chatViewSending(c *ui.Context, s proto.SessionInfo, shown func() b
 	if send == nil {
 		send = func(text string, files []string) { a.sendWithFiles(s.ID, text, files) }
 	}
-	var deliver func(string, []string, func(error))
+	var deliver func(string, string, []string, func(error))
 	if tw.send == nil {
-		deliver = func(text string, files []string, done func(error)) { a.deliverToSession(s.ID, text, files, done) }
+		deliver = func(key, text string, files []string, done func(error)) {
+			a.deliverToSession(s, key, text, files, done)
+		}
 	}
 	spent, spentTip := "", ""
 	if t, ok := a.sessionTokens(s.ID); ok {
@@ -121,6 +123,7 @@ func (a *App) chatViewSending(c *ui.Context, s proto.SessionInfo, shown func() b
 		Working:     isWorking(s),
 		Send:        send,
 		Deliver:     deliver,
+		Run:         s.Run,
 		Interrupt:   func() { a.interruptSession(s) },
 		Set:         func(setting, id string) { a.setAgentSetting(s, setting, id) },
 		Paste: func(text string) bool {
@@ -260,7 +263,12 @@ func (a *App) sendWithFiles(id, text string, files []string) {
 }
 
 // deliverToSession is sendWithFiles saying on the main thread how it went.
-func (a *App) deliverToSession(id, text string, files []string, done func(error)) {
+func (a *App) deliverToSession(s proto.SessionInfo, key, text string, files []string, done func(error)) {
+	cl := a.client
+	if cl == nil {
+		done(errors.New("not connected to the host"))
+		return
+	}
 	msg := text
 	if len(files) > 0 {
 		msg = strings.Join(files, " ")
@@ -268,28 +276,17 @@ func (a *App) deliverToSession(id, text string, files []string, done func(error)
 			msg = text + " " + msg
 		}
 	}
-	paste := len(files) > 0 || strings.Contains(msg, "\n")
-	p := a.panes[id]
-	if p == nil {
-		a.inputThroughDaemon(id, msg, paste, done)
-		return
-	}
-	if paste {
-		msg = "\x1b[200~" + msg + "\x1b[201~"
-	}
-	a.withPane(id, func(p *pane) {
-		go func() {
-			_, err := p.stream.Write([]byte(msg))
-			if err == nil {
-				time.Sleep(50 * time.Millisecond) // as writeThenEnter
-				_, err = p.stream.Write([]byte("\r"))
-			}
-			if err != nil {
-				err = fmt.Errorf("couldn't reach the session: %s", client.Explain(err))
-			}
-			a.onMain(func() { done(err) })
-		}()
-	}, func() { done(errNotAttached) })
+	go func() {
+		result, err := cl.Deliver(proto.DeliveryParams{ID: s.ID, Run: s.Run, Key: key, Text: msg})
+		if client.IsUnknownMethod(err) {
+			err = errors.New("reconnect to update this host before sending chat messages")
+		} else if err != nil {
+			err = fmt.Errorf("couldn't reach the session: %s", client.Explain(err))
+		} else if result.Interrupted {
+			err = chatview.ErrDeliveryInterrupted
+		}
+		a.onMain(func() { done(err) })
+	}()
 }
 
 // inputThroughDaemon types msg into session id, then Enter, for a session whose

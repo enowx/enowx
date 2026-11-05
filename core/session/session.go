@@ -6,7 +6,6 @@
 package session
 
 import (
-	"bytes"
 	"crypto/rand"
 	"encoding/hex"
 	"errors"
@@ -149,6 +148,10 @@ const EnvSession = "ENOWX_SESSION"
 
 // Session is one running (or exited) program.
 type Session struct {
+	inputMu         sync.Mutex // orders queued input, independently of callbacks
+	inputSeq        uint64
+	deliveryEpoch   uint64 // guarded by mu; invalidates even a hook's waiting -> done round trip
+	deliveryPending bool   // guarded by mu; inspect readiness on frames only while settling
 	// started is when its program started; exitWhy why it ended, when it wasn't
 	// clean; quickExits how many times in a row, over Replace too, it ended
 	// right after starting, the last at lastExit.
@@ -289,53 +292,6 @@ func (s *Session) ScreenChanged() time.Time {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	return s.screenAt
-}
-
-// NoteInput records what the user typed: its echo must not count as
-// activity, and its first line becomes the session's prompt when none was
-// given. It reports whether the prompt was just set.
-//
-// Typing answers an agent that waits for the user, and Enter sends its
-// next prompt after it finished, so the state the hooks reported no longer
-// holds; agents with hooks report the next one themselves.
-func (s *Session) NoteInput(p []byte) bool {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	s.lastInput = time.Now()
-	if s.state == proto.StateWaiting || s.state == proto.StateDone && bytes.ContainsAny(p, "\r\n") {
-		s.state = ""
-	}
-	if s.prompt != "" {
-		return false
-	}
-	for _, r := range string(p) {
-		switch {
-		case s.inEscape:
-			// CSI and SS3 sequences end with a letter or ~; others after one rune.
-			if r >= '@' && r <= '~' && r != '[' && r != 'O' {
-				s.inEscape = false
-			}
-		case r == 0x1b:
-			s.inEscape = true
-		case r == '\r' || r == '\n':
-			if line := strings.TrimSpace(string(s.typed)); line != "" {
-				s.prompt, s.typed = truncate(line, 200), nil
-				return true
-			}
-			s.typed = nil
-		case r == 0x7f || r == 0x08:
-			if len(s.typed) > 0 {
-				s.typed = s.typed[:len(s.typed)-1]
-			}
-		case r == 0x15: // Ctrl-U
-			s.typed = nil
-		case r >= 0x20:
-			if len(s.typed) < 400 {
-				s.typed = append(s.typed, r)
-			}
-		}
-	}
-	return false
 }
 
 func truncate(s string, n int) string {
@@ -606,6 +562,9 @@ func (m *Manager) watchActivity(s *Session) {
 		s.mu.Lock()
 		active := !s.exited && !s.lastChange.IsZero() && now.Sub(s.lastChange) < activeFor
 		changed := active != s.active
+		if changed && active {
+			s.deliveryEpoch++
+		}
 		if s.active && !active && s.state != proto.StateDone && s.state != proto.StateWaiting {
 			s.meta.FinishedAt = now.UnixMilli() // no hook says when: its screen stopped
 		}
@@ -635,29 +594,12 @@ func (s *Session) noteScreen(now time.Time, changed bool) {
 	s.mu.Lock()
 	if changed {
 		s.screenAt = now
+		s.noteDeliveryScreenLocked()
 	}
 	if changed && now.Sub(s.lastInput) > echoFor {
 		s.lastChange = now
 	}
 	s.mu.Unlock()
-}
-
-// Input types p into the session and records it (see NoteInput).
-func (m *Manager) Input(s *Session, p []byte) {
-	s.term.Send(p)
-	prompted := s.NoteInput(p)
-	s.mu.Lock()
-	changed := s.stateChanged(time.Now())
-	sent := s.lines.feed(p)
-	s.mu.Unlock()
-	if m.OnPrompt != nil {
-		for _, line := range sent {
-			m.OnPrompt(s.id, line)
-		}
-	}
-	if prompted || changed {
-		m.notify(s)
-	}
 }
 
 // SetState records the state the agent's hooks report (proto.State*).
@@ -669,6 +611,7 @@ func (m *Manager) SetState(s *Session, state string) error {
 	}
 	now := time.Now()
 	s.mu.Lock()
+	s.deliveryEpoch++
 	if state == proto.StateDone && s.state != proto.StateDone {
 		s.meta.FinishedAt = now.UnixMilli()
 	}

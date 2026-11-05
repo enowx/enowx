@@ -1,0 +1,152 @@
+package terminal
+
+import (
+	"io"
+	"strings"
+	"testing"
+	"time"
+
+	"github.com/egoist/mygo/plugins/terminal/internal/vt"
+)
+
+type enowxGateWriter struct {
+	release <-chan struct{}
+	start   chan<- struct{}
+	err     error
+}
+
+func (w enowxGateWriter) Write(p []byte) (int, error) {
+	close(w.start)
+	<-w.release
+	if w.err != nil {
+		return 0, w.err
+	}
+	return len(p), nil
+}
+
+func TestEnowxCheckedInputWriteCompletion(t *testing.T) {
+	for _, fail := range []bool{false, true} {
+		t.Run(map[bool]string{false: "success", true: "failure"}[fail], func(t *testing.T) {
+			term := guardedFixture(t)
+			entered, release, written, stopped := make(chan struct{}), make(chan struct{}), make(chan struct{}), make(chan struct{})
+			var writeErr error
+			if fail {
+				writeErr = io.ErrClosedPipe
+			}
+			if !term.SendCheckedWritten([]byte("PASTE"), func(string) bool { return true }, func() { close(written) }) {
+				t.Fatal("refused paste")
+			}
+			go func() {
+				defer close(stopped)
+				term.in.run(enowxGateWriter{start: entered, release: release, err: writeErr})
+			}()
+			select {
+			case <-entered:
+			case <-time.After(time.Second):
+				t.Fatal("writer not entered")
+			}
+			select {
+			case <-written:
+				t.Fatal("acknowledged enqueue as write completion")
+			default:
+			}
+			term.in.close() // Also prove closing the queue doesn't acknowledge an in-flight write.
+			select {
+			case <-written:
+				t.Fatal("acknowledged queue close as a write")
+			default:
+			}
+			close(release)
+			select {
+			case <-stopped:
+			case <-time.After(time.Second):
+				t.Fatal("writer stranded")
+			}
+			select {
+			case <-written:
+				if fail {
+					t.Fatal("acknowledged failed write")
+				}
+			default:
+				if !fail {
+					t.Fatal("missing successful write completion")
+				}
+			}
+		})
+	}
+}
+
+func guardedFixture(t *testing.T) *Terminal {
+	t.Helper()
+	if err := Load(); err != nil {
+		t.Fatal(err)
+	}
+	v, err := vt.NewTerminal(80, 24, vt.Effects{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(v.Free)
+	// No PTY, queue consumer, UI or activity goroutine can hold either lock.
+	term := &Terminal{term: v}
+	term.Feed([]byte("› DRAFT"))
+	return term
+}
+
+func TestEnowxCheckedInputRedrawBoundary(t *testing.T) {
+	term := guardedFixture(t)
+	checked, resume := make(chan struct{}), make(chan struct{})
+	done := make(chan bool, 1)
+	go func() {
+		done <- term.SendChecked([]byte("\r"), func(screen string) bool {
+			close(checked)
+			<-resume
+			return !strings.Contains(screen, "Proceed?")
+		})
+	}()
+	<-checked
+	// This is the exact mutex acquired by Feed/write for a raw redraw. A
+	// failed TryLock proves exclusion without a sleep or scheduler guess.
+	redrawCanWin := term.mu.TryLock()
+	if redrawCanWin {
+		term.mu.Unlock()
+		term.Feed([]byte("\x1b[2J\x1b[HProceed?\r\n> Yes\r\n  No"))
+	}
+	close(resume)
+	accepted := <-done
+	if redrawCanWin {
+		t.Fatalf("raw redraw completed between screen check and enqueue: accepted=%v queue=%+v", accepted, term.in.queue)
+	}
+	if !accepted || len(term.in.queue) != 1 || string(term.in.queue[0].p) != "\r" {
+		t.Fatalf("commit before redraw: accepted=%v queue=%+v", accepted, term.in.queue)
+	}
+	// The competing redraw can now complete, after the Enter was enqueued.
+	term.Feed([]byte("\x1b[2J\x1b[HProceed?\r\n> Yes\r\n  No"))
+	if term.SendChecked([]byte("\r"), func(screen string) bool { return !strings.Contains(screen, "Proceed?") }) {
+		t.Fatal("accepted Enter after redraw won")
+	}
+	if len(term.in.queue) != 1 {
+		t.Fatalf("unexpected queue: %+v", term.in.queue)
+	}
+	t.Log("terminal mutex excludes raw redraw through predicate and enqueue; redraw-first refuses Enter")
+}
+
+func TestEnowxCheckedInputQueueOwnership(t *testing.T) {
+	term := guardedFixture(t)
+	term.Send([]byte("MANUAL"))
+	data := []byte("PASTE")
+	if !term.SendChecked(data, func(string) bool { return true }) {
+		t.Fatal("refused ready screen")
+	}
+	data[0] = 'X'
+	if len(term.in.queue) != 2 || string(term.in.queue[0].p) != "MANUAL" || string(term.in.queue[1].p) != "PASTE" {
+		t.Fatalf("queue order or ownership lost: %+v", term.in.queue)
+	}
+	term.in.close()
+	called := false
+	if term.SendChecked([]byte("\r"), func(string) bool { called = true; return true }) {
+		t.Fatal("accepted input into closed queue")
+	}
+	if called {
+		t.Fatal("ran predicate after queue closed")
+	}
+}

@@ -1,6 +1,8 @@
 package chatview
 
 import (
+	"crypto/rand"
+	"errors"
 	"path/filepath"
 	"strings"
 	"time"
@@ -21,13 +23,20 @@ import (
 // it before it counts as not taken.
 const outgoingLost = 45 * time.Second
 
+// ErrDeliveryInterrupted means text may be a draft mixed with terminal input.
+// Only the user can decide what to submit or remove in that terminal.
+var ErrDeliveryInterrupted = errors.New("Terminal input changed during delivery. Check the terminal.")
+
 // outgoing is a message on its way. It belongs to the main thread.
 type outgoing struct {
-	text   string
-	files  []string
-	at     time.Time // sent, or last seen with the agent busy
-	after  int       // an entry from this index on may be it
-	failed string    // why it didn't go, "" while on its way
+	key                              string // stable across transport retries
+	run                              int64
+	started, inFlight, sent, changed bool
+	text                             string
+	files                            []string
+	at                               time.Time // sent, or last seen with the agent busy
+	after                            int       // an entry from this index on may be it
+	failed                           string    // why it didn't go, "" while on its way
 }
 
 // shown is the message as the user's entry will read: its files' paths after its text.
@@ -50,19 +59,41 @@ func (ch *Chat) outgoingSend(o Options, text string, files []string) {
 		o.Send(text, files)
 		return
 	}
-	m := &outgoing{text: text, files: files, after: ch.base + len(ch.entries)}
+	m := &outgoing{key: rand.Text(), run: o.Run, text: text, files: files, at: time.Now(), after: ch.base + len(ch.entries)}
 	ch.out = append(ch.out, m)
-	ch.outgoingGo(o, m)
+	if len(ch.out) == 1 && !o.Working && !o.Waiting && (ch.loaded || o.Deliver == nil) {
+		ch.outgoingGo(o, m)
+	}
 }
 
 // outgoingGo sends m, or sends it again.
 func (ch *Chat) outgoingGo(o Options, m *outgoing) {
+	if m.inFlight || m.sent || m.changed {
+		return
+	}
+	if o.Run != m.run {
+		m.changed, m.failed = true, "The session restarted. Check the terminal."
+		return
+	}
+	if !m.started {
+		m.after = ch.base + len(ch.entries)
+	}
 	m.failed, m.at = "", time.Now()
+	m.started, m.inFlight = true, true
 	if o.Deliver == nil {
+		m.sent, m.inFlight = true, false
 		o.Send(m.text, m.files)
 		return
 	}
-	o.Deliver(m.text, m.files, func(err error) {
+	o.Deliver(m.key, m.text, m.files, func(err error) {
+		m.inFlight = false
+		if m.changed {
+			return
+		}
+		m.sent = err == nil || errors.Is(err, ErrDeliveryInterrupted)
+		if errors.Is(err, ErrDeliveryInterrupted) {
+			m.changed = true
+		}
 		if err != nil {
 			m.failed = err.Error()
 		}
@@ -106,7 +137,7 @@ func (ch *Chat) outgoingSettle() {
 			text = ch.showUser(text)
 		}
 		for j, m := range ch.out {
-			if e.Index < m.after || !sameMessage(text, m.text) {
+			if !m.started || m.changed || e.Index < m.after || !sameMessage(text, m.shown()) {
 				continue
 			}
 			ch.out = append(ch.out[:j:j], ch.out[j+1:]...)
@@ -119,30 +150,30 @@ func (ch *Chat) outgoingSettle() {
 	}
 }
 
-// sameMessage says an entry reading got is message want: agents add a picture's
-// reference or a reminder of their own, and may keep a long paste apart.
+// sameMessage compares the whole recorded message, including attachment paths.
+// A shared prefix, screen echo, or a transport response is not acknowledgement.
 func sameMessage(got, want string) bool {
 	want = strings.Join(strings.Fields(want), " ")
-	if want == "" {
-		return true // files alone
-	}
 	got = strings.Join(strings.Fields(got), " ")
-	if r := []rune(want); len(r) > 200 {
-		want = string(r[:200])
-	}
-	return strings.Contains(got, want)
+	return want != "" && got == want
 }
 
 // outgoingLook marks what the agent hasn't taken although free to. While it is busy
 // or asks, a message only waits its turn.
 func (ch *Chat) outgoingLook(o Options, now time.Time) {
-	for _, m := range ch.out {
+	for i, m := range ch.out {
 		switch {
+		case o.Run != m.run:
+			m.changed, m.failed = true, "The session restarted. Check the terminal."
 		case m.failed != "":
+		case !m.started:
+			if i == 0 && !o.Working && !o.Waiting && (ch.loaded || o.Deliver == nil) {
+				ch.outgoingGo(o, m)
+			}
 		case o.Working || o.Waiting:
 			m.at = now
 		case now.Sub(m.at) > outgoingLost:
-			m.failed = "The agent hasn't taken this message."
+			m.failed = "Delivery isn't confirmed. Check the terminal before sending again."
 		}
 	}
 }
@@ -203,12 +234,22 @@ func (ch *Chat) outgoingNote(c *ui.Context, m *outgoing, running bool) {
 			ui.Row(c).MinWidth(0).Shrink(1).Children(func() {
 				widget.Running(c, m.failed, widget.RunStyle{Color: theme.TextSoft})
 			})
-			if widget.Button(c.Key("retry"), widget.Secondary, nil, "Retry", "").Clicked() {
+			if !m.sent && !m.changed && widget.Button(c.Key("retry"), widget.Secondary, nil, "Retry", "").Clicked() {
 				ch.outgoingGo(ch.sending, m)
 			}
-			if widget.Button(c.Key("edit"), widget.Secondary, nil, "Edit", "").Clicked() {
+			if !m.started && widget.Button(c.Key("edit"), widget.Secondary, nil, "Edit", "").Clicked() {
 				ch.outgoingBack(m)
 			}
+			if ch.sending.ShowTerminal != nil && widget.Button(c.Key("terminal"), widget.Secondary, nil, "Show terminal", "").Clicked() {
+				ch.sending.ShowTerminal()
+			}
+			if !m.inFlight && widget.Button(c.Key("dismiss"), widget.Secondary, nil, "Stop tracking", "Remove this pending row after reviewing the terminal; no terminal input is changed.").Clicked() {
+				ch.outgoingDrop(m)
+			}
+		})
+	case !m.started:
+		ui.Row(c.Key("outgoing")).FillWidth().Justify(ui.End).Children(func() {
+			ui.Text(c, "Queued in Chat").FontSize(theme.TextLabel).TextColor(theme.TextSoft).SingleLine()
 		})
 	case !running:
 		ui.Row(c.Key("outgoing")).FillWidth().Justify(ui.End).Children(func() {

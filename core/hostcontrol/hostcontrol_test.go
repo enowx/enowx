@@ -17,6 +17,8 @@ func TestRolesOnASharedHost(t *testing.T) {
 		{proto.MethodSessionList, api.RoleViewer, true},
 		{proto.MethodSessionInput, api.RoleViewer, false},
 		{proto.MethodSessionInput, api.RoleMember, true},
+		{proto.MethodSessionDeliver, api.RoleViewer, false},
+		{proto.MethodSessionDeliver, api.RoleMember, true},
 		{proto.MethodSessionKill, api.RoleViewer, false},
 		{proto.MethodSessionKill, "", true},
 		{proto.MethodVaultGet, "", false},

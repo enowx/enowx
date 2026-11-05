@@ -13,7 +13,9 @@ mkdir -p "$HOME/.cache"
 out=$(mktemp -d "$HOME/.cache/enowx-service.XXXXXX")
 name=enowx-service-test
 trap 'docker rm -f $name >/dev/null 2>&1; rm -rf "$out"' EXIT
-CGO_ENABLED=0 GOOS=linux GOARCH=$goarch go build -o "$out/enowxd" ./cmd/enowxd
+flags=$(sh scripts/terminalpatch.sh -out "$out/go.mod" -print-go-flags)
+export GOFLAGS="$flags"
+CGO_ENABLED=0 GOOS=linux GOARCH=$goarch "${HOST_GO:-go}" build -o "$out/enowxd" ./cmd/enowxd
 cp hostconn/linger.sh "$out/"
 cat >"$out/Dockerfile" <<'DOCKERFILE'
 FROM ubuntu:24.04
