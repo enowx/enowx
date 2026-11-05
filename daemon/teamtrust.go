@@ -266,10 +266,12 @@ func (ts *teamSync) later(p string, it api.Item, why string) {
 // seen, or before items to ask again for while it is time to.
 func (ts *teamSync) pullFrom() int64 {
 	// Once, for a host a version of enowX left past items it never took: every item
-	// again, those it has passing by, as their versions say.
+	// again, those it has passing by, as their versions say. A pull cut off
+	// partway asks from where it got to, not from the start: asking again for
+	// the pages it already took is what a timed-out first pull made of this.
 	if ts.state.Recheck < teamRecheck {
 		ts.state.Retry, ts.state.RetrySince = 0, time.Time{}
-		return 0
+		return ts.state.RecheckAt
 	}
 	from, retry, since := ts.state.Seq, ts.state.Retry, ts.state.RetrySince
 	if retry <= 0 || retry-1 >= from {
