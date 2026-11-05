@@ -50,15 +50,15 @@ Its sheet (Settings → Agents, its chat, the new session dialog; `ui/platformvi
 
 ## Changing the agent's settings
 
-The composer shows the agent's model, permission mode and effort, as the transcript and the screen say them, and changes them the way the agent's user would (`core/agent/settings.go`):
+The composer shows the agent's model, permission mode and effort, as the transcript and the screen say them, and changes them as this table says (`core/agent/settings.go`). The model and effort change for that session alone (`session.settings`, [agents.md](agents.md#what-a-switch-does)):
 
 Claude Platform is changed the same way as Claude Code: `/model <name>` (Opus 5.5, its default, Fable 5.1, Sonnet 5.5, Haiku 5.5, Opus 5, Sonnet 5, Haiku 4.5), Shift+Tab until the screen says the mode (ask first, accept edits, plan, bypass permissions, each named on its status line), `/effort <level>`. All read back from its record's `meta`. Its chat offers no going back to edit a message.
 
 | Setting | Claude Code | Codex (checked on 0.164) |
 |---|---|---|
-| Model | types `/model <name>`, with the names Claude Code records: Default, Opus 5.5, Fable 5.1, Sonnet 5.5, Haiku 5.5, Haiku 4.5, Sonnet 5, Opus 5, Fable 5, Opus 4.8 (the first ten of its `/model` menu on 2.1.308). Read back from `message.model`. | types `/model <slug>`: GPT-6-Luna, GPT-5.6-Terra, GPT-5.6-Luna (its `/model` menu). Read back from `turn_context`. |
+| Model | starts again on its conversation with `--model <name>`, never typing `/model`, with the names Claude Code records: Default, Opus 5.5, Fable 5.1, Sonnet 5.5, Haiku 5.5, Haiku 4.5, Sonnet 5, Opus 5, Fable 5, Opus 4.8 (the first ten of its `/model` menu on 2.1.308). Read back from `message.model`. | starts again on its conversation with `-c model=<slug>`: GPT-6-Luna, GPT-5.6-Terra, GPT-5.6-Luna (its `/model` menu). Read back from `turn_context`. |
 | Mode | the daemon lands on the mode (`session.mode`) and the call says if it didn't. Shift+Tab goes auto, manual, accept edits, plan, bypass permissions, in that order (checked on 2.1.318), with no other way to change mode as it runs, so plan is on the way from any of the first three to bypass. A key is pressed where the way doesn't go through plan, one at a time, each waiting for the screen; none if the screen doesn't say a mode. Otherwise Claude Code starts again on its conversation in that mode (`--permission-mode`, or bypass), which is refused while its agent is at work or asking, or if stopping would lose what it runs or serves; bypass is what it comes back in after. Read back from the screen, else from `permissionMode`. | Shift+Tab switches Default and Plan; the status line says "Plan mode" and nothing in Default. |
-| Effort | types `/effort <level>`: low, medium, high, xhigh, max. Read back from `effort` on assistant records. | types `/model --reasoning=<level>`: low, medium, high, xhigh, max. Read back from `turn_context`. |
+| Effort | starts again on its conversation with `--effort <level>`: low, medium, high, xhigh, max. Read back from `effort` on assistant records. | starts again on its conversation with `-c model_reasoning_effort=<level>`: low, medium, high, xhigh, max. Read back from `turn_context`. |
 
 Other agents show no settings.
 
@@ -68,7 +68,7 @@ A session keeps its model, effort and permission mode through restarts, wakes, r
 
 When the model its agent says differs from what the session started on, the session says so: `(started on …)` beside the model in the app's row and in `enowx-app ls`, `modelStarted` in its info, and a line in the daemon's log. Claude Code's transcript tells the two causes apart: `/model` records its answer, so that becomes the session's model, and a model it moved to by itself never goes on its command line, so a restart returns to the one it was given. Other agents' transcripts read the same either way (Codex's `turn_context`, OMP's `model_change`), so what they last said stands, with the same words.
 
-Claude Code saves what `/model` and `/effort` set as its default, in a file all its sessions read, and enowX can't stop that. Sessions already there aren't changed by it, as they say their own at each start. New ones take what Settings, New sessions start on says for that agent; left at "The agent's own", they take whatever that file says by then. A task's routing picks what a new session starts on: a session that already exists keeps its own, unless GOA or the user asks for a model by hand.
+Claude Code saves what `/model` and `/effort` set as its default, in a file all its sessions read, when the user types them; enowX doesn't. Sessions already there aren't changed by it, as they say their own at each start. New ones take what Settings, New sessions start on says for that agent; left at "The agent's own", they take whatever that file says by then. A task's routing picks what a new session starts on: a session that already exists keeps its own, unless GOA or the user asks for a model by hand.
 
 ## Editing a message
 

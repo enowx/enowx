@@ -23,7 +23,8 @@ type Choice struct {
 // is changed in a running session.
 type Settings struct {
 	Models []Choice
-	// ModelCommand, with %s the model's ID, switches the model.
+	// ModelCommand, with %s the model's ID, switches the model in the session it runs in;
+	// where it saves it for every session too (SavesDefaults), enowX doesn't type it.
 	ModelCommand string
 	Modes        []Choice
 	// ModeTitle names the modes in the composer; "" for "Permissions".
@@ -32,8 +33,13 @@ type Settings struct {
 	// mode can't be changed while the agent runs.
 	ModeKey string
 	Efforts []Choice
-	// EffortCommand, with %s the level, sets the effort.
+	// EffortCommand, with %s the level, sets the effort, as ModelCommand sets the model.
 	EffortCommand string
+	// SavesDefaults says ModelCommand and EffortCommand save what they set as the default
+	// for new sessions, in a file all the agent's sessions read: typing one would change
+	// the user's own settings too, so enowX starts the agent again on its conversation
+	// with ModelFlag and EffortFlag instead (session.settings).
+	SavesDefaults bool
 	// ModelFlag, EffortFlag and ModeFlag, with %s the choice, start the agent on a
 	// model, an effort and a permission mode: arguments of its command line.
 	ModelFlag, EffortFlag, ModeFlag []string
@@ -125,6 +131,7 @@ var claudeSettings = Settings{
 		{ID: "xhigh", Label: "Extra high"}, {ID: "max", Label: "Max"},
 	},
 	EffortCommand: "/effort %s",
+	SavesDefaults: true,
 	ModelFlag:     []string{"--model", "%s"},
 	EffortFlag:    []string{"--effort", "%s"},
 	ModeFlag:      []string{"--permission-mode", "%s"},
@@ -153,6 +160,7 @@ var codexSettings = Settings{
 		{ID: "xhigh", Label: "Extra high"}, {ID: "max", Label: "Max"},
 	},
 	EffortCommand: "/model --reasoning=%s",
+	SavesDefaults: true, // "failed to persist model selection", in 0.166's program; not run
 	ModelFlag:     []string{"-c", `model="%s"`},
 	EffortFlag:    []string{"-c", `model_reasoning_effort="%s"`},
 }

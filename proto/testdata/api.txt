@@ -2360,6 +2360,9 @@ field SessionRules.hook bool
 field SessionRules.version string
 field SessionRules.via string
 field SessionScreen.text string
+field SessionSettingsParams.effort string
+field SessionSettingsParams.id string
+field SessionSettingsParams.model string
 field SessionStateParams.id string
 field SessionStateParams.state string
 field SessionUsage.id string
@@ -3378,6 +3381,7 @@ method session.rename
 method session.resize
 method session.rewind
 method session.screen
+method session.settings
 method session.state
 method session.stopBackground
 method session.takeover.answer

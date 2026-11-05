@@ -17,10 +17,17 @@ type Settings struct {
 }
 
 // LastSettings is what agent last said in its transcript at path, read from its end.
-func LastSettings(agent, path string) Settings {
+func LastSettings(agent, path string) Settings { return LastSettingsSince(agent, path, 0) }
+
+// LastSettingsSince is LastSettings of what the transcript says past its first floor bytes: a
+// session switched to another model leaves what came before behind.
+func LastSettingsSince(agent, path string, floor int64) Settings {
 	info, err := os.Stat(path)
 	if err != nil {
 		return Settings{}
+	}
+	if floor > info.Size() {
+		floor = 0 // it started over
 	}
 	var out Settings
 	for _, window := range settingsWindows {
@@ -29,12 +36,12 @@ func LastSettings(agent, path string) Settings {
 			return Settings{}
 		}
 		// A line cut by the window's start doesn't parse, and is skipped.
-		r.offset = max(info.Size()-window, 0)
+		r.offset = max(info.Size()-window, floor)
 		if err := r.Update(); err != nil {
 			return Settings{}
 		}
 		out = Settings{Model: r.Model, Effort: r.Effort, Mode: r.Mode, ModelChosen: r.ModelChosen}
-		if out.Model != "" || r.offset-window <= 0 && window >= info.Size() {
+		if out.Model != "" || window >= info.Size()-floor {
 			return out
 		}
 	}

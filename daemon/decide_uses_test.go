@@ -107,7 +107,7 @@ func TestRouteChatAndFlakyThroughTheDaemon(t *testing.T) {
 
 	r, err := c.DecideRoute(proto.DecideRouteParams{Agent: "claude", Prompt: "fix the typo in the README"})
 	if err != nil || r.Model != "claude-haiku-5-5" || r.Effort != "low" || r.Difficulty != proto.VerdictEasy || r.Why == "" ||
-		strings.Join(r.Switch, "|") != "/model claude-haiku-5-5|/effort low" {
+		len(r.Switch) != 0 {
 		t.Fatalf("easy: %+v %v", r, err)
 	}
 	r, err = c.DecideRoute(proto.DecideRouteParams{Agent: "codex", Prompt: "migrate the orders table to the new schema"})

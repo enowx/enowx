@@ -303,8 +303,9 @@ type RouteChoice struct {
 	// by the judge yet).
 	Config string `json:"config,omitempty"`
 	// Switch is what to type in a running session of the agent for this
-	// model and effort (its /model, /effort); a new session takes them as
-	// SessionCreateParams.Model and Effort.
+	// model and effort, none for an agent whose commands would save them for
+	// all its sessions (MethodSessionSettings changes those); a new session
+	// takes them as SessionCreateParams.Model and Effort.
 	Switch   []string `json:"switch,omitempty"`
 	Decision string   `json:"decision,omitempty"` // the decision's ID in the log
 	Error    string   `json:"error,omitempty"`

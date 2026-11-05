@@ -8,7 +8,6 @@ import (
 	"time"
 
 	"github.com/enowx/enowx/core/agent"
-	"github.com/enowx/enowx/core/decide"
 	"github.com/enowx/enowx/core/goa"
 	"github.com/enowx/enowx/core/noteblocks"
 	"github.com/enowx/enowx/proto"
@@ -58,11 +57,11 @@ func (s *Server) goaDelegate(p proto.GOADelegateParams) (proto.GOATask, error) {
 	if t.Agent == "" {
 		t.Agent = "claude"
 	}
-	var switches []string
+	asked := proto.SessionSettingsParams{ID: t.Session}
 	switch {
 	case p.Model != "" || p.Effort != "" || p.Config != "":
 		t.Override, t.Why = true, "chosen by hand"
-		switches = decide.Route{Model: p.Model, Effort: p.Effort}.Switch(t.Agent)
+		asked.Model, asked.Effort = p.Model, p.Effort
 	case p.NoRoute:
 		t.Why = "the agent's own model and effort, as asked"
 	default:
@@ -80,7 +79,7 @@ func (s *Server) goaDelegate(p proto.GOADelegateParams) (proto.GOATask, error) {
 			// Routing picks what a task starts on: a session already there keeps its own.
 			t.Difficulty, t.Why = rc.Difficulty, rc.Why+" (the session keeps its own model and effort)"
 		default:
-			t.Model, t.Effort, t.Difficulty, t.Why, switches = rc.Model, rc.Effort, rc.Difficulty, rc.Why, rc.Switch
+			t.Model, t.Effort, t.Difficulty, t.Why = rc.Model, rc.Effort, rc.Difficulty, rc.Why
 			if rc.Config != "" && t.Config == "" {
 				t.Config = rc.Config
 			}
@@ -103,11 +102,12 @@ func (s *Server) goaDelegate(p proto.GOADelegateParams) (proto.GOATask, error) {
 		if t.Status == proto.GOATaskQueued {
 			return s.goaAddTask(p, t, target)
 		}
-		for _, line := range switches {
-			if err := s.goaCall(p.From, p.Host, proto.MethodSessionInput, proto.SessionInputParams{ID: t.Session, Text: line, Enter: true}, nil); err != nil {
-				return t, err
+		if asked.Model != "" || asked.Effort != "" {
+			// The task goes either way, the board saying what it runs on.
+			if err := s.goaCall(p.From, p.Host, proto.MethodSessionSettings, asked, nil); err != nil {
+				t.Model, t.Effort = "", ""
+				t.Why = strings.TrimSpace(t.Why + " Its session keeps its own model and effort: " + err.Error())
 			}
-			time.Sleep(switchPause)
 		}
 		if err := s.goaCall(p.From, p.Host, proto.MethodSessionInput, proto.SessionInputParams{ID: t.Session, Text: p.Prompt, Paste: true, Enter: true}, nil); err != nil {
 			return t, err
@@ -649,16 +649,13 @@ func (s *Server) goaOverride(p proto.GOAOverrideParams) (proto.GOATask, error) {
 	if t.ID == "" {
 		return t, fmt.Errorf("goa: no task %q on the board", p.ID)
 	}
-	lines := decide.Route{Model: p.Model, Effort: p.Effort}.Switch(t.Agent)
-	if len(lines) == 0 {
+	set := agent.SettingsOf(t.Agent)
+	if set.ModelCommand == "" && set.EffortCommand == "" {
 		return t, fmt.Errorf("goa: %s's model and effort can't be switched while it runs", t.Agent)
 	}
 	if !goa.Settled(t.Status) && t.Session != "" {
-		for _, line := range lines {
-			if err := s.goaCall("", t.Host, proto.MethodSessionInput, proto.SessionInputParams{ID: t.Session, Text: line, Enter: true}, nil); err != nil {
-				return t, err
-			}
-			time.Sleep(switchPause)
+		if err := s.goaCall("", t.Host, proto.MethodSessionSettings, proto.SessionSettingsParams{ID: t.Session, Model: p.Model, Effort: p.Effort}, nil); err != nil {
+			return t, err
 		}
 	}
 	t, err := s.goa.board.Update(t.ID, func(t *proto.GOATask) {

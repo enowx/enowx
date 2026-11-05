@@ -249,6 +249,11 @@ func (s *Server) transcript(p proto.TranscriptParams) (proto.Transcript, error) 
 	out := proto.Transcript{Supported: true, Entries: entries, Rev: rev, Reset: reset,
 		Model: f.reader.Model, Mode: f.reader.Mode, Effort: f.reader.Effort,
 		ContextTokens: f.reader.Context, CostUSD: f.reader.CostUSD, BudgetUSD: f.reader.BudgetUSD}
+	if s.floorOf(info.ID, f.reader.Path()) > 0 {
+		// Switched: the transcript names the model it left until its next answer.
+		meta := sess.Meta()
+		out.Model, out.Effort = meta.Model, meta.Effort
+	}
 	if out.ContextTokens > 0 {
 		out.ContextWindow = f.reader.Window
 		if out.ContextWindow == 0 {

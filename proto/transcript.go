@@ -63,6 +63,21 @@ type SessionModeParams struct {
 	Mode string `json:"mode"`
 }
 
+// MethodSessionSettings changes a session's model and effort, as its user would, and
+// returns once its agent is on them: SessionSettingsParams. An agent whose own /model and
+// /effort save what they set as the default for new sessions, in a file all its sessions
+// read, is never given them: the session starts again on its conversation, with its
+// command line's flags. Others are told the way they take them.
+const MethodSessionSettings = "session.settings"
+
+// SessionSettingsParams change a session's model, its effort, or both; "" keeps one,
+// and "default" asks for the agent's own.
+type SessionSettingsParams struct {
+	ID     string `json:"id"`
+	Model  string `json:"model,omitempty"`
+	Effort string `json:"effort,omitempty"`
+}
+
 // MethodSessionRewind takes a session's agent back to before one of the
 // user's messages, as its user would, so that a message sent next takes
 // its place: SessionRewindParams. It answers once the agent waits for that
