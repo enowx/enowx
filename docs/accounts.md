@@ -12,7 +12,23 @@ Other agents have a home variable but no other account, as their docs don't name
 - **New session** picks the config: Default is the agent's own.
 - **Command line**: `enowx-app spawn --config Work …` (or `--account`).
 
-Each account's home is `~/.enowx-app/accounts/<id>` on the host (`core/accounts`). It links to what is in the agent's own home (`~/.claude`, `~/.codex`, and so on): settings, skills, subagents, commands, plugins and conversations are the same whichever account a session uses, so the chat view, history and Settings see them all. Only the sign-in is the account's own (for Claude Code also `.claude.json`, which holds who is signed in, so MCP servers added with `claude mcp add --scope user` are per account). A session keeps its account when continued, after hibernation or a restart.
+Each account's home is `~/.enowx-app/accounts/<id>` on the host (`core/accounts`). It links settings, skills and conversations from the agent's own home (`~/.claude`, `~/.codex`, and so on). The sign-in stays private (for Claude Code also `.claude.json`, which holds who is signed in, so MCP servers added with `claude mcp add --scope user` are per account). A session keeps its account when continued, after hibernation or a restart.
+
+### Codex runtime isolation
+
+Codex shares only known entries: `config.toml`, `AGENTS.md`, `skills`, `prompts`, `rules`, `plugins`, `history.jsonl`, `session_index.jsonl`, `sessions`, `archived_sessions` and `thread-writer-locks`. Other entries stay private, including `auth.json`, all SQLite databases and their WAL, SHM and rollback journals, sockets, and app-server daemon/control state. New runtime names are private by default. Closing SQLite can remove its sidecars; preparing the account again never links those missing files to another home's journals.
+
+Rollouts and their writer locks use the same canonical directories in `~/.codex`, created if absent. An existing account directory pointing elsewhere is refused rather than replaced or merged. If canonical links cannot be made (including Windows without symlink permission), the account does not start: private writer locks beside shared rollouts would allow competing writers.
+
+An explicit `CODEX_HOME` in a user's config env wins over the generated account home; the last such entry wins. enowX leaves that explicit home and the unused generated home untouched. The config owner must prepare the explicit home's isolation and any canonical rollout/lock sharing. This does not apply to a team's member's isolated account, which must not share the host user's files.
+
+### Existing Codex links
+
+An account home with links outside the shared list is refused before sharing. There is no automatic unlink, database copy, checkpoint, repair or lock removal. A dangling runtime link is refused too.
+
+Review an old home offline, after all agents and background processes using it have exited normally. Keep a backup and a link/target manifest. Prefer a fresh private runtime and a fresh sign-in. Retain physical databases together with their own journals until their consistency can be established offline; do not copy a live database or combine a database with another home's WAL/SHM. If old links must be retired, quarantine only the links after reviewing their targets; preserve the target files and any physical account files. Preserve the canonical rollout directory and its writer-lock directory as a pair; never delete an active writer lock or introduce private locks for shared rollouts. These steps require a separate reviewed migration, not an account-start side effect.
+
+Sharing database and journal paths across homes creates a reproducible risk. It does not establish the cause of any historical database corruption.
 
 ## API keys as accounts
 

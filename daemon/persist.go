@@ -295,6 +295,11 @@ func (s *Server) restore() {
 			s.logger().Info("a session waits for an app to lend its key", "id", r.ID)
 			s.waitForKey(r.ID)
 			spec.Exited, spec.ExitCode, spec.Command = true, -1, r.Command
+		} else if accountEnv, err := s.agentEnv(spec.Meta); err != nil {
+			// An unsafe or unavailable account home must not fall back to
+			// the host's sign-in when the daemon restores its sessions.
+			s.logger().Warn("could not restore a session's account", "id", r.ID, "err", err)
+			spec.Exited, spec.ExitCode, spec.Command = true, -1, r.Command
 		} else if run, err := s.configRunFor(r.ID, spec.Meta); err != nil {
 			// Its config's key can't be read yet (no app to lend it): it
 			// waits, stopped, to be continued, rather than start as another.
@@ -308,11 +313,7 @@ func (s *Server) restore() {
 				env, names := s.restartVaultEnv(r.ID, spec.Meta)
 				spec.Env, spec.Meta.Creds = append(append(spec.Env, env...), run.environ()...), names // its config's API over any key lent
 			}
-			if env, err := s.agentEnv(spec.Meta); err == nil {
-				spec.Env = append(spec.Env, env...)
-			} else {
-				s.logger().Warn("could not restore a session's account", "id", r.ID, "err", err)
-			}
+			spec.Env = append(spec.Env, accountEnv...)
 			if preset, ok := agent.Find(r.Agent); ok && len(r.Restart) > 0 && len(preset.Continue) > 0 {
 				// The command saved has the hooks and guide of the daemon
 				// that saved it.
