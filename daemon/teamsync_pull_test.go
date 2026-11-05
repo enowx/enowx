@@ -100,7 +100,6 @@ func TestAChatRefreshIsAnsweredFromTheLastSync(t *testing.T) {
 	ada, bob := hs[0], hs[1]
 	ada.sync(t, acme) // the team's key
 	bob.sync(t, acme)
-	time.Sleep(pullEvery + 100*time.Millisecond) // past the sync just done
 
 	var reads atomic.Int32
 	sc.setHook(func(w http.ResponseWriter, r *http.Request, next http.Handler) {
@@ -109,13 +108,25 @@ func TestAChatRefreshIsAnsweredFromTheLastSync(t *testing.T) {
 		}
 		next.ServeHTTP(w, r)
 	})
-	for range 2 {
+	defer sc.setHook(nil)
+	// The sync loop's own, after a change, may answer the first refresh: ask again
+	// past pullEvery until one of them reads the space.
+	for deadline := time.Now().Add(4 * pullEvery); reads.Load() == 0; {
+		if time.Now().After(deadline) {
+			t.Fatal("no refresh read the space")
+		}
 		if err := bob.c.RefreshChat(acme); err != nil {
 			t.Fatal(err)
 		}
+		if reads.Load() == 0 {
+			time.Sleep(pullEvery + 100*time.Millisecond)
+		}
 	}
-	sc.setHook(nil)
-	if got := reads.Load(); got != 1 {
-		t.Fatalf("%d reads of the space for two refreshes of one chat", got)
+	before := reads.Load()
+	if err := bob.c.RefreshChat(acme); err != nil {
+		t.Fatal(err)
+	}
+	if got := reads.Load(); got != before {
+		t.Fatalf("a refresh right after one read the space again: %d reads, not %d", got, before)
 	}
 }
