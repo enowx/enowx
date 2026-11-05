@@ -279,6 +279,39 @@ func TestOpenCodeConfigFitsBothVersions(t *testing.T) {
 	}
 }
 
+// OpenCode 2 reads a model's limits from the provider's entry in `providers` alone; a
+// model without them is assumed 200,000 context and 32,000 output, which its footer
+// then shows a session against.
+func TestOpenCode2ConfigKeepsTheModelsLimits(t *testing.T) {
+	dir := t.TempDir()
+	l, err := SessionLaunch("opencode2", API{BaseURL: "https://x.example/v1", APIKey: "k", Model: "big",
+		Models: []Model{{ID: "big", Context: 1000000, Output: 384000}, {ID: "plain"}}}, dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var cfg struct {
+		Providers map[string]struct {
+			Models map[string]struct {
+				Limit *struct {
+					Context int `json:"context"`
+					Output  int `json:"output"`
+				} `json:"limit"`
+			} `json:"models"`
+		} `json:"providers"`
+	}
+	data, err := os.ReadFile(strings.TrimPrefix(l.Env[0], "OPENCODE_CONFIG="))
+	if err != nil || json.Unmarshal(data, &cfg) != nil {
+		t.Fatalf("%v: %s", err, data)
+	}
+	models := cfg.Providers["enowx"].Models
+	if lim := models["big"].Limit; lim == nil || lim.Context != 1000000 || lim.Output != 384000 {
+		t.Fatalf("big: %+v, want 1000000 and 384000 in %s", models["big"].Limit, data)
+	}
+	if models["plain"].Limit != nil {
+		t.Fatalf("plain: a limit it wasn't given: %+v", models["plain"].Limit)
+	}
+}
+
 // Claude Platform's key goes in its session's environment and nowhere else, and it has
 // no settings for one to be written to.
 func TestPlatformSessionKeyInItsEnvironmentAlone(t *testing.T) {
