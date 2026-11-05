@@ -2,6 +2,77 @@
 
 Each version's section is also what the app's update dialog shows.
 
+## 0.7.0
+
+Claude Platform, enowX's own agent; Project Docs; the community library at https://ui.enowx.ai; Claude Code now always running in bypass; a fifth of the scrollback; and much less memory for the app and the daemon.
+
+- **Claude Platform, enowX's own coding agent.** It is part of enowX's program: a Go loop over Anthropic's Messages API, nothing to install (no Node, no Python) on any host, macOS, Linux, Windows and servers alike. It runs on a key from the vault and is billed per token by Anthropic. Its tools are the ones Claude Code names (Read, Write, Edit, Glob, Grep, Bash, AskUserQuestion, Task, and MCP servers' tools), its permission prompts are answered by keys, a hook can rewrite what it runs, and "always allow" keeps only a bounded command.
+  - **Its sessions are sessions like any other:** tabs, hibernation, restarts, other hosts. Its chat streams the answer as it arrives, a chip shows what the session has cost against its budget, and its sheet keeps the API key in the vault and edits the host's system prompt.
+  - **The key stays the agent's:** its tools' commands don't get it, it is in no file, command line, record or log, and text a tool brings back has it replaced.
+  - **Not offered:** rewinding from the chat and forking a session.
+- **Project Docs: a whole project documented as notes.** A PRD, Technical Spec, ERD and the rest live as ordinary notes under one project note, so sync, teams, history, RAG and a note's agent work on them. Its metadata and approval line sit in the body, where an older daemon can't lose them; sections say what they are built on, with that source's hash, and read as stale when it moves on. Agents write to an approved document as a proposal you accept, and the approval gate blocks building until the PRD and Technical Spec are approved and unchanged.
+  - Templates for product, UX, planning, launch and the technical areas; `docs` on the command line and as MCP tools; `goa delegate --doc` hands a task over with the sections, links and acceptance criteria it needs; a project exports to a repository when you ask.
+- **The community library, enowX UI, at https://ui.enowx.ai.** Designs are shared from canvas to the site and browsed in the app: search by words and by meaning, filters, likes, collections, follows, comments, notifications for what you made and what was decided, and moderation by people who aren't its creator. Take a design as code, as a reference or as a skill, and `enowx://` links open in the app. It stays off unless the cloud you set has it on, and nothing reaches any other service.
+- **GOD of Agents can change the agent and config it runs on,** from Settings in its header, with what a pick would do or why it can't before anything is pressed. It is offered only on agents run for real as GOA (Claude Code and its teams, Codex, OpenCode 1 and 2; Claude Platform ahead of that run), and refuses the others saying why.
+  - **One line per turn,** the task's report and its turn's end together, with the worker's real last message.
+  - **A queued task survives a daemon's restart,** reaches a session on another host, and brings a sleeping session back for it.
+  - **A task under way, or a session's background agents, keep hibernation off it.**
+- **Claude Code always runs in `bypassPermissions`, for every user, with no way to turn it off.** Every Claude Code session enowX starts or brings back runs in bypass: New session, `spawn`, `goa delegate`, resume, `continue`, `wake`, a message to one asleep, fork, a tab, a session copied from another host, an account switch, a daemon's restart and an app's update, whatever an earlier daemon saved.
+  - **No setting turns it off:** the New session switch and Settings' permission mode aren't offered for Claude Code, and one an app, the command line or an automation still sends is ignored. The rule is Claude Code's alone; another agent doesn't inherit it.
+  - **enowX accepts Claude Code's warning for you:** on a home that never accepted it, Claude Code stops at a warning whose first answer exits, so enowX passes the setting that skips it in the `--settings` it starts Claude Code with. Your own files aren't touched, and the session's banner says it skips permission prompts.
+  - **What still stops it:** a hook's refusal (a deny, which bypass doesn't pass), the judge's sure no, and a hook's ask, which Claude Code still prompts for. As root Claude Code refuses bypass itself, and the session starts asking and says why. A mode you set mid-session holds for that process only; a restart, a wake or an update brings bypass back.
+- **RAG searches on every prompt of an indexed project,** and adds the four best parts, up to 6000 characters. Nothing turns it off: not a switch, not the judge. The judge's "RAG: context or not" use is retired, and settings that name it are read and ignored.
+  - **That is one call to the embedder per prompt.** Past 3 seconds the prompt goes on without the index; a failed embedder falls back to the words alone, in the host's own store, the parts say so, and the failure shows in Settings → RAG and the Index tool until a search works.
+  - **Agents with a start-of-prompt hook get the parts:** Claude Code, Claude Agent Teams, Codex and Claude Platform. Others have no moment of the prompt to answer, and search with `rag search` themselves.
+- **Default scrollback falls from 10 to 2 MiB a session.** The daemon's own memory was mostly this: five full scrollbacks measured 65 MB before and 10 MB after, about 11 MB a full session. A long build's log is cut sooner; an agent's chat isn't affected, being read from its transcript.
+- **Switching a session's model restarts it on its conversation.** The chat's composer, `switch`, GOA's **Change model** and `goa delegate` change that session alone. Claude Code and Codex start again on their conversation with the model and effort as flags, never `/model`, so your own default in your settings isn't touched.
+  - **Refused while its agent works or asks,** when stopping would lose what it runs or serves, and on a session running a config, which decides its model. Nothing changes then, and GOA still gives the task, its board line saying the session kept its model. A session that isn't running only takes the new values, for when it comes back. An older daemon answers that it can't, and nothing is typed in its place.
+- **Much less memory, and the numbers to show it.** A session's terminal is parsed only while it is shown, the last-shown few are let go after 3 minutes, a canvas's layers are drawn as asked for, a conversation is held only while a chat shows it, a chat polls only on screen, and an idle sync does nothing.
+  - **The token store keeps the last 2 days of calls** and sums older days: it held 45.6 MB for 126,000 calls before. Every split, day row, budget and session badge stays exact.
+  - **A team's pull that was cut off carries on where it stopped,** and a chat's refresh after a completed sync asks the cloud for nothing; before, a re-check read the whole space again every 5 seconds.
+  - **GOGC 50, a 1 GiB soft limit** well above ordinary use, and memory returned after a burst.
+  - **`enowx-app profile`** measures the running app and daemon: memory by the system's count and by Go's, what holds the heap, what they keep, CPU and pprof files; the same report goes in a diagnostics bundle.
+- **Agents:**
+  - **OMP takes a model API per session:** a folder of the session's own with `models.yml`, the key by variable and `--model enowx/<model>`. Run for real on OMP 18.15 on a throwaway daemon.
+  - **OpenCode 2:** enowX starts `opencode --standalone` when it reports 2 or later, so a config's provider, model, guide and tools aren't ignored by the user's shared background server, and the models' context limits come from the config.
+  - **Kilo Code takes its first prompt by flag.**
+  - **The guide comes in two parts:** an inject made for each session (who it is, the rules that hold whatever a file says, GOA's duty to delegate) and a guide file outside any repository. An agent with a file form gets both as one system prompt; one with only an inline flag gets the inject, told to read the guide. Nothing of it lands in your project.
+  - **Agents with no other way get a marked block** at the top of the project's `AGENTS.md`, or its `CLAUDE.md`, only in a session's environment. It is on by default, a tracked file shows it in `git diff`, and `project settings --guide-block off` takes it out.
+- **Each session shows its own conversation,** not the newest file in its folder: by the ID its agent reported, by its own session folder, or the first unclaimed conversation started after it. Resuming, forking, importing and the model shown all go by that choice.
+- **Sleeping sessions, and updates that don't cut work off.** Hibernating by hand shows what would stop (a dev server, ports, background agents, a task under way) before it happens, and a hibernated or ended agent comes back on its conversation when something is sent to it. Automatic hibernation stays at 30 idle minutes by default and never takes a session with a task under way or background agents; one can be kept out of it, and the choice syncs.
+  - The app replaces its daemon only when a restart would stop nothing, asking the daemon first; otherwise a card offers **Restart it now** or **When agents are done**. Sessions survive an update and a reconnect, and what a restart stops comes back.
+- **Also fixed:**
+  - A platform tab gets its own key from the vault, and a credential's use in a tab is recorded as that tab's.
+  - A chat no longer shows its folder's newest conversation instead of the session's own.
+  - An OpenCode 2 session is given its model's context limit.
+  - The model shown follows a resumed, forked or imported session instead of its folder.
+  - **Always allow** no longer allows every command, and hooks are obeyed fully.
+  - The agent's own API key is no longer handed to the commands it runs.
+  - Nothing is typed into the shell an agent leaves behind.
+  - Permission checks that a reader could see differently were closed (reads, MCP hints, attachments, kept rules).
+  - A canvas renders through an app that only watches the host, and a page whose address changes says so.
+  - A note's agent starts anew when its conversation left with its session.
+  - An agent's transcripts are found for a folder reached behind a symlink.
+  - A late turn's end no longer lands on a task being typed in.
+  - A team's items that waited aren't lost; a dropped connection backs off instead of hammering a host as it comes up.
+  - Menus, dropdowns and pop-up lists stay inside the window.
+
+### When you update
+
+- **The first start restarts the daemon,** as with any update. It now waits while a restart would stop work (an agent at work or asking, a command running in a terminal), and offers to do it later instead. Agents that do stop come back on their conversation.
+- **Update every device and host together.** A canvas's versions have stopped being synced since 0.6.0: an older app given no manifest would delete them, so an older app's sync fails and says to update.
+- **Claude Code sessions in bypass:** nothing to do, it is on for every session from now on, and its warning won't show.
+
+### What hasn't been tested with the real app
+
+- **Claude Platform** ran end to end against a stand-in Messages API and, for its key, with the real program on a throwaway daemon; it hasn't run a release build against a real Anthropic account at this scale, and the model's own behavior under bypass wasn't judged.
+- **The community library** has automated tests for its cloud side on SQLite and Postgres, and none of its moderation, comments, notifications or numbers has been used by real people yet.
+- **Project Docs** is covered by tests and the app's pages; a whole real project hasn't gone from a brainstorm through approval, tasks and export.
+- **The memory numbers** were measured on Linux, step by step in [docs/performance.md](https://github.com/enowdev/enowx/blob/main/docs/performance.md) (available in the app's docs). The Mac's figures there are estimates from one profile; the scrollback change wasn't re-measured on a Mac, and the app's and daemon's footprints on macOS weren't taken.
+- **Agents' real sessions:** Claude Code 2.1.318, Codex 0.166, OpenCode 1.19.5, Claude Agent Teams, OMP 18.16 and Qwen Code 0.26.7 were checked with a stand-in model that records what they receive; Gemini CLI 0.66 only partly. The others are read from their documentation and aren't counted as working: start one and ask it who it is in enowX.
+- **Claude Code's bypass** was checked on 2.1.318 with its answers served locally; that a real account's first session never sees the warning is by the setting enowX passes, not by a run with Anthropic's API.
+- **Windows** has the workflow's job for the pieces that must look the same there (icons, command lines through real PowerShell and cmd.exe, quoting), not the whole test suite.
+
 ## 0.6.2
 
 Fixes the app dropping its connection when you move to Canvas with large designs, and adds logs that say why a connection ended, so a problem like this can be read afterwards.
