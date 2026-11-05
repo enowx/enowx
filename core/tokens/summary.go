@@ -24,20 +24,49 @@ func Range(q proto.TokensQuery, now time.Time) (time.Time, time.Time) {
 	return since, until
 }
 
-// row is a call or a rolled-up day's row: what a summary is made of.
+// row is a call or a summed day's row: what a summary is made of.
 type row struct {
 	day, session, agent, model, project, config, account, layer, own string
 	counts                                                           proto.TokenCounts
+}
+
+// rowOf is call c as a row, priced by prices.
+func rowOf(c Call, prices *Prices) row {
+	return row{day(c.Time), c.Session, c.Agent, c.Model, c.Project, c.Config, c.Account, c.Layer, c.Own, c.Counts(prices)}
+}
+
+// rowsOf is calls summed by everything a summary splits by: one row a day,
+// session, agent, model, project, config, account, layer and own use. A day
+// past hotDays keeps a few dozen of them in place of thousands of calls, and
+// every split stays exact.
+func rowsOf(calls []Call, prices *Prices) []row {
+	type key struct{ day, session, agent, model, project, config, account, layer, own string }
+	sums := map[key]*row{}
+	var order []key
+	for _, c := range calls {
+		k := key{day(c.Time), c.Session, c.Agent, c.Model, c.Project, c.Config, c.Account, c.Layer, c.Own}
+		r := sums[k]
+		if r == nil {
+			one := rowOf(c, prices)
+			r = &one
+			sums[k] = r
+			order = append(order, k)
+		} else {
+			r.counts.Add(c.Counts(prices))
+		}
+	}
+	out := make([]row, 0, len(order))
+	for _, k := range order {
+		out = append(out, *sums[k])
+	}
+	return out
 }
 
 // Summarize sums the store's use as q asks, priced by prices. host
 // labels the host split.
 func (s *Store) Summarize(q proto.TokensQuery, prices *Prices, now time.Time) proto.TokensSummary {
 	since, until := Range(q, now)
-	var rows []row
-	for _, c := range s.Calls(since, until) {
-		rows = append(rows, row{day(c.Time), c.Session, c.Agent, c.Model, c.Project, c.Config, c.Account, c.Layer, c.Own, c.Counts(prices)})
-	}
+	rows := s.rows(since, until, prices)
 	for _, r := range s.RolledUp(since, until) {
 		rows = append(rows, row{day: r.Day, agent: r.Agent, model: r.Model, project: r.Project, config: r.Config, own: r.Own, counts: r.TokenCounts})
 	}
@@ -141,16 +170,16 @@ func sorted(m map[string]*proto.TokenGroup) []proto.TokenGroup {
 // SessionTotals sums each session's calls since since.
 func (s *Store) SessionTotals(since time.Time, prices *Prices) []proto.TokenSessionTotal {
 	sums := map[string]*proto.TokenSessionTotal{}
-	for _, c := range s.Calls(since, time.Now().Add(time.Minute)) {
-		if c.Session == "" || c.Own != "" {
+	for _, r := range s.rows(since, time.Now().Add(time.Minute), prices) {
+		if r.session == "" || r.own != "" {
 			continue
 		}
-		t := sums[c.Session]
+		t := sums[r.session]
 		if t == nil {
-			t = &proto.TokenSessionTotal{Session: c.Session}
-			sums[c.Session] = t
+			t = &proto.TokenSessionTotal{Session: r.session}
+			sums[r.session] = t
 		}
-		t.Add(c.Counts(prices))
+		t.Add(r.counts)
 	}
 	out := make([]proto.TokenSessionTotal, 0, len(sums))
 	for _, t := range sums {

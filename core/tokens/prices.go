@@ -4,7 +4,9 @@ import (
 	"cmp"
 	_ "embed"
 	"encoding/json"
+	"hash/fnv"
 	"regexp"
+	"strconv"
 	"strings"
 
 	"github.com/enowx/enowx/proto"
@@ -39,6 +41,19 @@ func NewPrices(own []proto.TokenPrice) *Prices { return &Prices{own: own, shippe
 // All is every price, the user's first.
 func (p *Prices) All() []proto.TokenPrice {
 	return append(append([]proto.TokenPrice{}, p.own...), p.shipped...)
+}
+
+// Key names the table: the user's prices, the shipped ones being the same
+// always. A day summed with one table is summed again with another. A nil
+// table is "", as it prices nothing.
+func (p *Prices) Key() string {
+	if p == nil {
+		return ""
+	}
+	data, _ := json.Marshal(p.own)
+	h := fnv.New64a()
+	h.Write(data)
+	return strconv.FormatUint(h.Sum64(), 16)
 }
 
 // Cost is what call c cost at its model's price, and whether one was

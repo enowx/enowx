@@ -25,12 +25,12 @@ func (s *Server) writeHostDays(now time.Time, prices *tokens.Prices) {
 		return
 	}
 	since := now.AddDate(0, 0, -hostDaysKept)
-	calls := s.tok.store.Calls(since, now.Add(time.Minute))
+	rows := s.tok.store.DayRows(since, now.Add(time.Minute), prices)
 	s.tok.store.Forget()
-	if len(calls) == 0 {
+	if len(rows) == 0 {
 		return
 	}
-	days := proto.TokensHostDays{Host: id, Name: s.userdata.Name, Updated: now.UTC().Truncate(time.Second), Rows: tokens.DayRows(calls, prices)}
+	days := proto.TokensHostDays{Host: id, Name: s.userdata.Name, Updated: now.UTC().Truncate(time.Second), Rows: rows}
 	data, err := json.Marshal(days)
 	if err != nil {
 		return
