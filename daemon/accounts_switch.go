@@ -91,8 +91,11 @@ func (s *Server) switchAgent(p proto.AccountSwitchParams) (proto.SessionInfo, er
 	if err != nil {
 		return proto.SessionInfo{}, err
 	}
+	// Its key, as a session starting again takes it: another agent's lease isn't its own.
+	vaultEnv, creds := s.restartVaultEnv(info.ID, meta)
+	meta.Creds = creds
 	spec := session.Spec{ID: info.ID, Dir: info.Dir, Created: info.Created, History: sess.History(),
-		Env: append(append(append(append(s.hostEnvFor(meta.Member), env...), l.env...), s.vaultEnvFor(info.ID, meta.Project, s.agentCreds(meta.Agent, meta.Project, meta.Account, meta.Creds), meta.Agent)...), run.environ()...), Command: l.command, Meta: meta}
+		Env: append(append(append(append(s.hostEnvFor(meta.Member), env...), l.env...), vaultEnv...), run.environ()...), Command: l.command, Meta: meta}
 	started, err := s.sessions.Replace(spec)
 	if err != nil {
 		return proto.SessionInfo{}, err

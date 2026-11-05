@@ -21,15 +21,18 @@ import (
 // logins through enowX's helpers, which ask the app at each use.
 
 // vaultSessionEnv is the environment new session id (of project; a tab of
-// parent; agentID's, to say who asks) gets from the vault: the credentials of names,
-// those the app puts in every session, and its helpers.
-func (s *Server) vaultSessionEnv(id, project, parent string, names []string, agentID string) ([]string, []string) {
+// parent; agentID's, to say who asks; account's, for the key its agent runs on) gets
+// from the vault: the credentials of names, those the app puts in every session, and
+// its helpers. A tab has its session's, but for the key its agent alone runs on: a tab
+// that is such an agent asks for its own, as a new session does.
+func (s *Server) vaultSessionEnv(id, project, parent string, names []string, agentID, account string) ([]string, []string) {
 	idx := s.vaultIndex()
 	if !idx.Present {
 		return nil, nil
 	}
-	l := &vaultLease{env: map[string]string{}}
+	l := &vaultLease{env: map[string]string{}, agentID: agentID}
 	l.agentVars, l.agentCreds = agentKeyHeld(agentID, idx)
+	platform := s.agentKeyPlatform(agentID, account)
 	if p := s.vaultLease(parent); p != nil {
 		// A tab has its session's, but for the key its agent alone runs on, unless the
 		// tab is such an agent itself.
@@ -41,27 +44,37 @@ func (s *Server) vaultSessionEnv(id, project, parent string, names []string, age
 		}
 		l.secrets = slices.Clone(p.secrets)
 		for k, v := range p.env {
+			if platform != "" && l.agentVars[k] {
+				// Its agent's own, kept out of the tab's environment, where the tab's
+				// other programs and its wrapper shells would read it.
+				l.takeAgentVar(k, v)
+				continue
+			}
 			l.env[k] = v
 		}
 		for k, v := range p.agentEnv {
-			if l.agentVars[k] {
+			if platform != "" && l.agentVars[k] {
 				l.takeAgentVar(k, v)
 			}
 		}
 		s.vault.mu.Unlock()
-	} else if len(names) > 0 || slices.ContainsFunc(idx.Credentials, func(c proto.CredentialInfo) bool { return c.Auto }) {
-		if s.vault.served() {
-			a := proto.VaultAsk{Action: proto.VaultSession, Session: id, Names: names}
-			req := proto.VaultRequest{VaultAsk: a, Project: project, Agent: agentID}
-			req.Hostname, _ = os.Hostname()
-			lend, err := s.vaultRequest(req)
-			s.vaultAudit(a, lend, err)
-			if err != nil {
-				s.logger().Warn("vault: a session starts without its credentials", "id", id, "err", err)
-			} else {
-				s.vaultTake(id, l, lend)
+		// A tab that is an agent running on a key of its own, in a session that isn't
+		// that agent, holds none: it asks for one, as a new session does and with the
+		// same consent. Its session's other credentials stay as they are.
+		if platform != "" && len(l.agentEnv) == 0 {
+			var want []string
+			for _, n := range names {
+				if l.agentCreds[n] {
+					want = append(want, n)
+				}
+			}
+			auto := slices.ContainsFunc(idx.Credentials, func(c proto.CredentialInfo) bool { return c.Auto && c.Platform == platform })
+			if len(want) > 0 || auto {
+				s.askSession(id, project, agentID, l, want)
 			}
 		}
+	} else if len(names) > 0 || slices.ContainsFunc(idx.Credentials, func(c proto.CredentialInfo) bool { return c.Auto }) {
+		s.askSession(id, project, agentID, l, names)
 	}
 	s.vaultHelpers(id, l, idx)
 	s.vault.mu.Lock()
@@ -75,6 +88,25 @@ func (s *Server) vaultSessionEnv(id, project, parent string, names []string, age
 	s.vault.leases[id] = l
 	s.vault.mu.Unlock()
 	return l.environ(), l.names
+}
+
+// askSession asks the app for the credentials a session (id, of project, its agent
+// agentID) starts with, names, and keeps what it lends. A refusal leaves it without
+// them, as a session with no app does: its agent says what is missing.
+func (s *Server) askSession(id, project, agentID string, l *vaultLease, names []string) {
+	if !s.vault.served() {
+		return
+	}
+	a := proto.VaultAsk{Action: proto.VaultSession, Session: id, Names: names}
+	req := proto.VaultRequest{VaultAsk: a, Project: project, Agent: agentID}
+	req.Hostname, _ = os.Hostname()
+	lend, err := s.vaultRequest(req)
+	s.vaultAudit(a, lend, err)
+	if err != nil {
+		s.logger().Warn("vault: a session starts without its credentials", "id", id, "err", err)
+		return
+	}
+	s.vaultTake(id, l, lend)
 }
 
 // vaultTake keeps what the app lent session id: its variables, its files
@@ -266,16 +298,17 @@ func (s *Server) vaultLease(id string) *vaultLease {
 }
 
 // vaultEnvFor is the environment session id's program starts with again:
-// its lease's, or (after the daemon restarted, or when its lease lacks one of names, an
-// app being gone when it was made) its credentials lent again while an app answers.
-func (s *Server) vaultEnvFor(id, project string, names []string, agentID string) []string {
-	if l := s.vaultLease(id); l != nil && (!s.vault.served() || s.leaseHolds(l, names)) {
+// its lease's, or (after the daemon restarted, when its lease lacks one of names, an
+// app being gone when it was made, or when it was another agent's) its credentials
+// lent again while an app answers.
+func (s *Server) vaultEnvFor(id, project string, names []string, agentID, account string) []string {
+	if l := s.vaultLease(id); l != nil && l.agentID == agentID && (!s.vault.served() || s.leaseHolds(l, names)) {
 		s.vault.mu.Lock()
 		l.agentArmed = len(l.agentEnv) > 0 // it starts again, and takes it again
 		s.vault.mu.Unlock()
 		return l.environ()
 	}
-	env, _ := s.vaultSessionEnv(id, project, "", names, agentID)
+	env, _ := s.vaultSessionEnv(id, project, "", names, agentID, account)
 	return env
 }
 
@@ -300,7 +333,7 @@ func (s *Server) vaultAttach(p proto.VaultAttach) ([]string, error) {
 	}
 	l := s.vaultLease(p.Session)
 	if l == nil {
-		s.vaultSessionEnv(p.Session, sess.Meta().Project, "", nil, sess.Meta().Agent)
+		s.vaultSessionEnv(p.Session, sess.Meta().Project, "", nil, sess.Meta().Agent, sess.Meta().Account)
 		if l = s.vaultLease(p.Session); l == nil {
 			return nil, errors.New("vault: this host has no vault yet: open Credentials in the app")
 		}

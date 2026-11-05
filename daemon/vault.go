@@ -56,6 +56,9 @@ type vaultLease struct {
 	agentCreds map[string]bool // the credentials those are of
 	agentEnv   map[string]string
 	agentArmed bool
+	// agentID is the agent the lease was made for: another agent's key is laid out
+	// differently, so a lease isn't used for one (agentkey.go).
+	agentID string
 }
 
 func (s *Server) vaultDir() string { return filepath.Join(filepath.Dir(s.WorktreeRoot), "vault") }

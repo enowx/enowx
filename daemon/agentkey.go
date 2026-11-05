@@ -70,7 +70,7 @@ func (s *Server) keyAwaitsApp(id string, meta session.Meta) bool {
 // names of its credentials afterwards: one it was given here shows only once lent.
 func (s *Server) restartVaultEnv(id string, meta session.Meta) (env, names []string) {
 	creds := s.agentCreds(meta.Agent, meta.Project, meta.Account, meta.Creds)
-	env = s.vaultEnvFor(id, meta.Project, creds, meta.Agent)
+	env = s.vaultEnvFor(id, meta.Project, creds, meta.Agent, meta.Account)
 	if len(creds) == len(meta.Creds) {
 		return env, meta.Creds
 	}

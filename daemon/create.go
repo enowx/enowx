@@ -231,7 +231,7 @@ func (s *Server) createSessionFor(p proto.SessionCreateParams, member *proto.Ses
 	}
 	if needsKey := s.agentKeyPlatform(p.Agent, p.Account) != ""; (p.NotesFor == "" && p.CanvasFor == "" || needsKey) && !p.SignIn && member == nil {
 		// The vault's credentials it asked for, those its agent runs on, and its helpers.
-		env, names := s.vaultSessionEnv(spec.ID, meta.Project, meta.Parent, s.agentCreds(p.Agent, meta.Project, p.Account, p.Creds), p.Agent)
+		env, names := s.vaultSessionEnv(spec.ID, meta.Project, meta.Parent, s.agentCreds(p.Agent, meta.Project, p.Account, p.Creds), p.Agent, p.Account)
 		spec.Env, spec.Meta.Creds = append(append(spec.Env, env...), chat.config.environ()...), names // its config's API over any key lent
 	}
 	// An agent that keeps no record of its tokens is metered through
