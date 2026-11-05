@@ -7,30 +7,24 @@ import (
 	"os"
 	"path/filepath"
 	"slices"
-	"strconv"
 	"strings"
 	"syscall"
 	"testing"
 
+	"github.com/enowx/enowx/core/procstat"
 	"github.com/enowx/enowx/internal/standinapi"
 	"github.com/enowx/enowx/proto"
 )
 
 // agentProcess is the PID of session id's agent program itself: the wrappers' shells
-// hold the same words on their command lines, but aren't the program.
+// hold the same words on their command lines, but aren't the program. Its first word
+// tells it from the shell wrapping it. Read through procstat, as macOS has no /proc.
 func (e *e2e) agentProcess(id string) int {
-	entries, _ := os.ReadDir("/proc")
-	for _, entry := range entries {
-		pid, err := strconv.Atoi(entry.Name())
-		if err != nil {
-			continue
-		}
-		// By its command line: the agent keeps its /proc entries from its own user, exe
-		// and environ included. Its first word tells it from the shell wrapping it.
-		data, _ := os.ReadFile(filepath.Join("/proc", entry.Name(), "cmdline"))
-		line := strings.ReplaceAll(string(data), "\x00", " ")
+	procs, _ := procstat.Snapshot()
+	for _, p := range procs {
+		line := strings.Join(procstat.Args(p.PID), " ")
 		if strings.HasPrefix(line, e2eBin+" ") && strings.Contains(line, "claude-platform") && strings.Contains(line, id) {
-			return pid
+			return p.PID
 		}
 	}
 	return 0
@@ -42,8 +36,7 @@ func (e *e2e) agentCommandLine(id string) string {
 	if pid == 0 {
 		return ""
 	}
-	data, _ := os.ReadFile(filepath.Join("/proc", strconv.Itoa(pid), "cmdline"))
-	return strings.ReplaceAll(string(data), "\x00", " ")
+	return strings.Join(procstat.Args(pid), " ")
 }
 
 // A hibernated session wakes on its conversation, cost and rules; so does one whose
