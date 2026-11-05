@@ -28,12 +28,24 @@ const ragQuiet = 15 * time.Second
 // ragContextMax bounds the context a prompt gets from the index.
 const ragContextMax = 6000
 
+// ragContextHits is how many parts a prompt gets: the four most like it.
+const ragContextHits = 4
+
+// ragWordsTimeout bounds the word search a failed embedder falls back to:
+// it is local, so it costs the prompt next to nothing.
+const ragWordsTimeout = 2 * time.Second
+
+// ragContextTimeout bounds a prompt's search: past it the prompt goes on
+// without the index rather than wait (a search measured at p90 300 ms).
+const ragContextTimeout = 3 * time.Second
+
 // ragState is what the daemon keeps of indexes. mu guards it.
 type ragState struct {
 	mu      sync.Mutex
 	status  map[string]proto.RAGStatus // by project folder
 	running map[string]bool
 	soon    map[string]*time.Timer
+	failed  map[string]string // by project folder: why its last prompt search failed
 }
 
 // newRAG makes the host's RAG, keys asked of the vault.
@@ -55,7 +67,8 @@ func (s *Server) newRAG(dir string) {
 		}
 		return "", fmt.Errorf("rag: the credential %s has no value", cred)
 	}
-	s.ragRun = ragState{status: map[string]proto.RAGStatus{}, running: map[string]bool{}, soon: map[string]*time.Timer{}}
+	s.rag.OnEmbed = func(project string, tokens int64) { s.ragTokens(project, tokens) }
+	s.ragRun = ragState{status: map[string]proto.RAGStatus{}, running: map[string]bool{}, soon: map[string]*time.Timer{}, failed: map[string]string{}}
 }
 
 // ragSetupDir is ragDir for looking at and indexing a project, not writing to
@@ -99,11 +112,12 @@ func (s *Server) ragStatus(dir string) proto.RAGStatus {
 	st := s.ragSettings.Get()
 	s.ragRun.mu.Lock()
 	out, ok := s.ragRun.status[dir]
-	running := s.ragRun.running[dir]
+	running, failed := s.ragRun.running[dir], s.ragRun.failed[dir]
 	s.ragRun.mu.Unlock()
 	if !ok {
 		out, _ = s.rag.Status(context.Background(), dir)
 	}
+	out.ContextError = failed
 	out.Project, out.ID, out.Settings, out.Indexing = dir, id, st.Projects[id], running
 	out.Ready = st.Embedder == proto.RAGVoyage || st.Embedder == proto.RAGOpenAI || st.Embedder == proto.RAGTEI
 	out.Embedder = s.rag.ProjectHost(dir)
@@ -147,7 +161,6 @@ func (s *Server) ragIndex(dir string) (proto.RAGStatus, error) {
 	go func() {
 		s.broadcast(proto.EventRAGProgress, s.ragStatus(dir))
 		res, err := s.rag.Index(context.Background(), dir, p, s.ragExtra(dir, id))
-		s.ragTokens(dir, res.Tokens)
 		res.Indexed, res.Phase = time.Now(), "done"
 		if err != nil {
 			res.Error = err.Error()
@@ -210,25 +223,42 @@ func (s *Server) ragSoon(dir string) {
 	})
 }
 
-// ragContext is what a prompt in project dir gets from its index, when
-// the project asks for it: the parts most like the prompt, those that bear
-// on it when the judge is asked (session info's, use context).
-func (s *Server) ragContext(info proto.SessionInfo, dir, prompt string) string {
+// ragContext is what a prompt in project dir gets from its index: every
+// prompt of a session whose project is indexed gets the four parts most
+// like it, up to ragContextMax characters. Nothing skips it but consent:
+// a project not turned on, or not agreed to for this embedder, sends
+// nothing. When the embedder fails the search falls back to the index's
+// words, its parts marked so, and the failure is kept for the RAG settings.
+func (s *Server) ragContext(dir, prompt string) string {
+	if strings.TrimSpace(prompt) == "" {
+		return ""
+	}
 	p := s.ragSettings.Project(rag.ProjectID(dir))
-	if !p.On || !p.Context || strings.TrimSpace(prompt) == "" {
+	if !p.On || p.Consent != s.rag.ProjectHost(dir) {
 		return ""
 	}
-	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), ragContextTimeout)
 	defer cancel()
-	hits, err := s.rag.Search(ctx, dir, prompt, 4, nil)
-	if err != nil || len(hits) == 0 {
+	st, err := s.rag.Status(ctx, dir)
+	if err != nil {
+		s.ragContextFailed(dir, err) // no embedder, or its key: nothing searched
 		return ""
 	}
-	parts := make([]string, len(hits))
-	for i, h := range hits {
-		parts[i] = hitPart(h)
+	if st.Chunks == 0 {
+		return "" // no index: nothing to find, and nothing to send
 	}
-	if hits = s.pickContext(info, prompt, hits, parts); len(hits) == 0 {
+	hits, err := s.rag.Search(ctx, dir, prompt, ragContextHits, nil)
+	if err != nil {
+		s.ragContextFailed(dir, err)
+		// The index's words alone, in this host's own store: no network, so
+		// the prompt waits no longer than this.
+		wctx, wcancel := context.WithTimeout(context.Background(), ragWordsTimeout)
+		defer wcancel()
+		hits, _ = s.rag.Words(wctx, dir, prompt, ragContextHits, nil)
+	} else {
+		s.ragContextFailed(dir, nil)
+	}
+	if len(hits) == 0 {
 		return ""
 	}
 	var b strings.Builder
@@ -243,6 +273,21 @@ func (s *Server) ragContext(info proto.SessionInfo, dir, prompt string) string {
 	return b.String()
 }
 
+// ragContextFailed keeps err as the reason project dir's last prompt search
+// failed (nil: it worked), for the RAG settings and the log.
+func (s *Server) ragContextFailed(dir string, err error) {
+	s.ragRun.mu.Lock()
+	if err == nil {
+		delete(s.ragRun.failed, dir)
+	} else {
+		s.ragRun.failed[dir] = err.Error()
+	}
+	s.ragRun.mu.Unlock()
+	if err != nil {
+		s.logger().Warn("rag: a prompt's search failed", "project", dir, "err", err)
+	}
+}
+
 // hitPart is a search result as a prompt's context shows it: where, then
 // its text.
 func hitPart(h proto.RAGHit) string {
@@ -255,6 +300,9 @@ func hitPart(h proto.RAGHit) string {
 	}
 	if where == "" {
 		where = h.Source
+	}
+	if h.Words {
+		where += " (found by words: the embedder failed)"
 	}
 	return "\n" + where + "\n" + h.Snippet + "\n"
 }

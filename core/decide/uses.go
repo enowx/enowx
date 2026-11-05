@@ -10,9 +10,11 @@ import (
 )
 
 // The uses added after the first four: a prompt's difficulty (route),
-// which search results bear on a prompt (context), whether an agent's last
-// answer holds a decision to keep (memory), how a chat message notifies
-// (chat), and whether a check failed by chance (flaky).
+// whether an agent's last answer holds a decision to keep (memory), how a
+// chat message notifies (chat), and whether a check failed by chance
+// (flaky). proto.DecideContext is kept answerable for older settings, but
+// the daemon never asks it: a prompt's project search always adds what it
+// found (docs/rag.md).
 
 // More limits of what a judge is given, in characters.
 const (

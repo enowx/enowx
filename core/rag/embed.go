@@ -17,9 +17,10 @@ import (
 )
 
 // embedder turns texts into vectors: documents to index, or a query to
-// search them with (some models embed the two apart).
+// search them with (some models embed the two apart). onCall, when not nil,
+// is told the tokens each request to the service counted.
 type embedder interface {
-	embed(ctx context.Context, texts []string, query bool) ([][]float32, error)
+	embed(ctx context.Context, texts []string, query bool, onCall func(tokens int64)) ([][]float32, error)
 	// tokens is what it was sent since made, as its service counted.
 	tokens() int64
 }
@@ -29,7 +30,7 @@ func newEmbedder(st proto.RAGSettings, key string) (embedder, error) {
 	switch st.Embedder {
 	case proto.RAGVoyage:
 		return &httpEmbedder{kind: proto.RAGVoyage, url: "https://api.voyageai.com/v1/embeddings", key: key,
-			model: orString(st.Model, "voyage-code-3"), dim: st.Dim, batch: 64}, nil
+			model: EmbedderModel(st), dim: st.Dim, batch: 64}, nil
 	case proto.RAGOpenAI:
 		if st.Model == "" {
 			return nil, errors.New("rag: name the embedding model")
@@ -59,7 +60,7 @@ const embedBatchBytes = 300 << 10
 
 func (h *httpEmbedder) tokens() int64 { return h.used.Load() }
 
-func (h *httpEmbedder) embed(ctx context.Context, texts []string, query bool) ([][]float32, error) {
+func (h *httpEmbedder) embed(ctx context.Context, texts []string, query bool, onCall func(int64)) ([][]float32, error) {
 	out := make([][]float32, 0, len(texts))
 	for i := 0; i < len(texts); {
 		// As many as fit: services limit a batch's tokens too.
@@ -70,20 +71,24 @@ func (h *httpEmbedder) embed(ctx context.Context, texts []string, query bool) ([
 		}
 		part := texts[i:end]
 		i = end
-		vecs, err := h.call(ctx, part, query)
+		vecs, used, err := h.call(ctx, part, query)
 		if err != nil {
 			return nil, err
 		}
 		if len(vecs) != len(part) {
 			return nil, fmt.Errorf("rag: the embedder gave %d vectors for %d texts", len(vecs), len(part))
 		}
+		if onCall != nil {
+			onCall(used) // one request's count, apart from the ones beside it
+		}
 		out = append(out, vecs...)
 	}
 	return out, nil
 }
 
-// call embeds one batch, again after a moment when the service is busy.
-func (h *httpEmbedder) call(ctx context.Context, texts []string, query bool) ([][]float32, error) {
+// call embeds one batch, again after a moment when the service is busy: it
+// says the vectors and the tokens the service counted for them.
+func (h *httpEmbedder) call(ctx context.Context, texts []string, query bool) ([][]float32, int64, error) {
 	var body any
 	switch h.kind {
 	case proto.RAGVoyage:
@@ -112,7 +117,10 @@ func (h *httpEmbedder) call(ctx context.Context, texts []string, query bool) ([]
 		if try > 0 {
 			select {
 			case <-ctx.Done():
-				return nil, ctx.Err()
+				if last != nil {
+					return nil, 0, last // what the service said, not only that time ran out
+				}
+				return nil, 0, ctx.Err()
 			case <-time.After(wait):
 			}
 			wait = min(wait*2, 20*time.Second)
@@ -128,11 +136,11 @@ func (h *httpEmbedder) call(ctx context.Context, texts []string, query bool) ([]
 			wait = max(wait, after)
 			continue
 		case status >= 300:
-			return nil, fmt.Errorf("rag: the embedder: %d %s", status, short(raw))
+			return nil, 0, fmt.Errorf("rag: the embedder: %d %s", status, short(raw))
 		}
 		return h.parse(raw, texts)
 	}
-	return nil, last
+	return nil, 0, last
 }
 
 // post sends data, and says the answer, its status and how long the
@@ -161,18 +169,18 @@ func (h *httpEmbedder) post(ctx context.Context, data []byte) ([]byte, int, time
 	return raw, resp.StatusCode, after, err
 }
 
-func (h *httpEmbedder) parse(raw []byte, texts []string) ([][]float32, error) {
+// parse is the service's answer: its vectors and the tokens it counted,
+// estimated from the texts when it doesn't say (TEI never does), so that
+// every request is counted, never silently nothing.
+func (h *httpEmbedder) parse(raw []byte, texts []string) ([][]float32, int64, error) {
 	if h.kind == proto.RAGTEI {
 		var out [][]float32
 		if err := json.Unmarshal(raw, &out); err != nil {
-			return nil, fmt.Errorf("rag: the embedder's answer: %w", err)
+			return nil, 0, fmt.Errorf("rag: the embedder's answer: %w", err)
 		}
-		n := 0
-		for _, t := range texts {
-			n += len(t) / 4 // TEI doesn't count: about 4 characters a token
-		}
-		h.used.Add(int64(n))
-		return out, nil
+		used := estimateTokens(texts)
+		h.used.Add(used)
+		return out, used, nil
 	}
 	var out struct {
 		Data []struct {
@@ -184,7 +192,7 @@ func (h *httpEmbedder) parse(raw []byte, texts []string) ([][]float32, error) {
 		} `json:"usage"`
 	}
 	if err := json.Unmarshal(raw, &out); err != nil {
-		return nil, fmt.Errorf("rag: the embedder's answer: %w", err)
+		return nil, 0, fmt.Errorf("rag: the embedder's answer: %w", err)
 	}
 	vecs := make([][]float32, len(out.Data))
 	for i, d := range out.Data {
@@ -194,8 +202,22 @@ func (h *httpEmbedder) parse(raw []byte, texts []string) ([][]float32, error) {
 		}
 		vecs[at] = d.Embedding
 	}
-	h.used.Add(out.Usage.Total)
-	return vecs, nil
+	used := out.Usage.Total
+	if used == 0 {
+		used = estimateTokens(texts) // a service that doesn't count its tokens
+	}
+	h.used.Add(used)
+	return vecs, used, nil
+}
+
+// estimateTokens is about what texts count, for a service that doesn't
+// say: four characters a token, and at least one for a text.
+func estimateTokens(texts []string) int64 {
+	var n int64
+	for _, t := range texts {
+		n += int64(len(t)/4) + 1
+	}
+	return n
 }
 
 // short is the start of a service's error, for a message.
