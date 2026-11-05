@@ -58,14 +58,20 @@ func (s *Settings) Set(st proto.DecideSettings) error {
 	if err := checkPolicy(st.Policy, st.Provider); err != nil {
 		return err
 	}
+	uses := make(map[string]proto.DecideUse, len(st.Uses))
 	for use, u := range st.Uses {
+		if use == proto.DecideContext {
+			continue // retired: a prompt's search always adds what it found (docs/rag.md)
+		}
 		if !slices.Contains(proto.DecideUses, use) {
 			return fmt.Errorf("decide: no use %q", use)
 		}
 		if u.MinConfidence < 0 || u.MinConfidence > 1 || u.DailyCalls < 0 {
 			return fmt.Errorf("decide: %s: how sure is 0 to 1, calls a day not negative", use)
 		}
+		uses[use] = u
 	}
+	st.Uses = uses
 	for _, p := range st.Projects {
 		if err := checkPolicy(p.Policy, p.Provider); err != nil {
 			return err

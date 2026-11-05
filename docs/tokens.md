@@ -69,7 +69,7 @@ What "input" means differs between agents (some count cached tokens in it, some 
 - **Kept a year**; older days are rolled up into a day's totals per agent, model, project and config (`rollups.json`).
 - **Recount**: when the way of counting changes (`tokens.RecountVersion`), the first scan of a new build with tracking on rebuilds the day files from the agents' records, only reading them. It copies the store aside first (`tokens/before-recount-<version>/`, the day files and `rollups.json`), keeps each call's day and session, leaves enowX's own use, metered and screen calls as they are, and doesn't touch rolled-up days. Calls whose records are gone keep their numbers, their days marked approximate (`recount.json`), and the page says so. The version is written last, so it runs once; cut short, it runs again from the same copy; a failure is logged and tried on the daemon's next start.
 - **Backfill**: turning tracking on (or **Read back now**, `tokens.backfill`) reads every record back as far as the settings say (30 days by default, up to a year).
-- **enowX's own use, apart**: the judge's tokens (each decision's, `core/decide`), RAG's embedder's (each index), never in the agents' totals or budgets. The judge's agent runs leave no records (`--no-session-persistence`, folders `enowx-judge-*` skipped). Canvas and notes agents are sessions, counted as any.
+- **enowX's own use, apart**: the judge's tokens (each decision's, `core/decide`), RAG's embedder's (each index, and every prompt's search, which embeds its query — one call a prompt), never in the agents' totals or budgets. The judge's agent runs leave no records (`--no-session-persistence`, folders `enowx-judge-*` skipped). Canvas and notes agents are sessions, counted as any.
 
 ## Costs
 
