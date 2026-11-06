@@ -36,8 +36,10 @@ type FileState struct {
 	Provider string `json:"provider,omitempty"`
 	Dir      string `json:"dir,omitempty"`
 	Conv     string `json:"conv,omitempty"`
-	// Mark is an adapter's own place: OpenCode's last update read.
-	Mark int64 `json:"mark,omitempty"`
+	// Mark is an adapter's own place: OpenCode's last update read, and MarkID the part
+	// read last at that time, as several share one.
+	Mark   int64  `json:"mark,omitempty"`
+	MarkID string `json:"markID,omitempty"`
 	// Running is Codex's running total as last read, to take the next from when a
 	// record has only that; ForkAt, in a fork, when the fork began: what is dated before
 	// is its parent's.

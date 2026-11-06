@@ -44,6 +44,8 @@ type tokenState struct {
 	poke     chan struct{}
 	// recountTried says this run asked for a recount; runTokens' goroutine owns it.
 	recountTried bool
+	// dbSeen is when a session of each of tokenDBAgents last ran; scanMu owns it.
+	dbSeen map[string]time.Time
 
 	mu       sync.Mutex
 	hostDays time.Time // when the synced totals were last written
@@ -133,11 +135,13 @@ func (s *Server) scanTokens(since time.Time) (added []tokens.Call, files int) {
 	t.scanMu.Lock()
 	defer t.scanMu.Unlock()
 	st := t.settings.Get()
+	var only func(string) bool // a backfill asked for reads everything
 	if since.IsZero() {
 		since = time.Now().AddDate(0, 0, -st.BackfillDays)
+		only = s.tokenAgentsLive(time.Now())
 	}
 	home, _ := os.UserHomeDir()
-	calls, files := t.scanner.Scan(tokens.Env{Home: home, Dirs: s.tokenDirs()}, since, nil)
+	calls, files := t.scanner.Scan(tokens.Env{Home: home, Dirs: s.tokenDirs()}, since, only)
 	if st.Screen {
 		calls = append(calls, s.screenCalls()...)
 	}
