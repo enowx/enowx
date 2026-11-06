@@ -56,13 +56,14 @@ type appState struct {
 	ChatRead        map[string]string  `json:"chatRead,omitempty"` // the last message read of each team's chat
 	Discord         discordPrefs       `json:"discord,omitempty"`
 	Updates         updatePrefs        `json:"updates,omitempty"`
-	Editor          string             `json:"editor,omitempty"`       // the editor last opened (editor.id)
-	Previews        map[string]preview `json:"previews,omitempty"`     // session ID → where its browser was
-	BrowserViews    map[string]bool    `json:"browserViews,omitempty"` // session IDs showing the Browser as their view
-	TrafficViews    map[string]bool    `json:"trafficViews,omitempty"` // session IDs showing Traffic as their view
-	AutoPreview     map[string][]int   `json:"autoPreview,omitempty"`  // "<host ID> <project>" → ports previewed when opened
-	QuietPorts      bool               `json:"quietPorts,omitempty"`   // no card when a session opens a port
-	CloseQuits      bool               `json:"closeQuits,omitempty"`   // closing the window quits, rather than keeping the app in the tray
+	Editor          string             `json:"editor,omitempty"`         // the editor last opened (editor.id)
+	Previews        map[string]preview `json:"previews,omitempty"`       // session ID → where its browser was
+	BrowserViews    map[string]bool    `json:"browserViews,omitempty"`   // session IDs showing the Browser as their view
+	BrowserInPanel  bool               `json:"browserInPanel,omitempty"` // the page shows docked in the side panel, not in a tab of its own
+	TrafficViews    map[string]bool    `json:"trafficViews,omitempty"`   // session IDs showing Traffic as their view
+	AutoPreview     map[string][]int   `json:"autoPreview,omitempty"`    // "<host ID> <project>" → ports previewed when opened
+	QuietPorts      bool               `json:"quietPorts,omitempty"`     // no card when a session opens a port
+	CloseQuits      bool               `json:"closeQuits,omitempty"`     // closing the window quits, rather than keeping the app in the tray
 	// What New session starts with (Settings): an agent, the project
 	// folder rather than a new branch, a time budget in minutes.
 	DefaultAgent  string `json:"defaultAgent,omitempty"`

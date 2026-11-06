@@ -240,6 +240,6 @@ func (a *App) trafficOpenInBrowser(s proto.SessionInfo) func(string) {
 			a.status = err.Error()
 			return
 		}
-		a.openCenter(s, centerBrowser)
+		a.bringBrowser(s)
 	}
 }

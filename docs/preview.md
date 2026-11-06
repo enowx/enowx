@@ -1,6 +1,6 @@
 # Preview
 
-The **Browser** tool of the side panel (`⌘⇧P`, or **Preview** on a port's card and in the Ports tool) shows what the selected session's dev server serves, in a web view of this device: WKWebView on macOS, WebView2 on Windows, WebKitGTK on Linux. The plan behind it, and what comes next, is in [plans/preview.md](plans/preview.md).
+The **Browser** (`⌘⇧P`, or **Preview** on a port's card and in the Ports tool), in a tab of its own or docked in the side panel, shows what the selected session's dev server serves, in a web view of this device: WKWebView on macOS, WebView2 on Windows, WebKitGTK on Linux. The plan behind it, and what comes next, is in [plans/preview.md](plans/preview.md).
 
 ## How it works
 
@@ -13,6 +13,15 @@ The **Browser** tool of the side panel (`⌘⇧P`, or **Preview** on a port's ca
 ## The toolbar
 
 Back, forward, reload; the address, as in a browser: a path (`/settings`) of the dev server shown, a host (`google.com` gets https, `localhost:3000` http) or a URL, opened even before the session has a dev server (another site loads from this device, not the session's host; a dev server starting meanwhile waits in the port picker); the page's width (Fit, or a laptop's, a tablet's or a phone's, centered); a screenshot of the page, typed into the session's prompt as a file for its agent to look at (uploaded to a server's session first); DevTools; and **Open in browser**.
+
+## In the side panel or as a page
+
+The page shows in one of two places, which the button at the right of the Browser's bar switches at any time, for every session:
+
+- **Open as a page** (the default, as before): the page has a tab of its own in the center, and the side panel's Browser lists the session's pages, each opening there.
+- **Show in the side panel:** the page fills the side panel's Browser, next to the session's terminal or chat, so the agent and the page show at once. The panel keeps its width rules (dragged between 280 and 1100, 480 until dragged); its bar keeps back, forward, reload, the address and the way out on the first row, and the port, the page's width, picking, the screenshot, the canvas and Unslop on a second, so a narrow panel loses none of them.
+
+The choice is kept with the app's state (`browserInPanel`), and whatever opens a page opens it there: a preview from a port's card or the Ports tool, Traffic, and an agent's `enowx browser open` (which only marks the Browser when it isn't in front). Moving it doesn't reload the page: it is the same web view, only placed elsewhere in the window, so its scroll, form and state stay. A session showing the Browser as its view (below) keeps it there; docking from there moves it to the panel. GOD of Agents' sessions behave the same.
 
 ## As the session's view
 

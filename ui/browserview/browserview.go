@@ -56,6 +56,11 @@ type Options struct {
 	// it is there.
 	OpenTab func()
 	Shown   func() bool
+	// Docked says the page shows in the side panel, not a tab of its own;
+	// Dock moves it there (true) or out to a page (false), nil hides the
+	// button.
+	Docked bool
+	Dock   func(docked bool)
 	// Supported says this device has a web view; without, the view offers
 	// the browser.
 	Supported bool
@@ -141,7 +146,7 @@ type View struct {
 var widths = []struct {
 	width int
 	name  string
-}{{0, "Fill the tab"}, {1280, "Desktop, 1280"}, {768, "Tablet, 768"}, {390, "Phone, 390"}}
+}{{0, "Fill the room"}, {1280, "Desktop, 1280"}, {768, "Tablet, 768"}, {390, "Phone, 390"}}
 
 // New returns a view with nothing open.
 func New() *View { return &View{poke: make(chan struct{}, 1)} }
