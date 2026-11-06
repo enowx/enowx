@@ -163,7 +163,7 @@ This follows the agent's mode; it isn't a boundary against the agent. A command 
 | Its own RAG collection, projects' read-only | `goa recall` (`goa_recall`) | `goa remember` (`goa_remember`) | projects' through the app | ✅ |
 | When a task counts as stalled | `goa stall` (`goa_stall`) | `goa stall --blank\|--idle\|--stuck` (`goa_stall`) | this host | ✅ |
 | The agents it runs on, their level | `goa agents` (`goa_agents`) | | this host | ✅ |
-| What it runs on itself | `goa switch` (`goa_switch`, not offered to it) | the user's: Settings in its header, or `goa switch`, which it is refused ([goa.md](goa.md#changing-what-it-runs-on)) | `--host` | — the user's |
+| What it runs on itself | `goa switch`, `goa restart` (`goa_switch`, `goa_restart`, not offered to it) | the user's: Settings in its header, or `goa switch` / `goa restart`, which it is refused ([goa.md](goa.md#changing-what-it-runs-on)) | `--host` | — the user's |
 | What a watched GOA did itself | `goa flags` | reverting: the user's, in the app | this host | — the user's |
 
 ## Built-in skills

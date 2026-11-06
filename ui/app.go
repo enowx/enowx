@@ -715,6 +715,10 @@ func (a *App) upsert(info proto.SessionInfo) {
 		// A program that starts again (continued, or a queued agent's)
 		// runs in a new terminal of the daemon: the old stream shows the
 		// last one, so attach anew.
+		// Another agent now (a switch, GOA's own): views it hasn't go.
+		if old := a.sessions[i]; old.Agent != info.Agent && a.forgetViewsOf(info) {
+			a.saveState()
+		}
 		if old := a.sessions[i]; viewOutdated(old, info) {
 			if p := a.panes[info.ID]; p != nil {
 				p.close()

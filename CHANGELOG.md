@@ -2,6 +2,21 @@
 
 Each version's section is also what the app's update dialog shows.
 
+## 0.7.2
+
+Three fixes from @sicknewbie's report on Windows 11 after updating to 0.7.1 ([#49](https://github.com/enowdev/enowx/issues/49)), a way to restart GOD of Agents on its own conversation, and the Browser docked in the side panel.
+
+- **Two versions of the app no longer take the daemon from each other.** After the update from 0.7.0 to 0.7.1, old apps still running each replaced the daemon with their own version, and the new app replaced it back, about every half minute. An app now replaces only an older daemon (or another build of its own version) and leaves a newer one as it is, saying so. On a version's first run, the app also offers to end its other copies still running. Apps already installed at 0.7.0 or 0.7.1 don't have this fix: an old copy left running can still downgrade the daemon until it is quit or updated.
+- **A new GOD of Agents can start beside one that ended.** Starting GOA was refused as "already running" when the old one had ended but its session stayed up. GOA now counts as running only when its agent is there, or when it is hibernated and can come back (the message says how to wake it).
+- **No empty Chat view for an agent without a chat.** A chat chosen while Claude Code ran a session was kept after switching it to OpenCode, which has none, leaving a blank view with no way back. Such a session now shows its terminal, and a switch to such an agent forgets the chat chosen before.
+- **Restart GOD of Agents as it is.** "Restart as it is" in GOA's Settings, `enowx goa restart` and the MCP tool `goa_restart` restart GOA on the same agent and config and go on with the same conversation (`--resume`), keeping its board, collection, rules, waiting lines and session. While GOA works it asks first (`--force`). If the conversation can't be resumed, it says why and offers a new conversation instead of starting one silently (`--new-conversation`). GOA can't restart itself; it is the user's action. A restart also clears the count of quick exits that kept continues and config changes refused for 30 seconds after a failed start.
+- **The Browser can show in the side panel.** A button on the Browser's bar moves the page between a tab of its own (the default, as before) and the right side panel, next to the session's terminal or chat. The choice is remembered, and previews, Traffic and agents' `enowx browser open` follow it. It is the same web view, so moving it doesn't reload the page. Docked, the address and back, forward and reload stay on the first row and the page's other tools take a second row.
+
+### What has been tested
+
+- Each change has tests that run on Linux and in CI on macOS, Windows and Linux.
+- **The update ping-pong fix is verified only in tests, not on a real Windows machine with two app versions running.** The GOA restart and the Browser's docking were checked in tests and the UI test harness, not by hand in the app; moving the page without a reload follows from it being the same web view, not from a run on each platform.
+
 ## 0.7.1
 
 Three fixes from @sicknewbie's reports on Windows 11 with OpenCode: a terminal drawn in a corner after another view, GOD of Agents queueing tasks for an idle session, and enowX's reads of OpenCode's database.

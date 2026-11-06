@@ -14,6 +14,7 @@ import (
 	"github.com/enowx/enowx/ui/icon"
 	"github.com/enowx/enowx/ui/theme"
 	"github.com/enowx/enowx/ui/widget"
+	"github.com/enowx/enowx/version"
 )
 
 // An update replaces the app at once, and a host's daemon only when that stops nothing:
@@ -29,6 +30,8 @@ type daemonBehind struct {
 	plan                proto.RestartPlan
 	// waiting: replace it as soon as that stops nothing. hidden: don't show the card.
 	waiting, hidden bool
+	// newer: the daemon is newer than this app, which leaves it as it is.
+	newer bool
 }
 
 // daemonBehindOptions has a connection to h say so if it leaves a daemon behind, and
@@ -41,6 +44,14 @@ func (a *App) daemonBehindOptions(opts *hostconn.Options, h hosts.Host, gen int)
 	}
 	waiting := a.daemonBehind != nil && a.daemonBehind.host == h.ID && a.daemonBehind.waiting
 	a.daemonBehind = nil
+	opts.Newer = func(info proto.DaemonInfo) {
+		a.diag.Event("daemon.newer", "host", h.ID, "version", info.Version)
+		a.onMain(func() {
+			if gen == a.gen {
+				a.daemonBehind = &daemonBehind{host: h.ID, name: h.Name, version: info.Version, newer: true}
+			}
+		})
+	}
 	opts.Kept = func(info proto.DaemonInfo, plan proto.RestartPlan) {
 		a.diag.Event("daemon.kept", "host", h.ID, "version", info.Version, "agents", len(plan.Agents), "commands", len(plan.Commands))
 		a.onMain(func() {
@@ -70,7 +81,9 @@ func (a *App) followDaemonBehind(c *client.Client, h hosts.Host, gen int) {
 		// Only a daemon left behind has a plan to keep current: with none, asking every
 		// half minute looked at every process, for nothing.
 		behind := make(chan bool, 1)
-		a.quietly(func() { behind <- gen == a.gen && a.daemonBehind != nil && a.daemonBehind.host == h.ID })
+		a.quietly(func() {
+			behind <- gen == a.gen && a.daemonBehind != nil && a.daemonBehind.host == h.ID && !a.daemonBehindNewer()
+		})
 		select {
 		case <-c.Done():
 			return
@@ -98,6 +111,10 @@ func (a *App) followDaemonBehind(c *client.Client, h hosts.Host, gen int) {
 	}
 }
 
+// daemonBehindNewer says the daemon left as it is runs a newer version than this app:
+// there's no plan to keep current, it isn't this app's to replace. On the main thread.
+func (a *App) daemonBehindNewer() bool { return a.daemonBehind != nil && a.daemonBehind.newer }
+
 // showsDaemonBehindCard says the card has something to show.
 func (a *App) showsDaemonBehindCard() bool {
 	return a.daemonBehind != nil && !a.daemonBehind.hidden && a.daemonBehind.host == a.host.ID
@@ -110,6 +127,20 @@ func (a *App) daemonBehindCard(c *ui.Context) {
 		return
 	}
 	b := a.daemonBehind
+	if b.newer {
+		widget.Float(ui.Column(c).FillWidth().Padding(theme.S3).Gap(theme.S2).Radius(theme.RadiusCard).
+			Background(theme.Dialog).Border(1, theme.BorderStrong)).Transition(widget.OverlayMotion).Children(func() {
+			widget.Running(c, "This enowX ("+version.String+") is older than enowxd on "+b.name+" ("+b.version+")", widget.RunStyle{Weight: 500})
+			ui.Text(c, "A newer enowX runs it, so this one leaves it as it is. Quit this one and use the newer app.").
+				FontSize(theme.TextLabel).TextColor(theme.TextSoft)
+			ui.Row(c).FillWidth().Justify(ui.End).Children(func() {
+				if widget.GhostButton(c, "Hide").Clicked() {
+					b.hidden = true
+				}
+			})
+		})
+		return
+	}
 	widget.Float(ui.Column(c).FillWidth().Padding(theme.S3).Gap(theme.S2).Radius(theme.RadiusCard).
 		Background(theme.Dialog).Border(1, theme.BorderStrong)).Transition(widget.OverlayMotion).Children(func() {
 		widget.Running(c, "enowxd on "+b.name+" stays at "+b.version+" for now", widget.RunStyle{Weight: 500})

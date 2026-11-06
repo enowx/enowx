@@ -21,7 +21,7 @@ Leaving the mode asks first, whichever way: the title bar's **Sessions**, **Leav
 
 ## Its session
 
-`session.create` with `goa: true` (the app's start, or `enowx goa start --agent A`): one GOA per host at a time.
+`session.create` with `goa: true` (the app's start, or `enowx goa start --agent A`): one GOA per host at a time. What counts is a GOA at work, with its agent there, or one asleep (hibernated), which comes back on its conversation: `wake` it, or close it, to start another. One that ended, or whose agent ended leaving only its shell, is kept as history and doesn't count; the new GOA is the host's, and the old one can't come back while another lives.
 
 - **A folder of its own**, outside every project (`<enowX's folder>/goa`), with no branch.
 - **Every feature on**, its guide `agent.GOAGuide` first: delegate, don't work; don't poll; who answers which permission; keep the board and its collection.
@@ -64,13 +64,17 @@ Checked with Codex itself, started as GOA: enowX's tools reached it over MCP as 
 - **At work** (working, or asking something), the app asks first, as a restart cuts that off (`--force`). This is the daemon's word, not the app's, so a line reaching GOA as the user presses counts.
 - **If it doesn't take:** an agent ending within 5 seconds of starting (`goaSwitchSettle`) puts GOA back on what it was, on its conversation, and the error says what the screen last said. What only shows later, as a key an API refuses at its first request, its screen says.
 
+**Restarting it as it is.** "Restart as it is" in Settings (shown while nothing is picked), `enowx goa restart [--force] [--new-conversation]` and MCP `goa_restart` (`goa.restart`) restart GOA on the agent and config it runs on, going on with its conversation (`--resume` with its ID), by the same path as a config change: the same checks, the same settle, what stays below. At work it asks first (`--force`). It also lets GOA start again after it ended right after starting several times (the quick-exit guard holds a continue or a change back for 30 seconds; a restart is the user asking). If the conversation can't be gone on with (no ID recorded, its file gone, the config can't reach it), the daemon says why (`GOASwitchResult.Unresumable`) and leaves GOA as it is; it starts on a new conversation only with `--new-conversation`, which the app offers. If the agent refuses the resume or ends within the settle, GOA is put back and the error says to restart it on a new conversation. Never a new conversation unasked.
+
+**Why a plain continue could fail where a change worked.** A continue or wake of GOA goes through `resumeSession`, which refuses a session that isn't ended: a GOA whose agent ended leaving its fallback shell still runs that shell, so it is refused "still running", while a change stops it first. A continue with no conversation recorded starts the agent on a new one without saying, and isn't watched for ending at once. And after ends right after starting, the quick-exit count carries over a restart for 30 seconds, so continues and changes were refused a while. A restart stops GOA first, passes the conversation's ID, watches the settle and clears that count.
+
 **What stays.** The change happens in GOA's own session, same ID: its tabs, the board (`goa-board.json`), its collection, its rules and its waiting lines (`goa-tell.json`). Its workers are sessions of their own and keep running. While it changes, no line goes to GOA: the hook waiting to wake it ends with nothing, and what comes waits for the agent that follows.
 
 **What holds it stays,** on every path: the restart goes through what `goa start` does, and a config can't undo it. On GOA a config's flags are only `--model`, `-m` and `--effort`, and its variables none of `ENOWX_*`, `ENABLE_TOOL_SEARCH`, `OPENCODE_CONFIG*` or `OPENCODE_PERMISSION` (`goa.ConfigArgs`, `goa.ConfigEnv`); the panel says so of a config that has others. A model API's own variables (its `OPENCODE_CONFIG`, say) go on as they are, under what holds OpenCode's GOA. A limit's fallback to another agent is refused for GOA: an agent only changes by this.
 
 **Its permission mode.** On Claude Code, bypass, whatever the change. On another agent, another config keeps the mode GOA runs in (`Meta.Mode`, passed as its agent's flag), including after a mode set by the user; another agent starts in what the user chose for that agent's new sessions (on a config, not that), else its own default.
 
-**GOA can't change itself.** A change ends the turn asking for it, and for an agent loses its conversation, unasked. So GOA isn't offered `goa_switch`, and `goa switch` through its `enowx` tool only reads: it is told to ask the user. Asked by another session's agent, a change is a `confirm` method of control: the user says yes first ([goa-tools.md](goa-tools.md#when-the-user-is-asked)). An older daemon answers as not knowing the method, which the app and the command say, GOA going on as it was.
+**GOA can't change itself.** A change ends the turn asking for it, and for an agent loses its conversation, unasked. So GOA isn't offered `goa_switch` or `goa_restart`, and `goa switch` or `goa restart` through its `enowx` tool only reads: it is told to ask the user. Asked by another session's agent, a change is a `confirm` method of control: the user says yes first ([goa-tools.md](goa-tools.md#when-the-user-is-asked)). An older daemon answers as not knowing the method, which the app and the command say, GOA going on as it was.
 
 ## Tasks
 

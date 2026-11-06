@@ -94,13 +94,42 @@ func (s *Server) goaSession() (proto.SessionInfo, bool) {
 	return found, ok
 }
 
+// goaLive is a GOA session other than except that keeps another from running, and why:
+// one at work, its agent there, or one asleep that comes back on its conversation. One
+// that ended, or whose agent ended leaving only its fallback shell in the terminal, is
+// history: it holds nothing (issue #49), and comes back only once no other GOA lives
+// (goaResumeAllowed). A host never has two GOAs at work.
+func (s *Server) goaLive(except string) (proto.SessionInfo, string, bool) {
+	for _, sess := range s.sessions.List() {
+		info := sess.Info()
+		if !info.GOA || info.ID == except {
+			continue
+		}
+		switch {
+		case !info.Exited && !s.agentGone(info.ID):
+			return info, "already runs", true
+		case info.Exited && info.Hibernated && goa.ComesBack(info):
+			return info, "is asleep (hibernated): wake it with `wake " + info.ID + "`, or close it to start another,", true
+		}
+	}
+	return proto.SessionInfo{}, "", false
+}
+
+// goaResumeAllowed says GOA session id may come back: not while another GOA lives.
+func (s *Server) goaResumeAllowed(id string) error {
+	if g, why, ok := s.goaLive(id); ok {
+		return fmt.Errorf("goa: another GOD of Agents %s on this host: session %s; this one stays as it is", why, g.ID)
+	}
+	return nil
+}
+
 // goaCreate makes p and meta GOA's: its folder, no project or branch,
 // every feature, its permissions asked (enowX's tools need none) unless its agent
 // always skips them, as Claude Code does: there its hook's refusals hold GOA. One GOA
 // runs on a host at a time.
 func (s *Server) goaCreate(p *proto.SessionCreateParams, meta *session.Meta) (string, error) {
-	if g, ok := s.goaSession(); ok && !g.Exited {
-		return "", fmt.Errorf("goa: GOD of Agents already runs on this host: session %s", g.ID)
+	if g, why, ok := s.goaLive(""); ok {
+		return "", fmt.Errorf("goa: GOD of Agents %s on this host: session %s", why, g.ID)
 	}
 	if _, err := s.goaAgentReady(p.Agent); err != nil {
 		return "", err

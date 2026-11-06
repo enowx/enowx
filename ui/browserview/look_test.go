@@ -58,8 +58,8 @@ func TestBrowserStatesInAPanelAndATab(t *testing.T) {
 	v := New()
 	v.loaded = true
 	v.setPorts(o, two)
-	draw("page", v, o, "Pages", "Open in a tab", "localhost:5173", "node", "localhost:8080", "Fill the tab")
-	if err := tt.Click("Page width: Fill the tab"); err != nil {
+	draw("page", v, o, "Pages", "Open in a tab", "localhost:5173", "node", "localhost:8080", "Fill the room")
+	if err := tt.Click("Page width: Fill the room"); err != nil {
 		t.Fatal(err)
 	}
 	tt.Frame()

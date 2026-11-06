@@ -100,8 +100,10 @@ func (a *App) browserOptions(s proto.SessionInfo) browserview.Options {
 			}
 			return a.selected == s.ID && (a.panelShows(panelBrowser) || a.centerShows(s.ID, centerBrowser))
 		},
-		OpenTab: func() { a.openCenter(s, centerBrowser) },
+		OpenTab: func() { a.bringBrowser(s) },
 		Shown:   func() bool { return a.centerShows(s.ID, centerBrowser) },
+		Docked:  a.browserDocked(s),
+		Dock:    func(docked bool) { a.dockBrowser(s, docked) },
 		NewPage: func(url string, done func(browserview.Page, error)) {
 			win := a.win
 			if win == nil {
@@ -174,6 +176,9 @@ func (a *App) browserTab(c *ui.Context, s proto.SessionInfo) {
 // browserTabBehind opens session s's page in a tab that stays behind the one in
 // front: a page opened by itself doesn't take the window.
 func (a *App) browserTabBehind(s proto.SessionInfo) {
+	if a.state.BrowserInPanel {
+		return // the panel's Browser gets its mark (showBrowserSoon)
+	}
 	s = a.parentOf(s)
 	t := a.centerOf(s.ID)
 	if !slices.Contains(t.tabs, centerBrowser) {
@@ -184,10 +189,44 @@ func (a *App) browserTabBehind(s proto.SessionInfo) {
 // previewPort shows port p of session s in its browser.
 func (a *App) previewPort(s proto.SessionInfo, p proto.Port) {
 	a.selectSession(s)
-	if !a.state.BrowserViews[s.ID] {
+	a.bringBrowser(s)
+	a.browserOf(s.ID).Show(a.browserOptions(s), p)
+}
+
+// browserDocked says session s's page shows in the side panel: the user's
+// choice, unless the session shows the Browser as its view.
+func (a *App) browserDocked(s proto.SessionInfo) bool {
+	return a.state.BrowserInPanel && !a.state.BrowserViews[s.ID]
+}
+
+// bringBrowser brings session s's page to the front where the user keeps it:
+// its view, the side panel, or a tab of its own.
+func (a *App) bringBrowser(s proto.SessionInfo) {
+	switch {
+	case a.state.BrowserViews[s.ID]:
+	case a.state.BrowserInPanel:
+		a.showTool(panelBrowser)
+	default:
 		a.openCenter(s, centerBrowser)
 	}
-	a.browserOf(s.ID).Show(a.browserOptions(s), p)
+}
+
+// dockBrowser moves the page, for every session, into the side panel or out
+// to a tab of its own, and shows it there. The web view is the same, so its
+// page stays as it is.
+func (a *App) dockBrowser(s proto.SessionInfo, docked bool) {
+	a.state.BrowserInPanel = docked
+	delete(a.state.BrowserViews, s.ID)
+	if !docked {
+		a.openCenter(s, centerBrowser)
+		return
+	}
+	for id, t := range a.center {
+		if slices.Contains(t.tabs, centerBrowser) {
+			a.closeCenter(id, centerBrowser)
+		}
+	}
+	a.showTool(panelBrowser)
 }
 
 // attachElement pastes what an element picked in the page is into session

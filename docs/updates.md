@@ -19,6 +19,10 @@ GitHub Releases of `enowdev/enowx` (`updates.github` in `cmd/enowx/mygo.json`): 
 
 The secret half of that key signs every release. It is the repository secret `MYGO_UPDATER_PRIVATE_KEY`, and a copy is kept by the maintainer outside the repository: installed apps accept only updates signed with it, so losing it strands them, and whoever has it can ship code to every user. Never commit it.
 
+### Two versions at once
+
+An app older than the daemon it reaches leaves the daemon as it is and says so in a card ("This enowX is older than enowxd…"): only an app at least as new as its daemon replaces it, so an app the update left running can't take the daemon back to its version, nor the new app take it again, over and over (issue #49). On its version's first run on a device, the app ends the other apps of its program still running, asking each to quit and ending it after 5 seconds: their daemon, hooks and command line, run with a word after the program's name, are left alone.
+
 ## Releasing
 
 1. Set the version in `cmd/enowx/mygo.json`, and add its section to `CHANGELOG.md` (`## x.y.z`): it is what the update dialog shows.
