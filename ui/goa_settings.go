@@ -124,6 +124,32 @@ func (a *App) goaSwitchRun(f *goaSettingsForm, s proto.SessionInfo, yes bool) {
 	})
 }
 
+// goaRestartRun restarts GOA on its agent and config, its conversation going on; what
+// needs a yes (at work, a conversation it can't go on with) comes back undone and is asked.
+func (a *App) goaRestartRun(f *goaSettingsForm, s proto.SessionInfo, force, fresh bool) {
+	p := proto.GOASwitchParams{Force: force, NewConversation: fresh}
+	var res proto.GOASwitchResult
+	f.restarting, f.err = true, ""
+	a.goaCallQuiet(proto.MethodGOARestart, p, &res, func(err error) {
+		f.restarting = false
+		switch {
+		case err != nil:
+			f.err = goaSwitchErrorText(err)
+		case !res.Restarted && res.Unresumable != "":
+			a.confirm("Restart GOD of Agents on a new conversation?",
+				goaSentence(res.Unresumable)+" Its board, collection, rules and waiting lines stay, and workers go on.",
+				"Start a new one", func() { a.goaRestartRun(f, s, true, true) })
+		case !res.Restarted:
+			a.confirm("Restart GOD of Agents while it works?", "What it is doing now is cut off. It goes on with the same conversation.",
+				"Restart it", func() { a.goaRestartRun(f, s, true, fresh) })
+		default:
+			f.open = false
+			a.upsert(res.Session)
+			a.notify(a.goaSwitchDone(res))
+		}
+	})
+}
+
 // goaSwitchAsk asks for the yes res lacks, saying what would be lost.
 func (a *App) goaSwitchAsk(f *goaSettingsForm, s proto.SessionInfo, res proto.GOASwitchResult) {
 	title, msg := "Restart GOD of Agents while it works?", "What it is doing now is cut off. It goes on with the same conversation on the new config."
@@ -176,6 +202,14 @@ func (a *App) goaSettingsDialog(c *ui.Context) {
 			widget.Notice(c, icon.Alert, theme.Error, f.err, "", nil)
 		}
 	}, func() {
+		if !changed {
+			r := widget.GhostButton(c, "Restart as it is")
+			if f.restarting || a.goa.err != "" {
+				r.Disabled(true)
+			} else if r.Clicked() {
+				a.goaRestartRun(f, s, false, false)
+			}
+		}
 		label := "Restart GOA"
 		if f.restarting {
 			label = "Restarting…"

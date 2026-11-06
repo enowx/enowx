@@ -1239,6 +1239,7 @@ field GOASwitchResult.note string
 field GOASwitchResult.restarted bool
 field GOASwitchResult.same bool
 field GOASwitchResult.session SessionInfo
+field GOASwitchResult.unresumable string
 field GOATask.agent string
 field GOATask.asks string
 field GOATask.asleep bool
@@ -3202,6 +3203,7 @@ method goa.override
 method goa.recall
 method goa.remember
 method goa.report
+method goa.restart
 method goa.revert
 method goa.rules
 method goa.rules.save
