@@ -355,6 +355,14 @@ const termPadX, termPadY = 10, 8
 type pane struct {
 	term   *terminal.Terminal
 	stream *client.Stream
+	size   *settledResize // what it asks of the session's size
+}
+
+// shown says a view draws p now: back in sight, it asks for its size again.
+func (p *pane) shown() {
+	if p.size != nil {
+		p.size.Shown(time.Now())
+	}
 }
 
 // LocalHost is this machine as a host.
@@ -788,10 +796,14 @@ func (a *App) attach(c *client.Client, gen int, id string) {
 	// exists; resizes wait until it is assigned.
 	ready := make(chan struct{})
 	var term *terminal.Terminal
+	var sized *settledResize
 	st.OnResize = func(cols, rows int) {
 		<-ready
 		if term != nil {
 			term.Resize(cols, rows)
+		}
+		if sized != nil {
+			sized.Heard(cols, rows)
 		}
 	}
 	a.onMain(func() {
@@ -817,7 +829,8 @@ func (a *App) attach(c *client.Client, gen int, id string) {
 				},
 			}
 		}
-		conn = &settledResize{ReadWriteCloser: conn, resize: st.ResizePixels}
+		sized = &settledResize{ReadWriteCloser: conn, resize: st.ResizePixels}
+		conn = sized
 		t, err := terminal.New(terminal.Options{
 			Transparent:  true, // the view's own ground shows, as the slider has it
 			Conn:         conn,
@@ -850,7 +863,7 @@ func (a *App) attach(c *client.Client, gen int, id string) {
 			return
 		}
 		term = t
-		a.panes[id] = &pane{term: t, stream: st}
+		a.panes[id] = &pane{term: t, stream: st, size: sized}
 	})
 }
 

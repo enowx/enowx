@@ -149,6 +149,7 @@ func (a *App) canvasAssistant(c *ui.Context, cv proto.Canvas) {
 			})
 		})
 	case p != nil:
+		p.shown()
 		terminal.View(c.Key("term:"+s.ID), p.term).Grow(1).FillWidth().Background(theme.TermGround)
 	default:
 		ui.Text(c, "Connecting…").FontSize(theme.TextUI).TextColor(theme.TextSoft).Padding(theme.S4)
