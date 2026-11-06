@@ -21,7 +21,7 @@ Leaving the mode asks first, whichever way: the title bar's **Sessions**, **Leav
 
 ## Its session
 
-`session.create` with `goa: true` (the app's start, or `enowx goa start --agent A`): one GOA per host at a time.
+`session.create` with `goa: true` (the app's start, or `enowx goa start --agent A`): one GOA per host at a time. What counts is a GOA at work, with its agent there, or one asleep (hibernated), which comes back on its conversation: `wake` it, or close it, to start another. One that ended, or whose agent ended leaving only its shell, is kept as history and doesn't count; the new GOA is the host's, and the old one can't come back while another lives.
 
 - **A folder of its own**, outside every project (`<enowX's folder>/goa`), with no branch.
 - **Every feature on**, its guide `agent.GOAGuide` first: delegate, don't work; don't poll; who answers which permission; keep the board and its collection.
