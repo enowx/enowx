@@ -114,6 +114,7 @@ type sidePanel struct {
 const (
 	defaultPanelWidth = 320
 	goaPanelWidth     = 420
+	browserPanelWidth = 480
 	minPanelWidth     = 280
 	maxPanelWidth     = 1100
 	panelGrip         = 6 // the strip along its left edge that resizes it
@@ -217,8 +218,11 @@ func (a *App) sidePanelView(c *ui.Context) {
 	width := a.state.Panel.Width
 	if width <= 0 {
 		width = defaultPanelWidth
-		if t := a.panelTab(); t == panelSessions || t == panelTasks {
+		switch t := a.panelTab(); {
+		case t == panelSessions || t == panelTasks:
 			width = goaPanelWidth // GOA's own lists hold a task and its button on a row
+		case t == panelBrowser && a.state.BrowserInPanel:
+			width = browserPanelWidth // a page wants room
 		}
 	}
 	widget.Bento(ui.Column(c.Key("side-panel")).Width(width).MinWidth(minPanelWidth).Shrink(1).FillHeight(), theme.Surface(theme.Fade(theme.Panel, 0.94))).
@@ -249,6 +253,8 @@ func (a *App) sidePanelView(c *ui.Context) {
 		case tool == panelBrowser && a.state.BrowserViews[s.ID]:
 			// A web view shows in one place: the session shows it.
 			panelNote(c, "The preview shows as “"+a.sessionName(s)+"”'s view. Switch it to Terminal or Chat to have it here.")
+		case tool == panelBrowser && a.state.BrowserInPanel:
+			a.browserTab(c.Key("browser:"+s.ID), s)
 		case tool == panelBrowser:
 			a.browserPages(c.Key("browser:"+s.ID), s)
 		case tool == panelAndroid:

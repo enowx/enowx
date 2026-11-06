@@ -140,7 +140,7 @@ func TestPageWidthsAsDevices(t *testing.T) {
 	v.setPorts(o, []proto.Port{{Port: 5173}})
 	tt := ui.NewTester(func(c *ui.Context) { v.Draw(c, o) }, 900, 500)
 	tt.Frame()
-	if err := tt.Click("Page width: Fill the tab"); err != nil {
+	if err := tt.Click("Page width: Fill the room"); err != nil {
 		t.Fatal(err)
 	}
 	tt.Frame()

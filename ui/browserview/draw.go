@@ -14,7 +14,8 @@ import (
 	"github.com/enowx/enowx/ui/widget"
 )
 
-// Draw shows the toolbar, then the page or why there is none, for a center tab.
+// Draw shows the toolbar, then the page or why there is none: in a center
+// tab, as the session's view, or docked in the side panel (Options.Docked).
 func (v *View) Draw(c *ui.Context, o Options) {
 	v.follow(o)
 	ui.Column(c).Grow(1).FillWidth().MinHeight(0).Children(func() {
@@ -74,11 +75,12 @@ func (v *View) note(c *ui.Context, o Options, text string) {
 
 // toolbar is back, forward, reload, the address, the port, the page's width,
 // and what to do with the page. What can't fit gives way: the width's frame
-// shrinks and the rest is in its menu.
+// shrinks and the rest is in its menu. Docked in the side panel, the
+// address keeps the first row and the page's tools take a second.
 func (v *View) toolbar(c *ui.Context, o Options) {
+	page := v.page
 	ui.Row(c.Key("page-bar")).Height(44).Shrink(0).FillWidth().PaddingX(theme.S2).Gap(theme.S1).Clip().
 		BorderWidth(0, 0, theme.Rule, 0).BorderColor(theme.Border).Children(func() {
-		page := v.page
 		if navButton(c, icon.ArrowLeft, "Back", page != nil && page.CanBack()) {
 			page.Back()
 		}
@@ -92,54 +94,87 @@ func (v *View) toolbar(c *ui.Context, o Options) {
 		if page != nil && page.Loading() {
 			widget.Spinner(c, 12)
 		}
-		if len(v.ports) > 1 {
-			v.portPicker(c, o)
+		if !o.Docked {
+			v.pageTools(c, o, page)
 		}
-		v.sizeMenu(c)
-		v.pickButton(c, o, page)
-		if navButton(c, icon.Camera, "Screenshot", page != nil && o.Attach != nil) {
-			if png, err := page.Capture(); err != nil {
-				v.err = "Couldn't take a screenshot: " + err.Error()
-			} else {
-				o.Attach(png)
-			}
-		}
-		if o.ToCanvas != nil && navButton(c, icon.Canvas, "Put on a canvas", page != nil) {
-			if png, err := page.Capture(); err != nil {
-				v.err = "Couldn't take a screenshot: " + err.Error()
-			} else {
-				go func(u string) {
-					w := 0
-					if ev, ok := page.(Evaluator); ok {
-						ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
-						if n, err := ev.Eval(ctx, "window.innerWidth"); err == nil {
-							if f, ok := n.(float64); ok {
-								w = int(f)
-							}
-						}
-						cancel()
-					}
-					o.ToCanvas(png, u, w)
-				}(page.URL())
-			}
-		}
-		v.unslopButton(c, o, page)
-		more := widget.IconButton(c.Key("more"), icon.More, "More for the page", false)
-		v.more.OpenBelow(more, "more", theme.ControlHeight)
-		v.more.Show(c, more, "more", func(done func()) {
-			if page != nil && widget.MenuItem(c, icon.Code, "DevTools", false) {
-				page.ToggleDevTools()
-				done()
-			}
-			if (page != nil || v.port != 0) && widget.MenuItem(c, icon.External, "Open in browser", false) {
-				u := v.shown()
-				if u == "" {
-					u = v.origin + "/"
-				}
-				o.OpenURL(u)
-				done()
-			}
+		v.dockButton(c, o)
+		v.moreMenu(c, o, page)
+	})
+	if o.Docked {
+		ui.Row(c.Key("page-tools")).Height(40).Shrink(0).FillWidth().PaddingX(theme.S2).Gap(theme.S1).Clip().
+			BorderWidth(0, 0, theme.Rule, 0).BorderColor(theme.Border).Children(func() {
+			v.pageTools(c, o, page)
 		})
+	}
+}
+
+// dockButton moves the page between the side panel and a tab of its own.
+func (v *View) dockButton(c *ui.Context, o Options) {
+	if o.Dock == nil {
+		return
+	}
+	svg, label := icon.PanelRight, "Show in the side panel"
+	if o.Docked {
+		svg, label = icon.AppWindow, "Open as a page"
+	}
+	if widget.IconButton(c.Key("dock"), svg, label, false).Clicked() {
+		o.Dock(!o.Docked)
+	}
+}
+
+// pageTools are the port, the page's width, picking, screenshots and unslop.
+func (v *View) pageTools(c *ui.Context, o Options, page Page) {
+	if len(v.ports) > 1 {
+		v.portPicker(c, o)
+	}
+	v.sizeMenu(c)
+	v.pickButton(c, o, page)
+	if navButton(c, icon.Camera, "Screenshot", page != nil && o.Attach != nil) {
+		if png, err := page.Capture(); err != nil {
+			v.err = "Couldn't take a screenshot: " + err.Error()
+		} else {
+			o.Attach(png)
+		}
+	}
+	if o.ToCanvas != nil && navButton(c, icon.Canvas, "Put on a canvas", page != nil) {
+		if png, err := page.Capture(); err != nil {
+			v.err = "Couldn't take a screenshot: " + err.Error()
+		} else {
+			go func(u string) {
+				w := 0
+				if ev, ok := page.(Evaluator); ok {
+					ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+					if n, err := ev.Eval(ctx, "window.innerWidth"); err == nil {
+						if f, ok := n.(float64); ok {
+							w = int(f)
+						}
+					}
+					cancel()
+				}
+				o.ToCanvas(png, u, w)
+			}(page.URL())
+		}
+	}
+	v.unslopButton(c, o, page)
+}
+
+// moreMenu holds DevTools and Open in browser.
+func (v *View) moreMenu(c *ui.Context, o Options, page Page) {
+	more := widget.IconButton(c.Key("more"), icon.More, "More for the page", false)
+	v.more.OpenBelow(more, "more", theme.ControlHeight)
+	v.more.Show(c, more, "more", func(done func()) {
+		if page != nil && widget.MenuItem(c, icon.Code, "DevTools", false) {
+			page.ToggleDevTools()
+			done()
+		}
+		if (page != nil || v.port != 0) && widget.MenuItem(c, icon.External, "Open in browser", false) {
+			u := v.shown()
+			if u == "" {
+				u = v.origin + "/"
+			}
+			o.OpenURL(u)
+			done()
+		}
 	})
 }
 
