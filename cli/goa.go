@@ -35,7 +35,7 @@ const goaUsage = `usage: enowx-app goa COMMAND
       --title T        the task's title on the board; --yolo skips the worker's permission prompts
       --doc NOTE[#SECTION]
                        a Project Docs document: refused while its project's gate is closed, its words prepended to the prompt
-  task ID [--status working|waiting|done|failed|stopped] [--result TEXT]
+  task ID [--status done|failed|stopped] [--result TEXT]
                                    settle a task, or say where it stands
   report --outcome done|partly|nothing|blocked|refused|failed TEXT
                                    a session's report of its turn, whatever came of it
@@ -284,6 +284,13 @@ func (r runner) goaTask(args []string) error {
 		return errors.New("usage: enowx-app goa task ID [--status S] [--result TEXT]")
 	}
 	p.ID = words[0]
+	switch p.Status {
+	case "", proto.GOATaskDone, proto.GOATaskFailed, proto.GOATaskStopped:
+	default:
+		// Working and waiting are what its session says: set by hand, a task stayed open
+		// on an idle session and held its queue (issue #45).
+		return fmt.Errorf("goa task: a task is settled done, failed or stopped; %q is what its session says, not set by hand", p.Status)
+	}
 	var t proto.GOATask
 	if err := r.c.Call(proto.MethodGOATask, p, &t); err != nil {
 		return err

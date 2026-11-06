@@ -142,7 +142,7 @@ GOA's commands ([goa.md](goa.md)): a session handing tasks to others, on any hos
 |---|---|
 | `goa delegate [--session S \| --agent A --project P [--branch B]] [--host H] [--model M] [--effort E] [--config C] [--no-route] [--title T] [--yolo] PROMPT` | Hands a task to a session (`goa.delegate`): an existing one, its model and effort switched first, or a new one opened in P (added as a project). The judge's route picks the model and effort (a step cheaper near a token budget) unless given; prints the task, its model, effort and why. |
 | `goa board [--json]` | The tasks, each with its session and host, model and effort and why, status (working, waiting, done, failed, stopped), result, what it asks and whether that is the user's. |
-| `goa task ID [--status S] [--result TEXT]` | Settles a task, or says where it stands. |
+| `goa task ID [--status done\|failed\|stopped] [--result TEXT]` | Settles a task: done, failed or stopped. Working and waiting are what its session says. |
 | `goa remember [--kind task\|delegation\|outcome\|decision\|preference] TEXT` | Keeps it in GOA's own RAG collection, never a project's. |
 | `goa recall QUERY [--project P [--host H]]...` | Searches GOA's collection (by meaning once indexed, else by words), and projects' read-only. |
 | `goa stall [--blank D] [--idle D] [--stuck D]` | How long a task may not move before GOA is told, on this host ([goa.md](goa.md)); a limit given changes it: `90s`, `10m`, `1h`, or `0` for its default. |

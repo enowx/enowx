@@ -3,6 +3,7 @@ package ui
 import (
 	"slices"
 	"strings"
+	"time"
 
 	"github.com/egoist/mygo/plugins/terminal"
 	"github.com/egoist/mygo/ui"
@@ -26,6 +27,7 @@ type goaTab struct {
 	cl       *client.Client
 	term     *terminal.Terminal
 	stream   *client.Stream
+	size     *settledResize
 	err      string
 	closed   bool
 	// seen is the session as the view was last attached or looked at, and attaching
@@ -113,9 +115,10 @@ func (a *App) goaTabFollow(t *goaTab) {
 }
 
 func (a *App) attachGOATab(t *goaTab, st *client.Stream) {
+	sized := &settledResize{ReadWriteCloser: st, resize: st.ResizePixels}
 	term, err := terminal.New(terminal.Options{
 		Transparent:  true, // the view's own ground shows, as the slider has it
-		Conn:         &settledResize{ReadWriteCloser: st, resize: st.ResizePixels},
+		Conn:         sized,
 		ResizeByConn: true,
 		Theme:        theme.Terminal(),
 		DarkTheme:    theme.Terminal(),
@@ -128,8 +131,11 @@ func (a *App) attachGOATab(t *goaTab, st *client.Stream) {
 		t.err = err.Error()
 		return
 	}
-	st.OnResize = func(cols, rows int) { a.onMain(func() { term.Resize(cols, rows) }) }
-	t.term, t.stream = term, st
+	st.OnResize = func(cols, rows int) {
+		sized.Heard(cols, rows)
+		a.onMain(func() { term.Resize(cols, rows) })
+	}
+	t.term, t.stream, t.size = term, st, sized
 }
 
 // closeGOATab closes the view alone: the session runs on.
@@ -268,6 +274,7 @@ func (a *App) goaTabView(c *ui.Context, key string) {
 				ui.Text(c, "Connecting…").TextColor(theme.TextSoft)
 			})
 		default:
+			t.size.Shown(time.Now())
 			terminal.View(c.Key("goa-term:"+key), t.term).Grow(1).FillWidth().Background(theme.TermGround)
 		}
 	})

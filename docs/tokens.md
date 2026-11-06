@@ -13,6 +13,9 @@ Each agent is tracked by the best layer it allows, and the app says which (Token
 3. **Its screen.** With **Read the counts agents print** on, the screens of running agents that have no records and aren't metered are read for the lines agents print their counts in. Only Aider's line is known (`Tokens: 4.4k sent, … received`); no other agent here prints per-call counts.
 4. **None.** Shown as not tracked, never guessed.
 
+
+**OpenCode's database** (`opencode.db`, and Kilo Code's and MiMo Code's of the same kind) is read only while one of that agent's sessions runs, and once in the scan after it stops: the program writing it is never kept waiting by a read with nothing new. Each read is short: parts after the last one read, by their update time, 200 at a time, read-only with a one-second wait for a lock. OpenCode run outside enowX, with none of its sessions running, is counted when one next runs.
+
 ## What "tokens" means
 
 The headline **Tokens**, everywhere (the Usage page, a session's line, `enowx usage`, `usage_summary` and `usage_session`, token budgets), is **input + output + cache write**. **Cache read is shown beside it and never added**: it is the same context read again on every call, on one Mac 4.8B against 70M of the rest over a week. **Input** means new input, without the cache. **Cost still prices every type**, cache read included.

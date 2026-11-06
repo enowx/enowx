@@ -86,6 +86,10 @@ There is no limit on workers; rate limits fall to accounts' fallback ([accounts.
 
 **A task's to-dos.** `goa delegate --note NOTE --items "one\nper line"` shows the worker the to-dos its task finishes, with the rule to tick each in the same turn as its commit. Settling the task done doesn't tick them: it says which aren't ticked (`Open` on the board), as a to-do done but not committed is the worker's to say. GOA never tells a worker to leave a to-do open.
 
+**A task for a session with one open.** It is queued while the session is really at work or asking, and its reason names the task that holds it and how to settle it (`goa task ID --status done|failed|stopped`). A session not at work whose screen has been still past the idle limit (`stall` limits; for an agent whose hooks said its turn ended, the 20 seconds a queued task waits) has its one open task marked turn-ended, GOA told so, and the new task goes in. An agent without hooks says nothing of its turns, so only that whole limit counts for it.
+
+**GOA settles tasks; it doesn't set them at work.** `goa task` and `goa_task` take done, failed or stopped: working and waiting are what a task's session says, and one set at work by hand held its session's queue though the session was idle.
+
 **Which session a project's task goes to** (`goa.PickSession`): an agent's session of its own in the project's folder, not in a worktree, whose branch is another task's; the user's, not a teammate's; of `--agent` when given, and the same `--config` when given. Not one working, asking the user, or with an open task on the board, and not a running one of an agent without hooks, as it may be working unseen. Of those, a running one first, then a hibernated one, then one that ended; among equals, the newest. With none, a new session. A running session keeps its own config when the judge's route names another provider's. An agent that quit to the shell in its terminal counts as running, as the daemon can't tell it from one at rest.
 
 ## Every session reports to GOA

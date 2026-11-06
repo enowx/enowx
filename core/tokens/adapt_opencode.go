@@ -88,24 +88,47 @@ func (s opencodeStep) call(m opencodeMessage, at time.Time) (Call, bool) {
 		Input: t.Input, CacheRead: t.Cache.Read, CacheWrite: t.Cache.Write, Output: t.Output + t.Reasoning, Reasoning: t.Reasoning}, true
 }
 
+// opencodePage is how many parts one read of OpenCode's database takes: each read is a
+// short statement, so the database's own writers never wait on it long (issue #47).
+var opencodePage = 200
+
+// readOpenCode reads the step parts written since st's mark, a page at a time, in the
+// order they were written: by time_updated, then id, as several parts share a time. Only
+// read, with a short wait for a lock, never holding one between pages.
 func readOpenCode(path string, st *FileState) ([]Call, error) {
 	if strings.HasSuffix(path, ".json") {
 		return readOpenCodeFile(path)
 	}
-	db, err := sql.Open("sqlite", "file:"+path+"?mode=ro&_pragma=busy_timeout(3000)")
+	db, err := sql.Open("sqlite", "file:"+path+"?mode=ro&_pragma=busy_timeout(1000)")
 	if err != nil {
 		return nil, err
 	}
 	defer db.Close()
-	// A step's part is written once its call is done; those written
-	// since the last read.
+	db.SetMaxOpenConns(1)
+	var out []Call
+	for {
+		n, calls, err := readOpenCodePage(db, st)
+		if err != nil {
+			return out, err
+		}
+		out = append(out, calls...)
+		if n < opencodePage {
+			return out, nil
+		}
+	}
+}
+
+// readOpenCodePage reads one page of parts after st's mark, moving the mark past them.
+func readOpenCodePage(db *sql.DB, st *FileState) (int, []Call, error) {
 	rows, err := db.Query(`SELECT p.id, p.session_id, p.time_created, p.time_updated, p.data, m.data
 		FROM part p JOIN message m ON m.id = p.message_id
-		WHERE p.time_updated > ? AND p.data LIKE '%step-finish%' ORDER BY p.time_updated`, st.Mark)
+		WHERE p.time_updated > ? OR (p.time_updated = ? AND p.id > ?)
+		ORDER BY p.time_updated, p.id LIMIT ?`, st.Mark, st.Mark, st.MarkID, opencodePage)
 	if err != nil {
-		return nil, err
+		return 0, nil, err
 	}
 	defer rows.Close()
+	n := 0
 	var out []Call
 	for rows.Next() {
 		var id, session, part, message string
@@ -113,10 +136,14 @@ func readOpenCode(path string, st *FileState) ([]Call, error) {
 		if rows.Scan(&id, &session, &created, &updated, &part, &message) != nil {
 			continue
 		}
-		st.Mark = max(st.Mark, updated)
+		n++
+		st.Mark, st.MarkID = updated, id
 		var s opencodeStep
+		if json.Unmarshal([]byte(part), &s) != nil || s.Type != "step-finish" {
+			continue
+		}
 		var m opencodeMessage
-		if json.Unmarshal([]byte(part), &s) != nil || json.Unmarshal([]byte(message), &m) != nil {
+		if json.Unmarshal([]byte(message), &m) != nil {
 			continue
 		}
 		s.ID, s.SessionID = cmp.Or(s.ID, id), cmp.Or(s.SessionID, session)
@@ -124,7 +151,7 @@ func readOpenCode(path string, st *FileState) ([]Call, error) {
 			out = append(out, c)
 		}
 	}
-	return out, rows.Err()
+	return n, out, rows.Err()
 }
 
 // readOpenCodeFile reads a step part of the older layout, its message

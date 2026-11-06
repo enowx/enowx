@@ -37,8 +37,8 @@ var goaTools = []mcpTool{
 			}
 			return append(withFlag(args, a, "no_route", "no-route"), "--", str(a, "prompt"))
 		}},
-	{name: "goa_task", description: "Settle a task on the board, or say where it stands: its status (working, waiting, done, failed, stopped) and result.",
-		props:    map[string]mcpProp{"id": {"string", "The task's ID"}, "status": {"string", "working, waiting, done, failed or stopped"}, "result": {"string", "What came of it, in a line or two"}},
+	{name: "goa_task", description: "Settle a task on the board: done, failed or stopped, with its result. Working and waiting are what its session says, not set by hand.",
+		props:    map[string]mcpProp{"id": {"string", "The task's ID"}, "status": {"string", "done, failed or stopped"}, "result": {"string", "What came of it, in a line or two"}},
 		required: []string{"id"},
 		args: func(a map[string]any) []string {
 			return withFlag(withFlag([]string{"task", str(a, "id")}, a, "status", "status"), a, "result", "result")
