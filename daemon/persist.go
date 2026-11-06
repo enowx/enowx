@@ -425,6 +425,11 @@ func (s *Server) resumeSessionIn(id, convo, mode string) (*session.Session, erro
 	if !info.Exited {
 		return nil, errors.New(errStillRunning)
 	}
+	if meta.GOA {
+		if err := s.goaResumeAllowed(id); err != nil {
+			return nil, err
+		}
+	}
 	keepBypass(&meta)
 	if sess.QuickExits() >= quickExitsMax {
 		return nil, fmt.Errorf("it ended right after starting %d times in a row, so enowX won't start it again by itself: %s", quickExitsMax, info.ExitWhy)
