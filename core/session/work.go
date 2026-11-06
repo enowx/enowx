@@ -169,6 +169,13 @@ func (s *Session) QuickExits() int {
 	return s.quickExits
 }
 
+// ForgetQuickExits lets session s start again whatever ended before: the user asked for it.
+func (m *Manager) ForgetQuickExits(s *Session) {
+	s.mu.Lock()
+	s.quickExits = 0
+	s.mu.Unlock()
+}
+
 // SetModel records what session s's agent last said it runs on.
 func (m *Manager) SetModel(s *Session, model, effort, started string, moved bool) {
 	s.mu.Lock()

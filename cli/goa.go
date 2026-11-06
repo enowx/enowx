@@ -50,6 +50,7 @@ const goaUsage = `usage: enowx-app goa COMMAND
   flags                            what a GOA only watched did itself
   start [--agent A]                start GOD of Agents on this host
   switch [--agent A] [--config NAME|official] [--check] [--new-conversation] [--force]
+  restart [--check] [--force] [--new-conversation]   GOA again on its agent and config, its conversation going on
                                    what GOA runs on; change it, restarting GOA: a config keeps its conversation (or GOA stays as it was), an agent starts a new one`
 
 // goaReport is a session reporting how its turn ended, to its own host's daemon.
@@ -120,6 +121,8 @@ func (r runner) goaCmd(args []string) error {
 		return r.goaFlags()
 	case "start":
 		return r.goaStart(rest)
+	case "restart":
+		return r.goaRestart(rest)
 	case "switch":
 		return r.goaSwitch(rest)
 	}

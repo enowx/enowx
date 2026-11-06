@@ -224,7 +224,15 @@ type GOASwitchResult struct {
 	Mode string `json:"mode,omitempty"`
 	// Note is what the user should know of the config: what GOA doesn't take of it.
 	Note string `json:"note,omitempty"`
+	// Unresumable says why a restart can't go on with the conversation GOA was on: it
+	// starts on a new one only with NewConversation (MethodGOARestart).
+	Unresumable string `json:"unresumable,omitempty"`
 }
+
+// MethodGOARestart restarts this host's GOA on its agent and config, going on with its
+// conversation: GOASwitchParams (Agent and Config unused) → GOASwitchResult. At work it
+// needs Force; a conversation it can't go on with, NewConversation, Unresumable saying why.
+const MethodGOARestart = "goa.restart"
 
 // MethodGOAWake waits for lines for GOD of Agents, for its idle agent's background hook:
 // GOAWakeParams → GOAWakeReply, Text "" when a later hook took over or the session ended.

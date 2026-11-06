@@ -76,6 +76,13 @@ var goaTools = []mcpTool{
 			}
 			return withFlag(args, a, "new_conversation", "new-conversation")
 		}},
+	{name: "goa_restart", description: "Restart GOD of Agents on its agent and config, going on with its conversation, for the user (GOA can't restart itself). At work it needs force; a conversation it can't go on with, new_conversation, and says why.",
+		props: map[string]mcpProp{"check": {"boolean", "Only say what the restart would do"}, "force": {"boolean", "The user agreed to cut off what GOA is at"},
+			"new_conversation": {"boolean", "The user agreed that GOA starts on a new conversation"}},
+		args: func(a map[string]any) []string {
+			args := withFlag(withFlag([]string{"restart"}, a, "check", "check"), a, "force", "force")
+			return withFlag(args, a, "new_conversation", "new-conversation")
+		}},
 	{name: "goa_agents", description: "The agents GOD of Agents can run on here, and how far each holds it to delegating: enforced, limited or watched.",
 		args: func(map[string]any) []string { return []string{"agents"} }},
 }

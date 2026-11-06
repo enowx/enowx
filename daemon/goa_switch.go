@@ -112,6 +112,17 @@ func (s *Server) goaReleaseLines() {
 // goaPlanSwitch settles what p changes and says if it can't be done. It changes nothing,
 // and asks the vault for nothing, as it is also what the app asks at each pick.
 func (s *Server) goaPlanSwitch(sess *session.Session, p proto.GOASwitchParams) (goaSwitchPlan, error) {
+	plan, err := s.goaPlanRun(sess, p, false)
+	if err != nil || plan.toAgent {
+		return plan, err
+	}
+	plan.conversation, plan.convo, err = s.goaConversationFor(sess, plan.account)
+	return plan, err
+}
+
+// goaPlanRun is goaPlanSwitch but for the conversation: what it runs on, checked. restart:
+// the user asks it to start again, whatever ended right after starting before.
+func (s *Server) goaPlanRun(sess *session.Session, p proto.GOASwitchParams, restart bool) (goaSwitchPlan, error) {
 	meta := sess.Meta()
 	id := nonEmpty(p.Agent, meta.Agent)
 	preset, err := s.goaAgentReady(id)
@@ -134,18 +145,23 @@ func (s *Server) goaPlanSwitch(sess *session.Session, p proto.GOASwitchParams) (
 	}
 	plan.next = goaNextMeta(meta, preset.ID, plan.account, s.accounts)
 	plan.note = goaConfigNote(plan.account)
-	if sess.QuickExits() >= quickExitsMax {
+	if !restart && sess.QuickExits() >= quickExitsMax {
 		return goaSwitchPlan{}, fmt.Errorf("goa: it ended right after starting %d times in a row: start it again first", quickExitsMax)
 	}
-	if plan.toAgent {
-		return plan, nil
-	}
-	if !meta.Relaunch {
+	if !plan.toAgent && !meta.Relaunch {
 		return goaSwitchPlan{}, errors.New("goa: this GOD of Agents' command can't be started again")
 	}
-	plan.conversation, plan.convo, err = s.goaConversationFor(sess, plan.account)
-	return plan, err
+	return plan, nil
 }
+
+// errGOAConversation is what a conversation GOA can't go on with is: a new one gets around it.
+var errGOAConversation = errors.New("goa: its conversation can't be gone on with")
+
+// goaConversationError is an error of errGOAConversation, saying why.
+type goaConversationError struct{ text string }
+
+func (e goaConversationError) Error() string        { return e.text }
+func (e goaConversationError) Is(target error) bool { return target == errGOAConversation }
 
 // goaConfigOf is the config asked for of agent id: by ID or name, the official one by that
 // word; none asked, the one it runs on (the same agent) or the preferred (another).
@@ -232,12 +248,12 @@ func (s *Server) goaConversationFor(sess *session.Session, c proto.Account) (how
 	path := s.transcriptPath(sess.ID())
 	if path == "" {
 		if meta.Conversation != "" {
-			return "", "", fmt.Errorf("goa: its conversation %s can't be found, so no config can go on with it: GOD of Agents keeps running as it was", meta.Conversation)
+			return "", "", goaConversationError{fmt.Errorf("goa: its conversation %s can't be found, so no config can go on with it: GOD of Agents keeps running as it was", meta.Conversation).Error()}
 		}
 		return proto.GOAConversationNone, "", nil
 	}
 	if convo = transcript.ForkID(meta.Agent, path); convo == "" {
-		return "", "", fmt.Errorf("goa: %s doesn't say which conversation it is on, so another config can't go on with it: GOD of Agents keeps running as it was", agentName(meta.Agent))
+		return "", "", goaConversationError{fmt.Errorf("goa: %s doesn't say which conversation it is on, so another config can't go on with it: GOD of Agents keeps running as it was", agentName(meta.Agent)).Error()}
 	}
 	if err := s.goaConfigReaches(meta.Agent, c, path); err != nil {
 		return "", "", err
@@ -272,7 +288,7 @@ func (s *Server) goaConfigReaches(id string, c proto.Account, path string) error
 		return nil
 	}
 	if _, err := os.Stat(filepath.Join(home, rel)); err != nil {
-		return fmt.Errorf("goa: %s keeps conversations apart and doesn't have this one, so it can't go on with it: GOD of Agents keeps running as it was", c.Name)
+		return goaConversationError{fmt.Errorf("goa: %s keeps conversations apart and doesn't have this one, so it can't go on with it: GOD of Agents keeps running as it was", c.Name).Error()}
 	}
 	return nil
 }
