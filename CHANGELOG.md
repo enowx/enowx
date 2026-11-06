@@ -2,6 +2,19 @@
 
 Each version's section is also what the app's update dialog shows.
 
+## 0.7.1
+
+Three fixes from @sicknewbie's reports on Windows 11 with OpenCode: a terminal drawn in a corner after another view, GOD of Agents queueing tasks for an idle session, and enowX's reads of OpenCode's database.
+
+- **A terminal no longer stays drawn in a corner after another view of its session** ([#44](https://github.com/enowdev/enowx/issues/44)). A session can be shown in two places at once, such as a GOD of Agents tab and the Canvas page's agent panel, and whichever resized it last set its size. Going back to the first view didn't ask for its size again, so the agent kept drawing at the other's until the window was resized. A view that comes back into sight now asks for its size again.
+- **GOD of Agents no longer queues tasks behind an idle session's stale task** ([#45](https://github.com/enowdev/enowx/issues/45)). A task GOA set back to working, or whose turn's end went unheard on an agent without hooks such as OpenCode, stayed open on an idle session, and every next task was queued behind it. A session not at work whose screen has been still past the idle limit now has that task marked turn-ended, GOA is told to settle it, and the new task goes in. A queue names the task holding it and how to settle it, and `goa task` takes only done, failed or stopped.
+- **enowX reads OpenCode's database briefly, and only while it runs** ([#47](https://github.com/enowdev/enowx/issues/47)). Its token counts were read every 20 seconds, one long statement over every part, whether or not OpenCode ran. They are now read 200 parts at a time, read-only with a one-second wait for a lock, only while an OpenCode session runs and once just after. OpenCode reported its own writes timing out on a locked database; several OpenCode processes still share it, so this lightens enowX's part only.
+
+### What has been tested
+
+- Each fix has tests that run on Linux and in CI, and the token counts read in pages match those read whole.
+- **Not verified on Windows, where all three were reported, nor with a real OpenCode 1.18.** If one comes back, the diagnostics bundle (`enowx-app diagnostics --bundle FILE`) helps.
+
 ## 0.7.0
 
 Claude Platform, enowX's own agent; Project Docs; the community library at https://ui.enowx.ai; Claude Code now always running in bypass; a fifth of the scrollback; and much less memory for the app and the daemon.
