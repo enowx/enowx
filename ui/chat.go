@@ -51,11 +51,32 @@ func (a *App) toggleChat(s proto.SessionInfo) {
 // showsChat says session id shows as a chat: as the user last chose, and an agent whose
 // chat is its main face from the start.
 func (a *App) showsChat(id string) bool {
-	if on, chose := a.state.Chats[id]; chose {
+	s, ok := a.sessionByID(id)
+	on, chose := a.state.Chats[id]
+	return chatShown(s, ok, on, chose)
+}
+
+// chatShown says session s (known: it is in the list) shows its chat: as the user chose
+// (on, chose), else its agent's way. Never for an agent without a chat: one chosen while
+// another agent ran it showed an empty view, the toggle back hidden with it (issue #49).
+func chatShown(s proto.SessionInfo, known, on, chose bool) bool {
+	switch {
+	case known && !canChat(s):
+		return false
+	case chose:
 		return on
 	}
-	s, ok := a.sessionByID(id)
-	return ok && chatview.OwnChat(s.Agent)
+	return known && chatview.OwnChat(s.Agent)
+}
+
+// forgetViewsOf drops what was chosen for session info's views that its agent, new to
+// it, doesn't have: a chat. Its terminal stays. It reports whether anything went.
+func (a *App) forgetViewsOf(info proto.SessionInfo) bool {
+	if _, chose := a.state.Chats[info.ID]; !chose || canChat(info) {
+		return false
+	}
+	delete(a.state.Chats, info.ID)
+	return true
 }
 
 // chatView draws the chat in place of the terminal.
