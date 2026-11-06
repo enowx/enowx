@@ -68,6 +68,7 @@ func main() {
 	if !takeLinks() {
 		return // the app already running got this launch's link
 	}
+	endOlderInstances() // an update's leftovers, before the daemon is reached
 
 	memtune.Start(nil) // for the app; a daemon of this program starts its own in Run
 	remote := flag.String("remote", "", "open the server at `user@host[:port]` over SSH")

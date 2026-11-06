@@ -60,6 +60,9 @@ type Options struct {
 	// Kept, if set, is told a daemon of another version was left running, and what
 	// replacing it would stop.
 	Kept func(info proto.DaemonInfo, plan proto.RestartPlan)
+	// Newer, if set, is told the daemon is of a newer version than this app, left as it
+	// is: an app the update left running mustn't take it back (issue #49).
+	Newer func(info proto.DaemonInfo)
 	// Password gives the SSH password of hosts with PasswordAuth.
 	Password func(hosts.Host) (string, error)
 	// Passphrase is asked for the passphrase of an SSH key the server
@@ -139,7 +142,15 @@ func connectLocal(opts Options) (*client.Client, error) {
 		c.Close()
 		return nil, err
 	}
-	if info.Version == version.String && info.Build == version.Build() {
+	switch daemonFits(info, version.String, version.Build()) {
+	case daemonSame:
+		return c, nil
+	case daemonNewer:
+		// An app older than the daemon steps aside: replacing it would undo an update,
+		// and the newer app would replace it back, over and over.
+		if opts.Newer != nil {
+			opts.Newer(info)
+		}
 		return c, nil
 	}
 	if len(opts.DaemonCommand) == 0 {
@@ -163,6 +174,24 @@ func connectLocal(opts Options) (*client.Client, error) {
 		return nil, err
 	}
 	return dial()
+}
+
+// How a running daemon fits this app.
+const (
+	daemonSame  = iota // this version and build: use it
+	daemonOther        // older, or another build of this version: replace it
+	daemonNewer        // newer than this app: leave it
+)
+
+// daemonFits says how a daemon of info fits an app of version and build.
+func daemonFits(info proto.DaemonInfo, v, build string) int {
+	switch {
+	case info.Version == v && info.Build == build:
+		return daemonSame
+	case version.Older(v, info.Version):
+		return daemonNewer
+	}
+	return daemonOther
 }
 
 // keepBusyDaemon says the daemon c reaches stays, replacing it being something to ask
