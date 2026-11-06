@@ -94,10 +94,15 @@ func (s *Server) goaDelegate(p proto.GOADelegateParams) (proto.GOATask, error) {
 		}
 		t.Woken = woken
 		s.goaSkipOn(p, target)
+		// Idle past the limit with only an old task open: that task is over, whatever
+		// the board still says, and this one goes in.
+		if old, ok := s.goaStaleWork(target, time.Now()); !t.Woken && ok {
+			s.goaEndStale(old, "the new task", time.Since(time.UnixMilli(target.FinishedAt)))
+		}
 		// Busy: it takes the task at its turn's end, in order (goaDeliver).
 		if !t.Woken && (goa.Busy(target) || s.goaOpenTask(t.Session)) {
 			t.Status = proto.GOATaskQueued
-			t.Why = strings.TrimSpace(t.Why + " Queued: its session is busy, and gets it when its turn ends.")
+			t.Why = strings.TrimSpace(t.Why + s.goaQueueHolder(t.Session))
 		}
 		if t.Status == proto.GOATaskQueued {
 			return s.goaAddTask(p, t, target)
